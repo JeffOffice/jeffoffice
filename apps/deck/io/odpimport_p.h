@@ -114,7 +114,7 @@ public:
     struct Common {
         QHash<QString, StyleDef> styles;               // by family and name
         QHash<QString, StyleDef> defaults;             // by family
-        QHash<QString, QDomElement> lists, gradients, hatches, images, dashes, markers, opacities, pageLayouts;
+        QHash<QString, QDomElement> lists, gradients, hatches, images, dashes, markers, opacities, pageLayouts, dataStyles;
         QHash<QString, QString> fonts;                 // font-face name -> family
     };
     explicit StyleSheet(std::shared_ptr<Common> common = std::make_shared<Common>()) : m_common(std::move(common)) {}
@@ -137,6 +137,7 @@ public:
     QDomElement marker(const QString &name) const { return lookup(&Common::markers, m_markers, name); }
     QDomElement opacity(const QString &name) const { return lookup(&Common::opacities, m_opacities, name); }
     QDomElement pageLayout(const QString &name) const { return lookup(&Common::pageLayouts, m_pageLayouts, name); }
+    QDomElement dataStyle(const QString &name) const { return lookup(&Common::dataStyles, m_dataStyles, name); }
     QString fontFamily(const QString &faceName) const;
     const std::shared_ptr<Common> &common() const { return m_common; }
 
@@ -154,7 +155,7 @@ private:
 
     std::shared_ptr<Common> m_common;
     QHash<QString, StyleDef> m_styles;                 // the automatic ones, by family and name
-    Map m_lists, m_gradients, m_hatches, m_images, m_dashes, m_markers, m_opacities, m_pageLayouts;
+    Map m_lists, m_gradients, m_hatches, m_images, m_dashes, m_markers, m_opacities, m_pageLayouts, m_dataStyles;
 };
 
 // ---- the shapes of a drawing that are not the library's

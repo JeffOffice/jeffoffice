@@ -251,6 +251,11 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
     // Slide Number: on or off, its place, and not on the title slide.
     parts.menus[QStringLiteral("slideNumberMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
+        // While a text box is being edited the number can be put into its text, as a field.
+        QAction *inText = act("insert.slideNumberField");
+        m->addAction(inText);
+        connect(m, &QMenu::aboutToShow, inText, [this, inText] { inText->setEnabled(m_ed->isEditingText()); });
+        m->addSeparator();
         m->addAction(act("insert.slideNumberOn"));
         m->addSeparator();
         for (const char *id : {"topLeft", "topCenter", "topRight", "bottomLeft", "bottomCenter", "bottomRight"}) m->addAction(act((QByteArray("insert.slideNumberPlace.") + id).constData()));

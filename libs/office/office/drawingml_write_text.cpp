@@ -8,6 +8,7 @@
 
 #include "office/drawingml_write_util.h"
 #include "office/xml.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QDate>
@@ -192,23 +193,36 @@ const DateField kDateFields[] = {
     {"datetime13", "time:h:mm:ss AP"}};
 
 // A field as a:fld: its type and the text it shows now; false for a field the standard has no type for.
-bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat &cf, DrawingWriteContext &ctx)
+bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat &cfIn, DrawingWriteContext &ctx)
 {
     QString type, shown;
+    QTextCharFormat cf = cfIn;
     if (code == QLatin1String("page")) {
         type = QStringLiteral("slidenum");
         shown = QStringLiteral("\u2039#\u203A");
     } else {
-        const QString kind = code.section(QLatin1Char(':'), 0, 0), format = code.section(QLatin1Char(':'), 1);
+        const DateFieldCode dc = splitDateFieldCode(code);
+        const QString kind = dc.kind;
         if (kind != QLatin1String("date") && kind != QLatin1String("time") && kind != QLatin1String("datetime")) return false;
-        for (const DateField &d : kDateFields)
-            if (code == QLatin1String(d.code)) type = QLatin1String(d.type);
+        const QString format = dc.format;
+        // The type whose layout (in the field's language) is the field's.
+        for (const DateField &d : kDateFields) {
+            QString own = dateFieldTypeFormat(QLatin1String(d.type), dc.language);
+            if (dc.language.section(QLatin1Char('-'), 0, 0).toLower() == QLatin1String("en")) own.clear();
+            if (own.isEmpty()) own = QString::fromLatin1(d.code).section(QLatin1Char(':'), 1);
+            if (!format.isEmpty() && format == own) {
+                type = QLatin1String(d.type);
+                break;
+            }
+        }
         // A layout the standard has no type for is the nearest: the one for a date, a time, or both.
-        if (type.isEmpty()) type = kind == QLatin1String("date") ? QStringLiteral("datetime1") : kind == QLatin1String("time") ? QStringLiteral("datetime12") : QStringLiteral("datetime8");
-        const QDateTime now = QDateTime::currentDateTime();
-        shown = kind == QLatin1String("date") ? now.date().toString(format.isEmpty() ? QStringLiteral("M/d/yyyy") : format)
-              : kind == QLatin1String("time") ? now.time().toString(format.isEmpty() ? QStringLiteral("h:mm AP") : format)
-                                              : now.toString(format.isEmpty() ? QStringLiteral("M/d/yyyy h:mm AP") : format);
+        if (type.isEmpty()) {
+            const QString shape = dateFieldKindOf(format.isEmpty() ? (kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : kind == QLatin1String("date") ? QStringLiteral("M/d/yyyy") : QStringLiteral("M/d/yyyy h:mm AP")) : format);
+            type = shape == QLatin1String("date") ? QStringLiteral("datetime1") : shape == QLatin1String("time") ? QStringLiteral("datetime12") : QStringLiteral("datetime8");
+        }
+        if (!dc.language.isEmpty()) cf.setProperty(tp::Language, dc.language);
+        shown = dateFieldText(kind, format.isEmpty() ? (kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : kind == QLatin1String("date") ? QStringLiteral("M/d/yyyy") : QStringLiteral("M/d/yyyy h:mm AP")) : format,
+                              dc.language, QDateTime::currentDateTime());
     }
     begin(w, "a:fld");
     attribute(w, "id", QUuid::createUuid().toString(QUuid::WithBraces).toUpper());

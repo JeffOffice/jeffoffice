@@ -139,6 +139,154 @@ private Q_SLOTS:
         QCOMPARE(story->toPlainText(), QStringLiteral("aA") + shown + QStringLiteral("b"));
     }
 
+    // The text of a story's first field code.
+    static QString fieldCodeIn(const QTextDocument *story)
+    {
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (const QString code = it.fragment().charFormat().stringProperty(tp::Field); !code.isEmpty()) return code;
+        return QString();
+    }
+    // What the first line of a slide's text box shows, drawn where the slide now is.
+    static QString shownIn(Editor *ed, const QString &itemId)
+    {
+        for (int page = 0; page < ed->doc()->pages.size(); ++page)
+            for (const ItemPtr &it : ed->doc()->pages[page]->items)
+                if (it->id == itemId) {
+                    LayoutCache cache;
+                    const auto fl = cache.textFrame(*ed->doc(), static_cast<const TextItem &>(*it), page + 1, ed->renderOptions());
+                    if (!fl.layout) return QString();
+                    const auto lines = fl.layout->lineInfo(fl.frame);
+                    return lines.isEmpty() ? QString() : lines[0].text;
+                }
+        return QString();
+    }
+
+    // Insert > Slide Number > Slide Number in Text puts a field into the box being edited (one step that undoes); it shows the number of its slide, follows the slide when it moves,
+    // and is kept as the standard's slide number field in .pptx and as the page number in .odp. With no box being edited it puts in nothing.
+    void slideNumberGoesIntoTheBoxBeingEditedAsAField()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        ed->setCurrentPage(1);
+        // (An undo gives back the whole presentation: the box and its story are found again by their names.)
+        const QString boxId = ed->doc()->pages[1]->items[0]->id, storyId = static_cast<TextItem *>(ed->doc()->pages[1]->items[0].get())->storyId;
+        auto code = [&] { return fieldCodeIn(ed->doc()->storyDoc(storyId)); };
+        w.act(QStringLiteral("insert.slideNumberField"))->trigger();
+        QVERIFY(code().isEmpty());
+        ed->select(boxId);
+        ed->beginTextEdit(boxId, 0);
+        w.act(QStringLiteral("insert.slideNumberField"))->trigger();
+        QCOMPARE(code(), QStringLiteral("page"));
+        QCOMPARE(shownIn(ed, boxId), QStringLiteral("2"));
+        ed->undo();
+        QVERIFY(code().isEmpty());
+        ed->redo();
+        QCOMPARE(code(), QStringLiteral("page"));
+        // Both file kinds keep it as a field, which shows the number again when the file is opened.
+        QString err;
+        const QByteArray pptx = deck::exportPresentation(*ed->doc(), &err);
+        Exported e;
+        QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide2.xml")).contains(QStringLiteral("type=\"slidenum\"")));
+        const QByteArray odp = deck::exportOdp(*ed->doc(), false, &err);
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+        QVERIFY(zip.value(QStringLiteral("content.xml")).contains("<text:page-number"));
+        for (int kind = 0; kind < 2; ++kind) {
+            auto back = kind == 0 ? deck::importPresentation(pptx, &err) : deck::importOdp(odp, &err);
+            QVERIFY2(back, qPrintable(err));
+            const auto &t = static_cast<const TextItem &>(*back->pages[1]->items[0]);
+            QCOMPARE(fieldCodeIn(back->storyDoc(t.storyId)), QStringLiteral("page"));
+        }
+        // The slide moves, and the number with it.
+        ed->movePage(1, 0);
+        QCOMPARE(shownIn(ed, boxId), QStringLiteral("1"));
+        ed->movePage(0, 2);
+        QCOMPARE(shownIn(ed, boxId), QStringLiteral("3"));
+    }
+
+    // The Date and Time dialog has a Language list (German and Japanese among them), shows the formats in that language, and the field it makes keeps the language: shown in it, and kept in
+    // .pptx (the field's lang) and .odp (the date style's language). Without Update automatically the text is put in as it is.
+    void dateAndTimeInAGivenLanguageKeepsItInAField()
+    {
+        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));
+        // Chooses the language and format in the dialog of a window whose title is being edited, and returns the text of the first format in the list too.
+        auto insert = [&](DeckWindow &w, const QString &tag, const QString &format, bool update, QStringList *languages = nullptr, QString *listed = nullptr) {
+            withDialog([&] { w.act(QStringLiteral("insert.dateTime"))->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *d) {
+                auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"));
+                auto *formats = d->findChild<QListWidget *>(QStringLiteral("dateFormats"));
+                QVERIFY(language && formats);
+                if (languages)
+                    for (int i = 0; i < language->count(); ++i) *languages << language->itemData(i).toString();
+                language->setCurrentIndex(language->findData(tag));
+                int row = -1;
+                for (int i = 0; i < formats->count(); ++i)
+                    if (formats->item(i)->data(Qt::UserRole).toString() == format) row = i;
+                QVERIFY2(row >= 0, qPrintable(format));
+                formats->setCurrentRow(row);
+                if (listed) *listed = formats->item(row)->text();
+                d->findChild<QCheckBox *>(QStringLiteral("dateUpdate"))->setChecked(update);
+            });
+        };
+        const struct { const char *tag, *weekday; } cases[] = {{"de-DE", "Dienstag"}, {"ja-JP", "\u706B\u66DC\u65E5"}};
+        for (const auto &c : cases) {
+            const QString tag = QString::fromUtf8(c.tag), weekday = QString::fromUtf8(c.weekday);
+            // The names are in the language: in the list, and in the field.
+            {
+                DeckWindow w;
+                QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+                QStringList languages;
+                QString listed;
+                insert(w, tag, QStringLiteral("dddd, MMMM d, yyyy"), true, &languages, &listed);
+                QVERIFY(languages.contains(QStringLiteral("de-DE")) && languages.contains(QStringLiteral("ja-JP")) && languages.contains(QStringLiteral("en-US")));
+                QVERIFY2(listed.contains(weekday), qPrintable(listed));
+                QCOMPARE(fieldCodeIn(story), QStringLiteral("datetime:dddd, MMMM d, yyyy|") + tag);
+                FieldContext ctx;
+                ctx.now = moment;
+                QVERIFY2(ctx.resolve(fieldCodeIn(story)).contains(weekday), qPrintable(ctx.resolve(fieldCodeIn(story))));
+            }
+            // The language's own long date is a format of the file kinds, and comes back from both.
+            DeckWindow w;
+            QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+            const QString own = QLocale(tag).dateFormat(QLocale::LongFormat);
+            insert(w, tag, own, true);
+            const QString code = fieldCodeIn(story);
+            QCOMPARE(code, QStringLiteral("datetime:") + own + QLatin1Char('|') + tag);
+            QString err;
+            const QByteArray pptx = deck::exportPresentation(*w.editor()->doc(), &err);
+            Exported e;
+            QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            QVERIFY2(slide.contains(QStringLiteral("lang=\"%1\"").arg(tag)) && slide.contains(QStringLiteral("type=\"datetime2\"")), qPrintable(slide));
+            const QByteArray odp = deck::exportOdp(*w.editor()->doc(), false, &err);
+            QMap<QString, QByteArray> zip;
+            QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+            QVERIFY(zip.value(QStringLiteral("content.xml")).contains(QStringLiteral("number:language=\"%1\"").arg(tag.section(QLatin1Char('-'), 0, 0)).toUtf8()));
+            for (int kind = 0; kind < 2; ++kind) {
+                auto back = kind == 0 ? deck::importPresentation(pptx, &err) : deck::importOdp(odp, &err);
+                QVERIFY2(back, qPrintable(err));
+                const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
+                // (The standard's kinds say a date, a time, or both: the kind may come back as the one that fits, and shows the same.)
+                const QString read = fieldCodeIn(back->storyDoc(t.storyId));
+                QCOMPARE(splitDateFieldCode(read).format, splitDateFieldCode(code).format);
+                QVERIFY2(splitDateFieldCode(read).language == tag, qPrintable(QString::fromLatin1(kind == 0 ? "pptx " : "odp ") + read));
+                FieldContext ctx;
+                ctx.now = moment;
+                QCOMPARE(ctx.resolve(read), ctx.resolve(code));
+            }
+        }
+        // Not updated: the text, in the language.
+        DeckWindow w;
+        QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+        const QString format = QLocale(QStringLiteral("de-DE")).dateFormat(QLocale::ShortFormat);
+        insert(w, QStringLiteral("de-DE"), format, false);
+        QVERIFY(fieldCodeIn(story).isEmpty());
+        QCOMPARE(story->toPlainText(), QStringLiteral("x") + QLocale(QStringLiteral("de-DE")).toString(QDate::currentDate(), format));
+    }
+
     // Insert > Link (Ctrl+K) makes the selected text a link to the address typed.
     void hyperlinkLinksTheSelectedText()
     {

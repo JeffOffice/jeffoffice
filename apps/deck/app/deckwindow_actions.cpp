@@ -220,6 +220,8 @@ void DeckWindow::createFormatActions()
 void DeckWindow::createInsertActions()
 {
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
+    // Slide Number in the text being edited: a field that shows the number of the slide it is on, and follows the slide when it moves.
+    mk("insert.slideNumberField", tr("Slide Number in Text"), "hash", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("page")); });
     // Slide Number: on or off, the place it goes, and not on the title slide.
     mk("insert.slideNumberOn", tr("Show Slide Number"), "", QKeySequence(), [this] { setSlideNumberOn(act("insert.slideNumberOn")->isChecked()); }, true);
     auto *places = new QActionGroup(this);

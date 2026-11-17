@@ -12,6 +12,7 @@
 #include "core/texteffects.h"
 #include "office/drawingml_props.h"
 #include "office/xml.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QJsonDocument>
@@ -577,10 +578,23 @@ Scheme schemeOf(const QString &type)
 
 // ---- fields
 
+QString fieldCodeOfType(const QString &type);
+
 // The engine's field code for a field's type; empty for the ones that are
 // only the text they last showed. The formats are the usual US ones for the
 // standard's thirteen date and time layouts.
-QString fieldCodeOf(const QString &type)
+QString fieldCodeOf(const QString &type, const QString &language = QString())
+{
+    const QString code = fieldCodeOfType(type);
+    // A date in a language other than English is in the formats that language has for the type, and keeps the language.
+    const QString base = language.section(QLatin1Char('-'), 0, 0).toLower();
+    if (code.isEmpty() || type == QLatin1String("slidenum") || base.isEmpty() || base == QLatin1String("en") || language.size() > 16) return code;
+    DateFieldCode dc = splitDateFieldCode(code);
+    if (const QString own = dateFieldTypeFormat(type, language); !own.isEmpty()) dc.format = own;
+    return makeDateFieldCode(dc.kind, dc.format, language);
+}
+
+QString fieldCodeOfType(const QString &type)
 {
     if (type == QLatin1String("slidenum")) return QStringLiteral("page");
     static const struct { QLatin1String type, code; } dates[] = {
@@ -832,7 +846,15 @@ void Reader::paragraph(const QDomElement &p)
             continue;
         }
         const QString text = firstChild(c, QLatin1String("t")).text();
-        const QString code = isField ? fieldCodeOf(at(c, QLatin1String("type"))) : QString();
+        const QString fieldLanguage = rPr.isNull() ? QString() : at(rPr, QLatin1String("lang"));
+        QString code = isField ? fieldCodeOf(at(c, QLatin1String("type")), fieldLanguage) : QString();
+        // A presentation file of the open document kind keeps a date's own format on the field (jpfmt), as the other kind of file has no place for one.
+        if (!code.isEmpty() && code != QLatin1String("page")) {
+            const QString own = at(c, QLatin1String("jpfmt"));
+            if (!own.isEmpty() && own.size() <= 64) {
+                code = makeDateFieldCode(dateFieldKindOf(own), own, fieldLanguage.section(QLatin1Char('-'), 0, 0).toLower() == QLatin1String("en") ? QString() : fieldLanguage);
+            }
+        }
         if (code.isEmpty()) {
             add(cleanText(text), format);
         } else {

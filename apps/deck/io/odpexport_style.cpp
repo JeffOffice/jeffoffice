@@ -4,6 +4,7 @@
 // styles of dates.
 
 #include "io/odpexport_p.h"
+#include "text/textengine.h"
 #include "core/style.h"
 
 #include <QCoreApplication>
@@ -299,10 +300,12 @@ QString Exporter::effectAttrs(const Effects &fx)
 
 QString Exporter::dateStyle(Registry &reg, const QString &code, bool *isTime)
 {
-    const QString kind = code.section(QLatin1Char(':'), 0, 0);
-    QString format = code.section(QLatin1Char(':'), 1);
+    const DateFieldCode dc = splitDateFieldCode(code);
+    const QString kind = dc.kind;
+    QString format = dc.format;
     if (format.isEmpty()) format = kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : kind == QLatin1String("datetime") ? QStringLiteral("M/d/yyyy h:mm AP") : QStringLiteral("M/d/yyyy");
-    if (isTime) *isTime = kind == QLatin1String("time");
+    const bool timeOnly = dateFieldKindOf(format) == QLatin1String("time");
+    if (isTime) *isTime = timeOnly;
     QString body, text;
     auto flush = [&] {
         if (!text.isEmpty()) body += QStringLiteral("<number:text>") + esc(text) + QStringLiteral("</number:text>");
@@ -340,8 +343,14 @@ QString Exporter::dateStyle(Registry &reg, const QString &code, bool *isTime)
         i += n;
     }
     flush();
-    const QString tag = kind == QLatin1String("time") ? QStringLiteral("number:time-style") : QStringLiteral("number:date-style");
-    return reg.add(QStringLiteral("N"), QLatin1Char('<') + tag + QStringLiteral(" style:name=\""), QStringLiteral("\" number:automatic-order=\"false\">") + body + QStringLiteral("</") + tag + QLatin1Char('>'));
+    const QString tag = timeOnly ? QStringLiteral("number:time-style") : QStringLiteral("number:date-style");
+    // (The language of the names, in the two parts the standard has for it.)
+    QString where;
+    if (!dc.language.isEmpty()) {
+        const QString territory = dc.language.section(QLatin1Char('-'), 1, 1);
+        where = QStringLiteral(" number:language=\"%1\"").arg(esc(dc.language.section(QLatin1Char('-'), 0, 0).toLower())) + (territory.isEmpty() ? QString() : QStringLiteral(" number:country=\"%1\"").arg(esc(territory.toUpper())));
+    }
+    return reg.add(QStringLiteral("N"), QLatin1Char('<') + tag + QStringLiteral(" style:name=\""), QStringLiteral("\"") + where + QStringLiteral(" number:automatic-order=\"false\">") + body + QStringLiteral("</") + tag + QLatin1Char('>'));
 }
 
 } // namespace jp::deck::odpw

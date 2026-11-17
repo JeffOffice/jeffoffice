@@ -233,6 +233,8 @@ void StyleSheet::read(const QDomElement &root, bool automatic)
             (automatic ? m_dashes : m_common->dashes).insert(at(c, "draw:name"), c);
         } else if (t == QLatin1String("draw:marker")) {
             (automatic ? m_markers : m_common->markers).insert(at(c, "draw:name"), c);
+        } else if (t == QLatin1String("number:date-style") || t == QLatin1String("number:time-style")) {
+            (automatic ? m_dataStyles : m_common->dataStyles).insert(at(c, "style:name"), c);
         } else if (t == QLatin1String("draw:opacity")) {
             (automatic ? m_opacities : m_common->opacities).insert(at(c, "draw:name"), c);
         }

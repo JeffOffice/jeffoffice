@@ -526,7 +526,7 @@ private:
                 field(QStringLiteral("slidenum"), c, bag, href);
             } else if (t == QLatin1String("presentation:date-time") || (t == QLatin1String("text:date") && at(c, "text:fixed") != QLatin1String("true"))
                        || (t == QLatin1String("text:time") && at(c, "text:fixed") != QLatin1String("true"))) {
-                field(t == QLatin1String("text:time") ? QStringLiteral("datetime10") : QStringLiteral("datetime1"), c, bag, href);
+                field(t == QLatin1String("text:time") ? QStringLiteral("datetime10") : QStringLiteral("datetime1"), c, bag, href, at(c, "style:data-style-name"));
             } else if (t == QLatin1String("presentation:footer") || t == QLatin1String("presentation:header")) {
                 // The text of a footer is the page's, kept where the page says it.
                 continue;
@@ -542,12 +542,58 @@ private:
         }
     }
 
-    void field(const QString &type, const QDomElement &c, const Bag &bag, const QString &href)
+    // A date's format as this program writes it (the letters of Qt), from the date or time style a field names, and the language that style has ("de-DE", or empty).
+    // At most 64 letters of format are taken, from at most 32 parts.
+    void dateFormatOf(const QString &styleName, QString *format, QString *language) const
+    {
+        const QDomElement style = styleName.isEmpty() ? QDomElement() : m_styles.dataStyle(styleName);
+        if (style.isNull()) return;
+        const QString lang = at(style, "number:language"), country = at(style, "number:country");
+        if (!lang.isEmpty() && lang.size() <= 3) *language = country.isEmpty() || country.size() > 8 ? lang : lang + QLatin1Char('-') + country;
+        bool amPm = false;
+        int parts = 0;
+        for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32; p = p.nextSiblingElement())
+            if (tagOf(p) == QLatin1String("number:am-pm")) amPm = true;
+        QString out;
+        parts = 0;
+        for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32 && out.size() <= 64; p = p.nextSiblingElement()) {
+            const QString t = tagOf(p);
+            const bool longForm = at(p, "number:style") == QLatin1String("long");
+            if (t == QLatin1String("number:day")) out += longForm ? QStringLiteral("dd") : QStringLiteral("d");
+            else if (t == QLatin1String("number:day-of-week")) out += longForm ? QStringLiteral("dddd") : QStringLiteral("ddd");
+            else if (t == QLatin1String("number:month")) out += at(p, "number:textual") == QLatin1String("true") ? (longForm ? QStringLiteral("MMMM") : QStringLiteral("MMM")) : (longForm ? QStringLiteral("MM") : QStringLiteral("M"));
+            else if (t == QLatin1String("number:year")) out += longForm ? QStringLiteral("yyyy") : QStringLiteral("yy");
+            else if (t == QLatin1String("number:hours")) out += QString::fromLatin1(amPm ? "h" : "H").repeated(longForm ? 2 : 1);
+            else if (t == QLatin1String("number:minutes")) out += longForm ? QStringLiteral("mm") : QStringLiteral("m");
+            else if (t == QLatin1String("number:seconds")) out += longForm ? QStringLiteral("ss") : QStringLiteral("s");
+            else if (t == QLatin1String("number:am-pm")) out += QStringLiteral("AP");
+            else if (t == QLatin1String("number:text")) {
+                // (Words are quoted so that their letters are not read as parts of the date.)
+                const QString text = p.text();
+                out += text.contains(QRegularExpression(QStringLiteral("[A-Za-z]"))) ? QLatin1Char('\'') + QString(text).remove(QLatin1Char('\'')) + QLatin1Char('\'') : text;
+            }
+        }
+        if (!out.isEmpty() && out.size() <= 64) *format = out;
+    }
+
+    void field(const QString &type, const QDomElement &c, const Bag &bag, const QString &href, const QString &dataStyle = QString())
     {
         flush();
         const QString shown = c.text().trimmed();
-        m_pieces += QStringLiteral("<a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"%1\">%2<a:t>%3</a:t></a:fld>")
-                        .arg(type, m_runs.props("rPr", bag, href), escaped(shown.isEmpty() ? QStringLiteral("‹#›") : shown));
+        QString props = m_runs.props("rPr", bag, href), extra;
+        if (!dataStyle.isEmpty()) {
+            QString format, language;
+            dateFormatOf(dataStyle, &format, &language);
+            // (The language of the date's style is the field's, whatever the text around it is in.)
+            if (!language.isEmpty()) {
+                static const QRegularExpression own(QStringLiteral("^(<a:rPr[^>]*?) lang=\"[^\"]*\""));
+                props.replace(own, QStringLiteral("\\1"));
+                props.replace(QLatin1String("<a:rPr"), QStringLiteral("<a:rPr lang=\"%1\"").arg(escaped(language)));
+            }
+            if (!format.isEmpty()) extra = QStringLiteral(" jpfmt=\"%1\"").arg(escaped(format));
+        }
+        m_pieces += QStringLiteral("<a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"%1\"%4>%2<a:t>%3</a:t></a:fld>")
+                        .arg(type, props, escaped(shown.isEmpty() ? QStringLiteral("‹#›") : shown), extra);
         m_space = false;
     }
 

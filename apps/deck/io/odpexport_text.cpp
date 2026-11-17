@@ -393,11 +393,9 @@ namespace {
 // How a date or time field reads now, for the text the file shows until it is updated.
 QString shownField(const QString &code)
 {
-    const QString kind = code.section(QLatin1Char(':'), 0, 0), format = code.section(QLatin1Char(':'), 1);
-    const QDateTime now = QDateTime::currentDateTime();
-    if (kind == QLatin1String("date")) return now.date().toString(format.isEmpty() ? QStringLiteral("M/d/yyyy") : format);
-    if (kind == QLatin1String("time")) return now.time().toString(format.isEmpty() ? QStringLiteral("h:mm AP") : format);
-    return now.toString(format.isEmpty() ? QStringLiteral("M/d/yyyy h:mm AP") : format);
+    const DateFieldCode dc = splitDateFieldCode(code);
+    const QString fallback = dc.kind == QLatin1String("date") ? QStringLiteral("M/d/yyyy") : dc.kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : QStringLiteral("M/d/yyyy h:mm AP");
+    return dateFieldText(dc.kind, dc.format.isEmpty() ? fallback : dc.format, dc.language, QDateTime::currentDateTime());
 }
 
 // The state of the text of a paragraph while it is written: white space is collapsed in this kind of file, so a space after a space,
@@ -499,10 +497,9 @@ void Exporter::writeParagraph(X &x, Scope &sc, const QTextBlock &b, bool inList,
             if (field == QLatin1String("page")) {
                 x.open("text:page-number").text(QStringLiteral("<number>")).close();
             } else {
-                const QString kind = field.section(QLatin1Char(':'), 0, 0);
                 bool isTime = false;
                 const QString style = dateStyle(*sc.styles, field, &isTime);
-                if (kind == QLatin1String("time")) x.open("text:time");
+                if (isTime) x.open("text:time");
                 else x.open("text:date");
                 x.attr("style:data-style-name", style).attr("text:fixed", "false").text(shownField(field)).close();
             }
