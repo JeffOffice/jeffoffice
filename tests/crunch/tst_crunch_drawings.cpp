@@ -2826,9 +2826,9 @@ private Q_SLOTS:
         QVERIFY(e.win.w.act(QStringLiteral("edit.autosum"))->isEnabled());
         e.win.w.act(QStringLiteral("edit.autosum"))->trigger();
         QVERIFY(e.win.w.cellEditor()->isVisible());
-        e.key(Qt::Key_Return);
+        QVERIFY(e.win.w.commitEdit(CellEditor::Way::Stay));
         QVERIFY(e.settle());
-        e.select(QStringLiteral("B5"));
+        QCOMPARE(e.selected(), QStringLiteral("B5"));
         QTRY_COMPARE(linkBar(e)->text(), QStringLiteral("=SUM(B2:B4)"));
     }
 
