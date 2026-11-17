@@ -1278,7 +1278,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     // A missing stock font JeffPub has measured: its letters take the
     // original's widths (applyLetterWidths), so lines break as they do there.
     // (Scaled letters are that much wider: the run's own scaling is kept for it.)
-    if (f.hasProperty(QTextFormat::FontStretch) && f.fontStretch() != 100) r.setProperty(kLetterScale, f.fontStretch());
+    if (env.wordLines && f.hasProperty(QTextFormat::FontStretch) && f.fontStretch() != 100) r.setProperty(kLetterScale, f.fontStretch());   // (a word processor's runs: the other programs set theirs as they did)
     {
         const QStringList fams = r.fontFamilies().toStringList();
         const bool bold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold, italic = f.fontItalic();
