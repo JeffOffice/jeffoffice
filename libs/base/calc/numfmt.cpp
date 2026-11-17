@@ -1601,6 +1601,160 @@ FormatKind NumberFormat::kind() const
     return FormatKind::General;
 }
 
+namespace {
+
+// The value of 0.DIGITS x 10^(point + shift), with the sign.
+double decValue(const Dec &d, int shift, bool negative)
+{
+    if (d.zero()) return 0;
+    const QByteArray text = "0." + d.digits + "e" + QByteArray::number(d.point + shift);
+    const double v = text.toDouble();
+    return negative ? -v : v;
+}
+
+// What a section of digit places shows of the value, as a number (see NumberFormat::shownValue).
+bool shownNumber(const Section &s, double v, double *out)
+{
+    *out = v;
+    Dec d;
+    toDec(v, &d);
+    if (d.zero()) return true;
+    const bool negative = v < 0;
+    const int scaled = 2 * s.percents - 3 * s.scale;
+    if (std::abs(d.point + scaled) > 10000) return true;
+    d.point += scaled;
+    if (s.slashAt >= 0) {
+        if (d.point > 15) return true;
+        if (int(d.digits.size()) - d.point > 20) {
+            *out = 0;
+            return true;
+        }
+        u128 p = 0, q = 1;
+        const int len = int(d.digits.size());
+        for (int i = 0; i < len; ++i) p = p * 10 + u128(d.digits[i] - '0');
+        if (d.point >= len) {
+            for (int i = len; i < d.point; ++i) p *= 10;
+        } else {
+            for (int i = 0; i < len - d.point; ++i) q *= 10;
+        }
+        u128 maxDen = 1;
+        for (int i = 0; i < s.denPlaces; ++i) maxDen *= 10;
+        auto nearest = [&](u128 top, u128 *num, u128 *den) {
+            if (s.fixedDen > 0) {
+                *den = u128(s.fixedDen);
+                *num = (2 * top * *den + q) / (2 * q);
+            } else {
+                bestFraction(top, q, maxDen - 1, num, den);
+            }
+        };
+        double x = 0;
+        u128 num = 0, den = 1;
+        if (s.nInt == 0) {
+            nearest(p, &num, &den);
+            x = double(num) / double(den);
+        } else {
+            u128 whole = p / q;
+            const u128 f = p % q;
+            if (f != 0) {
+                nearest(f, &num, &den);
+                if (num >= den) {
+                    ++whole;
+                    num = 0;
+                    den = 1;
+                }
+            }
+            x = double(whole) + double(num) / double(den);
+        }
+        x /= std::pow(10.0, scaled);
+        *out = x == 0 ? 0 : negative ? -x : x;
+        return true;
+    }
+    if (s.expAt >= 0) {
+        Dec m = d;
+        const int ni = std::max(s.nInt, 1);
+        const int e0 = m.point - 1;
+        int e = s.nInt <= 1 ? e0 : (e0 >= 0 ? e0 / ni * ni : -((-e0 + ni - 1) / ni) * ni);
+        if (s.nInt == 0) e = m.point;
+        m.point -= e;
+        roundDec(&m, s.nFrac);
+        if (!m.zero() && m.point > std::max(s.nInt, 1)) {
+            e += ni;
+            m.point -= ni;
+        }
+        *out = decValue(m, e - scaled, negative);
+        return true;
+    }
+    roundDec(&d, s.nFrac);
+    *out = decValue(d, -scaled, negative);
+    return true;
+}
+
+// What a section of a date or a time shows of the value, as a number: the day, and the time to the least unit the section has (a second, the digits of a second, a minute, or an hour).
+bool shownDate(const Section &s, double v, double *out)
+{
+    *out = v;
+    if (v < 0) return true;
+    Dec d;
+    toDec(v, &d);
+    if (d.point > 18) return true;
+    const int fd = s.fracSec;
+    u128 days = 0;
+    for (int i = 0; i < d.point && i < d.digits.size(); ++i) days = days * 10 + u128(d.digits[i] - '0');
+    if (d.point > d.digits.size())
+        for (int i = int(d.digits.size()); i < d.point; ++i) days *= 10;
+    u128 units = 0;
+    const u128 perDay = u128(86400) * pow10u(fd);
+    if (s.hasTime) {
+        u128 f = 0;
+        int k = 0;
+        if (d.point < d.digits.size()) {
+            const int start = std::max(d.point, 0);
+            for (int i = start; i < d.digits.size(); ++i) f = f * 10 + u128(d.digits[i] - '0');
+            k = int(d.digits.size()) - d.point;
+        }
+        if (k > 0 && k <= 30) {
+            const u128 denom = pow10u(k);
+            units = (2 * f * perDay + denom) / (2 * denom);
+        }
+        if (units >= perDay) {
+            units -= perDay;
+            ++days;
+        }
+        bool seconds = false, minutes = false;
+        for (const Tok &t : s.toks) {
+            const QChar u = t.ch.toLower();
+            if (t.kind == T::Second || t.kind == T::FracSec || (t.kind == T::Elapsed && u == QLatin1Char('s'))) seconds = true;
+            if (t.kind == T::Minute || (t.kind == T::Elapsed && u == QLatin1Char('m'))) minutes = true;
+        }
+        const u128 step = seconds ? 1 : minutes ? u128(60) * pow10u(fd) : u128(3600) * pow10u(fd);
+        units -= units % step;
+    }
+    *out = double(qint64(days)) + double(qint64(units)) / double(qint64(perDay));
+    return true;
+}
+
+} // namespace
+
+bool NumberFormat::shownValue(double value, DateSystem, double *out) const
+{
+    *out = value;
+    const Parsed &p = d->parsed;
+    if (!std::isfinite(value)) return false;
+    if (p.general || p.secs.isEmpty()) return true;
+    Pick pk;
+    if (!pick(p, value, &pk)) return false;
+    const Section &s = p.secs[pk.index];
+    switch (s.kind) {
+    case Kind::Text:
+    case Kind::General: return true;
+    case Kind::Date: return shownDate(s, value, out);
+    case Kind::Number:
+        if (s.nInt + s.nFrac == 0 && s.slashAt < 0) return true;   // (no place for a digit: the code shows no number)
+        return shownNumber(s, value, out);
+    }
+    return true;
+}
+
 Formatted NumberFormat::format(double value, DateSystem system, int generalChars, const NumberSymbols *symbols) const { return formatValue(d->parsed, value, system, generalChars, symbols); }
 
 NumberSymbols NumberSymbols::of(const QLocale &locale)

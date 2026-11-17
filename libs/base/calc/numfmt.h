@@ -104,6 +104,10 @@ public:
     Formatted format(double value, DateSystem system = DateSystem::Date1900, int generalChars = 0, const NumberSymbols *symbols = nullptr) const;
     // A text as the text section shows it (or as it is when the code has none).
     Formatted formatText(const QString &text) const;
+    // The number that is what the code shows of the value: rounded to the decimals, the percent, the thousands, the digits of a scientific number, the fraction, or the least unit of a
+    // date or a time that the section shows (from the same 15 digits the text is made from). A value the code shows whole (General, a text section) is its own; false for a value that is
+    // not finite, or that no section takes. This is what "precision as displayed" keeps.
+    bool shownValue(double value, DateSystem system, double *out) const;
 
 private:
     struct Data;

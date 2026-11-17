@@ -1382,6 +1382,75 @@ private Q_SLOTS:
         const NumberSymbols german = NumberSymbols::of(QLocale(QLocale::German, QLocale::Germany));
         QCOMPARE(NumberFormat().format(3.14159265, DateSystem::Date1900, 5, &german).text, QStringLiteral("3,142"));
     }
+
+    // Precision as displayed keeps what the code shows: each family of codes rounds to the unit it shows (the values the text is made from, to 15 digits, half up).
+    void shownValueIsTheNumberTheCodeShows()
+    {
+        auto shown = [](const char *code, double value) {
+            double out = -1;
+            const bool ok = NumberFormat(QString::fromUtf8(code)).shownValue(value, DateSystem::Date1900, &out);
+            return ok ? out : std::numeric_limits<double>::quiet_NaN();
+        };
+        auto same = [](double a, double b) { return a == b || std::fabs(a - b) <= 1e-12 * std::max(std::fabs(a), std::fabs(b)); };
+        // General, text, and a code that is not a number's keep the value
+        QCOMPARE(shown("General", 1.23456789012), 1.23456789012);
+        QCOMPARE(shown("@", 1.23456789012), 1.23456789012);
+        QCOMPARE(shown("\"on\"", 1.5), 1.5);
+        // fixed decimals, half away from zero, from the 15 digits (2.675 is 2.68, as it shows)
+        QCOMPARE(shown("0.00", 2.675), QStringLiteral("2.68").toDouble());
+        QCOMPARE(shown("0.00", -2.675), QStringLiteral("-2.68").toDouble());
+        QCOMPARE(shown("0", 2.5), 3.0);
+        QCOMPARE(shown("0", -0.4), 0.0);
+        QVERIFY(!std::signbit(shown("0.0", -0.04)));
+        QCOMPARE(shown("0.0;(0.0)", -1.26), QStringLiteral("-1.3").toDouble());
+        QCOMPARE(shown("#,##0.0", 1234567.89), QStringLiteral("1234567.9").toDouble());
+        // currency and text around the digits
+        QCOMPARE(shown("\"$\"#,##0.00", 3.14159), QStringLiteral("3.14").toDouble());
+        // percent: the places are of the percent
+        QCOMPARE(shown("0.00%", 0.12345), QStringLiteral("0.1235").toDouble());
+        QCOMPARE(shown("0%", 0.456), QStringLiteral("0.46").toDouble());
+        // a comma after the last place divides by a thousand
+        QCOMPARE(shown("#,##0,", 1234567), 1235000.0);
+        QCOMPARE(shown("0.0,,", 12345678), 12300000.0);
+        // scientific: the places are of the mantissa
+        QVERIFY(same(shown("0.00E+00", 12345.678), 12300.0));
+        QVERIFY(same(shown("0.0E+0", 0.000123456), 0.00012));
+        // fractions: the nearest the code can write
+        QVERIFY(same(shown("# ?/?", 3.14159), 3.0 + 1.0 / 7.0));
+        QVERIFY(same(shown("# ??/??", 3.14159), 3.0 + 14.0 / 99.0));
+        QCOMPARE(shown("?/8", 0.3), 0.25);
+        QVERIFY(same(shown("# ?/?", -2.5), -2.5));
+        // dates and times: the day, and the time to the least unit the code has
+        QCOMPARE(shown("yyyy-mm-dd", kD), 45366.0);
+        QCOMPARE(shown("yyyy-mm-dd", 45366.999), 45366.0);
+        QVERIFY(same(shown("h:mm:ss", 0.123456789), 10667.0 / 86400.0));
+        QVERIFY(same(shown("h:mm", 0.75 + 59.7 / 86400.0), 0.75 + 60.0 / 86400.0));   // (59.7 s is 60 s, a minute, as it shows)
+        QVERIFY(same(shown("h:mm", 0.75 + 20.0 / 86400.0), 0.75));
+        QVERIFY(same(shown("yyyy-mm-dd h:mm", kD + 30.0 / 86400.0), kD + 0.0));
+        QVERIFY(same(shown("[h]:mm:ss", 1.5), 1.5));
+        QVERIFY(same(shown("h:mm:ss.0", 0.5 + 0.04 / 86400.0), 0.5 + 0.0 / 86400.0));
+        // a value that cannot be shown is not given a number
+        double out = 5;
+        QVERIFY(!NumberFormat(QStringLiteral("0.00")).shownValue(std::numeric_limits<double>::infinity(), DateSystem::Date1900, &out));
+        QVERIFY(!NumberFormat(QStringLiteral("[>100]0.0")).shownValue(50, DateSystem::Date1900, &out));
+        // whatever the code, the value it gives shows as the value did
+        const char *codes[] = {"0", "0.00", "#,##0.0", "0.00%", "0.0,", "0.00E+00", "##0.0E+0", "# ?/?", "# ??/??", "?/8", "0.0;(0.0)", "yyyy-mm-dd", "h:mm", "h:mm:ss", "h:mm:ss.00", "[h]:mm", "m/d/yy h:mm AM/PM"};
+        const double values[] = {0, 0.5, 1.005, 2.675, 3.14159265, 12.3456, 0.12345, 99.999, 1234.5678, 45366.123456, 0.999999, 0.000123456, 100000.5, 7.125};
+        for (const char *code : codes)
+            for (const double v : values)
+                for (const double sign : {1.0, -1.0}) {
+                    const QString c = QString::fromUtf8(code);
+                    const NumberFormat f(c);
+                    double got = 0;
+                    if (!f.shownValue(sign * v, DateSystem::Date1900, &got)) continue;
+                    QString was = f.format(sign * v).text;
+                    if (got == 0) continue;   // (a small negative number shows -0 or its negative section; the number it is rounded to, 0, shows as a zero)
+                    QVERIFY2(f.format(got).text == was, qPrintable(QStringLiteral("[%1] %2: %3 shows %4, the value shows %5").arg(c).arg(sign * v, 0, 'g', 17).arg(got, 0, 'g', 17).arg(f.format(got).text, was)));
+                    double again = 0;
+                    QVERIFY(f.shownValue(got, DateSystem::Date1900, &again));
+                    QVERIFY2(same(again, got), qPrintable(QStringLiteral("[%1] %2 is not kept: %3").arg(c).arg(got, 0, 'g', 17).arg(again, 0, 'g', 17)));
+                }
+    }
 };
 
 JP_TEST_CLASS(SheetNumberFormatTests)
