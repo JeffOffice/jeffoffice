@@ -25,6 +25,7 @@
 #include "core/dropcapops.h"
 #include "core/editops.h"
 #include "core/fieldops.h"
+#include "core/proofops.h"
 #include "core/fonts.h"
 #include "core/insertops.h"
 #include "core/layoutops.h"
@@ -1467,12 +1468,28 @@ private Q_SLOTS:
 
     // The dialog has a Language list: the formats are shown in the language, and a field made in it keeps it (the language of its runs), so that it shows its names in that language
     // when it is updated and when the file is opened again; the text of one that does not update is put in as it is.
+    // The text of the window's paragraph put in a language, with the caret at its end.
+    static void inLanguage(Win &win, const QString &tag)
+    {
+        QTextCursor all(win.w.document()->story());
+        all.setPosition(0);
+        all.setPosition(5, QTextCursor::KeepAnchor);
+        write::setProofingLanguage(*win.w.document(), all, tag);
+        QTextCursor c(win.w.document()->story());
+        c.setPosition(5);
+        win.w.view()->setCursor(c);
+    }
     void theDateAndTimeDialogHasALanguageAndTheFieldKeepsIt()
     {
-        const struct { const char *tag, *weekday; } cases[] = {{"de-DE", "Dienstag"}, {"ja-JP", "\u706B\u66DC\u65E5"}};
-        for (const auto &c : cases) {
-            const QString tag = QString::fromUtf8(c.tag), weekday = QString::fromUtf8(c.weekday);
+        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));
+        jp::setFieldClock(moment);
+        const QScopeGuard clock([] { jp::setFieldClock(QDateTime()); });
+        const char *tags[] = {"de-DE", "ja-JP"};
+        for (const char *tagName : tags) {
+            const QString tag = QString::fromUtf8(tagName);
+            const QString weekday = QLocale(tag).dayName(moment.date().dayOfWeek());   // (the language's own name of the day of the moment)
             Win win;
+            inLanguage(win, QStringLiteral("en-US"));
             QStringList languages;
             QString listed;
             withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
@@ -1498,6 +1515,30 @@ private Q_SLOTS:
             write::updateFields(*again);
             QVERIFY2(documentXml(again->toDocx()).contains(weekday.toUtf8()), qPrintable(tag));
         }
+    }
+
+    // With no other language chosen the field has no language of its own, as before: the dialog starts at the language of the text (German for German as spoken in Austria), and a
+    // field made without choosing is worked out in the text's own language.
+    void theDateAndTimeDialogStartsAtTheTextsLanguageAndAddsNoTagWhenNoneIsChosen()
+    {
+        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));
+        jp::setFieldClock(moment);
+        const QScopeGuard clock([] { jp::setFieldClock(QDateTime()); });
+        Win win;
+        inLanguage(win, QStringLiteral("de-AT"));
+        QString started;
+        withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
+            auto *language = dlg->findChild<QComboBox *>(QStringLiteral("language"));
+            auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
+            started = language->currentData().toString();
+            for (int i = 0; i < formats->count(); ++i)
+                if (formats->item(i)->data(Qt::UserRole).toString() == QLatin1String("dddd, MMMM d, yyyy")) formats->setCurrentRow(i);
+        });
+        QCOMPARE(started, QStringLiteral("de-DE"));
+        const QByteArray out = documentXml(win.w.document()->toDocx());
+        QVERIFY2(out.contains("DATE"), out.constData());
+        QVERIFY2(!out.contains("w:val=\"de-DE\""), out.constData());   // (no language of the field's own was added)
+        QVERIFY2(!out.contains("w:val=\"en-US\""), out.constData());
     }
 
     // ---------------------------------------------------------------- Insert > Cover Page

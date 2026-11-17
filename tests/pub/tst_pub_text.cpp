@@ -3205,7 +3205,10 @@ private Q_SLOTS:
         jp::Editor *ed = w.editor();
         auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 300, 40)));
         ed->addItem(box);
-        ed->beginTextEdit(box->id, 0);
+        QTextCharFormat english;
+        english.setProperty(tp::Language, QStringLiteral("en-US"));   // (the dialog starts at the text's language: German is then a choice)
+        QTextCursor(ed->doc()->storyDoc(box->storyId)).insertText(QStringLiteral("x"), english);
+        ed->beginTextEdit(box->id, 1);
         withDialog([&] { w.act(QStringLiteral("ins.datetime"))->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *d) {
             auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"));
             auto *formats = d->findChild<QListWidget *>(QStringLiteral("dateFormats"));

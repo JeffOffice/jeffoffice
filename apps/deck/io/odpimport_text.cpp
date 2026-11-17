@@ -22,6 +22,8 @@
 
 namespace jp::deck::odp {
 
+thread_local qint64 g_dateStylesRead = 0;   // see odpDateStylesReadForTest
+
 namespace {
 
 constexpr int kMaxListDepth = 9;       // the levels a story keeps
@@ -543,43 +545,57 @@ private:
     }
 
     // A date's format as this program writes it (the letters of Qt), from the date or time style a field names, and the language that style has ("de-DE", or empty).
-    // At most 64 letters of format are taken, from at most 32 parts.
-    void dateFormatOf(const QString &styleName, QString *format, QString *language) const
+    // At most 64 letters of format are taken, from at most 32 parts, each part's words cut to 16 letters before they are used; a style is read once for a text, whatever
+    // the number of fields that name it. (The parts a calendar of weeks, quarters, or eras has are left out.)
+    void dateFormatOf(const QString &styleName, QString *format, QString *language)
     {
-        const QDomElement style = styleName.isEmpty() ? QDomElement() : m_styles.dataStyle(styleName);
-        if (style.isNull()) return;
-        const QString lang = at(style, "number:language"), country = at(style, "number:country");
-        if (!lang.isEmpty() && lang.size() <= 3) *language = country.isEmpty() || country.size() > 8 ? lang : lang + QLatin1Char('-') + country;
-        bool amPm = false;
-        int parts = 0;
-        for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32; p = p.nextSiblingElement())
-            if (tagOf(p) == QLatin1String("number:am-pm")) amPm = true;
-        QString out;
-        parts = 0;
-        for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32 && out.size() <= 64; p = p.nextSiblingElement()) {
-            const QString t = tagOf(p);
-            const bool longForm = at(p, "number:style") == QLatin1String("long");
-            if (t == QLatin1String("number:day")) out += longForm ? QStringLiteral("dd") : QStringLiteral("d");
-            else if (t == QLatin1String("number:day-of-week")) out += longForm ? QStringLiteral("dddd") : QStringLiteral("ddd");
-            else if (t == QLatin1String("number:month")) out += at(p, "number:textual") == QLatin1String("true") ? (longForm ? QStringLiteral("MMMM") : QStringLiteral("MMM")) : (longForm ? QStringLiteral("MM") : QStringLiteral("M"));
-            else if (t == QLatin1String("number:year")) out += longForm ? QStringLiteral("yyyy") : QStringLiteral("yy");
-            else if (t == QLatin1String("number:hours")) out += QString::fromLatin1(amPm ? "h" : "H").repeated(longForm ? 2 : 1);
-            else if (t == QLatin1String("number:minutes")) out += longForm ? QStringLiteral("mm") : QStringLiteral("m");
-            else if (t == QLatin1String("number:seconds")) out += longForm ? QStringLiteral("ss") : QStringLiteral("s");
-            else if (t == QLatin1String("number:am-pm")) out += QStringLiteral("AP");
-            else if (t == QLatin1String("number:text")) {
-                // (Words are quoted so that their letters are not read as parts of the date.)
-                const QString text = p.text();
-                out += text.contains(QRegularExpression(QStringLiteral("[A-Za-z]"))) ? QLatin1Char('\'') + QString(text).remove(QLatin1Char('\'')) + QLatin1Char('\'') : text;
-            }
+        const auto known = m_dateStyles.constFind(styleName);
+        if (known != m_dateStyles.constEnd()) {
+            *format = known->first;
+            *language = known->second;
+            return;
         }
-        if (!out.isEmpty() && out.size() <= 64) *format = out;
+        QPair<QString, QString> result;
+        const QDomElement style = styleName.isEmpty() ? QDomElement() : m_styles.dataStyle(styleName);
+        if (!style.isNull()) {
+            ++g_dateStylesRead;
+            const QString lang = at(style, "number:language"), country = at(style, "number:country");
+            if (!lang.isEmpty() && lang.size() <= 3) result.second = country.isEmpty() || country.size() > 8 ? lang : lang + QLatin1Char('-') + country;
+            bool amPm = false;
+            int parts = 0;
+            for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32; p = p.nextSiblingElement())
+                if (tagOf(p) == QLatin1String("number:am-pm")) amPm = true;
+            static const QRegularExpression letters(QStringLiteral("[A-Za-z]"));
+            QString out;
+            parts = 0;
+            for (QDomElement p = style.firstChildElement(); !p.isNull() && ++parts <= 32 && out.size() <= 64; p = p.nextSiblingElement()) {
+                const QString t = tagOf(p);
+                const bool longForm = at(p, "number:style") == QLatin1String("long");
+                if (t == QLatin1String("number:day")) out += longForm ? QStringLiteral("dd") : QStringLiteral("d");
+                else if (t == QLatin1String("number:day-of-week")) out += longForm ? QStringLiteral("dddd") : QStringLiteral("ddd");
+                else if (t == QLatin1String("number:month")) out += at(p, "number:textual") == QLatin1String("true") ? (longForm ? QStringLiteral("MMMM") : QStringLiteral("MMM")) : (longForm ? QStringLiteral("MM") : QStringLiteral("M"));
+                else if (t == QLatin1String("number:year")) out += longForm ? QStringLiteral("yyyy") : QStringLiteral("yy");
+                else if (t == QLatin1String("number:hours")) out += QString::fromLatin1(amPm ? "h" : "H").repeated(longForm ? 2 : 1);
+                else if (t == QLatin1String("number:minutes")) out += longForm ? QStringLiteral("mm") : QStringLiteral("m");
+                else if (t == QLatin1String("number:seconds")) out += longForm ? QStringLiteral("ss") : QStringLiteral("s");
+                else if (t == QLatin1String("number:am-pm")) out += QStringLiteral("AP");
+                else if (t == QLatin1String("number:text")) {
+                    // (The words are quoted so that their letters are not read as parts of the date; the text is shared, so cutting it copies at most 16 letters.)
+                    const QString text = p.firstChild().isText() ? p.firstChild().nodeValue().left(16) : QString();
+                    out += text.contains(letters) ? QLatin1Char('\'') + QString(text).remove(QLatin1Char('\'')) + QLatin1Char('\'') : text;
+                }
+            }
+            if (!out.isEmpty() && out.size() <= 64) result.first = out;
+        }
+        m_dateStyles.insert(styleName, result);
+        *format = result.first;
+        *language = result.second;
     }
 
     void field(const QString &type, const QDomElement &c, const Bag &bag, const QString &href, const QString &dataStyle = QString())
     {
         flush();
-        const QString shown = c.text().trimmed();
+        const QString shown = c.text().left(256).trimmed();   // (what the field showed last, held to 256 letters)
         QString props = m_runs.props("rPr", bag, href), extra;
         if (!dataStyle.isEmpty()) {
             QString format, language;
@@ -621,6 +637,7 @@ private:
     bool m_outline;
     Bag m_base;
     Runs m_runs;
+    QHash<QString, QPair<QString, QString>> m_dateStyles;   // the formats and languages of the date styles read so far, by name
     QString m_pieces, m_pendingProps, m_pendingText;
     bool m_space = true;
     qsizetype m_chars = 0;
@@ -691,3 +708,7 @@ Reader::TextEnv Reader::textEnvFor(const Scope &sc, const Attrs &frame, const Ba
 }
 
 } // namespace jp::deck::odp
+
+namespace jp::deck {
+qint64 odpDateStylesReadForTest() { return odp::g_dateStylesRead; }
+}

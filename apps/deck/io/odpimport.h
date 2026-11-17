@@ -46,6 +46,8 @@ struct OdpImportWork {
     qint64 elementsRead = 0, cellCharsRead = 0, cellCharsLaidOut = 0;
 };
 OdpImportWork odpImportWorkForTest();
+// How many date and time styles were read into formats since the program began on this thread (a style used by many fields is read once per text).
+qint64 odpDateStylesReadForTest();
 
 // Whether the first bytes of a file are those of an open document package
 // (the ZIP's first entry is "mimetype", stored, as the standard has it, and

@@ -208,7 +208,7 @@ bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat 
         // The type whose layout (in the field's language) is the field's.
         for (const DateField &d : kDateFields) {
             QString own = dateFieldTypeFormat(QLatin1String(d.type), dc.language);
-            if (dc.language.section(QLatin1Char('-'), 0, 0).toLower() == QLatin1String("en")) own.clear();
+            if (dc.language.compare(QLatin1String("en-US"), Qt::CaseInsensitive) == 0) own.clear();
             if (own.isEmpty()) own = QString::fromLatin1(d.code).section(QLatin1Char(':'), 1);
             if (!format.isEmpty() && format == own) {
                 type = QLatin1String(d.type);
@@ -222,7 +222,7 @@ bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat 
         }
         if (!dc.language.isEmpty()) cf.setProperty(tp::Language, dc.language);
         shown = dateFieldText(kind, format.isEmpty() ? (kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : kind == QLatin1String("date") ? QStringLiteral("M/d/yyyy") : QStringLiteral("M/d/yyyy h:mm AP")) : format,
-                              dc.language, QDateTime::currentDateTime());
+                              dc.language, fieldNow());
     }
     begin(w, "a:fld");
     attribute(w, "id", QUuid::createUuid().toString(QUuid::WithBraces).toUpper());

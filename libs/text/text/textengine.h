@@ -660,6 +660,10 @@ struct DateLanguage {
     QString tag, name;
 };
 QVector<DateLanguage> dateLanguages();
+// The entry of that list that a language tag is best matched by: the same tag, else the first with the same language ("de-AT" is "de-DE"); empty for none.
+QString dateLanguageFor(const QString &tag);
+// The region of a tag ("de-AT" is "AT", "zh-Hans-CN" is "CN"): the last part of two letters or three digits; empty for none.
+QString languageRegionOf(const QString &tag);
 // That language's own short and long dates, short date and time, and short time (none for US English, and for a tag that is not valid).
 QStringList dateNativeFormats(const QString &language);
 QStringList dateTimeFormatsFor(const QString &language);

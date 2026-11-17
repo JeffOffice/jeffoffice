@@ -279,6 +279,28 @@ QString dateFieldTypeFormat(const QString &type, const QString &language)
     return QString();
 }
 
+QString dateLanguageFor(const QString &tag)
+{
+    const QVector<DateLanguage> all = dateLanguages();
+    const QString normal = QString(tag).replace(QLatin1Char('_'), QLatin1Char('-'));
+    for (const DateLanguage &l : all)
+        if (l.tag.compare(normal, Qt::CaseInsensitive) == 0) return l.tag;
+    const QString base = normal.section(QLatin1Char('-'), 0, 0);
+    if (base.isEmpty()) return QString();
+    for (const DateLanguage &l : all)
+        if (l.tag.section(QLatin1Char('-'), 0, 0).compare(base, Qt::CaseInsensitive) == 0) return l.tag;
+    return QString();
+}
+
+QString languageRegionOf(const QString &tag)
+{
+    static const QRegularExpression region(QStringLiteral("^([A-Za-z]{2}|[0-9]{3})$"));
+    const QStringList parts = tag.split(QLatin1Char('-'));
+    for (qsizetype i = parts.size() - 1; i >= 1; --i)
+        if (region.match(parts[i]).hasMatch()) return parts[i];
+    return QString();
+}
+
 QStringList dateNativeFormats(const QString &language)
 {
     QStringList out;

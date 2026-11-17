@@ -595,7 +595,7 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     static const Form forms[] = {{"M/d/yyyy", "M/d/yyyy", false}, {"dddd, MMMM d, yyyy", "dddd, MMMM d, yyyy", false}, {"MMMM d, yyyy", "MMMM d, yyyy", false},
                                  {"d MMMM yyyy", "d MMMM yyyy", false}, {"yyyy-MM-dd", "yyyy-MM-dd", false}, {"MMM d, yyyy", "MMM d, yyyy", false},
                                  {"M/d/yyyy h:mm AM/PM", "M/d/yyyy h:mm AP", true}, {"h:mm AM/PM", "h:mm AP", true}, {"HH:mm", "HH:mm", true}, {"HH:mm:ss", "HH:mm:ss", true}};
-    const QDateTime now = QDateTime::currentDateTime();
+    const QDateTime now = jp::fieldNow();
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("dateTimeDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::LayoutDialogs", "Date and Time"));
@@ -606,8 +606,14 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     for (const jp::DateLanguage &l : jp::dateLanguages()) language->addItem(l.name, l.tag);
     QString here = view->cursor().charFormat().stringProperty(tp::Language);
     if (here.isEmpty()) here = doc->proofingLanguage();
-    if (language->findData(here) < 0) here = QStringLiteral("en-US");
-    language->setCurrentIndex(language->findData(here));
+    QString start = jp::dateLanguageFor(here);
+    if (start.isEmpty() && !here.isEmpty() && QLocale(here).language() != QLocale::C) {
+        const QLocale l(here);
+        language->insertItem(0, l.nativeLanguageName() + QStringLiteral(" (") + l.nativeTerritoryName() + QLatin1Char(')'), here);
+        start = here;
+    }
+    if (start.isEmpty()) start = QStringLiteral("en-US");
+    language->setCurrentIndex(language->findData(start));
     auto *form = new QFormLayout();
     form->addRow(QCoreApplication::translate("jp::write::LayoutDialogs", "Language"), language);
     v->addLayout(form);
@@ -650,7 +656,7 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     if (dlg.exec() != QDialog::Accepted || !list->currentItem()) return false;
     const QListWidgetItem *chosen = list->currentItem();
     const QString tag = language->currentData().toString();
-    const QString text = jp::dateFieldText(QStringLiteral("datetime"), chosen->data(Qt::UserRole + 1).toString(), tag, QDateTime::currentDateTime());
+    const QString text = jp::dateFieldText(QStringLiteral("datetime"), chosen->data(Qt::UserRole + 1).toString(), tag, jp::fieldNow());
     QTextCursor &c = view->cursor();
     const WriteDoc::StepGroup group(*doc);
     if (!update->isChecked()) {
@@ -659,7 +665,7 @@ bool dateTimeDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     }
     if (!insertField(*doc, c, QStringLiteral("%1 \\@ \"%2\"").arg(chosen->data(Qt::UserRole + 2).toBool() ? QStringLiteral("TIME") : QStringLiteral("DATE"), chosen->data(Qt::UserRole).toString()), text)) return false;
     // A field in a language other than the text's has its own (the field is the one character before the caret).
-    if (tag != here) {
+    if (tag != start) {
         QTextCursor atom(c.document());
         atom.setPosition(c.position() - 1);
         atom.setPosition(c.position(), QTextCursor::KeepAnchor);

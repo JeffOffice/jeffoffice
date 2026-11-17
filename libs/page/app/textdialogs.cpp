@@ -866,12 +866,20 @@ void dateTimeDialog(QWidget *p, Editor *ed)
     language->setObjectName(QStringLiteral("dateLanguage"));
     const QVector<DateLanguage> languages = dateLanguages();
     for (const DateLanguage &l : languages) language->addItem(l.name, l.tag);
-    // The language of the text being edited, when the list has it.
+    // The language of the text being edited (the program's when it has none) is the one the list starts at, by the nearest entry; a language the list lacks is added.
+    // A field made without choosing another has no language of its own, as before.
     const QString own = ed->currentCharFormat().stringProperty(tp::Language);
-    if (const int at = language->findData(own); at >= 0) language->setCurrentIndex(at);
+    QString start = dateLanguageFor(own.isEmpty() ? QLocale::system().bcp47Name() : own);
+    if (start.isEmpty() && !own.isEmpty() && QLocale(own).language() != QLocale::C) {
+        const QLocale l(own);
+        language->insertItem(0, l.nativeLanguageName() + QStringLiteral(" (") + l.nativeTerritoryName() + QLatin1Char(')'), own);
+        start = own;
+    }
+    if (start.isEmpty()) start = QStringLiteral("en-US");
+    language->setCurrentIndex(language->findData(start));
     auto *list = new QListWidget(&dlg.d);
     list->setObjectName(QStringLiteral("dateFormats"));
-    const QDateTime now = QDateTime::currentDateTime();
+    const QDateTime now = fieldNow();
     auto fill = [list, language, now] {
         const QString before = list->currentItem() ? list->currentItem()->data(Qt::UserRole).toString() : QString();
         const QString tag = language->currentData().toString();
@@ -899,7 +907,7 @@ void dateTimeDialog(QWidget *p, Editor *ed)
     if (!dlg.exec() || !list->currentItem()) return;
     const QString f = list->currentItem()->data(Qt::UserRole).toString();
     const QString tag = language->currentData().toString();
-    if (update->isChecked()) ed->insertField(makeDateFieldCode(QStringLiteral("datetime"), f, tag));
+    if (update->isChecked()) ed->insertField(makeDateFieldCode(QStringLiteral("datetime"), f, tag == start ? QString() : tag));
     else ed->insertTextBlock(dateFieldText(dateFieldKindOf(f), f, tag, now), QCoreApplication::translate("Dialogs", "Insert Date and Time"));
 }
 

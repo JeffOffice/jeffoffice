@@ -208,39 +208,58 @@ private Q_SLOTS:
         QCOMPARE(shownIn(ed, boxId), QStringLiteral("3"));
     }
 
+    // The first slide's title with `text` in it, in `language`, and being typed in at its end; returns the story.
+    static QTextDocument *titleInLanguage(DeckWindow &w, const QString &text, const QString &language)
+    {
+        Editor *ed = w.editor();
+        auto *title = static_cast<TextItem *>(ed->doc()->pages[0]->items[0].get());
+        QTextCharFormat f;
+        if (!language.isEmpty()) f.setProperty(tp::Language, language);
+        QTextCursor(ed->doc()->storyDoc(title->storyId)).insertText(text, f);
+        ed->select(title->id);
+        ed->beginTextEdit(title->id, int(text.size()));
+        return ed->doc()->storyDoc(title->storyId);
+    }
+    // Chooses the language (unless empty) and format in the Date and Time dialog; the text of the format in the list and the language the list started at are returned.
+    static void chooseDate(DeckWindow &w, const QString &tag, const QString &format, bool update, QStringList *languages = nullptr, QString *listed = nullptr, QString *started = nullptr)
+    {
+        withDialog([&] { w.act(QStringLiteral("insert.dateTime"))->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *d) {
+            auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"));
+            auto *formats = d->findChild<QListWidget *>(QStringLiteral("dateFormats"));
+            QVERIFY(language && formats);
+            if (languages)
+                for (int i = 0; i < language->count(); ++i) *languages << language->itemData(i).toString();
+            if (started) *started = language->currentData().toString();
+            if (!tag.isEmpty()) language->setCurrentIndex(language->findData(tag));
+            int row = -1;
+            for (int i = 0; i < formats->count(); ++i)
+                if (formats->item(i)->data(Qt::UserRole).toString() == format) row = i;
+            QVERIFY2(row >= 0, qPrintable(format));
+            formats->setCurrentRow(row);
+            if (listed) *listed = formats->item(row)->text();
+            d->findChild<QCheckBox *>(QStringLiteral("dateUpdate"))->setChecked(update);
+        });
+    }
+
     // The Date and Time dialog has a Language list (German and Japanese among them), shows the formats in that language, and the field it makes keeps the language: shown in it, and kept in
     // .pptx (the field's lang) and .odp (the date style's language). Without Update automatically the text is put in as it is.
     void dateAndTimeInAGivenLanguageKeepsItInAField()
     {
-        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));
-        // Chooses the language and format in the dialog of a window whose title is being edited, and returns the text of the first format in the list too.
-        auto insert = [&](DeckWindow &w, const QString &tag, const QString &format, bool update, QStringList *languages = nullptr, QString *listed = nullptr) {
-            withDialog([&] { w.act(QStringLiteral("insert.dateTime"))->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *d) {
-                auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"));
-                auto *formats = d->findChild<QListWidget *>(QStringLiteral("dateFormats"));
-                QVERIFY(language && formats);
-                if (languages)
-                    for (int i = 0; i < language->count(); ++i) *languages << language->itemData(i).toString();
-                language->setCurrentIndex(language->findData(tag));
-                int row = -1;
-                for (int i = 0; i < formats->count(); ++i)
-                    if (formats->item(i)->data(Qt::UserRole).toString() == format) row = i;
-                QVERIFY2(row >= 0, qPrintable(format));
-                formats->setCurrentRow(row);
-                if (listed) *listed = formats->item(row)->text();
-                d->findChild<QCheckBox *>(QStringLiteral("dateUpdate"))->setChecked(update);
-            });
-        };
-        const struct { const char *tag, *weekday; } cases[] = {{"de-DE", "Dienstag"}, {"ja-JP", "\u706B\u66DC\u65E5"}};
+        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));   // (a Tuesday)
+        setFieldClock(moment);
+        const QScopeGuard clock([] { setFieldClock(QDateTime()); });
+        const struct { const char *tag, *weekday; } cases[] = {{"de-DE", "Dienstag"}, {"ja-JP", "火曜日"}};
         for (const auto &c : cases) {
-            const QString tag = QString::fromUtf8(c.tag), weekday = QString::fromUtf8(c.weekday);
-            // The names are in the language: in the list, and in the field.
+            const QString tag = QString::fromUtf8(c.tag);
+            // The names are the language's own, from its own data: the weekday of the moment.
+            const QString weekday = QLocale(tag).dayName(moment.date().dayOfWeek());
+            QCOMPARE(weekday, QString::fromUtf8(c.weekday));
             {
                 DeckWindow w;
-                QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+                QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("en-US"));
                 QStringList languages;
                 QString listed;
-                insert(w, tag, QStringLiteral("dddd, MMMM d, yyyy"), true, &languages, &listed);
+                chooseDate(w, tag, QStringLiteral("dddd, MMMM d, yyyy"), true, &languages, &listed);
                 QVERIFY(languages.contains(QStringLiteral("de-DE")) && languages.contains(QStringLiteral("ja-JP")) && languages.contains(QStringLiteral("en-US")));
                 QVERIFY2(listed.contains(weekday), qPrintable(listed));
                 QCOMPARE(fieldCodeIn(story), QStringLiteral("datetime:dddd, MMMM d, yyyy|") + tag);
@@ -250,41 +269,174 @@ private Q_SLOTS:
             }
             // The language's own long date is a format of the file kinds, and comes back from both.
             DeckWindow w;
-            QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+            QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("en-US"));
             const QString own = QLocale(tag).dateFormat(QLocale::LongFormat);
-            insert(w, tag, own, true);
+            chooseDate(w, tag, own, true);
             const QString code = fieldCodeIn(story);
             QCOMPARE(code, QStringLiteral("datetime:") + own + QLatin1Char('|') + tag);
-            QString err;
-            const QByteArray pptx = deck::exportPresentation(*w.editor()->doc(), &err);
-            Exported e;
-            QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
-            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
-            QVERIFY2(slide.contains(QStringLiteral("lang=\"%1\"").arg(tag)) && slide.contains(QStringLiteral("type=\"datetime2\"")), qPrintable(slide));
-            const QByteArray odp = deck::exportOdp(*w.editor()->doc(), false, &err);
-            QMap<QString, QByteArray> zip;
-            QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
-            QVERIFY(zip.value(QStringLiteral("content.xml")).contains(QStringLiteral("number:language=\"%1\"").arg(tag.section(QLatin1Char('-'), 0, 0)).toUtf8()));
-            for (int kind = 0; kind < 2; ++kind) {
-                auto back = kind == 0 ? deck::importPresentation(pptx, &err) : deck::importOdp(odp, &err);
-                QVERIFY2(back, qPrintable(err));
-                const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
-                // (The standard's kinds say a date, a time, or both: the kind may come back as the one that fits, and shows the same.)
-                const QString read = fieldCodeIn(back->storyDoc(t.storyId));
-                QCOMPARE(splitDateFieldCode(read).format, splitDateFieldCode(code).format);
-                QVERIFY2(splitDateFieldCode(read).language == tag, qPrintable(QString::fromLatin1(kind == 0 ? "pptx " : "odp ") + read));
-                FieldContext ctx;
-                ctx.now = moment;
-                QCOMPARE(ctx.resolve(read), ctx.resolve(code));
-            }
+            roundTripsInBothKinds(w, code, tag);
         }
         // Not updated: the text, in the language.
         DeckWindow w;
-        QTextDocument *story = editTitle(w, QStringLiteral("x"), 1, 1);
+        QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("en-US"));
         const QString format = QLocale(QStringLiteral("de-DE")).dateFormat(QLocale::ShortFormat);
-        insert(w, QStringLiteral("de-DE"), format, false);
+        chooseDate(w, QStringLiteral("de-DE"), format, false);
         QVERIFY(fieldCodeIn(story).isEmpty());
-        QCOMPARE(story->toPlainText(), QStringLiteral("x") + QLocale(QStringLiteral("de-DE")).toString(QDate::currentDate(), format));
+        QCOMPARE(story->toPlainText(), QStringLiteral("x") + QLocale(QStringLiteral("de-DE")).toString(moment.date(), format));
+    }
+    // The first slide's field saved as .pptx and as .odp and opened again has the format, the language, and what it shows (a kind of field may come back as the one that fits).
+    static void roundTripsInBothKinds(DeckWindow &w, const QString &code, const QString &tag)
+    {
+        QString err;
+        const QByteArray pptx = deck::exportPresentation(*w.editor()->doc(), &err);
+        Exported e;
+        QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slide.contains(QStringLiteral("lang=\"%1\"").arg(tag)), qPrintable(slide));
+        const QByteArray odp = deck::exportOdp(*w.editor()->doc(), false, &err);
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(odp, zip, &err), qPrintable(err));
+        QVERIFY(zip.value(QStringLiteral("content.xml")).contains(QStringLiteral("number:language=\"%1\"").arg(tag.section(QLatin1Char('-'), 0, 0)).toUtf8()));
+        for (int kind = 0; kind < 2; ++kind) {
+            auto back = kind == 0 ? deck::importPresentation(pptx, &err) : deck::importOdp(odp, &err);
+            QVERIFY2(back, qPrintable(err));
+            const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
+            const QString read = fieldCodeIn(back->storyDoc(t.storyId));
+            QCOMPARE(splitDateFieldCode(read).format, splitDateFieldCode(code).format);
+            QVERIFY2(splitDateFieldCode(read).language == tag, qPrintable(QString::fromLatin1(kind == 0 ? "pptx " : "odp ") + read));
+            FieldContext ctx;
+            ctx.now = QDateTime(QDate(2026, 11, 17), QTime(14, 5, 9));
+            QCOMPARE(ctx.resolve(read), ctx.resolve(code));
+        }
+    }
+
+    // With no other language chosen the field has none, as before: the dialog starts at the language of the text (the nearest in its list, German for German as spoken in Austria),
+    // and the file has no language on the field. The English of other countries keeps its own language, and the order of its day and month, through .pptx and .odp.
+    void dateAndTimeWithNoLanguageChosenKeepsNoTagAndEnglishVariantsKeepTheirs()
+    {
+        const QDateTime moment(QDate(2026, 11, 17), QTime(14, 5, 9));
+        setFieldClock(moment);
+        const QScopeGuard clock([] { setFieldClock(QDateTime()); });
+        {
+            DeckWindow w;
+            QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("de-AT"));
+            QString started;
+            chooseDate(w, QString(), QStringLiteral("dddd, MMMM d, yyyy"), true, nullptr, nullptr, &started);
+            QCOMPARE(started, QStringLiteral("de-DE"));
+            QCOMPARE(fieldCodeIn(story), QStringLiteral("datetime:dddd, MMMM d, yyyy"));
+            QString err;
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*w.editor()->doc(), &err), &e, &err), qPrintable(err));
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            const qsizetype fld = slide.indexOf(QStringLiteral("<a:fld"));
+            QVERIFY(fld >= 0);
+            QVERIFY2(!slide.mid(fld, slide.indexOf(QStringLiteral("</a:fld>"), fld) - fld).contains(QStringLiteral("lang=\"en-US\"")), qPrintable(slide.mid(fld, 300)));
+        }
+        {
+            // A language the list lacks is added to it, and is the start.
+            DeckWindow w;
+            QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("eu-ES"));
+            QString started;
+            QStringList languages;
+            chooseDate(w, QString(), QStringLiteral("dddd, MMMM d, yyyy"), true, &languages, nullptr, &started);
+            QCOMPARE(started, QStringLiteral("eu-ES"));
+            QVERIFY(languages.contains(QStringLiteral("eu-ES")));
+            QCOMPARE(fieldCodeIn(story), QStringLiteral("datetime:dddd, MMMM d, yyyy"));
+        }
+        for (const QString &tag : {QStringLiteral("en-GB"), QStringLiteral("en-AU")}) {
+            DeckWindow w;
+            QTextDocument *story = titleInLanguage(w, QStringLiteral("x"), QStringLiteral("de-DE"));
+            const QString own = QLocale(tag).dateFormat(QLocale::LongFormat);
+            chooseDate(w, tag, own, true);
+            const QString code = fieldCodeIn(story);
+            QCOMPARE(code, QStringLiteral("datetime:") + own + QLatin1Char('|') + tag);
+            roundTripsInBothKinds(w, code, tag);
+            FieldContext ctx;
+            ctx.now = moment;
+            QVERIFY2(ctx.resolve(code).startsWith(QStringLiteral("17 ")) || ctx.resolve(code).contains(QStringLiteral(", 17 ")), qPrintable(ctx.resolve(code)));   // (the day before the month)
+        }
+    }
+
+    // A region is the last part of a tag that is two letters or three digits ("zh-Hans-CN" is "CN", not "HANS"), in the date style of an .odp.
+    void anOdpDateStyleTakesTheRegionOfATag()
+    {
+        QCOMPARE(languageRegionOf(QStringLiteral("zh-Hans-CN")), QStringLiteral("CN"));
+        QCOMPARE(languageRegionOf(QStringLiteral("de-AT")), QStringLiteral("AT"));
+        QCOMPARE(languageRegionOf(QStringLiteral("es-419")), QStringLiteral("419"));
+        QVERIFY(languageRegionOf(QStringLiteral("zh-Hans")).isEmpty());
+        QVERIFY(languageRegionOf(QStringLiteral("de")).isEmpty());
+        DeckWindow w;
+        auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        QTextCharFormat f;
+        f.setProperty(tp::Field, QStringLiteral("datetime:yyyy-MM-dd|zh-Hans-CN"));
+        QTextCursor(w.editor()->doc()->storyDoc(title->storyId)).insertText(QString(QChar::ObjectReplacementCharacter), f);
+        QString err;
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(deck::exportOdp(*w.editor()->doc(), false, &err), zip, &err), qPrintable(err));
+        const QByteArray content = zip.value(QStringLiteral("content.xml"));
+        QVERIFY(content.contains("number:language=\"zh\" number:country=\"CN\""));
+        QVERIFY(!content.contains("HANS"));
+    }
+
+    // What a file says a field showed is held to 256 letters, and a date style with huge words (many of them, used by many fields) gives a format of at most 64 letters, read once
+    // for the text and not once for each field.
+    void hostileDateFieldsAndStylesAreBounded()
+    {
+        // A field of a kind the program doesn't know (.pptx): the text it showed last, cut.
+        QString err;
+        {
+            DeckWindow w;
+            auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+            QTextCursor(w.editor()->doc()->storyDoc(title->storyId)).insertText(QStringLiteral("a"));
+            QString xml;
+            QMap<QString, QByteArray> zip;
+            QVERIFY2(readZip(deck::exportPresentation(*w.editor()->doc(), &err), zip, &err), qPrintable(err));
+            xml = QString::fromUtf8(zip.value(QStringLiteral("ppt/slides/slide1.xml")));
+            const qsizetype at = xml.indexOf(QStringLiteral("<a:r>"));
+            QVERIFY(at >= 0);
+            xml.insert(at, QStringLiteral("<a:fld id=\"{00000000-0000-0000-0000-000000000000}\" type=\"unknownkind\"><a:t>%1</a:t></a:fld>").arg(QString(100000, QLatin1Char('Z'))));
+            ZipWriter out;
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it) out.add(it.key(), it.key() == QLatin1String("ppt/slides/slide1.xml") ? xml.toUtf8() : it.value());
+            auto back = deck::importPresentation(out.finish(), &err);
+            QVERIFY2(back, qPrintable(err));
+            const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
+            const int shown = int(back->storyDoc(t.storyId)->toPlainText().count(QLatin1Char('Z')));
+            QCOMPARE(shown, 256);
+        }
+        // An .odp style with 32 words of 200,000 letters, named by 300 fields.
+        DeckWindow w;
+        auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        QTextCharFormat f;
+        f.setProperty(tp::Field, QStringLiteral("datetime:yyyy"));
+        QTextCursor c(w.editor()->doc()->storyDoc(title->storyId));
+        for (int i = 0; i < 300; ++i) c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(deck::exportOdp(*w.editor()->doc(), false, &err), zip, &err), qPrintable(err));
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        static const QRegularExpression style(QStringLiteral("(<number:date-style [^>]*>).*?(</number:date-style>)"));
+        QString words;
+        for (int i = 0; i < 32; ++i) words += QStringLiteral("<number:text>") + QString(200000, QLatin1Char('A')) + QStringLiteral("</number:text><number:year number:style=\"long\"/>");
+        QVERIFY(xml.contains(style));
+        xml.replace(style, QStringLiteral("\\1") + words + QStringLiteral("\\2"));
+        ZipWriter out;
+        out.add(QStringLiteral("mimetype"), zip.value(QStringLiteral("mimetype")));
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key() != QLatin1String("mimetype")) out.add(it.key(), it.key() == QLatin1String("content.xml") ? xml.toUtf8() : it.value());
+        const qint64 before = deck::odpDateStylesReadForTest();
+        auto back = deck::importOdp(out.finish(), &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(deck::odpDateStylesReadForTest() - before, qint64(1));   // (once for the text, not for each of the 300 fields)
+        const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
+        int fields = 0;
+        const QTextDocument *story = back->storyDoc(t.storyId);
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                if (code.isEmpty()) continue;
+                fields += int(it.fragment().length());
+                QVERIFY2(splitDateFieldCode(code).format.size() <= 64, qPrintable(QString::number(code.size())));
+            }
+        QCOMPARE(fields, 300);
     }
 
     // Insert > Link (Ctrl+K) makes the selected text a link to the address typed.

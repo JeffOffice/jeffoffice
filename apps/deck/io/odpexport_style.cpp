@@ -347,7 +347,7 @@ QString Exporter::dateStyle(Registry &reg, const QString &code, bool *isTime)
     // (The language of the names, in the two parts the standard has for it.)
     QString where;
     if (!dc.language.isEmpty()) {
-        const QString territory = dc.language.section(QLatin1Char('-'), 1, 1);
+        const QString territory = languageRegionOf(dc.language);
         where = QStringLiteral(" number:language=\"%1\"").arg(esc(dc.language.section(QLatin1Char('-'), 0, 0).toLower())) + (territory.isEmpty() ? QString() : QStringLiteral(" number:country=\"%1\"").arg(esc(territory.toUpper())));
     }
     return reg.add(QStringLiteral("N"), QLatin1Char('<') + tag + QStringLiteral(" style:name=\""), QStringLiteral("\"") + where + QStringLiteral(" number:automatic-order=\"false\">") + body + QStringLiteral("</") + tag + QLatin1Char('>'));

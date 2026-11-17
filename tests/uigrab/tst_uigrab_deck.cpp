@@ -47,7 +47,7 @@ private Q_SLOTS:
         ed->select(boxId);
         ed->beginTextEdit(boxId, 6);
         w.act(QStringLiteral("insert.slideNumberField"))->trigger();
-        QTest::qWait(300);
+        QCoreApplication::processEvents();
         w.grab().save(dir + QStringLiteral("/fields/deck-slide-number.png"));
         QTimer watch;
         watch.setInterval(20);
@@ -56,7 +56,7 @@ private Q_SLOTS:
             if (!d) return;
             watch.stop();
             if (auto *language = d->findChild<QComboBox *>(QStringLiteral("dateLanguage"))) language->setCurrentIndex(language->findData(QStringLiteral("de-DE")));
-            QTest::qWait(100);
+            QCoreApplication::processEvents();
             d->grab().save(dir + QStringLiteral("/fields/deck-date-language.png"));
             d->reject();
         });
