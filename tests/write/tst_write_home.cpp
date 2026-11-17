@@ -14,6 +14,7 @@
 #include "app/pageoutput.h"
 #include "render/pdfpage.h"
 #include <QBuffer>
+#include <QScopeGuard>
 #include <QPdfWriter>
 #include "app/ruler.h"
 #include "app/writefindpane.h"
@@ -1244,6 +1245,25 @@ private Q_SLOTS:
         int bar = 0;
         pdfInk("<w:p><w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"1440\"/></w:tabs></w:pPr><w:r><w:t>ab</w:t></w:r></w:p>", &bar);
         QVERIFY2(bar >= 8, qPrintable(QString::number(bar)));
+    }
+
+    // The list of stops is in the unit of the position field (the person's measurement unit), not always points.
+    void theTabsBoxListsItsStopsInThePersonsUnit()
+    {
+        const Unit was = Settings::get().unit();
+        const auto restore = qScopeGuard([was] { Settings::get().setUnit(was); });
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("ab"), "<w:tabs><w:tab w:val=\"bar\" w:pos=\"2880\"/></w:tabs>"))), QString());
+        QTextCursor cursor(w.document()->story());
+        QString inches, points;
+        Settings::get().setUnit(Unit::Inch);
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { inches = d->findChild<QListWidget *>(QStringLiteral("tabList"))->item(0)->text(); }, false);
+        Settings::get().setUnit(Unit::Point);
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { points = d->findChild<QListWidget *>(QStringLiteral("tabList"))->item(0)->text(); }, false);
+        QVERIFY2(inches.startsWith(QLatin1String("2\"")) && inches.contains(QLatin1String("bar")), qPrintable(inches));
+        QVERIFY2(points.startsWith(QLatin1String("144")) && points != inches, qPrintable(points));
     }
 
     void theTabsBoxSetsBarStopsThatAreDrawnAsLinesAndKeptInTheFile()

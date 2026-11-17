@@ -2,6 +2,7 @@
 
 #include "app/icons.h"
 #include "app/pageview.h"
+#include "app/settings.h"
 #include "core/homeops.h"
 #include "app/normaltemplateui.h"
 #include "app/opentypebox.h"
@@ -670,7 +671,7 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto describe = [](const TabStopEntry &t) {
         const char *kinds[] = {QT_TRANSLATE_NOOP("jp::write::Dialogs", "left"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "right"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "center"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "decimal"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "bar")};
         const int k = t.bar ? 4 : t.type == QTextOption::LeftTab ? 0 : t.type == QTextOption::RightTab ? 1 : t.type == QTextOption::CenterTab ? 2 : 3;
-        return QCoreApplication::translate("jp::write::Dialogs", "%1 pt, %2%3").arg(t.position, 0, 'f', 1).arg(QCoreApplication::translate("jp::write::Dialogs", kinds[k]), t.leader == QLatin1Char(' ') ? QString() : QCoreApplication::translate("jp::write::Dialogs", ", with a leader"));
+        return QCoreApplication::translate("jp::write::Dialogs", "%1, %2%3").arg(Settings::get().format(t.position, 3)).arg(QCoreApplication::translate("jp::write::Dialogs", kinds[k]), t.leader == QLatin1Char(' ') ? QString() : QCoreApplication::translate("jp::write::Dialogs", ", with a leader"));
     };
     auto refill = [&] {
         list->clear();
