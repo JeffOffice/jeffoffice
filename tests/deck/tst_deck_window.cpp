@@ -2772,6 +2772,23 @@ private Q_SLOTS:
         minitest::floats(w, rig, QStringLiteral("deck-mini-toolbar"));
     }
 
+    // The option "Show Mini Toolbar on selection" turned off takes a bar that is showing away at once.
+    void theMiniToolbarGoesWhenTheOptionIsTurnedOff()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        auto rig = [&] {
+            const auto *title = placeholderOfSlide(*ed->doc(), 0, 0);
+        const QString boxId = title->id, storyId = title->storyId;
+        QTextCursor(ed->doc()->storyDoc(storyId)).insertText(minitest::kText);
+        return minitest::Rig<DeckWindow>(w, boxId, storyId, 0);
+        }();
+        minitest::goesWhenTheOptionIsTurnedOff(rig);
+    }
+
     // The font box, the color button, an alignment, bullets, and the size buttons each change the selected words in one step of Undo.
     void theMiniToolbarsControlsChangeTheSelectionInOneStepEach()
     {

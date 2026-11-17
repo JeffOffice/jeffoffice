@@ -5,6 +5,7 @@
 #include <QAbstractScrollArea>
 #include <QAction>
 #include <QCoreApplication>
+#include <QApplication>
 #include <QCursor>
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
@@ -21,12 +22,36 @@ namespace jp {
 
 namespace {
 const QSize kCell(28, 26);   // a button of an aligned bar
+std::function<QPoint()> pointerSource;   // (a test's own pointer)
+
+// A button that gives its action to the target to run, when the target wants it (for one that asks a question: not from inside a menu that is about to close).
+class BarButton : public QToolButton {
+public:
+    BarButton(QWidget *parent, std::function<bool(QAction *)> takeOver, std::function<void()> ran) : QToolButton(parent), m_takeOver(std::move(takeOver)), m_ran(std::move(ran)) {}
+
+protected:
+    void nextCheckState() override
+    {
+        QAction *a = defaultAction();
+        if (a && m_takeOver && m_takeOver(a)) return;
+        QToolButton::nextCheckState();
+        if (m_ran) m_ran();
+    }
+
+private:
+    std::function<bool(QAction *)> m_takeOver;
+    std::function<void()> m_ran;
+};
 }
 
 MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFrame(host), m_target(std::move(owned))
 {
     MiniTarget *target = m_target.get();
     setObjectName(QStringLiteral("miniToolbar"));
+    // (Options: Show Mini Toolbar on selection, turned off, takes a bar that shows away at once)
+    connect(&MiniToolbarSettingNotifier::get(), &MiniToolbarSettingNotifier::changed, this, [this](bool on) {
+        if (!on) hide();
+    });
     jp::softPanel(this);
     setAutoFillBackground(true);
     auto *column = new QVBoxLayout(this);
@@ -35,14 +60,21 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
     // The font box on top, then the buttons and the font color (the same commands as the ribbon's, and they follow the selection as its boxes do).
     if (target->supportsFont()) {
         m_font = new FontCombo(this);
-        connect(m_font, &FontCombo::familyChosen, this, [target](const QString &f) { target->chooseFont(f); });
+        connect(m_font, &FontCombo::familyChosen, this, [this, target](const QString &f) {
+            target->chooseFont(f);
+            Q_EMIT commandRan();
+        });
         if (target->supportsSize()) {
             auto *top = new QHBoxLayout;
             top->setContentsMargins(0, 0, 0, 0);
             top->setSpacing(2);
             m_size = new SizeCombo(this);
             m_size->setFocusPolicy(Qt::NoFocus);
-            connect(m_size, &SizeCombo::sizeChosen, this, [target](double pt) { target->chooseSize(pt); });
+            m_font->setFocusPolicy(Qt::NoFocus);   // (a click on either box leaves the selection where it is: the entry keeps the keyboard)
+            connect(m_size, &SizeCombo::sizeChosen, this, [this, target](double pt) {
+                target->chooseSize(pt);
+                Q_EMIT commandRan();
+            });
             top->addWidget(m_font, 1, target->alignRows() ? Qt::AlignLeft : Qt::Alignment());   // (an aligned bar starts the font box where its icon rows start)
             top->addWidget(m_size);
             column->addLayout(top);
@@ -58,7 +90,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
     for (C c : {C::Bold, C::Italic, C::Underline, C::Shrink, C::Grow, C::AlignLeft, C::AlignCenter, C::AlignRight, C::Bullets, C::Numbering}) {
         QAction *a = target->action(c);
         if (!a) continue;
-        auto *button = new QToolButton(this);
+        auto *button = new BarButton(this, [target](QAction *x) { return target->takeOver(x); }, [this] { Q_EMIT commandRan(); });
         button->setDefaultAction(a);
         button->setToolButtonStyle(Qt::ToolButtonIconOnly);
         button->setAutoRaise(true);
@@ -72,6 +104,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         connect(m_fill, &ColorButton::colorPicked, this, [this, target](const ColorRef &c) {
             m_fill->setCurrent(c);
             target->chooseFill(c);
+            Q_EMIT commandRan();
         });
         row->addWidget(m_fill);
     }
@@ -79,7 +112,10 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         m_color = new ColorButton(QStringLiteral("baseline"), QCoreApplication::translate("MiniToolbar", "Font Color"), true, QCoreApplication::translate("MiniToolbar", "Automatic"), this);
         m_color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
         m_color->setExtraActions(target->colorExtras());
-        connect(m_color, &ColorButton::colorPicked, this, [target](const ColorRef &c) { target->chooseColor(c); });
+        connect(m_color, &ColorButton::colorPicked, this, [this, target](const ColorRef &c) {
+            target->chooseColor(c);
+            Q_EMIT commandRan();
+        });
         row->addWidget(m_color);
     }
     if (target->alignRows()) row->addStretch(1);   // (a row starts at the left edge and keeps its buttons' size)
@@ -90,7 +126,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
         extra->setSpacing(1);
         column->addLayout(extra);
         for (QAction *a : more) {
-            auto *button = new QToolButton(this);
+            auto *button = new BarButton(this, [target](QAction *x) { return target->takeOver(x); }, [this] { Q_EMIT commandRan(); });
             button->setDefaultAction(a);
             button->setToolButtonStyle(Qt::ToolButtonIconOnly);
             button->setAutoRaise(true);
@@ -134,9 +170,16 @@ void MiniToolbar::fadeAwayFromPointer(bool on)
     }
     m_fadeTimer = new QTimer(this);
     m_fadeTimer->setInterval(60);
-    connect(m_fadeTimer, &QTimer::timeout, this, [this] { fadeTo(QCursor::pos()); });
+    // (the pointer is not believed for the first few looks: it may still be where it was before the bar came)
+    connect(m_fadeTimer, &QTimer::timeout, this, [this] {
+        if (++m_ticks <= kGraceTicks) return;
+        ++m_looks;
+        fadeTo(pointerSource ? pointerSource() : QCursor::pos());
+    });
     if (isVisible()) m_fadeTimer->start();
 }
+
+void MiniToolbar::setPointerSource(const std::function<QPoint()> &source) { pointerSource = source; }
 
 // Fully opaque within 40 pixels of the bar, fading out by 180, and gone past that.
 double MiniToolbar::opacityFor(const QRect &bar, const QPoint &p)
@@ -146,8 +189,11 @@ double MiniToolbar::opacityFor(const QRect &bar, const QPoint &p)
     return std::clamp(1.0 - (d - 40.0) / 140.0, 0.0, 1.0);
 }
 
+// A bar with a list of its own open (a font list, a palette, the borders) is left as it is, however far the pointer: the list is part of it, and goes with it (the pointer is for the list
+// then, and a bar that went would take it down while a choice is being made).
 void MiniToolbar::fadeTo(const QPoint &global)
 {
+    if (QWidget *popup = QApplication::activePopupWidget(); popup && popup->isVisible()) return;
     const double o = opacityFor(QRect(mapToGlobal(QPoint(0, 0)), size()), global);
     if (o <= 0) {
         hide();
@@ -160,6 +206,8 @@ void MiniToolbar::showEvent(QShowEvent *event)
 {
     QFrame::showEvent(event);
     if (m_fade) m_fade->setOpacity(1);
+    m_ticks = 0;
+    m_looks = 0;
     if (m_fadeTimer) m_fadeTimer->start();
 }
 

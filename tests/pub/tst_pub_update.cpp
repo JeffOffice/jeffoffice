@@ -579,6 +579,24 @@ private Q_SLOTS:
         jp::moveToSuite(mine, all);   // only once
         QCOMPARE(all.value("ui/theme").toInt(), 2);
     }
+
+    // "Show Mini Toolbar on selection" is one choice for the four programs: kept in the suite's store, not in an app's own, so what one app sets another reads.
+    void theMiniToolbarSwitchIsOneSettingForEveryApp()
+    {
+        QVERIFY(jp::suiteWide(QStringLiteral("ui/miniToolbarOnSelection")));
+        QSettings suite(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice"));
+        QSettings other(QSettings::defaultFormat(), QSettings::UserScope, QStringLiteral("JeffOffice"), QStringLiteral("JeffCrunch"));
+        const bool was = jp::miniToolbarOnSelection();
+        const auto restore = qScopeGuard([was] { jp::setMiniToolbarOnSelection(was); });
+        jp::setMiniToolbarOnSelection(false);
+        suite.sync();
+        QCOMPARE(suite.value("ui/miniToolbarOnSelection").toBool(), false);
+        QVERIFY(!other.contains("ui/miniToolbarOnSelection"));
+        suite.setValue("ui/miniToolbarOnSelection", true);   // as another app would
+        suite.sync();
+        jp::Settings::get().sync();
+        QVERIFY(jp::miniToolbarOnSelection());
+    }
 };
 
 JP_TEST_CLASS(PubUpdateTests)

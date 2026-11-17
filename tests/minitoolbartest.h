@@ -4,6 +4,7 @@
 #include "../tests/withdialog.h"
 #include "app/editor.h"
 #include "app/minitoolbar.h"
+#include "app/settings.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
 #include "text/textprops.h"
@@ -200,6 +201,18 @@ template <class Win> void goesWhenTheWordsMove(Win &w, Rig<Win> &r, const char *
     MINI_SELECT(r);
     r.ed->deleteItems({r.boxId});
     QTRY_VERIFY(!r.mini->isVisible());
+}
+
+// "Show Mini Toolbar on selection" turned off (as the Options dialog does) takes the bar that is showing away at once, and keeps it from showing again.
+template <class Win> void goesWhenTheOptionIsTurnedOff(Rig<Win> &r)
+{
+    QVERIFY(r.mini);
+    const bool was = jp::miniToolbarOnSelection();
+    const auto restore = qScopeGuard([was] { jp::setMiniToolbarOnSelection(was); });
+    jp::setMiniToolbarOnSelection(true);
+    MINI_SELECT(r);
+    jp::setMiniToolbarOnSelection(false);
+    QVERIFY(!r.mini->isVisible());
 }
 
 template <class Win> void goesWithAnotherPage(Rig<Win> &r)

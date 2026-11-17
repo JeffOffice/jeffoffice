@@ -38,6 +38,8 @@ public:
     virtual void chooseSize(double) {}
     virtual void chooseFill(const ColorRef &) {}
     virtual QList<QAction *> moreActions() const { return {}; }
+    // A chance to run a button's action itself (true: the bar does not trigger it), for one that asks a question while the bar is in a menu that closes.
+    virtual bool takeOver(QAction *) { return false; }
     // Whether the button rows are laid out on one grid (every button the same size, rows starting at the same left edge, so icons sit under icons); the others spread each row.
     virtual bool alignRows() const { return false; }
 };
@@ -53,6 +55,7 @@ public:
     std::function<void(const ColorRef &)> setFill;
     QList<QAction *> more;
     bool aligned = false;
+    std::function<bool(QAction *)> takes;
     QAction *action(Command c) const override { return actionFor ? actionFor(c) : nullptr; }
     QList<QAction *> colorExtras() const override { return extras; }
     bool supportsFont() const override { return bool(setFont); }
@@ -65,6 +68,7 @@ public:
     void chooseFill(const ColorRef &c) override { if (setFill) setFill(c); }
     QList<QAction *> moreActions() const override { return more; }
     bool alignRows() const override { return aligned; }
+    bool takeOver(QAction *a) override { return takes && takes(a); }
 };
 
 class JO_COMMON_EXPORT MiniToolbar : public QFrame {
@@ -86,6 +90,13 @@ public:
     void fadeAwayFromPointer(bool on);
     static double opacityFor(const QRect &barOnScreen, const QPoint &global);
     void fadeTo(const QPoint &global);
+    // Where the pointer is for the fade (the cursor's place unless a test says); `looks` is how many times the timer has judged it since the bar showed (not the first few, which are let by).
+    static void setPointerSource(const std::function<QPoint()> &source);
+    int looks() const { return m_looks; }
+    int ticksAtLook() const { return m_ticks; }
+Q_SIGNALS:
+    // A button or box of the bar has done its command (for a bar in a menu to show what the command made of the cell).
+    void commandRan();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
@@ -97,6 +108,8 @@ private:
     ColorButton *m_color = nullptr;
     SizeCombo *m_size = nullptr;
     ColorButton *m_fill = nullptr;
+    static constexpr int kGraceTicks = 5;   // (5 looks of 60 ms: about 300 ms)
+    int m_ticks = 0, m_looks = 0;
     QTimer *m_fadeTimer = nullptr;
     QGraphicsOpacityEffect *m_fade = nullptr;
     std::unique_ptr<MiniTarget> m_target;

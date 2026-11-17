@@ -3381,6 +3381,22 @@ private Q_SLOTS:
         minitest::floats(w, rig, QStringLiteral("pub-mini-toolbar"));
     }
 
+    // The option "Show Mini Toolbar on selection" turned off takes a bar that is showing away at once.
+    void theMiniToolbarGoesWhenTheOptionIsTurnedOff()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        auto rig = [&] {
+            auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 60), QLatin1Char('\n') + minitest::kText));
+        ed->addItem(box);
+        return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
+        }();
+        minitest::goesWhenTheOptionIsTurnedOff(rig);
+    }
+
     // The font box, the color button, an alignment, bullets, and the size buttons each change the selected words in one step of Undo.
     void theMiniToolbarsControlsChangeTheSelectionInOneStepEach()
     {

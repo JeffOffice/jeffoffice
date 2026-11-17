@@ -53,7 +53,7 @@ bool suiteWide(const QString &key)
 {
     static const QStringList keys = {QStringLiteral("ui/theme"), QStringLiteral("ui/language"), QStringLiteral("user/name"),
                                      QStringLiteral("user/initials"), QStringLiteral("telemetry/enabled"), QStringLiteral("telemetry/install"),
-                                     QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType"), QStringLiteral("proof/grammarKinds"), QStringLiteral("speech/speed"), QStringLiteral("speech/voice")};
+                                     QStringLiteral("proof/checkAsYouType"), QStringLiteral("proof/checkGrammarAsYouType"), QStringLiteral("proof/grammarKinds"), QStringLiteral("speech/speed"), QStringLiteral("speech/voice"), QStringLiteral("ui/miniToolbarOnSelection")};
     return key.startsWith(QLatin1String("updates/")) || key.startsWith(QLatin1String("trust/")) || key.startsWith(QLatin1String("fonts/replace/")) || keys.contains(key);
 }
 
@@ -133,7 +133,17 @@ void setSpellAsYouType(bool on)
 
 bool miniToolbarOnSelection() { return Settings::get().value(QStringLiteral("ui/miniToolbarOnSelection"), true).toBool(); }
 
-void setMiniToolbarOnSelection(bool on) { Settings::get().setValue(QStringLiteral("ui/miniToolbarOnSelection"), on); }
+void setMiniToolbarOnSelection(bool on)
+{
+    Settings::get().setValue(QStringLiteral("ui/miniToolbarOnSelection"), on);
+    Q_EMIT MiniToolbarSettingNotifier::get().changed(on);
+}
+
+MiniToolbarSettingNotifier &MiniToolbarSettingNotifier::get()
+{
+    static MiniToolbarSettingNotifier n;
+    return n;
+}
 
 GrammarSettingNotifier &GrammarSettingNotifier::get()
 {

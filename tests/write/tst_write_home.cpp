@@ -3556,20 +3556,55 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 1);
     }
 
-    // A picture of the Home ribbon (with JW_SHOT_DIR set), for looking at the Bold button's weight.
-    void grabTheHomeRibbonAndTheMiniToolbar()
+    // A picture of the Home ribbon (with JW_SHOT_DIR set), for looking at the Bold button's weight. It sets the light look for the picture and puts the look it found back.
+    void grabTheHomeRibbon()
     {
         const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
         if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        const int theme = jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt();
+        const QString sheet = qApp->styleSheet();
+        const QPalette palette = qApp->palette();
         jp::applyUiTheme(1);
         QDir().mkpath(dir);
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(1100, 800);
+            w.show();
+            w.setDocument(open(makeDocx(para(run("Some words to pick out of the line.")))), QString());
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            QVERIFY(w.grab().save(dir + QStringLiteral("/write-ribbon.png")));
+        }
+        if (sheet.isEmpty()) {   // (no look had been set: none is)
+            qApp->setStyleSheet(QString());
+            QGuiApplication::setPalette(palette);
+        } else {
+            jp::applyUiTheme(theme);
+        }
+        QCOMPARE(qApp->styleSheet(), sheet);   // (the program's look is as it was: a later window test is not drawn in this one's)
+    }
+
+    // The option "Show Mini Toolbar on selection" turned off takes a bar that is showing away at once.
+    void theMiniToolbarGoesWhenTheOptionIsTurnedOff()
+    {
+        const bool was = jp::miniToolbarOnSelection();
+        const auto restore = qScopeGuard([was] { jp::setMiniToolbarOnSelection(was); });
+        jp::setMiniToolbarOnSelection(true);
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.resize(1100, 800);
         w.show();
         w.setDocument(open(makeDocx(para(run("Some words to pick out of the line.")))), QString());
-        QVERIFY(QTest::qWaitForWindowExposed(&w));
-        QVERIFY(w.grab().save(dir + QStringLiteral("/write-ribbon.png")));
+        auto *mini = w.view()->findChild<QFrame *>(QStringLiteral("miniToolbar"));
+        QVERIFY(mini);
+        QTextCursor c(w.document()->story());
+        c.setPosition(5);
+        c.setPosition(10, QTextCursor::KeepAnchor);
+        w.view()->setCursor(c);
+        Q_EMIT w.view()->selectionMade();
+        QTRY_VERIFY(mini->isVisible());
+        jp::setMiniToolbarOnSelection(false);
+        QVERIFY(!mini->isVisible());
     }
 
     void theMiniToolbarFloatsAboveWordsSelectedWithTheMouseAndGoesWhenTheSelectionDoes()
