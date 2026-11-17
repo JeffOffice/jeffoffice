@@ -158,6 +158,12 @@ Name: "stats"; Description: "{#TaskStats}"; GroupDescription: "Usage statistics:
 ; The folder is removed with the program even when an earlier setup made it (NSIS, through 0.20.0).
 Name: "{app}"; Flags: uninsalwaysuninstall
 
+[InstallDelete]
+; Help and the fonts are one file each now (help.rcc, fonts.rcc). The folders of loose files an earlier version left are taken out before
+; the files go in, so that an old copy neither lingers nor is read in place of the new one.
+Type: filesandordirs; Name: "{app}\help"
+Type: filesandordirs; Name: "{app}\fonts"
+
 [Files]
 Source: "..\..\dist\JeffOffice\*"; DestDir: "{app}"; Excludes: "{#NotApps}"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "jeffoffice.ico"; DestDir: "{app}"; Flags: ignoreversion

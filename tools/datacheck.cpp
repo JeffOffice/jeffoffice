@@ -11,6 +11,8 @@
 #include "text/hyphenation.h"
 
 #include <QCoreApplication>
+#include <QDir>
+#include <QFileInfo>
 #include <QFile>
 #include <cstdio>
 
@@ -24,7 +26,10 @@ int main(int argc, char **argv)
     jp::setAppInfo(info);
     int bad = 0;
     auto fail = [&bad](const char *what) { std::fprintf(stderr, "datacheck: %s\n", what); ++bad; };
-    if (jp::dataFolder(QStringLiteral("help")).isEmpty()) fail("no help folder");
+    if (jp::dataFolder(QStringLiteral("help")).isEmpty()) fail("no help bundle");
+    if (jp::dataFolder(QStringLiteral("fonts")).isEmpty()) fail("no fonts bundle");
+    else if (QDir(jp::dataFolder(QStringLiteral("fonts"))).entryList({QStringLiteral("*.ttf"), QStringLiteral("*.otf")}, QDir::Files).size() < 100) fail("the fonts bundle lists too few fonts");
+    else if (QFileInfo(jp::dataFolder(QStringLiteral("fonts")) + QStringLiteral("/Arimo-Regular.ttf")).size() < 100000) fail("a font of the bundle does not read");
     if (jp::dataFolder(QStringLiteral("i18n")).isEmpty()) fail("no i18n folder");
     const QStringList ids = jp::help::topicIds();
     if (ids.size() < 7) fail("Help lists too few topics");
@@ -47,6 +52,8 @@ int main(int argc, char **argv)
     if (jp::hyphenationPoints(QStringLiteral("hyphenation"), QStringLiteral("en-US")).isEmpty()) fail("hyphenation patterns do not load");
     if (jp::thesaurusLookup(QStringLiteral("happy")).isEmpty()) fail("the thesaurus does not answer");
     std::printf("datacheck: dictionaries %s\n", qPrintable(dictFolder));
-    std::printf("datacheck: %d topics, data folder %s\n", int(ids.size()), qPrintable(jp::dataFolder(QStringLiteral("help"))));
+    // (Help and the fonts are the files help.rcc and fonts.rcc in the data folder, which holds i18n beside them)
+    const QString root = QFileInfo(jp::dataFolder(QStringLiteral("i18n"))).absolutePath();
+    std::printf("datacheck: %d topics, data folder %s\n", int(ids.size()), qPrintable(root));
     return bad ? 1 : 0;
 }

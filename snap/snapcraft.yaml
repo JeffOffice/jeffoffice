@@ -207,8 +207,7 @@ parts:
       cp -a "$tts_plugins/." "$d/usr/bin/texttospeech/"
       test -f "$d/usr/lib/jeffoffice/libQt6TextToSpeech.so.6" && ls "$d/usr/bin/texttospeech/"*.so >/dev/null
       mkdir -p "$d/usr/share/jeffoffice"
-      cp -r "$CRAFT_PART_SRC/resources/fonts" "$d/usr/share/jeffoffice/"
-      # Help, the translations, the dictionaries and thesaurus (compressed), and their stamp and manifest, one copy for the apps (jp::dataFolder finds them in ../share/jeffoffice).
+      # Help and the fonts (help.rcc and fonts.rcc, one file each), the translations, the dictionaries and thesaurus (compressed), and their stamp and manifest, one copy for the apps (jp::dataFolder finds them in ../share/jeffoffice).
       cp -rL "$CRAFT_PART_BUILD/data/." "$d/usr/share/jeffoffice/"
       { printf 'JeffOffice\nCopyright (c) 2026 JeffOffice LLC\nLicense: GPL-3.0 (below)\n\n'; cat "$CRAFT_PART_SRC/LICENSE"; } > "$d/usr/share/doc/jeffoffice/copyright"
       cp "$CRAFT_PART_SRC/third_party/pdfium/licenses/"* "$d/usr/share/doc/jeffoffice/pdfium/"
