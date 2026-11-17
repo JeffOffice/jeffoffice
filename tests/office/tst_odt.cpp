@@ -530,6 +530,28 @@ private Q_SLOTS:
         QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("all the charts of a document")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
+    // The bytes of all the chart documents of one file together are held to 96 MB (each is under the 32 MB a chart may be, and the points are few): the charts past the budget are not read, and one note says so.
+    void allTheChartsOfADocumentShareOneBudgetOfBytes()
+    {
+        Made m;
+        QByteArray padded = chartDocument(3);
+        const int end = padded.lastIndexOf("</");
+        QVERIFY(end > 0);
+        padded.insert(end, "<!--" + QByteArray(30 << 20, ' ') + "-->");   // (a comment: 30 MB the chart does not use)
+        QVERIFY(padded.size() < jp::office::sheet::odschart::kMaxPartBytes);
+        QByteArray body = "<text:p>";
+        for (int i = 1; i <= 5; ++i) {
+            m.extra.insert(QStringLiteral("Object %1/content.xml").arg(i), padded);
+            body += chartFrame(QStringLiteral("./Object %1").arg(i));
+        }
+        m.body = body + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        // (three of about 30 MB come to 90 MB; the fourth would pass 96 MB, and so would the fifth)
+        QCOMPARE(chartParts(docx), 3);
+        QCOMPARE(int(notes.count(QStringLiteral("charts past the size all the charts of a document may come to"))), 1);
+    }
+
     // A chart named by two frames of two sizes is one object in the .odt, and each frame keeps its own size.
     void aChartInTwoSizesIsOneObjectAndEachFrameKeepsItsSize()
     {

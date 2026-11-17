@@ -493,6 +493,37 @@ QByteArray workbookChartDocx()
     return w.finish();
 }
 
+// A document whose chart has custom error-bar amounts typed in (no cells behind them), for the .odt to keep.
+QByteArray customBarsChartDocx()
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    office::Chart chart = office::blankChart(office::defaultTheme());
+    office::ChartPlot plot;
+    plot.type = office::ChartType::Line;
+    office::ChartSeries series;
+    series.name = QStringLiteral("S");
+    series.values << 1 << 3 << 2;
+    series.categories << "a" << "b" << "c";
+    office::ChartErrorBars bars;
+    bars.valueType = QStringLiteral("cust");
+    bars.plus = {1.5, 2.5, 3.5};
+    bars.minus = {0.5, 0.25, 0.125};
+    series.errorBars.append(bars);
+    plot.series.append(series);
+    chart.plots.append(plot);
+    w.addPart(QStringLiteral("/word/charts/chart1.xml"), office::writeChartPart(chart), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    const QString rid = w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("chart"), QStringLiteral("charts/chart1.xml"));
+    const QByteArray run = "<w:r><w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"4572000\" cy=\"2743200\"/><wp:docPr id=\"4\" name=\"Chart 4\"/><wp:cNvGraphicFramePr/>"
+                           "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"" + rid.toUtf8() +
+                           "\"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body><w:p>" + run + "</w:p></w:body></w:document>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
 struct Win {
     WriteWindow w;
     explicit Win(const QByteArray &paragraph = "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>")
@@ -5316,6 +5347,34 @@ private Q_SLOTS:
         QMap<QString, QByteArray> files;
         QVERIFY(readZip(again, files));
         QVERIFY(files.contains(QStringLiteral("Object 1/content.xml")) && !files.contains(QStringLiteral("Object 2/content.xml")));
+    }
+
+    // Typed custom error-bar amounts (plus and minus, one for each point) go through the .odt and come back as the same numbers.
+    void customErrorBarAmountsSurviveTheOdt()
+    {
+        auto doc = open(customBarsChartDocx());
+        QVERIFY(doc);
+        auto positionOfChart = [](WriteDoc &d) {
+            for (int p = 0; p < d.story()->characterCount(); ++p)
+                if (isDrawnObjectAt(d.story(), p) && pictureAt(d, d.story(), p).kind == DrawnKind::Chart) return p;
+            return -1;
+        };
+        QString err;
+        QStringList notes;
+        const QByteArray odt = doc->toOdt(&err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY2(!notes.join(QLatin1Char('|')).contains(QLatin1String("error bars")), qPrintable(notes.join(QLatin1Char('|'))));
+        auto back = WriteDoc::fromFile(odt);
+        QVERIFY(back);
+        const int at = positionOfChart(*back);
+        QVERIFY(at >= 0);
+        office::Chart chart;
+        QVERIFY(readChartAt(*back, at, &chart));
+        const auto bars = chart.plots[0].series[0].errorBars;
+        QCOMPARE(int(bars.size()), 1);
+        QCOMPARE(bars[0].valueType, QStringLiteral("cust"));
+        QCOMPARE(bars[0].plus, (QVector<double>{1.5, 2.5, 3.5}));
+        QCOMPARE(bars[0].minus, (QVector<double>{0.5, 0.25, 0.125}));
     }
 
     // The names are JeffCrunch's, and the commands for the numbers of a chart whose numbers are not its own (c:f references and a workbook kept with it) are off, with the reason in the tooltip.

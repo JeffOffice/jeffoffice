@@ -891,6 +891,31 @@ private Q_SLOTS:
         QCOMPARE(read.errorBars[0].value, 5.0);
         QCOMPARE(read.errorBars[0].barType, QStringLiteral("plus"));
     }
+
+    // A trendline of a kind the format does not have is not written, and the copy's notes say so (the other trendlines stay).
+    void aTrendlineOfAnUnknownKindIsToldAndTheRestAreKept()
+    {
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        jp::office::ChartSeries sr;
+        sr.name = QStringLiteral("S");
+        sr.values << 1 << 3 << 2;
+        sr.categories << "a" << "b" << "c";
+        jp::office::ChartTrendline odd;
+        odd.type = QStringLiteral("spline");
+        sr.trendlines.append(odd);
+        jp::office::ChartTrendline linear;
+        linear.type = QStringLiteral("linear");
+        sr.trendlines.append(linear);
+        plot.series.append(sr);
+        model.plots.append(plot);
+        QStringList notes;
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].contains(QStringLiteral("trendlines of a kind the format does not have")), qPrintable(notes[0]));
+        QCOMPARE(document.count("<chart:regression-curve "), 1);
+    }
 };
 
 JP_TEST_CLASS(SheetOdsChartTests)
