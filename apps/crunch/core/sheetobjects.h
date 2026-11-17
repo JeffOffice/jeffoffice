@@ -250,6 +250,16 @@ public:
     qint64 linkVisits() const { return m_linkVisits; }
     qint64 linkUpdates() const { return m_linkUpdates; }
     qint64 linkIndexBuilds() const { return m_linkIndexBuilds; }
+    // For tests: the words the item of a shape holds (made again first if its cell's text has changed since).
+    QString itemTextOf(int sheet, int id);
+    // How many items of shapes were made again for their text, how many characters the linked shapes show in all, and how many charts a change of cells looked at.
+    qint64 linkRebuilds() const { return m_linkRebuilds; }
+    qint64 linkedChars() const { return m_linkChars; }
+    qint64 readerVisits() const { return m_readerVisits; }
+    // The linked shapes of a workbook show at most this many characters in all (a shape past it is cut to kMinLinkedChars): that holds the text in memory to 8 MB (and the drawing's XML to 12 MB),
+    // however many shapes are linked to however long a text.
+    static constexpr qint64 kMaxLinkedChars = qint64(4) * 1024 * 1024;
+    static constexpr qint64 kMinLinkedChars = 64;
     // The state of the object with a new name (empty: as it is) and alternative text.
     ObjectState stateWithNames(int sheet, int id, const QString &name, const QString &description);
     // Whether another object of the sheet has the name.
@@ -315,7 +325,9 @@ private:
         bool textLinked = false;                       // a shape that shows a cell's text (`refs` has the one reference)
         bool linkShownValid = false;                   // `linkShown` is the text of its cell that the item was made with
         QString linkShown;
-        QString linkFileRef, linkSavingRef;            // the textlink the file has, and the one the save in flight writes
+        bool linkPending = false;                      // its file textlink was read and is to be resolved against the cells
+        bool linkStale = false;                        // the item was made with other text than `linkShown`: made again when it is drawn
+        QString linkFileAttr, linkSavingRef;           // the textlink attribute the file has (as written), and the one the save in flight writes
         int linkState = -1;                            // a picture that holds a barcode marker with a cell: -1 not looked at, 0 no, 1 yes (found without making the picture)
         quint64 linkEpoch = 0;                         // the m_linkEpoch the cell below was found at
         bool linkFound = false;
@@ -369,6 +381,7 @@ private:
         qint64 nextShapeId = 2;                        // and the number the next one has in the drawing
         bool shapeIdsKnown = false;                    // `nextShapeId` is past every id the drawing part has (found by looking through the whole part)
         QString savedDrawing;                          // the drawing part saving makes for a sheet that has none
+        std::vector<std::weak_ptr<Object>> readers;    // the charts that have a record of the cells they read (a change of cells looks at these alone)
     };
     Sheet &sheetState(int sheet);
     void list(int sheet, Sheet &s);
@@ -381,7 +394,7 @@ private:
     jp::ItemPtr diagramItem(Sheet &s, Object &o);
     void readContext();
     std::function<QImage()> prepareChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
-    QImage renderItem(Object &o, const jp::grid::RenderRequest &q);
+    QImage renderItem(int sheet, Object &o, const jp::grid::RenderRequest &q);
     jp::grid::LayerObject layerObject(int sheet, const std::shared_ptr<Object> &o);
     void applyEdit(int sheet, Object &o, const jp::office::sheet::StructEdit &edit);
     void replay(int sheet, Object &o);
@@ -405,12 +418,23 @@ private:
     bool mayBeLinked(Object &o);
     // Writes the barcode of the object again, with the value of its cell and the reference to it as they are, in what the save is made of (see addToSave).
     void saveBarcode(int sheet, Sheet &s, Object &o, jp::office::sheet::SaveChanges *changes, QSet<QString> *claimed);
-    // A shape whose textlink names a cell takes the reference as a chart does (it follows the edits to rows and columns); `made`: it was put here from an element.
-    void linkShape(int sheet, Object &o, bool made);
-    // The text the shape's cell shows (false when it is not known yet: the shape keeps what it has), and the shape made again with it.
+    // A shape's textlink as its file has it is read when the sheet's objects are listed (no item is made), and resolved against the cells when they are there: one that names a cell is linked
+    // and follows the edits to rows and columns as a chart's references do; one that does not (another file, a name of a formula, a sheet that is not there) is left as the file has it.
+    void readFileLink(Sheet &s, Object &o);
+    void resolveLinks(int sheet, Sheet &s);
+    void listLinkedSheets();
+    // A shape put here from an element: linked by its textlink the same way.
+    void linkMadeShape(int sheet, Object &o);
+    // The text the shape's cell shows (false when it is not known yet: the shape keeps what it has). `known` is the cell's text, if it is already asked.
     bool linkWantedText(int sheet, const Object &o, QString *text) const;
     bool linkTarget(int sheet, const Object &o, int *cellSheet, quint32 *row, quint32 *col) const;
-    bool applyLinkedText(int sheet, Object &o);
+    // The shape takes the text (a change of the string, and its item marked to be made again when it is drawn: no item or element is made here); false if it had it.
+    bool applyLinkedText(int sheet, Object &o, const QString *known = nullptr);
+    void forgetLinkedText(Object &o);
+    void rebuildLinked(int sheet, Object &o);
+    void registerReader(int sheet, Object &o);
+    // The canonical reference of a linked shape for a copy (a cell with its sheet).
+    QString copyLinkRef(int sheet, const Object &o) const;
     void refreshAllLinked();
     void buildLinkIndex();
     // Writes the reference and text of a linked shape into what the save is made of (see addToSave).
@@ -435,7 +459,9 @@ private:
     QHash<quint64, QVector<LinkEntry>> m_linkIndex;
     bool m_linkIndexClean = false;
     bool m_anyLinked = false;
-    qint64 m_linkVisits = 0, m_linkUpdates = 0, m_linkIndexBuilds = 0;
+    qint64 m_linkVisits = 0, m_linkUpdates = 0, m_linkIndexBuilds = 0, m_linkRebuilds = 0, m_linkChars = 0, m_readerVisits = 0;
+    bool m_linksListed = false;                              // the sheets whose drawings have a textlink are listed
+    QVector<int> m_linkSheets;                               // the sheets whose drawing parts have a textlink (found by their bytes, when the workbook is opened)
     std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
     QHash<QString, int> m_drawingOwner;                      // the first sheet that names each drawing part (a file whose sheets share a drawing shows it on the first), lower case

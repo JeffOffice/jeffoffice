@@ -52,6 +52,8 @@ constexpr int kMaxShapeLinkChars = 255;     // a reference longer than this is n
 constexpr int kMaxShapeLinkText = 32767;    // the text shown is cut to what a cell holds
 // Whether `ref` can be a link: not empty, at most kMaxShapeLinkChars, no control characters, and one reference (no list and no range). Whether it names a cell is for the workbook to say.
 bool validShapeLink(const QString &ref);
+// The text as a shape holds it: line breaks as \n, cut to kMaxShapeLinkText, and without the characters XML cannot hold (as the cell writer has them).
+QString normalizedShapeLinkText(const QString &text);
 // The shape element's text body made to hold `text` (cut to kMaxShapeLinkText): one paragraph for each line, in the first paragraph's and first run's look; the body is made if the shape has
 // none. `changed` says whether the words were other than they were (a body that already holds the words is not touched).
 void setShapeLinkText(QDomElement sp, const QString &text, bool *changed = nullptr);

@@ -433,13 +433,13 @@ QString prefixOf(const QDomNode &n)
 }
 
 // The prefix the drawing uses for its a: elements ("a:" if none is found).
+// (the children of spPr and txBody are all DrawingML's: the first one says whether it has a prefix; none is the default namespace)
 QString drawingPrefix(const QDomElement &sp)
 {
-    for (const char *name : {"spPr", "txBody"})
-        for (QDomElement c = childLocal(sp, name).firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
-            const QString p = prefixOf(c);
-            if (!p.isEmpty()) return p;
-        }
+    for (const char *name : {"txBody", "spPr"}) {
+        const QDomElement c = childLocal(sp, name).firstChildElement();
+        if (!c.isNull()) return prefixOf(c);
+    }
     return QStringLiteral("a:");
 }
 
@@ -489,13 +489,19 @@ QString shapeLinkStoredText(const QDomElement &sp)
     return lines.join(QLatin1Char('\n'));
 }
 
+QString normalizedShapeLinkText(const QString &textIn)
+{
+    QString text = textIn;
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
+    if (text.size() > kMaxShapeLinkText) text.truncate(kMaxShapeLinkText);
+    return xmlscan::withoutIllegal(text);
+}
+
 void setShapeLinkText(QDomElement sp, const QString &textIn, bool *changed)
 {
     if (changed) *changed = false;
     if (sp.isNull()) return;
-    QString text = textIn;
-    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
-    if (text.size() > kMaxShapeLinkText) text.truncate(kMaxShapeLinkText);
+    const QString text = normalizedShapeLinkText(textIn);
     QDomDocument doc = sp.ownerDocument();
     const QString a = drawingPrefix(sp);
     static const QString kA = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main");
@@ -589,7 +595,7 @@ bool setDrawingObjectTextLinks(const QByteArray &xml, const std::map<int, TextLi
         const QDomElement sp = firstShape(doc.documentElement());
         if (sp.isNull()) continue;
         // (a shape that says so already is not written again)
-        if (sp.attribute(QStringLiteral("textlink")) == w.ref && (!w.withText || shapeLinkStoredText(sp) == w.text.left(kMaxShapeLinkText).replace(QStringLiteral("\r\n"), QStringLiteral("\n")))) continue;
+        if (sp.attribute(QStringLiteral("textlink")) == w.ref && (!w.withText || shapeLinkStoredText(sp) == normalizedShapeLinkText(w.text))) continue;
         const QByteArray r = withFirstObjectTextLink(span, w.ref, w.text, w.withText);
         if (r == span) continue;
         result += xml.mid(copied, a - copied) + r;

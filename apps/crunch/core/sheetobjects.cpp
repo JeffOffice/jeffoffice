@@ -170,6 +170,12 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_partRefs.clear();
     m_chartSheet.clear();
     m_drawingOwner.clear();
+    m_linkIndex.clear();
+    m_linkIndexClean = false;
+    m_anyLinked = false;
+    m_linksListed = false;
+    m_linkSheets.clear();
+    m_linkChars = 0;
     if (m_book) {
         m_sheets.resize(size_t(m_book->info().sheets.size()));
         // the sheet each chart is on, by the drawing of the sheet (its relationships only: no part is read)
@@ -179,6 +185,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
             if (drawing.isEmpty()) continue;
             if (m_drawingOwner.contains(drawing.toLower())) continue;   // (a drawing two sheets name is the first sheet's: the second has none)
             m_drawingOwner.insert(drawing.toLower(), sheet);
+            if (package.part(drawing).contains("textlink")) m_linkSheets.push_back(sheet);   // (its shapes' links follow the edits, and are saved, though the sheet is never shown)
             for (const Relationship &r : package.relationshipsOfType(drawing, QStringLiteral("/chart")))
                 if (!r.external && !m_chartSheet.contains(r.target.toLower())) m_chartSheet.insert(r.target.toLower(), sheet);
         }
@@ -207,7 +214,17 @@ void SheetObjects::setCells(const WorkbookSource *source, const jp::grid::ValueS
     m_cells = std::make_unique<jp::grid::WorkbookChartCells>(source, values, &m_book->styles(), m_book->info().dateSystem);
     // the charts shown are drawn again, from the cells
     m_layer.invalidateAll();
+    listLinkedSheets();
+    for (size_t i = 0; i < m_sheets.size(); ++i)
+        if (m_sheets[i].listed) resolveLinks(int(i), m_sheets[i]);
     refreshAllLinked();
+}
+
+void SheetObjects::listLinkedSheets()
+{
+    if (m_linksListed) return;
+    m_linksListed = true;
+    for (const int sheet : std::as_const(m_linkSheets)) sheetState(sheet);
 }
 
 bool SheetObjects::isChartSheet(int sheet) const
@@ -361,9 +378,11 @@ void SheetObjects::list(int sheet, Sheet &s)
         o->fileName = d.name;
         o->fileDescription = d.description;
         o->filePrints = d.prints;
+        readFileLink(s, *o);
         replay(sheet, *o);
         s.objects.push_back(std::move(o));
     }
+    if (m_cells) resolveLinks(sheet, s);
 }
 
 std::vector<StructEdit> SheetObjects::editsFrom(int at, int to) const
@@ -567,6 +586,8 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         }
         o.made = true;
     } else {
+        if (o.textLinked && o.linkShownValid) setShapeLinkText(o.meta.element, o.linkShown);   // (the element holds the text its cell shows now)
+        o.linkStale = false;
         o.item = readShape(o.meta.element, o.ownContext ? *o.ownContext : *s.context);
         if (!o.item) {
             leaveOut(o.meta.kind == ObjectKind::Group ? tr("a group with nothing in it that is drawn") : tr("a shape or picture that could not be read"));
@@ -574,7 +595,6 @@ void SheetObjects::ensureBuilt(int sheet, Object &o)
         }
         o.made = true;
         linkBarcode(sheet, o, false);
-        linkShape(sheet, o, false);
     }
     ++m_objectsMade;
     o.counted = true;
@@ -625,6 +645,7 @@ void SheetObjects::releaseDead(int sheet, int id)
     Object *o = find(sheet, id);
     if (!o || !o->deleted || !o->madeHere || o->released) return;
     o->released = true;
+    forgetLinkedText(*o);
     o->item.reset();
     o->ownDoc.reset();
     o->ownPackage.reset();
@@ -775,14 +796,16 @@ void SheetObjects::saveBarcode(int sheet, Sheet &s, Object &o, SaveChanges *chan
 void SheetObjects::saveTextLink(int sheet, Sheet &s, Object &o, SaveChanges *changes)
 {
     Q_UNUSED(sheet);
+    o.linkSavingRef.clear();
     if (!o.textLinked || o.refs.isEmpty()) return;
     if (o.added) {
         o.pasteXml = withFirstObjectTextLink(o.pasteXml, o.refs.front(), o.linkShown, o.linkShownValid);
         return;
     }
     if (s.drawingPart.isEmpty() || o.meta.ordinal < 0) return;
-    // (a reference the edits have not changed is written as the file had it)
-    const QString ref = o.refs == o.baseRefs && !o.linkFileRef.isEmpty() ? o.linkFileRef : o.refs.front();
+    // (a reference the edits have not changed is written as the file had it, with its "=" if it had one)
+    const bool eq = o.linkFileAttr.trimmed().startsWith(QLatin1Char('='));
+    const QString ref = o.refs == o.baseRefs && !o.linkFileAttr.isEmpty() ? o.linkFileAttr : (eq ? QStringLiteral("=") : QString()) + o.refs.front();
     o.linkSavingRef = ref;
     changes->objectTextLinks[s.drawingPart][o.meta.ordinal] = jp::office::sheet::TextLinkWrite{ref, o.linkShown, o.linkShownValid};
 }
@@ -826,6 +849,7 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
         applyChartCells(chart.get(), sheet, *m_cells);
         if (m_pivotFielder && !chart->pivotName.isEmpty() && chart->pivotButtons.set) m_pivotFielder(chart.get(), sheet);
         if (o.added || o.chart != o.fileChart) applyChartFormats(chart.get(), sheet, *m_cells);   // (a chart made here has no format of its own: its cells' are what it shows its numbers in)
+        if (o.reads.isEmpty()) registerReader(sheet, o);
         o.reads = ChartReadIndex(jp::office::sheet::chartReads(*chart, sheet, *m_cells));
         o.drawnKey = chartDataKey(*chart);
         ++m_chartsDrawn;
@@ -835,8 +859,9 @@ std::function<QImage()> SheetObjects::prepareChart(int sheet, Object &o, const R
     return [chart, points, q] { return drawChart(*chart, points, q); };
 }
 
-QImage SheetObjects::renderItem(Object &o, const RenderRequest &q)
+QImage SheetObjects::renderItem(int sheet, Object &o, const RenderRequest &q)
 {
+    if (o.linkStale) rebuildLinked(sheet, o);
     if (!o.item) return nothing(q);
     QImage img(q.pixels, QImage::Format_ARGB32_Premultiplied);
     img.fill(Qt::transparent);
@@ -882,7 +907,7 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
     l.hitInk = o->meta.kind != ObjectKind::Picture && o->meta.kind != ObjectKind::Chart && o->meta.kind != ObjectKind::Diagram;
     const bool chart = o->meta.kind == ObjectKind::Chart;
     if (chart) l.prepare = [this, sheet, o](const RenderRequest &q) { return prepareChart(sheet, *o, q); };
-    else l.render = [this, o](const RenderRequest &q) { return renderItem(*o, q); };
+    else l.render = [this, sheet, o](const RenderRequest &q) { return renderItem(sheet, *o, q); };
     // the object is made when a picture of it is first wanted: what is left of it to draw, and its margin, are known then
     l.settle = [this, sheet, o, chart](LayerObject *lo) {
         ensureBuilt(sheet, *o);
@@ -1048,19 +1073,30 @@ void SheetObjects::cellsChanged(const std::vector<jp::grid::ValueStore::Item> &c
         for (const jp::grid::ValueStore::Item &c : cells) {
             const auto found = m_linkIndex.constFind(keyOf(c.sheet, c.row, c.col));
             if (found == m_linkIndex.cend()) continue;
-            const QVector<LinkEntry> entries = found.value();   // (a copy: making a shape again does not touch the index, but be safe)
+            // (the cell's text is asked once, not for each of its shapes: they take the string, and no item or element is made here)
+            QString text;
+            if (!m_linkText(c.sheet, c.row, c.col, &text)) continue;
+            text = jp::office::sheet::normalizedShapeLinkText(text);
+            const QVector<LinkEntry> entries = found.value();
             for (const LinkEntry &e : entries) {
                 ++m_linkVisits;
                 const std::shared_ptr<Object> o = e.object.lock();
                 if (!o || o->deleted || o->gone || !o->textLinked) continue;
-                if (applyLinkedText(e.sheet, *o)) ++m_linkUpdates;
+                if (applyLinkedText(e.sheet, *o, &text)) ++m_linkUpdates;
             }
         }
     }
+    // the charts that read these cells (those that have a record of them: not every object of every sheet is looked at)
     for (size_t i = 0; i < m_sheets.size(); ++i) {
         Sheet &s = m_sheets[i];
-        for (const std::shared_ptr<Object> &o : s.objects) {
-            if (!o->chart || o->reads.isEmpty()) continue;
+        for (size_t k = 0; k < s.readers.size();) {
+            const std::shared_ptr<Object> o = s.readers[k].lock();
+            if (!o || !o->chart || o->reads.isEmpty()) {
+                s.readers.erase(s.readers.begin() + qsizetype(k));
+                continue;
+            }
+            ++k;
+            ++m_readerVisits;
             bool hit = false;
             for (const jp::grid::ValueStore::Item &c : cells)
                 if (o->reads.reads(c.sheet, c.row, c.col)) {
@@ -1103,8 +1139,10 @@ void SheetObjects::partsChanged(const QStringList &parts)
                 // (a shape that was made is made again from its element, unless a person made or changed it)
                 for (const std::shared_ptr<Object> &o : s.objects) {
                     if (!o->built || !o->item || o->ownDoc || o->madeHere || o->deleted || o->meta.kind == ObjectKind::Chart || o->meta.kind == ObjectKind::Diagram) continue;
+                    if (o->textLinked && o->linkShownValid) setShapeLinkText(o->meta.element, o->linkShown);   // (it shows what its cell shows, not the words the part has)
                     if (const jp::ItemPtr again = readShape(o->meta.element, o->ownContext ? *o->ownContext : *s.context)) {
                         o->item = again;
+                        o->linkStale = false;
                         if (shown) m_layer.invalidate(o->id);
                     }
                 }
@@ -1588,7 +1626,7 @@ void SheetObjects::saved()
     m_controls.saved();
     for (Sheet &sh : m_sheets)
         for (const std::shared_ptr<Object> &o : sh.objects)
-            if (o->textLinked && !o->linkSavingRef.isEmpty()) o->linkFileRef = o->linkSavingRef;
+            if (o->textLinked && !o->linkSavingRef.isEmpty()) o->linkFileAttr = o->linkSavingRef;
     m_linkIndexClean = false;
     m_partRefs.clear();   // (the parts are the new file's: their references are the moved ones)
     if (!m_applied.empty()) ++m_epoch;   // (the places steps of Undo hold are of the rows and columns before the edits the file now has)
@@ -1951,7 +1989,8 @@ void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
     }
     if (o->textLinked) {
         m_linkIndexClean = false;
-        if (!o->deleted) applyLinkedText(sheet, *o);
+        if (o->deleted) forgetLinkedText(*o);
+        else applyLinkedText(sheet, *o);
     }
     // its place among the others, in the order they are drawn
     Sheet &s = sheetState(sheet);
@@ -1976,48 +2015,79 @@ namespace {
 quint64 linkKey(int sheet, quint32 row, quint32 col) { return (quint64(quint32(sheet)) << 40) | (quint64(row) << 16) | quint64(col); }
 } // namespace
 
-void SheetObjects::linkShape(int sheet, Object &o, bool made)
+// The link a file's shape has: its textlink, read from the element when the sheet is listed (no item is made). A reference that cannot be one (too long, a list, a range) is not used, and the
+// sheet's counts say so; the others wait to be resolved against the cells.
+void SheetObjects::readFileLink(Sheet &s, Object &o)
 {
-    if (o.meta.kind != ObjectKind::Shape || !o.item || isBarcodeItem(o.item.get()) || o.meta.element.isNull()) return;
-    QString ref = o.meta.element.attribute(QStringLiteral("textlink")).trimmed();
+    if (o.meta.kind != ObjectKind::Shape || o.meta.element.isNull() || o.meta.element.localName() != QLatin1String("sp")) return;
+    const QString attr = o.meta.element.attribute(QStringLiteral("textlink"));
+    QString ref = attr.trimmed();
     if (ref.startsWith(QLatin1Char('='))) ref = ref.mid(1).trimmed();
     if (ref.isEmpty()) return;
     if (!validShapeLink(ref)) {
-        // (a link that is too long, a list, or a range is not used: the shape shows the text it has, and the file's own counts say so)
-        Sheet &s = m_sheets[size_t(sheet)];
         ++s.counts.linksRefused;
         s.counts.why << tr("a shape whose link to a cell can't be used (it must be one cell)");
         return;
     }
-    o.textLinked = true;
-    m_anyLinked = true;
-    if (!made) o.linkFileRef = ref;
-    if (made) {
-        o.baseRefs = {unfollowSheetOps(ref)};
-        o.refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o.baseRefs});
-        o.movedRefs = o.baseRefs;
-    } else {
-        o.baseRefs = {ref};
-        o.movedRefs = o.baseRefs;
-        const QStringList names = sheetNames();
-        if (!m_applied.empty())
-            for (QString &r : o.movedRefs) r = movedChartRef(r, names, m_applied, sheet);
-    }
-    refreshRefs(o);
-    // (shown the text the cell has now, if that is known; else what the file stored)
-    applyLinkedText(sheet, o);
-    if (m_linkIndexClean) {
+    o.linkFileAttr = attr;
+    o.baseRefs = {ref};
+    o.linkPending = true;
+}
+
+// The links read are resolved when the cells are known: one that names one cell is linked; the others (a cell of another file, a name that holds a formula or a number, a sheet that is not
+// there) stay as the file has them: the shape keeps its words and its textlink, and is saved as it was.
+void SheetObjects::resolveLinks(int sheet, Sheet &s)
+{
+    if (!m_cells) return;
+    for (const std::shared_ptr<Object> &o : s.objects) {
+        if (!o->linkPending) continue;
+        o->linkPending = false;
         int cs = 0;
         quint32 row = 0, col = 0;
-        if (linkTarget(sheet, o, &cs, &row, &col)) {
-            for (const std::shared_ptr<Object> &p : m_sheets[size_t(sheet)].objects)
-                if (p.get() == &o) {
-                    m_linkIndex[linkKey(cs, row, col)].push_back(LinkEntry{sheet, p});
-                    break;
-                }
-        } else {
+        if (linkTarget(sheet, *o, &cs, &row, &col)) {
+            o->textLinked = true;
+            m_anyLinked = true;
             m_linkIndexClean = false;
+        } else {
+            o->baseRefs.clear();
+            o->movedRefs.clear();
+            o->refs.clear();
         }
+    }
+}
+
+void SheetObjects::linkMadeShape(int sheet, Object &o)
+{
+    if (o.meta.kind != ObjectKind::Shape || !o.item || isBarcodeItem(o.item.get()) || o.meta.element.isNull()) return;
+    QString ref = o.meta.element.attribute(QStringLiteral("textlink")).trimmed();
+    if (ref.startsWith(QLatin1Char('='))) ref = ref.mid(1).trimmed();
+    if (ref.isEmpty() || !validShapeLink(ref)) return;
+    // (as a chart made here: the reference by the names the file has for the sheets, given after the edits made so far)
+    o.baseRefs = {unfollowSheetOps(ref)};
+    o.refPlacements.push_back(jp::crunch::RefPlacement{int(m_applied.size()), o.baseRefs});
+    o.movedRefs = o.baseRefs;
+    refreshRefs(o);
+    int cs = 0;
+    quint32 row = 0, col = 0;
+    if (m_cells && !linkTarget(sheet, o, &cs, &row, &col)) {
+        o.baseRefs.clear();
+        o.movedRefs.clear();
+        o.refs.clear();
+        o.refPlacements.clear();
+        return;
+    }
+    o.textLinked = true;
+    m_anyLinked = true;
+    // (shown the text the cell has now, if that is known; else what the element holds)
+    applyLinkedText(sheet, o);
+    if (m_linkIndexClean && m_cells) {
+        for (const std::shared_ptr<Object> &p : m_sheets[size_t(sheet)].objects)
+            if (p.get() == &o) {
+                m_linkIndex[linkKey(cs, row, col)].push_back(LinkEntry{sheet, p});
+                break;
+            }
+    } else {
+        m_linkIndexClean = false;
     }
 }
 
@@ -2038,47 +2108,87 @@ bool SheetObjects::linkWantedText(int sheet, const Object &o, QString *text) con
 {
     if (o.refs.isEmpty()) return false;
     if (o.refs.front().contains(QLatin1String("#REF!"))) {
-        *text = QStringLiteral("#REF!");
+        *text = QStringLiteral("#REF!");   // (the link resolved once, and its row, column, or sheet is gone)
         return true;
     }
     if (!m_cells || !m_linkText) return false;
     int cs = 0;
     quint32 row = 0, col = 0;
-    QVector<ChartBlock> blocks;
-    if (!chartBlocks(o.refs.front(), sheet, *m_cells, &blocks) || blocks.isEmpty()) {
-        *text = QStringLiteral("#REF!");   // (a sheet or name that is not there)
-        return true;
-    }
-    if (!linkTarget(sheet, o, &cs, &row, &col)) return false;   // (a name of a range: the shape keeps what it has)
+    if (!linkTarget(sheet, o, &cs, &row, &col)) return false;
     QString t;
     if (!m_linkText(cs, row, col, &t)) return false;
-    if (t.size() > jp::office::sheet::kMaxShapeLinkText) t.truncate(jp::office::sheet::kMaxShapeLinkText);
-    *text = t;
+    *text = jp::office::sheet::normalizedShapeLinkText(t);
     return true;
 }
 
-bool SheetObjects::applyLinkedText(int sheet, Object &o)
+bool SheetObjects::applyLinkedText(int sheet, Object &o, const QString *known)
 {
-    if (!o.textLinked || !o.built || !o.item || o.meta.element.isNull()) return false;
+    if (!o.textLinked || o.meta.element.isNull()) return false;
     QString text;
-    if (!linkWantedText(sheet, o, &text)) return false;
+    if (known) text = *known;
+    else if (!linkWantedText(sheet, o, &text)) return false;
+    // (the shapes show 4 MB in all: one past that is cut to a few characters)
+    const qint64 others = m_linkChars - (o.linkShownValid ? o.linkShown.size() : 0);
+    const qint64 room = std::max(kMinLinkedChars, kMaxLinkedChars - others);
+    if (text.size() > room) text.truncate(qsizetype(room));
     if (o.linkShownValid && o.linkShown == text) return false;
+    m_linkChars += text.size() - (o.linkShownValid ? o.linkShown.size() : 0);
+    o.linkShown = text;
+    o.linkShownValid = true;
+    if (o.built && o.item) {
+        o.linkStale = true;   // (made again when it is drawn, if it ever is)
+        if (sheet == m_shown) m_layer.invalidate(o.id);
+    }
+    return true;
+}
+
+void SheetObjects::forgetLinkedText(Object &o)
+{
+    if (o.linkShownValid) m_linkChars -= o.linkShown.size();
+    o.linkShown.clear();
+    o.linkShown.squeeze();
+    o.linkShownValid = false;
+}
+
+// The item of a linked shape made again with the text its cell has: the element is given the text first, so that what is made from it again (a change of parts) shows it.
+void SheetObjects::rebuildLinked(int sheet, Object &o)
+{
+    o.linkStale = false;
+    if (!o.linkShownValid || o.meta.element.isNull() || sheet < 0 || size_t(sheet) >= m_sheets.size()) return;
     Sheet &s = m_sheets[size_t(sheet)];
-    QDomElement copy = o.meta.element.cloneNode(true).toElement();
-    setShapeLinkText(copy, text);
+    if (!o.ownContext && !s.context) return;
+    setShapeLinkText(o.meta.element, o.linkShown);
     DrawingContext context = o.ownContext ? *o.ownContext : *s.context;
     context.budget = nullptr;   // (the same shape again: no new object or story counts against what a file may hold)
-    const jp::ItemPtr again = readShape(copy, context);
-    if (!again) return false;
-    if (o.item->type() == jp::ItemType::Shape) {
+    const jp::ItemPtr again = readShape(o.meta.element, context);
+    if (!again) return;
+    if (o.item && o.item->type() == jp::ItemType::Shape) {
         const QString old = static_cast<const jp::ShapeItem *>(o.item.get())->storyId;
         if (!old.isEmpty()) m_doc->removeStory(old);
     }
     o.item = again;
-    o.linkShown = text;
-    o.linkShownValid = true;
-    if (sheet == m_shown) m_layer.invalidate(o.id);
-    return true;
+    ++m_linkRebuilds;
+}
+
+void SheetObjects::registerReader(int sheet, Object &o)
+{
+    if (sheet < 0 || size_t(sheet) >= m_sheets.size()) return;
+    for (const std::shared_ptr<Object> &p : m_sheets[size_t(sheet)].objects)
+        if (p.get() == &o) {
+            m_sheets[size_t(sheet)].readers.push_back(p);
+            return;
+        }
+}
+
+QString SheetObjects::copyLinkRef(int sheet, const Object &o) const
+{
+    const QString ref = o.refs.front();
+    int cs = 0;
+    quint32 row = 0, col = 0, rr = 0, cc = 0;
+    if (!linkTarget(sheet, o, &cs, &row, &col)) return ref;
+    // (a cell is written with its sheet, so that a copy put on another sheet reads the same cell; a name stays a name)
+    if (!jp::office::sheet::parseCellRef(ref.mid(ref.lastIndexOf(QLatin1Char('!')) + 1), &rr, &cc)) return ref;
+    return barcodeCellRef(cs, row, col);
 }
 
 void SheetObjects::buildLinkIndex()
@@ -2099,11 +2209,27 @@ void SheetObjects::refreshAllLinked()
 {
     if (!m_anyLinked) return;
     m_linkIndexClean = false;
+    QHash<quint64, std::pair<bool, QString>> asked;   // (a cell's text is asked once, however many shapes show it)
     for (size_t i = 0; i < m_sheets.size(); ++i)
         for (const std::shared_ptr<Object> &o : m_sheets[i].objects) {
             if (!o->textLinked || o->deleted || o->gone) continue;
             ++m_linkVisits;
-            if (applyLinkedText(int(i), *o)) ++m_linkUpdates;
+            int cs = 0;
+            quint32 row = 0, col = 0;
+            bool changed = false;
+            if (m_linkText && linkTarget(int(i), *o, &cs, &row, &col)) {
+                auto it = asked.find(linkKey(cs, row, col));
+                if (it == asked.end()) {
+                    QString t;
+                    const bool ok = m_linkText(cs, row, col, &t);
+                    it = asked.insert(linkKey(cs, row, col), {ok, ok ? jp::office::sheet::normalizedShapeLinkText(t) : QString()});
+                }
+                if (!it->first) continue;
+                changed = applyLinkedText(int(i), *o, &it->second);
+            } else {
+                changed = applyLinkedText(int(i), *o);
+            }
+            if (changed) ++m_linkUpdates;
         }
     if (m_cells) buildLinkIndex();
 }
@@ -2114,6 +2240,25 @@ QString SheetObjects::textLinkOf(int sheet, int id)
     if (!o || o->deleted || o->meta.kind != ObjectKind::Shape) return {};
     ensureBuilt(sheet, *o);
     return o->textLinked && !o->refs.isEmpty() ? o->refs.front() : QString();
+}
+
+QString SheetObjects::itemTextOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o) return {};
+    ensureBuilt(sheet, *o);
+    if (o->linkStale) rebuildLinked(sheet, *o);
+    QString text;
+    if (o->item) {
+        jp::ItemList one{o->item};
+        jp::walkItems(one, [&](const jp::ItemPtr &it) {
+            QString story;
+            if (it->type() == jp::ItemType::Text) story = static_cast<const jp::TextItem *>(it.get())->storyId;
+            else if (it->type() == jp::ItemType::Shape) story = static_cast<const jp::ShapeItem *>(it.get())->storyId;
+            if (!story.isEmpty() && m_doc->storyDoc(story)) text += m_doc->storyDoc(story)->toPlainText();
+        });
+    }
+    return text;
 }
 
 QString SheetObjects::linkedTextOf(int sheet, int id)
@@ -2568,7 +2713,7 @@ bool SheetObjects::copyElement(int sheet, int id, jp::crunch::ObjectClip *clip, 
             c.elementXml = withFirstObjectBarcodeMarker(c.elementXml, barcodeMarkerExtXml(marker.settings, marker.pngHash, marker.svgHash));
         }
     }
-    if (o->textLinked && !o->refs.isEmpty()) c.elementXml = withFirstObjectTextLink(c.elementXml, o->refs.front(), o->linkShown, o->linkShownValid);   // (a copy shows the text its cell has now, linked to the cell it reads now)
+    if (o->textLinked && !o->refs.isEmpty()) c.elementXml = withFirstObjectTextLink(c.elementXml, copyLinkRef(sheet, *o), o->linkShown, o->linkShownValid);   // (a copy shows the text its cell has now, linked to the cell it reads now)
     *clip = c;
     return true;
 }
@@ -2680,7 +2825,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     o->provisional = clip.provisional;
     o->built = o->made = true;
     linkBarcode(sheet, *o, true);
-    linkShape(sheet, *o, true);
+    linkMadeShape(sheet, *o);
     if (isBarcodeItem(item.get()) && !room) m_budget.barcodes = std::max(0, m_budget.barcodes - 1);   // (it is taken away until its step is done: it takes a place among the barcodes then)
     ++m_objectsMade;
     o->counted = true;

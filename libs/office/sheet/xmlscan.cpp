@@ -185,6 +185,25 @@ QByteArray escape(const QString &text, bool attribute)
 
 } // namespace
 
+QString withoutIllegal(const QString &text)
+{
+    // (the characters escape() writes as _xHHHH_: the rule is the same)
+    QString out;
+    out.reserve(text.size());
+    for (int i = 0; i < text.size(); ++i) {
+        const QChar ch = text[i];
+        const ushort u = ch.unicode();
+        if ((u < 0x20 && u != '\t' && u != '\n') || u == 0xFFFE || u == 0xFFFF) continue;
+        if (ch.isHighSurrogate() && i + 1 < text.size() && text[i + 1].isLowSurrogate()) {
+            out += ch;
+            out += text[++i];
+        } else if (!ch.isSurrogate()) {
+            out += ch;
+        }
+    }
+    return out;
+}
+
 QByteArray escapeText(const QString &text) { return escape(text, false); }
 QByteArray escapeAttribute(const QString &text) { return escape(text, true); }
 

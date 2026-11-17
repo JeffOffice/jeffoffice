@@ -507,6 +507,8 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     m_cellEditor->hide();
     const quint32 row = m_edit.row, col = m_edit.col;
     m_edit.active = false;
+    m_linkBarId = -1;   // (the bar is the cell's again: it showed a picked shape's link, which a cell entry is not)
+    m_linkTyping = false;
     m_editRich = m_editRichFirst = jp::office::sheet::RichText();
     updatePointViews();   // (the outlines go, and the colors of the text in both lines)
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
@@ -559,6 +561,8 @@ void CrunchWindow::cancelEdit()
     if (m_helper) m_helper->close();
     m_cellEditor->hide();
     m_edit.active = false;
+    m_linkBarId = -1;   // (the bar is the cell's again: it showed a picked shape's link, which a cell entry is not)
+    m_linkTyping = false;
     m_editRich = m_editRichFirst = jp::office::sheet::RichText();
     updatePointViews();
     if (m_edit.view.valid && m_view->viewState().valid) m_view->setViewState(m_edit.view);   // (the sheet is scrolled as it was, and the cell with the cursor is where it was)

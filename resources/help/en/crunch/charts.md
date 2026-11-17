@@ -123,7 +123,7 @@ Each one is a single step you can undo. The new object is picked, so you can dra
 A shape or text box can show what a cell shows, and follow it. Pick the shape, click the **formula bar**, type an equals sign and a cell, and press **Enter**.
 
 - `=B2` links the shape to B2 on this sheet. `=Sheet2!B3` links it to a cell on another sheet. `=Total` links it to a name that stands for one cell.
-- The shape then shows the cell's text the way the cell shows it, with its number format. When you change the cell, its format, or a formula it depends on, the shape changes too. Text longer than a cell can hold (32,767 characters) is cut.
+- The shape then shows the cell's text the way the cell shows it, with its number format. When you change the cell, its format, or a formula it depends on, the shape changes too. Text longer than a cell can hold (32,767 characters) is cut. All the linked shapes of a workbook together show at most 4 MB of text: past that, a shape shows its text cut short.
 - With the shape picked, the formula bar shows its link, such as `=Sheet1!$B$2`. Clear the formula bar and press **Enter** to take the link off. The shape keeps the words it shows then.
 - Typing words in the shape also takes the link off.
 - A link is one cell. A range such as `=A1:B2`, a list, a calculation, or a name that is not a cell is turned down with a message, and the shape keeps its link.

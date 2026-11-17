@@ -6,7 +6,6 @@
 #include "office/drawingml.h"
 #include "office/xml.h"
 #include "sheet/cellref.h"
-#include "sheet/drawingsave.h"
 
 #include <algorithm>
 
@@ -98,15 +97,6 @@ bool readObject(const QDomElement &anchor, const Package &package, const QString
         o->description = attr(cNvPr, QStringLiteral("descr")).left(1024);
         o->id = parseInt(attr(cNvPr, QStringLiteral("id")), 0);
         o->hidden = parseBool(attr(cNvPr, QStringLiteral("hidden")));
-        if (o->kind == ObjectKind::Shape) {
-            QString link = c.attribute(QStringLiteral("textlink")).trimmed();
-            if (link.startsWith(QLatin1Char('='))) link = link.mid(1).trimmed();
-            if (!link.isEmpty() && !validShapeLink(link)) {
-                o->textLinkRefused = true;
-                link.clear();
-            }
-            o->textLink = link;
-        }
         const QString prints = attr(childByLocal(anchor, "clientData"), QStringLiteral("fPrintsWithSheet"));
         o->prints = prints.isEmpty() || parseBool(prints);
         return true;

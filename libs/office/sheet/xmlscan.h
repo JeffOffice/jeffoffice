@@ -40,6 +40,8 @@ QByteArrayView localName(QByteArrayView name);
 // Text as it is written in a text node or in an attribute: & < > (and " in an attribute) as entities, and the characters XML cannot hold (the controls other than tab and line feed,
 // a carriage return, and the two noncharacters) as _xHHHH_, with a "_x" that is followed by four hex digits and "_" written _x005F_x so that the reading does not take it for one.
 QByteArray escapeText(const QString &text);
+// The text without the characters escapeText writes as _xHHHH_ (what is left for a place that has no such escape: a drawing's text).
+QString withoutIllegal(const QString &text);
 QByteArray escapeAttribute(const QString &text);
 // An attribute or text as written, with the entities (&amp; &lt; &gt; &quot; &apos; &#N; &#xN;) read.
 QString unescape(QByteArrayView text);

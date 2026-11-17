@@ -58,7 +58,6 @@ bool EditSession::linkShownText(int sheet, quint32 row, quint32 col, QString *te
         text->clear();
         return true;
     }
-    if (c->hasFormula() && valueAt(sheet, row, col).kind() == jp::calc::Value::Kind::Empty) return false;   // (not worked out yet)
     *text = displayText(sheet, row, col);
     return true;
 }
