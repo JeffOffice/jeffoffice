@@ -156,6 +156,18 @@ SheetObjects::~SheetObjects()
     m_layer.setObjects({});   // (the pictures' draw functions refer to this)
 }
 
+namespace {
+// Whether a drawing part has a textlink that is not empty (the programs that write them put textlink="" on every shape).
+bool hasTextLink(const QByteArray &xml)
+{
+    for (qsizetype at = xml.indexOf("textlink="); at >= 0; at = xml.indexOf("textlink=", at + 9)) {
+        const qsizetype q = at + 9;
+        if (q + 1 < xml.size() && (xml[q] == '"' || xml[q] == '\'') && xml[q + 1] != xml[q]) return true;
+    }
+    return false;
+}
+} // namespace
+
 void SheetObjects::open(const std::shared_ptr<Workbook> &book)
 {
     ++m_generation;
@@ -185,7 +197,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
             if (drawing.isEmpty()) continue;
             if (m_drawingOwner.contains(drawing.toLower())) continue;   // (a drawing two sheets name is the first sheet's: the second has none)
             m_drawingOwner.insert(drawing.toLower(), sheet);
-            if (package.part(drawing).contains("textlink")) m_linkSheets.push_back(sheet);   // (its shapes' links follow the edits, and are saved, though the sheet is never shown)
+            if (hasTextLink(package.part(drawing))) m_linkSheets.push_back(sheet);   // (its shapes' links follow the edits, and are saved, though the sheet is never shown)
             for (const Relationship &r : package.relationshipsOfType(drawing, QStringLiteral("/chart")))
                 if (!r.external && !m_chartSheet.contains(r.target.toLower())) m_chartSheet.insert(r.target.toLower(), sheet);
         }
