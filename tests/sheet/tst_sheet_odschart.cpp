@@ -694,6 +694,59 @@ private Q_SLOTS:
         QVERIFY2(b.charts.size() == 1, qPrintable(b.sheet.importedDrawing.notRead.join(QLatin1Char('|')) + QLatin1String(" / ") + why));
         QCOMPARE(int(b.charts[0].plots[0].series.size()), jp::office::sheet::odschart::kMaxSeries);
     }
+
+    // Trendlines and error bars are written as the format's regression curves and error indicators, and read again as the same lines and bars; a series is held to four trendlines.
+    void trendlinesAndErrorBarsAreWrittenAndReadAgain()
+    {
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        jp::office::ChartSeries sr;
+        sr.name = QStringLiteral("S");
+        sr.values << 1 << 3 << 2 << 5;
+        sr.categories << "a" << "b" << "c" << "d";
+        jp::office::ChartTrendline poly;
+        poly.type = QStringLiteral("poly");
+        poly.order = 3;
+        poly.forward = 1.5;
+        poly.dispEq = true;
+        sr.trendlines.append(poly);
+        jp::office::ChartTrendline average;
+        average.type = QStringLiteral("movingAvg");
+        average.period = 3;
+        average.name = QStringLiteral("Smooth");
+        sr.trendlines.append(average);
+        for (int i = 0; i < 8; ++i) sr.trendlines.append(jp::office::ChartTrendline());
+        jp::office::ChartErrorBars bars;
+        bars.valueType = QStringLiteral("percentage");
+        bars.value = 5;
+        bars.barType = QStringLiteral("plus");
+        sr.errorBars.append(bars);
+        plot.series.append(sr);
+        model.plots.append(plot);
+        QStringList notes;
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].contains(QStringLiteral("trendlines of charts past the 4")), qPrintable(notes[0]));
+        jp::office::sheet::ods::StyleStore store;
+        QString why;
+        QVERIFY2(jp::office::sheet::odschart::parseStyles(document, Limits(), &store, &why), qPrintable(why));
+        Chart back;
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(document, store, nullptr, &back, &why, nullptr), qPrintable(why));
+        const jp::office::ChartSeries &read = back.plots[0].series[0];
+        QCOMPARE(int(read.trendlines.size()), 4);
+        QCOMPARE(read.trendlines[0].type, QStringLiteral("poly"));
+        QCOMPARE(read.trendlines[0].order, 3);
+        QCOMPARE(read.trendlines[0].forward, 1.5);
+        QVERIFY(read.trendlines[0].dispEq && !read.trendlines[0].dispRSqr);
+        QCOMPARE(read.trendlines[1].type, QStringLiteral("movingAvg"));
+        QCOMPARE(read.trendlines[1].period, 3);
+        QCOMPARE(read.trendlines[1].name, QStringLiteral("Smooth"));
+        QCOMPARE(int(read.errorBars.size()), 1);
+        QCOMPARE(read.errorBars[0].valueType, QStringLiteral("percentage"));
+        QCOMPARE(read.errorBars[0].value, 5.0);
+        QCOMPARE(read.errorBars[0].barType, QStringLiteral("plus"));
+    }
 };
 
 JP_TEST_CLASS(SheetOdsChartTests)
