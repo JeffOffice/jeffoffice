@@ -4687,8 +4687,8 @@ private Q_SLOTS:
         QVERIFY(back);
         QVERIFY(pictureAt(*back, back->story(), at).svg);
         QVERIFY(win.w.view()->insertPictureBytes(pngOf(60, 60), QStringLiteral("p")));
-        QTRY_VERIFY(win.tabShown(QStringLiteral("Picture Format")));
-        QVERIFY(!win.tabShown(QStringLiteral("Graphics Format")));
+        QTRY_VERIFY(!win.tabShown(QStringLiteral("Graphics Format")));
+        QVERIFY(win.tabShown(QStringLiteral("Picture Format")));
         QVERIFY(!win.w.act("graphics.convert")->isEnabled());
         QVERIFY(!pictureAt(*win.w.document(), win.w.document()->story(), win.w.view()->selectedPicture()).svg);
     }

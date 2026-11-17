@@ -1810,13 +1810,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             if (!s.parts.empty()) {
                 // A group in the line: its parts, from its corner, set in the line as one object (so the line is as tall as the group and the parts move with it).
                 auto group = std::make_shared<GroupItem>();
-                // (The group is as large as its frame says, whatever its parts cover: an empty part of the frame's size is the first, so that the line sets the frame and the parts are where the frame puts them.)
-                auto frame = std::make_shared<ShapeItem>();
-                frame->rect = QRectF(0, 0, s.width, s.height);
-                frame->fill = Fill::none();
-                frame->stroke = Stroke::none();
-                frame->wrap.left = frame->wrap.right = frame->wrap.top = frame->wrap.bottom = 0;
-                group->children.push_back(frame);
+                int made = 0;
                 for (const Shape &part : s.parts) {
                     if (m_groupParts >= kMostGroupParts) break;
                     ++m_groupParts;
@@ -1844,10 +1838,22 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                     if (child->type() == ItemType::Line) child->moveBy(part.left, part.top);
                     else child->rect = QRectF(part.left, part.top, part.width, part.height);
                     group->children.push_back(child);
+                    ++made;
                 }
-                group->rect = QRectF(0, 0, s.width, s.height);
+                // The group is as large as its frame says, whatever its parts cover (a graphic turned into shapes has parts that stop short of its corners): where they do not cover the frame, an empty
+                // part of the frame's size is the first, so that the line sets the frame and the parts are where the frame puts them.
+                const QRectF covered = group->bounds(), whole(0, 0, s.width, s.height);
+                if (made > 0 && (std::abs(covered.left()) > 0.01 || std::abs(covered.top()) > 0.01 || std::abs(covered.width() - whole.width()) > 0.01 || std::abs(covered.height() - whole.height()) > 0.01)) {
+                    auto frame = std::make_shared<ShapeItem>();
+                    frame->rect = whole;
+                    frame->fill = Fill::none();
+                    frame->stroke = Stroke::none();
+                    frame->wrap.left = frame->wrap.right = frame->wrap.top = frame->wrap.bottom = 0;
+                    group->children.insert(group->children.begin(), frame);
+                }
+                group->rect = whole;
                 group->wrap.left = group->wrap.right = group->wrap.top = group->wrap.bottom = 0;
-                if (group->children.size() > 1) inlineItem = group;
+                if (made > 0) inlineItem = group;
             }
             format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(inlineItem->toJson()).toJson(QJsonDocument::Compact)));
             inlinePicture = true;
