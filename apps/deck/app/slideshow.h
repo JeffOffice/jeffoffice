@@ -94,6 +94,10 @@ QRectF slideRectIn(const QSizeF &page, const QSizeF &area);
 // `from`) to 1 (all `to`).
 void paintTransition(QPainter *p, const deck::Transition &t, const QImage &from, const QImage &to, double progress);
 
+// What a dissolve keeps between frames is let go when the show ends (and its size, for the tests).
+void releaseTransitionScratch();
+qsizetype transitionScratchBytes();
+
 // The part of the frame at progress `after` that differs from the frame at
 // progress `before` (a wipe changes a strip, a cut changes at two moments),
 // in the images' coordinates: all that needs painting again over the last frame.

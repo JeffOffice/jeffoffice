@@ -40,7 +40,9 @@
 #include <QSet>
 #include <QUrl>
 #include <algorithm>
+#include <cstring>
 #include <optional>
+#include <vector>
 
 namespace jp {
 
@@ -393,28 +395,42 @@ void drawStrips(const Frame &f)
     }
 }
 
+// The picture a dissolve builds each frame in, kept between frames while the show runs.
+QImage &dissolveScratch()
+{
+    static thread_local QImage scratch;
+    return scratch;
+}
+
 // A fine, even dissolve: blocks of pixels change one by one in an order the seed gives.
 void drawDissolve(const Frame &f)
 {
     using Px = quint32;
     const auto fits = [](const QImage &i) { return i.format() == QImage::Format_ARGB32_Premultiplied || i.format() == QImage::Format_RGB32; };
-    if (!fits(f.from) || !fits(f.to) || f.from.size() != f.to.size()) {
+    if (!fits(f.from) || f.to.format() != f.from.format() || f.from.size() != f.to.size()) {
         drawFade(f);
         return;
     }
-    static thread_local QImage scratch;
-    if (scratch.size() != f.from.size() || scratch.format() != QImage::Format_ARGB32_Premultiplied) scratch = QImage(f.from.size(), QImage::Format_ARGB32_Premultiplied);
+    QImage &scratch = dissolveScratch();
+    if (scratch.size() != f.from.size() || scratch.format() != f.from.format()) scratch = QImage(f.from.size(), f.from.format());
     scratch.setDevicePixelRatio(f.from.devicePixelRatio());
     const quint32 limit = quint32(f.t * double(1 << 24));
     constexpr int kBlock = 4;
     const int w = f.from.width(), h = f.from.height(), blocks = (w + kBlock - 1) / kBlock;
+    std::vector<char> dissolvedIn(static_cast<size_t>(blocks));
     for (int y = 0; y < h; ++y) {
+        // One draw of the noise for each block of a row of blocks, not for each row of pixels.
+        if (y % kBlock == 0) {
+            const quint32 row = quint32(y / kBlock) * quint32(blocks);
+            for (int bx = 0; bx < blocks; ++bx) dissolvedIn[size_t(bx)] = (noise(row + bx, 11) >> 8) < limit;
+        }
         const Px *a = reinterpret_cast<const Px *>(f.from.constScanLine(y)), *b = reinterpret_cast<const Px *>(f.to.constScanLine(y));
         Px *out = reinterpret_cast<Px *>(scratch.scanLine(y));
-        const quint32 row = quint32(y / kBlock) * quint32(blocks);
         for (int bx = 0, x = 0; bx < blocks; ++bx) {
-            const Px *src = (noise(row + bx, 11) >> 8) < limit ? b : a;
-            for (const int end = std::min(w, x + kBlock); x < end; ++x) out[x] = src[x] | 0xFF000000u * (f.from.format() == QImage::Format_RGB32);
+            const Px *src = dissolvedIn[size_t(bx)] ? b : a;
+            const int n = std::min(w - x, kBlock);
+            std::memcpy(out + x, src + x, size_t(n) * sizeof(Px));
+            x += n;
         }
     }
     f.p->drawImage(QPointF(0, 0), scratch);
@@ -430,6 +446,10 @@ QRegion band(const QSizeF &size, bool across, double a, double b)
 }
 
 } // namespace
+
+void releaseTransitionScratch() { dissolveScratch() = QImage(); }
+
+qsizetype transitionScratchBytes() { return dissolveScratch().sizeInBytes(); }
 
 QRegion transitionChange(const deck::Transition &t, const QSizeF &size, double before, double after)
 {
@@ -2373,6 +2393,7 @@ void SlideShow::closeEvent(QCloseEvent *e)
     m_anim.stop();
     m_frame.stop();
     m_auto.stop();
+    releaseTransitionScratch();
     // The slide on the screen has its time.
     timeSlide(-1);
     m_drawing = m_erasing = false;
