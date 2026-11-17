@@ -750,6 +750,25 @@ private Q_SLOTS:
         QCOMPARE(made, QByteArray("<workbook><sheets/><definedNames><definedName name=\"A\">1</definedName></definedNames><calcPr calcMode=\"autoNoTable\"/></workbook>"));
     }
 
+    // Off drops only the fullPrecision that says off ("0" or "false"); a "1" or "true" is the usual and stays as the file wrote it.
+    void turningPrecisionOffKeepsAFullPrecisionThatIsNotOff()
+    {
+        for (const char *word : {"1", "true"}) {
+            QByteArray out;
+            const QByteArray in = QByteArray("<workbook><sheets/><calcPr calcId=\"1\" fullPrecision=\"") + word + "\"/></workbook>";
+            QVERIFY(patchCalcPr(in, CalcMode::Manual, false, 100, 0.001, &out, true, false));
+            QCOMPARE(out, QByteArray("<workbook><sheets/><calcPr calcId=\"1\" fullPrecision=\"") + word + "\" calcMode=\"manual\"/></workbook>");
+        }
+        for (const char *word : {"0", "false"}) {
+            QByteArray out;
+            QVERIFY(patchCalcPr(QByteArray("<workbook><sheets/><calcPr fullPrecision=\"") + word + "\" calcId=\"1\"/></workbook>", CalcMode::Auto, false, 100, 0.001, &out, true, false));
+            QCOMPARE(out, QByteArray("<workbook><sheets/><calcPr calcId=\"1\"/></workbook>"));
+        }
+        QByteArray on;
+        QVERIFY(patchCalcPr("<workbook><sheets/><calcPr fullPrecision=\"1\"/></workbook>", CalcMode::Auto, false, 100, 0.001, &on, true, true));
+        QCOMPARE(on, QByteArray("<workbook><sheets/><calcPr fullPrecision=\"0\"/></workbook>"));
+    }
+
     void theCalculationSettingsOfAFileAreRead()
     {
         Book b;

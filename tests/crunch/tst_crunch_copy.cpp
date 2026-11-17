@@ -143,6 +143,39 @@ private Q_SLOTS:
         QVERIFY(o.originalIsUntouched());
     }
 
+    // Precision as displayed is kept in the copy: on it is written, and when a copy is opened and turned off it is not.
+    void precisionAsDisplayedIsKeptInAnOdsCopy()
+    {
+        auto copyTo = [](Win &o, const QString &name) {
+            o.answer = o.dir.filePath(name);
+            QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+            o.w.save();
+            return (copied.count() > 0 || copied.wait(20000)) && copied.first().at(1).toBool();
+        };
+        QByteArray onBytes;
+        {
+            Win o;
+            QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
+            QVERIFY(!o.w.session()->calcSettings().precisionAsShown);
+            QVERIFY(o.w.session()->setPrecisionAsShown(true).ok);
+            QVERIFY2(copyTo(o, QStringLiteral("on.ods")), qPrintable(o.told.join(QLatin1Char('|'))));
+            Workbook wb;
+            QVERIFY(wb.openFile(o.answer));
+            QVERIFY(wb.info().precisionAsShown);
+            QFile f(o.answer);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            onBytes = f.readAll();
+        }
+        Win o;
+        QVERIFY(o.open(onBytes, QStringLiteral("again.ods")));
+        QVERIFY(o.w.session()->calcSettings().precisionAsShown);
+        QVERIFY(o.w.session()->setPrecisionAsShown(false).ok);
+        QVERIFY2(copyTo(o, QStringLiteral("off.ods")), qPrintable(o.told.join(QLatin1Char('|'))));
+        Workbook wb;
+        QVERIFY(wb.openFile(o.answer));
+        QVERIFY(!wb.info().precisionAsShown);
+    }
+
     // The file the workbook came from is never written, whatever the kind chosen.
     void theFileTheWorkbookCameFromIsNotWritten()
     {

@@ -1233,7 +1233,10 @@ bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterate
     if (calcOnSave) dropAttribute(&tag, "calcOnSave");
     else setAttribute(&tag, "calcOnSave", "0");
     if (precisionAsShown) setAttribute(&tag, "fullPrecision", "0");
-    else dropAttribute(&tag, "fullPrecision");
+    else if (qsizetype vs = 0, ve = 0; xmlscan::attributeValue(tag, "fullPrecision", &vs, &ve)) {
+        const QByteArray word = tag.mid(vs, ve - vs);
+        if (word == "0" || word == "false") dropAttribute(&tag, "fullPrecision");   // (any other word is the usual: the file keeps it)
+    }
     if (iterate) {
         setAttribute(&tag, "iterate", "1");
         setAttribute(&tag, "iterateCount", QByteArray::number(iterateCount));
