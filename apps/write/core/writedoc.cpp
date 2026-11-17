@@ -1475,6 +1475,7 @@ int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start
     if (start) num.startOverrides.insert(std::clamp(level, 0, 8), *start);
     n.nums.push_back(num);
     n.modified = true;
+    n.changed();
     ensureNumberingPart();
     return num.id;
 }

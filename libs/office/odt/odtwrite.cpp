@@ -652,7 +652,7 @@ void Writer::collectNumbering()
         for (int hops = 0; !m_abstracts[at].numStyleLink.isEmpty(); ++hops) {
             const int next = carrier.value(m_abstracts[at].numStyleLink, -1);
             if (next < 0 || next == at) break;
-            if (hops >= 16 || next == id) {
+            if (hops >= wml::kMostStyleLinks || next == id) {
                 refused = true;
                 break;
             }

@@ -2653,6 +2653,8 @@ void WriteTests::theListStyleDialogSavesAndChecksTheName()
 // The multilevel gallery has a List Styles section, and the styles pane lists the style, which applies it. With JO_SHOT_DIR set, a picture of the gallery is saved.
 void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
 {
+    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+    if (!dir.isEmpty()) jp::applyUiTheme(1);   // (the program's own look, for the picture: before the window, so that its menus have it)
     WriteWindow w;
     typeText(*w.document(), w.view()->cursor(), QStringLiteral("One\nTwo\nThree"));
     WriteDoc &doc = *w.document();
@@ -2670,7 +2672,7 @@ void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
     }
     QVERIFY(gallery);
     bool section = false;
-    for (QAction *a : gallery->actions()) section = section || (a->isSeparator() && a->text() == tr("List Styles"));
+    for (QAction *a : gallery->actions()) section = section || (a->objectName() == QLatin1String("sectionLabel") && a->text() == tr("List Styles") && !a->isEnabled());
     QVERIFY(section);
     // Choosing it applies it to the selection.
     QTextCursor all(doc.story());
@@ -2684,9 +2686,7 @@ void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
     for (const ListedStyle &s : listStyles(doc, StyleFilter::All, QString(), StyleSort::Default))
         if (s.id == id) listed = s.list && s.name == QStringLiteral("Contract Clauses") && s.inUse;
     QVERIFY(listed);
-    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
     if (dir.isEmpty()) return;
-    jp::applyUiTheme(1);
     saveListStyle(doc, QStringLiteral("Meeting Notes"), multilevelPresets().at(0).def);
     gallery->popup(w.mapToGlobal(QPoint(60, 120)));
     QTRY_VERIFY(gallery->isVisible());
@@ -2811,6 +2811,73 @@ void WriteTests::modifyingAListStyleChangesItsUsersInNotes()
     QVERIFY(modifyListStyle(*doc, id, changed));
     QCOMPARE(doc->story()->firstBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
     QCOMPARE(note->lastBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
+    // A header and a footer that are being edited have a user each too (their stories are there only while they are edited).
+    PageView view;
+    view.resize(1000, 900);
+    view.show();
+    view.setDocument(doc.get());
+    view.paginateAll();
+    for (bool footer : {false, true}) {
+        QVERIFY(view.enterHeaderFooter(0, footer));
+        QTextDocument *side = doc->headerFooterStory(0, footer, 0);
+        QVERIFY(side);
+        QTextCursor inSide(side);
+        QVERIFY(modifyListStyle(*doc, id, multilevelPresets().at(2).def));
+        side = doc->headerFooterStory(0, footer, 0);
+        QVERIFY(applyListStyle(*doc, inSide, id));
+        QCOMPARE(side->firstBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
+        AbstractNum again = multilevelPresets().at(0).def;   // (decimal again)
+        QVERIFY(modifyListStyle(*doc, id, again));
+        QCOMPARE(doc->headerFooterStory(0, footer, 0)->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
+        view.leaveHeaderFooter();
+    }
+}
+
+// A paragraph inside a text box that has the style follows a change of it.
+void WriteTests::modifyingAListStyleChangesItsUsersInTextBoxes()
+{
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    const QString id = saveListStyle(*doc, QStringLiteral("Box Steps"), multilevelPresets().at(0).def);
+    QVERIFY(!id.isEmpty());
+    QTextCursor at(doc->story());
+    QCOMPARE(insertTextBox(*doc, at, textBoxDesigns().first()), PictureResult::Ok);
+    QTextDocument *box = nullptr;
+    for (const flow::FloatingObject &o : doc->flow().objects)
+        if (o.story) box = o.story.get();
+    QVERIFY(box);
+    QTextCursor inBox(box);
+    QVERIFY(applyListStyle(*doc, inBox, id));
+    QCOMPARE(box->firstBlock().textList()->format().style(), QTextListFormat::ListDecimal);
+    QVERIFY(modifyListStyle(*doc, id, multilevelPresets().at(2).def));
+    QCOMPARE(box->firstBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
+}
+
+// The gallery lists the first 100 list styles, and says how many more the Styles pane has.
+void WriteTests::theGalleryShowsTheFirstHundredListStylesAndSaysThereAreMore()
+{
+    WriteWindow w;
+    WriteDoc &doc = *w.document();
+    for (int i = 0; i < 105; ++i) QVERIFY(!saveListStyle(doc, QStringLiteral("Style %1").arg(i), multilevelPresets().at(1).def).isEmpty());
+    QCOMPARE(doc.listStyleEntries().size(), 105);
+    QMenu *gallery = nullptr;
+    for (QToolButton *tb : w.findChildren<QToolButton *>()) {
+        QMenu *m = tb->menu();
+        if (m && (tb->text() + tb->toolTip() + tb->accessibleName()).contains(QLatin1String("Multilevel"))) gallery = m;
+    }
+    QVERIFY(gallery);
+    Q_EMIT gallery->aboutToShow();
+    int styles = 0;
+    QAction *note = nullptr;
+    for (QAction *a : gallery->actions()) {
+        if (a->objectName().startsWith(QLatin1String("listStyle:"))) ++styles;
+        if (a->text().contains(QLatin1String("5 more list styles"))) note = a;
+    }
+    QCOMPARE(styles, 100);
+    QVERIFY(note);
+    QVERIFY(!note->isEnabled());
+    for (QAction *a : gallery->actions())
+        if (a->menu() && a->text() == tr("Modify List Style")) QCOMPARE(a->menu()->actions().size(), 100);
 }
 
 // Save as a list style with the paragraphs it is for is one step: one Undo takes back the style and the list. With nothing to give it to (a locked paragraph), no style is made.

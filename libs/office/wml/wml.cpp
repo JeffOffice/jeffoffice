@@ -1407,7 +1407,6 @@ const TableStyleDef &StyleSheet::tableStyle(const QString &id) const
 
 // The most definitions that name one another through numbering styles that are followed (a file can link them in a ring): a chain longer than this, or one that comes round to a
 // definition it began at, is refused, and the definition has the levels it writes itself.  Only the first kMostListStyles numbering styles of a file are followed.
-constexpr int kMostStyleLinks = 16;
 
 void Numbering::index() const
 {

@@ -61,6 +61,18 @@ QWidgetAction *gridAction(QMenu *menu, const QVector<std::pair<QString, QString>
     return action;
 }
 
+// A heading over a part of a menu, drawn as text in every style (a section of a menu is drawn as a line in some).
+void sectionLabel(QMenu *menu, const QString &text)
+{
+    if (!menu->actions().isEmpty()) menu->addSeparator();
+    QAction *label = menu->addAction(text);
+    label->setEnabled(false);
+    label->setObjectName(QStringLiteral("sectionLabel"));
+    QFont f = menu->font();
+    f.setBold(true);
+    label->setFont(f);
+}
+
 QStringList recentBullets() { return Settings::get().value(QStringLiteral("write/recentBullets")).toStringList(); }
 
 void rememberBullet(const QString &character, const QString &font)
@@ -262,7 +274,7 @@ void WriteWindow::listRibbonParts(RibbonParts &parts)
         auto *m = new QMenu(owner);
         connect(m, &QMenu::aboutToShow, this, [this, m] {
             m->clear();
-            m->addSection(tr("List Library"));
+            sectionLabel(m, tr("List Library"));
             const QVector<write::MultilevelPreset> presets = write::multilevelPresets();
             for (int i = 0; i < presets.size(); ++i) {
                 QAction *a = m->addAction(presets[i].name);
@@ -278,7 +290,7 @@ void WriteWindow::listRibbonParts(RibbonParts &parts)
             const int more = std::max(0, int(listStyles.size()) - kMostListStylesShown);
             if (more > 0) listStyles.resize(kMostListStylesShown);
             if (!listStyles.isEmpty()) {
-                m->addSection(tr("List Styles"));
+                sectionLabel(m, tr("List Styles"));
                 for (const write::WriteDoc::ListStyleEntry &e : listStyles) {
                     QAction *a = m->addAction(e.name);
                     a->setObjectName(QStringLiteral("listStyle:") + e.id);

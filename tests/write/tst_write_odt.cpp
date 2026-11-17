@@ -1174,6 +1174,21 @@ private Q_SLOTS:
         QCOMPARE(doc->story()->findBlockByNumber(1).textList() != nullptr, true);
     }
 
+    // A list style named like a paragraph style the file has (Heading 1) does not take the style's id.
+    void aListStyleNamedLikeAParagraphStyleDoesNotTakeItsId()
+    {
+        const QByteArray common = "<text:list-style style:name=\"Heading_20_1\" style:display-name=\"Heading 1\"><text:list-level-style-number text:level=\"1\" style:num-format=\"I\"/></text:list-style>";
+        const QByteArray body = "<text:h text:style-name=\"Heading_20_1\" text:outline-level=\"1\">A heading</text:h><text:list text:style-name=\"Heading_20_1\"><text:list-item><text:p>one</text:p></text:list-item></text:list>";
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, QByteArray(), common), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QVector<WriteDoc::ListStyleEntry> entries = doc->listStyleEntries();
+        QCOMPARE(entries.size(), 1);
+        QVERIFY(entries[0].id != QLatin1String("Heading1"));
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading1"))->type, QStringLiteral("paragraph"));
+        QCOMPARE(doc->styleSheet().find(entries[0].id)->type, QStringLiteral("numbering"));
+    }
+
     // A list style named L1 does not take the name of the list a paragraph makes for itself in the file's text (L1, L2...): every list style of the file has a name of its own.
     void aListStyleNamedLikeAnAutomaticListKeepsItsOwnName()
     {

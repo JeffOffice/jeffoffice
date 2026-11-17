@@ -3068,7 +3068,11 @@ bool modifyListStyle(WriteDoc &doc, const QString &styleId, const AbstractNum &d
     }
     edit.endEditBlock();
     if (!done) return false;
-    for (QTextDocument *story : doc.storiesWithChanges(true))
+    // (The headers, footers, and notes; and the text boxes, whose paragraphs are the shapes' own stories.)
+    QVector<QTextDocument *> others = doc.storiesWithChanges(true);
+    for (const flow::FloatingObject &o : std::as_const(doc.flow().objects))
+        if (o.story && !others.contains(o.story.get())) others.push_back(o.story.get());
+    for (QTextDocument *story : std::as_const(others))
         if (story != doc.story()) settleListStyleUsers(doc, story, styleAbstract, QHash<QString, int>(), 0);
     return doc.settleStyleEdit();
 }

@@ -1762,6 +1762,8 @@ private Q_SLOTS:
     void modifyingAListStyleChangesItsUsersInNotes();
     void savingAListStyleAndUsingItIsOneStepOrNone();
     void deletingAListStyleAndUndoingItGivesTheLevelsBack();
+    void modifyingAListStyleChangesItsUsersInTextBoxes();
+    void theGalleryShowsTheFirstHundredListStylesAndSaysThereAreMore();
     void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();

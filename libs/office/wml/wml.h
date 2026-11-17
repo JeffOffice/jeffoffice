@@ -404,6 +404,8 @@ struct Num {
 
 // The most numbering styles (list styles: definitions with a w:styleLink, and text:list-style in an .odt's styles) that a file is read for; the rest are not styles here.
 constexpr int kMostListStyles = 1000;
+// The most definitions that name one another through numbering styles that are followed (a file can link them in a ring): a longer chain, or one that comes round to its start, is refused.
+constexpr int kMostStyleLinks = 16;
 
 struct Numbering {
     QByteArray rootStart, prefix;     // w:numbering's start tag, and the numPicBullet elements, as written
