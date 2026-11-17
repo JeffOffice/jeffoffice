@@ -49,11 +49,13 @@ On the **Open** page, click **More Ways to Open**. You can also right-click a na
 - **Open Read-Only** opens the file for reading only. You can look, scroll, search, and copy, but you can't change anything. The title bar says "Read-Only". If you press **Save**, JeffWrite asks for a new name, so the file you opened is not changed.
 - **Open as Copy** opens a new document with the file's text. It has no file of its own, so **Save** asks where to put it. The file you opened is never changed.
 - **Open in New Window** opens the file in a window of its own, even when the window you are in is empty.
-- **Open and Repair** is for a .docx file that is damaged, for example one that was cut short when it was copied. See below.
+- **Open and Repair** is for a .docx or .doc file that is damaged, for example one that was cut short when it was copied. See below.
 
 ## Open and Repair
 
-Sometimes a .docx file is damaged. A copy stopped halfway, or a disk made mistakes. A .docx file is a bundle of smaller parts, such as the text, the styles, and the pictures. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffWrite makes them again.
+Sometimes a .docx or .doc file is damaged. A copy stopped halfway, or a disk made mistakes. A .docx file is a bundle of smaller parts, such as the text, the styles, and the pictures. **Open and Repair** reads every part that it can. A part that stopped in the middle is kept up to the place where it stopped. A part that can't be read is left out. If the list of parts or the links between them are gone, JeffWrite makes them again.
+
+An old .doc file is one big wrapper with a few streams of data inside it. One stream holds the text, and another holds the table that says where each piece of text is and how it looks. If the wrapper is cut short or its lists are damaged, **Open and Repair** finds those streams by what is in them and reads as much as it can. If the table is lost, the text is kept as plain paragraphs, without styles, lists, tables, or pictures. A .doc file that has a password can't be repaired.
 
 The repaired document opens as a copy with a name like "Repaired letter". A message tells you what was kept up to a break and what was left out. The damaged file is not changed. Save the repaired copy under a name of its own, and check it before you trust it.
 

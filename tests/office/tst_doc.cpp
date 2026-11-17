@@ -5,6 +5,8 @@
 #include "office/package.h"
 
 #include "doc/doc.h"
+#include "doc/docsalvage.h"
+#include "office/cfbsalvage.h"
 #include "io/cfb.h"
 #include "wml/wml.h"
 
@@ -275,6 +277,43 @@ DocWriter simple(const QString &text)
     DocWriter w;
     w.text = text;
     return w;
+}
+
+// ---- Open and Repair of a damaged file
+
+// A document of 400 paragraphs (its streams are long enough to fill many sectors), and its paragraphs.
+QByteArray repairableDoc(QStringList *paragraphs)
+{
+    QString text;
+    paragraphs->clear();
+    for (int i = 0; i < 400; ++i) {
+        const QString p = QStringLiteral("Paragraph %1 of the repair test, with words enough to fill a line.").arg(i);
+        paragraphs->push_back(p);
+        text += p + QLatin1Char('\r');
+    }
+    return simple(text).build();
+}
+
+quint32 le32At(const QByteArray &b, int at) { return at + 4 <= b.size() ? qFromLittleEndian<quint32>(b.constData() + at) : 0; }
+void setLe32(QByteArray &b, int at, quint32 v) { qToLittleEndian(v, b.data() + at); }
+// The directory is the first sector of the files this writes (sector n is at (n + 1) * 512); an entry's start sector is at 116 of its 128 bytes.
+int directoryEntryOf(const QByteArray &file, const QString &name)
+{
+    const int dir = int(le32At(file, 48));
+    for (int o = (dir + 1) * 512; o + 128 <= file.size() && o < (dir + 1) * 512 + 512; o += 128) {
+        const int len = qFromLittleEndian<quint16>(file.constData() + o + 64) / 2 - 1;
+        if (len > 0 && QString::fromUtf16(reinterpret_cast<const char16_t *>(file.constData() + o), len) == name) return o;
+    }
+    return -1;
+}
+void zeroSector(QByteArray &f, int n) { f.replace((n + 1) * 512, 512, QByteArray(512, '\0')); }
+
+QStringList repairedParagraphs(const QByteArray &file, QStringList *notes, QString *error = nullptr)
+{
+    const QByteArray fixed = doc::salvageDoc(file, notes, error);
+    Document d;
+    if (fixed.isEmpty() || !read(fixed, &d)) return {};
+    return bodyTexts(d);
 }
 
 } // namespace
@@ -1754,6 +1793,161 @@ private Q_SLOTS:
         }
         QVERIFY(read1 > 0);
         QVERIFY(total.elapsed() < 120000);
+    }
+
+    // ---- Open and Repair
+
+    void aSoundDocumentIsRepairedToItself()
+    {
+        QStringList paras, notes;
+        const QByteArray good = repairableDoc(&paras);
+        QCOMPARE(repairedParagraphs(good, &notes), paras);
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    void aDocumentCutShortKeepsTheTextBeforeTheCut()
+    {
+        QStringList paras;
+        const QByteArray good = repairableDoc(&paras);
+        int before = 1 << 20;
+        for (int percent : {90, 75, 60, 45}) {
+            const QByteArray cut = good.left(good.size() * percent / 100);
+            Document plain;
+            QVERIFY(!read(cut, &plain));   // (the tables at the end that name the streams are gone)
+            QStringList notes;
+            QString why;
+            QStringList got = repairedParagraphs(cut, &notes, &why);
+            QVERIFY2(!got.isEmpty(), qPrintable(QString::number(percent) + QLatin1Char(' ') + why));
+            QVERIFY(got.size() <= paras.size());   // (the text comes first in the stream, and the cut is in what follows it until 75 percent)
+            if (percent == 45) QVERIFY(got.size() < paras.size());
+            got.removeLast();   // (the last may be cut in the middle)
+            QCOMPARE(got, paras.mid(0, got.size()));
+            QVERIFY2(got.size() <= before, qPrintable(QString::number(percent)));   // (less of the file, less of the text)
+            before = int(got.size());
+            QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")));
+        }
+        QVERIFY(before > 40);
+        // cut before the document stream starts: nothing to keep, and said so
+        QString why;
+        QStringList notes;
+        QVERIFY(doc::salvageDoc(good.left(1000), &notes, &why).isEmpty());
+        QVERIFY(!why.isEmpty());
+    }
+
+    void aDocumentWhoseTableOfSectorsIsZeroedIsRepaired()
+    {
+        QStringList paras, notes;
+        QByteArray bad = repairableDoc(&paras);
+        zeroSector(bad, int(le32At(bad, 76)));
+        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY(!notes.isEmpty());
+    }
+
+    void aDocumentWhoseDirectoryIsZeroedIsFoundByItsRecords()
+    {
+        QStringList paras, notes;
+        QByteArray bad = repairableDoc(&paras);
+        Document plain;
+        zeroSector(bad, int(le32At(bad, 48)));
+        QVERIFY(!read(bad, &plain));
+        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")));
+    }
+
+    void aChainOfSectorsThatLoopsIsFollowedOnce()
+    {
+        QStringList paras, notes;
+        QByteArray bad = repairableDoc(&paras);
+        const int wd = directoryEntryOf(bad, QStringLiteral("WordDocument"));
+        QVERIFY(wd > 0);
+        const quint32 start = le32At(bad, wd + 116);
+        const int fat = (int(le32At(bad, 76)) + 1) * 512;
+        QVERIFY(start + 6 < 128);
+        setLe32(bad, fat + int(start + 5) * 4, start + 1);   // (a later sector leads back to the second)
+        Document plain;
+        QVERIFY(!read(bad, &plain, nullptr) || bodyTexts(plain) != paras);
+        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        // the directory's own chain too
+        QByteArray bad2 = repairableDoc(&paras);
+        setLe32(bad2, (int(le32At(bad2, 76)) + 1) * 512 + int(le32At(bad2, 48)) * 4, le32At(bad2, 48));
+        QCOMPARE(repairedParagraphs(bad2, &notes), paras);
+    }
+
+    void aDocumentWhoseTablesAreLostKeepsItsTextAsPlainParagraphs()
+    {
+        QStringList paras, notes;
+        QByteArray bad = repairableDoc(&paras);
+        // (the small streams, the tables among them, are in the container's mini stream: its sectors are zeroed)
+        const int root = (int(le32At(bad, 48)) + 1) * 512;
+        const int first = int(le32At(bad, root + 116)), sectors = int((le32At(bad, root + 120) + 511) / 512);
+        QVERIFY(sectors > 0);
+        for (int n = first; n < first + sectors; ++n) zeroSector(bad, n);
+        QString why;
+        QCOMPARE(repairedParagraphs(bad, &notes, &why), paras);
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("plain paragraphs")));
+    }
+
+    void aDocumentProtectedWithAPasswordIsNotRepaired()
+    {
+        DocWriter w = simple(QStringLiteral("Secret\r"));
+        QString why;
+        QStringList notes;
+        for (int form : {0, 1, 2}) {
+            const QByteArray locked = w.buildProtected(QStringLiteral("pw"), form);
+            QVERIFY(doc::salvageDoc(locked, &notes, &why).isEmpty());
+            QVERIFY2(why.contains(QLatin1String("password")), qPrintable(why));
+        }
+    }
+
+    void aScanChecksAtMostTheNumberOfPlacesItIsAllowed()
+    {
+        // 200,000 bytes in which every place looks like a start: the full check is called at most maxChecks times, on at most maxStreamBytes
+        QByteArray junk(200000, 'x');
+        int calls = 0;
+        qsizetype biggest = 0;
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("X");
+        w.looksLike = [](QByteArrayView, const QMap<QString, QByteArray> &) { return true; };
+        w.validBytes = [&](QByteArrayView b, const QMap<QString, QByteArray> &) -> qint64 {
+            ++calls;
+            biggest = std::max(biggest, b.size());
+            return 0;
+        };
+        jp::office::CfbSalvageLimits lim;
+        lim.maxChecks = 10;
+        lim.maxStreamBytes = 5000;
+        jp::office::CfbSalvage out;
+        QString why;
+        QVERIFY(!jp::office::salvageCompoundFile(junk, {w}, &out, &why, lim));
+        QCOMPARE(calls, 10);
+        QCOMPARE(biggest, qsizetype(5000));
+        // a file over the limit is not looked through at all
+        calls = 0;
+        lim.maxFileBytes = 1000;
+        QVERIFY(!jp::office::salvageCompoundFile(junk, {w}, &out, &why, lim));
+        QCOMPARE(calls, 0);
+        QVERIFY(!why.isEmpty());
+        // more streams than are allowed to be asked for
+        lim = jp::office::CfbSalvageLimits();
+        lim.maxWishes = 1;
+        QVERIFY(!jp::office::salvageCompoundFile(junk, {w, w}, &out, &why, lim));
+        QCOMPARE(calls, 0);
+    }
+
+    void aStreamOverTheLimitIsNotHeld()
+    {
+        QStringList paras;
+        const QByteArray good = repairableDoc(&paras);
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("WordDocument");
+        jp::office::CfbSalvageLimits lim;
+        lim.maxStreamBytes = 4096;   // (the document stream is 30,000 bytes or so)
+        jp::office::CfbSalvage out;
+        QString why;
+        QVERIFY(!jp::office::salvageCompoundFile(good, {w}, &out, &why, lim));
+        QVERIFY(out.streams.isEmpty());
+        QVERIFY(jp::office::salvageCompoundFile(good, {w}, &out, &why));
+        QVERIFY(out.streams.value(QStringLiteral("WordDocument")).size() > 4096);
     }
 
     // A developer's hook, not a test: JO_DOC_SWEEP_IN names a folder (searched through) of .doc files; each is read as it is, and again with bytes

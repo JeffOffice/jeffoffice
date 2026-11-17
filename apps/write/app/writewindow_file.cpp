@@ -24,6 +24,7 @@
 #include "office/package.h"
 #include "office/privacy.h"
 #include "office/repair.h"
+#include "doc/docsalvage.h"
 #include "odt/odttemplate.h"
 
 #include <QPointer>
@@ -202,7 +203,16 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
             }
         }
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
-        if (repairing) bytes = office::repairPackage(bytes, &err, &repair);
+        // (an old binary document is a compound file whose streams are found again; any other is a package of parts)
+        if (repairing) {
+            if (bytes.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1")) || (isOldBinary(path) && !bytes.startsWith("PK") && !bytes.startsWith("{\\rtf"))) {
+                QStringList said;
+                bytes = office::doc::salvageDoc(bytes, &said, &err);
+                repair.notes = said;
+            } else {
+                bytes = office::repairPackage(bytes, &err, &repair);
+            }
+        }
         if (!bytes.isEmpty()) doc = write::WriteDoc::fromFile(bytes, &err, &notes, isWebPage(path) ? QFileInfo(path).absolutePath() : QString());
     }
     QApplication::restoreOverrideCursor();

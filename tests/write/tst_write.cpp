@@ -646,6 +646,35 @@ void WriteTests::anOldBinaryFileOpensAndShowsItsText()
 }
 
 
+// Open and Repair of an old .doc cut short: it does not open as it is, and opens as a repaired copy with the text before the cut and a note that says so.
+void WriteTests::aDamagedDocOpensRepairedWithWhatCouldBeRead()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    dochelp::DocWriter doc;
+    for (int i = 1; i <= 400; ++i) doc.text += QStringLiteral("Paragraph %1 has some words in it, and a few more.\r").arg(i);
+    const QByteArray whole = doc.build();
+    const QString cutPath = dir.filePath(QStringLiteral("cut.doc"));
+    QFile f(cutPath);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write(whole.left(whole.size() * 6 / 10));
+    f.close();
+    WriteWindow w;
+    QStringList told;
+    w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+    QVERIFY(w.openFile(cutPath, OpenHow::Repair));
+    QVERIFY(w.filePath().isEmpty());
+    QVERIFY(w.isModified());
+    QVERIFY(w.displayName().contains(QLatin1String("cut")));
+    const QString text = w.document()->story()->toPlainText();
+    QVERIFY(text.startsWith(QStringLiteral("Paragraph 1 has some words")));
+    QVERIFY(text.contains(QStringLiteral("Paragraph 100 has")));
+    QVERIFY2(!told.isEmpty() && told.first().contains(QLatin1String("Open and Repair")) && told.first().contains(QLatin1String("cut short")), qPrintable(told.join(QLatin1Char('|'))));
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("repaired.docx")); });
+    QVERIFY(w.save());
+}
+
+
 void WriteTests::anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected()
 {
     QTemporaryDir dir;
