@@ -399,6 +399,14 @@ void CrunchEditTests::aRightClickOnCellsShowsTheMiniToolbarOverTheMenu()
     for (QToolButton *t : bar->findChildren<QToolButton *>())
         if (t->defaultAction() && t->defaultAction()->menu() && t->defaultAction()->menu()->objectName() == QLatin1String("bordersMenu")) borders = true;
     QVERIFY(borders);
+    // the commands under the bar are all in view (Cut, Copy, and Paste are not scrolled out of a menu that is too tall)
+    const QRect screen = menu->screen()->availableGeometry();
+    for (const char *id : {"edit.cut", "edit.copy", "edit.paste"}) {
+        QAction *a = e.win.w.act(QString::fromLatin1(id));
+        const QRect r = menu->actionGeometry(a);
+        QVERIFY2(!r.isNull() && menu->rect().contains(r) && r.top() >= bar->geometry().bottom(), id);
+    }
+    QVERIFY(menu->height() <= screen.height());
     // Escape closes the menu and the bar with it
     QPointer<QFrame> gone = bar;
     QTest::keyClick(menu, Qt::Key_Escape);
