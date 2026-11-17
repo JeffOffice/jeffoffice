@@ -748,6 +748,10 @@ public:
     const jp::calc::DependencyGraph &graph() const { return *liveGraph(); }
     // The formulas the graph named as readers of the blocks that changed, over the life of the calculation (counted, so that a test can see a block asked again and again: docs/jeffcrunch-rowids.md, round 9).
     qint64 readersFound() const { return m_readersFound; }
+    // For tests: a cell read by more than `manyReaders` formulas (0: from the first cell) turns blocking on, and a block's question is for at most `mostEntries` entries (0: no limit); and the
+    // work grouping the cells into blocks cost.
+    void setBlockingForTest(size_t manyReaders, size_t mostEntries) { m_manyReaders = manyReaders; m_blockEntries = mostEntries; }
+    qint64 groupingWork() const { return m_groupWork; }
     // The most blocks a recalculation held to ask the graph of only once (a count for the test of its bound).
     qint64 askedAreasPeak() const { return m_askedPeak; }
     // The formulas the graph says read the block of places (asked as a change of those cells is), added to `out`; for what holds places and not the ids the graph holds. With `stop`, the search
@@ -1212,11 +1216,21 @@ private:
         bool active = false;
         size_t stackAt = 0, compAt = 0, dirtyAt = 0;
     } m_refuse;
+    // How the cells that changed are asked of the graph: one at a time, until a cell is found that very many formulas read; from then on the single cells added to the list are made into
+    // blocks of cells (once each: what is below `groupedTo` is not looked at again), so that the formulas that read a whole column are found once for a block and not again for each cell.
+    struct Blocking {
+        bool many = false;
+        size_t groupedTo = 0;
+        qint64 cap = 1024;   // the most cells of a block (made smaller when a block's readers were too many to be one question)
+        qint64 work = 0;     // what grouping cost since it was last charged
+    };
+    static jp::calc::CellArea takeChanged(std::vector<jp::calc::CellArea> *changed, Blocking *b);
+    static void splitBlock(std::vector<jp::calc::CellArea> *changed, const jp::calc::CellArea &a, Blocking *b);
     struct BeginJob {
         bool active = false;
         size_t alwaysAt = 0, listed = 0;
         bool dependents = false;
-        bool many = false;   // the last cell asked of the graph is read by very many formulas (the cells beside it are asked as a block)
+        Blocking blocking;
         std::vector<jp::calc::CellArea> changed;
         std::set<jp::calc::CellArea> askedAreas;   // the blocks the graph was asked the readers of, whole: a change in rows put in at one place is the same block for each (asked once)
         std::vector<quint32> found;
@@ -1230,7 +1244,8 @@ private:
         size_t observersAt = 0;
         size_t ownAt = 0;   // the node the look for formulas that see only their own cell has got to
     } m_begin;
-    qint64 m_readersFound = 0, m_askedPeak = 0;
+    qint64 m_readersFound = 0, m_askedPeak = 0, m_groupWork = 0;
+    size_t m_manyReaders = 4096, m_blockEntries = 262144;
     int m_onlySheet = -1;   // a recalculation of one sheet is going (invalidateSheet): the formulas of the others are left, and noted here for the next
     std::vector<quint32> m_deferredRoots;
     std::vector<jp::calc::CellArea> m_deferredAreas;

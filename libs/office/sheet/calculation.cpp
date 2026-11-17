@@ -24,30 +24,72 @@ using namespace jp::calc;
 
 namespace {
 
-// Takes the last block of `changed`. The single cells at the end of the list (the cells of formulas that were marked) are first made into the fewest blocks that hold exactly them (a column of
-// cells that changed, or a few columns side by side), so that they are asked of the graph as those blocks and not cell by cell, each of which would find every formula that reads the whole
-// column again. The cells are the same, and so are the formulas marked; only the number of questions changes.
+// The most cells of a block of changed cells that is asked of the graph at once (the cap of a job can be lower).
 constexpr qint64 kMostCellsOfABlock = 1024;
-constexpr size_t kManyReaders = 4096;   // a cell read by more formulas than this is likely read by the same ones as the cells beside it   // (a block asked of the graph at once is no larger than this, so that one question stays a small step of the work)
 
-CellArea takeChanged(std::vector<CellArea> *changed, bool many)
+// Whether a question of the graph about a block of cells is limited to the entries it may give (it is one uninterruptible step), and what it was.
+enum class Ask { Whole, Stopped, TooMany };
+
+Ask askReaders(const DependencyGraph &graph, const CellArea &a, std::vector<quint32> *out, const std::atomic<bool> *stop, bool blocking, size_t mostEntries, qint64 *units)
 {
-    size_t first = changed->size();
-    if (many)
-        while (first > 0 && (*changed)[first - 1].single()) --first;
-    if (many && changed->size() - first >= 2) {
-        std::vector<CellArea> cells(changed->begin() + std::ptrdiff_t(first), changed->end());
-        changed->resize(first);
-        std::sort(cells.begin(), cells.end(), [](const CellArea &a, const CellArea &b) {
-            if (a.sheet1 != b.sheet1) return a.sheet1 < b.sheet1;
-            if (a.col1 != b.col1) return a.col1 < b.col1;
-            return a.row1 < b.row1;
+    if (a.single()) return (graph.dependentsOfCell(a.sheet1, a.row1, a.col1, out, stop) ? Ask::Whole : Ask::Stopped);
+    const bool limited = blocking && mostEntries > 0 && a.cells() <= kMostCellsOfABlock;
+    if (!graph.dependentsOfArea(a, out, stop, false, limited ? mostEntries : 0)) {
+        if (stop && stop->load(std::memory_order_relaxed)) return Ask::Stopped;
+        out->clear();
+        return Ask::TooMany;
+    }
+    if (limited) {
+        // (a formula that reads two places of the block is found twice)
+        std::sort(out->begin(), out->end());
+        out->erase(std::unique(out->begin(), out->end()), out->end());
+        *units += qint64(out->size());
+    }
+    return Ask::Whole;
+}
+
+} // namespace
+
+// The two halves of a block, along its longer side, put on the list.
+void Calculation::splitBlock(std::vector<CellArea> *changed, const CellArea &a, Blocking *b)
+{
+    CellArea x = a, y = a;
+    if (a.rows() >= a.cols()) {
+        x.row2 = a.row1 + quint32(a.rows() / 2) - 1;
+        y.row1 = x.row2 + 1;
+    } else {
+        x.col2 = a.col1 + quint32(a.cols() / 2) - 1;
+        y.col1 = x.col2 + 1;
+    }
+    changed->push_back(y);
+    changed->push_back(x);
+    b->groupedTo = changed->size();
+}
+
+// Takes the last block of `changed`. Once a cell is found that very many formulas read, the single cells put on the list since the last time (the cells of formulas that were marked) are made
+// into the fewest blocks that hold exactly them (a column of cells that changed, or a few columns side by side), so that they are asked of the graph as those blocks and not cell by cell, each
+// of which would find every formula that reads the whole column again. The cells are the same, and so are the formulas marked; only the number of questions changes. Each cell is grouped once.
+CellArea Calculation::takeChanged(std::vector<CellArea> *changed, Blocking *b)
+{
+    b->groupedTo = std::min(b->groupedTo, changed->size());
+    if (b->many && changed->size() - b->groupedTo >= 2) {
+        std::vector<CellArea> cells, others;
+        for (size_t i = b->groupedTo; i < changed->size(); ++i) ((*changed)[i].single() ? cells : others).push_back((*changed)[i]);
+        changed->resize(b->groupedTo);
+        for (const CellArea &o : others) changed->push_back(o);
+        qint64 log2n = 1;
+        for (size_t v = cells.size(); v > 1; v >>= 1) ++log2n;
+        b->work += qint64(others.size()) + qint64(cells.size()) * log2n;
+        std::sort(cells.begin(), cells.end(), [](const CellArea &x, const CellArea &y) {
+            if (x.sheet1 != y.sheet1) return x.sheet1 < y.sheet1;
+            if (x.col1 != y.col1) return x.col1 < y.col1;
+            return x.row1 < y.row1;
         });
         cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
         // (runs down each column)
         std::vector<CellArea> runs;
         for (const CellArea &c : cells) {
-            if (!runs.empty() && runs.back().sheet1 == c.sheet1 && runs.back().col1 == c.col1 && runs.back().row2 + 1 == c.row1 && runs.back().rows() < kMostCellsOfABlock) runs.back().row2 = c.row1;
+            if (!runs.empty() && runs.back().sheet1 == c.sheet1 && runs.back().col1 == c.col1 && runs.back().row2 + 1 == c.row1 && runs.back().rows() < b->cap) runs.back().row2 = c.row1;
             else runs.push_back(c);
         }
         // (runs with the same rows in columns side by side are one block)
@@ -55,21 +97,32 @@ CellArea takeChanged(std::vector<CellArea> *changed, bool many)
         for (const CellArea &r : runs) {
             bool joined = false;
             for (size_t k = blocks.size(), seen = 0; k > 0 && seen < 8; --k, ++seen) {
-                CellArea &b = blocks[k - 1];
-                if (b.sheet1 == r.sheet1 && b.row1 == r.row1 && b.row2 == r.row2 && b.col2 + 1 == r.col1 && b.cells() + r.cells() <= kMostCellsOfABlock) {
-                    b.col2 = r.col1;
+                CellArea &x = blocks[k - 1];
+                if (x.sheet1 == r.sheet1 && x.row1 == r.row1 && x.row2 == r.row2 && x.col2 + 1 == r.col1 && x.cells() + r.cells() <= b->cap) {
+                    x.col2 = r.col1;
                     joined = true;
                     break;
                 }
             }
             if (!joined) blocks.push_back(r);
         }
-        for (const CellArea &b : blocks) changed->push_back(b);
+        for (const CellArea &x : blocks) changed->push_back(x);
+        b->groupedTo = changed->size();
     }
-    const CellArea a = changed->back();
+    CellArea a = changed->back();
     changed->pop_back();
+    b->groupedTo = std::min(b->groupedTo, changed->size());
+    // (a block made when more cells were allowed)
+    while (b->many && !a.single() && a.cells() > b->cap && a.cells() <= kMostCellsOfABlock) {
+        splitBlock(changed, a, b);
+        a = changed->back();
+        changed->pop_back();
+        b->groupedTo = std::min(b->groupedTo, changed->size());
+    }
     return a;
 }
+
+namespace {
 
 // A number that says which blocks these are (in the order given): two lists with the same number are taken to be the same, as the graph takes them.
 quint64 hashOfAreas(const std::vector<CellArea> &areas)
@@ -1733,17 +1786,23 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
 {
     std::vector<quint32> found;
     std::set<CellArea> asked;
-    bool many = false;
+    Blocking blocking;
+    blocking.many = m_manyReaders == 0;
     while (!changed->empty()) {
-        const CellArea a = takeChanged(changed, many);
+        const CellArea a = takeChanged(changed, &blocking);
         if (!a.single() && asked.count(a)) continue;   // (the same block again: what reads it is marked)
         if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
         m_askedPeak = std::max<qint64>(m_askedPeak, qint64(asked.size()));
         found.clear();
-        if (a.single()) liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, &found);
-        else liveGraph()->dependentsOfArea(a, &found);
+        qint64 units = std::exchange(blocking.work, 0);
+        m_groupWork += units;
+        if (askReaders(*liveGraph(), a, &found, nullptr, blocking.many, m_blockEntries, &units) == Ask::TooMany) {
+            blocking.cap = std::max<qint64>(1, a.cells() / 2);
+            splitBlock(changed, a, &blocking);
+            continue;
+        }
         m_readersFound += qint64(found.size());
-        many = many || (a.single() && found.size() > kManyReaders);
+        if (a.single() && (found.size() > m_manyReaders || m_manyReaders == 0)) blocking.many = true;
         for (const quint32 id : found) {
             Node &n = m_nodes[id];
             if ((n.flags & Dead) || dormant(n)) continue;
@@ -2168,25 +2227,35 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         }
         if (j.changed.empty()) break;
         if (!ck.next()) return false;
-        const CellArea a = takeChanged(&j.changed, j.many);
+        if (m_manyReaders == 0) j.blocking.many = true;
+        const CellArea a = takeChanged(&j.changed, &j.blocking);
         if (!a.single() && j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
         j.found.clear();
         j.foundAt = 0;
         j.queried = a;
         // (a stop ends the search where it is: it is made again, whole, when the calculation goes on; a cell that two hundred thousand formulas read is a search that long)
-        const bool whole = a.single() ? liveGraph()->dependentsOfCell(a.sheet1, a.row1, a.col1, &j.found, m_ctx.cancel) : liveGraph()->dependentsOfArea(a, &j.found, m_ctx.cancel);
-        if (!whole) {
+        qint64 units = std::exchange(j.blocking.work, 0);
+        m_groupWork += units;
+        const Ask asked = askReaders(*liveGraph(), a, &j.found, m_ctx.cancel, j.blocking.many, m_blockEntries, &units);
+        if (asked == Ask::Stopped) {
             j.found.clear();
             j.changed.push_back(a);
             return false;
         }
+        if (asked == Ask::TooMany) {
+            // (the readers of a block of cells would be too many for one question: the block is asked in halves, and the blocks after it are made smaller)
+            j.blocking.cap = std::max<qint64>(1, a.cells() / 2);
+            splitBlock(&j.changed, a, &j.blocking);
+            if (!ck.next(size_t(units) + 1)) return false;
+            continue;
+        }
         // (what the graph gave: a cell that very many formulas read is one query of that many, which is as small as the step can be made. The slice may be over after it: the formulas it found are
         // marked by the next, from where they are kept. The answer of this call is not to be dropped: it is the one place in the loop where a chunk ends, when the areas found have none.)
         m_readersFound += qint64(j.found.size());
-        j.many = j.many || (a.single() && j.found.size() > kManyReaders);
+        if (a.single() && (j.found.size() > m_manyReaders || m_manyReaders == 0)) j.blocking.many = true;
         if (!a.single() && j.askedAreas.size() < kMaxAskedAreas) j.askedAreas.insert(a);
         m_askedPeak = std::max<qint64>(m_askedPeak, qint64(j.askedAreas.size()));
-        if (!ck.next(j.found.size())) return false;
+        if (!ck.next(j.found.size() + size_t(units))) return false;
     }
     ck.finish();
     m_dirtyCursor = 0;

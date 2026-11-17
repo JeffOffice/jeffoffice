@@ -1953,6 +1953,112 @@ private Q_SLOTS:
         QVERIFY(!b.calc->isDirty());
     }
 
+    // What is marked does not depend on how the changed cells are asked of the graph: one at a time, as blocks of cells once a cell is read by very many formulas, or as blocks asked in halves
+    // (the readers of a block being too many for one question). Every value, kept class, and mark of a workbook with all the kinds of formula is the same, after the same edits.
+    void markingTheChangedCellsInBlocksMarksWhatMarkingThemOneByOneDoes()
+    {
+        const int n = 400;
+        QString rows1, rows2;
+        const QString definedNames = QStringLiteral("<definedName name=\"Series\">Sheet1!$A$1:$A$%1</definedName>").arg(n);
+        for (int r = 1; r <= n; ++r) {
+            QString cells = constant(QStringLiteral("A%1").arg(r), QString::number(r)) + cellXml(QStringLiteral("B%1").arg(r), QStringLiteral("A%1*2").arg(r), QString::number(r * 2));
+            if (r % 2 == 0) cells += cellXml(QStringLiteral("C%1").arg(r), QStringLiteral("SUM($A:$A)+%1").arg(r), QString::number(n * (n + 1) / 2 + r));
+            if (r <= 8) cells += cellXml(QStringLiteral("F%1").arg(r), QStringLiteral("SUM(A$1:A$%1)+%2").arg(n).arg(r), QString::number(n * (n + 1) / 2 + r)) + cellXml(QStringLiteral("L%1").arg(r), QStringLiteral("SUM(Series)+%1").arg(r), QString::number(n * (n + 1) / 2 + r));
+            if (r == 1) {
+                cells += cellXml(QStringLiteral("H1"), QStringLiteral("FOO(A1)"), QStringLiteral("7")) + cellXml(QStringLiteral("I1"), QStringLiteral("H1+A2"), QStringLiteral("0"));
+                cells += cellXml(QStringLiteral("H3"), QStringLiteral("FORECAST.ETS(%1,B1:B%2,A1:A%2)").arg(n + 1).arg(n), QStringLiteral("5")) + cellXml(QStringLiteral("I3"), QStringLiteral("H3+A3"), QStringLiteral("0"));
+                cells += cellXml(QStringLiteral("H4"), QStringLiteral("NOW()"), QStringLiteral("45000")) + cellXml(QStringLiteral("I4"), QStringLiteral("H4+A1"), QStringLiteral("0"));
+                cells += cellXml(QStringLiteral("H6"), QStringLiteral("[1]Sheet1!A1"), QStringLiteral("5")) + cellXml(QStringLiteral("I6"), QStringLiteral("SUM(H6,A1)"), QStringLiteral("0"));
+                cells += cellXml(QStringLiteral("H7"), QStringLiteral("A1*A2"));
+                cells += cellXml(QStringLiteral("J1"), QStringLiteral("J2+A1"), QStringLiteral("0")) + cellXml(QStringLiteral("J2"), QStringLiteral("J1*0.5"), QStringLiteral("0"));
+                cells += cellXml(QStringLiteral("K1"), QStringLiteral("INDIRECT(\"A\"&(2+2))"), QStringLiteral("4")) + cellXml(QStringLiteral("K2"), QStringLiteral("OFFSET(A1,2,0)"), QStringLiteral("3"));
+                cells += cellXml(QStringLiteral("M1"), QStringLiteral("SEQUENCE(3)+A1"), QStringLiteral("2"));
+            }
+            rows1 += rowXml(r, cells);
+        }
+        rows2 = rowXml(1, cellXml(QStringLiteral("A1"), QStringLiteral("Sheet1!A1+SUM(Sheet1!A1:A%1)").arg(n), QStringLiteral("0")));
+        QStringList refs;
+        for (int r = 1; r <= n; ++r) refs << QStringLiteral("A%1").arg(r) << QStringLiteral("B%1").arg(r) << QStringLiteral("C%1").arg(r);
+        for (const char *ref : {"F1", "F8", "L1", "L8", "H1", "I1", "H3", "I3", "H4", "I4", "H6", "I6", "H7", "J1", "J2", "K1", "K2", "M1", "M2", "M3"}) refs << QString::fromLatin1(ref);
+        struct Mode { size_t many, entries; };
+        QStringList results[3];
+        qint64 dirtyAfterEdits[3] = {0, 0, 0}, dirtyAtEnd[3] = {0, 0, 0}, grouped[3] = {0, 0, 0};
+        const Mode modes[3] = {{size_t(-1), 0}, {5, 262144}, {0, 60}};   // (off; on; on from the first cell, with a question limited to 60 entries so that blocks are asked in halves)
+        for (int m = 0; m < 3; ++m) {
+            CalcOptions options;
+            options.keepApart = true;
+            options.keepStoredFirst = true;
+            options.goRoundCircles = true;
+            Book b;
+            QVERIFY(b.open(buildXlsx({worksheet(rows1), worksheet(rows2)}, QByteArray(), QString(), QString(), QByteArray(), QStringList(), definedNames), options));
+            b.calc->setBlockingForTest(modes[m].many, modes[m].entries);
+            b.calc->setIteration(true, 50, 0.0001);
+            QVERIFY(settle(b).finished);
+            // a few hundred of the cells that are read by many formulas, some of them in runs and some scattered
+            for (int r = 1; r <= n; ++r)
+                if (r % 3 == 0 || (r * 7919) % 11 == 0) QVERIFY(b.set(QStringLiteral("A%1").arg(r), Value::number(r * 10 + 1)));
+            dirtyAfterEdits[m] = b.calc->dirtyCount();
+            QVERIFY(settle(b).finished);
+            dirtyAtEnd[m] = b.calc->dirtyCount();
+            grouped[m] = b.calc->groupingWork();
+            for (const QString &ref : refs)
+                results[m] << QStringLiteral("%1 %2 t%3 c%4 k%5").arg(ref, b.at(ref)).arg(b.tainted(ref)).arg(b.circular(ref)).arg(int(b.calc->keptClass(0, b.row(ref), b.col(ref))));
+            results[m] << b.at(QStringLiteral("A1"), 1);
+        }
+        QVERIFY(grouped[0] == 0 && grouped[1] > 0 && grouped[2] > 0);   // (the blocks were made, and were not with blocking off)
+        for (int m = 1; m < 3; ++m) {
+            QCOMPARE(results[m].size(), results[0].size());
+            for (int i = 0; i < results[0].size(); ++i) QCOMPARE(results[m][i], results[0][i]);
+            QCOMPARE(dirtyAfterEdits[m], dirtyAfterEdits[0]);
+            QCOMPARE(dirtyAtEnd[m], dirtyAtEnd[0]);
+        }
+    }
+
+    // A block of changed cells whose cells are each read by very many different formulas is asked in halves, so that no question gives more than the limit and no slice does much more work than it was given.
+    void aBlockOfCellsEachReadByManyFormulasIsAskedInBoundedSteps()
+    {
+        const int cells = 256, readers = 100;
+        QString rows;
+        for (int r = 1; r <= cells; ++r) rows += rowXml(r, cellXml(QStringLiteral("A%1").arg(r), QStringLiteral("NOW()")));
+        for (int r = 0; r < cells * readers; ++r) rows += rowXml(cells + 1 + r, cellXml(QStringLiteral("A%1").arg(cells + 1 + r), QStringLiteral("A%1+%2").arg(r / readers + 1).arg(r % readers)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        const size_t limit = 1000;
+        b.calc->setBlockingForTest(10, limit);
+        QVERIFY(settle(b).finished);
+        const qint64 budget = 3000;
+        qint64 most = 0, evaluated = 0, slices = 0;
+        for (;;) {
+            const Calculation::Progress p = b.calc->recalculate(budget, nullptr, 0);
+            most = std::max(most, p.work + p.jobItems);
+            evaluated += p.evaluated;
+            ++slices;
+            if (p.finished) break;
+            QVERIFY(slices < 1000000);
+        }
+        QCOMPARE(evaluated, qint64(cells + cells * readers));
+        QVERIFY2(most <= budget + kSliceSlack + 10 * qint64(limit), qPrintable(QStringLiteral("a slice did %1 units of work for a budget of %2").arg(most).arg(budget)));
+    }
+
+    // Changed cells that never make a run (a formula in every other row, each reading the whole column) are grouped once, in work that grows as n log n, not as the square of n.
+    void changedCellsThatMakeNoRunAreGroupedInWorkThatGrowsAsNLogN()
+    {
+        const int n = 4000;
+        QString rows = rowXml(1, constant(QStringLiteral("A1"), QStringLiteral("1")));
+        for (int r = 1; r <= n; ++r) rows += rowXml(2 * r, cellXml(QStringLiteral("C%1").arg(2 * r), QStringLiteral("SUM($A:$A)+%1").arg(r), QString::number(1 + r)));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        b.calc->setBlockingForTest(100, 262144);
+        QVERIFY(settle(b).finished);
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(b.set(QStringLiteral("A1"), Value::number(2)));
+        QVERIFY(settle(b).finished);
+        qInfo("scattered: %d ms, grouping work %lld", int(timer.elapsed()), b.calc->groupingWork());
+        QCOMPARE(b.at(QStringLiteral("C%1").arg(2 * n)), QStringLiteral("n:%1").arg(2 + n));
+        QVERIFY2(b.calc->groupingWork() > 0 && b.calc->groupingWork() <= qint64(20) * n * 12, qPrintable(QString::number(b.calc->groupingWork())));
+    }
+
     // A stop is cheap: stopping a recalculation with tens of thousands of formulas waiting for each other does nothing in the call that is stopped, and what it left is put right a chunk at
     // a time by the calls that follow, which then go on and come to the right values.
     void aStopCostsNothingAndWhatItLeftIsPutRightInSlices()

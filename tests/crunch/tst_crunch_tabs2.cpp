@@ -988,7 +988,7 @@ private Q_SLOTS:
         QCOMPARE(changed.detects - made.detects, 1LL);
     }
 
-    void changingOneCellOfAFilledDownColumnAsksTheGraphTwice()
+    void changingOneCellOfAFilledDownColumnFindsOnlyTheOneFormulaThatReadsIt()
     {
         const int n = 20000;
         QStringList cells;

@@ -45,7 +45,7 @@ public:
     // With `stop`, the flag is looked at as the answer is made (every few thousand formulas found: a cell that two hundred thousand formulas read is one query of that many): if it is set the query
     // ends there, false is returned, and `out` holds some of the answer. True when all of it was found.
     bool dependentsOfCell(qint32 sheet, quint32 row, quint32 col, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false) const;
-    bool dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false) const;
+    bool dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop = nullptr, bool skipMarked = false, size_t limit = 0) const;   // (false when stopped, or when `limit` entries were found and there are more)
     // The same, one formula at a time to `visit`, which says false to end the search (false is returned then): to ask whether there is any without finding all.
     bool forEachDependent(const CellArea &area, const std::function<bool(Node)> &visit, bool skipMarked = false) const;
     // The formulas that read a block of rows of `sheet` (any columns) that holds both of two rows: begins at or before `before` and ends at or after `after`. A gap between two rows (rows

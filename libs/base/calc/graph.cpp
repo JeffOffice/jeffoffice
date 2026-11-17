@@ -488,7 +488,7 @@ bool DependencyGraph::dependentsOfCell(qint32 sheet, quint32 row, quint32 col, s
     return !aborted;
 }
 
-bool DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop, bool skipMarked) const
+bool DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *out, const std::atomic<bool> *stop, bool skipMarked, size_t limit) const
 {
     const Impl &g = *d;
     if (area.col1 >= kColumns || area.col1 > area.col2 || area.row1 > area.row2) return true;
@@ -497,14 +497,18 @@ bool DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *
     qint64 &work = g.queryWork;
     bool aborted = false;
     qint64 found = 0;
+    size_t reported = 0;
     auto report = [&](const Item &it) {
         ++work;
         if (skipMarked && (it.node & kMarkBit)) return;
-        if (g.ctx.live(it)) out->push_back(it.node & kNodeMask);
+        if (g.ctx.live(it)) {
+            out->push_back(it.node & kNodeMask);
+            if (limit && ++reported > limit) aborted = true;
+        }
         if (stop && (++found & 4095) == 0 && stop->load(std::memory_order_relaxed)) aborted = true;
     };
     for (qint32 sheet = std::max<qint32>(0, area.sheet1); sheet <= area.sheet2 && size_t(sheet) < g.sheets.size() && !aborted; ++sheet)
-        overlapSheet(g.sheets[size_t(sheet)], area.row1, area.row2, area.col1, col2, report, work, stop ? &aborted : nullptr, &aborted);
+        overlapSheet(g.sheets[size_t(sheet)], area.row1, area.row2, area.col1, col2, report, work, (stop || limit) ? &aborted : nullptr, &aborted);
     return !aborted;
 }
 
