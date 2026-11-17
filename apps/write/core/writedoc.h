@@ -677,6 +677,9 @@ public:
     void releaseRelatedPart(const QString &id, const QString &workbookPart);
     // The relationships of the main part (for the code that edits a part and puts the new one beside it).
     const QVector<office::Relationship> &mainRelationshipsForTest() const { return m_wml.mainRelationships; }
+    // The links of the body to other parts and to addresses (Inspect Document looks for those that name other files), and taking one back: it goes from the file when it is saved if nothing names it any more.
+    const QVector<office::Relationship> &mainRelationships() const { return m_wml.mainRelationships; }
+    void forgetExternalLink(const QString &id) { m_madeLinks.insert(id); }
 
     // The most the pictures of a document come to, together, and the limit this document is held to (a test sets a smaller one); how much they come to now.
     qint64 mediaLimit = kMostMediaBytes;

@@ -234,6 +234,7 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     target->m_textForm = textForm;
     target->m_textNoted = false;
     target->m_personalInfoRemoved = false;
+    target->m_readOnlyByChoice = false;
     target->m_recoveryNoted = false;
     target->m_fileProtected = wasProtected && !tmpl;   // (a copy of a protected file is protected too)
     crypto::wipe(target->m_filePassword);
@@ -244,6 +245,12 @@ bool WriteWindow::openFile(const QString &path, OpenHow how)
     if (how == OpenHow::Normal && !tmpl && target->m_doc->markedAsFinal()) {
         target->setReadOnly(true);
         target->statusBar()->showMessage(tr("Marked as final: this document is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+    }
+    // A document set to always open for reading only does (the Info page lets it be edited).
+    else if (how == OpenHow::Normal && !tmpl && target->alwaysOpensReadOnly()) {
+        target->setReadOnly(true);
+        target->m_readOnlyByChoice = true;
+        target->statusBar()->showMessage(tr("This document is open for reading only, as you chose. Open File > Info and choose Always Opens Read-Only to edit it."), 12000);
     }
     // The file opens where editing stopped (a template or a copy is a new document, and starts at the top).
     if (!tmpl && !copy) target->returnToPlace(path);
@@ -465,6 +472,13 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
         return false;
     }
     unmarkedForSave = false;   // (written without it)
+    // The choice to always open for reading only is a property a .odt file does not keep either: the window stops saying it is kept.
+    if (odt && !asCopy && alwaysOpensReadOnly()) {
+        office::PackageProps p = m_doc->packageProps();
+        p.custom = office::withAlwaysOpenReadOnly(p.custom, false);
+        m_doc->setPackageProps(p);
+        m_readOnlyByChoice = false;
+    }
     if (!namesProblems.isEmpty()) notice(tr("Save"), privacy::notTakenOutMessage(namesProblems), true);
     if (text) {
         if (lostChars > 0) notice(tr("Save"), tr("Some characters couldn't be saved in this encoding (%1 in all). They were saved as question marks.").arg(lostChars), true);

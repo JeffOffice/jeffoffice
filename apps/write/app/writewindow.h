@@ -292,6 +292,10 @@ public:
     bool isPasswordProtected() const { return m_fileProtected; }
     // The reason Mark as Final can't be done for this document, "" when it can.
     QString markFinalBlocked() const;
+    // Whether the document is set to open for reading only each time (a property it keeps in its file); turning it off also lets this window edit.
+    bool alwaysOpensReadOnly() const;
+    QString alwaysReadOnlyBlocked() const;
+    void setAlwaysOpenReadOnly(bool on);
     // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again).
     int removePersonalInformation();
     // Applies properties the person edited (the dates and counts are brought up to date).
@@ -661,6 +665,7 @@ private:
     QString m_filePassword;         // the password the file opened with or was given: the file is written protected with it (never shown, wiped when the window goes)
     bool m_fileProtected = false;
     bool m_recoveryNoted = false;       // (the person was told that no recovery copy is kept of a protected document)
+    bool m_readOnlyByChoice = false;    // (this window is read-only only because the document is set to always open that way)
     bool m_personalInfoRemoved = false; // (Inspect took the personal information out: saving does not put the name of the person back)
     QString m_protectedPath;        // the file a document that has had something left out (see WriteDoc::leftSomethingOut) was opened from: not written over
 };

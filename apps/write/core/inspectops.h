@@ -23,4 +23,10 @@ int clearHeadersAndFooters(WriteDoc &doc);
 int customXmlCount(WriteDoc &doc);
 int removeCustomXml(WriteDoc &doc);
 
+// Links of the body to other files, not web addresses: a picture or an object that is only linked (the file it shows is not in the document), and a field that takes its result from
+// another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). The count is of those in the body (a header or a footnote is not looked in). Removing turns each such field into its
+// result as plain text, takes out each linked picture or object (the file it showed is not touched), and lets the file's link to that address go when the document is saved.
+int externalLinkCount(WriteDoc &doc);
+int removeExternalLinks(WriteDoc &doc);
+
 } // namespace jp::write

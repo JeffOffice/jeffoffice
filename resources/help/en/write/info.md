@@ -23,6 +23,10 @@ A field can show a custom property. Click **Insert > Field**, and choose a field
 
 Click **Mark as Final** to tell readers the document is finished. JeffWrite saves the document and then holds it for reading only. When someone opens it, the title bar says it is read-only, and a note tells them it was marked as final. This is a gentle way to say "please don't change this". It is not a lock, because anyone can choose **Marked as Final** again to edit it.
 
+## Always Open Read-Only
+
+Click **Always Open Read-Only** to have the document open for reading only each time, so nobody changes it by accident. The choice is saved with the file when you save it. The next time someone opens the file, the status bar says it is open for reading only. To edit it, open **File > Info** and click **Always Opens Read-Only**. It is one click, so this is a reminder and not a lock. Other programs don't read this choice, and an .odt file can't hold it, so save the document as a .docx file first. Check Compatibility lists it for an .odt file.
+
 ## Encrypt with Password
 
 Click **Encrypt with Password** to ask for a password whenever the file is opened. Type the password twice, and click **Protect**. The file is scrambled when you save it, so nobody can read it without the password. JeffWrite uses the strong kind of protection that other word processors use, so they can open the file with the password too.
@@ -46,6 +50,7 @@ Click **Inspect Document** before you send a document to someone. It lists what 
 - **Hidden text** is text set to be hidden. It does not show or print, but it is in the file.
 - **Headers and footers** are the text at the top and bottom of the pages.
 - **Custom XML data** is data that other programs added to the file. You can't see it on a page.
+- **External links** are links to other files, not web links: a picture or an object that is only linked (it shows a file that is not in the document), and a field that takes its text or picture from another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). **Remove All** turns each field into the text it shows now, takes out each linked picture or object, and leaves the link out of the file when you save. The other files are not touched. Links in headers, footers, and footnotes are not counted, and web links stay.
 
 Click **Remove All** next to a kind to take it out. You can undo what changes the text with **Ctrl+Z**. Save the document afterward to keep the clean copy.
 

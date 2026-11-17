@@ -44,6 +44,9 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return m_doc->markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
+    h.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    h.setAlwaysReadOnly = [this](bool on) { setAlwaysOpenReadOnly(on); };
+    h.alwaysReadOnlyBlocked = [this] { return alwaysReadOnlyBlocked(); };
     h.hasPassword = [this] { return m_fileProtected; };
     h.encrypt = [this] { encryptWithPassword(); };
     h.inspect = [this] { inspectDocument(); };
@@ -89,6 +92,38 @@ QString WriteWindow::markFinalBlocked() const
     if (ending == QLatin1String("odt") || ending == QLatin1String("ott") || ending == QLatin1String("fodt"))
         return tr("A .odt file can't hold the mark. Save the document as a .docx file first.");
     return {};
+}
+
+bool WriteWindow::alwaysOpensReadOnly() const
+{
+    return m_doc && office::isAlwaysOpenReadOnly(m_doc->packageProps().custom);
+}
+
+QString WriteWindow::alwaysReadOnlyBlocked() const
+{
+    if (m_doc && m_doc->packageProps().truncated) return tr("This file has more properties than %1 reads, so this choice can't be kept.").arg(appInfo().name);
+    const QString ending = QFileInfo(m_path).suffix().toLower();
+    if (ending == QLatin1String("odt") || ending == QLatin1String("ott") || ending == QLatin1String("fodt"))
+        return tr("A .odt file can't hold this choice. Save the document as a .docx file first.");
+    return {};
+}
+
+void WriteWindow::setAlwaysOpenReadOnly(bool on)
+{
+    if (!m_doc) return;
+    if (on && !alwaysReadOnlyBlocked().isEmpty()) {
+        notice(tr("Always Open Read-Only"), alwaysReadOnlyBlocked());
+        return;
+    }
+    office::PackageProps p = m_doc->packageProps();
+    p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
+    // (a window that is read-only for another reason, opened so or marked final, stays so)
+    const bool keepReadOnly = isReadOnly() && !(!on && m_readOnlyByChoice);
+    applyProperties(p);
+    if (!on && m_readOnlyByChoice) setReadOnly(keepReadOnly);
+    if (!on) m_readOnlyByChoice = false;
+    statusBar()->showMessage(on ? tr("This document will open for reading only. Save it to keep this choice.") : tr("This document will open for editing again. Save it to keep this choice."), 8000);
+    if (m_fileScreen) showFileScreen(QStringLiteral("info"));
 }
 
 int WriteWindow::removePersonalInformation()
@@ -178,6 +213,8 @@ QVector<InspectItem> WriteWindow::inspectItems()
                      [doc] { return write::clearHeadersAndFooters(*doc); }, true, QString()});
     items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a page."), [doc] { return write::customXmlCount(*doc); },
                      [doc] { return write::removeCustomXml(*doc); }, true, QString()});
+    items.push_back({tr("External links"), tr("Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay."),
+                     [doc] { return write::externalLinkCount(*doc); }, [doc] { return write::removeExternalLinks(*doc); }, true, QString()});
     return items;
 }
 
@@ -199,6 +236,7 @@ QStringList WriteWindow::incompatibilities()
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
     if (bytes.isEmpty()) kept << err;
     else kept = notKept;
+    if (alwaysOpensReadOnly()) kept << tr("The choice to always open the document for reading only.");
     return kept;
 }
 

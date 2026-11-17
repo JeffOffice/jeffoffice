@@ -10,6 +10,7 @@
 #include "app/filetasks.h"
 #include "app/filescreen.h"
 #include "app/infopage.h"
+#include "app/theme.h"
 #include "app/passworddialogs.h"
 #include "office/odfcrypt.h"
 #include "app/settings.h"
@@ -69,6 +70,7 @@ struct Extra {
     QString name, contentType;
     QByteArray bytes;
     QString relType, from, id;
+    bool external = false;   // a link to an address outside the file (the name is the address; no part is made)
 };
 
 QByteArray makeDocx(const QByteArray &body, const QVector<Extra> &extra = {}, const QVector<Extra> &packageLevel = {})
@@ -81,6 +83,10 @@ QByteArray makeDocx(const QByteArray &body, const QVector<Extra> &extra = {}, co
               kWord + QStringLiteral("styles+xml"));
     w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
     for (const Extra &e : extra) {
+        if (e.external) {
+            w.addRelationshipWithId(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.id, e.relType, e.name, true);
+            continue;
+        }
         w.addPart(e.name, e.bytes, e.contentType);
         if (!e.relType.isEmpty()) {
             if (e.id.isEmpty()) w.addRelationship(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.relType, e.name);
@@ -520,6 +526,104 @@ private Q_SLOTS:
         QVERIFY(!c.isReadOnly());
     }
 
+    void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Read me"));
+        QVERIFY(!a.alwaysOpensReadOnly());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.alwaysOpensReadOnly());
+        QVERIFY(!a.isReadOnly());   // (it applies the next time the file is opened)
+        QVERIFY(saveInto(a, dir, QStringLiteral("r.docx")));
+        // opened, it is for reading only, with a note; the Info page's card turns it off and lets the window edit
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("r.docx"))));
+        QVERIFY(b.isReadOnly());
+        QVERIFY(b.alwaysOpensReadOnly());
+        QVERIFY(b.statusBar()->currentMessage().contains(QLatin1String("reading only")));
+        b.showFileScreen(QStringLiteral("info"));
+        auto *card = b.findChild<FileScreen *>()->findChild<QAbstractButton *>(QStringLiteral("infoAlwaysReadOnly"));
+        QVERIFY(card);
+        QVERIFY(card->isEnabled());
+        card->click();
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(!b.isReadOnly());
+        QVERIFY(b.save());
+        WriteWindow c;
+        Quiet quietC(c);
+        QVERIFY(c.openFile(dir.filePath(QStringLiteral("r.docx"))));
+        QVERIFY(!c.isReadOnly());
+        // opened as a copy it is a document to edit
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(saveInto(a, dir, QStringLiteral("r2.docx")));
+        WriteWindow d;
+        Quiet quietD(d);
+        QVERIFY(d.openFile(dir.filePath(QStringLiteral("r2.docx")), OpenHow::Copy));
+        QVERIFY(!d.isReadOnly());
+    }
+
+    void turningAlwaysOpenReadOnlyOffKeepsAWindowThatIsReadOnlyForAnotherReason()
+    {
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Words"));
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(saveInto(a, dir, QStringLiteral("k.docx")));
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("k.docx")), OpenHow::ReadOnly));
+        QVERIFY(b.isReadOnly());
+        b.setAlwaysOpenReadOnly(false);
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(b.isReadOnly());
+    }
+
+    // A .odt file can't hold the choice: the card says so, Check Compatibility lists it, and a save as .odt stops the window saying it is kept.
+    void alwaysOpenReadOnlyIsListedAndClearedWhenSavedAsAnOdt()
+    {
+        QTemporaryDir dir;
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Words"));
+        QVERIFY(saveInto(a, dir, QStringLiteral("l.docx")));
+        QVERIFY(a.alwaysReadOnlyBlocked().isEmpty());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.incompatibilities().join(QLatin1Char('|')).contains(QLatin1String("always open")));
+        QVERIFY(saveInto(a, dir, QStringLiteral("l.odt")));
+        QVERIFY(!a.alwaysOpensReadOnly());
+        QVERIFY(!a.alwaysReadOnlyBlocked().isEmpty());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(!a.alwaysOpensReadOnly());
+        WriteWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("l.odt"))));
+        QVERIFY(!b.isReadOnly());
+    }
+
+    // Pictures for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).
+    void shotInfoPage()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("Read me"));
+        w.setAlwaysOpenReadOnly(true);
+        w.resize(1300, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.showFileScreen(QStringLiteral("info"));
+        QTest::qWait(300);
+        QDir().mkpath(dir);
+        QVERIFY(w.grab().save(dir + QStringLiteral("/write-info.png")));
+    }
+
     void aPasswordProtectsTheFileAndOpensItAgain()
     {
         QTemporaryDir dir;
@@ -828,6 +932,50 @@ private Q_SLOTS:
         // the dialog says what it found and removes on a press
         InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
         QVERIFY(dialog.summaries().first().contains(QLatin1String("None found")));
+    }
+
+    // External links are the body's links to other files: a linked picture, a linked object, and a field that reads another file. A web link is not one.
+    void inspectFindsAndRemovesLinksToOtherFiles()
+    {
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"914400\" cy=\"914400\"/><wp:docPr id=\"1\" name=\"Linked\"/>"
+                                   "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                   "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                   "<pic:blipFill><a:blip r:link=\"rId9\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r>" + picture + "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r>"
+                                "<w:hyperlink r:id=\"rId8\"><w:r><w:t>web</w:t></w:r></w:hyperlink>"
+                                "<w:fldSimple w:instr=\" INCLUDETEXT &quot;other.docx&quot; \"><w:r><w:t>from the other file</w:t></w:r></w:fldSimple>"
+                                "<w:fldSimple w:instr=\" PAGE \"><w:r><w:t>1</w:t></w:r></w:fldSimple></w:p>";
+        const QVector<Extra> extra = {{QStringLiteral("file:///C:/pictures/p.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QString(), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("https://example.com/"), QString(), QByteArray(), kRel + QStringLiteral("hyperlink"), QString(), QStringLiteral("rId8"), true}};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        const QVector<InspectItem> items = w.inspectItems();
+        const InspectItem *links = nullptr;
+        for (const InspectItem &i : items)
+            if (i.title == QLatin1String("External links")) links = &i;
+        QVERIFY(links);
+        // the linked picture and the INCLUDETEXT field are two; the web link and the PAGE field are not
+        QCOMPARE(links->count(), 2);
+        QCOMPARE(links->remove(), 2);
+        QCOMPARE(links->count(), 0);
+        const QString text = doc.story()->toPlainText();
+        QVERIFY(text.contains(QLatin1String("from the other file")));   // (the field's result stays as text)
+        QVERIFY(text.contains(QLatin1String("web")));
+        // saved, the file no longer names the other address, and keeps the web one
+        QString saveErr;
+        const QByteArray saved = doc.toDocx(&saveErr);
+        QVERIFY2(!saved.isEmpty(), qPrintable(saveErr));
+        office::Package package;
+        QVERIFY(package.read(saved));
+        QStringList targets;
+        for (const office::Relationship &r : package.relationships(QStringLiteral("/word/document.xml")))
+            if (r.external) targets << r.target;
+        QVERIFY2(!targets.join(QLatin1Char('|')).contains(QLatin1String("pictures/p.png")), qPrintable(targets.join(QLatin1Char('|'))));
+        QVERIFY2(targets.contains(QStringLiteral("https://example.com/")), qPrintable(targets.join(QLatin1Char('|'))));
+        QVERIFY(!partOf(saved, QStringLiteral("/word/document.xml")).contains("r:link"));
+        QVERIFY(!partOf(saved, QStringLiteral("/word/document.xml")).contains("INCLUDETEXT"));
     }
 
     void inspectRemovesHeadersAndFooters()
