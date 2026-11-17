@@ -50,7 +50,7 @@ void WriteTests::thePrintScreenHasThePrinterCopiesCollateRangeAndPreview()
 }
 
 
-// The Print page's groups: PRINTER, PAGES, LAYOUT, and PAPER under small headings; Collated and Last page first on one line (docs/design/STYLE.md).
+// The Print page's groups: PRINTER, PAGES, LAYOUT, PAPER, and WHAT PRINTS under small headings; Collated and Last page first on one line (docs/design/STYLE.md).
 void WriteTests::theWritePrintPageIsInFourGroups()
 {
     WriteWindow w;
@@ -64,7 +64,7 @@ void WriteTests::theWritePrintPageIsInFourGroups()
         return c;
     };
     for (const char *name : {"printButton", "printCopies", "printPrinter", "printCollate", "printReverse", "printSides", "printDuplex", "printPerSheet", "printScaleTo", "printOrientation", "printPaper",
-                             "printGray", "printRangeAll", "printRangeCurrent", "printRangeSelection", "printRangePages", "printRangeText", "printPreview"})
+                             "printGray", "printMarkup", "printHidden", "printBackground", "printRangeAll", "printRangeCurrent", "printRangeSelection", "printRangePages", "printRangeText", "printPreview"})
         QVERIFY2(at(name), name);
     QTRY_VERIFY(at("printGray")->isVisible());
     auto pos = [&](const char *name) { return at(name)->mapTo(&w, QPoint(0, 0)); };
@@ -74,13 +74,14 @@ void WriteTests::theWritePrintPageIsInFourGroups()
     std::sort(found.begin(), found.end());
     QStringList headings;
     for (const auto &f : found) headings << f.second;
-    QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER")}));
+    QCOMPARE(headings, (QStringList{QStringLiteral("PRINTER"), QStringLiteral("PAGES"), QStringLiteral("LAYOUT"), QStringLiteral("PAPER"), QStringLiteral("WHAT PRINTS")}));
     QVERIFY(qAbs(pos("printButton").y() - pos("printCopies").y()) < 30);
     auto sameRow = [&](const char *a, const char *b) { QVERIFY2(qAbs(pos(a).y() - pos(b).y()) < 6 && pos(a).x() < pos(b).x(), a); };
     sameRow("printSides", "printDuplex");
     sameRow("printCollate", "printReverse");
     sameRow("printPerSheet", "printScaleTo");
     sameRow("printOrientation", "printPaper");
+    sameRow("printHidden", "printBackground");
     QVERIFY(pos("printPrinter").y() < pos("printRangeAll").y() && pos("printReverse").y() < pos("printPerSheet").y() && pos("printScaleTo").y() < pos("printOrientation").y());
 }
 
