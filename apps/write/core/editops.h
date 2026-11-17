@@ -228,8 +228,11 @@ void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const office::wml::Abstr
 // returns its id; empty, with `problem` told, when the name is empty, too long, or taken, or the file has too many list styles.
 QString saveListStyle(WriteDoc &doc, const QString &name, const office::wml::AbstractNum &def, QString *problem = nullptr);
 // Makes the selected paragraphs items of the style's list (each keeps its level; the numbers begin at the start unless the list of the style is just above).
-void applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
-// Gives the style these levels: every paragraph that has it changes with it (one step). False for no such style.
+// False, with nothing done, when it can't be (the selection is not in the text, or all of it is locked).
+bool applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
+// Saves the style and gives it to the selection as one step of the history; with nothing to give it to, no style is made (empty, `problem` told).
+QString saveAndApplyListStyle(WriteDoc &doc, QTextCursor &c, const QString &name, const office::wml::AbstractNum &definition, QString *problem = nullptr);
+// Gives the style these levels, and the heading-style links of its levels: every paragraph that has it changes with it, in the text and in the headers, footers, and notes. False for no such style.
 bool modifyListStyle(WriteDoc &doc, const QString &styleId, const office::wml::AbstractNum &def);
 // Takes the style away (one step): its paragraphs keep their look, as a list of their own. False for no such style.
 bool deleteListStyle(WriteDoc &doc, const QString &styleId);

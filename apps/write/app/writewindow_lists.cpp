@@ -29,6 +29,7 @@ namespace jp {
 namespace {
 
 constexpr int kMostRecentBullets = 8;
+constexpr int kMostListStylesShown = 100;
 
 // A grid of buttons in a menu: each cell's text, its tooltip, and what choosing it does (the menu closes first).
 QWidgetAction *gridAction(QMenu *menu, const QVector<std::pair<QString, QString>> &cells, int columns, const std::function<void(int)> &choose)
@@ -159,14 +160,12 @@ void WriteWindow::createListActions()
             choice.check = [this](const QString &name) { return write::styleNameProblem(*m_doc, name); };
             if (!write::multilevelListDialog(this, &def, styles, &choice)) return;
             if (choice.save) {
-                // The definition is kept as a list style, and the paragraphs have the style (so that changing it changes them).
+                // The definition is kept as a list style, and the paragraphs have the style (so that changing it changes them): one step.
                 QString problem;
-                const QString id = write::saveListStyle(*m_doc, choice.name, def, &problem);
-                if (!id.isEmpty()) {
-                    write::applyListStyle(*m_doc, m_view->cursor(), id);
-                    return;
-                }
+                const QString id = write::saveAndApplyListStyle(*m_doc, m_view->cursor(), choice.name, def, &problem);
+                if (!id.isEmpty()) return;
                 statusBar()->showMessage(problem, 8000);
+                return;
             }
             write::applyMultilevelList(*m_doc, m_view->cursor(), def);
         });
@@ -274,7 +273,10 @@ void WriteWindow::listRibbonParts(RibbonParts &parts)
                     m_view->viewport()->update();
                 });
             }
-            const QVector<write::WriteDoc::ListStyleEntry> listStyles = m_doc ? m_doc->listStyleEntries() : QVector<write::WriteDoc::ListStyleEntry>();
+            QVector<write::WriteDoc::ListStyleEntry> listStyles = m_doc ? m_doc->listStyleEntries() : QVector<write::WriteDoc::ListStyleEntry>();
+            // (A file can have a thousand: the gallery shows the first hundred, and the Styles pane has them all.)
+            const int more = std::max(0, int(listStyles.size()) - kMostListStylesShown);
+            if (more > 0) listStyles.resize(kMostListStylesShown);
             if (!listStyles.isEmpty()) {
                 m->addSection(tr("List Styles"));
                 for (const write::WriteDoc::ListStyleEntry &e : listStyles) {
@@ -287,6 +289,7 @@ void WriteWindow::listRibbonParts(RibbonParts &parts)
                         m_view->viewport()->update();
                     });
                 }
+                if (more > 0) m->addAction(tr("%n more list styles are in the Styles pane", "", more))->setEnabled(false);
                 QMenu *modify = m->addMenu(tr("Modify List Style"));
                 QMenu *remove = m->addMenu(tr("Delete List Style"));
                 for (const write::WriteDoc::ListStyleEntry &e : listStyles) {

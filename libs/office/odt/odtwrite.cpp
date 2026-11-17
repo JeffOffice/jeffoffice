@@ -167,6 +167,9 @@ void Writer::collectStyles()
         }
         if (s.name.isEmpty()) s.name = s.id;
         s.odfName = odfStyleName(s);
+        // (A list style is not named as the lists of the text name their own, L1, L2...)
+        static const QRegularExpression ownListName(QStringLiteral("^L\\d+$"));
+        if (s.type == QLatin1String("numbering") && ownListName.match(s.odfName).hasMatch()) s.odfName += QStringLiteral("_list");
         // (Two styles of the same family that map to one name: the second is made different.)
         const QString key = s.type + QLatin1Char('|') + s.odfName;
         if (taken.contains(key)) s.odfName += QStringLiteral("_%1").arg(m_dstyles.size());
@@ -629,7 +632,7 @@ void Writer::collectNumbering()
             m_numDefs.insert(t.attr(c, "numId").toInt(), nd);
         }
     }
-    // A definition that names a numbering style (w:numStyleLink) has the levels of the definition that carries it (w:styleLink), through at most 8 of them; a ring, or a longer chain, is refused
+    // A definition that names a numbering style (w:numStyleLink) has the levels of the definition that carries it (w:styleLink), through at most 16 of them; a ring, or a longer chain, is refused
     // (the definition keeps the levels it has). At most kMostListStyles styles are taken.
     QHash<QString, int> carrier;
     QList<int> ids = m_abstracts.keys();
@@ -649,7 +652,7 @@ void Writer::collectNumbering()
         for (int hops = 0; !m_abstracts[at].numStyleLink.isEmpty(); ++hops) {
             const int next = carrier.value(m_abstracts[at].numStyleLink, -1);
             if (next < 0 || next == at) break;
-            if (hops >= 8 || next == id) {
+            if (hops >= 16 || next == id) {
                 refused = true;
                 break;
             }
@@ -691,15 +694,19 @@ QByteArray Writer::listStyleXml(int numId)
     return listLevelsXml("<text:list-style style:name=\"L" + num(numId) + "\">", m_abstracts.value(nd.abstractId), nd.startOverride);
 }
 
-QByteArray Writer::listNameFor(int numId)
+QByteArray Writer::listNameFor(int numId, bool *styled)
 {
+    if (styled) *styled = false;
     const NumDef nd = m_numDefs.value(numId);
     const AbstractDef def = m_abstracts.value(nd.abstractId);
     if (!def.styled.isEmpty() && m_dstyles.contains(def.styled) && m_dstyles[def.styled].type == QLatin1String("numbering")) {
         bool keeps = true;
         for (int lv = 0; lv < 9; ++lv)
             if (nd.startOverride[lv] >= 0 && nd.startOverride[lv] != std::max(0, def.level[lv].start)) keeps = false;
-        if (keeps) return esc(m_dstyles[def.styled].odfName);
+        if (keeps) {
+            if (styled) *styled = true;
+            return esc(m_dstyles[def.styled].odfName);
+        }
     }
     m_numsUsed.insert(numId);
     return "L" + num(numId);

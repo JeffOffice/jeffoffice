@@ -1151,6 +1151,102 @@ private Q_SLOTS:
         QVERIFY(pkg.part(QStringLiteral("/word/numbering.xml")).contains("<w:styleLink"));
     }
 
+    // A list style whose name is one the styles part keeps for itself (Normal, here) is given another id, and the paragraph style Normal stays the paragraph style.
+    void aListStyleNamedNormalDoesNotTakeTheIdOfAStyle()
+    {
+        const QByteArray common = "<text:list-style style:name=\"Normal\"><text:list-level-style-number text:level=\"1\" style:num-format=\"I\" style:num-suffix=\".\"/></text:list-style>"
+                                  "<text:list-style style:name=\"Hyperlink\"><text:list-level-style-number text:level=\"1\" style:num-format=\"a\" style:num-suffix=\")\"/></text:list-style>";
+        const QByteArray body = "<text:p>plain</text:p><text:list text:style-name=\"Normal\"><text:list-item><text:p>one</text:p></text:list-item></text:list>";
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, QByteArray(), common), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QVector<WriteDoc::ListStyleEntry> entries = doc->listStyleEntries();
+        QCOMPARE(entries.size(), 2);
+        QSet<QString> ids;
+        for (const WriteDoc::ListStyleEntry &e : entries) {
+            QVERIFY(e.id != QLatin1String("Normal") && e.id != QLatin1String("Hyperlink"));
+            ids.insert(e.id);
+        }
+        QCOMPARE(ids.size(), 2);
+        QCOMPARE(doc->defaultParagraphStyle(), QStringLiteral("Normal"));
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Normal"))->type, QStringLiteral("paragraph"));
+        QCOMPARE(doc->styleSheet().find(QStringLiteral("Hyperlink"))->type, QStringLiteral("character"));
+        QCOMPARE(doc->story()->findBlockByNumber(1).textList() != nullptr, true);
+    }
+
+    // A list style named L1 does not take the name of the list a paragraph makes for itself in the file's text (L1, L2...): every list style of the file has a name of its own.
+    void aListStyleNamedLikeAnAutomaticListKeepsItsOwnName()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor typing(doc->story());
+        for (const char *t : {"One", "Two", "Three"}) {
+            insertText(*doc, typing, QString::fromLatin1(t));
+            if (QLatin1String(t) != QLatin1String("Three")) insertParagraph(*doc, typing);
+        }
+        const QString id = saveListStyle(*doc, QStringLiteral("L1"), multilevelPresets().at(1).def);
+        QVERIFY(!id.isEmpty());
+        QTextCursor first(doc->story());
+        QVERIFY(applyListStyle(*doc, first, id));
+        // A list of the paragraph's own (its own look, no style) in the third paragraph.
+        QTextCursor third(doc->story());
+        third.setPosition(doc->story()->findBlockByNumber(2).position());
+        applyListLevel(*doc, third, numberLevel(QStringLiteral("upperRoman"), QStringLiteral("%1.")));
+        const QByteArray odt = doc->toOdt();
+        const QByteArray styles = odtPart(odt, QStringLiteral("styles.xml")), content = odtPart(odt, QStringLiteral("content.xml"));
+        QVERIFY2(styles.contains("<text:list-style style:name=\"L1_list\" style:display-name=\"L1\">"), styles.constData());
+        QVERIFY2(content.contains("<text:list text:style-name=\"L1_list\""), content.constData());
+        QVERIFY2(content.contains("<text:list-style style:name=\"L"), content.constData());
+        QSet<QByteArray> names;
+        for (const QByteArray &part : {styles, content})
+            for (qsizetype at = part.indexOf("<text:list-style style:name=\""); at >= 0; at = part.indexOf("<text:list-style style:name=\"", at + 1)) {
+                const qsizetype from = at + 29, to = part.indexOf('"', from);
+                const QByteArray name = part.mid(from, to - from);
+                QVERIFY2(!names.contains(name), name.constData());
+                names.insert(name);
+            }
+        QString err;
+        auto again = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(again, qPrintable(err));
+        QCOMPARE(again->listStyleEntries().size(), 1);
+        QCOMPARE(again->listStyleEntries()[0].name, QStringLiteral("L1"));
+        QCOMPARE(again->numbering().levelOf(again->story()->findBlockByNumber(2).blockFormat().intProperty(prop::NumId), 0)->numFmt, QStringLiteral("upperRoman"));
+    }
+
+    // Lists of one list style that go on from an earlier list of it (A, B, A) say which list they continue: the third goes on from the first, not from B.
+    void listsOfAListStyleThatInterleaveEachContinueTheirOwn()
+    {
+        auto doc = WriteDoc::blank();
+        QTextCursor typing(doc->story());
+        for (int i = 0; i < 5; ++i) {
+            insertText(*doc, typing, QStringLiteral("p%1").arg(i));
+            if (i < 4) insertParagraph(*doc, typing);
+        }
+        const QString id = saveListStyle(*doc, QStringLiteral("Steps"), multilevelPresets().at(1).def);
+        for (int at : {0, 2}) {
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->findBlockByNumber(at).position());
+            QVERIFY(applyListStyle(*doc, c, id));
+        }
+        const int a = doc->story()->findBlockByNumber(0).blockFormat().intProperty(prop::NumId), b = doc->story()->findBlockByNumber(2).blockFormat().intProperty(prop::NumId);
+        QVERIFY(a != b);
+        // The fifth paragraph is of A's list again (a list of the same numbering id, after B's).
+        QTextCursor fifth(doc->story());
+        fifth.setPosition(doc->story()->findBlockByNumber(4).position());
+        QTextBlockFormat bf = fifth.blockFormat();
+        bf.setProperty(prop::NumId, a);
+        bf.setProperty(prop::NumLevel, 0);
+        fifth.setBlockFormat(bf);
+        const QByteArray content = odtPart(doc->toOdt(), QStringLiteral("content.xml"));
+        const QList<QByteArray> lists = content.split('<');
+        QList<QByteArray> opens;
+        for (const QByteArray &l : lists)
+            if (l.startsWith("text:list ")) opens << l;
+        QCOMPARE(opens.size(), 3);
+        QVERIFY2(opens[0].contains("xml:id=\"list1\"") && !opens[0].contains("continue"), opens[0].constData());
+        QVERIFY2(opens[1].contains("xml:id=\"list2\"") && !opens[1].contains("continue"), opens[1].constData());
+        QVERIFY2(opens[2].contains("text:continue-list=\"list1\""), opens[2].constData());
+    }
+
     // A file with 1,500 list styles has 1,000 of them as list styles; the rest still number the lists that name them.
     void aFileOfThousandsOfOdtListStylesIsReadUpToTheLimit()
     {

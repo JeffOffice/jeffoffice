@@ -1219,6 +1219,7 @@ void WriteDoc::installFontParts(const FontParts &parts)
     m_wml.styles.docDefaults = parts.docDefaults;
     m_wml.styles.defaultRun = parts.defaultRun;
     m_wml.numbering = parts.numbering;
+    m_wml.numbering.changed();
     m_wml.theme = parts.theme;
     if (!parts.themePart.isEmpty())
         for (KeptPart &k : m_wml.parts)
@@ -1446,6 +1447,7 @@ int WriteDoc::newListInstance(bool numbered)
     if (numbered) num.startOverrides.insert(0, 1);
     n.nums.push_back(num);
     n.modified = true;
+    n.changed();
     ensureNumberingPart();
     return num.id;
 }
@@ -1479,29 +1481,37 @@ int WriteDoc::addNumberingId(int abstractId, int level, std::optional<int> start
 
 QVector<WriteDoc::ListStyleEntry> WriteDoc::listStyleEntries() const
 {
-    QHash<QString, int> defined;   // the first definition that carries each w:styleLink
-    for (const AbstractNum &a : m_wml.numbering.abstracts)
-        if (!a.styleLink.isEmpty() && !defined.contains(a.styleLink)) defined.insert(a.styleLink, a.id);
+    // The numbering styles of the style sheet (the first of an id), each of which is a list style when a definition among the file's first kMostListStyles carries its link: the same ones the numbering
+    // follows, in the order of its part.
+    QHash<QString, const Style *> styles;
+    for (const Style &s : m_wml.styles.styles)
+        if (s.type == QLatin1String("numbering") && !styles.contains(s.id)) styles.insert(s.id, &s);
     QVector<ListStyleEntry> out;
-    for (const Style &s : m_wml.styles.styles) {
-        if (out.size() >= kMostListStyles) break;
-        if (s.type != QLatin1String("numbering")) continue;
-        const auto found = defined.constFind(s.id);
-        if (found == defined.constEnd()) continue;
-        out.push_back(ListStyleEntry{s.id, s.name.isEmpty() ? s.id : s.name, found.value()});
+    for (int at : m_wml.numbering.styleCarriers()) {
+        const AbstractNum &a = m_wml.numbering.abstracts[at];
+        const auto found = styles.constFind(a.styleLink);
+        if (found == styles.constEnd()) continue;
+        const Style &s = *found.value();
+        out.push_back(ListStyleEntry{s.id, s.name.isEmpty() ? s.id : s.name, a.id});
     }
     return out;
 }
 
 QString WriteDoc::saveListStyle(const QString &name, const AbstractNum &def)
 {
-    if (listStyleEntries().size() >= kMostListStyles) return {};
+    if (m_wml.numbering.styleCarriers().size() >= kMostListStyles) return {};
     QString base;
     for (const QChar ch : name)
         if (ch.isLetterOrNumber() && ch.unicode() < 128) base += ch;
     if (base.isEmpty()) base = QStringLiteral("ListStyle");
     QString id = base;
-    for (int k = 2; m_wml.styles.find(id); ++k) id = base + QString::number(k);
+    // (An id no style has and no definition names: a definition may still carry a link whose style is gone, or name one it never had.)
+    QSet<QString> named;
+    for (const AbstractNum &a : m_wml.numbering.abstracts) {
+        if (!a.styleLink.isEmpty()) named.insert(a.styleLink);
+        if (!a.numStyleLink.isEmpty()) named.insert(a.numStyleLink);
+    }
+    for (int k = 2; m_wml.styles.find(id) || named.contains(id); ++k) id = base + QString::number(k);
     FontParts parts = fontParts();
     Numbering &n = parts.numbering;
     AbstractNum a = def;
@@ -1511,13 +1521,13 @@ QString WriteDoc::saveListStyle(const QString &name, const AbstractNum &def)
     a.tail.clear();
     a.styleLink = id;
     a.numStyleLink.clear();
-    for (Level &l : a.levels) l.pStyle.clear();
     n.abstracts.push_back(a);
     Num num;
     num.id = n.nextNumId();
     num.abstractId = a.id;
     n.nums.push_back(num);
     n.modified = true;
+    n.changed();
     ensureNumberingPart();
     putFontParts(parts);
     Style s;
@@ -1537,13 +1547,19 @@ int WriteDoc::numberingIdForListStyle(const QString &styleId, bool fresh)
     for (const ListStyleEntry &e : listStyleEntries())
         if (e.id == styleId) styleAbstract = e.abstractId;
     if (styleAbstract < 0) return 0;
-    Numbering &n = m_wml.numbering;
+    const Numbering &have = m_wml.numbering;
     int users = -1;
-    for (const AbstractNum &a : n.abstracts)
+    for (const AbstractNum &a : have.abstracts)
         if (a.numStyleLink == styleId) {
             users = a.id;
             break;
         }
+    if (!fresh && users >= 0)
+        for (const Num &num : have.nums)
+            if (num.abstractId == users && num.startOverrides.isEmpty() && num.levelOverrides.isEmpty()) return num.id;
+    // What is added goes in as part of the edit being made (as a style does), so that Undo and Redo keep the numbering the text names.
+    FontParts parts = fontParts();
+    Numbering &n = parts.numbering;
     if (users < 0) {
         AbstractNum a;
         a.id = n.nextAbstractId();
@@ -1551,15 +1567,19 @@ int WriteDoc::numberingIdForListStyle(const QString &styleId, bool fresh)
         a.numStyleLink = styleId;
         users = a.id;
         n.abstracts.push_back(a);
-        n.modified = true;
     }
-    if (!fresh)
-        for (const Num &num : n.nums)
-            if (num.abstractId == users && num.startOverrides.isEmpty() && num.levelOverrides.isEmpty()) return num.id;
-    const Level *first = n.levelOf(addNumberingId(users, 0, std::nullopt), 0);
-    const int made = n.nums.last().id;
-    if (fresh && first) n.nums.last().startOverrides.insert(0, first->start);
-    return made;
+    Num num;
+    num.id = n.nextNumId();
+    num.abstractId = users;
+    n.nums.push_back(num);
+    n.modified = true;
+    n.changed();
+    if (fresh)
+        if (const Level *first = n.levelOf(num.id, 0)) n.nums.last().startOverrides.insert(0, first->start);
+    n.changed();
+    ensureNumberingPart();
+    putFontParts(parts);
+    return num.id;
 }
 
 bool WriteDoc::setListStyleDefinition(const QString &styleId, const AbstractNum &def)
@@ -1567,12 +1587,10 @@ bool WriteDoc::setListStyleDefinition(const QString &styleId, const AbstractNum 
     FontParts parts = fontParts();
     for (AbstractNum &a : parts.numbering.abstracts) {
         if (a.styleLink != styleId) continue;
-        for (int i = 0; i < 9; ++i) {
-            a.levels[i] = def.levels[i];
-            a.levels[i].pStyle.clear();
-        }
+        for (int i = 0; i < 9; ++i) a.levels[i] = def.levels[i];
         a.raw.clear();
         parts.numbering.modified = true;
+        parts.numbering.changed();
         putFontParts(parts);
         return true;
     }
@@ -1607,6 +1625,7 @@ bool WriteDoc::dropListStyle(const QString &styleId)
     a.styleLink.clear();
     a.raw.clear();
     n.modified = true;
+    n.changed();
     putFontParts(parts);
     removeStyle(styleId);
     return true;
@@ -1682,6 +1701,7 @@ int WriteDoc::listFor(const AbstractNum &def, bool fresh, int level, std::option
         abstractId = a.id;
         n.abstracts.push_back(a);
         n.modified = true;
+        n.changed();
     }
     if (!fresh)
         for (const Num &num : n.nums)

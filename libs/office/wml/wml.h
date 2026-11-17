@@ -426,9 +426,19 @@ struct Numbering {
     int startOf(int numId, int level) const;
     int nextNumId() const;
     int nextAbstractId() const;
+    // Says that the definitions or ids were changed (one's styleLink, its levels, one taken away or put back), so that what was worked out from them is worked out again. The counts alone do not
+    // tell: a definition dropped and another put back leaves them as they were. Called by whatever changes them (a copy that is changed makes its own).
+    void changed() { m_generation = ++s_generations; }
+    // The places of the definitions that are numbering styles (those with a w:styleLink; of one style, the first), at most kMostListStyles, in the order of the part. These are the list styles
+    // of the file; the others do not count as styles, and a definition that names one of them has its own levels.
+    const QVector<int> &styleCarriers() const;
 
 private:
     void index() const;
+    static inline quint64 s_generations = 0;
+    quint64 m_generation = 0;
+    mutable quint64 m_indexed = ~quint64(0);
+    mutable QVector<int> m_carriers;
     mutable QHash<int, int> m_nums, m_abstracts;   // the first of each id, by place
     mutable QVector<int> m_effective;              // for each definition (by place), the place of the one its levels are
     mutable qsizetype m_numCount = -1, m_abstractCount = -1;

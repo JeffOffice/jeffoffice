@@ -1407,19 +1407,24 @@ const TableStyleDef &StyleSheet::tableStyle(const QString &id) const
 
 // The most definitions that name one another through numbering styles that are followed (a file can link them in a ring): a chain longer than this, or one that comes round to a
 // definition it began at, is refused, and the definition has the levels it writes itself.  Only the first kMostListStyles numbering styles of a file are followed.
-constexpr int kMostStyleLinks = 8;
+constexpr int kMostStyleLinks = 16;
 
 void Numbering::index() const
 {
-    if (m_numCount == nums.size() && m_abstractCount == abstracts.size()) return;
+    if (m_indexed == m_generation && m_numCount == nums.size() && m_abstractCount == abstracts.size()) return;
+    m_indexed = m_generation;
     m_nums.clear();
     m_abstracts.clear();
     for (int i = 0; i < nums.size(); ++i)
         if (!m_nums.contains(nums[i].id)) m_nums.insert(nums[i].id, i);
     QHash<QString, int> styles;   // the first definition that is each numbering style
+    m_carriers.clear();
     for (int i = 0; i < abstracts.size(); ++i) {
         if (!m_abstracts.contains(abstracts[i].id)) m_abstracts.insert(abstracts[i].id, i);
-        if (!abstracts[i].styleLink.isEmpty() && styles.size() < kMostListStyles && !styles.contains(abstracts[i].styleLink)) styles.insert(abstracts[i].styleLink, i);
+        if (!abstracts[i].styleLink.isEmpty() && styles.size() < kMostListStyles && !styles.contains(abstracts[i].styleLink)) {
+            styles.insert(abstracts[i].styleLink, i);
+            m_carriers.push_back(i);
+        }
     }
     // A definition that names a numbering style has the levels of the definition that is that style (and that one may name another).
     m_effective.resize(abstracts.size());
@@ -1440,6 +1445,12 @@ void Numbering::index() const
     }
     m_numCount = nums.size();
     m_abstractCount = abstracts.size();
+}
+
+const QVector<int> &Numbering::styleCarriers() const
+{
+    index();
+    return m_carriers;
 }
 
 const Num *Numbering::num(int numId) const

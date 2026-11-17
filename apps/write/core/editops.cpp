@@ -2908,11 +2908,81 @@ void applyMultilevelList(WriteDoc &doc, QTextCursor &c, const AbstractNum &def)
     if (!linked.isEmpty()) doc.settleStyleEdit();
 }
 
+namespace {
+
+// The numbering id of a list style's own list (its numbering style's numPr), 0 for none.
+int listStyleNumId(const WriteDoc &doc, const QString &styleId)
+{
+    const office::wml::Style *s = doc.styleSheet().find(styleId);
+    return s && s->pPr.numId ? *s->pPr.numId : 0;
+}
+
+// The paragraph styles the levels of `def` name are numbered by the list style's own list (as a multilevel list does for its own); those that were linked to it and are not now let it go.
+// Returns each linked style's level.
+QHash<QString, int> linkStylesToListStyle(WriteDoc &doc, const QString &styleId, const AbstractNum &def)
+{
+    QHash<QString, int> linked;
+    const int numId = listStyleNumId(doc, styleId);
+    if (numId <= 0) return linked;
+    for (int i = 0; i < 9; ++i) {
+        const QString id = def.levels[i].pStyle;
+        if (id.isEmpty() || linked.contains(id) || !doc.ensureStyle(id)) continue;
+        office::wml::Style s = *doc.styleSheet().find(id);
+        if (s.pPr.numId != numId || s.pPr.ilvl != i) {
+            s.pPr.numId = numId;
+            s.pPr.ilvl = i;
+            s.raw.clear();
+            doc.putStyle(s);
+        }
+        linked.insert(id, i);
+    }
+    for (const office::wml::Style &s : std::as_const(doc.styleSheet().styles))
+        if (s.type == QLatin1String("paragraph") && s.pPr.numId == numId && !linked.contains(s.id)) {
+            office::wml::Style freed = s;
+            freed.pPr.numId.reset();
+            freed.pPr.ilvl.reset();
+            freed.raw.clear();
+            doc.putStyle(freed);
+        }
+    return linked;
+}
+
+// The paragraphs of the style: set again (so that they have the levels as they are now), and those of a linked paragraph style that are not in a list join the style's list.
+void settleListStyleUsers(WriteDoc &doc, QTextDocument *story, int styleAbstract, const QHash<QString, int> &linked, int ownNumId)
+{
+    NumberGuard numbers(doc, story);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (isLocked(b)) continue;
+        if (inListNow(doc, b)) {
+            const int numId = b.blockFormat().intProperty(prop::NumId);
+            if (doc.numbering().definitionOf(numId) == styleAbstract) setBlockList(doc, b, numId, b.blockFormat().intProperty(prop::NumLevel), nullptr);
+        } else if (story == doc.story()) {
+            const auto found = linked.constFind(styleOf(b.blockFormat()));
+            if (found != linked.constEnd() && ownNumId > 0) setBlockList(doc, b, ownNumId, found.value(), nullptr);
+        }
+    }
+    edit.endEditBlock();
+}
+
+// Whether a list style can be given to what the cursor selects: it is in the text, and a paragraph of it is not locked.
+bool listStyleCanApply(WriteDoc &doc, QTextCursor &c)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return false;
+    for (const QTextBlock &b : selectedBlocks(c))
+        if (!isLocked(b)) return true;
+    return false;
+}
+
+} // namespace
+
 QString saveListStyle(WriteDoc &doc, const QString &name, const AbstractNum &def, QString *problem)
 {
     const QString trimmed = name.trimmed();
     QString why = styleNameProblem(doc, trimmed);
-    if (why.isEmpty() && doc.listStyleEntries().size() >= office::wml::kMostListStyles) why = QCoreApplication::translate("jp::write::Styles", "The document has too many list styles.");
+    if (why.isEmpty() && doc.numbering().styleCarriers().size() >= office::wml::kMostListStyles) why = QCoreApplication::translate("jp::write::Styles", "The document has too many list styles.");
     if (!why.isEmpty()) {
         if (problem) *problem = why;
         return {};
@@ -2920,24 +2990,30 @@ QString saveListStyle(WriteDoc &doc, const QString &name, const AbstractNum &def
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
     const QString id = doc.saveListStyle(trimmed, def);
+    if (!id.isEmpty()) {
+        const QHash<QString, int> linked = linkStylesToListStyle(doc, id, def);
+        if (!linked.isEmpty())
+            for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries())
+                if (e.id == id) settleListStyleUsers(doc, doc.story(), e.abstractId, linked, listStyleNumId(doc, id));
+    }
     doc.markStyleStep();
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return {};
     return id;
 }
 
-void applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
+bool applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
 {
+    if (!listStyleCanApply(doc, c)) return false;
     const NoteScopeGuard scopeGuard(doc, c);
-    if (!intoBody(c)) return;
+    if (!intoBody(c)) return false;
     QVector<QTextBlock> blocks;
     for (const QTextBlock &b : selectedBlocks(c))
         if (!isLocked(b)) blocks.push_back(b);
-    if (blocks.isEmpty()) return;
     int styleAbstract = -1;
     for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries())
         if (e.id == styleId) styleAbstract = e.abstractId;
-    if (styleAbstract < 0) return;
+    if (styleAbstract < 0) return false;
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
     int numId = 0;
@@ -2949,7 +3025,30 @@ void applyListStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
         const int own = inListNow(doc, b) ? std::clamp(b.blockFormat().intProperty(prop::NumLevel), 0, 8) : 0;
         setBlockList(doc, b, numId, own, nullptr);
     }
+    doc.markStyleStep();
     c.endEditBlock();
+    doc.settleStyleEdit();
+    return true;
+}
+
+QString saveAndApplyListStyle(WriteDoc &doc, QTextCursor &c, const QString &name, const AbstractNum &def, QString *problem)
+{
+    if (!listStyleCanApply(doc, c)) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::Styles", "A list style can't be given to this text. No list style was saved.");
+        return {};
+    }
+    // One step: the style and its use are taken back together.
+    QTextCursor step(doc.story());
+    step.beginEditBlock();
+    const QString id = saveListStyle(doc, name, def, problem);
+    const bool applied = !id.isEmpty() && applyListStyle(doc, c, id);
+    step.endEditBlock();
+    if (!id.isEmpty() && !applied) {
+        doc.undo();
+        if (problem) *problem = QCoreApplication::translate("jp::write::Styles", "A list style can't be given to this text. No list style was saved.");
+        return {};
+    }
+    return id;
 }
 
 bool modifyListStyle(WriteDoc &doc, const QString &styleId, const AbstractNum &def)
@@ -2958,21 +3057,20 @@ bool modifyListStyle(WriteDoc &doc, const QString &styleId, const AbstractNum &d
     for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries())
         if (e.id == styleId) styleAbstract = e.abstractId;
     if (styleAbstract < 0) return false;
+    // The style and the text's paragraphs are one step of the text's history (the notes' paragraphs are steps of their own stories).
     QTextCursor edit(doc.story());
-    NumberGuard numbers(doc, doc.story());
     edit.beginEditBlock();
     const bool done = doc.setListStyleDefinition(styleId, def);
     if (done) {
+        const QHash<QString, int> linked = linkStylesToListStyle(doc, styleId, def);
         doc.markStyleStep();
-        // Every paragraph of the style is set again, so that it has the new levels.
-        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
-            if (isLocked(b) || !inListNow(doc, b)) continue;
-            const int numId = b.blockFormat().intProperty(prop::NumId);
-            if (doc.numbering().definitionOf(numId) == styleAbstract) setBlockList(doc, b, numId, b.blockFormat().intProperty(prop::NumLevel), nullptr);
-        }
+        settleListStyleUsers(doc, doc.story(), styleAbstract, linked, listStyleNumId(doc, styleId));
     }
     edit.endEditBlock();
-    return done && doc.settleStyleEdit();
+    if (!done) return false;
+    for (QTextDocument *story : doc.storiesWithChanges(true))
+        if (story != doc.story()) settleListStyleUsers(doc, story, styleAbstract, QHash<QString, int>(), 0);
+    return doc.settleStyleEdit();
 }
 
 bool deleteListStyle(WriteDoc &doc, const QString &styleId)

@@ -1756,6 +1756,12 @@ private Q_SLOTS:
     void aFileOfThousandsOfListStylesIsReadUpToTheLimit();
     void theListStyleDialogSavesAndChecksTheName();
     void theListStylesAreInTheGalleryAndTheStylesPane();
+    void listStylesOfAFileInMismatchedOrdersAreThoseTheNumberingFollows();
+    void aNewListStyleTakesAnIdNoStyleOrLinkHas();
+    void modifyingAListStyleKeepsAndChangesItsHeadingLinks();
+    void modifyingAListStyleChangesItsUsersInNotes();
+    void savingAListStyleAndUsingItIsOneStepOrNone();
+    void deletingAListStyleAndUndoingItGivesTheLevelsBack();
     void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();

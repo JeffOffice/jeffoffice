@@ -2471,7 +2471,8 @@ void WriteTests::aListStyleIsSavedAppliedModifiedAndDeleted()
         QCOMPARE(levelOfBlock(doc, i).text, QStringLiteral("Part %1:"));
         QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("upperRoman"));
     }
-    QCOMPARE(doc.story()->findBlockByNumber(0).textList()->itemText(doc.story()->findBlockByNumber(0)).isEmpty(), false);
+    QCOMPARE(doc.story()->findBlockByNumber(0).textList()->format().style(), QTextListFormat::ListUpperRoman);
+    QCOMPARE(doc.story()->findBlockByNumber(0).textList()->itemText(doc.story()->findBlockByNumber(0)), QStringLiteral("Part I:"));
     QVERIFY(!doc.story()->findBlockByNumber(2).blockFormat().hasProperty(prop::NumId));
     doc.undo();
     for (int i : {0, 1, 3}) QCOMPARE(levelOfBlock(doc, i).numFmt, QStringLiteral("decimal"));
@@ -2546,25 +2547,25 @@ QByteArray abstractWithLink(int id, const QByteArray &styleLink, const QByteArra
 
 } // namespace
 
-// Links that come round to where they began, and chains of more than 8 definitions, are refused: the definition has the levels it writes itself (none here), and nothing loops.
+// Links that come round to where they began, and chains of more than 16 definitions, are refused: the definition has the levels it writes itself (none here), and nothing loops.
 void WriteTests::listStyleLinksThatLoopOrRunTooLongAreRefused()
 {
     // A ring of three: each names the next. A definition that names itself.
     QByteArray numbering = abstractWithLink(0, "A", "B", false) + abstractWithLink(1, "B", "C", false) + abstractWithLink(2, "C", "A", false) + abstractWithLink(3, "D", "D", false);
     // A chain: definition 10 has the levels; 11 names it, 12 names 11, and so on; definition 10 + k reaches 10 through k links.
     numbering += abstractWithLink(10, "S0", "", true);
-    for (int k = 1; k <= 10; ++k) numbering += abstractWithLink(10 + k, "S" + QByteArray::number(k), "S" + QByteArray::number(k - 1), false);
+    for (int k = 1; k <= 18; ++k) numbering += abstractWithLink(10 + k, "S" + QByteArray::number(k), "S" + QByteArray::number(k - 1), false);
     QByteArray nums;
     for (int id : {0, 1, 2, 3}) nums += "<w:num w:numId=\"" + QByteArray::number(id + 1) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(id) + "\"/></w:num>";
-    for (int k = 0; k <= 10; ++k) nums += "<w:num w:numId=\"" + QByteArray::number(100 + k) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(10 + k) + "\"/></w:num>";
+    for (int k = 0; k <= 18; ++k) nums += "<w:num w:numId=\"" + QByteArray::number(100 + k) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(10 + k) + "\"/></w:num>";
     auto doc = open(makeDocx(linkPara(1) + linkPara(100), kStyles, numbering + nums));
     QVERIFY(doc);
     const office::wml::Numbering &n = doc->numbering();
     for (int numId : {1, 2, 3, 4}) QVERIFY2(!n.levelOf(numId, 0), "a ring is refused");
-    // Through up to 8 links the levels are found; the ninth link is refused.
-    for (int k = 0; k <= 8; ++k) QVERIFY2(n.levelOf(100 + k, 0) && n.levelOf(100 + k, 0)->numFmt == QLatin1String("upperRoman"), qPrintable(QStringLiteral("%1 links").arg(k)));
-    QVERIFY(!n.levelOf(109, 0));
-    QVERIFY(!n.levelOf(110, 0));
+    // Through up to 16 links the levels are found (as they were before list styles); the 17th link is refused.
+    for (int k = 0; k <= 16; ++k) QVERIFY2(n.levelOf(100 + k, 0) && n.levelOf(100 + k, 0)->numFmt == QLatin1String("upperRoman"), qPrintable(QStringLiteral("%1 links").arg(k)));
+    QVERIFY(!n.levelOf(117, 0));
+    QVERIFY(!n.levelOf(118, 0));
     // The file still opens and saves.
     QVERIFY(open(doc->toDocx()));
 }
@@ -2628,7 +2629,9 @@ void WriteTests::theListStyleDialogSavesAndChecksTheName()
     QCOMPARE(levelOfBlock(doc, 1).text, QStringLiteral("Article %1"));
     // Modify List Style opens the same box for the style, with its name kept; its change reaches the paragraphs.
     QMenu *gallery = nullptr;
-    for (QMenu *m : w.findChildren<QMenu *>()) {
+    for (QToolButton *tb : w.findChildren<QToolButton *>()) {
+        QMenu *m = tb->menu();
+        if (!m || !(tb->text() + tb->toolTip() + tb->accessibleName()).contains(QLatin1String("Multilevel"))) continue;
         Q_EMIT m->aboutToShow();
         for (QAction *a : m->actions())
             if (a->objectName() == QLatin1String("listStyle:") + entries[0].id) gallery = m;
@@ -2657,7 +2660,9 @@ void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
     const QString id = saveListStyle(doc, QStringLiteral("Contract Clauses"), multilevelPresets().at(1).def, &why);
     QVERIFY2(!id.isEmpty(), qPrintable(why));
     QMenu *gallery = nullptr;
-    for (QMenu *m : w.findChildren<QMenu *>()) {
+    for (QToolButton *tb : w.findChildren<QToolButton *>()) {
+        QMenu *m = tb->menu();
+        if (!m || !(tb->text() + tb->toolTip() + tb->accessibleName()).contains(QLatin1String("Multilevel"))) continue;
         Q_EMIT m->aboutToShow();
         for (QAction *a : m->actions())
             if (a->objectName() == QLatin1String("listStyle:") + id) gallery = m;
@@ -2687,6 +2692,179 @@ void WriteTests::theListStylesAreInTheGalleryAndTheStylesPane()
     QTRY_VERIFY(gallery->isVisible());
     gallery->grab().save(dir + QLatin1Char('/') + QStringLiteral("write-list-styles-gallery.png"));
     gallery->close();
+}
+
+// With more than 1,000 numbering styles, listed in another order than their definitions, and a style id twice, the styles listed are the first 1,000 definitions' that have one, each once, and
+// every one of them has its levels and can be given to a paragraph.
+void WriteTests::listStylesOfAFileInMismatchedOrdersAreThoseTheNumberingFollows()
+{
+    QByteArray styles = kStyles, numbering, nums;
+    const int count = 1200;
+    for (int i = count - 1; i >= 0; --i) {   // (the styles in the reverse of the definitions' order)
+        const QByteArray id = "LS" + QByteArray::number(i);
+        styles += "<w:style w:type=\"numbering\" w:styleId=\"" + id + "\"><w:name w:val=\"List " + QByteArray::number(i) + "\"/><w:pPr><w:numPr><w:numId w:val=\"" + QByteArray::number(i + 1) + "\"/></w:numPr></w:pPr></w:style>";
+    }
+    styles += "<w:style w:type=\"numbering\" w:styleId=\"LS5\"><w:name w:val=\"Second LS5\"/></w:style>";   // (an id twice: the first has it)
+    for (int i = 0; i < count; ++i) {
+        numbering += abstractWithLink(i, "LS" + QByteArray::number(i), "", true);
+        nums += "<w:num w:numId=\"" + QByteArray::number(i + 1) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(i) + "\"/></w:num>";
+    }
+    auto doc = open(makeDocx(linkPara(1), styles, numbering + nums));
+    QVERIFY(doc);
+    const QVector<WriteDoc::ListStyleEntry> entries = doc->listStyleEntries();
+    QCOMPARE(entries.size(), office::wml::kMostListStyles);
+    QSet<QString> ids;
+    for (int i = 0; i < entries.size(); ++i) {
+        QVERIFY(!ids.contains(entries[i].id));
+        ids.insert(entries[i].id);
+        QCOMPARE(entries[i].id, QStringLiteral("LS%1").arg(i));   // (the order of the numbering's definitions)
+    }
+    QVERIFY(!ids.contains(QStringLiteral("LS1000")) && !ids.contains(QStringLiteral("LS1199")));
+    QCOMPARE(entries[5].name, QStringLiteral("List 5"));
+    for (int i = 0; i < entries.size(); i += (i < 20 || i > 980) ? 1 : 37) {   // (every use makes ids in the numbering: a sample of the thousand is looked at)
+        const WriteDoc::ListStyleEntry &e = entries[i];
+        const int numId = doc->numberingIdForListStyle(e.id, false);
+        QVERIFY2(numId > 0, qPrintable(e.id));
+        const Level *l = doc->numbering().levelOf(numId, 0);
+        QVERIFY2(l && l->numFmt == QLatin1String("upperRoman"), qPrintable(e.id));
+    }
+    QTextCursor c(doc->story());
+    QVERIFY(applyListStyle(*doc, c, entries.last().id));
+    QCOMPARE(levelOfBlock(*doc, 0).numFmt, QStringLiteral("upperRoman"));
+}
+
+// A definition may carry a link whose style is gone (or name one that was never there): a new list style never takes that id.
+void WriteTests::aNewListStyleTakesAnIdNoStyleOrLinkHas()
+{
+    const QByteArray numbering = abstractWithLink(0, "MyList", "", true) + abstractWithLink(1, "", "Other", false) + "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num>";
+    auto doc = open(makeDocx(linkPara(1) + linkPara(2), kStyles, numbering));
+    QVERIFY(doc);
+    QVERIFY(doc->listStyleEntries().isEmpty());   // (no style: no list style)
+    for (const QString &name : {QStringLiteral("MyList"), QStringLiteral("Other")}) {
+        AbstractNum def = multilevelPresets().at(1).def;
+        const QString id = saveListStyle(*doc, name, def);
+        QVERIFY(!id.isEmpty());
+        QVERIFY2(id != QLatin1String("MyList") && id != QLatin1String("Other"), qPrintable(id));
+    }
+    const QVector<WriteDoc::ListStyleEntry> entries = doc->listStyleEntries();
+    QCOMPARE(entries.size(), 2);
+    // The new style has its own levels (not the file's loose definition's), and the old definitions are as they were.
+    for (const WriteDoc::ListStyleEntry &e : entries) {
+        const int numId = doc->numberingIdForListStyle(e.id, false);
+        QCOMPARE(doc->numbering().levelOf(numId, 0)->numFmt, multilevelPresets().at(1).def.levels[0].numFmt);
+    }
+    QCOMPARE(levelOfBlock(*doc, 0).numFmt, QStringLiteral("upperRoman"));
+}
+
+// Modify keeps the heading-style link of each level (the style is numbered by the list), changes it when the levels say so, and is kept in the file.
+void WriteTests::modifyingAListStyleKeepsAndChangesItsHeadingLinks()
+{
+    QTextCursor all;
+    auto doc = listDoc(3, &all);
+    QVERIFY(doc->ensureStyle(QStringLiteral("Heading1")));
+    QVERIFY(doc->ensureStyle(QStringLiteral("Heading2")));
+    AbstractNum def = multilevelPresets().at(0).def;
+    def.levels[0].pStyle = QStringLiteral("Heading1");
+    def.levels[1].pStyle = QStringLiteral("Heading2");
+    const QString id = saveAndApplyListStyle(*doc, all, QStringLiteral("Headings"), def);
+    QVERIFY(!id.isEmpty());
+    const int own = *doc->styleSheet().find(id)->pPr.numId;
+    QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading1"))->pPr.numId.value_or(-1), own);
+    QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading2"))->pPr.ilvl.value_or(-1), 1);
+    // The levels keep their links.
+    const WriteDoc::ListStyleEntry entry = doc->listStyleEntries().first();
+    const AbstractNum *a = doc->numbering().abstractOf(own);
+    QCOMPARE(a->levels[0].pStyle, QStringLiteral("Heading1"));
+    // Modified with the second heading now at level 3 and the first not linked: the links follow, and the first style lets go.
+    AbstractNum changed = *a;
+    changed.levels[0].pStyle.clear();
+    changed.levels[1].pStyle.clear();
+    changed.levels[2].pStyle = QStringLiteral("Heading2");
+    QVERIFY(modifyListStyle(*doc, id, changed));
+    QVERIFY(!doc->styleSheet().find(QStringLiteral("Heading1"))->pPr.numId);
+    QCOMPARE(doc->styleSheet().find(QStringLiteral("Heading2"))->pPr.ilvl.value_or(-1), 2);
+    QCOMPARE(doc->numbering().abstractOf(own)->levels[2].pStyle, QStringLiteral("Heading2"));
+    auto again = open(doc->toDocx());
+    QVERIFY(again);
+    QCOMPARE(again->numbering().abstractOf(*again->styleSheet().find(id)->pPr.numId)->levels[2].pStyle, QStringLiteral("Heading2"));
+    Q_UNUSED(entry);
+}
+
+// A paragraph in a footnote that has the style follows a change of it, as the text's do.
+void WriteTests::modifyingAListStyleChangesItsUsersInNotes()
+{
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    const QString id = saveListStyle(*doc, QStringLiteral("Note Steps"), multilevelPresets().at(0).def);
+    QVERIFY(!id.isEmpty());
+    QTextCursor at(doc->story());
+    at.setPosition(doc->story()->findBlockByNumber(1).position() + 2);
+    QTextDocument *note = insertFootnote(*doc, at);
+    QVERIFY(note);
+    QTextCursor inNote(note);
+    inNote.movePosition(QTextCursor::End);
+    QVERIFY(applyListStyle(*doc, inNote, id));
+    QTextCursor inText(doc->story());
+    QVERIFY(applyListStyle(*doc, inText, id));
+    QCOMPARE(note->lastBlock().textList()->format().style(), QTextListFormat::ListDecimal);
+    AbstractNum changed = multilevelPresets().at(2).def;   // (level 1: capital Roman numerals)
+    QVERIFY(modifyListStyle(*doc, id, changed));
+    QCOMPARE(doc->story()->firstBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
+    QCOMPARE(note->lastBlock().textList()->format().style(), QTextListFormat::ListUpperRoman);
+}
+
+// Save as a list style with the paragraphs it is for is one step: one Undo takes back the style and the list. With nothing to give it to (a locked paragraph), no style is made.
+void WriteTests::savingAListStyleAndUsingItIsOneStepOrNone()
+{
+    QTextCursor all;
+    auto doc = listDoc(2, &all);
+    const QString id = saveAndApplyListStyle(*doc, all, QStringLiteral("One Step"), multilevelPresets().at(0).def);
+    QVERIFY(!id.isEmpty());
+    QCOMPARE(doc->listStyleEntries().size(), 1);
+    QVERIFY(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::Numbers);
+    doc->undo();
+    QVERIFY(doc->listStyleEntries().isEmpty());
+    QVERIFY(!doc->styleSheet().find(id));
+    QVERIFY(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::None);
+    doc->redo();
+    QCOMPARE(doc->listStyleEntries().size(), 1);
+    QVERIFY(listKindOf(*doc, doc->story()->firstBlock()) == ListKind::Numbers);
+    // Only a locked paragraph selected (one the file keeps whole): nothing to give the style to, so no style is made, and the reason is told.
+    auto other = listDoc(1, &all);
+    QTextCursor lock(other->story());
+    QTextBlockFormat locked = other->story()->firstBlock().blockFormat();
+    locked.setProperty(prop::RawBlock, QByteArray("<w:p/>"));
+    lock.setBlockFormat(locked);
+    all = QTextCursor(other->story());
+    all.select(QTextCursor::Document);
+    QString why;
+    QVERIFY(saveAndApplyListStyle(*other, all, QStringLiteral("Nothing"), multilevelPresets().at(0).def, &why).isEmpty());
+    QVERIFY(!why.isEmpty());
+    QVERIFY(other->listStyleEntries().isEmpty());
+}
+
+// Delete then Undo with the same numbers of definitions and ids: the levels are the style's again (what was worked out from the definitions is not taken from the counts alone).
+void WriteTests::deletingAListStyleAndUndoingItGivesTheLevelsBack()
+{
+    auto made = styledList();
+    WriteDoc &doc = *made.doc;
+    const QString before = levelOfBlock(doc, 3).text;
+    // Users point at their own definition (which carries a link): its levels are the style's. Put one of them alone in a file whose counts stay.
+    QVERIFY(deleteListStyle(doc, made.id));
+    QCOMPARE(levelOfBlock(doc, 3).text, before);
+    doc.undo();
+    QCOMPARE(levelOfBlock(doc, 3).text, before);
+    QCOMPARE(doc.listStyleEntries().size(), 1);
+    // A change that leaves the counts alone: the levels after it are the changed style's, at once, for the users too.
+    AbstractNum changed = multilevelPresets().at(2).def;
+    changed.levels[0].text = QStringLiteral("Z%1");
+    QVERIFY(modifyListStyle(doc, made.id, changed));
+    QCOMPARE(levelOfBlock(doc, 0).text, QStringLiteral("Z%1"));
+    QCOMPARE(levelOfBlock(doc, 3).text, QStringLiteral("Z%1"));
+    doc.undo();
+    QCOMPARE(levelOfBlock(doc, 3).text, before);
+    doc.redo();
+    QCOMPARE(levelOfBlock(doc, 3).text, QStringLiteral("Z%1"));
 }
 
 namespace {

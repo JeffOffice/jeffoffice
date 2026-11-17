@@ -74,7 +74,7 @@ private:
     void collectNumbering();
     QByteArray listStyleXml(int numId);
     // The name a list is given in the text: the named list style when the numbering id is a use of one that keeps its look (no restart that the style does not give), else its own.
-    QByteArray listNameFor(int numId);
+    QByteArray listNameFor(int numId, bool *styled = nullptr);
     int numLevelOf(const T &t, int pPr, int *numId, QString pStyle) const;
     // the body
     struct ParaCtx;
@@ -152,6 +152,8 @@ private:
     };
     QHash<int, NumDef> m_numDefs;
     QSet<int> m_numsUsed, m_numsSeen;
+    QHash<int, QByteArray> m_listIdOfNum;   // the xml:id of the last list of a numbering id that names a list style (a later one goes on from it)
+    int m_listIds = 0;
     QByteArray listLevelsXml(const QByteArray &head, const AbstractDef &def, const int *startOverride);
     // output
     StyleSink m_content, m_stylesSink;

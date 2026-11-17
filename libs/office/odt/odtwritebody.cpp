@@ -416,7 +416,18 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
                 closeLists(lc);
                 const bool cont = m_numsSeen.contains(numId);
                 m_numsSeen.insert(numId);
-                *out += "<text:list text:style-name=\"" + listNameFor(numId) + "\"" + (cont ? " text:continue-numbering=\"true\"" : "") + ">";
+                bool styled = false;
+                const QByteArray listName = listNameFor(numId, &styled);
+                QByteArray continuing = cont ? " text:continue-numbering=\"true\"" : QByteArray();
+                QByteArray listId;
+                if (styled) {
+                    // (Lists of one list style that go on from the last of the style would count with another list's items: each says which list it goes on from.)
+                    if (cont && m_listIdOfNum.contains(numId)) continuing = " text:continue-list=\"" + m_listIdOfNum.value(numId) + "\"";
+                    const QByteArray made = "list" + num(++m_listIds);
+                    listId = " xml:id=\"" + made + "\"";
+                    m_listIdOfNum.insert(numId, made);
+                }
+                *out += "<text:list text:style-name=\"" + listName + "\"" + listId + continuing + ">";
                 *out += "<text:list-item>";
                 lc->numId = numId;
                 lc->depth = 1;

@@ -74,13 +74,15 @@ A **list style** is a numbered or bulleted list with a name. It keeps all nine l
 3. Tick **Save as a list style** and type a name. If the name is empty or already used, the box says so and stays open.
 4. Click **OK**. The selected paragraphs take the list style.
 
-The list style now shows in two places: under **List Styles** in the **Multilevel List** gallery, and in the **Styles** pane. Select paragraphs and click its name to give them the list style.
+The list style now shows in two places: under **List Styles** in the **Multilevel List** gallery (the first 100), and in the **Styles** pane (all of them). Select paragraphs and click its name to give them the list style.
 
-- **Change it.** Click **Multilevel List**, **Modify List Style**, and the name, or choose the list style in the **Styles** pane and click **Modify…**. Every paragraph that has the list style changes with it, in one step.
+- **Change it.** Click **Multilevel List**, **Modify List Style**, and the name, or choose the list style in the **Styles** pane and click **Modify…**. Every paragraph that has the list style changes with it, in the text and in headers, footers, and notes. In the text it is one step, so one **Undo** takes it back.
 - **Delete it.** Click **Multilevel List**, **Delete List Style**, and the name. The paragraphs keep their numbers and bullets exactly as they look. They just no longer follow a style.
 - **Save it in a file.** A list style is kept in a `.docx` file as a numbering style, and in an `.odt` file as a list style. It comes back as a list style when you open the file again. A file can have up to 1,000 list styles, and the rest are used as plain lists.
 
-A list style does not link a level to a paragraph style. If you linked one in the box, the link is dropped when you save the list as a list style.
+A level can still be linked to a paragraph style, as in any multilevel list. The paragraph style is then numbered by the list style, and **Modify List Style** shows the link so you can change it.
+
+If the box has no list to give the style to (the selected text is locked, for example), no list style is saved, and a message says so.
 
 ## Related
 

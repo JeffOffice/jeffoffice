@@ -38,7 +38,9 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
         l.text = QStringLiteral("%1.");
     }
     work.multiLevelType = QStringLiteral("multilevel");
-    QDialog d(parent);
+    // (The box is deleted before the function's other variables go, which the handlers of its widgets use: they can be called as the widgets are taken apart.)
+    auto *dialog = new QDialog(parent);
+    QDialog &d = *dialog;
     d.setObjectName(QStringLiteral("multilevelListDialog"));
     d.setWindowTitle(listStyle && listStyle->editing ? QCoreApplication::translate("jp::write::MultilevelDialog", "Modify List Style") : QCoreApplication::translate("jp::write::MultilevelDialog", "Define New Multilevel List"));
     auto *levels = new QListWidget(&d);
@@ -302,7 +304,10 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     column->addWidget(buttons);
     load(0);
     levels->setCurrentRow(0);
-    if (d.exec() != QDialog::Accepted) return false;
+    if (d.exec() != QDialog::Accepted) {
+        delete dialog;
+        return false;
+    }
     for (int i = 0; i < 9; ++i)
         if (work.levels[i].numFmt != QLatin1String("bullet") && work.levels[i].numFmt != QLatin1String("none") && !work.levels[i].text.contains(QLatin1Char('%'))) work.levels[i].text += QStringLiteral("%") + QString::number(i + 1);
     *definition = work;
@@ -310,6 +315,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
         listStyle->save = saveStyle->isChecked();
         listStyle->name = styleName->text().trimmed();
     }
+    delete dialog;
     return true;
 }
 

@@ -412,6 +412,8 @@ QByteArray Reader::stylesXml()
         if (!rpr.isEmpty()) x += "<w:rPr>" + rpr + "</w:rPr>";
         x += "</w:style>";
     }
+    // (The ids the styles above and the ones added below keep for themselves are not given to a list style.)
+    for (const char *kept : {"DefaultParagraphFont", "Normal", "FootnoteReference", "Hyperlink", "TableNormal"}) m_idsTaken.insert(QString::fromLatin1(kept));
     // The named list styles: a numbering style each, whose definition is the one that carries w:styleLink (numberingXml).
     for (const QString &name : std::as_const(m_namedLists)) {
         const ListStyleDef &def = m_listStyles[name];
