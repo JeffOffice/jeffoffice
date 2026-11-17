@@ -173,6 +173,8 @@ MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutC
     const bool rightBar = placing == tp::RevisionMarkup::BarsRight || (placing == tp::RevisionMarkup::BarsOutside && page.number % 2 == 1);
     const QColor barColor = look.barColor.isValid() ? look.barColor : QColor(0xC0, 0x39, 0x2B);
     double lastBottom = -1e9;
+    const double floor = page.size.height() - 18;   // (the balloons end here; the note of the ones left out is under it)
+    int more = 0;
     for (int lineAt = 0; lineAt < lines.size(); ++lineAt) {
         const Line &line = lines[lineAt];
         const TextItem *box = line.box;
@@ -204,9 +206,12 @@ MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutC
             p->drawPath(mark);
             ++counts.carets;
         }
-        if (marginRight < 30) continue;
         auto balloon = [&](const Mark &m, bool deletion) {
             if (m.at < a || m.at >= b) return;
+            if (marginRight < 30 || lastBottom >= floor) {
+                ++more;
+                return;
+            }
             const double w = std::min(marginRight - 8, 120.0);
             QFont font = p->font();
             font.setPointSizeF(6.5);
@@ -215,6 +220,11 @@ MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutC
             const QRectF want(box->rect.right() + 6, std::max(top, lastBottom + 2), w, 0);
             const QRectF text = p->boundingRect(want.adjusted(3, 2, -3, 0).adjusted(0, 0, 0, 80), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
             const QRectF frame(want.left(), want.top(), w, std::min(78.0, text.height() + 5));
+            if (frame.bottom() > floor) {
+                ++more;
+                lastBottom = floor;
+                return;
+            }
             QColor fill = m.color;
             fill.setAlpha(m.done ? 28 : 55);
             p->setPen(QPen(m.color, 0.7));
@@ -223,11 +233,22 @@ MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutC
             p->setPen(m.done ? QColor(0x70, 0x70, 0x70) : QColor(0x20, 0x20, 0x20));
             p->drawText(frame.adjusted(3, 2, -3, -1), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
             lastBottom = frame.bottom();
+            counts.lowest = std::max(counts.lowest, frame.bottom());
             ++(deletion ? counts.deletions : counts.comments);
         };
         for (const auto &c : comments) balloon(c, false);
         for (const auto &d : deletions) balloon(d, true);
     }
+    if (more > 0) {
+        QFont font = p->font();
+        font.setPointSizeF(6.5);
+        p->setFont(font);
+        p->setPen(QColor(0x40, 0x40, 0x40));
+        const QRectF note(page.size.width() - 64, page.size.height() - 16, 60, 12);
+        p->drawText(note, Qt::AlignRight | Qt::AlignVCenter, QCoreApplication::translate("jp::write::PageView", "+%1 more").arg(more));
+        counts.lowest = std::max(counts.lowest, note.bottom());
+    }
+    counts.more = more;
     p->restore();
     return counts;
 }

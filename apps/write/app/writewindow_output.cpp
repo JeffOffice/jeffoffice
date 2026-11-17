@@ -107,14 +107,6 @@ QVector<int> bookFoldPages(const QVector<int> &pages, int perBooklet)
 }
 } // namespace
 
-WriteOutputOptions::WriteOutputOptions()
-{
-    Settings &settings = Settings::get();
-    markup = settings.value(write::printMarkupKey(), true).toBool();
-    hidden = settings.value(write::printHiddenKey(), false).toBool();
-    if (const QVariant v = settings.value(write::printBackgroundKey()); v.isValid()) background = v.toBool();
-}
-
 write::PrintLook WriteWindow::printLook(const WriteOutputOptions &options, const write::WriteDoc &source) const
 {
     write::PrintLook look;
@@ -129,25 +121,49 @@ write::PrintLook WriteWindow::printLook(const WriteOutputOptions &options, const
     return look;
 }
 
+// The pages of the printed view: counted once for each choice of markup and hidden text, and kept until a choice, the text, or the way the changes are shown changes.
+WriteWindow::PrintedView &WriteWindow::printedView(const WriteOutputOptions &options)
+{
+    const write::PageView::ReviewMarks marks = m_view->reviewMarks();
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7").arg(quintptr(m_doc.get())).arg(m_doc ? m_doc->story()->revision() : -1).arg(options.markup).arg(options.hidden)
+                            .arg(m_doc ? m_doc->revisionView() : 0).arg(marks.changeBars + 2 * marks.formatBars + 4 * marks.comments + 8 * marks.deletions + 16 * marks.carets)
+                            .arg(m_doc && m_doc->showsHiddenText());
+    if (m_printedView.key == key || !m_doc) return m_printedView;
+    ++m_printedLayouts;
+    m_printedView = PrintedView();
+    HiddenTextOff held(m_doc.get(), m_view, &options);
+    m_view->paginateAll();
+    PrintedView &v = m_printedView;
+    v.count = m_view->pageCount();
+    v.current = std::clamp(m_view->currentPage(), 0, std::max(0, v.count - 1));
+    for (int i = 0; i < v.count; ++i) {
+        v.sections << m_doc->pager().page(i).start.section;
+        v.sizes << m_doc->pager().page(i).size;
+    }
+    // (the key of the view as the live window has it, which is what the next ask comes with)
+    v.key = key;
+    return v;
+}
+
 QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
 {
     QVector<int> out;
     if (options.pagesGiven) return options.pageList;
     if (!m_doc) return out;
-    m_view->paginateAll();
-    const int count = m_view->pageCount();
+    const PrintedView &printed = printedView(options);
+    const int count = printed.count;
     if (options.range == WriteOutputOptions::Range::Selection) {
         // The pages of a copy that holds the selection alone.
         m_selectionDoc = selectionDocument();
         if (!m_selectionDoc) return out;
         for (int i = 0, n = m_selectionDoc->pager().pageCount(); i < n; ++i) out << i;
     } else if (options.range == WriteOutputOptions::Range::Current) {
-        out << std::clamp(m_view->currentPage(), 0, std::max(0, count - 1));
+        out << std::clamp(printed.current, 0, std::max(0, count - 1));
     } else if (options.range == WriteOutputOptions::Range::All) {
         for (int i = 0; i < count; ++i) out << i;
     } else {
         QVector<int> sections;
-        for (int i = 0; i < count; ++i) sections << m_doc->pager().page(i).start.section;
+        sections = printed.sections;
         out = write::parsePageRange(options.pages, count, sections);
     }
     // (the pages whose numbers are odd or even: the page counted from 1 is the page number the person means)
@@ -192,25 +208,34 @@ QSizeF WriteWindow::outputPageSize(const WriteOutputOptions &options, int index)
 {
     QSizeF size;
     if (options.range == WriteOutputOptions::Range::Selection && m_selectionDoc) size = m_selectionDoc->pager().page(index).size;
-    else if (m_doc) size = m_doc->pager().page(index).size;
+    else if (m_doc) size = printedView(options).sizes.value(index);
     return turnedSheet(size, options.turn);   // (the sheet: the page's own size unless the paper is turned)
 }
 
 QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index, int width)
 {
     // The page as it comes out: on a sheet that is turned (the page scaled to fit it), and gray when that is asked for.
-    const QSizeF page = options.range == WriteOutputOptions::Range::Selection && m_selectionDoc ? m_selectionDoc->pager().page(index).size
-                        : m_doc ? m_doc->pager().page(index).size : QSizeF();
+    const bool ofSelection = options.range == WriteOutputOptions::Range::Selection;
+    // (a page the printed view does not have is no picture)
+    if (!ofSelection && (!m_doc || index < 0 || index >= printedView(options).count)) return QImage();
+    const QSizeF page = ofSelection && m_selectionDoc ? m_selectionDoc->pager().page(index).size
+                        : m_doc ? printedView(options).sizes.value(index) : QSizeF();
     const QSizeF sheet = turnedSheet(page, options.turn);
     const bool turned = sheet != page;
     double fit = 1;
     if (turned && page.width() > 0 && page.height() > 0) fit = std::min(sheet.width() / page.width(), sheet.height() / page.height());
     const int pageWidth = turned && sheet.width() > 0 ? std::max(1, int(std::lround(width * fit * page.width() / sheet.width()))) : width;
     QImage image;
-    // (the page as the print will have it: its markup, its hidden text)
-    HiddenTextOff held(m_doc.get(), m_view, &options, false);
-    if (options.range != WriteOutputOptions::Range::Selection) {
-        image = m_view->pageImage(index, pageWidth);
+    if (!ofSelection) {
+        // (the page as the print will have it: its markup, its hidden text; laid out and drawn once, and kept)
+        PrintedView &printed = printedView(options);
+        const QPair<int, int> at(index, pageWidth);
+        if (!printed.images.contains(at)) {
+            ++m_printedLayouts;
+            HiddenTextOff held(m_doc.get(), m_view, &options, false);
+            printed.images.insert(at, m_view->pageImage(index, pageWidth));
+        }
+        image = printed.images.value(at);
     } else if (m_selectionDoc) {
         const auto materialized = m_selectionDoc->pager().materialize(index);
         if (materialized && materialized->size.width() > 0) {

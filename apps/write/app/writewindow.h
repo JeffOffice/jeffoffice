@@ -83,8 +83,6 @@ struct Recovered;
 
 // What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
-    // The choices of what prints (markup, hidden text, background) start as the person last made them (the settings); a job that sets them says so.
-    WriteOutputOptions();
     enum class Range { All, Current, Pages, Selection };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
@@ -267,6 +265,17 @@ public:
     // The page `index` of what `options` prints, as a picture `width` pixels wide (the selection's own pages for Range::Selection), and its size in points.
     QImage outputPageImage(const WriteOutputOptions &options, int index, int width);
     QSizeF outputPageSize(const WriteOutputOptions &options, int index);
+    // The printed view of the document (its markup and hidden text as the options say): its pages are counted, sized, and drawn once for a choice and kept until a choice or the document changes.
+    struct PrintedView {
+        QString key;
+        int count = 0, current = 0;
+        QVector<int> sections;
+        QVector<QSizeF> sizes;
+        QHash<QPair<int, int>, QImage> images;   // (page, width in pixels)
+    };
+    PrintedView &printedView(const WriteOutputOptions &options);
+    PrintedView m_printedView;
+    int m_printedLayouts = 0;
     // Where editing stopped: the place is kept with the file's name when the window closes and when the file is saved, and the file opens there again.
     void rememberPlace();
     // The last three places the text was edited, the latest first (Shift+F5 goes to each in turn).
@@ -332,6 +341,11 @@ public:
     bool exportEmailAsk();
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
+    // The pages the printed view has (what the Print page says the document has), and how many times the document was laid out for it (a test counts them).
+    int outputPageCount(const WriteOutputOptions &options) { return printedView(options).count; }
+    // Forgets the printed view (the Print page does when it opens: the page setup may have changed since).
+    void forgetPrintedView() { m_printedView = PrintedView(); }
+    int printedViewLayouts() const { return m_printedLayouts; }
 
     // The Spelling pane on the right of the window, begun at the caret.
     void showSpelling();

@@ -319,7 +319,7 @@ QWidget *WriteFileScreen::buildPrint()
 {
     write::PageView *view = m_win->view();
     view->paginateAll();
-    const int pageCount = view->pageCount();
+    m_win->forgetPrintedView();
     auto *w = new QWidget();
     auto *h = new QHBoxLayout(w);
     h->setContentsMargins(40, 30, 40, 30);
@@ -499,7 +499,7 @@ QWidget *WriteFileScreen::buildPrint()
         *page = std::clamp(*page, 0, std::max(0, int(pages.size()) - 1));
         const int shownAtOnce = across->currentData().toInt();
         *page -= *page % shownAtOnce;   // (the pages shown together start on a multiple of how many there are)
-        const int total = selection->isChecked() ? int(pages.size()) : pageCount;
+        const int total = selection->isChecked() ? int(pages.size()) : m_win->outputPageCount(options());
         const int lastShown = std::min(int(pages.size()) - 1, *page + shownAtOnce - 1);
         pageLabel->setText(bad ? tr("Enter page numbers, such as 1-3, 5.") : pages.isEmpty() ? tr("There are no pages to print.")
                            : lastShown > *page ? tr("Pages %1-%2 of %3").arg(pages[*page] + 1).arg(pages[lastShown] + 1).arg(total) : tr("Page %1 of %2").arg(pages[*page] + 1).arg(total));

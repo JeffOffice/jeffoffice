@@ -20,9 +20,9 @@ Press **Ctrl+P**, or click **File > Print**, to open the Print page. The choices
 - **Paper turned** makes every sheet tall or wide, whichever way its page is. **As each section says** is the usual choice. With **Tall** or **Wide**, JeffWrite makes each page smaller to fit the sheet and puts it in the middle. The picture on the right shows the sheet.
 - **Grayscale** prints every color in shades of gray, on paper and in a PDF file. The picture on the right is gray too.
 - **Paper** says what paper the page in the preview is printed on.
-- **Markup** is under **What prints**. **Print Markup** prints a document under review the way the screen shows it: the tracked changes in their colors, a bar beside each changed line, and each comment in a box in the margin. **Without Markup** prints the text as if every change were accepted: the added words stay, the deleted words are left out, and there are no comments. The picture on the right shows the choice.
+- **Markup** is under **What prints**. **Print Markup** prints a document under review the way the screen shows it: the tracked changes in their colors, a bar beside each changed line, and each comment in a box in the margin. When there are more boxes than fit on a page, a small note at the bottom says how many were left out. **Without Markup** prints the text as if every change were accepted: the added words stay, the deleted words are left out, and there are no comments. The picture on the right shows the choice.
 - **Hidden text** prints the words you formatted as hidden. Off, they stay out of the printing, as on the screen when the formatting marks are off.
-- **Background colors** prints the color of the page. Off, the paper stays white. Printing to a PDF file follows this choice too.
+- **Background colors** prints the color of the page. Off, the paper stays white. Printing to a PDF file from this page follows this choice too.
 
 Pages print in the order you type them, once each. A number that is not a page of the document is passed by. If none of the numbers you typed is a page, the box gets a red edge and the **Print** button waits.
 
@@ -30,7 +30,7 @@ Click **Print** to send the pages. The Print page closes when the printer has th
 
 ## What prints is remembered
 
-JeffWrite keeps your choices of **Markup**, **Hidden text**, and **Background colors** for next time. They also apply when you use **Export to PDF**: with **Without Markup**, the PDF has the text as it stands and no comments.
+JeffWrite keeps your choices of **Markup**, **Hidden text**, and **Background colors** for next time. They apply to printing, including **Save as PDF** on this page. **Export to PDF** in the File menu is separate: it keeps the page color and shows the changes as the screen does.
 
 ## Page ranges count places, not printed numbers
 

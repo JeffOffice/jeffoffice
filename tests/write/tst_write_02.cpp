@@ -805,18 +805,14 @@ void WriteTests::thePrintPageRemembersWhatPrints()
     QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->currentData().toInt(), 0);
     QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->isChecked());
     QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printBackground"))->isChecked());
-    // The jobs start from them (the PDF export is one), and the PDF it makes has no marks.
-    const WriteOutputOptions remembered;
-    QVERIFY(!remembered.markup);
-    QVERIFY(remembered.hidden);
-    QCOMPARE(remembered.background, std::optional<bool>(true));
+    // Save as PDF (the export) is not the Print page's: it keeps the markup as the screen shows it, whatever the page has kept.
+    const WriteOutputOptions fresh;
+    QVERIFY(fresh.markup);
+    QVERIFY(!fresh.hidden);
+    QVERIFY(!fresh.background.has_value());
     int calls = 0;
     write::setMarkupObserver([&](int, const write::MarkupCounts &) { ++calls; });
     w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("export.pdf")); });
-    QVERIFY(w.exportPdf());
-    QCOMPARE(calls, 0);
-    // With the markup chosen again, the export draws its marks.
-    w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(0);
     QVERIFY(w.exportPdf());
     QVERIFY(calls >= 1);
     // The Print to PDF of the page follows the same choice.
@@ -827,9 +823,187 @@ void WriteTests::thePrintPageRemembersWhatPrints()
     QCOMPARE(calls, 0);
     const QByteArray marked = printToPdf(w, dir.filePath(QStringLiteral("marked.pdf")), [](QWidget *page) { page->findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(0); });
     QVERIFY(!marked.isEmpty());
-    QVERIFY(calls >= 1);
-    // (the marks are drawn on the PDF: it is not the same as the one without)
-    QVERIFY(marked != plain);
+    QVERIFY(calls >= 1);   // (the marks of the page it was made from were drawn)
+}
+
+// Save as PDF keeps what it always had, whatever the Print page has kept: the page's color, and the changes as the screen shows them.
+void WriteTests::saveAsPdfIsNotChangedByWhatThePrintPageKept()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    Settings::get().setValue(write::printMarkupKey(), false);
+    Settings::get().setValue(write::printBackgroundKey(), false);
+    Settings::get().setValue(write::printHiddenKey(), true);
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    w.document()->flow().pageColor = QColor(0x00, 0xb8, 0xff);
+    w.document()->pager().invalidateFrom(0);
+    w.view()->paginateAll();
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("save.pdf")); });
+    const MarkupGuard guard;
+    const ObserverGuard observer;
+    int marked = 0, colored = 0, lines = 0;
+    write::setMarkupObserver([&](int, const write::MarkupCounts &) { ++marked; });
+    write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) {
+        for (const auto &item : page.doc->pages[0]->items) colored += item->id.startsWith(QLatin1String("flow-page-color-"));
+        lines = int(w.document()->pager().lines(0).size());
+    });
+    QVERIFY(w.exportPdf());
+    const int withMarkup = lines;
+    QVERIFY2(marked >= 1, "the changes are not as the screen shows them");
+    QCOMPARE(colored, 1);
+    QVERIFY(withMarkup > 1);
+}
+
+// The Print page counts the pages of the printed view: a document whose changes make more pages when they are shown has the pages of the view that is chosen, in the count, the range, and the preview.
+void WriteTests::thePrintPageCountsThePagesOfThePrintedView()
+{
+    const PrintKeysGuard keys;
+    const QByteArray stamp = " w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+    const QByteArray breakPara = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+    const QByteArray body = "<w:p><w:r><w:t>one</w:t></w:r></w:p>" + breakPara + "<w:p><w:r><w:t>two</w:t></w:r></w:p>" + breakPara
+                            + "<w:p><w:del w:id=\"2\"" + stamp + "><w:r><w:delText>" + QByteArray("removed words go on and on. ").repeated(900) + "</w:delText></w:r></w:del><w:r><w:t>end</w:t></w:r></w:p>";
+    WriteWindow w;
+    w.setDocument(open(makeDocx(body, kStyles)), QString());
+    w.setReviewView(WriteWindow::ReviewView::AllMarkup);
+    w.view()->paginateAll();
+    w.resize(1300, 1100);
+    WriteOutputOptions with, without;
+    without.markup = false;
+    const int shown = w.outputPageCount(with), accepted = w.outputPageCount(without);
+    QVERIFY2(shown > accepted && accepted == 3, qPrintable(QStringLiteral("%1 against %2").arg(shown).arg(accepted)));
+    // A page that only the markup has is no page of the printed view.
+    without.range = WriteOutputOptions::Range::Pages;
+    without.pages = QString::number(shown);
+    QVERIFY(w.outputPages(without).isEmpty());
+    with.range = WriteOutputOptions::Range::Pages;
+    with.pages = QString::number(shown);
+    QCOMPARE(w.outputPages(with), (QVector<int>{shown - 1}));
+    QVERIFY(w.outputPageImage(without, shown - 1, 200).isNull());
+    // The page says the count of the choice.
+    w.act("file.print")->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    auto *label = w.findChild<QLabel *>(QStringLiteral("printPage"));
+    QTRY_COMPARE(label->text(), QStringLiteral("Page 1 of %1").arg(shown));
+    w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(1);
+    QTRY_COMPARE(label->text(), QStringLiteral("Page 1 of %1").arg(accepted));
+    w.findChild<QRadioButton *>(QStringLiteral("printRangePages"))->click();
+    w.findChild<QLineEdit *>(QStringLiteral("printRangeText"))->setText(QString::number(shown));
+    QTRY_VERIFY(!w.findChild<QPushButton *>(QStringLiteral("printButton"))->isEnabled());
+}
+
+// The preview does not lay the document out again for each repaint: with the choices as they were, the layouts are not counted again.
+void WriteTests::thePrintPreviewLaysOutOnlyWhenAChoiceChanges()
+{
+    const PrintKeysGuard keys;
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    w.resize(1300, 1100);
+    w.act("file.print")->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    auto *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+    QTRY_VERIFY(!preview->pixmap().isNull());
+    auto *gray = w.findChild<QCheckBox *>(QStringLiteral("printGray"));
+    auto *orientation = w.findChild<QComboBox *>(QStringLiteral("printOrientation"));
+    gray->setChecked(true);   // (a repaint of the page as it is: no new layout)
+    QTRY_VERIFY(!preview->pixmap().isNull());
+    const int first = w.printedViewLayouts();
+    QVERIFY(first >= 1);
+    for (int i = 0; i < 4; ++i) {
+        gray->setChecked(i % 2 == 1);
+        orientation->setCurrentIndex(0);
+        QTRY_VERIFY(!preview->pixmap().isNull());
+    }
+    QCOMPARE(w.printedViewLayouts(), first);
+    // A choice of the view is laid out once for it.
+    w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->setChecked(true);
+    QTRY_VERIFY(w.printedViewLayouts() > first);
+    const int second = w.printedViewLayouts();
+    QVERIFY(second <= first + 3);
+    gray->setChecked(true);
+    gray->setChecked(false);
+    QCOMPARE(w.printedViewLayouts(), second);
+}
+
+// Balloons that do not fit the foot of the page, or a margin too narrow for them, are not drawn past the page: a "+N more" note at its foot says how many were left out.
+void WriteTests::commentBalloonsNeverGoPastThePageAndTheOnesLeftOutAreCounted()
+{
+    const QByteArray narrow = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"360\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    for (const bool narrowMargin : {false, true}) {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Alpha beta gamma delta.</w:t></w:r></w:p>" + (narrowMargin ? narrow : QByteArray()), kStyles));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Ann Bee"), QStringLiteral("AB"));
+        for (int i = 0; i < 500; ++i) {
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            c.setPosition(5, QTextCursor::KeepAnchor);
+            QVERIFY(addComment(*doc, c, QStringLiteral("Remark %1").arg(i)) >= 0);
+        }
+        doc->pager().paginate(0);
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        QImage image(612, 792, QImage::Format_RGB32);
+        image.fill(Qt::white);
+        QPainter p(&image);
+        LayoutCache cache;
+        write::MarkupMarks marks;
+        marks.comments = true;
+        const write::MarkupCounts drawn = write::paintMarkupMarks(&p, *page, &cache, *doc, marks);
+        p.end();
+        QVERIFY2(drawn.comments + drawn.more == 500, qPrintable(QStringLiteral("%1 + %2").arg(drawn.comments).arg(drawn.more)));
+        QVERIFY(drawn.more > 0);
+        QVERIFY2(drawn.lowest <= page->size.height(), "a balloon goes past the page");
+        if (narrowMargin) QCOMPARE(drawn.comments, 0);   // (no room beside the text: only the note)
+        else QVERIFY(drawn.comments > 0);
+    }
+}
+
+// Without Markup leaves out the words a change moved away, and the formatting changes show as plain formatting (no marks of them); with the markup the page has them.
+void WriteTests::withoutMarkupDropsMovedAwayWordsAndShowsFormattingChangesPlainly()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    const QByteArray stamp = " w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+    const QByteArray body = "<w:p><w:r><w:t>Kept. </w:t></w:r><w:moveFrom w:id=\"1\"" + stamp + "><w:r><w:t>" + QByteArray("moved away words ").repeated(40) + "</w:t></w:r></w:moveFrom>"
+                            "<w:moveTo w:id=\"2\"" + stamp + "><w:r><w:t>arrived. </w:t></w:r></w:moveTo>"
+                            "<w:r><w:rPr><w:b/><w:rPrChange w:id=\"3\"" + stamp + "><w:rPr/></w:rPrChange></w:rPr><w:t>bold now.</w:t></w:r></w:p>";
+    WriteWindow w;
+    w.setDocument(open(makeDocx(body, kStyles)), QString());
+    w.setReviewView(WriteWindow::ReviewView::AllMarkup);
+    w.view()->paginateAll();
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+    const ObserverGuard observer;
+    const MarkupGuard guard;
+    struct Seen {
+        int lines = -1, view = -1, marked = 0;
+    };
+    auto printed = [&](bool markup) {
+        Seen seen;
+        write::setPaintObserver([&](const flow::MaterializedPage &, const write::PageDrawing &) {
+            seen.lines = int(w.document()->pager().lines(0).size());
+            seen.view = w.document()->revisionView();
+        });
+        write::setMarkupObserver([&](int, const write::MarkupCounts &) { ++seen.marked; });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.markup = markup;
+        const bool ok = w.printOutput(o);
+        write::setPaintObserver(nullptr);
+        write::setMarkupObserver(nullptr);
+        if (!ok) seen.lines = -1;
+        return seen;
+    };
+    const Seen with = printed(true), without = printed(false);
+    QVERIFY(with.lines > 0 && without.lines > 0);
+    QVERIFY2(without.lines < with.lines, "the moved-away words are on the page");
+    QCOMPARE(without.view, 0);   // (no marks of the formatting change either)
+    QVERIFY(with.view & tp::kRevisionMark);
+    QCOMPARE(without.marked, 0);
+    // The words are formatted as they are in the text, marks or none.
+    QTextCursor c(w.document()->story());
+    const QString text = w.document()->story()->toPlainText();
+    c.setPosition(int(text.indexOf(QStringLiteral("bold now"))) + 2);
+    QVERIFY(c.charFormat().fontWeight() >= QFont::Bold);
 }
 
 // A picture of the Print page with its choices of what prints, for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).

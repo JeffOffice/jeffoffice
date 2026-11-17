@@ -21,8 +21,11 @@ class WriteTagger;
 // What the marks over a page drew: bars (a line a change touches), comment balloons, deletion balloons, and carets.
 struct MarkupCounts {
     int bars = 0, comments = 0, deletions = 0, carets = 0;
+    int more = 0;          // balloons that did not fit (a margin too narrow, or no room left down the page): a note at the foot of the page says how many
+    double lowest = 0;     // the lowest point (in the page's points from its top) a balloon or the note reaches
 };
 // Draws the marks of review over a page (as the page view draws them on the screen) in the page's own coordinates; returns what it drew. Nothing for a page with no body text.
+// A balloon never goes past the foot of the page: the ones that do not fit are counted in a "+N more" note at the page's foot.
 MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, WriteDoc &doc, const MarkupMarks &marks);
 // A test's way to see the marks each page drew (called by paintSheets once for each page it draws marks on; null to stop).
 void setMarkupObserver(const std::function<void(int pageNumber, const MarkupCounts &)> &observer);

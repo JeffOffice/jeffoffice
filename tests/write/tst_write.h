@@ -908,6 +908,11 @@ private Q_SLOTS:
     void hiddenTextPrintsOnlyWhenAskedFor();
     void theBackgroundColorIsOnThePaperWhenAskedFor();
     void thePrintPageRemembersWhatPrints();
+    void saveAsPdfIsNotChangedByWhatThePrintPageKept();
+    void thePrintPageCountsThePagesOfThePrintedView();
+    void thePrintPreviewLaysOutOnlyWhenAChoiceChanges();
+    void commentBalloonsNeverGoPastThePageAndTheOnesLeftOutAreCounted();
+    void withoutMarkupDropsMovedAwayWordsAndShowsFormattingChangesPlainly();
     void thePrintPageWithTheChoicesOfWhatPrintsCanBePhotographed();
     void thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview();
     void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
