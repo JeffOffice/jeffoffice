@@ -5617,13 +5617,13 @@ Matéria da última página	4</translation>
     <message>
         <location filename="../libs/page/app/editor_text.cpp" line="+1010"/>
         <source>Typing mode</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modo de digitação</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+4"/>
         <source>Overtype</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Substituir</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -5666,12 +5666,12 @@ Matéria da última página	4</translation>
     <message>
         <location filename="../apps/write/core/epubexport.cpp" line="+195"/>
         <source>This reference is to the note above.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta referência é à nota acima.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Cancelled.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancelado.</translation>
     </message>
 </context>
 <context>
@@ -7052,17 +7052,17 @@ Salvar sem backup?</translation>
     <message>
         <location line="+5"/>
         <source>Grid spacing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Espaçamento da grade</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Show grid on the slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar grade no slide</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Snap objects to the grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajustar objetos à grade</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7072,32 +7072,32 @@ Salvar sem backup?</translation>
     <message>
         <location line="+1"/>
         <source>Show guides on the slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar guias no slide</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Add Vertical Guide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Adicionar Guia Vertical</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Add Horizontal Guide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Adicionar Guia Horizontal</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Remove All Guides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remover Todas as Guias</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Guides: %1 vertical, %2 horizontal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guias: %1 vertical(is), %2 horizontal(is)</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Drag from a ruler to add a guide by hand. Hold Alt while dragging to leave snapping off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arraste a partir de uma régua para adicionar uma guia manualmente. Mantenha Alt pressionada ao arrastar para desativar o ajuste.</translation>
     </message>
 </context>
 <context>
@@ -9259,7 +9259,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+83"/>
         <source>%1: an equation that can&apos;t be drawn was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: uma equação que não pode ser desenhada foi omitida.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9766,42 +9766,42 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <location line="+8"/>
         <location line="+86"/>
         <source>What prints</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O que imprimir</translation>
     </message>
     <message>
         <location line="-85"/>
         <source>Print Markup</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimir Marcações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Without Markup</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sem Marcações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Print Markup puts the tracked changes and the comments on the paper as the screen shows them, the comments in the margin. Without Markup prints the text as if every change were accepted, with no comments.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimir Marcações coloca no papel as alterações controladas e os comentários como aparecem na tela, os comentários na margem. Sem Marcações imprime o texto como se todas as alterações tivessem sido aceitas, sem comentários.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Hidden text</source>
-        <translation type="unfinished">Texto Oculto</translation>
+        <translation type="unfinished">Texto oculto</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Print the text that is formatted as hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimir o texto formatado como oculto.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Background colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cores de fundo</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Print the color of the page. Paper is left white unless this is on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimir a cor da página. O papel fica branco a menos que esta opção esteja ativada.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -11484,12 +11484,12 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+1"/>
         <source>Chart Design</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Design do Gráfico</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Format Chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatar Gráfico</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -12818,7 +12818,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+1"/>
         <source>Content Control</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Controle de Conteúdo</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -14467,7 +14467,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
     <message>
         <location line="+4"/>
         <source>The workbook could not be protected with the password.</source>
-        <translation type="unfinished">Não foi possível proteger a pasta de trabalho com a senha.</translation>
+        <translation type="unfinished">A pasta de trabalho não pôde ser protegida com a senha.</translation>
     </message>
     <message>
         <location line="+114"/>
@@ -14772,7 +14772,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
     <message>
         <location filename="../apps/deck/app/slideshow.cpp" line="+2166"/>
         <source>Screen %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tela %1</translation>
     </message>
 </context>
 <context>
@@ -21318,12 +21318,12 @@ Fonte: %3</translation>
     <message>
         <location line="+147"/>
         <source>Add document structure tags for accessibility to every PDF</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Adicionar tags de estrutura do documento para acessibilidade a todos os PDFs</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Tags the cells of each sheet as a table, so that a screen reader reads the PDF row by row.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marca as células de cada planilha como uma tabela, para que um leitor de tela leia o PDF linha por linha.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -23146,7 +23146,7 @@ Fonte: %3</translation>
         <location line="+9"/>
         <location line="+41"/>
         <source>Set Precision as Displayed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Definir Precisão como Exibida</translation>
     </message>
     <message>
         <location line="-92"/>
@@ -23161,33 +23161,33 @@ Fonte: %3</translation>
     <message>
         <location line="+42"/>
         <source>The numbers in the cells will be rounded to the digits the cells show, and the digits that are hidden are lost. From then on, every number you type and every result of a formula is rounded the same way. Undo brings the numbers back, but turning this setting off later does not. Choose Cancel to keep everything as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os números nas células serão arredondados para os dígitos que as células exibem, e os dígitos ocultos serão perdidos. A partir de então, todo número que você digitar e todo resultado de uma fórmula será arredondado da mesma forma. Desfazer restaura os números, mas desativar esta configuração depois não os restaura. Escolha Cancelar para manter tudo como está.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location line="+12"/>
         <source>Rounding the numbers…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arredondando os números…</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>The numbers were all as the cells show them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os números já estavam como as células os exibem.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The numbers are rounded to what the cells show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os números são arredondados para o que as células exibem.</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>The numbers are kept as the cells show them</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os números são mantidos como as células os exibem</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The numbers are kept with all their digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os números são mantidos com todos os seus dígitos</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24896,7 +24896,7 @@ O arquivo não existe.</translation>
     <message>
         <location line="+14"/>
         <source>This workbook is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta pasta de trabalho está aberta apenas para leitura, conforme você escolheu. Abra Arquivo &gt; Informações e escolha Sempre Abrir como Somente Leitura para editá-la.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -27706,12 +27706,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-60"/>
         <source>Check .csv Compatibility</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verificar Compatibilidade com .csv</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>See what a .csv file would leave out of this workbook, without saving.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Veja o que um arquivo .csv deixaria de fora desta pasta de trabalho, sem salvar.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -27726,12 +27726,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+6"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 lê, então esta opção não pode ser mantida.</translation>
+        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 lê, por isso esta opção não pode ser mantida.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A text file, an .xls file, and an .ods file can&apos;t hold this choice. Save the workbook as an .xlsx file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um arquivo de texto, um arquivo .xls e um arquivo .ods não podem manter esta opção. Salve a pasta de trabalho como um arquivo .xlsx primeiro.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -27741,27 +27741,27 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+9"/>
         <source>This workbook will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta pasta de trabalho será aberta apenas para leitura. Salve-a para manter esta opção.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This workbook will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta pasta de trabalho será aberta novamente para edição. Salve-a para manter esta opção.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O restante da planilha: ela foi lida apenas em parte, então o arquivo contém somente a parte que foi lida.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The mark that the workbook is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A marca de que a pasta de trabalho está finalizada.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the workbook for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A opção de sempre abrir a pasta de trabalho apenas para leitura.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -31521,7 +31521,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+2"/>
         <source>Slide Number in Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Número do Slide no Texto</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -31921,7 +31921,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+3"/>
         <source>Use the Insert key to turn overtype mode on and off</source>
-        <translation type="unfinished">Use a tecla Insert para ativar e desativar o modo de sobrescrita</translation>
+        <translation type="unfinished">Use a tecla Insert para ativar e desativar o modo de substituição</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -33469,12 +33469,12 @@ Não é possível ler o arquivo.</translation>
         <location line="+80"/>
         <location line="+23"/>
         <source>Show Presentation On</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar Apresentação Em</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>Show Presentation On: the screen that shows the slides while Presenter View is on the other. Automatic keeps the slides off the screen this window is on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar Apresentação Em: a tela que exibe os slides enquanto o Modo de Exibição do Apresentador está na outra. Automático mantém os slides fora da tela em que esta janela está.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -34335,7 +34335,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_grid.cpp" line="+51"/>
         <source>Grid and Guides…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grade e Guias…</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -34827,7 +34827,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+0"/>
         <source>The footer text and fixed date at the foot of slides. Removing clears the text; the places and slide number stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto do rodapé e a data fixa na parte inferior dos slides. Remover limpa o texto; os espaços reservados e o número do slide permanecem.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -34837,17 +34837,17 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+18"/>
         <source>Custom XML data</source>
-        <translation type="unfinished">Dados XML personalizados</translation>
+        <translation type="unfinished">Dados de XML personalizado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Data that other programs added to the file. It is not kept when you save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dados que outros programas adicionaram ao arquivo. Não são mantidos ao salvar.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Custom XML</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remover XML Personalizado</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -34970,7 +34970,7 @@ Não é possível ler o arquivo.</translation>
         <location line="+36"/>
         <location line="+50"/>
         <source>This presentation has as many equations as it can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta apresentação tem tantas equações quantas pode conter.</translation>
     </message>
     <message>
         <location line="-82"/>
@@ -34998,7 +34998,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+14"/>
         <source>Insert Equation</source>
-        <translation type="unfinished">Inserir Equação</translation>
+        <translation type="unfinished">Inserir equação</translation>
     </message>
 </context>
 <context>
@@ -35602,29 +35602,29 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+97"/>
         <source>That table is too big to paste as a table (more than %1 rows, %2 columns, or %3 cells, or too much to read)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Essa tabela é grande demais para ser colada como tabela (mais de %1 linhas, %2 colunas ou %3 células, ou muito grande para ler)</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+20"/>
         <source>, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, então nada foi colado.</translation>
     </message>
     <message>
         <location line="-20"/>
         <location line="+20"/>
         <source>, so it was pasted as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, então foi colado como texto.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>That table has more than %1 rows, which is more than a table here holds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Essa tabela tem mais de %1 linhas, mais do que uma tabela aqui comporta</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Some of the pasted cells were left out: a cell holds at most %1 characters.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algumas das células coladas foram deixadas de fora: uma célula comporta no máximo %1 caracteres.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -40431,22 +40431,22 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location line="+10"/>
         <source>Current link: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vínculo atual: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Presentations (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apresentações (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Presentations (*.pptx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apresentações (*.pptx)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The new presentation could not be written there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A nova apresentação não pôde ser gravada ali.</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -40550,7 +40550,7 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location filename="../libs/shell/app/linktargetpicker.cpp" line="+29"/>
         <source>Web address</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Endereço da Web</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40566,7 +40566,7 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location line="+2"/>
         <source>Existing file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arquivo existente</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40592,37 +40592,37 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location line="+42"/>
         <source>Showing the first %1 places.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrando os primeiros %1 locais.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>New document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Novo documento</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Choose where the new document goes: type its whole path on this computer, or press Browse.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolha onde o novo documento será salvo: digite o caminho completo neste computador ou clique em Procurar.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A new document here ends with %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um novo documento aqui deve terminar com %1.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A file with that name is already there. Choose another name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Já existe um arquivo com esse nome. Escolha outro nome.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The folder for the new document is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A pasta do novo documento não existe.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The new document could not be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não foi possível criar o novo documento.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -40642,12 +40642,12 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location line="+3"/>
         <source>Save as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salvar como</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Path of the new document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Caminho do novo documento</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -40657,7 +40657,7 @@ Não há nenhum tópico da Ajuda chamado &quot;%1&quot;.</translation>
     <message>
         <location line="+1"/>
         <source>Link to File</source>
-        <translation type="unfinished">Vincular ao Arquivo</translation>
+        <translation type="unfinished">Vincular a arquivo</translation>
     </message>
 </context>
 <context>
@@ -41164,7 +41164,7 @@ Fonte: %3</translation>
     <message>
         <location line="+6"/>
         <source>This publication is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta publicação está aberta apenas para leitura, conforme você escolheu. Abra Arquivo &gt; Informações e escolha Sempre Abrir como Somente Leitura para editá-la.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -44991,27 +44991,27 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+11"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 lê, então esta opção não pode ser mantida.</translation>
+        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 consegue ler, então essa escolha não pode ser mantida.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A .pub file can&apos;t hold this choice. Save the publication as a .jpub file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um arquivo .pub não pode manter essa escolha. Salve a publicação como arquivo .jpub primeiro.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Always Open Read-Only</source>
-        <translation type="unfinished">Sempre Abrir como Somente Leitura</translation>
+        <translation type="unfinished">Sempre abrir como somente leitura</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This publication will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta publicação será aberta apenas para leitura. Salve-a para manter essa escolha.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This publication will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta publicação será aberta para edição novamente. Salve-a para manter essa escolha.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -45121,7 +45121,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+1"/>
         <source>The choice to always open the publication for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A opção para sempre abrir a publicação apenas para leitura.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -47898,12 +47898,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+1"/>
         <source>Swap: the slide show goes to the screen Presenter View is on, and Presenter View to the screen the slide show was on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trocar: a apresentação de slides vai para a tela em que o Modo de Exibição do Apresentador está, e o Modo de Exibição do Apresentador vai para a tela em que a apresentação de slides estava.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Swap screens</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trocar telas</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -49682,7 +49682,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+0"/>
         <source>This link goes to a file that is not opened from a link, so it was not opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este vínculo leva a um arquivo que não foi aberto a partir de um vínculo, então não foi aberto.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50404,7 +50404,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+0"/>
         <source>List style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estilo de lista</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52408,12 +52408,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+209"/>
         <source>Save as E-book (EPUB)</source>
-        <translation type="unfinished">Salvar como e-book (EPUB)</translation>
+        <translation type="unfinished">Salvar como E-book (EPUB)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A book for e-readers and stores, with a chapter at each Heading 1, the contents, and the notes at the end of each chapter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um livro para leitores e lojas de e-books, com um capítulo para cada Título 1, o sumário e as notas no fim de cada capítulo.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -55098,7 +55098,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     <message>
         <location line="+6"/>
         <source>This document is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento está aberto apenas para leitura, conforme você escolheu. Abra Arquivo &gt; Informações e escolha Sempre Abrir como Somente Leitura para editá-lo.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -55442,7 +55442,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+24"/>
         <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
-        <translation type="unfinished">Cria um arquivo PDF/A-1b: todas as fontes ficam no arquivo, para que ele continue igual com o passar dos anos.</translation>
+        <translation type="unfinished">Cria um arquivo PDF/A-1b: todas as fontes ficam no arquivo, então ele terá a mesma aparência daqui a anos.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -55690,27 +55690,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="-61"/>
         <source>Making the e-book...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Criando o e-book...</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The document could not be made into an e-book.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O documento não pôde ser convertido em e-book.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Makes an EPUB book that readers and stores open. Each Heading 1 starts a new chapter, and the contents list Heading 1 to Heading 3.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cria um livro EPUB que leitores e lojas podem abrir. Cada Título 1 inicia um novo capítulo, e o sumário lista os títulos de Título 1 a Título 3.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use the first picture as the cover</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Usar a primeira imagem como capa</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>E-book (*.epub)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">E-book (*.epub)</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -56226,27 +56226,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+11"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 lê, então esta opção não pode ser mantida.</translation>
+        <translation type="unfinished">Este arquivo tem mais propriedades do que %1 consegue ler, então essa escolha não pode ser mantida.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A .odt file can&apos;t hold this choice. Save the document as a .docx file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um arquivo .odt não pode manter essa escolha. Salve o documento como arquivo .docx primeiro.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Always Open Read-Only</source>
-        <translation type="unfinished">Sempre Abrir como Somente Leitura</translation>
+        <translation type="unfinished">Sempre abrir como somente leitura</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>This document will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento será aberto apenas para leitura. Salve-o para manter essa escolha.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This document will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento será aberto para edição novamente. Salve-o para manter essa escolha.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56352,12 +56352,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+2"/>
         <source>External links</source>
-        <translation type="unfinished">Links externos</translation>
+        <translation type="unfinished">Vínculos externos</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imagens e objetos vinculados, e campos que leem outro arquivo. Removê-los transforma os campos em texto e exclui os vinculados. Os links da Web são mantidos.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -56367,7 +56367,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+15"/>
         <source>The choice to always open the document for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A opção para sempre abrir o documento apenas para leitura.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -58312,25 +58312,25 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+16"/>
         <source>List Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estilos de lista</translation>
     </message>
     <message numerus="yes">
         <location line="+11"/>
         <source>%n more list styles are in the Styles pane</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n estilo de lista adicional está no painel Estilos</numerusform>
+            <numerusform>%n estilos de lista adicionais estão no painel Estilos</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Modify List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modificar estilo de lista</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Excluir estilo de lista</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -58440,17 +58440,17 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_controls.cpp" line="+24"/>
         <source>Plain Text</source>
-        <translation type="unfinished">Texto Sem Formatação</translation>
+        <translation type="unfinished">Texto simples</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Drop-Down List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lista suspensa</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Date Picker</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seletor de data</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -61550,33 +61550,33 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../apps/crunch/core/editprecision.cpp" line="+61"/>
         <source>The values are kept as the cells show them already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os valores são mantidos como as células já os exibem.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>%1 is protected, and some of its numbers are locked, so they can&apos;t be rounded. Unprotect it, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 está protegido e alguns de seus números estão bloqueados, por isso não podem ser arredondados. Desproteja-o e tente novamente.</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>That would round %1 numbers, and JeffCrunch rounds at most %2 at once, so that Undo can bring them back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isso arredondaria %1 números, e o JeffCrunch arredonda no máximo %2 de uma vez, para que Desfazer possa restaurá-los.</translation>
     </message>
     <message>
         <location line="+13"/>
         <location line="+52"/>
         <source>Set Precision as Displayed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Definir Precisão como Exibida</translation>
     </message>
     <message>
         <location line="-48"/>
         <source>The rounding could not be finished. Try it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O arredondamento não pôde ser concluído. Tente novamente.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The cells were changed while the rounding was being worked out, so it was not made. Try it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As células foram alteradas enquanto o arredondamento era calculado, por isso ele não foi feito. Tente novamente.</translation>
     </message>
 </context>
 <context>
@@ -65743,12 +65743,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="-19"/>
         <source>This PDF is too large to tag for screen readers, so it was saved without tags.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este PDF é grande demais para ser marcado para leitores de tela, por isso foi salvo sem marcações.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>The PDF is not tagged for screen readers: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O PDF não está marcado para leitores de tela: %1.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -66707,32 +66707,32 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location filename="../apps/deck/io/pptsalvage.cpp" line="+140"/>
         <location line="+7"/>
         <source>The presentation is protected with a password, and can&apos;t be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A apresentação está protegida por senha e não pode ser reparada.</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>No presentation could be found in the file: its first records are damaged or gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nenhuma apresentação foi encontrada no arquivo: seus primeiros registros estão danificados ou ausentes.</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>The end of the presentation was lost, so it was opened as it was at its last save that is whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O final da apresentação foi perdido, então ela foi aberta como estava em seu último salvamento íntegro.</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>The list that says where each slide is kept was lost, so the slides are in the order they are stored, which may not be the order they were in, and a slide may be an older version of itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A lista que indica onde cada slide fica guardado foi perdida, então os slides estão na ordem em que são armazenados, que pode não ser a ordem original, e um slide pode ser uma versão mais antiga de si mesmo.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>No slide of the presentation could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nenhum slide da apresentação pôde ser lido.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The pictures of the presentation, if it had any, could not be found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As imagens da apresentação, se houver, não puderam ser encontradas.</translation>
     </message>
 </context>
 <context>
@@ -66825,37 +66825,37 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+4"/>
         <source>Too many parts of the file were asked for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foram solicitadas partes demais do arquivo.</translation>
     </message>
     <message>
         <location line="+89"/>
         <source>The file holds more than can be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O arquivo contém mais do que pode ser reparado.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O contêiner do arquivo foi danificado, então suas partes foram seguidas pelo diretório, até onde o arquivo permite.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O diretório do arquivo foi danificado ou perdido, então suas partes foram encontradas por seus próprios registros.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The small parts kept in the mini stream of the file could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As partes pequenas guardadas no mini fluxo do arquivo não puderam ser lidas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file was cut short; what came after the cut is lost.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O arquivo foi cortado; o que vinha depois do corte está perdido.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>No %1 could be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nenhum %1 pôde ser encontrado no arquivo.</translation>
     </message>
 </context>
 <context>
@@ -67049,33 +67049,33 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../libs/office/doc/docsalvage.cpp" line="+198"/>
         <source>No document could be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nenhum documento pôde ser encontrado no arquivo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The document is protected with a password, and can&apos;t be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O documento está protegido por senha e não pode ser reparado.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The document&apos;s tables are lost, and its text could not be found without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As tabelas do documento foram perdidas, e seu texto não pôde ser encontrado sem elas.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>The document&apos;s tables are lost, and its text could not be read without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As tabelas do documento foram perdidas, e seu texto não pôde ser lido sem elas.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, pictures, headers, footers, or footnotes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As tabelas que definem a formatação do texto foram perdidas, então o texto foi mantido como parágrafos simples, sem seus estilos, listas, tabelas, imagens, cabeçalhos, rodapés ou notas de rodapé.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pictures of the document, if it had any, could not be found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As imagens do documento, se houver, não puderam ser encontradas.</translation>
     </message>
 </context>
 <context>
@@ -68745,47 +68745,47 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../apps/write/core/contentcontrolops.cpp" line="+425"/>
         <source>Enter text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digitar texto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Choose an item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolher um item</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pick a date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolher uma data</translation>
     </message>
     <message>
         <location line="+323"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um controle de conteúdo fica no texto, não em um cabeçalho, rodapé ou nota.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The selection holds only part of another content control.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A seleção contém apenas parte de outro controle de conteúdo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document has the most content controls it can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O documento já tem o máximo de controles de conteúdo que pode conter.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Content controls can hold each other only so deep.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os controles de conteúdo só podem ser aninhados até certa profundidade.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The content control there can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O controle de conteúdo ali não pode ser alterado.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>A list holds at most %1 items.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma lista comporta no máximo %1 itens.</translation>
     </message>
 </context>
 <context>
@@ -68793,7 +68793,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../apps/write/app/controldialogs.cpp" line="+49"/>
         <source>Content Control Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Propriedades do Controle de Conteúdo</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -68803,22 +68803,22 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+1"/>
         <source>Tag</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marca</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Date format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato de data</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Today looks like</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoje aparece como</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Items in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itens na lista</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -68843,22 +68843,22 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+7"/>
         <source>New item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Novo item</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The control can&apos;t be deleted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O controle não pode ser excluído</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The contents can&apos;t be edited</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O conteúdo não pode ser editado</translation>
     </message>
     <message>
         <location line="+65"/>
         <source>The list has no items yet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A lista ainda não tem itens</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -69162,7 +69162,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+24"/>
         <source>%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -69182,12 +69182,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+8"/>
         <source>bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">barra</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1, %2%3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, %2%3</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -69197,7 +69197,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+33"/>
         <source>A paragraph keeps up to 64 bar stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um parágrafo comporta até 64 paradas de tabulação de barra.</translation>
     </message>
     <message>
         <location line="+107"/>
@@ -71323,7 +71323,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location filename="../apps/write/core/linkops.cpp" line="+119"/>
         <location line="+221"/>
         <source>That heading is no longer in this document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esse título não existe mais neste documento.</translation>
     </message>
     <message>
         <location line="-216"/>
@@ -71338,7 +71338,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+1"/>
         <source>That is not a web address, an email address, or a file on this computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isso não é um endereço da web, um endereço de e-mail nem um arquivo deste computador.</translation>
     </message>
     <message>
         <location line="+258"/>
@@ -72038,23 +72038,23 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+7"/>
         <location line="+14"/>
         <source>Heading: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Título: %1</translation>
     </message>
     <message>
         <location line="-10"/>
         <location line="+6"/>
         <source>Bookmark: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indicador: %1</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Documents (*.docx *.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documentos (*.docx *.odt)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The new document could not be written there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O novo documento não pôde ser gravado ali.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -72069,12 +72069,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+21"/>
         <source>Choose a place for the link to go to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolha um local para o link acessar.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Type the whole path of a file on this computer, or press Browse. A link can&apos;t go to a program.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digite o caminho completo de um arquivo deste computador ou clique em Procurar. Um link não pode apontar para um programa.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -72376,7 +72376,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="-13"/>
         <source>Modify List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modificar Estilo de Lista</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -72467,12 +72467,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+18"/>
         <source>List style name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nome do estilo de lista</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Save as a list style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salvar como estilo de lista</translation>
     </message>
 </context>
 <context>
@@ -72583,7 +72583,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+29"/>
         <source>+%1 more</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">+%1 mais</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+595"/>
@@ -72599,7 +72599,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="-405"/>
         <source>The Spike is full. Paste it to empty it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A Área de Transferência está cheia. Cole-a para esvaziá-la.</translation>
     </message>
     <message>
         <location line="+406"/>
@@ -72669,7 +72669,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+537"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O JeffWrite abre links para endereços da web, endereços de email e documentos ou imagens somente neste computador.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+112"/>
@@ -73422,13 +73422,13 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+899"/>
         <source>The document has too many list styles.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O documento tem estilos de lista demais.</translation>
     </message>
     <message>
         <location line="+52"/>
         <location line="+11"/>
         <source>A list style can&apos;t be given to this text. No list style was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não é possível aplicar um estilo de lista a este texto. Nenhum estilo de lista foi salvo.</translation>
     </message>
 </context>
 <context>

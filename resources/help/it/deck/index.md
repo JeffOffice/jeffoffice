@@ -1,7 +1,7 @@
 # JeffDeck Guida
-<!-- keywords: contenuti, guida, argomenti, inizio, sommario -->
+<!-- keywords: contenuti, guida, argomenti, avvio -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva, il riquadro in uso o l'oggetto selezionato.
+Digita nella casella di ricerca sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva, il riquadro in uso o l'oggetto selezionato.
 
 ## Per iniziare
 
@@ -13,22 +13,23 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 ## Diapositive
 
 - [Aggiungere, modificare ed eliminare diapositive](slides)
-- [Riutilizzare diapositive di un'altra presentazione](reuse)
+- [Riutilizzare diapositive da un'altra presentazione](reuse)
 - [Visualizzazione Struttura, Sequenza diapositive e Visualizzazione schema diapositiva](views)
-- [Dimensioni, sfondo e piè di pagina delle diapositive](design)
+- [Dimensioni, sfondo e piè di pagina della diapositiva](design)
 
 ## Sulla diapositiva
 
-- [Inserire e formattare il testo](text)
+- [Digitare e formattare il testo](text)
 - [Forme, immagini, tabelle e testo artistico](objects)
+- [Equazioni](equations)
 - [Grafici](charts)
 - [Il riquadro Formato forma e la scheda Formato forma](format-shape)
 - [Note del relatore](notes)
 - [Commenti](comments)
 
-## Animazioni e movimento
+## Animazione
 
-- [Transizioni tra diapositive](transitions)
+- [Transizioni tra le diapositive](transitions)
 - [Animazioni](animations)
 
 ## Presentazione
@@ -41,7 +42,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Guida e impostazioni
 
-- [Usare JeffDeck con la tastiera](keyboard)
+- [Usare JeffDeck da tastiera](keyboard)
 - [Modificare le impostazioni di JeffDeck](options)
 - [Sicurezza: a cosa può accedere un file](security)
 - [Scegliere una lingua](language)
@@ -49,5 +50,5 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Le schede della barra multifunzione
 
-- [Home](tab-home), [Inserisci](tab-insert), [Struttura](tab-design), [Transizioni](tab-transitions), [Animazioni](tab-animations), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
+- [Home](tab-home), [Inserisci](tab-insert), [Progettazione](tab-design), [Transizioni](tab-transitions), [Animazioni](tab-animations), [Presentazione](tab-slide-show), [Revisione](tab-review) e [Visualizza](tab-view)
 - [Riproduzione](tab-playback) compare quando è selezionato un filmato o un suono

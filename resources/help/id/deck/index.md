@@ -1,14 +1,14 @@
 # Bantuan JeffDeck
-<!-- keywords: daftar isi, bantuan, topik, memulai -->
+<!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda lakukan: tab pita yang sedang Anda buka, panel yang sedang Anda gunakan, atau objek yang sedang Anda pilih.
+Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, panel yang sedang Anda gunakan, atau objek yang sedang Anda pilih.
 
 ## Memulai
 
 - [Selamat datang di JeffDeck](start)
 - [Mengenal jendela](window)
 - [Membuka dan menyimpan presentasi](open-save)
-- [Memulihkan pekerjaan yang belum disimpan](recover)
+- [Mengambil kembali pekerjaan yang belum disimpan](recover)
 
 ## Slaid
 
@@ -21,6 +21,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 
 - [Mengetik dan memformat teks](text)
 - [Bentuk, gambar, tabel, dan Seni Teks](objects)
+- [Persamaan](equations)
 - [Bagan](charts)
 - [Panel Format Bentuk dan tab Format Bentuk](format-shape)
 - [Catatan pembicara](notes)
@@ -31,7 +32,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Transisi antarslaid](transitions)
 - [Animasi](animations)
 
-## Menampilkan presentasi
+## Tampilkan
 
 - [Memutar presentasi slaid dan menggunakan Tampilan Presenter](show)
 
@@ -41,7 +42,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 
 ## Bantuan dan pengaturan
 
-- [Menggunakan JeffDeck dengan keyboard](keyboard)
+- [Menggunakan JeffDeck dengan papan ketik](keyboard)
 - [Mengubah pengaturan JeffDeck](options)
 - [Keamanan: apa yang dapat dijangkau sebuah berkas](security)
 - [Memilih bahasa](language)

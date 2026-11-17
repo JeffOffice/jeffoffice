@@ -1,18 +1,18 @@
-# Registerkarte „Bildschirmpräsentation“
-<!-- keywords: Registerkarte Bildschirmpräsentation, Menüband, von Beginn an, ab aktueller Folie, zielgruppenorientierte Präsentation, benutzerdefinierte Präsentation, Folie ausblenden, einrichten, Bildschirmpräsentation einrichten, neue Anzeigedauern testen, Anzeigedauern verwenden, Bildschirme, Monitor, Referentenansicht verwenden, Referentenansicht, Probe, üben, vorführen, präsentieren, Präsentation starten, F5 -->
+# Registerkarte Bildschirmpräsentation
+<!-- keywords: Bildschirmpräsentation Registerkarte, Menüband, Ab Beginn, ab aktueller Folie, benutzerdefinierte Bildschirmpräsentation, zielgruppenorientierte Präsentationen, Folie ausblenden, einrichten, Bildschirmpräsentation einrichten, Anzeigedauer testen, Anzeigedauern verwenden, Bildschirme, Referentenansicht verwenden, Referentenansicht, Präsentation anzeigen auf, Bildschirm, proben, abspielen, präsentieren, F5 -->
 
-Auf der Registerkarte **Bildschirmpräsentation** starten Sie die Präsentation und richten sie ein.
+Die Registerkarte **Bildschirmpräsentation** startet die Präsentation und richtet sie ein.
 
-- Die Gruppe **Bildschirmpräsentation starten** enthält **Von Beginn an** (F5) und **Ab aktueller Folie** (Umschalt+F5). **Zielgruppenorientierte Präsentation** listet Ihre zielgruppenorientierten Präsentationen nach Namen auf, sodass Sie eine davon vorführen können. Mit dem Befehl **Zielgruppenorientierte Präsentationen** darin erstellen, ändern, kopieren und löschen Sie sie.
-- Die Gruppe **Einrichten** enthält **Bildschirmpräsentation einrichten**. Damit legen Sie die Art der Präsentation fest, welche Folien gezeigt werden, ob die Präsentation endlos wiederholt wird und wie zur nächsten Folie gewechselt wird. **Folie ausblenden** nimmt die aktuelle Folie aus der Präsentation heraus. **Neue Anzeigedauern testen** spielt die Präsentation ab und zeichnet auf, wie lange Sie bei jeder Folie verweilen. Ist das Kontrollkästchen **Anzeigedauern verwenden** aktiviert, wechselt die Präsentation nach Ablauf der Zeit jeder Folie automatisch weiter.
-- Die Gruppe **Bildschirme** enthält das Kontrollkästchen **Referentenansicht verwenden** für den Fall, dass Sie zwei Bildschirme haben, sowie **Referentenansicht** (Alt+F5). Damit wird die Präsentation in einem kleinen Fenster geöffnet, neben dem die Referentenansicht erscheint. So können Sie auf einem einzigen Bildschirm üben.
+- **Bildschirmpräsentation starten** bietet **Ab Beginn** (F5) und **Ab aktueller Folie** (Umschalt+F5). **Benutzerdefinierte Bildschirmpräsentation** listet Ihre zielgruppenorientierten Präsentationen mit Namen auf, damit Sie eine davon abspielen können. Der Befehl **Zielgruppenorientierte Präsentationen** erstellt, ändert, kopiert und löscht sie.
+- **Einrichten** enthält **Bildschirmpräsentation einrichten**. Dort legen Sie die Art der Präsentation fest, welche Folien gezeigt werden, ob sie wiederholt wird und wie zur nächsten Folie gewechselt wird. **Folie ausblenden** nimmt die aktuelle Folie aus der Präsentation heraus. **Anzeigedauer testen** spielt die Präsentation ab und zeichnet auf, wie lange Sie bei jeder Folie verweilen. Das Kontrollkästchen **Anzeigedauern verwenden** sorgt dafür, dass die Präsentation nach der Anzeigedauer jeder Folie automatisch weiterschaltet.
+- **Bildschirme** enthält das Kontrollkästchen **Referentenansicht verwenden** für den Fall, dass Sie zwei Bildschirme haben, die Liste **Präsentation anzeigen auf**, mit der Sie den Bildschirm wählen, auf dem die Folien erscheinen (Automatisch oder ein Bildschirm nach Name und Größe), sowie **Referentenansicht** (Alt+F5). Dieser Befehl öffnet die Präsentation in einem kleinen Fenster, neben dem die Referentenansicht angezeigt wird, sodass Sie die Präsentation auf einem einzigen Bildschirm proben können.
 
-Während die Präsentation läuft, drücken Sie Strg+P für den Stift, Strg+I für den Textmarker, Strg+L für den Laserpointer und Strg+E für den Radierer. Mit Strg+A oder Esc erhalten Sie wieder den Pfeil.
+Während die Präsentation läuft, drücken Sie Strg+P für den Stift, Strg+I für den Textmarker, Strg+L für den Laserpointer und Strg+E für den Radierer. Mit Strg+A oder Esc kehren Sie wieder zum Pfeil zurück.
 
-Siehe [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show).
+Siehe [Bildschirmpräsentation abspielen und Referentenansicht verwenden](show).
 
 ## Verwandte Themen
 
-- [Bildschirmpräsentation vorführen und Referentenansicht verwenden](show)
+- [Bildschirmpräsentation abspielen und Referentenansicht verwenden](show)
 - [Folien hinzufügen, ändern und löschen](slides)
-- [Registerkarte „Übergänge“](tab-transitions)
+- [Registerkarte Übergänge](tab-transitions)

@@ -1,12 +1,12 @@
 # JeffDeck Help
 <!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op **F1** op elk moment voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, het deelvenster waarin u werkt, of het object dat u hebt geselecteerd.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken die u wilt uitvoeren. Druk op elk moment op **F1** voor hulp bij wat u aan het doen bent: het linttabblad waarop u staat, het deelvenster waarin u werkt, of het object dat u hebt geselecteerd.
 
 ## Aan de slag
 
 - [Welkom bij JeffDeck](start)
-- [De indeling van het venster](window)
+- [Uw weg vinden in het venster](window)
 - [Presentaties openen en opslaan](open-save)
 - [Niet-opgeslagen werk herstellen](recover)
 
@@ -14,40 +14,41 @@ Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken. Druk op
 
 - [Dia's toevoegen, wijzigen en verwijderen](slides)
 - [Dia's uit een andere presentatie opnieuw gebruiken](reuse)
-- [Overzichtsweergave, de Diasorteerder en de weergave Diamodel](views)
+- [Overzichtsweergave, diasorteerder en diamodelweergave](views)
 - [Diaformaat, achtergrond en voetteksten](design)
 
 ## Op een dia
 
-- [Tekst invoeren en opmaken](text)
+- [Tekst typen en opmaken](text)
 - [Vormen, afbeeldingen, tabellen en tekstopmaak](objects)
+- [Vergelijkingen](equations)
 - [Grafieken](charts)
-- [Het deelvenster Vormopmaak en het tabblad Vormopmaak](format-shape)
+- [Het deelvenster Vorm opmaken en het tabblad Vormopmaak](format-shape)
 - [Sprekersnotities](notes)
 - [Opmerkingen](comments)
 
-## Beweging
+## Bewegingen
 
 - [Overgangen tussen dia's](transitions)
 - [Animaties](animations)
 
 ## Presenteren
 
-- [De diavoorstelling afspelen en de Presentatieweergave gebruiken](show)
+- [De diavoorstelling afspelen en de presentatorweergave gebruiken](show)
 
 ## Afdrukken en delen
 
-- [Afdrukken, pdf en afbeeldingen van dia's](printing)
+- [Afdrukken, pdf en dia-afbeeldingen](printing)
 
-## Help en instellingen
+## Hulp en instellingen
 
 - [JeffDeck met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffDeck wijzigen](options)
-- [Beveiliging: wat een bestand toegang mag krijgen](security)
+- [Beveiliging: waarmee een bestand verbinding mag maken](security)
 - [Een taal kiezen](language)
 - [Het scherm Bestand](file-screen)
 
-## De tabbladen van het lint
+## De linttabbladen
 
 - [Start](tab-home), [Invoegen](tab-insert), [Ontwerp](tab-design), [Overgangen](tab-transitions), [Animaties](tab-animations), [Diavoorstelling](tab-slide-show), [Controleren](tab-review) en [Beeld](tab-view)
 - [Afspelen](tab-playback) wordt getoond terwijl een film of geluid is geselecteerd

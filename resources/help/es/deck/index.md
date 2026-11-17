@@ -1,7 +1,7 @@
 # Ayuda de JeffDeck
-<!-- keywords: contenido, ayuda, temas, inicio -->
+<!-- keywords: contenido, ayuda, temas, inicio, empezar -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto seleccionado.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
 
 ## Primeros pasos
 
@@ -21,19 +21,20 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Escribir y dar formato al texto](text)
 - [Formas, imágenes, tablas y texto artístico](objects)
+- [Ecuaciones](equations)
 - [Gráficos](charts)
 - [El panel Formato de forma y la pestaña Formato de forma](format-shape)
 - [Notas del orador](notes)
 - [Comentarios](comments)
 
-## Movimiento
+## Animación
 
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
 ## Presentarla
 
-- [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)
+- [Iniciar la presentación con diapositivas y usar la Vista Moderador](show)
 
 ## Imprimir y compartir
 
@@ -50,4 +51,4 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
-- [Reproducción](tab-playback) se muestra cuando hay un vídeo o un sonido seleccionado
+- [Reproducción](tab-playback) aparece mientras se selecciona un vídeo o un sonido

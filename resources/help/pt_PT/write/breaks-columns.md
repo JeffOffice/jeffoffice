@@ -7,32 +7,34 @@ Todos estes comandos estão no separador **Esquema**, no grupo **Configurar Pág
 
 Escolha **Esquema > Quebras**.
 
-- **Página** (Ctrl+Enter) termina a página. O que vem a seguir passa para o topo da página seguinte.
-- **Coluna** (Ctrl+Shift+Enter) termina a coluna. O que vem a seguir passa para o topo da coluna seguinte. Na última coluna de uma página, passa para a página seguinte.
+- **Página** (Ctrl+Enter) termina a página. O que se segue vai para o topo da página seguinte.
+- **Coluna** (Ctrl+Shift+Enter) termina a coluna. O que se segue vai para o topo da coluna seguinte. Na última coluna de uma página, passa para a página seguinte.
 - **Página Seguinte** inicia uma nova secção numa nova página.
 - **Contínua** inicia uma nova secção na mesma página. Use-a para alterar o número de colunas a meio de uma página.
-- **Página Par** e **Página Ímpar** iniciam uma nova secção na página par ou ímpar seguinte. Se a página tivesse o número errado, é deixada em branco uma página antes dela.
+- **Página Par** e **Página Ímpar** iniciam uma nova secção na página par ou ímpar seguinte. Se a página ficaria com o número errado, é deixada em branco uma página antes dela.
 
-Uma **secção** é uma parte do documento com a sua própria configuração de página, pelo que pode ter as suas próprias margens, colunas e números de linha. Não é inserida uma quebra para um cabeçalho ou rodapé.
+Uma **secção** é uma parte do documento com a sua própria configuração de página, pelo que pode ter as suas próprias margens, colunas e números de linha. Não é criada nenhuma quebra para um cabeçalho ou rodapé.
 
 ## Margens
 
-**Esquema > Margens** tem as margens **Normais**, **Estreitas**, **Moderadas** e **Largas**. **Espelhadas** destina-se a páginas que ficam frente a frente, como num livro. Torna a margem interior (a junto à encadernação) mais larga do que a exterior. **Espelhar Margens** ativa ou desativa a mesma definição. **Margens Personalizadas** abre a janela Configurar Página.
+**Esquema > Margens** tem as margens **Normal**, **Estreita**, **Moderada** e **Larga**. **Espelhadas** destina-se a páginas que ficam frente a frente, como num livro. Torna a margem interior (a que fica junto à encadernação) mais larga do que a exterior. **Espelhar Margens** ativa ou desativa a mesma definição. **Margens Personalizadas** abre a janela Configurar Página.
 
 ## Colunas
 
 **Esquema > Colunas** tem **Uma**, **Duas** e **Três** colunas de largura igual. **Esquerda** tem uma coluna estreita à esquerda e uma larga à direita. **Direita** é o inverso.
 
-**Mais Colunas** abre uma janela. Defina o **número de colunas** (até 32). Desmarque **Largura igual das colunas** para definir a largura de cada coluna e o espaço que a segue. Marque **Linha entre** para desenhar uma linha fina entre as colunas. Escolha **Esta secção** ou **Documento inteiro**.
+**Mais Colunas** abre uma janela. Defina o **número de colunas** (até 32). Desative **Largura igual das colunas** para definir a largura de cada coluna e o espaço depois dela. Ative **Linha entre colunas** para desenhar uma linha fina entre as colunas. Escolha **Esta secção** ou **Documento inteiro**.
 
 ## Hifenização
 
-**Esquema > Hifenização > Automática** divide as palavras longas no fim de uma linha, com um hífen, para que o limite direito fique mais uniforme. **Nenhuma** desativa esta função. Utiliza as listas de palavras do idioma do texto. Aplica-se a todo o documento.
+**Esquema > Hifenização > Automática** divide palavras longas no fim de uma linha, com um hífen, para que a margem direita fique mais uniforme. **Nenhuma** desativa esta função. Utiliza as listas de palavras do idioma do texto. Aplica-se a todo o documento.
 
-**Opções de Hifenização** tem dois valores. A **zona de hifenização** é o espaço vazio, em pontos, no fim de uma linha. Uma palavra só é dividida se, ao passar a palavra inteira para a linha seguinte, sobrar mais espaço do que esse valor. O **limite** é o número máximo de linhas seguidas que podem terminar com um hífen. Ao atingir esse número, a palavra seguinte passa inteira para a linha seguinte. "Sem limite" permite que qualquer número de linhas seguidas termine com um hífen.
+Em **Opções de Hifenização** existem dois valores. A **zona de hifenização** é o espaço vazio, em pontos, no fim de uma linha. Uma palavra só é dividida se, ao passá-la inteira para a linha seguinte, sobrar mais espaço do que esse valor. O **limite** é o número máximo de linhas seguidas que podem terminar com hífen. Depois desse número, a palavra seguinte passa inteira para a linha seguinte. "Sem limite" permite que qualquer número de linhas seguidas termine com hífen.
 
-**Hifenizar Palavras em Maiúsculas** é uma opção com marca de verificação no mesmo menu. Quando está ativa, uma palavra escrita em MAIÚSCULAS também pode ser dividida. Desative-a para manter essas palavras inteiras. Fica esbatida enquanto a Hifenização estiver em **Nenhuma**, porque, nesse caso, nenhuma palavra é dividida.
+**Hifenizar Palavras em Maiúsculas** é uma caixa de verificação no mesmo menu. Quando está ativa, uma palavra em MAIÚSCULAS também pode ser dividida. Desative-a para manter essas palavras inteiras. Fica a cinzento enquanto a Hifenização estiver em **Nenhuma**, porque nesse caso nenhuma palavra é dividida.
 
 ## Números de linha
 
-**Esquema > Números de Linha** coloca um número ao lado de cada linha, na margem. **Contínua** conta de página para página. **Reiniciar em Cada Página** e **Reiniciar em Cada Secção** recomeçam em 1. **Nenhuma** remove os números. **Opções de Numeração de Linhas** abre uma janela onde pode contar de um número diferente de 1 (por exemplo, de 5 em 5 linhas), escolher o primeiro número e definir o espaço entre os números e o texto.
+**Esquema > Números de Linha** coloca um número ao lado de cada linha, na margem. **Contínua** continua a contagem de página para página. **Reiniciar em Cada Página** e **Reiniciar em Cada Secção** recomeçam em 1. **Nenhuma** remove os números. **Opções de Numeração de Linhas** abre uma janela onde pode contar de um número diferente de 1 (de cinco em cinco linhas, por exemplo), escolher o primeiro número e definir o espaço entre os números e o texto.
+
+Para excluir um parágrafo, abra a caixa **Parágrafo**, vá até às quebras de linha e de página e marque **Suprimir números de linha**. Esse parágrafo não recebe números, e as suas linhas não são contadas. Guardado como ficheiro OpenDocument (.odt), esta escolha mantém-se no parágrafo.

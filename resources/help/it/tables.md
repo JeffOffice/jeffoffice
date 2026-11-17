@@ -1,78 +1,84 @@
 # Creare e modificare tabelle
-<!-- keywords: tabella, griglia, righe, colonne, celle, selezionare celle, selezionare riga, selezionare colonna, più celle, unire celle, dividere celle, bordi, riempimento cella, formato tabella, stile tabella, inserire tabella, disegnare tabella, eliminare riga, griglia, direzione testo, orientamento testo, sillabazione -->
+<!-- keywords: tabella, griglia, righe, colonne, celle, seleziona celle, seleziona riga, seleziona colonna, più celle, unisci celle, dividi celle, bordi, riempimento cella, formato tabella, stile tabella, inserisci tabella, disegna tabella, elimina riga, linee griglia, direzione testo, sillabazione -->
 
 Una tabella è una griglia di righe e colonne. Ogni casella della griglia è una cella, e ogni cella contiene il proprio testo.
 
 ## Inserire una tabella
 
-- Fare clic su **Home > Oggetti > Tabella** (oppure **Inserisci > Tabelle > Tabella**). Scorrere sulla griglia per scegliere le righe e le colonne, quindi fare clic.
-- In alternativa, scegliere **Inserisci tabella…** in fondo allo stesso menu. Nella finestra di dialogo **Crea tabella** impostare **Numero di righe**, **Numero di colonne** e **Formato tabella**.
-- Oppure scegliere **Disegna tabella** nel menu **Tabella** della scheda **Home** e trascinare un rettangolo. Si ottiene una tabella di 3 righe e 3 colonne.
+- Fai clic su **Home > Oggetti > Tabella** (oppure **Inserisci > Tabelle > Tabella**). Scorri con il puntatore sulla griglia per scegliere righe e colonne, quindi fai clic.
+- Oppure scegli **Inserisci tabella…** in fondo a quel menu. Nella finestra di dialogo **Crea tabella** imposta **Numero di righe**, **Numero di colonne** e **Formato tabella**.
+- Oppure scegli **Disegna tabella** nel menu **Tabella** della scheda **Home**, e trascina per disegnare un rettangolo. Otterrai 3 righe e 3 colonne.
 
-La tabella viene visualizzata al centro della pagina. Trascinarne il bordo per spostarla.
+La tabella compare a metà pagina. Trascina il suo bordo per spostarla.
 
-## Digitare in una tabella
+## Incollare celle come tabella
 
-Fare clic in una cella e digitare. Premere TAB per passare alla cella successiva e MAIUSC+TAB per tornare indietro. Premere TAB nell'ultima cella per aggiungere una riga. L'altezza di una riga aumenta per adattarsi al testo.
+Copia celle da JeffCrunch, oppure una tabella da un documento o da una pagina web, e premi **Ctrl+V**. Le celle vengono incollate come tabella nella parte superiore centrale della pagina. Ogni cella mantiene il proprio carattere, dimensione, grassetto, corsivo, sottolineatura e colore del testo, il proprio sfondo, i propri bordi e il modo in cui il testo è disposto. Le celle unite restano unite, e il testo è quello che le celle mostravano, quindi un numero appare come appariva. La tabella non è mai più larga della pagina, e un solo **Ctrl+Z** la annulla.
+
+Se stai scrivendo in una cella della tabella quando incolli, le celle riempiono la tabella a partire da quella cella. Ogni cella assume l'aspetto della cella di origine, quindi una cella senza sfondo o bordo arriva senza, e quella che sostituisce perde i propri. Le celle unite e la larghezza delle colonne non vengono riportate in una tabella già esistente. Le celle oltre il bordo della tabella vengono omesse, e la barra di stato lo indica. **Mantieni formattazione di origine** crea anche la tabella. **Mantieni solo testo** incolla solo le parole, e **Incolla speciale** elenca comunque quella opzione e le altre forme. Una pagina che contiene altro oltre alla tabella viene incollata come sempre. Una tabella di più di 1.000 righe, 64 colonne o 100.000 celle, oppure di più di 256 righe (il massimo previsto per una tabella), viene incollata come semplice testo, e la barra di stato indica il motivo.
+
+## Scrivere in una tabella
+
+Fai clic su una cella e scrivi. Premi Tab per passare alla cella successiva e Maiusc+Tab per tornare indietro. Premi Tab nell'ultima cella per aggiungere una riga. Una riga si allunga per contenere il suo testo.
 
 ## Selezionare celle, righe, colonne o l'intera tabella
 
-- Fare clic in una cella per lavorare su quella cella.
-- Per selezionare più celle contemporaneamente, trascinare da una cella a un'altra. In alternativa, fare clic su una cella, quindi tenere premuto MAIUSC e fare clic su un'altra. Le celle comprese nel rettangolo tra le due vengono evidenziate, e un nuovo MAIUSC+clic sposta l'angolo opposto. Una cella unita viene sempre selezionata per intero.
-- Fare clic su **Layout tabella > Tabella > Seleziona** per **Seleziona cella**, **Seleziona riga**, **Seleziona colonna** e **Seleziona tabella**. **Seleziona cella** seleziona tutto il testo della cella in cui ci si trova. **Seleziona riga** e **Seleziona colonna** selezionano tutte le celle della riga o della colonna in cui ci si trova. Se sono già selezionate più celle, vengono selezionate tutte le righe o colonne interessate da quelle celle.
-- Fare clic sul bordo esterno della tabella, oppure premere ESC durante la digitazione, per selezionare l'intera tabella. Premere ESC quando sono selezionate delle celle per tornare all'intera tabella.
+- Fai clic dentro una cella per lavorare su quella cella.
+- Per selezionare più celle insieme, trascina da una cella a un'altra. Oppure fai clic su una cella, quindi tieni premuto Maiusc e fai clic su un'altra. Le celle nel rettangolo compreso tra le due vengono evidenziate, e un Maiusc+clic successivo sposta l'angolo opposto. Una cella unita è sempre selezionata per intero.
+- Fai clic su **Layout tabella > Tabella > Seleziona** per **Seleziona cella**, **Seleziona riga**, **Seleziona colonna** e **Seleziona tabella**. **Seleziona cella** seleziona tutto il testo della cella in cui ti trovi. **Seleziona riga** e **Seleziona colonna** selezionano ogni cella della riga o della colonna in cui ti trovi. Se hai già selezionato più celle, vengono selezionate tutte le righe o colonne che quelle celle raggiungono.
+- Fai clic sul bordo esterno della tabella, oppure premi Esc mentre digiti, per selezionare l'intera tabella. Premi Esc quando sono selezionate delle celle per tornare alla tabella intera.
 
-È possibile eseguire tutte queste operazioni dalla tastiera. Premere ALT, quindi J e L per aprire **Layout tabella**. Premere poi S e L per aprire il menu **Seleziona**, usare i tasti di direzione per scegliere un comando e premere INVIO. Con delle celle selezionate, INVIO o F2 avvia la digitazione nella prima di esse, mentre CANC ne cancella il testo ma mantiene la tabella.
+Puoi fare tutto questo da tastiera. Premi Alt, poi J e L per aprire **Layout tabella**. Quindi premi S e L per aprire il menu **Seleziona**, usa i tasti freccia per scegliere un comando e premi Invio. Con delle celle selezionate, Invio o F2 inizia a scrivere nella prima di esse, e Canc cancella il loro testo mantenendo la tabella.
 
-Riempimenti, bordi, diagonali, allineamento, margini delle celle e formattazione del testo (ad esempio tipo di carattere, dimensione, grassetto, corsivo, sottolineato, colore e allineamento) si applicano a tutte le celle selezionate, e un solo comando Annulla li annulla tutti. Si applicano alla cella in cui ci si trova se si è soltanto fatto clic in una cella, e a tutte le celle quando è selezionata l'intera tabella. Per le diagonali occorre trovarsi in una cella o avere delle celle selezionate.
+Riempimenti, bordi, diagonali, allineamento, margini delle celle e formattazione del testo (come carattere, dimensione, grassetto, corsivo, sottolineatura, colore e allineamento) si applicano a ogni cella selezionata, e un solo Annulla le ripristina tutte. Si applicano alla cella in cui ti trovi se hai appena fatto clic in una cella, e a ogni cella quando è selezionata l'intera tabella. Le diagonali richiedono che tu sia in una cella o che siano selezionate delle celle.
 
 ## Aggiungere ed eliminare righe e colonne
 
-1. Fare clic in una cella accanto al punto desiderato, oppure selezionare più celle.
-2. In **Layout tabella > Righe e colonne** fare clic su **Inserisci sopra**, **Inserisci sotto**, **Inserisci a sinistra** o **Inserisci a destra**. Con delle celle selezionate, la nuova riga o colonna viene inserita sopra, sotto, a sinistra o a destra di tutte.
-3. Per rimuovere righe o colonne, fare clic su **Elimina** e scegliere **Elimina righe**, **Elimina colonne** o **Elimina tabella**. **Elimina righe** rimuove tutte le righe interessate dalla cella in cui ci si trova o dalle celle selezionate, e **Elimina colonne** fa lo stesso per le colonne.
+1. Fai clic in una cella accanto al punto desiderato, oppure seleziona più celle.
+2. In **Layout tabella > Righe e colonne**, fai clic su **Inserisci sopra**, **Inserisci sotto**, **Inserisci a sinistra** o **Inserisci a destra**. Con delle celle selezionate, la nuova riga o colonna viene aggiunta sopra, sotto, a sinistra o a destra di tutte.
+3. Per rimuovere righe o colonne, fai clic su **Elimina** e scegli **Elimina righe**, **Elimina colonne** o **Elimina tabella**. **Elimina righe** rimuove ogni riga raggiunta dalla cella in cui ti trovi o dalle celle selezionate, e **Elimina colonne** fa lo stesso per le colonne.
 
-Con l'intera tabella selezionata, **Inserisci sopra** e **Inserisci a sinistra** aggiungono all'inizio della tabella, mentre **Inserisci sotto** e **Inserisci a destra** aggiungono alla fine. Se una nuova riga o colonna attraversa una cella unita, la cella unita si allarga per includerla. Per eliminare una riga o una colonna, fare prima clic al suo interno. Una tabella contiene sempre almeno una riga e una colonna, e al massimo 256 righe e 256 colonne.
+Con l'intera tabella selezionata, **Inserisci sopra** e **Inserisci a sinistra** aggiungono all'inizio della tabella, mentre **Inserisci sotto** e **Inserisci a destra** aggiungono alla fine. Se una nuova riga o colonna attraversa una cella unita, la cella unita si allarga per includerla. Per eliminare una riga o una colonna, fai prima clic al suo interno. Una tabella mantiene almeno una riga e una colonna, e può avere al massimo 256 righe e 256 colonne.
 
 ## Modificare le dimensioni
 
-- Digitare un numero in **Layout tabella > Dimensioni > Altezza** o **Larghezza** per ridimensionare l'intera tabella. Una nuova larghezza ridimensiona proporzionalmente tutte le colonne, e una nuova altezza ridimensiona proporzionalmente tutte le righe. Quando è selezionato **Adatta al testo**, una riga non diventa mai più bassa di quanto richiesto dal suo testo.
-- Trascinare una linea tra due colonne per modificarne la larghezza. La larghezza della tabella non cambia.
-- Trascinare una linea tra due righe per modificare l'altezza di una riga.
-- Fare clic su **Layout tabella > Dimensioni > Distribuisci righe** o **Distribuisci colonne** per renderle uguali.
+- Digita un numero in **Layout tabella > Dimensioni > Altezza** o **Larghezza** per dimensionare l'intera tabella. Una nuova larghezza ridimensiona proporzionalmente ogni colonna, e una nuova altezza ridimensiona proporzionalmente ogni riga. Una riga non diventa mai più bassa del testo che contiene, finché **Adatta altezza al testo** è selezionata.
+- Trascina una linea tra due colonne per modificarne le larghezze. La tabella mantiene la stessa larghezza.
+- Trascina una linea tra due righe per modificare l'altezza di una riga.
+- Fai clic su **Layout tabella > Dimensioni > Distribuisci righe** o **Distribuisci colonne** per renderle uguali.
 
 ## Unire e dividere celle
 
-Selezionare le celle da unire e scegliere **Layout tabella > Unisci > Unisci celle**. Le celle diventano una sola e il loro testo viene combinato, un paragrafo per ogni cella, da sinistra a destra e dall'alto in basso. Se si è soltanto fatto clic in una cella, **Unisci celle** la unisce alla cella alla sua destra. **Dividi celle** separa nuovamente le celle unite.
+Seleziona le celle che vuoi unire, e scegli **Layout tabella > Unisci > Unisci celle**. Diventano un'unica cella, e il loro testo si combina, con un paragrafo per ogni cella, da sinistra a destra e dall'alto in basso. Se fai solo clic in una cella, **Unisci celle** la unisce alla cella che si trova alla sua destra. **Dividi celle** riporta le celle unite a celle separate.
 
-## Colori e bordi
+## Colore e bordi
 
-Usare la scheda **Struttura tabella**.
+Usa la scheda **Struttura tabella**.
 
-- **Formati tabella** è una raccolta di aspetti predefiniti. Un formato imposta riempimenti, bordi e testo delle intestazioni.
-- **Riempimento cella** colora le celle selezionate, la cella in cui ci si trova o l'intera tabella.
-- Per i bordi, scegliere prima un **Colore linea** e uno **Spessore linea**. Fare quindi clic su **Bordi** e scegliere **Tutti i bordi**, **Bordi esterni**, **Bordi interni**, **Nessun bordo** o un singolo lato, ad esempio **Bordo superiore**.
-- **Diagonali** divide una cella con una linea da un angolo all'altro. Scegliere **Dividi verso il basso** o **Dividi verso l'alto**. Ogni metà ha il proprio testo: il testo della cella rimane nella prima metà (in basso a sinistra di una linea che scende, in alto a sinistra di una linea che sale), mentre la seconda metà inizia vuota. Fare clic in una metà per digitarvi, oppure premere TAB per passare da una metà all'altra e poi alla cella successiva. Il testo va a capo all'interno della sua metà, per cui le righe si accorciano verso la punta del triangolo. La riga non si allunga per adattarsi, quindi aumentarne l'altezza se il testo risulta tagliato. Se si sceglie **Dividi verso il basso** o **Dividi verso l'alto** per una cella già divisa, la linea viene girata nell'altro verso mantenendo colore e spessore. **Nessuna divisione** rimuove la linea e accoda il testo della seconda metà a quello della prima; la riga si allunga se il testo unito richiede più spazio.
+- **Formati tabella** è una galleria di aspetti predefiniti. Un formato imposta riempimenti, bordi e testo dell'intestazione.
+- **Riempimento cella** colora le celle selezionate, la cella in cui ti trovi, oppure l'intera tabella.
+- Per i bordi, scegli prima un **Colore linea** e uno **Spessore linea**. Quindi fai clic su **Bordi** e scegli **Tutti i bordi**, **Bordi esterni**, **Bordi interni**, **Nessun bordo**, oppure un solo lato come **Bordo superiore**.
+- **Diagonali** divide una cella con una linea da angolo ad angolo. Scegli **Dividi verso il basso** o **Dividi verso l'alto**. Ogni metà ha il proprio testo: il testo della cella resta nella prima metà (il basso a sinistra di una linea che scende, l'alto a sinistra di una che sale), e la seconda metà inizia vuota. Fai clic in una metà per scrivere lì, oppure premi Tab per passare da una metà all'altra, e poi alla cella successiva. Il testo va a capo all'interno della sua metà, quindi le sue righe si accorciano verso la punta del triangolo. La riga non si allunga per questo, quindi rendi la riga più alta se il testo viene tagliato. Scegliere **Dividi verso il basso** o **Dividi verso l'alto** per una cella già divisa inverte la direzione della linea e mantiene colore e spessore. **Nessuna divisione** rimuove la linea e sistema il testo della seconda metà dopo quello della prima, e la riga si allunga se il testo unito richiede più spazio.
 
-Per posizionare il testo in una cella, usare i pulsanti di **Layout tabella > Allineamento**: in alto, al centro o in basso, e a sinistra, al centro, a destra o giustificato. **Margini cella**, anch'esso in questo gruppo, imposta lo spazio tra i bordi della cella e il testo: **Nessuno**, **Stretti**, **Moderati** o **Larghi**. I pulsanti in alto, al centro e in basso e **Margini cella** modificano le celle selezionate, la cella in cui ci si trova o tutte le celle quando è selezionata l'intera tabella.
+Per posizionare il testo in una cella, usa i pulsanti in **Layout tabella > Allineamento**: in alto, al centro o in basso, e a sinistra, al centro, a destra o giustificato. **Margini cella**, sempre lì, imposta lo spazio tra i bordi di una cella e il suo testo: **Nessuno**, **Stretti**, **Moderati** oppure **Ampi**. I pulsanti in alto, al centro e in basso e **Margini cella** modificano le celle selezionate, la cella in cui ti trovi, oppure ogni cella quando è selezionata l'intera tabella.
 
-**Direzione testo**, anch'esso in **Layout tabella > Allineamento**, ruota di un quarto di giro il testo di una cella, in modo che le righe si leggano dall'alto in basso. È adatto per l'intestazione di una colonna stretta. Fare di nuovo clic per riportare il testo nella posizione originale. La riga non si allunga per adattarsi al testo ruotato, quindi trascinare verso il basso la linea sotto la riga finché il testo non è contenuto.
+**Direzione testo**, anch'essa in **Layout tabella > Allineamento**, ruota il testo di una cella di un quarto di giro, così le sue righe si leggono dall'alto in basso. È adatta a un'intestazione sopra una colonna stretta. Fai clic di nuovo per riportare il testo nella posizione originale. La riga non si adatta al testo ruotato, quindi trascina verso il basso la linea sotto la riga finché il testo non entra.
 
-**Sillabazione**, accanto, apre la finestra di dialogo **Sillabazione**. Qui è possibile attivare o disattivare **Sillaba automaticamente questo testo**, che stabilisce se le parole lunghe vengono spezzate con un trattino alla fine della riga, e impostare l'**Area di sillabazione**. Le parole nelle celle vengono sillabate a meno che non si disattivi l'opzione. Vedere [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
+**Sillabazione**, accanto, apre la finestra di dialogo **Sillabazione**. Lì puoi attivare o disattivare **Sillaba automaticamente questo testo**, che stabilisce se le parole lunghe vanno a capo con un trattino alla fine di una riga, e puoi impostare la **Zona di sillabazione**. Le parole nelle celle vengono sillabate a meno che tu non la disattivi. Vedi [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing).
 
-Direzione testo modifica le celle selezionate, la cella in cui ci si trova o tutte le celle quando è selezionata l'intera tabella, e ogni cella mantiene la propria impostazione. La sillabazione funziona diversamente: il testo di una tabella costituisce un unico articolo, quindi l'impostazione appartiene all'intera tabella, indipendentemente dalle celle selezionate, e un file .pub la conserva in questo modo. **Aggiungi trattini facoltativi** nella finestra di dialogo agisce sul testo delle celle selezionate, della cella in cui ci si trova o di tutte le celle quando è selezionata l'intera tabella.
+**Direzione testo** modifica le celle selezionate, la cella in cui ti trovi, oppure ogni cella quando è selezionata l'intera tabella, e ogni cella mantiene la propria impostazione. La sillabazione è diversa: il testo di una tabella costituisce un unico testo, quindi l'impostazione appartiene all'intera tabella, indipendentemente dalle celle selezionate, e un file .pub la mantiene così. **Aggiungi trattini facoltativi** nella finestra di dialogo agisce sul testo delle celle selezionate, della cella in cui ti trovi, oppure di ogni cella quando è selezionata l'intera tabella.
 
-**Visualizza griglia** in **Layout tabella > Tabella** mostra sullo schermo linee punteggiate intorno a ogni cella. Queste linee non vengono stampate.
+**Visualizza linee griglia** in **Layout tabella > Tabella** mostra linee punteggiate intorno a ogni cella sullo schermo. Non vengono stampate.
 
 ## Formato tabella
 
-Fare clic con il pulsante destro del mouse sulla tabella e scegliere **Formato tabella**. In alternativa, fare clic sulla piccola freccia nell'angolo di **Layout tabella > Allineamento**, che apre la finestra di dialogo nella scheda **Proprietà cella**. La finestra di dialogo contiene queste schede:
+Fai clic con il pulsante destro sulla tabella e scegli **Formato tabella**. Oppure fai clic sulla piccola freccia nell'angolo di **Layout tabella > Allineamento**, che apre la finestra sulla scheda **Proprietà cella**. La finestra di dialogo ha queste schede:
 
 - **Colori e linee** imposta il riempimento dietro le celle e la linea intorno alla tabella.
-- **Dimensioni** imposta altezza, larghezza e rotazione della tabella. Selezionare **Blocca proporzioni** per mantenere le proporzioni della tabella quando se ne trascina un quadratino d'angolo.
-- **Layout** imposta la posizione della tabella nella pagina e la disposizione del testo intorno a essa.
-- **Proprietà cella** imposta l'allineamento verticale, i quattro margini e **Ruota testo di 90°** (equivalente a **Direzione testo**). Queste impostazioni si applicano alle celle selezionate, alla cella in cui ci si trova o a tutte le celle quando è selezionata l'intera tabella. Vengono applicate solo le impostazioni modificate.
-- **Testo alternativo** descrive la tabella per le persone che non possono vederla.
+- **Dimensioni** imposta altezza, larghezza e rotazione della tabella. Seleziona **Blocca proporzioni** per mantenere le proporzioni della tabella quando trascini una maniglia d'angolo.
+- **Layout** imposta la posizione della tabella nella pagina e il modo in cui il testo le si dispone attorno.
+- **Proprietà cella** imposta l'allineamento verticale, i quattro margini e **Ruota testo di 90°** (come **Direzione testo**). Si applicano alle celle selezionate, alla cella in cui ti trovi, oppure a ogni cella quando è selezionata l'intera tabella. Vengono applicate solo le impostazioni che modifichi.
+- **Testo alternativo** descrive la tabella per chi non può vederla.
 
 ## Argomenti correlati
 

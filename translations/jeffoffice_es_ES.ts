@@ -1206,6 +1206,10 @@ The file can't be read.</source>
 No se puede leer el fichero.</translation>
     </message>
     <message>
+        <source>See what a .csv file would leave out of this workbook, without saving.</source>
+        <translation type="unfinished">Vea qué se perdería de este libro en un fichero .csv, sin guardar.</translation>
+    </message>
+    <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
@@ -1215,7 +1219,15 @@ No se puede leer el fichero.</translation>
     </message>
     <message>
         <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
-        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que puede leer %1, por lo que esta opción no se puede conservar.</translation>
+    </message>
+    <message>
+        <source>A text file, an .xls file, and an .ods file can't hold this choice. Save the workbook as an .xlsx file first.</source>
+        <translation type="unfinished">Un fichero de texto, un fichero .xls y un fichero .ods no pueden conservar esta opción. Guarde primero el libro como fichero .xlsx.</translation>
+    </message>
+    <message>
+        <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
+        <translation type="unfinished">El resto de la hoja: se leyó solo en parte, por lo que el fichero solo tiene la parte que se leyó.</translation>
     </message>
     <message>
         <source>The file that was saved can't hold the mark, so the workbook is not marked as final.</source>
@@ -1406,6 +1418,10 @@ No se puede leer el fichero.</translation>
         <source>Text, pictures, and shapes that lie outside a slide: they do not show in the slide show or on paper, but they are in the file.</source>
         <translation type="unfinished">Texto, imágenes y formas situados fuera de una diapositiva: no se muestran en la presentación con diapositivas ni en el papel, pero están en el fichero.</translation>
     </message>
+    <message>
+        <source>Data that other programs added to the file. It is not kept when you save.</source>
+        <translation type="unfinished">Datos que otros programas agregaron al fichero. No se conservan al guardar.</translation>
+    </message>
 </context>
 <context>
     <name>jp::DiagramDrawing</name>
@@ -1563,6 +1579,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
 <context>
     <name>jp::LinkTargetPicker</name>
     <message>
+        <source>Existing file</source>
+        <translation type="unfinished">Fichero existente</translation>
+    </message>
+    <message>
+        <source>A file with that name is already there. Choose another name.</source>
+        <translation type="unfinished">Ya existe un fichero con ese nombre. Elija otro nombre.</translation>
+    </message>
+    <message>
         <source>Path of the file</source>
         <translation type="unfinished">Ruta del fichero</translation>
     </message>
@@ -1662,7 +1686,11 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     </message>
     <message>
         <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
-        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que esta opción no se puede conservar.</translation>
+    </message>
+    <message>
+        <source>A .pub file can't hold this choice. Save the publication as a .jpub file first.</source>
+        <translation type="unfinished">Un fichero .pub no puede guardar esta opción. Guarde primero la publicación como fichero .jpub.</translation>
     </message>
     <message>
         <source>The file that was saved can't hold the mark, so the publication is not marked as final.</source>
@@ -1820,6 +1848,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
 </context>
 <context>
     <name>jp::SlideShow</name>
+    <message>
+        <source>This link goes to a file that is not opened from a link, so it was not opened.</source>
+        <translation type="unfinished">Este vínculo apunta a un fichero que no se abrió desde un vínculo, así que no se abrió.</translation>
+    </message>
     <message>
         <source>This link goes to a file on another computer. Open it?</source>
         <translation type="unfinished">Este vínculo lleva a un fichero de otro equipo. ¿Abrirlo?</translation>
@@ -1988,7 +2020,7 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
     <message>
         <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
-        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, para que se vea igual con los años.</translation>
+        <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes van incluidas en el fichero, así que se verá igual dentro de años.</translation>
     </message>
     <message>
         <source>PDF/A is turned off, because a PDF with a password can't be a PDF/A file.</source>
@@ -2020,7 +2052,11 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
     <message>
         <source>This file has more properties than %1 reads, so this choice can't be kept.</source>
-        <translation type="unfinished">Este fichero tiene más propiedades de las que lee %1, así que esta opción no se puede mantener.</translation>
+        <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que esta opción no se puede conservar.</translation>
+    </message>
+    <message>
+        <source>A .odt file can't hold this choice. Save the document as a .docx file first.</source>
+        <translation type="unfinished">Un fichero .odt no puede guardar esta opción. Guarde primero el documento como fichero .docx.</translation>
     </message>
     <message>
         <source>The file that was saved can't hold the mark, so the document is not marked as final.</source>
@@ -2033,6 +2069,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>Data that other programs added to the file, which you can't see on a page.</source>
         <translation type="unfinished">Datos que otros programas añadieron al fichero, que no se ven en la página.</translation>
+    </message>
+    <message>
+        <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
+        <translation type="unfinished">Imágenes y objetos vinculados, y campos que leen otro fichero. Al quitarlos, los campos se convierten en texto y se eliminan los vinculados. Los vínculos web se conservan.</translation>
     </message>
     <message>
         <source>File Name</source>
@@ -2269,10 +2309,45 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::deck::PptSalvage</name>
+    <message>
+        <source>No presentation could be found in the file: its first records are damaged or gone.</source>
+        <translation type="unfinished">No se encontró ninguna presentación en el fichero: sus primeros registros están dañados o perdidos.</translation>
+    </message>
+</context>
+<context>
     <name>jp::office::CfbSalvage</name>
     <message>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">El fichero es demasiado grande para repararlo.</translation>
+    </message>
+    <message>
+        <source>Too many parts of the file were asked for.</source>
+        <translation type="unfinished">Se solicitaron demasiadas partes del fichero.</translation>
+    </message>
+    <message>
+        <source>The file holds more than can be repaired.</source>
+        <translation type="unfinished">El fichero contiene más de lo que se puede reparar.</translation>
+    </message>
+    <message>
+        <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
+        <translation type="unfinished">El contenedor del fichero estaba dañado, así que sus partes se siguieron desde su directorio, en la medida en que lo permite el fichero.</translation>
+    </message>
+    <message>
+        <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
+        <translation type="unfinished">El directorio del fichero estaba dañado o no existe, así que sus partes se localizaron mediante sus propios registros.</translation>
+    </message>
+    <message>
+        <source>The small parts kept in the mini stream of the file could not be read.</source>
+        <translation type="unfinished">No se pudieron leer las partes pequeñas almacenadas en el flujo mini del fichero.</translation>
+    </message>
+    <message>
+        <source>The file was cut short; what came after the cut is lost.</source>
+        <translation type="unfinished">El fichero está truncado; se ha perdido lo que venía después del corte.</translation>
+    </message>
+    <message>
+        <source>No %1 could be found in the file.</source>
+        <translation type="unfinished">No se encontró ningún %1 en el fichero.</translation>
     </message>
 </context>
 <context>
@@ -2299,6 +2374,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The document's text can't be found in the file.</source>
         <translation type="unfinished">No se encuentra el texto del documento en el fichero.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::doc::Salvage</name>
+    <message>
+        <source>No document could be found in the file.</source>
+        <translation type="unfinished">No se encontró ningún documento en el fichero.</translation>
     </message>
 </context>
 <context>
@@ -2724,6 +2806,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::Hyperlinks</name>
+    <message>
+        <source>That is not a web address, an email address, or a file on this computer.</source>
+        <translation type="unfinished">Eso no es una dirección web, una dirección de correo electrónico ni un fichero de este equipo.</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::InsertText</name>
     <message>
         <source>That file is too large to put in a document.</source>
@@ -2748,6 +2837,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>That file has more than %1 lines, which is more than can be put in at once.</source>
         <translation type="unfinished">Ese fichero tiene más de %1 líneas, que es más de las que se pueden insertar a la vez.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::LinkDialog</name>
+    <message>
+        <source>Type the whole path of a file on this computer, or press Browse. A link can't go to a program.</source>
+        <translation type="unfinished">Escriba la ruta completa de un fichero de este equipo o pulse Examinar. Un vínculo no puede apuntar a un programa.</translation>
     </message>
 </context>
 <context>

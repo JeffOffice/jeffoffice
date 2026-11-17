@@ -5617,13 +5617,13 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/editor_text.cpp" line="+1010"/>
         <source>Typing mode</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invoermodus</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+4"/>
         <source>Overtype</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Overtypen</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -5666,12 +5666,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../apps/write/core/epubexport.cpp" line="+195"/>
         <source>This reference is to the note above.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze verwijzing verwijst naar de noot hierboven.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Cancelled.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geannuleerd.</translation>
     </message>
 </context>
 <context>
@@ -7052,17 +7052,17 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+5"/>
         <source>Grid spacing</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rasterafstand</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Show grid on the slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raster op de dia weergeven</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Snap objects to the grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objecten uitlijnen op het raster</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7072,32 +7072,32 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+1"/>
         <source>Show guides on the slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hulplijnen op de dia weergeven</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Add Vertical Guide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verticale hulplijn toevoegen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Add Horizontal Guide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Horizontale hulplijn toevoegen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Remove All Guides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle hulplijnen verwijderen</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Guides: %1 vertical, %2 horizontal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hulplijnen: %1 verticaal, %2 horizontaal</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Drag from a ruler to add a guide by hand. Hold Alt while dragging to leave snapping off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sleep vanaf een liniaal om handmatig een hulplijn toe te voegen. Houd Alt ingedrukt tijdens het slepen om uitlijnen uit te schakelen.</translation>
     </message>
 </context>
 <context>
@@ -9259,7 +9259,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+83"/>
         <source>%1: an equation that can&apos;t be drawn was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: een vergelijking die niet getekend kan worden, is weggelaten.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9766,22 +9766,22 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+8"/>
         <location line="+86"/>
         <source>What prints</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wat wordt afgedrukt</translation>
     </message>
     <message>
         <location line="-85"/>
         <source>Print Markup</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Markeringen afdrukken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Without Markup</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zonder markeringen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Print Markup puts the tracked changes and the comments on the paper as the screen shows them, the comments in the margin. Without Markup prints the text as if every change were accepted, with no comments.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Markeringen afdrukken zet de bijgehouden wijzigingen en de opmerkingen op papier zoals ze op het scherm staan, de opmerkingen in de marge. Zonder markeringen drukt de tekst af alsof elke wijziging is geaccepteerd, zonder opmerkingen.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -9791,17 +9791,17 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Print the text that is formatted as hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst afdrukken die is opgemaakt als verborgen.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Background colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Achtergrondkleuren</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Print the color of the page. Paper is left white unless this is on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De kleur van de pagina afdrukken. Papier blijft wit tenzij dit is ingeschakeld.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -11484,12 +11484,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Chart Design</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafiekontwerp</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Format Chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafiek opmaken</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -12818,7 +12818,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Content Control</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inhoudsbeheer</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -14467,7 +14467,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+4"/>
         <source>The workbook could not be protected with the password.</source>
-        <translation type="unfinished">De werkmap kan niet met het wachtwoord worden beveiligd.</translation>
+        <translation type="unfinished">De werkmap kon niet met het wachtwoord worden beveiligd.</translation>
     </message>
     <message>
         <location line="+114"/>
@@ -14772,7 +14772,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location filename="../apps/deck/app/slideshow.cpp" line="+2166"/>
         <source>Screen %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scherm %1</translation>
     </message>
 </context>
 <context>
@@ -21318,12 +21318,12 @@ Bron: %3</translation>
     <message>
         <location line="+147"/>
         <source>Add document structure tags for accessibility to every PDF</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Structuurtags voor toegankelijkheid van het document toevoegen aan elke PDF</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Tags the cells of each sheet as a table, so that a screen reader reads the PDF row by row.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Labelt de cellen van elk werkblad als tabel, zodat een schermlezer de PDF rij voor rij leest.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -23146,7 +23146,7 @@ Bron: %3</translation>
         <location line="+9"/>
         <location line="+41"/>
         <source>Set Precision as Displayed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Precisie instellen zoals weergegeven</translation>
     </message>
     <message>
         <location line="-92"/>
@@ -23161,33 +23161,33 @@ Bron: %3</translation>
     <message>
         <location line="+42"/>
         <source>The numbers in the cells will be rounded to the digits the cells show, and the digits that are hidden are lost. From then on, every number you type and every result of a formula is rounded the same way. Undo brings the numbers back, but turning this setting off later does not. Choose Cancel to keep everything as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De getallen in de cellen worden afgerond op de decimalen die de cellen tonen, en de verborgen decimalen gaan verloren. Vanaf dat moment wordt elk getal dat u typt en elk resultaat van een formule op dezelfde manier afgerond. Ongedaan maken herstelt de getallen, maar als u deze instelling later uitschakelt, gebeurt dat niet. Kies Annuleren om alles te laten zoals het is.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location line="+12"/>
         <source>Rounding the numbers…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Getallen afronden…</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>The numbers were all as the cells show them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De getallen waren allemaal zoals de cellen ze tonen.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The numbers are rounded to what the cells show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De getallen zijn afgerond op wat de cellen tonen.</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>The numbers are kept as the cells show them</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De getallen worden behouden zoals de cellen ze tonen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The numbers are kept with all their digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De getallen worden met alle decimalen behouden</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24896,7 +24896,7 @@ Het bestand bestaat niet.</translation>
     <message>
         <location line="+14"/>
         <source>This workbook is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze werkmap is geopend alleen-lezen, zoals u koos. Open Bestand &gt; Info en kies Altijd alleen-lezen openen om te bewerken.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -27706,12 +27706,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-60"/>
         <source>Check .csv Compatibility</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Compatibiliteit met .csv controleren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>See what a .csv file would leave out of this workbook, without saving.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bekijken wat een .csv-bestand uit deze werkmap zou weglaten, zonder op te slaan.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -27726,42 +27726,42 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+6"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet behouden blijven.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A text file, an .xls file, and an .ods file can&apos;t hold this choice. Save the workbook as an .xlsx file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tekstbestand, een .xls-bestand en een .ods-bestand kunnen deze keuze niet bevatten. Sla de werkmap eerst op als .xlsx-bestand.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Always Open Read-Only</source>
-        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+        <translation type="unfinished">Altijd alleen-lezen openen</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>This workbook will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze werkmap wordt alleen-lezen geopend. Sla op om deze keuze te behouden.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This workbook will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze werkmap wordt weer bewerkbaar geopend. Sla op om deze keuze te behouden.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het overige deel van het blad: het is slechts gedeeltelijk gelezen, dus het bestand bevat alleen het gelezen deel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The mark that the workbook is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De markering dat de werkmap definitief is.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the workbook for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De keuze om de werkmap altijd alleen-lezen te openen.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -31521,7 +31521,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+2"/>
         <source>Slide Number in Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dianummer in tekst</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -31921,7 +31921,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Use the Insert key to turn overtype mode on and off</source>
-        <translation type="unfinished">Gebruik de Invoegtoets om de overschrijfmodus in en uit te schakelen</translation>
+        <translation type="unfinished">Gebruik de Invoegtoets om de overtypemodus in en uit te schakelen</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -33469,12 +33469,12 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+80"/>
         <location line="+23"/>
         <source>Show Presentation On</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentatie weergeven op</translation>
     </message>
     <message>
         <location line="-22"/>
         <source>Show Presentation On: the screen that shows the slides while Presenter View is on the other. Automatic keeps the slides off the screen this window is on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentatie weergeven op: het scherm dat de dia&apos;s toont terwijl Presentatieweergave op het andere staat. Automatisch houdt de dia&apos;s van het scherm waarop dit venster staat.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -34335,7 +34335,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_grid.cpp" line="+51"/>
         <source>Grid and Guides…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raster en hulplijnen…</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -34827,7 +34827,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>The footer text and fixed date at the foot of slides. Removing clears the text; the places and slide number stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De voettekst en vaste datum onderaan de dia&apos;s. Verwijderen wist de tekst; de plaatsen en het dianummer blijven.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -34842,12 +34842,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Data that other programs added to the file. It is not kept when you save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gegevens die andere programma&apos;s aan het bestand hebben toegevoegd. Ze worden niet bewaard wanneer u opslaat.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Custom XML</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepaste XML verwijderen</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -34970,12 +34970,12 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+36"/>
         <location line="+50"/>
         <source>This presentation has as many equations as it can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze presentatie bevat al zoveel vergelijkingen als mogelijk is.</translation>
     </message>
     <message>
         <location line="-82"/>
         <source>An equation can&apos;t be put here.</source>
-        <translation type="unfinished">Hier kan geen vergelijking worden geplaatst.</translation>
+        <translation type="unfinished">Er kan hier geen vergelijking worden ingevoegd.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -35602,29 +35602,29 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+97"/>
         <source>That table is too big to paste as a table (more than %1 rows, %2 columns, or %3 cells, or too much to read)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die tabel is te groot om als tabel te plakken (meer dan %1 rijen, %2 kolommen of %3 cellen, of te veel om te lezen)</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+20"/>
         <source>, so nothing was pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, dus er is niets geplakt.</translation>
     </message>
     <message>
         <location line="-20"/>
         <location line="+20"/>
         <source>, so it was pasted as text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, dus is het als tekst geplakt.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>That table has more than %1 rows, which is more than a table here holds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die tabel heeft meer dan %1 rijen, en dat is meer dan een tabel hier bevat</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Some of the pasted cells were left out: a cell holds at most %1 characters.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige van de geplakte cellen zijn weggelaten: een cel bevat maximaal %1 tekens.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -40431,22 +40431,22 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+10"/>
         <source>Current link: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huidige koppeling: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Presentations (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentaties (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Presentations (*.pptx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentaties (*.pptx)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The new presentation could not be written there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De nieuwe presentatie kon daar niet worden opgeslagen.</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -40550,7 +40550,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location filename="../libs/shell/app/linktargetpicker.cpp" line="+29"/>
         <source>Web address</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Webadres</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40566,7 +40566,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+2"/>
         <source>Existing file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bestaand bestand</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -40592,37 +40592,37 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+42"/>
         <source>Showing the first %1 places.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De eerste %1 plaatsen worden getoond.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>New document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuw document</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Choose where the new document goes: type its whole path on this computer, or press Browse.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies waar het nieuwe document komt: typ het volledige pad op deze computer, of klik op Bladeren.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A new document here ends with %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een nieuw document hier eindigt op %1.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A file with that name is already there. Choose another name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er staat al een bestand met die naam. Kies een andere naam.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The folder for the new document is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De map voor het nieuwe document bestaat niet.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The new document could not be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het nieuwe document kon niet worden gemaakt.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -40642,12 +40642,12 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+3"/>
         <source>Save as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Path of the new document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pad van het nieuwe document</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -41164,7 +41164,7 @@ Bron: %3</translation>
     <message>
         <location line="+6"/>
         <source>This publication is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze publicatie is alleen-lezen geopend, zoals u koos. Ga naar Bestand &gt; Info en kies Altijd alleen-lezen openen om haar te bewerken.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -44991,27 +44991,27 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+11"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden bewaard.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A .pub file can&apos;t hold this choice. Save the publication as a .jpub file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een .pub-bestand kan deze keuze niet bevatten. Sla de publicatie eerst op als .jpub-bestand.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Always Open Read-Only</source>
-        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+        <translation type="unfinished">Altijd alleen-lezen openen</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This publication will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze publicatie wordt alleen-lezen geopend. Sla haar op om deze keuze te bewaren.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This publication will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze publicatie wordt weer bewerkbaar geopend. Sla haar op om deze keuze te bewaren.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -45121,7 +45121,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>The choice to always open the publication for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De keuze om de publicatie altijd alleen-lezen te openen.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -47898,12 +47898,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Swap: the slide show goes to the screen Presenter View is on, and Presenter View to the screen the slide show was on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wisselen: de diavoorstelling gaat naar het scherm waarop Presentatieweergave stond, en Presentatieweergave naar het scherm waarop de diavoorstelling stond.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Swap screens</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schermen wisselen</translation>
     </message>
     <message>
         <location line="+102"/>
@@ -49682,7 +49682,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>This link goes to a file that is not opened from a link, so it was not opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze koppeling verwijst naar een bestand dat niet via een koppeling is geopend, dus het is niet geopend.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -50404,7 +50404,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>List style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijststijl</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -52393,7 +52393,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+3"/>
         <source>Markup</source>
-        <translation type="unfinished">Markering</translation>
+        <translation type="unfinished">Opmaaktaal</translation>
     </message>
     <message>
         <location line="+40"/>
@@ -52413,7 +52413,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>A book for e-readers and stores, with a chapter at each Heading 1, the contents, and the notes at the end of each chapter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een boek voor e-readers en winkels, met een hoofdstuk bij elke Kop 1, de inhoud en de eindnoten aan het eind van elk hoofdstuk.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -55098,7 +55098,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+6"/>
         <source>This document is open for reading only, as you chose. Open File &gt; Info and choose Always Opens Read-Only to edit it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit document is alleen-lezen geopend, zoals u koos. Ga naar Bestand &gt; Info en kies Altijd alleen-lezen openen om het te bewerken.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -55442,7 +55442,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+24"/>
         <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
-        <translation type="unfinished">Maakt een PDF/A-1b-bestand: elk lettertype zit in het bestand, zodat het er over jaren hetzelfde uitziet.</translation>
+        <translation type="unfinished">Maakt een PDF/A-1b-bestand: alle lettertypen zitten in het bestand, zodat het over jaren er hetzelfde uitziet.</translation>
     </message>
     <message>
         <location line="+21"/>
@@ -55690,27 +55690,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-61"/>
         <source>Making the e-book...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">E-book wordt gemaakt...</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The document could not be made into an e-book.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document kon niet worden omgezet naar een e-book.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Makes an EPUB book that readers and stores open. Each Heading 1 starts a new chapter, and the contents list Heading 1 to Heading 3.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Maakt een EPUB-boek dat e-readers en winkels openen. Elke Kop 1 begint een nieuw hoofdstuk, en de inhoud toont Kop 1 tot en met Kop 3.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Use the first picture as the cover</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De eerste afbeelding als omslag gebruiken</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>E-book (*.epub)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">E-book (*.epub)</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -56226,27 +56226,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+11"/>
         <source>This file has more properties than %1 reads, so this choice can&apos;t be kept.</source>
-        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden behouden.</translation>
+        <translation type="unfinished">Dit bestand heeft meer eigenschappen dan %1 kan lezen, dus deze keuze kan niet worden bewaard.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A .odt file can&apos;t hold this choice. Save the document as a .docx file first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een .odt-bestand kan deze keuze niet bevatten. Sla het document eerst op als .docx-bestand.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Always Open Read-Only</source>
-        <translation type="unfinished">Altijd openen als alleen-lezen</translation>
+        <translation type="unfinished">Altijd alleen-lezen openen</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>This document will open for reading only. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit document wordt alleen-lezen geopend. Sla het op om deze keuze te bewaren.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This document will open for editing again. Save it to keep this choice.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit document wordt weer bewerkbaar geopend. Sla het op om deze keuze te bewaren.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56357,7 +56357,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+0"/>
         <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gekoppelde afbeeldingen en objecten, en velden die een ander bestand lezen. Verwijderen zet velden om in tekst en haalt de gekoppelde weg. Webkoppelingen blijven.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -56367,7 +56367,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+15"/>
         <source>The choice to always open the document for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De keuze om het document altijd alleen-lezen te openen.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -58312,25 +58312,25 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+16"/>
         <source>List Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijststijlen</translation>
     </message>
     <message numerus="yes">
         <location line="+11"/>
         <source>%n more list styles are in the Styles pane</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n extra lijststijl staat in het taakvenster Stijlen</numerusform>
+            <numerusform>%n extra lijststijlen staan in het taakvenster Stijlen</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Modify List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijststijl wijzigen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijststijl verwijderen</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -58445,12 +58445,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Drop-Down List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vervolgkeuzelijst</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Date Picker</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datumkiezer</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -61550,33 +61550,33 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/crunch/core/editprecision.cpp" line="+61"/>
         <source>The values are kept as the cells show them already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De waarden blijven behouden zoals de cellen ze al tonen.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>%1 is protected, and some of its numbers are locked, so they can&apos;t be rounded. Unprotect it, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is beveiligd en sommige getallen zijn vergrendeld, dus ze kunnen niet worden afgerond. Hef de beveiliging op en probeer het opnieuw.</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>That would round %1 numbers, and JeffCrunch rounds at most %2 at once, so that Undo can bring them back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit zou %1 getallen afronden, en JeffCrunch rondt er maximaal %2 tegelijk af, zodat ongedaan maken ze kan herstellen.</translation>
     </message>
     <message>
         <location line="+13"/>
         <location line="+52"/>
         <source>Set Precision as Displayed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Precisie instellen zoals weergegeven</translation>
     </message>
     <message>
         <location line="-48"/>
         <source>The rounding could not be finished. Try it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het afronden kon niet worden voltooid. Probeer het opnieuw.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The cells were changed while the rounding was being worked out, so it was not made. Try it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De cellen zijn gewijzigd terwijl het afronden werd berekend, dus het is niet uitgevoerd. Probeer het opnieuw.</translation>
     </message>
 </context>
 <context>
@@ -65743,12 +65743,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-19"/>
         <source>This PDF is too large to tag for screen readers, so it was saved without tags.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze PDF is te groot om te taggen voor schermlezers, dus hij is opgeslagen zonder tags.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>The PDF is not tagged for screen readers: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De PDF is niet getagd voor schermlezers: %1.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -66707,32 +66707,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/deck/io/pptsalvage.cpp" line="+140"/>
         <location line="+7"/>
         <source>The presentation is protected with a password, and can&apos;t be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De presentatie is met een wachtwoord beveiligd en kan niet worden hersteld.</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>No presentation could be found in the file: its first records are damaged or gone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen presentatie in het bestand gevonden: de eerste gegevens zijn beschadigd of verdwenen.</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>The end of the presentation was lost, so it was opened as it was at its last save that is whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het einde van de presentatie is verloren gegaan, dus is die geopend zoals hij was bij de laatste intacte keer opslaan.</translation>
     </message>
     <message>
         <location line="+38"/>
         <source>The list that says where each slide is kept was lost, so the slides are in the order they are stored, which may not be the order they were in, and a slide may be an older version of itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De lijst waarin staat waar elke dia is opgeslagen, is verloren gegaan, dus de dia&apos;s staan in de volgorde waarin ze zijn opgeslagen, wat mogelijk niet de volgorde is waarin ze stonden, en een dia kan een oudere versie van zichzelf zijn.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>No slide of the presentation could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geen dia van de presentatie kon worden gelezen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The pictures of the presentation, if it had any, could not be found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De afbeeldingen van de presentatie, als die er waren, konden niet worden gevonden.</translation>
     </message>
 </context>
 <context>
@@ -66825,37 +66825,37 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+4"/>
         <source>Too many parts of the file were asked for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er werden te veel onderdelen van het bestand opgevraagd.</translation>
     </message>
     <message>
         <location line="+89"/>
         <source>The file holds more than can be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand bevat meer dan kan worden hersteld.</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De container van het bestand was beschadigd, dus de onderdelen zijn gevolgd via de map, voor zover het bestand dat toelaat.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De map van het bestand was beschadigd of verdwenen, dus de onderdelen zijn gevonden aan de hand van hun eigen gegevens.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The small parts kept in the mini stream of the file could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De kleine onderdelen in de mini-stroom van het bestand konden niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file was cut short; what came after the cut is lost.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is afgekapt; wat na de afkapping kwam, is verloren.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>No %1 could be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen %1 gevonden in het bestand.</translation>
     </message>
 </context>
 <context>
@@ -67049,33 +67049,33 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../libs/office/doc/docsalvage.cpp" line="+198"/>
         <source>No document could be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen document gevonden in het bestand.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The document is protected with a password, and can&apos;t be repaired.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document is met een wachtwoord beveiligd en kan niet worden hersteld.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The document&apos;s tables are lost, and its text could not be found without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tabellen van het document zijn verloren, en de tekst kon zonder die tabellen niet worden gevonden.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>The document&apos;s tables are lost, and its text could not be read without them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tabellen van het document zijn verloren, en de tekst kon zonder die tabellen niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, pictures, headers, footers, or footnotes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tabellen die aangeven hoe de tekst is opgemaakt, zijn verloren gegaan, dus de tekst is bewaard als gewone alinea&apos;s, zonder stijlen, lijsten, tabellen, afbeeldingen, koppen, voetteksten of voetnoten.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pictures of the document, if it had any, could not be found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De afbeeldingen van het document, als die er waren, konden niet worden gevonden.</translation>
     </message>
 </context>
 <context>
@@ -68745,47 +68745,47 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/contentcontrolops.cpp" line="+425"/>
         <source>Enter text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst invoeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Choose an item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies een item</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pick a date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies een datum</translation>
     </message>
     <message>
         <location line="+323"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een inhoudsbeheerder hoort in de tekst, niet in een koptekst, voettekst of voetnoot.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The selection holds only part of another content control.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De selectie bevat alleen een deel van een andere inhoudsbeheerder.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document has the most content controls it can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document heeft het maximale aantal inhoudsbeheerders dat het kan bevatten.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Content controls can hold each other only so deep.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inhoudsbeheerders kunnen elkaar maar tot op zekere diepte bevatten.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The content control there can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De inhoudsbeheerder daar kan niet worden gewijzigd.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>A list holds at most %1 items.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een lijst bevat maximaal %1 items.</translation>
     </message>
 </context>
 <context>
@@ -68793,7 +68793,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/controldialogs.cpp" line="+49"/>
         <source>Content Control Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eigenschappen van inhoudsbeheerder</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -68803,22 +68803,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Tag</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tag</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Date format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datumnotatie</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Today looks like</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vandaag ziet eruit als</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Items in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Items in de lijst</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -68843,22 +68843,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+7"/>
         <source>New item</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuw item</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The control can&apos;t be deleted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het besturingselement kan niet worden verwijderd</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The contents can&apos;t be edited</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De inhoud kan niet worden bewerkt</translation>
     </message>
     <message>
         <location line="+65"/>
         <source>The list has no items yet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De lijst heeft nog geen items</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -69162,7 +69162,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+24"/>
         <source>%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -69177,27 +69177,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+179"/>
         <source>Bar</source>
-        <translation type="unfinished">Staaf</translation>
+        <translation type="unfinished">Balk</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">balk</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1, %2%3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, %2%3</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Default tab stops</source>
-        <translation type="unfinished">Standaardtabstops</translation>
+        <translation type="unfinished">Standaard tabstops</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>A paragraph keeps up to 64 bar stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een alinea houdt maximaal 64 balk-tabstops bij.</translation>
     </message>
     <message>
         <location line="+107"/>
@@ -71323,7 +71323,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/core/linkops.cpp" line="+119"/>
         <location line="+221"/>
         <source>That heading is no longer in this document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die kop staat niet meer in dit document.</translation>
     </message>
     <message>
         <location line="-216"/>
@@ -71338,7 +71338,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>That is not a web address, an email address, or a file on this computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat is geen webadres, e-mailadres of bestand op deze computer.</translation>
     </message>
     <message>
         <location line="+258"/>
@@ -72038,23 +72038,23 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+7"/>
         <location line="+14"/>
         <source>Heading: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kop: %1</translation>
     </message>
     <message>
         <location line="-10"/>
         <location line="+6"/>
         <source>Bookmark: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bladwijzer: %1</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Documents (*.docx *.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documenten (*.docx *.odt)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The new document could not be written there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het nieuwe document kon daar niet worden geschreven.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -72069,12 +72069,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+21"/>
         <source>Choose a place for the link to go to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies een plaats waarnaar de koppeling moet verwijzen.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Type the whole path of a file on this computer, or press Browse. A link can&apos;t go to a program.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Typ het volledige pad van een bestand op deze computer, of klik op Bladeren. Een koppeling kan niet naar een programma verwijzen.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -72376,7 +72376,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-13"/>
         <source>Modify List Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijststijl wijzigen</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -72467,12 +72467,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+18"/>
         <source>List style name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Naam van lijststijl</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Save as a list style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opslaan als lijststijl</translation>
     </message>
 </context>
 <context>
@@ -72583,7 +72583,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+29"/>
         <source>+%1 more</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">+%1 meer</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="+595"/>
@@ -72599,7 +72599,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-405"/>
         <source>The Spike is full. Paste it to empty it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het Klembord is vol. Plak het om het leeg te maken.</translation>
     </message>
     <message>
         <location line="+406"/>
@@ -72669,7 +72669,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+537"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite opent koppelingen naar webadressen, e-mailadressen en documenten of afbeeldingen op deze computer alleen.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+112"/>
@@ -73422,13 +73422,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+899"/>
         <source>The document has too many list styles.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document heeft te veel lijststijlen.</translation>
     </message>
     <message>
         <location line="+52"/>
         <location line="+11"/>
         <source>A list style can&apos;t be given to this text. No list style was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er kan geen lijststijl aan deze tekst worden toegekend. Er is geen lijststijl opgeslagen.</translation>
     </message>
 </context>
 <context>
