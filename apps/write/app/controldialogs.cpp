@@ -51,10 +51,16 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
     auto *form = new QFormLayout;
     auto *title = new QLineEdit(ctl.props.title, &dlg);
     title->setObjectName(QStringLiteral("title"));
-    title->setMaxLength(255);
+    // (A title or tag the file already has stays whole, even past 255; only what is typed on top of it is cut.)
+    const int titleMost = qMax(255, int(ctl.props.title.size())), tagMost = qMax(255, int(ctl.props.tag.size()));
+    QObject::connect(title, &QLineEdit::textEdited, &dlg, [title, titleMost](const QString &t) {
+        if (t.size() > titleMost) title->setText(capped(t, titleMost));
+    });
     auto *tag = new QLineEdit(ctl.props.tag, &dlg);
     tag->setObjectName(QStringLiteral("tag"));
-    tag->setMaxLength(255);
+    QObject::connect(tag, &QLineEdit::textEdited, &dlg, [tag, tagMost](const QString &t) {
+        if (t.size() > tagMost) tag->setText(capped(t, tagMost));
+    });
     form->addRow(QCoreApplication::translate("jp::write::ControlDialogs", "Title"), title);
     form->addRow(QCoreApplication::translate("jp::write::ControlDialogs", "Tag"), tag);
     QComboBox *format = nullptr;
@@ -133,8 +139,8 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
     // (OK applies the properties and closes; a box closed any other way as accepted gets them applied once it is gone.)
     auto apply = [&]() {
         ControlProps p = ctl.props;
-        p.title = capped(title->text().trimmed(), 255);
-        p.tag = capped(tag->text().trimmed(), 255);
+        p.title = capped(title->text().trimmed(), titleMost);
+        p.tag = capped(tag->text().trimmed(), tagMost);
         p.lockDelete = deleteLock->isChecked();
         p.lockContents = contentsLock->isChecked();
         if (format) p.dateFormat = format->currentText().trimmed();

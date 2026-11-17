@@ -1451,6 +1451,8 @@ constexpr char kTextDragMime[] = "application/x-jeffwrite-text";
 QMimeData *PageView::prepareTextDrag()
 {
     if (!m_doc || !m_cursor.hasSelection() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story()) return nullptr;
+    // (As with Cut, half a content control is not taken out.)
+    if (splitsContentControl(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd())) return nullptr;
     m_textDrag.selection = m_cursor;
     m_textDrag.active = true;
     m_textDrag.done = false;
