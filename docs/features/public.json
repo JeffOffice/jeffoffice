@@ -357,7 +357,7 @@
         },
         {
          "status": "partly",
-         "text": "1563f3c9f97782c534c4e1ff95ce32b4effeb48eeed04b36a62184eb88115d36"
+         "text": "728d3ea13cdd0b29b32729e1c15b1c1292556d534640f97ff16b8f6ea7509002"
         },
         {
          "status": "todo",
@@ -1891,8 +1891,9 @@
          "text": "1f76275627cd812f3a0aaa3ecdb92b112b9890278d08090ed1a5ba9d45430b9d"
         },
         {
-         "status": "todo",
-         "text": "0f4ee42b3e8043be77a9e30d84eea5b6cdeedd944f44eaf2cf4c323628213fa8"
+         "hide_soon": true,
+         "status": "done",
+         "text": "966f2ea9cd846fb956300ea2629d48c67a72a1edd428ffbd0c70cac6b9905893"
         },
         {
          "hide_soon": true,
@@ -3026,7 +3027,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "10e2a0cce90f8cd63394e096ceef9a2e434b2937c35d3ba7fd25c848edf198f0"
+         "text": "d9e368d7efacc5083bf999a6a834caa9a7d17fe59c766312b073c14d9023d878"
         },
         {
          "hide_soon": true,
@@ -3034,8 +3035,9 @@
          "text": "b48b2d673c032db5b4a2790a9280bf220ce013eabc6298894450eaeca8dbd538"
         },
         {
-         "status": "partly",
-         "text": "d7bfb1337d53adc6c483e93822fa28e5bbd3b1a2be58cc183de927ebcbd2015a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "9538242858d1437fa82f0be7f67f342a9441933d411fd3cc2261be4a6e6ddfc0"
         },
         {
          "status": "partly",
@@ -3403,8 +3405,9 @@
        "text": "fe89ca0b74b5214bbda8c4ff573b109cf572687ee58ef14f5741db6819ad9b25"
       },
       {
-       "status": "partly",
-       "text": "567f08788f52ff55332ccff587ff562326329f1d3788b25a887f6b3ee09c0df9"
+       "hide_soon": true,
+       "status": "done",
+       "text": "cd7254e44c15e8bb8a48d6699bace2eeafbd19a76431a21d4ea5977cb2f2ec54"
       },
       {
        "hide_soon": true,
@@ -4674,7 +4677,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "31b784f2741398cd040598f1bc90551a849cb743ed60632203f3212acf444f88"
+       "text": "f8085f7598025ef5bdacc691b46e4d2f879790a8a07f2f7927b3d8f563baaf74"
       },
       {
        "hide_soon": true,
@@ -4683,7 +4686,7 @@
       },
       {
        "status": "partly",
-       "text": "19046a1cd8998e5a2b24240e6fb7a444c49506e67cdf56b99299098f4329848e"
+       "text": "ef07bb5de90a7ff1c92476fa6cc1955f1aecfbf78849bfc129f1baed855d250c"
       },
       {
        "hide_soon": true,
@@ -5846,8 +5849,8 @@
          "text": "3df659f6c4db5c5e8bb9b35530d582a27992eb082c18d0f005eb5a1db2738ca3"
         },
         {
-         "status": "todo",
-         "text": "c236b353bb858e6e2e091c35b9292d62f4c7590e2c2da484c986b30c97a281ae"
+         "status": "partly",
+         "text": "cdc6f71e2cc83ec7ef33662bf4b1617e27dd2af8d1cd9b4092cd1c35b981c84f"
         },
         {
          "hide_soon": true,
@@ -6299,8 +6302,9 @@
          "text": "d50a9466651ec18bacc9d530b4c857d3a8620642a9434c7bf4b2fa70bedcd157"
         },
         {
-         "status": "partly",
-         "text": "9215ac142b6ac891b5488a5c2996f05a82d0f8aefd395cacbef23dc865e50d78"
+         "hide_soon": true,
+         "status": "done",
+         "text": "402588756b078fcb1bfbdebde6a20838a694ff75198073bea155c589b287c29c"
         },
         {
          "status": "partly",
@@ -6784,8 +6788,8 @@
        "text": "12829b222f423cb661ad775aebd0ecf821cb69c8c2d2b05093b08e256ef6f884"
       },
       {
-       "status": "todo",
-       "text": "8ca0874b4e039451fde218071733fd5b18b89350c51b271f1ae307cccdb843ea"
+       "status": "partly",
+       "text": "03197e7ca9b265ea7028325618f3f85cf0a2859d8444b788ae9c2faae8450118"
       },
       {
        "status": "partly",
@@ -7061,8 +7065,9 @@
          "text": "def40f074064e5efbcf90344321c1de05e2fceadd6afb4804f5e044442bea345"
         },
         {
-         "status": "todo",
-         "text": "47e4fa93bdc466ef3104a6d3a1a89bd8cb3dd0c0b1ee43933e23eaef6f704cbb"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e64145b05a9524d7a49790baa612371f6d735966c1e23d4302bd7bba27770c86"
         },
         {
          "status": "partly",
@@ -7705,6 +7710,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "03197e7ca9b265ea7028325618f3f85cf0a2859d8444b788ae9c2faae8450118": {
+   "drop": false,
+   "en": "Insert plain text, drop-down list, date picker, and check box content controls, with a title, a tag, and locks against deleting or editing. Drop-down list items can be added, renamed, removed, and moved, and the date format can be set.",
+   "es": "Inserte controles de contenido de texto sin formato, lista desplegable, selector de fecha y casilla de verificación, con título, etiqueta y bloqueos contra eliminación o edición. Los elementos de la lista desplegable se pueden agregar, renombrar, quitar y mover, y se puede definir el formato de fecha.",
+   "fr": "Insérez des contrôles de contenu de texte brut, de liste déroulante, de sélecteur de date et de case à cocher, avec un titre, une balise et des verrous contre la suppression ou la modification. Les éléments de la liste déroulante peuvent être ajoutés, renommés, supprimés et déplacés, et le format de date peut être défini.",
+   "soon": {
+    "drop": false,
+    "en": "Content controls: rich text, picture, combo box, building-block gallery, repeating section, Design Mode, Group and Ungroup",
+    "es": "Controles de contenido: texto enriquecido, imagen, cuadro combinado, galería de bloques de creación, sección repetida, modo Diseño, Agrupar y Desagrupar",
+    "fr": "Contrôles de contenu : texte enrichi, image, zone de liste modifiable, galerie de blocs de construction, section répétée, mode Création, Grouper et Dissocier"
    }
   },
   "033237efbaa4c9a35b5b953128e30e7c9d5db2030a52f196f98bc877a82e1bd3": {
@@ -8739,18 +8756,6 @@
     "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs professionnels, avec contrôle avant impression"
    }
   },
-  "0f4ee42b3e8043be77a9e30d84eea5b6cdeedd944f44eaf2cf4c323628213fa8": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Set precision as displayed",
-    "es": "Establecer precisión según lo mostrado",
-    "fr": "Définir la précision comme affichée"
-   }
-  },
   "0f5bec9a17a39e2b96dc801b2174e8f60ff53525f2e2c5de68339c9fc9704419": {
    "drop": false,
    "en": "Insert a table from a grid or the Insert Table dialog. The table uses the Table Grid style and one step undoes it.",
@@ -8840,18 +8845,6 @@
    "en": "Start a bulleted list from the Home tab.",
    "es": "Inicie una lista con viñetas desde la pestaña Inicio.",
    "fr": "Démarrez une liste à puces depuis l’onglet Accueil.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "10e2a0cce90f8cd63394e096ceef9a2e434b2937c35d3ba7fd25c848edf198f0": {
-   "drop": false,
-   "en": "Insert the date or the time as a field into the text being edited.",
-   "es": "Inserte la fecha o la hora como un campo en el texto que está editando.",
-   "fr": "Insérez la date ou l’heure sous forme de champ dans le texte en cours de modification.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9231,18 +9224,6 @@
     "fr": ""
    }
   },
-  "1563f3c9f97782c534c4e1ff95ce32b4effeb48eeed04b36a62184eb88115d36": {
-   "drop": false,
-   "en": "Choose whether linked workbooks are asked about, updated, or left with their stored values when a file opens; the choice is saved in the file.",
-   "es": "Elija si, al abrir un archivo, se pregunta por los libros vinculados, se actualizan o se dejan con sus valores almacenados; la elección se guarda en el archivo.",
-   "fr": "Choisissez si, à l’ouverture d’un fichier, les classeurs liés font l’objet d’une question, sont mis à jour ou conservent leurs valeurs stockées ; le choix est enregistré dans le fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Precision as displayed, save external link values, ignore other programs that use DDE, and system separators",
-    "es": "Precisión según se muestra, guardar valores de vínculos externos, ignorar otros programas que usan DDE y separadores del sistema",
-    "fr": "Précision telle qu’affichée, enregistrement des valeurs de liens externes, exclusion des autres programmes utilisant DDE et séparateurs du système"
-   }
-  },
   "15a27c675889566f268b5197f11bb010deaaaf73038e803571bc8b59dd9d474e": {
    "drop": false,
    "en": "Format the fill and line of the chart area, the plot area, and each series, set smooth lines and marks, and format the horizontal and vertical axes.",
@@ -9493,18 +9474,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "19046a1cd8998e5a2b24240e6fb7a444c49506e67cdf56b99299098f4329848e": {
-   "drop": false,
-   "en": "Insert a chart in one of 12 types with sample numbers, placed in the middle of the page. Move, resize, rotate, and undo changes to the chart like other objects. Edit its data in a grid, change the chart type, and set the chart title, legend, axes and their titles, gridlines, chart styles, and data labels. A `.jpub` file keeps the chart as an editable chart, and PDF and print output draw it as vectors.",
-   "es": "Inserte un gráfico de uno de 12 tipos con números de muestra, colocado en el centro de la página. Mueva, cambie el tamaño, gire y deshaga cambios del gráfico como en otros objetos. Edite sus datos en una cuadrícula, cambie el tipo de gráfico y defina el título, la leyenda, los ejes y sus títulos, las líneas de cuadrícula, los estilos de gráfico y las etiquetas de datos. Un archivo `.jpub` conserva el gráfico como gráfico editable, y la salida a PDF y la impresión lo dibujan como vectores.",
-   "fr": "Insérez un graphique parmi 12 types avec des valeurs d’exemple, placé au centre de la page. Déplacez, redimensionnez, faites pivoter et annulez les modifications du graphique comme pour les autres objets. Modifiez ses données dans une grille, changez le type de graphique et définissez le titre, la légende, les axes et leurs titres, le quadrillage, les styles de graphique et les étiquettes de données. Un fichier `.jpub` conserve le graphique sous forme de graphique modifiable, et l’export PDF et l’impression le dessinent en vectoriel.",
-   "soon": {
-    "drop": false,
-    "en": "Chart colors, formatting of each chart part, trendlines, error bars, quick layouts, and an editable workbook for chart data",
-    "es": "Colores de gráfico, formato de cada parte del gráfico, líneas de tendencia, barras de error, diseños rápidos y un libro editable para los datos del gráfico",
-    "fr": "Couleurs de graphique, mise en forme de chaque élément du graphique, courbes de tendance, barres d’erreur, dispositions rapides et classeur modifiable pour les données du graphique"
    }
   },
   "1912357097ed7f1a8278807174840c14249d2d094f3e17f10ebeee1e8b16b710": {
@@ -11403,18 +11372,6 @@
     "fr": ""
    }
   },
-  "31b784f2741398cd040598f1bc90551a849cb743ed60632203f3212acf444f88": {
-   "drop": false,
-   "en": "Draw text boxes, add business information fields and Text Art, and insert text, RTF, HTML, and `.docx` files into a text box. Insert symbols (recently used symbols are kept between sessions, in the Symbol drop-down and the dialog, plus the full character map) and the date and time (formats, update automatically). Insert an object: a PDF page, an SVG drawing, or a picture; documents from other programs can’t be embedded.",
-   "es": "Dibuje cuadros de texto, agregue campos de información de empresa y Text Art, e inserte archivos de texto, RTF, HTML y `.docx` en un cuadro de texto. Inserte símbolos (los símbolos usados recientemente se conservan entre sesiones, en la lista desplegable Símbolo y en el cuadro de diálogo, además del mapa de caracteres completo) y la fecha y la hora (formatos, actualización automática). Inserte un objeto: una página PDF, un dibujo SVG o una imagen; no se pueden incrustar documentos de otros programas.",
-   "fr": "Dessinez des zones de texte, ajoutez des champs d’informations professionnelles et du Text Art, et insérez des fichiers texte, RTF, HTML et `.docx` dans une zone de texte. Insérez des symboles (les symboles récemment utilisés sont conservés entre les sessions, dans la liste déroulante Symbole et dans la boîte de dialogue, avec la table complète des caractères) et la date et l’heure (formats, mise à jour automatique). Insérez un objet : une page PDF, un dessin SVG ou une image ; les documents d’autres programmes ne peuvent pas être incorporés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "31cd8faaf0632351cecf7ae278e47816f1cc05f69ad6a217c423e15b2ad3e01a": {
    "drop": false,
    "en": "Read Aloud speaks text boxes, shapes, and table cells with the system’s voices, from the cursor or the selection. The current word is highlighted, and you can choose the speed and voice. An edit stops the reading.",
@@ -12447,6 +12404,18 @@
     "fr": ""
    }
   },
+  "402588756b078fcb1bfbdebde6a20838a694ff75198073bea155c589b287c29c": {
+   "drop": false,
+   "en": "Insert the date and time in one of ten formats, as a field that updates or as fixed text. Choose a language to show the formats and the day and month names in that language.",
+   "es": "Inserte la fecha y la hora en uno de diez formatos, como campo que se actualiza o como texto fijo. Elija un idioma para mostrar los formatos y los nombres de días y meses en ese idioma.",
+   "fr": "Insérez la date et l’heure dans l’un des dix formats, comme champ mis à jour ou comme texte fixe. Choisissez une langue pour afficher les formats ainsi que les noms des jours et des mois dans cette langue.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "403efff0240b74ca0b3865418f04d2d132ca397e64817c044b5d77d0fd164542": {
    "drop": false,
    "en": "Count the words on the slides, and in the selection while typing.",
@@ -13045,18 +13014,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "47e4fa93bdc466ef3104a6d3a1a89bd8cb3dd0c0b1ee43933e23eaef6f704cbb": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Spike, Overtype, and the `Insert` key",
-    "es": "Spike, modo sobrescribir y la tecla `Insert`",
-    "fr": "Spike, mode refrappe et touche `Inser`"
    }
   },
   "47ed129b8dae9c51ddcd442d1b50e58f56f20520062859e4d6b110c8ab0bd6bc": {
@@ -14173,18 +14130,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "567f08788f52ff55332ccff587ff562326329f1d3788b25a887f6b3ee09c0df9": {
-   "drop": false,
-   "en": "Show guides, and objects snap to other objects.",
-   "es": "Muestre guías; los objetos se ajustan a otros objetos.",
-   "fr": "Affichez des repères ; les objets s’alignent sur d’autres objets.",
-   "soon": {
-    "drop": false,
-    "en": "Grid and guide settings: spacing, snap to grid, drag guides, add and remove guides",
-    "es": "Ajustes de cuadrícula y guías: espaciado, ajuste a la cuadrícula, arrastre de guías, y adición y eliminación de guías",
-    "fr": "Réglages du quadrillage et des repères : espacement, magnétisme, déplacement, ajout et suppression de repères"
    }
   },
   "568fd18bf27ed741676599a9a17168b826588d93ca5a11bda547ecf415b8ff16": {
@@ -16443,6 +16388,18 @@
     "fr": ""
    }
   },
+  "728d3ea13cdd0b29b32729e1c15b1c1292556d534640f97ff16b8f6ea7509002": {
+   "drop": false,
+   "en": "Set precision as displayed, saved in the workbook. Choose whether links to other workbooks ask, update, or keep stored values when a file opens.",
+   "es": "Defina la precisión como se muestra, guardada en el libro. Elija si los vínculos a otros libros preguntan, se actualizan o conservan los valores almacenados al abrir un archivo.",
+   "fr": "Définissez la précision d’affichage, enregistrée dans le classeur. Choisissez si les liaisons vers d’autres classeurs demandent, se mettent à jour ou conservent les valeurs stockées à l’ouverture d’un fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Advanced calculation options: save external link values, ignore other programs that use DDE, and use system separators",
+    "es": "Opciones avanzadas de cálculo: guardar valores de vínculos externos, ignorar otros programas que usan DDE y usar separadores del sistema",
+    "fr": "Options de calcul avancées : enregistrement des valeurs de liaisons externes, ignorance des autres programmes utilisant DDE et séparateurs du système"
+   }
+  },
   "72927c1dc242165fe2f25492f1198a965bf9e4bff8cf72fe2adfc64ee6f299c1": {
    "drop": false,
    "en": "Insert blank or duplicate pages, or use the Insert Page dialog (count, before or after, blank, duplicate, or one text box per page). Catalog Pages repeat a catalog area for each item of a product list, in rows and columns, with a preview and merging to a new publication, PDF, or printer.",
@@ -18111,18 +18068,6 @@
     "fr": "Choix de la devise dans une liste"
    }
   },
-  "8ca0874b4e039451fde218071733fd5b18b89350c51b271f1ae307cccdb843ea": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Content controls: insert and edit, with title, tag, locking, and Design Mode; Group and Ungroup",
-    "es": "Controles de contenido: insertar y editar, con título, etiqueta, bloqueo y Modo de diseño; Agrupar y Desagrupar",
-    "fr": "Contrôles de contenu : insérer et modifier, avec titre, balise, verrouillage et mode Création ; Grouper et Dissocier"
-   }
-  },
   "8cb0df6cd6f0225b96ad4989ef5f43f524ae1bcff45d1fdc83eb8e780f41b32c": {
    "drop": false,
    "en": "Parts of a document that the app can't edit yet, such as diagrams, content-control bindings, custom XML, unknown elements, macros, and embedded objects, are kept with the document and written back as they were.",
@@ -18495,18 +18440,6 @@
     "fr": "Attacher un autre modèle à un document et copier styles et blocs de construction entre un document et son modèle avec l’Organisateur"
    }
   },
-  "9215ac142b6ac891b5488a5c2996f05a82d0f8aefd395cacbef23dc865e50d78": {
-   "drop": false,
-   "en": "Insert the date and time in ten formats, as a field that updates or as fixed text.",
-   "es": "Inserte la fecha y la hora en diez formatos, como campo que se actualiza o como texto fijo.",
-   "fr": "Insérez la date et l’heure dans dix formats, sous forme de champ mis à jour ou de texte fixe.",
-   "soon": {
-    "drop": false,
-    "en": "Date and time: formats in several languages",
-    "es": "Fecha y hora: formatos en varios idiomas",
-    "fr": "Date et heure : formats dans plusieurs langues"
-   }
-  },
   "9224d47ae272373381adb22505bfa08924ca3c68251329d965f7e61840cb6b6f": {
    "drop": false,
    "en": "Index",
@@ -18699,6 +18632,18 @@
     "fr": ""
    }
   },
+  "9538242858d1437fa82f0be7f67f342a9441933d411fd3cc2261be4a6e6ddfc0": {
+   "drop": false,
+   "en": "Insert a slide number as a field in the text being edited. It shows the number of its slide, changes when the slide moves, and is saved in `.pptx` and `.odp` files.",
+   "es": "Inserte un número de diapositiva como campo en el texto que está editando. Muestra el número de su diapositiva, cambia cuando la diapositiva se mueve y se guarda en los archivos `.pptx` y `.odp`.",
+   "fr": "Insérez un numéro de diapositive comme champ dans le texte en cours de modification. Il affiche le numéro de sa diapositive, change lorsque la diapositive est déplacée et est enregistré dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "95ca4e5dc900099a2dd139d176b32b7d31b9d9205f9a6b9e3ccae38c434e2b39": {
    "drop": false,
    "en": "Safety and limits",
@@ -18776,6 +18721,18 @@
    "en": "Insert a cross-reference as a link to a heading, bookmark, footnote, endnote, numbered item, or caption, as its text, number, page, or above and below. `Ctrl`+click follows it.",
    "es": "Inserte una referencia cruzada como vínculo a un título, marcador, nota al pie, nota final, elemento numerado o título de ilustración, como su texto, número, página o arriba y abajo. `Ctrl`+clic la sigue.",
    "fr": "Insérez un renvoi sous forme de lien vers un titre, un signet, une note de bas de page, une note de fin, un élément numéroté ou une légende, avec son texte, son numéro, sa page ou au-dessus et en dessous. `Ctrl`+clic le suit.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "966f2ea9cd846fb956300ea2629d48c67a72a1edd428ffbd0c70cac6b9905893": {
+   "drop": false,
+   "en": "Round stored numbers to the decimals shown, after a warning that lets you cancel. While it is on, typed, pasted, and calculated numbers are rounded the same way. The setting is kept in `.xlsx` and `.ods` files.",
+   "es": "Redondee los números almacenados a los decimales mostrados, tras una advertencia que permite cancelar. Mientras está activado, los números escritos, pegados y calculados se redondean del mismo modo. El ajuste se conserva en los archivos `.xlsx` y `.ods`.",
+   "fr": "Arrondissez les nombres stockés aux décimales affichées, après un avertissement qui permet d’annuler. Lorsque l’option est active, les nombres saisis, collés et calculés sont arrondis de la même façon. Le réglage est conservé dans les fichiers `.xlsx` et `.ods`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21495,18 +21452,6 @@
     "fr": ""
    }
   },
-  "c236b353bb858e6e2e091c35b9292d62f4c7590e2c2da484c986b30c97a281ae": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Print options for markup, hidden text, backgrounds, document properties, field codes, and drawings",
-    "es": "Opciones de impresión para marcas de revisión, texto oculto, fondos, propiedades del documento, códigos de campo y dibujos",
-    "fr": "Options d’impression pour les marques de révision, le texte masqué, les arrière-plans, les propriétés du document, les codes de champ et les dessins"
-   }
-  },
   "c25be5a10ba0ee26d151105eeca60f43a86aa7a5b870983bde3d5aff8799bd59": {
    "drop": false,
    "en": "Rename a sheet, with every formula that names it following. Move or copy a sheet within the workbook, or drag its tab, and set Tab Color. A copy keeps the sheet’s protection, filter, links, page setup, page breaks, row and column groups, and data bar looks, and says it leaves out pictures, charts, notes, pivot tables, sparklines, and names that belong to the sheet alone. A workbook holds up to 1,000 sheets.",
@@ -22395,6 +22340,18 @@
     "fr": ""
    }
   },
+  "cd7254e44c15e8bb8a48d6699bace2eeafbd19a76431a21d4ea5977cb2f2ec54": {
+   "drop": false,
+   "en": "Set the grid spacing, show the grid, snap objects to the grid and to other objects, show guides, and add or remove guides. Drag guides out of the ruler, move them by dragging, and drag them back to remove them. A `.pptx` file keeps these settings.",
+   "es": "Defina el espaciado de la cuadrícula, muestre la cuadrícula, ajuste los objetos a la cuadrícula y a otros objetos, muestre guías y agregue o quite guías. Arrastre las guías desde la regla, muévalas arrastrando y arrástrelas de vuelta para quitarlas. Un archivo `.pptx` conserva estos ajustes.",
+   "fr": "Réglez l’espacement de la grille, affichez la grille, alignez les objets sur la grille et sur d’autres objets, affichez les repères, et ajoutez ou supprimez des repères. Faites glisser les repères depuis la règle, déplacez-les en les faisant glisser et faites-les glisser en retour pour les supprimer. Un fichier `.pptx` conserve ces réglages.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cd8607744af27f4fa7467afb10ba4be6c2e03e6cf0110b7a2fcb68705f8aaa8f": {
    "drop": false,
    "en": "Text that looks like a number becomes a number in arithmetic (`\"3\"+\"4\"` is 7), true and false become 1 and 0, and an empty cell is 0 in arithmetic and empty text in joining. Typed text is parsed by the locale, such as `1,5` in German.",
@@ -22417,6 +22374,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "cdc6f71e2cc83ec7ef33662bf4b1617e27dd2af8d1cd9b4092cd1c35b981c84f": {
+   "drop": false,
+   "en": "Choose what prints: the document with tracked changes and comments, or without them, and switch hidden text and background colors on or off.",
+   "es": "Elija qué se imprime: el documento con cambios controlados y comentarios, o sin ellos, y active o desactive el texto oculto y los colores de fondo.",
+   "fr": "Choisissez ce qui s’imprime : le document avec les modifications suivies et les commentaires, ou sans eux, et activez ou désactivez le texte masqué et les couleurs d’arrière-plan.",
+   "soon": {
+    "drop": false,
+    "en": "Print options for document properties, field codes, drawings, a list of the markup, updated fields, and background pictures",
+    "es": "Opciones de impresión para propiedades del documento, códigos de campo, dibujos, lista de marcas de revisión, campos actualizados e imágenes de fondo",
+    "fr": "Options d’impression pour les propriétés du document, les codes de champ, les dessins, la liste des marques de révision, les champs mis à jour et les images d’arrière-plan"
    }
   },
   "ce022df46ca9a928ff09b1706fb373e4e0cd14a9ffe4cbf28c56b3106907b90b": {
@@ -23127,18 +23096,6 @@
     "fr": ""
    }
   },
-  "d7bfb1337d53adc6c483e93822fa28e5bbd3b1a2be58cc183de927ebcbd2015a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Slide number field: insert into a text box",
-    "es": "Campo de número de diapositiva: insertar en un cuadro de texto",
-    "fr": "Champ de numéro de diapositive : insérer dans une zone de texte"
-   }
-  },
   "d7cae9433ad234931b01e864330ee4408111aecfac33b90e13c191d7bea47210": {
    "drop": false,
    "en": "Links",
@@ -23252,6 +23209,18 @@
    "en": "A picture of each slide appears in the slides pane, the sorter, and the animation pane, and is redrawn as the slide changes.",
    "es": "Una imagen de cada diapositiva aparece en el panel de diapositivas, el clasificador y el panel de animación, y se vuelve a dibujar cuando la diapositiva cambia.",
    "fr": "Une image de chaque diapositive apparaît dans le volet des diapositives, le trieur et le volet Animation, et elle est redessinée lorsque la diapositive change.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d9e368d7efacc5083bf999a6a834caa9a7d17fe59c766312b073c14d9023d878": {
+   "drop": false,
+   "en": "Insert the date or the time into the text being edited as a field. Choose a language to show the formats in that language; the field keeps its language in `.pptx` and `.odp` files.",
+   "es": "Inserte la fecha o la hora como campo en el texto que está editando. Elija un idioma para ver los formatos en ese idioma; el campo conserva su idioma en los archivos `.pptx` y `.odp`.",
+   "fr": "Insérez la date ou l’heure comme champ dans le texte en cours de modification. Choisissez une langue pour afficher les formats dans cette langue ; le champ conserve sa langue dans les fichiers `.pptx` et `.odp`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24195,6 +24164,18 @@
     "fr": "Tableaux croisés dynamiques, segments, graphiques sparkline, contrôles de formulaire et affichages personnalisés : afficher et modifier"
    }
   },
+  "e64145b05a9524d7a49790baa612371f6d735966c1e23d4302bd7bba27770c86": {
+   "drop": false,
+   "en": "Cut several selections onto the Spike with `Ctrl+F3` and paste them all together in order with `Ctrl+Shift+F3`. Overtype mode works with the `Insert` key.",
+   "es": "Corte varias selecciones al Spike con `Ctrl+F3` y péguelas todas juntas en orden con `Ctrl+Shift+F3`. El modo de sobrescritura funciona con la tecla `Insert`.",
+   "fr": "Coupez plusieurs sélections vers le Spike avec `Ctrl+F3` et collez-les toutes ensemble dans l’ordre avec `Ctrl+Maj+F3`. Le mode refrappe fonctionne avec la touche `Insert`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e6452e28c523e0348cf04388d21ac804b7c2c683ac0603ff18733cc9a7f9d9dd": {
    "drop": false,
    "en": "Switch between light and dark interface themes in File > Options at once, without a restart, or follow the system’s setting.",
@@ -24867,6 +24848,18 @@
     "fr": ""
    }
   },
+  "ef07bb5de90a7ff1c92476fa6cc1955f1aecfbf78849bfc129f1baed855d250c": {
+   "drop": false,
+   "en": "Insert a chart of one of 12 kinds, edit its data in a grid, and change its type. Edit the chart title, legend, axes, gridlines, styles, data labels, trendlines, and error bars, and format the chart, plot area, or a series.",
+   "es": "Inserte un gráfico de uno de 12 tipos, edite sus datos en una cuadrícula y cambie su tipo. Edite el título, la leyenda, los ejes, las líneas de cuadrícula, los estilos, las etiquetas de datos, las líneas de tendencia y las barras de error, y dé formato al gráfico, al área de trazado o a una serie.",
+   "fr": "Insérez un graphique parmi 12 types, modifiez ses données dans une grille et changez son type. Modifiez le titre, la légende, les axes, le quadrillage, les styles, les étiquettes de données, les courbes de tendance et les barres d’erreur, et mettez en forme le graphique, la zone de tracé ou une série.",
+   "soon": {
+    "drop": false,
+    "en": "Chart data: edit in a workbook",
+    "es": "Datos del gráfico: edición en un libro",
+    "fr": "Données du graphique : modification dans un classeur"
+   }
+  },
   "ef5aa12f922054c4eeb7ed32c2cb48d1aff535a10788573a8a749acf4fd19890": {
    "drop": false,
    "en": "Restrict editing to no changes (read only), tracked changes, comments, or filling in forms, with an optional password. Manage Styles limits formatting to styles that are not locked. A protected file opens protected, and Stop Protection asks for the password.",
@@ -25436,6 +25429,18 @@
    "en": "Start the show From Beginning (`F5`, or a button on the quick toolbar) or From Current Slide (`Shift+F5`, or a button on the status bar).",
    "es": "Inicie la presentación Desde el principio (`F5`, o un botón de la barra de herramientas rápida) o Desde la diapositiva actual (`Shift+F5`, o un botón de la barra de estado).",
    "fr": "Lancez le diaporama Depuis le début (`F5`, ou un bouton de la barre d’outils rapide) ou Depuis la diapositive actuelle (`Maj+F5`, ou un bouton de la barre d’état).",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f8085f7598025ef5bdacc691b46e4d2f879790a8a07f2f7927b3d8f563baaf74": {
+   "drop": false,
+   "en": "Draw a text box, insert business information fields, add text styles, and insert text, RTF, HTML, and `.docx` files into a text box. Insert symbols with a list of recently used ones that is kept between sessions, and insert the date and time with formats, a language for the names, and automatic updating. Place a PDF page, an SVG drawing, or a picture as an object.",
+   "es": "Dibuje un cuadro de texto, inserte campos de información de empresa, agregue estilos de texto e inserte archivos de texto, RTF, HTML y `.docx` en un cuadro de texto. Inserte símbolos con una lista de los usados recientemente que se conserva entre sesiones, e inserte la fecha y la hora con formatos, un idioma para los nombres y actualización automática. Coloque una página PDF, un dibujo SVG o una imagen como objeto.",
+   "fr": "Dessinez une zone de texte, insérez des champs d’informations d’entreprise, ajoutez des styles de texte et insérez des fichiers texte, RTF, HTML et `.docx` dans une zone de texte. Insérez des symboles avec une liste des symboles récents conservée entre les sessions, et insérez la date et l’heure avec des formats, une langue pour les noms et une mise à jour automatique. Placez une page PDF, un dessin SVG ou une image comme objet.",
    "soon": {
     "drop": true,
     "en": "",
