@@ -1,11 +1,15 @@
 #include "tst_crunch_print.h"
+#include "app/theme.h"
 #include <QBuffer>
+#include <QPdfWriter>
+#include <QPainter>
 #include <QImageReader>
 #include <QRandomGenerator>
 #include "findbooks.h"
 
 #include "../plainpdfwatch.h"
 #include "../emlpdf.h"
+#include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include "io/qtpdf.h"
 #include "sheet/links.h"
@@ -379,7 +383,206 @@ void CrunchPrintTests::aPdfCanBeExportedAsPdfA()
     QVERIFY(plain.startsWith("%PDF-") && archive.startsWith("%PDF-"));
     QVERIFY(!plain.contains("/OutputIntents"));
     QVERIFY(archive.contains("/OutputIntents"));
-    QVERIFY(archive.contains("pdfaid:part"));
+    QVERIFY(archive.contains("pdfaid:part=\"1\""));
+    QVERIFY(!archive.contains("pdfaid:part=\"2\""));
+}
+
+
+namespace {
+// The text of a PDF string written as UTF-16 in hexadecimal (<FEFF...>), as the outline's titles are.
+QString pdfHexTitle(const QByteArray &hex)
+{
+    const QByteArray bytes = QByteArray::fromHex(hex);
+    QString out;
+    for (qsizetype i = 2; i + 1 < bytes.size(); i += 2) out += QChar(ushort((uchar(bytes[i]) << 8) | uchar(bytes[i + 1])));
+    return out;
+}
+
+struct OutlineRead {
+    QStringList titles;
+    QVector<int> pageIndex;   // the PDF page (from 0) each entry goes to
+    bool hasOutlines = false;
+};
+
+OutlineRead readOutline(const QByteArray &pdf)
+{
+    OutlineRead out;
+    jp::QtPdf q;
+    // (the pages are those of the file as Qt wrote it; the outline is an update after its first end)
+    if (!q.loadBytes(pdf.left(int(pdf.indexOf("%%EOF")) + 6))) return out;
+    QVector<int> pageIds;
+    for (const jp::QtPdf::Obj &obj : q.objects)
+        if (obj.body.contains("/Type /Page\n")) pageIds << obj.id;
+    out.hasOutlines = pdf.contains("/Type /Outlines");
+    static const QRegularExpression entry(QStringLiteral("/Title <([0-9A-Fa-f]+)> /Parent \\d+ 0 R[^>]*?/Dest \\[(\\d+) 0 R"));
+    for (auto it = entry.globalMatch(QString::fromLatin1(pdf)); it.hasNext();) {
+        const auto m = it.next();
+        out.titles << pdfHexTitle(m.captured(1).toLatin1());
+        out.pageIndex << int(pageIds.indexOf(m.captured(2).toInt()));
+    }
+    return out;
+}
+
+QByteArray textRows(int rows)
+{
+    QString xml;
+    for (int r = 1; r <= rows; ++r) xml += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>row %1</t></is></c></row>").arg(r);
+    return worksheet(xml);
+}
+} // namespace
+
+// An exported PDF has a bookmark for each sheet, going to the page its first page is on (a sheet of several pages is one bookmark, and the next sheet's goes after those pages).
+void CrunchPrintTests::aPdfHasABookmarkForEachSheet()
+{
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({textRows(150), textRows(1), textRows(1)}, QByteArray(), QString(), QString(), budgetStyles(), QStringList({"Long", "Second", "Third & last"}))));
+    const QString path = e.folder.dir.filePath(QStringLiteral("marks.pdf"));
+    crunch::PrintJobOptions options;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray pdf = f.readAll();
+    const OutlineRead o = readOutline(pdf);
+    QVERIFY(o.hasOutlines);
+    QCOMPARE(o.titles, QStringList({"Long", "Second", "Third & last"}));
+    QCOMPARE(o.pageIndex[0], 0);
+    QVERIFY2(o.pageIndex[1] >= 2, "the long sheet has more than one page");
+    QCOMPARE(o.pageIndex[2], o.pageIndex[1] + 1);
+    QVERIFY(pdf.contains("/PageMode /UseOutlines"));
+}
+
+// A workbook of a thousand sheets (the most the reader takes) gets a bookmark each, and the bookmarks added to a PDF are held to jp::kMostPdfBookmarks whatever list they are given.
+void CrunchPrintTests::aPdfOfThousandsOfSheetsHasBoundedBookmarks()
+{
+    const int sheets = 1000;   // (the most the reader takes: a file with more is refused)
+    QVector<QByteArray> parts;
+    QStringList names;
+    const QByteArray one = textRows(1);
+    for (int i = 0; i < sheets; ++i) {
+        parts << one;
+        names << QStringLiteral("S%1").arg(i + 1);
+    }
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx(parts, QByteArray(), QString(), QString(), budgetStyles(), names)));
+    const QString path = e.folder.dir.filePath(QStringLiteral("many.pdf"));
+    crunch::PrintJobOptions options;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+    QVERIFY2(job, qPrintable(why));
+    QVector<int> pages;
+    for (int i = 0; i < job->pageCount(); ++i) pages << i;
+    // (sixteen pages to a sheet of paper: a few dozen PDF pages hold them all)
+    QVERIFY2(job->exportPdf(path, pages, &why, nullptr, 16), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const OutlineRead o = readOutline(f.readAll());
+    QVERIFY(o.titles.size() <= jp::kMostPdfBookmarks);
+    QCOMPARE(int(o.titles.size()), 1000);
+    QCOMPARE(o.titles.first(), QStringLiteral("S1"));
+    QCOMPARE(o.titles.last(), QStringLiteral("S1000"));
+    // (the sheet of the sixteenth is on the first PDF page, the seventeenth's on the second)
+    QCOMPARE(o.pageIndex[15], 0);
+    QCOMPARE(o.pageIndex[16], 1);
+    // The list a PDF is given is cut: more than the most make exactly the most.
+    QByteArray made;
+    {
+        QBuffer buffer(&made);
+        buffer.open(QIODevice::WriteOnly);
+        QPdfWriter pdf(&buffer);
+        QPainter p(&pdf);
+        for (int i = 0; i < jp::kMostPdfBookmarks + 100; ++i) {
+            if (i) pdf.newPage();
+            p.drawText(10, 10, QStringLiteral("x"));
+        }
+    }
+    QVector<jp::PdfBookmark> marks;
+    for (int i = 0; i < jp::kMostPdfBookmarks + 100; ++i) marks.push_back({QStringLiteral("M%1").arg(i), 0, i});
+    QCOMPARE(int(readOutline(jp::addPdfBookmarks(made, marks)).titles.size()), jp::kMostPdfBookmarks);
+}
+
+// A PDF can be tagged for screen readers: each page's cells are a table (a row for each row that has text, a cell for each cell that has), the marks are all gone, and the language
+// is named; without the option there is no structure.
+void CrunchPrintTests::aTaggedPdfHasTheCellsAsATable()
+{
+    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>a</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>b</t></is></c></row>"
+                                                      "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>c</t></is></c><c r=\"C2\" t=\"inlineStr\"><is><t>d</t></is></c></row>"
+                                                      "<row r=\"4\"><c r=\"B4\" t=\"inlineStr\"><is><t>e</t></is></c></row>"));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({sheet})));
+    auto make = [&](bool tags, bool archival, const QString &name) {
+        crunch::PrintJobOptions options;
+        options.pdfTags = tags;
+        options.archival = archival;
+        QString why;
+        const QString path = e.folder.dir.filePath(name);
+        if (!e.win.w.exportPdfTo(path, options, QString(), &why)) return QByteArray();
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    };
+    const QByteArray plain = make(false, false, QStringLiteral("plain.pdf"));
+    QVERIFY(plain.startsWith("%PDF-") && !plain.contains("/StructTreeRoot"));
+    for (bool archival : {false, true}) {
+        const QByteArray pdf = make(true, archival, QStringLiteral("tagged%1.pdf").arg(archival));
+        QVERIFY(pdf.startsWith("%PDF-"));
+        QVERIFY(pdf.contains("/StructTreeRoot"));
+        QVERIFY(pdf.contains("/MarkInfo"));
+        QVERIFY(pdf.contains("/Lang ("));
+        QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+        jp::QtPdf q;
+        QVERIFY(q.loadBytes(pdf));
+        QMap<QString, int> types;
+        for (const jp::QtPdf::Obj &obj : q.objects) {
+            const auto m = QRegularExpression(QStringLiteral("/Type /StructElem /S /(\\w+)")).match(QString::fromLatin1(obj.body));
+            if (m.hasMatch()) ++types[m.captured(1)];
+        }
+        QCOMPARE(types.value(QStringLiteral("Table")), 1);
+        QCOMPARE(types.value(QStringLiteral("TR")), 3);
+        QCOMPARE(types.value(QStringLiteral("TD")), 5);
+        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\""));
+    }
+}
+
+// The cells are read in their order (a row from left to right, rows from the top down), whatever order the grid paints them in, and each cell's words are in the cell that holds them.
+void CrunchPrintTests::theTaggedCellsAreReadRowByRow()
+{
+    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>first</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>second</t></is></c></row>"
+                                                      "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>third</t></is></c></row>"
+                                                      "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>merged</t></is></c></row>"),
+                                       QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A3:B3\"/></mergeCells>"));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({sheet})));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    const QString path = e.folder.dir.filePath(QStringLiteral("order.pdf"));
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    jp::QtPdf q;
+    QVERIFY(q.loadBytes(f.readAll()));
+    // The structure elements in the order the tree reads them: the Table's rows, each row's cells.
+    QHash<int, QByteArray> body;
+    for (const jp::QtPdf::Obj &obj : q.objects) body.insert(obj.id, obj.body);
+    int table = -1;
+    for (const jp::QtPdf::Obj &obj : q.objects)
+        if (obj.body.contains("/S /Table")) table = obj.id;
+    QVERIFY(table > 0);
+    static const QRegularExpression ref(QStringLiteral("(\\d+) 0 R"));
+    auto kids = [&](int id) {
+        QVector<int> out;
+        const QString k = QString::fromLatin1(body[id].mid(body[id].indexOf("/K [")));
+        for (auto it = ref.globalMatch(k); it.hasNext();) out << it.next().captured(1).toInt();
+        return out;
+    };
+    const QVector<int> rows = kids(table);
+    QCOMPARE(int(rows.size()), 3);
+    QCOMPARE(int(kids(rows[0]).size()), 2);
+    QCOMPARE(int(kids(rows[1]).size()), 1);
+    QCOMPARE(int(kids(rows[2]).size()), 1);   // (the merged range's one cell: painted after the others, read in its row)
+    QVERIFY(body[rows[2]].contains("/S /TR"));
 }
 
 
@@ -2229,10 +2432,14 @@ void CrunchPrintTests::aPdfHasClickableLinksOverLinkedCells()
         QCOMPARE(pageIds.size(), 2);
         QVERIFY2(pdf.contains("/URI (https://example.org/a)"), "no link for the web address");
         QVERIFY2(pdf.contains("/URI (https://example.org/f)"), "no link for the HYPERLINK cell");
-        QVERIFY2(pdf.count("/Dest [" + QByteArray::number(pageIds[1]) + " 0 R") == 1, "no link to the page of the other sheet");
+        // (a bookmark for the other sheet goes to its page too: the link is the one in an annotation)
+        int toOther = 0;
+        for (const QByteArray &part : pdf.split('\n'))
+            if (part.contains("/Subtype /Link") && part.contains("/Dest [" + QByteArray::number(pageIds[1]) + " 0 R")) ++toOther;
+        QVERIFY2(toOther == 1, "no link to the page of the other sheet");
         QVERIFY(!pdf.contains("server") && !pdf.contains("host/share"));
         QCOMPARE(int(pdf.count("/Subtype /Link")), 3);
-        if (archival) QVERIFY(pdf.contains("pdfaid:part"));
+        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\""));
     }
 }
 
@@ -2452,6 +2659,59 @@ void CrunchPrintTests::theExportPageOffersAPasswordAndTurnsOffPdfA()
     w.showFileScreen(QStringLiteral("export"));
     archive = w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdfA"));
     QVERIFY(archive && archive->isEnabled());
+}
+
+
+// The Export page has the tag choice beside the PDF/A card, on by default: the PDFs it makes are tagged for screen readers, or not when it is off.
+void CrunchPrintTests::theExportPageOffersTagsForScreenReaders()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    const QString path = e.folder.dir.filePath(QStringLiteral("page.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    w.showFileScreen(QStringLiteral("export"));
+    auto *tags = w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"));
+    QVERIFY(tags);
+    QVERIFY(tags->isChecked());
+    QCOMPARE(tags->text(), QStringLiteral("Document structure tags for accessibility"));
+    auto exported = [&](const char *card) {
+        w.showFileScreen(QStringLiteral("export"));
+        w.findChild<QAbstractButton *>(QString::fromLatin1(card))->click();
+        QFile f(path);
+        return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    };
+    QVERIFY(exported("exportBookPdf").contains("/StructTreeRoot"));
+    QVERIFY(exported("exportBookPdfA").contains("/StructTreeRoot"));
+    w.showFileScreen(QStringLiteral("export"));
+    w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"))->setChecked(false);
+    w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf"))->click();
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QVERIFY(!f.readAll().contains("/StructTreeRoot"));
+}
+
+
+// A picture of the Export page, and the PDFs the cards make, for the docs (only with CR_SHOT_DIR: a folder).
+void CrunchPrintTests::pictureOfTheExportPage()
+{
+    const QString dir = qEnvironmentVariable("CR_SHOT_DIR");
+    if (dir.isEmpty()) QSKIP("CR_SHOT_DIR is not set");
+    jp::applyUiTheme(1);
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1200, 800);
+    w.show();
+    w.showFileScreen(QStringLiteral("export"));
+    QString path = QDir(dir).filePath(QStringLiteral("crunch-tagged.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    QTRY_VERIFY(w.findChild<QCheckBox *>(QStringLiteral("exportPdfTags"))->isVisible());
+    QVERIFY(w.grab().save(QDir(dir).filePath(QStringLiteral("crunch-export-page.png"))));
+    w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdf"))->click();
+    path = QDir(dir).filePath(QStringLiteral("crunch-archive.pdf"));
+    w.showFileScreen(QStringLiteral("export"));
+    w.findChild<QAbstractButton *>(QStringLiteral("exportBookPdfA"))->click();
 }
 
 

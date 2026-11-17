@@ -21,6 +21,7 @@
 #include <QHash>
 #include <QPainter>
 
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -60,6 +61,9 @@ struct PaintOptions {
     QColor headerSelected = QColor(0xD6, 0xE9, 0xDC);      // a header whose row or column is selected
     QColor accent = QColor(0x13, 0x77, 0x3A);
     QFont headerFont;
+    // Called around the text of each cell that is drawn in its own place (not the spill of a neighbor beyond the part): true before it, false after, with the cell's row and column. A page being
+    // tagged for a PDF marks the cell's words by it.
+    std::function<void(bool begin, qint64 row, qint64 col)> cellText;
 };
 
 struct PaintStats {

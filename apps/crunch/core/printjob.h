@@ -16,6 +16,7 @@
 #include "grid/valuestore.h"
 #include "io/pdfbookmarks.h"
 #include "io/pdfcrypt.h"
+#include "io/pdftags.h"
 
 #include <QDateTime>
 #include <QImage>
@@ -52,6 +53,7 @@ struct PrintJobOptions {
     bool ignorePrintArea = false;
     bool grayscale = false;                     // every page is painted in shades of gray, in the preview, on paper, and in a PDF
     bool archival = false;                      // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency)
+    bool pdfTags = false;                       // for a PDF: tagged for screen readers (each page's cells are a table; not for a gray job, whose pages are pictures)
     // what the person chose for this job, over what the sheets say
     bool setOrientation = false;
     jp::office::sheet::PageOrientation orientation = jp::office::sheet::PageOrientation::Default;
@@ -260,6 +262,8 @@ private:
         int note = -1;      // for a page of notes, its place among the sheet's pages of notes
     };
     struct Build;
+    // The bookmarks of a PDF of the pages: one for each sheet of the workbook that has a page in it, going to the PDF page its first page is on, at most jp::kMostPdfBookmarks.
+    QVector<jp::PdfBookmark> pdfBookmarks(const QVector<int> &pdfPageOf);
     // The links of the pages as a PDF with one page to a sheet holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF). At most kMostPdfLinks.
     QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf);
     Context &contextFor(int infoIndex);
@@ -280,6 +284,8 @@ private:
     QDateTime m_now;
     int m_totalNumbers = 0;
     std::unique_ptr<Build> m_build;
+    jp::PdfTagger *m_tagger = nullptr;   // set while a PDF is made that is to be tagged
+    int m_artifactTag = -1;
 };
 
 // The pages (from 0) that text such as "1-3, 5" names, once each, in the order given; "8-" goes to the last and "-2" from the first. A part that names no page is passed by. Empty when none is named.

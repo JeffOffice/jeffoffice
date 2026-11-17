@@ -3,6 +3,7 @@
 #include "grid/hfpicturecache.h"
 
 #include <QFontMetricsF>
+#include <QHash>
 #include <QPen>
 
 #include <algorithm>
@@ -61,6 +62,21 @@ PagePainter::PagePainter(GridSheet *sheet) : m_sheet(sheet), m_painter(std::make
 }
 
 PagePainter::~PagePainter() = default;
+
+void PagePainter::setTagger(jp::PdfTagger *tagger)
+{
+    m_tagger = tagger;
+    m_artifactOpen = false;
+    m_artifactTag = tagger ? tagger->add({QStringLiteral("Artifact"), QString(), -1, false}) : -1;
+}
+
+void PagePainter::artifact(QPainter *p, bool on)
+{
+    if (!m_tagger || on == m_artifactOpen) return;
+    if (on) m_tagger->begin(p, m_artifactTag);
+    else m_tagger->end(p, m_artifactTag);
+    m_artifactOpen = on;
+}
 
 void PagePainter::setBaseFont(const QString &family, double points)
 {
@@ -133,6 +149,29 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     options.monochrome = setup.blackAndWhite;
     options.strokedDashes = true;
     const double scale = print.scalePercent / 100.0;
+    // Tagging: the cells are a table (a row for each row that has text, a cell for each cell that has: the grid says when it draws a cell's words), and everything else is decoration.
+    int table = -1;
+    QHash<qint64, int> rowTags;
+    int cellTag = -1;
+    if (m_tagger) {
+        table = m_tagger->add({QStringLiteral("Table"), QString(), -1, false});
+        options.cellText = [&](bool begin, qint64 row, qint64 col) {
+            if (!begin) {
+                if (cellTag < 0) return;
+                m_tagger->end(p, cellTag);
+                cellTag = -1;
+                artifact(p, true);
+                return;
+            }
+            if (m_tagger->tags().size() + 2 > kMostSheetTags) return;   // (past the bound the words stay in the decoration)
+            artifact(p, false);
+            int &tr = rowTags[row];
+            if (tr == 0) tr = 1 + m_tagger->add({QStringLiteral("TR"), QString(), table, false, double(row)});
+            cellTag = m_tagger->add({QStringLiteral("TD"), QString(), tr - 1, true, double(col)});
+            m_tagger->begin(p, cellTag);
+        };
+        artifact(p, true);
+    }
     p->save();
     p->translate(m.cells.left(), m.cells.top());
     p->scale(m.unit, m.unit);
@@ -159,6 +198,7 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
         paintHeadings(p, L, page, h, scale);
     }
     paintHeaderFooter(p, print.paper, setup, labels, firstOfSheet, scale);
+    artifact(p, false);
 }
 
 // The lines between the cells as the screen shows them: one device pixel wide at any zoom, over the parts of the grid the page has (the title rows and columns, and the page's own).
@@ -246,6 +286,8 @@ QImage PagePainter::headerPicture(const jp::office::sheet::HeaderPicture &pic)
 void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool firstOfSheet, double scale)
 {
     const HeaderFooter &hf = setup.headerFooter;
+    const bool wasOpen = m_artifactOpen;
+    artifact(p, true);   // (the header and footer are decoration)
     for (bool header : {true, false}) {
         QString code;
         if (hf.differentFirst && firstOfSheet) code = header ? hf.firstHeader : hf.firstFooter;
@@ -253,6 +295,7 @@ void PagePainter::paintHeaderFooter(QPainter *p, const PaperBox &paper, const Pa
         else code = header ? hf.oddHeader : hf.oddFooter;
         if (!code.isEmpty()) paintHeaderFooterText(p, code, paper, setup, labels, header, scale, hf.differentFirst && firstOfSheet, hf.differentOddEven && labels.page % 2 == 0 && !(hf.differentFirst && firstOfSheet));
     }
+    if (!wasOpen) artifact(p, false);
 }
 
 void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const PaperBox &paper, const PageSetup &setup, const HfContext &labels, bool header, double scale, bool first, bool even)

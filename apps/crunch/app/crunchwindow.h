@@ -600,8 +600,8 @@ public:
     void setProgressHook(const std::function<bool(int, int)> &hook) { m_progressHook = hook; }
     // File > Export: asks for a name and puts the sheet in view (or every sheet that is shown) in a PDF file. True when the file is made; false, with the reason shown, if it is not or the
     // person gives it up.
-    // `protect`: a password to open the PDF with (PDF/A is then not made: that standard forbids one); the caller wipes it
-    bool exportPdf(bool wholeWorkbook, bool archival = false, const PdfProtection &protect = PdfProtection());
+    // `protect`: a password to open the PDF with (PDF/A is then not made: that standard forbids one); the caller wipes it. `tags`: the PDF is tagged for screen readers.
+    bool exportPdf(bool wholeWorkbook, bool archival = false, const PdfProtection &protect = PdfProtection(), bool tags = false);
     // Email: makes a message as a .eml file (asking where to put it) with the workbook, or the workbook as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Workbook, Pdf };
     // `protect`: a password for the PDF of the Pdf form (the workbook as a file keeps the password the workbook has)

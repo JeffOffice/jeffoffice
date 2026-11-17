@@ -81,7 +81,7 @@ QPrinter &CrunchWindow::printer()
     return *m_printer;
 }
 
-bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtection &protect)
+bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtection &protect, bool tags)
 {
     if (!m_loaded || !m_haveCalc) {
         notice(tr("Export to PDF"), tr("The workbook is still being opened. It can be exported when it is open."));
@@ -91,6 +91,7 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtect
     options.what = wholeWorkbook ? crunch::PrintWhat::Workbook : crunch::PrintWhat::ActiveSheet;
     options.activeSheet = m_sheet;
     options.archival = archival && !protect.isSet();
+    options.pdfTags = tags;
     const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
     const QString start = QDir(dir).filePath(displayName() + QStringLiteral(".pdf"));
     QString path = askForSavePath(tr("Export to PDF"), start, tr("PDF (*.pdf)"));

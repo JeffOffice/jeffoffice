@@ -9,6 +9,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QLocale>
 #include <QFontMetricsF>
 #include <QFileInfo>
 #include <QPageLayout>
@@ -491,6 +492,7 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
         c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
         c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
         c.objects->fitFirstTo(double(info.cols.total()), double(info.rows.total()));
+        if (m_tagger) c.painter->setTagger(m_tagger);
         return c;
     }
     GridData data = m_source->data(info.sheet);
@@ -508,6 +510,7 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     c.painter->setAsyncPictures(m_asyncPictures);
     c.painter->setScreenMarks(m_screenGrid, m_screenHeadings);
     if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
+    if (m_tagger) c.painter->setTagger(m_tagger);
     return c;
 }
 
@@ -581,10 +584,14 @@ bool PrintJob::paintColors(QPainter *painter, int page)
         painter->setFont(font);
         painter->setPen(Qt::black);
         double y = paper.top * U + fm.ascent();
+        // (the notes of a page are one paragraph for a screen reader)
+        const int paragraph = m_tagger ? m_tagger->add({QStringLiteral("P")}) : -1;
+        if (m_tagger) m_tagger->begin(painter, paragraph);
         for (const QString &line : info.notePages[size_t(pg.note)]) {
             painter->drawText(QPointF(paper.left * U, y), line);
             y += fm.lineSpacing();
         }
+        if (m_tagger) m_tagger->end(painter, paragraph);
         painter->restore();
         c.painter->paintHeaderFooter(painter, paper, info.setup, labels, false, 1.0);
         return true;
@@ -597,7 +604,9 @@ bool PrintJob::paintColors(QPainter *painter, int page)
             painter->translate(m.cells.left(), m.cells.top());
             painter->scale(m.unit, m.unit);
             painter->setClipRect(QRect(0, 0, int(m.widthUnits), int(m.heightUnits)));
+            c.painter->markDecoration(painter, true);   // (a chart has no tag: it is left out of the reading order)
             c.objects->paint(painter, cut, m.zoom);
+            c.painter->markDecoration(painter, false);
             painter->restore();
         }
         c.painter->paintHeaderFooter(painter, info.print.paper, info.setup, labels, true, 1.0);
@@ -840,7 +849,9 @@ void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QS
         painter->restore();
         painter->save();
         painter->setPen(QPen(QColor(0x80, 0x80, 0x80), 0.5));
+        if (m_tagger) m_tagger->begin(painter, m_artifactTag);
         painter->drawRect(QRectF(x0, y0, size.width() * k, size.height() * k));
+        if (m_tagger) m_tagger->end(painter, m_artifactTag);
         painter->restore();
     }
 }
@@ -909,6 +920,20 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
     return out;
 }
 
+QVector<jp::PdfBookmark> PrintJob::pdfBookmarks(const QVector<int> &pdfPageOf)
+{
+    QVector<jp::PdfBookmark> out;
+    QSet<int> seen;
+    for (int page = 0; page < pageCount() && page < pdfPageOf.size() && out.size() < jp::kMostPdfBookmarks; ++page) {
+        if (pdfPageOf[page] < 0) continue;
+        const int sheet = m_sheets[size_t(m_pages[size_t(page)].info)].sheet;
+        if (seen.contains(sheet)) continue;
+        seen.insert(sheet);
+        out.push_back({m_source->sheetName(sheet), 0, pdfPageOf[page]});
+    }
+    return out;
+}
+
 bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect,
                          const QVector<QVector<int>> *sheets)
 {
@@ -921,70 +946,114 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     if (pages.isEmpty()) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "There are no pages to put in the file."));
     const QVector<QVector<int>> groups = sheets ? *sheets : groupsOf(pages, perSheet);
     const bool encrypted = protect && protect->isSet();
-    // The links: the PDF's page of each page of the job (one page to a sheet only).
-    QVector<jp::PdfLink> links;
-    if (perSheet == 1 && !sheets) {
-        QVector<int> pdfPageOf(pageCount(), -1);
+    // The PDF's page of each page of the job (-1: not in the PDF): the links (one page to a sheet only) and the bookmarks (a sheet's first page) go by it.
+    QVector<int> pdfPageOf(pageCount(), -1);
+    {
         int next = 0;
         const int most = int(std::min<qint64>(groups.size(), kMaxSentPages));
-        for (int at = 0; at < most; ++at)
-            if (groups[at].first() >= 0 && groups[at].first() < pageCount() && pdfPageOf[groups[at].first()] < 0) pdfPageOf[groups[at].first()] = next++;
-        links = pdfLinks(pdfPageOf);
+        for (int at = 0; at < most; ++at) {
+            const QVector<int> &group = groups[at];
+            if (group.isEmpty() || group.first() < 0 || group.first() >= pageCount()) continue;
+            for (const int page : group)
+                if (page >= 0 && page < pageCount() && pdfPageOf[page] < 0) pdfPageOf[page] = next;
+            ++next;
+        }
     }
-    // With a password the PDF is made in memory, so the plain one is never on the disk; so is one that links are added to.
+    const QVector<jp::PdfLink> links = perSheet == 1 && !sheets ? pdfLinks(pdfPageOf) : QVector<jp::PdfLink>();
+    const QVector<jp::PdfBookmark> marks = pdfBookmarks(pdfPageOf);
+    const bool tagging = m_options.pdfTags && !m_options.grayscale;
+    // The PDF is made in memory (the bookmarks, the links, and the tags are added to the finished file; with a password the plain PDF is never on the disk).
     QSaveFile file(path);
     QBuffer memory;
-    const bool inMemory = encrypted || !links.isEmpty();
+    const bool inMemory = encrypted || tagging || !links.isEmpty() || !marks.isEmpty();
     if (inMemory) memory.open(QIODevice::WriteOnly);
     else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
-    bool ok = true;
-    {
-        QPdfWriter pdf(inMemory ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
-        pdf.setCreator(QStringLiteral("JeffCrunch"));
-        pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
-        // PDF/A-1b: Qt puts every font in the file, writes the identification and an sRGB output intent, and leaves transparency out
-        if (m_options.archival && !encrypted) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
-        constexpr int kResolution = 1200;
-        pdf.setResolution(kResolution);
-        QPainter p;
-        bool started = false;
-        int done = 0;
-        // (no more pages than a job may send, as printing holds it)
-        const int total = int(std::min<qint64>(groups.size(), kMaxSentPages));
-        for (int at = 0; at < total; ++at) {
-            const QVector<int> &group = groups[at];
-            if (group.first() < 0 || group.first() >= pageCount()) continue;
-            const QSizeF sheet = sheetFor(group, perSheet);
-            setSheet(&pdf, sheet);
-            if (!started) {
-                started = p.begin(&pdf);
+    auto make = [&](jp::PdfTagger *tagger) {
+        if (inMemory) {
+            memory.close();
+            memory.setData(QByteArray());
+            memory.open(QIODevice::WriteOnly);
+        }
+        // (the grids made for a page are given the tagger; those that stay from the last export are given none)
+        m_tagger = tagger;
+        m_artifactTag = tagger ? tagger->add({QStringLiteral("Artifact"), QString(), -1, false}) : -1;
+        for (Context &c : m_contexts)
+            if (c.painter) c.painter->setTagger(tagger);
+        bool ok = true;
+        {
+            QPdfWriter pdf(inMemory ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
+            pdf.setCreator(QStringLiteral("JeffCrunch"));
+            pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
+            // PDF/A-1b: Qt puts every font in the file, writes the identification (part 1, conformance B) and an sRGB output intent, and leaves transparency out
+            if (m_options.archival && !encrypted) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
+            constexpr int kResolution = 1200;
+            pdf.setResolution(kResolution);
+            QPainter p;
+            bool started = false;
+            int done = 0;
+            // (no more pages than a job may send, as printing holds it)
+            const int total = int(std::min<qint64>(groups.size(), kMaxSentPages));
+            for (int at = 0; at < total; ++at) {
+                const QVector<int> &group = groups[at];
+                if (group.isEmpty() || group.first() < 0 || group.first() >= pageCount()) continue;
+                const QSizeF sheet = sheetFor(group, perSheet);
+                setSheet(&pdf, sheet);
                 if (!started) {
+                    started = p.begin(&pdf);
+                    if (!started) {
+                        ok = false;
+                        break;
+                    }
+                } else {
+                    pdf.newPage();
+                }
+                p.save();
+                p.scale(kResolution / 72.0, kResolution / 72.0);
+                paintGroup(&p, group, sheet, perSheet);
+                p.restore();
+                if (progress && !progress(++done, total)) {
+                    m_cancelled = true;
                     ok = false;
                     break;
                 }
-            } else {
-                pdf.newPage();
             }
-            p.save();
-            p.scale(kResolution / 72.0, kResolution / 72.0);
-            paintGroup(&p, group, sheet, perSheet);
-            p.restore();
-            if (progress && !progress(++done, total)) {
-                m_cancelled = true;
-                ok = false;
-                break;
-            }
+            if (started) p.end();
+            ok = ok && started;
         }
-        if (started) p.end();
-        ok = ok && started;
-    }
+        m_tagger = nullptr;
+        for (Context &c : m_contexts)
+            if (c.painter) c.painter->setTagger(nullptr);
+        return ok;
+    };
+    jp::PdfTagger tagger;
+    const bool ok = make(tagging ? &tagger : nullptr);
     if (!ok) {
         file.cancelWriting();
         if (m_cancelled) return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
         return fail(QCoreApplication::translate("jp::crunch::PrintJob", "The pages could not be put in the file."));
     }
     if (inMemory) {
-        QByteArray bytes = links.isEmpty() ? memory.data() : jp::addPdfLinks(memory.data(), links);
+        QByteArray bytes = memory.data();
+        if (tagging) {
+            QString language = QLocale().bcp47Name();
+            const jp::PdfTagResult made = jp::tagPdf(bytes, tagger, {language, QFileInfo(m_options.fileName).completeBaseName()});
+            if (made.pdf.isEmpty()) {
+                // The marks could not be taken out: the pages are made again, without them.
+                if (!make(nullptr)) {
+                    file.cancelWriting();
+                    return fail(QCoreApplication::translate("jp::crunch::PrintJob", "The pages could not be put in the file."));
+                }
+                bytes = memory.data();
+            } else {
+                bytes = made.pdf;
+            }
+            if (made.pdf.isEmpty() || !made.tagged) {
+                const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "The PDF is not tagged for screen readers: %1.").arg(made.why);
+                if (!m_messages.contains(said)) m_messages << said;
+            }
+        }
+        if (!links.isEmpty()) bytes = jp::addPdfLinks(bytes, links);
+        if (!marks.isEmpty()) bytes = jp::addPdfBookmarks(bytes, marks);
         if (encrypted) {
             QString why;
             bytes = jp::encryptPdf(bytes, *protect, &why);

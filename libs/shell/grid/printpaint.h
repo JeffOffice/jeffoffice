@@ -9,6 +9,7 @@
 #include "grid/gridsheet.h"
 #include "grid/painter.h"
 #include "grid/printlayout.h"
+#include "io/pdftags.h"
 #include "sheet/headerfooter.h"
 
 #include <QFont>
@@ -21,6 +22,9 @@
 #include <memory>
 
 namespace jp::grid {
+
+// The most tags a tagged PDF of a sheet takes from one export (the tables, rows, and cells of all its pages): cells past it are left untagged (artifacts), never more work.
+constexpr int kMostSheetTags = 200000;
 
 // What is drawn over the cells of a page: called with the painter set up as the cells were drawn in (the grid's pixels at the zoom the layout has), the layout, and the rectangle of the cells
 // in the painter's units. The objects that print are drawn by it, clipped to the page's cells.
@@ -42,6 +46,12 @@ public:
     // `sheet` is the grid model of the sheet being printed: its own, not a window's (its layout is changed to each page in turn).
     explicit PagePainter(GridSheet *sheet);
     ~PagePainter();
+
+    // Marks the page for a tagged PDF (see io/pdftags.h): the cells of the page's cells are a Table, a TR for each row that has text, and a TD for each cell that has; the rest (fills,
+    // lines, headings, header and footer, objects) is decoration (artifacts). Null for none; the tagger must outlive the painting. At most kMostSheetTags tags in all.
+    void setTagger(jp::PdfTagger *tagger);
+    // What is drawn from the call with `true` to the one with `false` is decoration (nothing when not tagging).
+    void markDecoration(QPainter *p, bool on) { artifact(p, on); }
 
     // The font the header and footer begin in: the workbook's own (its family and size in points).
     void setBaseFont(const QString &family, double points);
@@ -76,6 +86,7 @@ public:
     const PaintStats &stats() const { return m_painter->stats(); }
 
 private:
+    void artifact(QPainter *p, bool on);
     PageMetrics layoutPage(const SheetPrint &print, const PageCut &page, const PageSetup &setup);
     void paintScreenGridlines(QPainter *p, const GridLayout &layout, const QRect &area);
     void paintHeadings(QPainter *p, const GridLayout &layout, const PageCut &page, const PageMetrics &m, double scale);
@@ -93,6 +104,9 @@ private:
     const PageCut *m_applied = nullptr;
     const SheetPrint *m_appliedPrint = nullptr;
     qint64 m_layoutRuns = 0;
+    jp::PdfTagger *m_tagger = nullptr;
+    int m_artifactTag = -1;
+    bool m_artifactOpen = false;
 };
 
 } // namespace jp::grid

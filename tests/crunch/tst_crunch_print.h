@@ -192,6 +192,10 @@ private Q_SLOTS:
     void theSelectedSheetsPrintTogether();
     void aSelectionPrintsAlone();
     void aPdfCanBeExportedAsPdfA();
+    void aPdfHasABookmarkForEachSheet();
+    void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
+    void aTaggedPdfHasTheCellsAsATable();
+    void theTaggedCellsAreReadRowByRow();
     void thePagesGoToAPdfFile();
     void pageSetupFollowsTheSheetOperations();
     void anExportShowsProgressAndCanBeCancelled();
@@ -242,6 +246,8 @@ private Q_SLOTS:
     void anEmailedPdfCanHaveAPassword();
     void aCancelledExportKeepsThePasswordOnThePage();
     void theExportPageOffersAPasswordAndTurnsOffPdfA();
+    void theExportPageOffersTagsForScreenReaders();
+    void pictureOfTheExportPage();
     void thePageBreaksShowOnTheSheetAfterAPreview();
     void undoAndRedoOfTypingMoveThePagesAtOnce();
     void aDroppedLineJobNeverLandsItsLines();
