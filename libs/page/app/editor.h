@@ -295,8 +295,8 @@ public:
     bool pasteCells(const QMimeData *md);
     // A table of HTML on the clipboard (from JeffCrunch, a document, or another program's page) pasted as a table with the fonts, fills, borders, merged cells, and column widths it has: a table of
     // its own in the upper middle of the page, or, while a cell is being typed in (or, with `overSelected`, with a table selected), written over the cells from that cell on (what is past the edge of
-    // the table is left out, and said). One step. NotATable: nothing was done, paste as before; TooBig: nothing was done, the clipboard is past a bound or too big for a table, and the status says so.
-    PastedTableResult pasteHtmlTable(const QMimeData *md, bool overSelected = false);
+    // the table is left out, and said). One step. NotATable: nothing was done, paste as before; TooBig: nothing was done, the clipboard is past a bound or too big for a table, and the status says so (as the words it is pasted as, or, for the Paste Cells `command`, that nothing was pasted).
+    PastedTableResult pasteHtmlTable(const QMimeData *md, bool overSelected = false, bool command = false);
     static bool clipboardMayHaveCells(const QMimeData *md);
     // Objects as copying writes them (pictures and text with them), added to
     // the page being edited and selected: what pasting and building blocks

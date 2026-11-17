@@ -1,6 +1,8 @@
 // JeffPub's tests of tables: editing, dividing cells, and saving them.
 #include "pubhelpers.h"
+#include "app/pastetable.h"
 #include "app/tableedit.h"
+#include <QElapsedTimer>
 #include "text/textprops.h"
 #include "wml/wmlhtmlread.h"
 #include <QClipboard>
@@ -101,14 +103,13 @@ private Q_SLOTS:
         ed->undo();
         QCOMPARE(tables().size(), 1);
         QCOMPARE(text(tables().first(), 2, 0), QStringLiteral("r2"));   // (back to the first paste's)
-        // A table pasted is bounded: at most as many rows as a table has, and what is cut is said.
+        // A table pasted is bounded: more rows than a table has is refused by the command, with one word of why and nothing made (not tried again as lines of text).
         ed->clearSelection();
         setCells(jp::kMaxTableRowsOrColumns + 40);
         said.clear();
         w.act(QStringLiteral("edit.pasteCells"))->trigger();
-        QCOMPARE(tables().size(), 2);
-        QCOMPARE(tables().last()->rows, jp::kMaxTableRowsOrColumns);
-        QVERIFY(said.contains(QStringLiteral("left out")));
+        QCOMPARE(tables().size(), 1);
+        QVERIFY(said.contains(QStringLiteral("nothing was pasted")));
     }
 
     // The HTML a JeffCrunch copy puts on the clipboard (the same styles as CrunchWindow::htmlOfClip writes; the Crunch test pastes a real copy), and one from another program with a merged cell.
@@ -233,7 +234,6 @@ private Q_SLOTS:
         const struct { QString html; const char *what; } hostile[] = {
             {QStringLiteral("<table>") + row(65) + QStringLiteral("</table>"), "65 columns"},
             {QStringLiteral("<table>") + row(2).repeated(1001) + QStringLiteral("</table>"), "1001 rows"},
-            {QStringLiteral("<table>") + row(2, QStringLiteral("<td colspan=\"9999\">x</td>")) + QStringLiteral("</table>"), "a span of 9999 columns"},
             {QStringLiteral("<table>") + row(2, QStringLiteral("<td rowspan=\"4000000000\">x</td>")) + QStringLiteral("</table>"), "a span of 4 billion rows"},
             {QStringLiteral("<table><tr><td>") + QString(4 * 1024 * 1024 + 10, QLatin1Char('a')) + QStringLiteral("</td><td>b</td></tr></table>"), "4 MB"},
             {QStringLiteral("<table>") + row(2).repeated(300) + QStringLiteral("</table>"), "more rows than a table holds"},
@@ -256,6 +256,161 @@ private Q_SLOTS:
         int boxes = 0;
         QCOMPARE(tablesAndBoxes(&boxes), 1);
         QCOMPARE(dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get())->cols, 64);
+    }
+
+    // The scan of the tags refuses what would make the page parser build a huge grid, before any parse, however the tag hides it: a ">" inside an attribute value (in either kind of quote, or bare), a
+    // comment holding a ">" or a cell, and rowspans carried down to make more than 64 columns. Each is refused in a moment, and what a comment holds is not counted.
+    void theTagScanSeesThroughHidingPlaces()
+    {
+        auto refused = [](const QString &html, const char *what) {
+            jp::PastedTable pt;
+            QElapsedTimer timer;
+            timer.start();
+            const jp::PastedTableResult r = jp::readPastedTable(html, &pt);
+            QVERIFY2(timer.elapsed() < 200, what);
+            QVERIFY2(r == jp::PastedTableResult::TooBig, what);
+            QCOMPARE(pt.cells.size(), 0);   // (nothing was built)
+        };
+        auto rows = [](int n, const QString &tr) { return QStringLiteral("<table>") + tr.repeated(n) + QStringLiteral("</table>"); };
+        refused(rows(200, QStringLiteral("<tr><td title=\">\" colspan=\"100000\">x</td></tr>")), "> in double quotes");
+        refused(rows(200, QStringLiteral("<tr><td title='>' colspan='100000'>x</td></tr>")), "> in single quotes");
+        refused(rows(200, QStringLiteral("<tr><td title=a colspan=100000>x</td></tr>")), "bare values");
+        refused(rows(200, QStringLiteral("<tr><td title=\"colspan=1\" colspan=\"100000\">x</td></tr>")), "a name inside another value");
+        refused(rows(200, QStringLiteral("<tr><!-- > --><td colspan=\"100000\">x</td></tr>")), "a comment with >");
+        refused(rows(200, QStringLiteral("<tr><!-- <td> --><td colspan=\"100000\">x</td></tr>")), "a comment with a cell");
+        refused(rows(200, QStringLiteral("<tr><td colspan=\"&#49;00000\">x</td></tr>")), "an entity in a span");
+        refused(rows(200, QStringLiteral("<tr><td colspan=\"100000\" title=\"never closed>x</td></tr>")), "a quote never closed");
+        QString carried = QStringLiteral("<table>");
+        for (int r = 0; r < 65; ++r) carried += QStringLiteral("<tr><td rowspan=\"100\">x</td></tr>");
+        refused(carried + QStringLiteral("</table>"), "rowspans carried to 65 columns");
+        // (what a comment holds is not a cell, as the page parser has it; what a script or a style holds is, as it has that too)
+        jp::PastedTable pt;
+        QCOMPARE(jp::readPastedTable(QStringLiteral("<table><tr><td>a</td><td>b</td><!-- <td colspan=\"100000\"> --></tr></table>"), &pt), jp::PastedTableResult::Ok);
+        QCOMPARE(pt.cols, 2);
+        refused(rows(200, QStringLiteral("<tr><td>a</td><script>var s = \"<td colspan=100000>\";</script></tr>")), "a cell in a script");
+        refused(rows(200, QStringLiteral("<tr><td>a</td><style>x{y:\"<td colspan=100000>\"}</style></tr>")), "a cell in a style");
+    }
+
+    // A page that is not a table of cells pastes as it always did (rich text, in a text box), never as a table and never forced to plain text: words around the table, a table in other content, and a
+    // layout table whose cells span 100 columns. A table of cells that is too big is the words; so is a page that asks for a huge grid.
+    void pagesThatAreNotCellsPasteAsBefore()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto count = [&](int *boxes) {
+            int tables = 0;
+            *boxes = 0;
+            for (const auto &it : ed->doc()->pages[0]->items) {
+                tables += dynamic_cast<jp::TableItem *>(it.get()) != nullptr;
+                *boxes += dynamic_cast<jp::TextItem *>(it.get()) != nullptr;
+            }
+            return tables;
+        };
+        auto boldWord = [&](const QString &word) {
+            for (const auto &it : ed->doc()->pages[0]->items)
+                if (auto *tx = dynamic_cast<jp::TextItem *>(it.get())) {
+                    QTextDocument *d = ed->doc()->storyDoc(tx->storyId);
+                    const int at = int(d->toPlainText().indexOf(word));
+                    if (at < 0) continue;
+                    QTextCursor c(d);
+                    c.setPosition(at + 1);
+                    return c.charFormat().fontWeight() >= QFont::Bold;
+                }
+            return false;
+        };
+        const QString pages[] = {
+            QStringLiteral("<html><body><h1>Title</h1><p><b>Bolded</b> words</p><table><tr><td colspan=\"100\">layout</td></tr></table></body></html>"),
+            QStringLiteral("<div><b>Bolded</b> intro</div><table><tr><td>a</td><td>b</td></tr></table>"),
+            QStringLiteral("<table><tr><td colspan=\"100\"><b>Bolded</b> layout</td></tr><tr><td colspan=\"100\">x</td></tr></table>"),
+            QStringLiteral("<p><b>Bolded</b></p><table><tr><td>a</td></tr></table><table><tr><td>b</td></tr></table>"),
+        };
+        for (const QString &html : pages) {
+            setHtml(html, QStringLiteral("Bolded words"));
+            int before = 0, after = 0;
+            const int tablesBefore = count(&before);
+            ed->paste();
+            QCOMPARE(count(&after), tablesBefore);
+            QCOMPARE(after, before + 1);
+            QVERIFY2(boldWord(QStringLiteral("Bolded")), qPrintable(html));   // (the rich text, not the plain words)
+            ed->undo();
+        }
+        // A page that asks the parser for a huge grid is its plain words, with a word of why.
+        QString said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
+        setHtml(QStringLiteral("<p>hello</p>") + QStringLiteral("<table><tr><td colspan=\"5000\">x</td></tr>").repeated(1) + QStringLiteral("<tr><td colspan=\"5000\">x</td></tr>").repeated(400) + QStringLiteral("</table>"), QStringLiteral("hello"));
+        int b0 = 0, b1 = 0;
+        count(&b0);
+        ed->paste();
+        QCOMPARE(count(&b1), 0);
+        QCOMPARE(b1, b0 + 1);
+        QVERIFY(said.contains(QStringLiteral("too big")));
+        QVERIFY(!boldWord(QStringLiteral("hello")));
+    }
+
+    // A run starts from the cell's own look and a paragraph from a plain one: a plain word after a bold one is not bold, and a paragraph after a centered one is at the left.
+    void pastedRunsAndParagraphsStartClean()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(QStringLiteral("<table><tr><td><b>Bold</b> plain</td><td><p align=\"center\">a</p><p>b</p></td></tr></table>"));
+        ed->paste();
+        auto *t = dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(t);
+        QTextDocument *one = ed->doc()->storyDoc(t->cell(0, 0).storyId);
+        QCOMPARE(one->toPlainText(), QStringLiteral("Bold plain"));
+        QTextCursor c(one);
+        c.setPosition(2);
+        QVERIFY(c.charFormat().fontWeight() >= QFont::Bold);
+        c.setPosition(9);
+        QVERIFY(c.charFormat().fontWeight() < QFont::DemiBold);
+        QTextDocument *two = ed->doc()->storyDoc(t->cell(0, 1).storyId);
+        QCOMPARE(two->blockCount(), 2);
+        QCOMPARE(two->firstBlock().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        QCOMPARE(two->firstBlock().next().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignLeft);
+    }
+
+    // A row is never taller than the page: 4,000 lines in a cell at 999 points make a table of the page's height at most.
+    void aTallCellDoesNotMakeAHugeTable()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(QStringLiteral("<table><tr><td style=\"font-size:999pt\">") + QStringLiteral("x<br>").repeated(4000) + QStringLiteral("</td><td>b</td></tr></table>"));
+        ed->paste();
+        auto *t = dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(t);
+        const double page = ed->doc()->pageSize().height();
+        QVERIFY(t->rowH[0] <= page * 0.9 + 0.01);
+        QVERIFY(t->rect.height() <= page * 0.9 + 0.01);
+    }
+
+    // A pasted table saves in a .jpub file and opens again with its look, merges, and widths.
+    void pastedTableSurvivesSavingAsJpub()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(crunchLikeHtml() , QString());
+        ed->paste();
+        setHtml(mergedHtml());
+        ed->paste();
+        QString err;
+        const auto back = jp::publicationFromBytes(jp::publicationBytes(*ed->doc(), QImage()), &err);
+        QVERIFY2(back, qPrintable(err));
+        QVector<const jp::TableItem *> tables;
+        for (const auto &it : back->pages[0]->items)
+            if (auto *t = dynamic_cast<const jp::TableItem *>(it.get())) tables << t;
+        QCOMPARE(tables.size(), 2);
+        const jp::TableItem *a = tables[0], *b = tables[1];
+        QCOMPARE(a->cell(0, 0).fill.color, jp::ColorRef::rgb(QColor("#ffff00")));
+        QCOMPARE(a->cell(0, 0).border.bottom.compound, jp::Stroke::Double);
+        QCOMPARE(a->cell(0, 0).border.bottom.width, 2.25);
+        QCOMPARE(back->storyDoc(a->cell(0, 1).storyId)->toPlainText(), QStringLiteral("1,234.50"));
+        QTextCursor cur(back->storyDoc(a->cell(0, 0).storyId));
+        cur.setPosition(1);
+        QCOMPARE(cur.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        QCOMPARE(b->cell(0, 0).colSpan, 2);
+        QVERIFY(b->cell(0, 1).covered);
+        QCOMPARE(b->cell(0, 2).rowSpan, 2);
+        QCOMPARE(b->colW[0], 75.0);
     }
 
     // A table fills the cells from the cell being typed in; what is past the table's edge is left out and said. Keep Text Only and Paste Special keep offering the words.

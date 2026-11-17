@@ -4,6 +4,7 @@
 #include "text/textprops.h"
 
 #include <QFontMetricsF>
+#include <QHash>
 #include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -17,24 +18,197 @@ namespace jp {
 
 namespace {
 
-// The whole number after name= in a tag's text (1 when there is none); a long run of digits is far past any bound.
-int attributeNumber(QStringView tag, QLatin1String name)
+double columnWidthOf(QStringView tag);
+
+// The value of a span attribute: 1 when it is missing or not a number; far past any bound (and `*odd` set) when it is spelled so that this reader and the page parser might read it differently.
+int spanValue(QStringView v, bool *odd)
 {
-    qsizetype at = tag.indexOf(name, 0, Qt::CaseInsensitive);
-    while (at >= 0 && at > 0 && (tag[at - 1].isLetterOrNumber() || tag[at - 1] == QLatin1Char('-'))) at = tag.indexOf(name, at + 1, Qt::CaseInsensitive);
-    if (at < 0) return 1;
-    qsizetype i = at + name.size();
-    while (i < tag.size() && (tag[i].isSpace() || tag[i] == QLatin1Char('='))) ++i;
-    while (i < tag.size() && (tag[i] == QLatin1Char('"') || tag[i] == QLatin1Char('\''))) ++i;
-    qint64 v = 0;
+    v = v.trimmed();
+    if (v.contains(QLatin1Char('&'))) {
+        *odd = true;
+        return 1000000000;
+    }
+    if (v.startsWith(QLatin1Char('+'))) v = v.mid(1);
+    qint64 n = 0;
     int digits = 0;
-    while (i < tag.size() && tag[i].isDigit()) {
-        if (digits < 9) v = v * 10 + tag[i].digitValue();
-        ++digits;
-        ++i;
+    for (QChar ch : v) {
+        if (!ch.isDigit()) break;
+        if (digits++ < 9) n = n * 10 + ch.digitValue();
     }
     if (digits == 0) return 1;
-    return digits >= 9 ? 1000000000 : int(v);
+    return digits >= 9 ? 1000000000 : int(n);
+}
+
+constexpr qint64 kMostWorkArea = 1000000;   // cells of grid (rows times columns) a page may ask the parser for
+constexpr int kMostScanColumns = 10000;
+constexpr qint64 kMostPasteScanChars = 32 * 1024 * 1024;
+
+// What one pass over the tags of a page finds, before the page is parsed. Quotes in attribute values, comments, CDATA, and script and style text are skipped as a page parser skips them, so
+// that nothing hides a tag. Each character is looked at once (the work is the length of the page), and the rows and columns are counted with the spans carried down from earlier rows.
+struct Scan {
+    int tables = 0, rows = 0, extentRows = 0, cols = 0;
+    qint64 cells = 0;
+    bool outside = false;       // words, pictures, or lists outside the table
+    bool spanOver = false;      // a cell spans past a table's bounds (not cells: a page laid out with a table)
+    bool hostile = false;       // would make the parser build a grid past kMostWorkArea, or read oddly
+    bool big = false;           // past the bounds of rows, columns, or cells (the rest is not counted)
+    QVector<double> colWidths;
+    qint64 area() const { return qint64(std::max(rows, extentRows)) * cols; }
+};
+
+bool isBlank(QStringView t)
+{
+    QString text = t.toString();
+    if (text.contains(QLatin1Char('&'))) text.remove(QLatin1String("&nbsp;"));
+    return text.trimmed().isEmpty();
+}
+
+Scan scanTags(const QString &html)
+{
+    Scan s;
+    static const QStringList outsideTags = {QStringLiteral("img"), QStringLiteral("hr"), QStringLiteral("h1"), QStringLiteral("h2"), QStringLiteral("h3"), QStringLiteral("h4"), QStringLiteral("h5"), QStringLiteral("h6"),
+                                            QStringLiteral("ul"), QStringLiteral("ol"), QStringLiteral("pre"), QStringLiteral("form"), QStringLiteral("iframe"), QStringLiteral("object"),
+                                            QStringLiteral("embed"), QStringLiteral("video"), QStringLiteral("svg"), QStringLiteral("canvas"), QStringLiteral("blockquote")};
+    const QStringView all(html);
+    const qsizetype n = html.size();
+    qsizetype i = 0;
+    int depth = 0, col = 0;
+    QVector<int> carry;
+    auto newRow = [&] {
+        if (s.big) return;
+        if (++s.rows > kPasteMaxRows) {
+            s.big = true;
+            return;
+        }
+        for (int &c : carry)
+            if (c > 0) --c;
+        col = 0;
+    };
+    while (i < n) {
+        const qsizetype lt = html.indexOf(QLatin1Char('<'), i);
+        const QStringView text = lt < 0 ? all.mid(i) : all.mid(i, lt - i);
+        if (depth == 0 && !isBlank(text)) s.outside = true;
+        if (lt < 0) break;
+        i = lt;
+        if (all.mid(i).startsWith(QLatin1String("<!--"))) {
+            const qsizetype e = html.indexOf(QLatin1String("-->"), i + 4);
+            if (e < 0) break;
+            i = e + 3;
+            continue;
+        }
+        if (all.mid(i).startsWith(QLatin1String("<![CDATA["))) {
+            const qsizetype e = html.indexOf(QLatin1String("]]>"), i + 9);
+            if (e < 0) break;
+            i = e + 3;
+            continue;
+        }
+        if (i + 1 >= n) break;
+        if (html[i + 1] == QLatin1Char('!') || html[i + 1] == QLatin1Char('?')) {
+            const qsizetype e = html.indexOf(QLatin1Char('>'), i);
+            if (e < 0) break;
+            i = e + 1;
+            continue;
+        }
+        const bool closing = html[i + 1] == QLatin1Char('/');
+        qsizetype j = i + 1 + (closing ? 1 : 0);
+        const qsizetype nameStart = j;
+        while (j < n && html[j].isLetterOrNumber()) ++j;
+        if (j == nameStart) {
+            ++i;   // (a less-than sign that is a word)
+            continue;
+        }
+        const QString name = all.mid(nameStart, j - nameStart).toString().toLower();
+        QStringView colspan, rowspan, span, width, style;
+        // the attributes: names, then = and a value in quotes (of either kind) or bare
+        qsizetype k = j;
+        bool ended = false;
+        while (true) {
+            while (k < n && (html[k].isSpace() || html[k] == QLatin1Char('/'))) ++k;
+            if (k >= n) {
+                ended = true;
+                break;
+            }
+            if (html[k] == QLatin1Char('>')) break;
+            const qsizetype as = k;
+            while (k < n && !html[k].isSpace() && html[k] != QLatin1Char('=') && html[k] != QLatin1Char('>') && html[k] != QLatin1Char('/')) ++k;
+            const QString an = all.mid(as, k - as).toString().toLower();
+            while (k < n && html[k].isSpace()) ++k;
+            QStringView value;
+            if (k < n && html[k] == QLatin1Char('=')) {
+                ++k;
+                while (k < n && html[k].isSpace()) ++k;
+                if (k < n && (html[k] == QLatin1Char('"') || html[k] == QLatin1Char('\''))) {
+                    const qsizetype e = html.indexOf(html[k], k + 1);
+                    if (e < 0) {
+                        s.hostile = true;   // (a quote never closed: the parser may take the rest of the page for the value)
+                        ended = true;
+                        break;
+                    }
+                    value = all.mid(k + 1, e - k - 1);
+                    k = e + 1;
+                } else {
+                    const qsizetype vs = k;
+                    while (k < n && !html[k].isSpace() && html[k] != QLatin1Char('>')) ++k;
+                    value = all.mid(vs, k - vs);
+                }
+            } else if (k == as) {
+                ++k;   // (a stray character: always moves on)
+            }
+            if (an == QLatin1String("colspan")) colspan = value;
+            else if (an == QLatin1String("rowspan")) rowspan = value;
+            else if (an == QLatin1String("span")) span = value;
+            else if (an == QLatin1String("width")) width = value;
+            else if (an == QLatin1String("style")) style = value;
+        }
+        if (ended) break;
+        i = k + 1;
+        if (closing) {
+            if (name == QLatin1String("table")) depth = std::max(0, depth - 1);
+            continue;
+        }
+        // (a script or a style is not skipped: the page parser reads cells inside them, so they are counted)
+        if (name == QLatin1String("table")) {
+            ++s.tables;
+            ++depth;
+        } else if (depth == 0 && outsideTags.contains(name)) {
+            s.outside = true;
+        } else if (name == QLatin1String("tr")) {
+            newRow();
+        } else if ((name == QLatin1String("td") || name == QLatin1String("th")) && !s.big) {
+            if (s.rows == 0) newRow();
+            if (s.big) continue;
+            bool odd = false;
+            const int cs = std::max(1, spanValue(colspan, &odd)), rs = std::max(1, spanValue(rowspan, &odd));
+            if (odd) s.hostile = true;
+            if (cs > kPasteMaxColumns || rs > kPasteMaxRows) s.spanOver = true;
+            if (++s.cells > kPasteMaxCells) {
+                s.big = true;
+                continue;
+            }
+            while (col < carry.size() && carry[col] > 0) ++col;
+            if (col + qint64(cs) > kMostScanColumns) {
+                s.hostile = true;
+                s.big = true;
+                continue;
+            }
+            if (carry.size() < col + cs) carry.resize(col + cs, 0);
+            for (int c = col; c < col + cs; ++c) carry[c] = rs;
+            col += cs;
+            s.cols = std::max(s.cols, col);
+            s.extentRows = std::max(s.extentRows, s.rows - 1 + rs);
+            if (s.area() > kMostWorkArea) {
+                s.hostile = true;
+                s.big = true;
+            }
+        } else if (name == QLatin1String("col")) {
+            const int count = std::clamp(spanValue(span, &s.hostile), 1, kPasteMaxColumns);
+            double w = 0;
+            if (style.contains(QLatin1String("width"), Qt::CaseInsensitive)) w = columnWidthOf(style);
+            if (w <= 0 && !width.isEmpty()) w = columnWidthOf(QStringLiteral("width=") + width.toString());
+            for (int c = 0; c < count && s.colWidths.size() < kPasteMaxColumns; ++c) s.colWidths.push_back(w);
+        }
+    }
+    return s;
 }
 
 // A column's width in points from a col tag (width="64", or width:48pt in its style), 0 when it names none.
@@ -77,44 +251,6 @@ double columnWidthOf(QStringView tag)
     return 0;
 }
 
-enum class Look { Ok, NotOne, Big };
-
-// Looks at the tags of the page once, without parsing it, for what a hostile page would multiply: how many tables, rows, and cells, and how far a cell spans. Each tag is looked at once, so the
-// work is the length of the page. Fills the widths the col tags name.
-Look scanTags(const QString &html, QVector<double> *colWidths)
-{
-    int tables = 0, rows = 0, cells = 0, rowColumns = 0;
-    const qsizetype n = html.size();
-    qsizetype i = 0;
-    while (i < n) {
-        i = html.indexOf(QLatin1Char('<'), i);
-        if (i < 0) break;
-        qsizetype j = i + 1;
-        while (j < n && html[j].isLetterOrNumber()) ++j;
-        const QStringView name = QStringView(html).mid(i + 1, j - i - 1);
-        const qsizetype gt = html.indexOf(QLatin1Char('>'), j);
-        if (gt < 0) break;
-        const QStringView tag = QStringView(html).mid(j, gt - j);
-        if (name.compare(QLatin1String("table"), Qt::CaseInsensitive) == 0) {
-            if (++tables > 1) return Look::NotOne;
-        } else if (name.compare(QLatin1String("tr"), Qt::CaseInsensitive) == 0) {
-            if (++rows > kPasteMaxRows) return Look::Big;
-            rowColumns = 0;
-        } else if (name.compare(QLatin1String("td"), Qt::CaseInsensitive) == 0 || name.compare(QLatin1String("th"), Qt::CaseInsensitive) == 0) {
-            if (++cells > kPasteMaxCells) return Look::Big;
-            const int cs = attributeNumber(tag, QLatin1String("colspan")), rs = attributeNumber(tag, QLatin1String("rowspan"));
-            if (cs > kPasteMaxColumns || rs > kPasteMaxRows) return Look::Big;
-            rowColumns += std::max(1, cs);
-            if (rowColumns > kPasteMaxColumns) return Look::Big;
-        } else if (name.compare(QLatin1String("col"), Qt::CaseInsensitive) == 0 && colWidths) {
-            const int span = std::clamp(attributeNumber(tag, QLatin1String("span")), 1, kPasteMaxColumns);
-            const double w = columnWidthOf(tag);
-            for (int k = 0; k < span && colWidths->size() < kPasteMaxColumns; ++k) colWidths->push_back(w);
-        }
-        i = gt + 1;
-    }
-    return Look::Ok;
-}
 
 QTextCharFormat runFormat(const QTextCharFormat &cf)
 {
@@ -193,13 +329,14 @@ PastedTableResult readPastedTable(const QString &html, PastedTable *out)
 {
     *out = PastedTable();
     if (html.isEmpty() || !html.contains(QLatin1String("<table"), Qt::CaseInsensitive)) return PastedTableResult::NotATable;
-    if (html.size() > kPasteMaxHtmlBytes) return PastedTableResult::TooBig;
-    QVector<double> colWidths;
-    switch (scanTags(html, &colWidths)) {
-    case Look::NotOne: return PastedTableResult::NotATable;
-    case Look::Big: return PastedTableResult::TooBig;
-    case Look::Ok: break;
-    }
+    // (one look at the tags, before any parse: a page that asks the parser for a huge grid is refused whatever it is)
+    if (html.size() > kMostPasteScanChars) return PastedTableResult::TooBig;
+    const Scan scan = scanTags(html);
+    if (scan.hostile || scan.area() > kMostWorkArea) return PastedTableResult::TooBig;
+    // Only a page that is one table and nothing else (what a copy of cells puts on the clipboard) is cells: any other page is pasted as it always was.
+    if (scan.tables != 1 || scan.outside || scan.spanOver) return PastedTableResult::NotATable;
+    if (scan.big || html.size() > kPasteMaxHtmlBytes || std::max(scan.rows, scan.extentRows) > kPasteMaxRows || scan.cols > kPasteMaxColumns || scan.cells > kPasteMaxCells) return PastedTableResult::TooBig;
+    const QVector<double> colWidths = scan.colWidths;
     QTextDocument page;
     page.setUndoRedoEnabled(false);
     page.setHtml(html);
@@ -260,28 +397,31 @@ PastedTableResult readPastedTable(const QString &html, PastedTable *out)
 
 void writePastedCell(Document *doc, TableCell &target, const PastedCell &source)
 {
-    if (source.hasFill) target.fill = Fill::solid(ColorRef::rgb(source.fill));
-    if (!source.border.left.isNone()) target.border.left = source.border.left;
-    if (!source.border.right.isNone()) target.border.right = source.border.right;
-    if (!source.border.top.isNone()) target.border.top = source.border.top;
-    if (!source.border.bottom.isNone()) target.border.bottom = source.border.bottom;
-    if (source.hasValign) target.valign = source.valign;
+    // (a paste replaces what the cell had: its fill, borders, and the way its text sits)
+    target.fill = source.hasFill ? Fill::solid(ColorRef::rgb(source.fill)) : Fill::none();
+    target.border.left = source.border.left;
+    target.border.right = source.border.right;
+    target.border.top = source.border.top;
+    target.border.bottom = source.border.bottom;
+    target.valign = source.hasValign ? source.valign : VAlign::Top;
     QTextDocument *story = doc->storyDoc(target.storyId);
     if (!story) return;
+    if (source.paragraphs.isEmpty() && story->isEmpty()) return;
     QTextCursor cur(story);
+    const QTextCharFormat baseChar = cur.blockCharFormat();   // (every run and paragraph starts from the cell's own look, not from the one before)
+    const QTextBlockFormat baseBlock = cur.blockFormat();
     cur.select(QTextCursor::Document);
     cur.removeSelectedText();
     bool first = true;
     for (const PastedParagraph &p : source.paragraphs) {
         if (!first) cur.insertBlock();
         first = false;
-        if (p.align != Qt::AlignLeft) {
-            QTextBlockFormat bf = cur.blockFormat();
-            bf.setAlignment(p.align);
-            cur.setBlockFormat(bf);
-        }
+        QTextBlockFormat bf = baseBlock;
+        bf.setAlignment(p.align);
+        cur.setBlockFormat(bf);
+        cur.setBlockCharFormat(baseChar);
         for (const PastedRun &run : p.runs) {
-            QTextCharFormat f = cur.charFormat();
+            QTextCharFormat f = baseChar;
             f.merge(run.format);
             cur.insertText(run.text, f);
         }
@@ -300,6 +440,7 @@ std::shared_ptr<TableItem> makePastedTable(Document *doc, const PastedTable &pas
     for (TableCell &c : t->cells) c.storyId = doc->createStory();
     QVector<double> natural(t->cols, 0.0), rowH(t->rows, 18.0);
     QFont base;
+    QHash<QString, QFontMetricsF> metrics;   // (one for each look the text has, not one for each cell)
     if (!t->cells.isEmpty())
         if (QTextDocument *d = doc->storyDoc(t->cells.first().storyId)) base = d->defaultFont();
     for (int r = 0; r < t->rows; ++r)
@@ -325,7 +466,10 @@ std::shared_ptr<TableItem> makePastedTable(Document *doc, const PastedTable &pas
                 }
                 QString line;
                 for (const PastedRun &run : p.runs) line += run.text;
-                const QFontMetricsF fm(f);
+                const QString key = f.families().join(QLatin1Char('|')) + QLatin1Char('/') + QString::number(f.pointSizeF()) + QLatin1Char('/') + QString::number(int(f.weight()));
+                auto found = metrics.find(key);
+                if (found == metrics.end()) found = metrics.insert(key, QFontMetricsF(f));
+                const QFontMetricsF &fm = found.value();
                 for (const QString &part : line.split(QChar(QChar::LineSeparator))) {
                     wide = std::max(wide, fm.horizontalAdvance(part));
                     high += fm.lineSpacing();
@@ -334,6 +478,21 @@ std::shared_ptr<TableItem> makePastedTable(Document *doc, const PastedTable &pas
             const double w = std::min(wide + 2 * cell.margins.left() + 2, 300.0);
             if (pc.colSpan == 1) natural[c] = std::max(natural[c], w);
             if (pc.rowSpan == 1) rowH[r] = std::max(rowH[r], high + cell.margins.top() + cell.margins.bottom());
+        }
+    // A line between two cells is on both: a cell that has a border its neighbor lacks gives the neighbor the same on the shared edge (a file keeps one line for an edge).
+    for (int r = 0; r < t->rows; ++r)
+        for (int c = 0; c < t->cols; ++c) {
+            const TableCell cell = t->cell(r, c);
+            if (cell.covered) continue;
+            const int r2 = r + cell.rowSpan, c2 = c + cell.colSpan;
+            for (int k = c; k < c2 && r2 < t->rows; ++k)
+                if (TableCell &n = t->cell(r2, k); !n.covered && n.border.top.isNone()) n.border.top = cell.border.bottom;
+            for (int k = r; k < r2 && c2 < t->cols; ++k)
+                if (TableCell &n = t->cell(k, c2); !n.covered && n.border.left.isNone()) n.border.left = cell.border.right;
+            for (int k = c; k < c2 && r > 0; ++k)
+                if (TableCell &n = t->cell(r - 1, k); !n.covered && n.border.bottom.isNone()) n.border.bottom = cell.border.top;
+            for (int k = r; k < r2 && c > 0; ++k)
+                if (TableCell &n = t->cell(k, c - 1); !n.covered && n.border.right.isNone()) n.border.right = cell.border.left;
         }
     for (int c = 0; c < t->cols; ++c) {
         const double given = c < pasted.colWidths.size() ? pasted.colWidths[c] : 0;
@@ -344,6 +503,11 @@ std::shared_ptr<TableItem> makePastedTable(Document *doc, const PastedTable &pas
     const double most = std::max(36.0, page.width() * 0.8);
     if (total > most)
         for (double &w : t->colW) w *= most / total;
+    // (a row is never taller than the page, and the table is at most the page's height)
+    double high = 0;
+    for (double &h : rowH) high += (h = std::min(h, page.height() * 0.9));
+    if (high > page.height() * 0.9)
+        for (double &h : rowH) h *= page.height() * 0.9 / high;
     t->rowH = rowH;
     t->syncRect();
     const double x = std::max(0.0, (page.width() - t->rect.width()) / 2), y = page.height() * 0.1;

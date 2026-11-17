@@ -59,7 +59,7 @@ private Q_SLOTS:
         auto *font = e.win.w.findChild<FontCombo *>(QStringLiteral("fmt.fontName"));
         QVERIFY(fill && font);
         fill->colorPicked(jp::ColorRef::rgb(QColor(0xFF, 0xFF, 0x00)));
-        font->familyChosen(QStringLiteral("Georgia"));
+        font->familyChosen(QStringLiteral("Archivo Black"));
         e.select(QStringLiteral("B1"));
         run("fmt.currency");
         e.select(QStringLiteral("B2"));
@@ -84,7 +84,7 @@ private Q_SLOTS:
         QTextCursor cur(story(0, 0));
         cur.setPosition(1);
         QVERIFY(cur.charFormat().fontWeight() >= QFont::Bold && cur.charFormat().fontUnderline());
-        QCOMPARE(cur.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Georgia"));
+        QCOMPARE(cur.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Archivo Black"));
         QCOMPARE(cur.blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
         QTextCursor nc(story(0, 1));
         nc.setPosition(1);

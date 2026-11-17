@@ -1810,13 +1810,30 @@ private Q_SLOTS:
         const QSizeF page = ed->doc()->pageSize();
         QVERIFY(t->rect.left() >= 0 && t->rect.right() <= page.width() && t->rect.width() <= page.width() * 0.8 + 0.01);
         QCOMPARE(ed->selection(), QStringList{t->id});
-        // The saved presentation keeps the fills, the merge, and the text.
+        // The saved presentation keeps the fills, the merges, the borders, the fonts, the widths, and the text.
         const auto back = savedAndRead(*ed->doc(), false);
         QVERIFY(back);
         const TableItem *bt = firstTable(*back);
         QVERIFY(bt);
+        QCOMPARE(bt->rows, 2);
+        QCOMPARE(bt->cols, 3);
         QCOMPARE(bt->cell(0, 2).rowSpan, 2);
+        QCOMPARE(bt->cell(1, 0).colSpan, 2);
         QCOMPARE(bt->cell(0, 0).fill.color, ColorRef::rgb(QColor("#ffff00")));
+        QCOMPARE(bt->cell(0, 2).fill.color, ColorRef::rgb(QColor("#00ff00")));
+        QVERIFY(std::abs(bt->cell(0, 0).border.left.width - 0.75) < 0.05);
+        QCOMPARE(bt->cell(0, 0).border.left.color, ColorRef::rgb(QColor("#000000")));
+        QVERIFY(std::abs(bt->cell(0, 0).border.bottom.width - 2.25) < 0.05);
+        QCOMPARE(bt->cell(0, 0).border.bottom.color, ColorRef::rgb(QColor("#0000ff")));
+        for (int c = 0; c < 3; ++c) QVERIFY(std::abs(bt->colW[c] - t->colW[c]) < 0.5);
+        QCOMPARE(back->storyDoc(bt->cell(0, 0).storyId)->toPlainText(), QStringLiteral("Total"));
+        QCOMPARE(back->storyDoc(bt->cell(0, 1).storyId)->toPlainText(), QStringLiteral("1,234.50"));
+        QCOMPARE(back->storyDoc(bt->cell(1, 0).storyId)->toPlainText(), QStringLiteral("wide"));
+        QTextCursor bc(back->storyDoc(bt->cell(0, 0).storyId));
+        bc.setPosition(1);
+        QCOMPARE(bc.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        QCOMPARE(bc.charFormat().fontPointSize(), 14.0);
+        QVERIFY(bc.charFormat().fontWeight() >= QFont::Bold);
         // One step.
         ed->undo();
         QVERIFY(!theTable(ed));
@@ -1849,7 +1866,17 @@ private Q_SLOTS:
         QVERIFY(theTable(ed)->cell(1, 0).fill.color != ColorRef::rgb(QColor("#ffff00")));
     }
 
-    // Paste Special lists the table as a form of its own, and still offers the clipboard's words (as text only) and a table is not made by it.
+    static QString slideWords(Editor *ed)
+    {
+        QString out;
+        for (const auto &it : ed->doc()->pages[ed->currentPage()]->items)
+            if (it->type() == ItemType::Text)
+                if (QTextDocument *d = ed->doc()->storyDoc(static_cast<TextItem *>(it.get())->storyId)) out += d->toPlainText() + QLatin1Char('\n');
+        return out;
+    }
+
+    // Paste Special lists the table among the forms of the clipboard and still offers its words as text only; choosing that pastes the words and makes no table. A table too big for the bounds
+    // pastes as its words, and Paste Special's table choice then says nothing was pasted and does not try again.
     void pasteSpecialStillOffersPlainTextForCells()
     {
         DeckWindow w;
@@ -1859,21 +1886,75 @@ private Q_SLOTS:
             auto *list = d->findChild<QListWidget *>(QStringLiteral("pasteSpecialList"));
             QVERIFY(list);
             QVERIFY(list->count() >= 4);
+            QVERIFY(list->item(0)->text().contains(QStringLiteral("source formatting")));
             QVERIFY(list->item(1)->text().contains(QStringLiteral("text only")));
+            QVERIFY(list->item(3)->text().contains(QStringLiteral("table")));
             list->setCurrentRow(1);
         });
         QVERIFY(!theTable(ed));
+        QVERIFY2(slideWords(ed).contains(QStringLiteral("Total")) && slideWords(ed).contains(QStringLiteral("1,234.50")), qPrintable(slideWords(ed)));
+        ed->undo();
         QVERIFY(command(w, "edit.pasteText"));
         QVERIFY(!theTable(ed));
+        QVERIFY(slideWords(ed).contains(QStringLiteral("Total")));
+        ed->undo();
         // A table too big for the bounds is its words.
         QString big = QStringLiteral("<table>");
         for (int r = 0; r < 1001; ++r) big += QStringLiteral("<tr><td>x</td><td>y</td></tr>");
-        putCells(big + QStringLiteral("</table>"));
+        big += QStringLiteral("</table>");
+        putCells(big);
         QString said;
         QObject::connect(ed, &Editor::status, &w, [&said](const QString &m) { said = m; });
         QVERIFY(command(w, "edit.paste"));
         QVERIFY(!theTable(ed));
         QVERIFY(said.contains(QStringLiteral("too big")));
+        QVERIFY(slideWords(ed).contains(QStringLiteral("Total")));   // (the clipboard's words)
+        ed->undo();
+        // Paste Special's table choice, with more rows than a table holds: one message, nothing pasted.
+        QString rows = QStringLiteral("<table>");
+        for (int r = 0; r < 300; ++r) rows += QStringLiteral("<tr><td>x</td><td>y</td></tr>");
+        putCells(rows + QStringLiteral("</table>"));
+        said.clear();
+        const QString before = slideWords(ed);
+        withDialog([&w] { w.act(QStringLiteral("edit.pasteSpecial"))->trigger(); }, QStringLiteral("pasteSpecialDialog"), [](QDialog *d) {
+            d->findChild<QListWidget *>(QStringLiteral("pasteSpecialList"))->setCurrentRow(3);
+        });
+        QVERIFY(!theTable(ed));
+        QVERIFY2(said.contains(QStringLiteral("nothing was pasted")), qPrintable(said));
+        QCOMPARE(slideWords(ed), before);
+    }
+
+    // The most a paste makes (256 rows of 64 cells, with bold and a fill in each) takes seconds, not minutes; 1,000 rows of 64 are past what a table holds and paste as words at once.
+    void aBigPasteIsFast()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto cellsOf = [](int rows) {
+            QString html = QStringLiteral("<table>");
+            for (int r = 0; r < rows; ++r) {
+                html += QStringLiteral("<tr>");
+                for (int c = 0; c < 64; ++c) html += QStringLiteral("<td style=\"font-weight:bold;background:#ffff00;\">%1</td>").arg(r * 64 + c);
+                html += QStringLiteral("</tr>");
+            }
+            return html + QStringLiteral("</table>");
+        };
+        putCells(cellsOf(256));
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(command(w, "edit.paste"));
+        const qint64 ms = timer.elapsed();
+        qInfo("paste of 256 x 64 cells with bold and a fill: %lld ms", ms);
+        QVERIFY(theTable(ed));
+        QCOMPARE(theTable(ed)->rows, 256);
+        QVERIFY2(ms < 15000, qPrintable(QString::number(ms)));
+        ed->undo();
+        QVERIFY(!theTable(ed));
+        putCells(cellsOf(1000));
+        timer.restart();
+        QVERIFY(command(w, "edit.paste"));
+        qInfo("paste of 1000 x 64 cells (as words): %lld ms", timer.elapsed());
+        QVERIFY(!theTable(ed));
+        QVERIFY(timer.elapsed() < 15000);
     }
 
     // A picture of a JeffCrunch range pasted on a slide, when JO_SHOT_DIR names a folder.

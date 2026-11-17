@@ -1801,12 +1801,13 @@ bool Editor::clipboardMayHaveCells(const QMimeData *md)
     return md && office::wml::mayBeClipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString());
 }
 
-PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected)
+PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected, bool command)
 {
     PastedTable pasted;
     const PastedTableResult res = md && md->hasHtml() ? readPastedTable(md->html(), &pasted) : PastedTableResult::NotATable;
     if (res == PastedTableResult::TooBig) {
-        Q_EMIT status(tr("That table is too big to paste as a table (it has more than %1 rows, %2 columns, or %3 cells), so it was pasted as text.").arg(kPasteMaxRows).arg(kPasteMaxColumns).arg(kPasteMaxCells));
+        const QString big = tr("That table is too big to paste as a table (more than %1 rows, %2 columns, or %3 cells, or too much to read)").arg(kPasteMaxRows).arg(kPasteMaxColumns).arg(kPasteMaxCells);
+        Q_EMIT status(big + (command ? tr(", so nothing was pasted.") : tr(", so it was pasted as text.")));
         return res;
     }
     if (res != PastedTableResult::Ok) return res;
@@ -1826,7 +1827,7 @@ PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected)
         if (into && at.valid()) r0 = at.r0, c0 = at.c0;
     }
     if (!into && (pasted.rows > kMaxTableRowsOrColumns || pasted.cols > kMaxTableRowsOrColumns)) {
-        Q_EMIT status(tr("That table has more than %1 rows, which is more than a table here holds, so it was pasted as text.").arg(kMaxTableRowsOrColumns));
+        Q_EMIT status(tr("That table has more than %1 rows, which is more than a table here holds").arg(kMaxTableRowsOrColumns) + (command ? tr(", so nothing was pasted.") : tr(", so it was pasted as text.")));
         return PastedTableResult::TooBig;
     }
     if (isEditingText()) endTextEdit();
@@ -1859,8 +1860,9 @@ PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected)
 bool Editor::pasteCells(const QMimeData *md)
 {
     if (md && md->hasHtml()) {
-        const PastedTableResult res = pasteHtmlTable(md, true);
+        const PastedTableResult res = pasteHtmlTable(md, true, true);
         if (res == PastedTableResult::Ok) return true;
+        if (res == PastedTableResult::TooBig) return false;   // (said; and not tried again as text cells)
     }
     const auto cells = md ? office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString()) : std::nullopt;
     if (!cells || cells->rows.isEmpty()) {
