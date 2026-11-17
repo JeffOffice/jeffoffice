@@ -7,7 +7,7 @@
 #include <QCoreApplication>
 #include <QLocale>
 #include <QRandomGenerator>
-#include <QRegularExpression>
+#include <QHash>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -41,11 +41,41 @@ QByteArray escaped(const QString &text)
     return out.toUtf8();
 }
 
-QString unescaped(QString text)
+QString unescaped(const QString &text)
 {
-    text.replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">")).replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'"));
-    text.replace(QLatin1String("&amp;"), QLatin1String("&"));
-    return text;
+    if (!text.contains(QLatin1Char('&'))) return text;
+    QString out;
+    out.reserve(text.size());
+    for (qsizetype i = 0; i < text.size(); ++i) {
+        if (text[i] != QLatin1Char('&')) {
+            out += text[i];
+            continue;
+        }
+        const qsizetype semi = text.indexOf(QLatin1Char(';'), i);
+        if (semi < 0 || semi - i > 10) {
+            out += text[i];
+            continue;
+        }
+        const QString name = text.mid(i + 1, semi - i - 1);
+        QString put;
+        if (name == QLatin1String("lt")) put = QStringLiteral("<");
+        else if (name == QLatin1String("gt")) put = QStringLiteral(">");
+        else if (name == QLatin1String("amp")) put = QStringLiteral("&");
+        else if (name == QLatin1String("quot")) put = QStringLiteral("\"");
+        else if (name == QLatin1String("apos")) put = QStringLiteral("'");
+        else if (name.startsWith(QLatin1Char('#'))) {
+            bool ok = false;
+            const uint code = name.startsWith(QLatin1String("#x")) || name.startsWith(QLatin1String("#X")) ? name.mid(2).toUInt(&ok, 16) : name.mid(1).toUInt(&ok, 10);
+            if (ok && code >= 0x20 && code <= 0x10FFFF && !(code >= 0xD800 && code < 0xE000)) put = QString::fromUcs4(reinterpret_cast<const char32_t *>(&code), 1);
+        }
+        if (put.isNull()) {
+            out += text[i];
+            continue;
+        }
+        out += put;
+        i = semi;
+    }
+    return out;
 }
 
 // The index of the '>' that ends the tag begun at `from` (a '<'), where a '>' inside a quoted value does not; -1 for none.
@@ -73,16 +103,57 @@ QString localName(const QByteArray &element)
     return QString::fromLatin1(qname.mid(qname.indexOf(':') + 1));
 }
 
-// The value of an attribute of the start tag of an element (by its local name), or `none`.
+// The attributes of the start tag of an element, in order: the name as written and the value as written (still escaped).
+QVector<std::pair<QByteArray, QByteArray>> attributesOf(const QByteArray &element)
+{
+    QVector<std::pair<QByteArray, QByteArray>> out;
+    const qsizetype end = tagEnd(element, 0);
+    const QByteArray tag = end < 0 ? element : element.left(end + 1);
+    auto space = [](char c) { return c == ' ' || c == '\t' || c == '\r' || c == '\n'; };
+    qsizetype i = 1;
+    while (i < tag.size() && !space(tag[i]) && tag[i] != '>' && tag[i] != '/') ++i;
+    while (i < tag.size() && out.size() < 64) {
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || tag[i] == '>' || tag[i] == '/') break;
+        const qsizetype nameAt = i;
+        while (i < tag.size() && !space(tag[i]) && tag[i] != '=' && tag[i] != '>') ++i;
+        const QByteArray name = tag.mid(nameAt, i - nameAt);
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || tag[i] != '=') continue;
+        ++i;
+        while (i < tag.size() && space(tag[i])) ++i;
+        if (i >= tag.size() || (tag[i] != '"' && tag[i] != '\'')) break;
+        const char quote = tag[i++];
+        const qsizetype valueAt = i;
+        while (i < tag.size() && tag[i] != quote) ++i;
+        out.push_back({name, tag.mid(valueAt, i - valueAt)});
+        ++i;
+    }
+    return out;
+}
+
+QByteArray localOf(const QByteArray &qname) { return qname.mid(qname.indexOf(':') + 1); }
+
+// The value of an attribute of the start tag of an element (by its local name), or empty.
 QString attrOf(const QByteArray &element, const char *name, bool *has = nullptr)
 {
-    const qsizetype end = tagEnd(element, 0);
-    const QString tag = QString::fromUtf8(end < 0 ? element : element.left(end + 1));
-    const QRegularExpression re(QStringLiteral("\\s(?:[A-Za-z0-9_]+:)?") + QString::fromLatin1(name) + QStringLiteral("\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
-    const QRegularExpressionMatch m = re.match(tag);
-    if (has) *has = m.hasMatch();
-    if (!m.hasMatch()) return QString();
-    return unescaped(m.captured(m.capturedStart(1) >= 0 ? 1 : 2));
+    if (has) *has = false;
+    for (const auto &a : attributesOf(element))
+        if (localOf(a.first) == name) {
+            if (has) *has = true;
+            return unescaped(QString::fromUtf8(a.second));
+        }
+    return QString();
+}
+
+// The start tag of an element, with the attribute `name` (local name) taken out and `put` (the whole attribute, as written) added when it is not empty: what else the tag says stays as it was.
+QByteArray tagWithAttribute(const QByteArray &element, const char *name, const QByteArray &put)
+{
+    QByteArray tag = "<" + element.mid(1, [&] { qsizetype i = 1; while (i < element.size() && element[i] != ' ' && element[i] != '/' && element[i] != '>' && element[i] != '\t' && element[i] != '\r' && element[i] != '\n') ++i; return i - 1; }());
+    for (const auto &a : attributesOf(element))
+        if (localOf(a.first) != name) tag += " " + a.first + "=\"" + a.second + "\"";
+    if (!put.isEmpty()) tag += " " + put;
+    return tag;
 }
 
 // The elements that are the children of `inner` (the text between an element's tags); false where it is not well formed.
@@ -209,13 +280,8 @@ QByteArray dateElement(const ControlProps &p, const QByteArray &old)
     if (!old.isEmpty()) {
         const qsizetype s = tagEnd(old, 0);
         if (s > 0) {
-            QByteArray t = old.left(s + 1);
-            if (t.endsWith("/>")) t = t.left(t.size() - 2) + ">";
-            else if (old.lastIndexOf("</") > s) childrenOf(old.mid(s + 1, old.lastIndexOf("</") - s - 1), &kids);
-            // (Its own attributes stay, except the date.)
-            QString text = QString::fromUtf8(t);
-            text.replace(QRegularExpression(QStringLiteral("\\s(?:[A-Za-z0-9_]+:)?fullDate\\s*=\\s*(?:\"[^\"]*\"|'[^']*')")), QString());
-            tag = text.chopped(1).toUtf8();
+            tag = tagWithAttribute(old, "fullDate", QByteArray());
+            if (old[s - 1] != '/' && old.lastIndexOf("</") > s) childrenOf(old.mid(s + 1, old.lastIndexOf("</") - s - 1), &kids);
         }
     }
     if (p.date.isValid()) tag += " w:fullDate=\"" + p.date.toString(QStringLiteral("yyyy-MM-dd")).toLatin1() + "T00:00:00Z\"";
@@ -239,7 +305,6 @@ QByteArray dateElement(const ControlProps &p, const QByteArray &old)
 
 QByteArray dropDownElement(const ControlProps &p, const QByteArray &old)
 {
-    Q_UNUSED(old)
     const QString last = p.lastValue;
     bool known = last.isEmpty();
     QByteArray items;
@@ -252,7 +317,8 @@ QByteArray dropDownElement(const ControlProps &p, const QByteArray &old)
         items += "<w:listItem w:displayText=\"" + escaped(display) + "\" w:value=\"" + escaped(value) + "\"/>";
         ++count;
     }
-    return QByteArray("<w:dropDownList") + (!last.isEmpty() && known ? " w:lastValue=\"" + escaped(last) + "\"" : QByteArray()) + ">" + items + "</w:dropDownList>";
+    const QByteArray put = !last.isEmpty() && known ? "w:lastValue=\"" + escaped(last) + "\"" : QByteArray();
+    return (old.isEmpty() ? QByteArray("<w:dropDownList") + (put.isEmpty() ? QByteArray() : " " + put) : tagWithAttribute(old, "lastValue", put)) + ">" + items + "</w:dropDownList>";
 }
 
 // The XML of a control's start: the properties given over what `old` kept (what is not known is in place, as it was).
@@ -407,6 +473,8 @@ struct Span {
 
 QVector<Span> spansOf(const QTextBlock &block, int *budget = nullptr)
 {
+    int own = kMostControls;   // (a paragraph that holds more is not looked through further)
+    if (!budget) budget = &own;
     QVector<Span> out;
     struct Open {
         int at;
@@ -493,10 +561,20 @@ void putContents(WriteDoc &doc, const ContentControl &ctl, const QString &text, 
     look.clearProperty(tp::Field);
     look = placeholder ? grayed(look) : notGrayed(look);
     if (!glyphFont.isEmpty()) look.setFontFamilies(QStringList{glyphFont});
-    if (ctl.end > ctl.start + 1) {
-        edit.setPosition(ctl.start + 1);
-        edit.setPosition(ctl.end, QTextCursor::KeepAnchor);
-        edit.removeSelectedText();
+    // (What is in the control that is not text, a bookmark or a field's mark, stays; the text goes.)
+    {
+        QVector<QPair<int, int>> gone;
+        const QTextBlock b = story->findBlock(ctl.start);
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fr = it.fragment();
+            const int from = std::max(fr.position(), ctl.start + 1), to = std::min(fr.position() + fr.length(), ctl.end);
+            if (to > from && !fr.charFormat().hasProperty(prop::Atom)) gone.push_back({from, to});
+        }
+        for (qsizetype i = gone.size() - 1; i >= 0; --i) {
+            edit.setPosition(gone[i].first);
+            edit.setPosition(gone[i].second, QTextCursor::KeepAnchor);
+            edit.removeSelectedText();
+        }
     }
     edit.setPosition(ctl.start + 1);
     const QString shown = glyph.isNull() ? text : QString(glyph);
@@ -521,20 +599,54 @@ ContentControl innermostAt(const QTextBlock &block, int position)
 
 bool ControlProps::operator==(const ControlProps &o) const
 {
-    if (kind != o.kind || title != o.title || tag != o.tag || lockDelete != o.lockDelete || lockContents != o.lockContents || dateFormat != o.dateFormat || date != o.date || checked != o.checked || lastValue != o.lastValue || items.size() != o.items.size()) return false;
+    if (kind != o.kind || title != o.title || tag != o.tag || lockDelete != o.lockDelete || lockContents != o.lockContents || dateFormat != o.dateFormat || date != o.date || lid != o.lid || checked != o.checked || lastValue != o.lastValue || items.size() != o.items.size()) return false;
     for (int i = 0; i < items.size(); ++i)
         if (items[i].display != o.items[i].display || items[i].value != o.items[i].value) return false;
     return true;
 }
 
+namespace {
+int s_parses = 0;
+constexpr qsizetype kMostStartXml = 65536;   // a start tag longer than this is kept as it is and not read
+constexpr qsizetype kMostText = 4096;        // a title, tag, or item longer than this makes the control one that is kept and not read
+
+struct Parsed {
+    ControlProps props;
+    bool ok = false, placeholder = false;
+};
+
+Parsed parseProps(const QByteArray &startXml);
+} // namespace
+
+int controlParsesForTest() { return s_parses; }
+
 ControlProps controlPropsOf(const QByteArray &startXml, bool *ok, bool *placeholder)
 {
+    // (What the start of a control says is read once: the same bytes are asked for at every caret move and every paint.)
+    static QHash<QByteArray, Parsed> cache;
+    auto found = cache.constFind(startXml);
+    if (found == cache.constEnd()) {
+        if (cache.size() >= 20000) cache.clear();
+        found = cache.insert(startXml, parseProps(startXml));
+    }
+    if (ok) *ok = found->ok;
+    if (placeholder) *placeholder = found->placeholder;
+    return found->props;
+}
+
+namespace {
+Parsed parseProps(const QByteArray &startXml)
+{
+    ++s_parses;
+    bool okValue = false, placeholderValue = false;
+    bool *ok = &okValue, *placeholder = &placeholderValue;
     ControlProps p;
     p.kind = ControlKind::Other;
     if (ok) *ok = false;
     if (placeholder) *placeholder = false;
+    if (startXml.size() > kMostStartXml) return {p, false, false};
     const Pieces pieces = piecesOf(startXml);
-    if (!pieces.ok) return p;
+    if (!pieces.ok) return {p, false, false};
     bool galleryOrOther = false;
     for (const QByteArray &k : pieces.kids) {
         const QString name = localName(k);
@@ -579,6 +691,7 @@ ControlProps controlPropsOf(const QByteArray &startXml, bool *ok, bool *placehol
             if (s > 0 && k[s - 1] != '/' && e > s && childrenOf(k.mid(s + 1, e - s - 1), &kids))
                 for (const QByteArray &d : kids)
                     if (localName(d) == QLatin1String("dateFormat")) p.dateFormat = attrOf(d, "val");
+                    else if (localName(d) == QLatin1String("lid")) p.lid = attrOf(d, "val");
             if (p.dateFormat.isEmpty()) p.dateFormat = QStringLiteral("M/d/yyyy");
         } else if (name == QLatin1String("checkbox")) {
             p.kind = ControlKind::CheckBox;
@@ -593,9 +706,18 @@ ControlProps controlPropsOf(const QByteArray &startXml, bool *ok, bool *placehol
         }
     }
     if (galleryOrOther) p.kind = ControlKind::Other;
-    if (ok) *ok = true;
-    return p;
+    bool tooLong = p.title.size() > kMostText || p.tag.size() > kMostText;
+    for (const ControlItem &it : p.items) tooLong = tooLong || it.display.size() > kMostText || it.value.size() > kMostText;
+    if (tooLong) {
+        ControlProps kept;
+        kept.kind = ControlKind::Other;
+        kept.lockDelete = p.lockDelete;
+        kept.lockContents = p.lockContents;
+        return {kept, false, placeholderValue};
+    }
+    return {p, true, placeholderValue};
 }
+} // namespace
 
 QVector<ContentControl> contentControlsOf(const QTextBlock &block)
 {
@@ -639,6 +761,10 @@ bool insertContentControl(WriteDoc &doc, QTextCursor &c, ControlKind kind, QStri
         }
     }
     if (isLocked(story->findBlock(from))) return false;
+    if (splitsContentControl(story, from, to)) {
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The selection holds only part of another content control.");
+        return false;
+    }
     if (int(contentControls(doc).size()) >= kMostControls) {
         if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "The document has the most content controls it can hold.");
         return false;
@@ -706,12 +832,18 @@ bool setContentControlProps(WriteDoc &doc, int start, const ControlProps &props,
     }
     if (props == old) return true;
     ControlProps np = props;
-    np.title = np.title.left(255);
-    np.tag = np.tag.left(255);
     const Pieces pieces = piecesOf(atom.raw);
     if (!pieces.ok) return false;
     const WriteDoc::StepGroup group(doc);
-    setStartXml(story, start, buildStart(np, placeholder, pieces, false));
+    if (np.kind == ControlKind::Date && np.date.isValid() && !placeholder && np.dateFormat != old.dateFormat) {
+        // (The date shown is written again in the new format.)
+        const ContentControl ctl = contentControlAt(doc, start + 1, story);
+        if (ctl.valid() && ctl.start == start) {
+            putContents(doc, ctl, formatControlDate(np.date, np.dateFormat, np.lid), false, np);
+            return true;
+        }
+    }
+    setStartXml(story, start, buildStart(np, false || placeholder, pieces, false));
     return true;
 }
 
@@ -736,7 +868,7 @@ bool setControlDate(WriteDoc &doc, int start, const QDate &date)
     ControlProps np = ctl.props;
     np.date = date;
     const WriteDoc::StepGroup group(doc);
-    putContents(doc, ctl, date.isValid() ? formatControlDate(date, np.dateFormat) : placeholderText(ControlKind::Date), !date.isValid(), np);
+    putContents(doc, ctl, date.isValid() ? formatControlDate(date, np.dateFormat, np.lid) : placeholderText(ControlKind::Date), !date.isValid(), np);
     return true;
 }
 
@@ -767,9 +899,14 @@ void selectControlContents(QTextCursor &c, const ContentControl &control)
     c.setPosition(control.end, QTextCursor::KeepAnchor);
 }
 
-QString formatControlDate(const QDate &date, const QString &format)
+QString formatControlDate(const QDate &date, const QString &format, const QString &lid)
 {
-    return QLocale().toString(date, format.isEmpty() ? QStringLiteral("M/d/yyyy") : format);
+    QLocale locale;
+    if (!lid.isEmpty()) {
+        const QLocale named(QString(lid).replace(QLatin1Char('-'), QLatin1Char('_')));
+        if (named.language() != QLocale::C) locale = named;
+    }
+    return locale.toString(date, format.isEmpty() ? QStringLiteral("M/d/yyyy") : format);
 }
 
 int controlItemShown(const ContentControl &control)
@@ -780,6 +917,26 @@ int controlItemShown(const ContentControl &control)
         if ((it.display.isEmpty() ? it.value : it.display) == control.text) return i;
     }
     return -1;
+}
+
+bool splitsContentControl(QTextDocument *story, int from, int to)
+{
+    if (!story || to <= from) return false;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (const Span &s : spansOf(b)) {
+            const bool a = from <= s.start && s.start < to, z = from <= s.end && s.end < to;
+            if (a != z) return true;
+        }
+    return false;
+}
+
+bool restoreEmptyPlaceholder(WriteDoc &doc, int position)
+{
+    const ContentControl ctl = contentControlAt(doc, position);
+    if (!ctl.valid() || !ctl.editable || ctl.props.kind != ControlKind::PlainText || ctl.placeholder || ctl.end != ctl.start + 1) return false;
+    const WriteDoc::StepGroup group(doc);
+    putContents(doc, ctl, placeholderText(ControlKind::PlainText), true, ctl.props);
+    return true;
 }
 
 bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to, bool typing)
@@ -796,6 +953,7 @@ bool contentControlsAllow(WriteDoc &doc, QTextDocument *story, int from, int to,
             if (!coversOpen && !coversClose && !intoContents) continue;
             const ControlProps props = controlPropsOf(s.raw);
             if ((coversOpen || coversClose) && props.lockDelete) return false;
+            if (coversOpen != coversClose) return false;   // (half a control would be left: its two ends go together or stay)
             if (coversOpen && coversClose) continue;
             if (intoContents && (props.lockContents || chosenOnly(props.kind))) return false;
         }

@@ -116,6 +116,13 @@ void paintControlMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *l
     const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
     if (!body || !body->doc || !layouts) return;
     const int length = body->doc->characterCount();
+    // The controls of this page's own range of the text (the list is in the order of their starts: a later one is past the page).
+    QVector<const ControlMark *> here;
+    for (const ControlMark &mark : *d.controls) {
+        if (mark.from >= page.storyFrom + length) break;
+        if (mark.to + 1 > page.storyFrom) here.push_back(&mark);
+    }
+    if (here.isEmpty()) return;
     for (const QString &id : page.boxes) {
         const Item *item = page.doc->item(id);
         if (!item || item->type() != ItemType::Text) continue;
@@ -123,7 +130,8 @@ void paintControlMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *l
         const LayoutCache::FrameLayout fl = layouts->textFrame(*page.doc, *box, page.number, opt);
         if (!fl.layout || fl.frame < 0) continue;
         p->save();
-        for (const ControlMark &mark : *d.controls) {
+        for (const ControlMark *markp : here) {
+            const ControlMark &mark = *markp;
             const int from = std::max(0, mark.from - page.storyFrom), to = std::min(length, mark.to + 1 - page.storyFrom);
             if (to <= from) continue;
             const QVector<QRectF> rects = fl.layout->rangeRects(fl.frame, from, to);

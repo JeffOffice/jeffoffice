@@ -16,6 +16,7 @@ namespace jp { class ShapeTextEdit; }
 
 #include <QAbstractScrollArea>
 #include <QPixmap>
+#include <QPointer>
 #include <QTextCursor>
 #include <QTimer>
 #include <functional>
@@ -649,8 +650,9 @@ private:
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
     QVector<ControlMark> m_controlMarks;
-    quint64 m_controlRevision = ~quint64(0);
-    const QTextDocument *m_controlStory = nullptr;
+    bool m_controlsDirty = true;
+    QPointer<QTextDocument> m_controlStory;
+    QMetaObject::Connection m_controlConnection;
     std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;
     // What a paste was made from, kept so that the choices after it paste the same, whatever the clipboard holds by then: a copy of the clipboard's words, HTML, and picture, and the copy this
     // program made last (what pasting it again keeps), and the cells the clipboard holds as a table, parsed when they are asked for.

@@ -666,10 +666,12 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     }
     case Qt::Key_Backspace:
         deleteBack(*m_doc, m_cursor, ctrl);
+        write::restoreEmptyPlaceholder(*m_doc, m_cursor.position());
         caretMoved();
         break;
     case Qt::Key_Delete:
         deleteForward(*m_doc, m_cursor, ctrl);
+        write::restoreEmptyPlaceholder(*m_doc, m_cursor.position());
         caretMoved();
         break;
     case Qt::Key_Return:
@@ -1277,21 +1279,51 @@ const QVector<ControlMark> &PageView::controlMarks()
         m_controlMarks.clear();
         return m_controlMarks;
     }
-    if (m_controlStory != story || m_controlRevision != quint64(story->revision())) {
+    if (m_controlStory != story) {
+        // (The marks follow the edits: after a change that moves them they are shifted, and only a change that touches a control's atoms, or adds atoms, has them found again.)
+        QObject::disconnect(m_controlConnection);
         m_controlStory = story;
-        m_controlRevision = quint64(story->revision());
+        m_controlsDirty = true;
+        m_controlConnection = connect(story, &QTextDocument::contentsChange, this, [this, story](int pos, int removed, int added) {
+            if (m_controlsDirty) return;
+            bool atoms = false;
+            if (added > 100000) atoms = true;
+            for (int i = 0; i < added && !atoms; ++i) atoms = story->characterAt(pos + i) == QChar::ObjectReplacementCharacter;
+            if (!atoms && removed > 0)
+                for (const ControlMark &m : std::as_const(m_controlMarks))
+                    if ((m.from >= pos && m.from < pos + removed) || (m.to >= pos && m.to < pos + removed)) {
+                        atoms = true;
+                        break;
+                    }
+            if (atoms) {
+                m_controlsDirty = true;
+                return;
+            }
+            const int delta = added - removed;
+            if (delta == 0) return;
+            for (ControlMark &m : m_controlMarks) {
+                if (m.from >= pos + removed) m.from += delta;
+                if (m.to >= pos + removed) m.to += delta;
+            }
+        });
+    }
+    if (m_controlsDirty) {
+        m_controlsDirty = false;
         m_controlMarks.clear();
         for (const write::ContentControl &c : write::contentControls(*m_doc))
             if (c.props.kind != write::ControlKind::Other) m_controlMarks.push_back({c.start, c.end, false, c.props.title});
     }
-    // (The control the caret is in has the outline: the innermost that holds it.)
+    // (The control the caret is in has the outline: the innermost that holds it. Only the caret's paragraph is looked at.)
     for (ControlMark &mark : m_controlMarks) mark.focus = false;
-    if (m_cursor.document() == story) {
+    if (!m_controlMarks.isEmpty() && m_cursor.document() == story) {
         const int at = m_cursor.hasSelection() ? m_cursor.selectionStart() + 1 : m_cursor.position();
-        int best = -1;
-        for (int i = 0; i < m_controlMarks.size(); ++i)
-            if (at > m_controlMarks[i].from && at <= m_controlMarks[i].to && (best < 0 || m_controlMarks[i].from > m_controlMarks[best].from)) best = i;
-        if (best >= 0) m_controlMarks[best].focus = true;
+        const write::ContentControl here = write::contentControlAt(*m_doc, at);
+        if (here.valid())
+            for (ControlMark &mark : m_controlMarks)
+                if (mark.from == here.start && mark.to == here.end) {
+                    mark.focus = true;
+                    break;
+                }
     }
     return m_controlMarks;
 }

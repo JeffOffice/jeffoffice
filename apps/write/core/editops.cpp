@@ -1940,6 +1940,16 @@ int convertNotes(WriteDoc &doc, NoteConversion mode, int onlyFootnote, int onlyE
     return done;
 }
 
+// Whether what is pasted, with the controls the text has, would be more than the most a file holds (each control is two atoms in the fragment's text).
+static bool pasteWouldOverfillControls(WriteDoc &doc, const QTextDocumentFragment &fragment)
+{
+    const QString text = fragment.toPlainText();
+    if (!text.contains(QChar::ObjectReplacementCharacter)) return false;
+    qsizetype atoms = 0;
+    for (const QChar ch : text) atoms += ch == QChar::ObjectReplacementCharacter;
+    return atoms / 2 + qsizetype(contentControls(doc).size()) > kMostControls;
+}
+
 void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment)
 {
     doc.forgetDrawingIds();   // (what is pasted may hold drawings with ids of their own)
@@ -1947,7 +1957,7 @@ void pasteFragment(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &f
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
     if (fragment.isEmpty()) return;
-    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c))) {   // (in a content control only the words go in)
+    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c) || pasteWouldOverfillControls(doc, fragment))) {   // (in a content control only the words go in; so for more controls than a file holds)
         pasteText(doc, c, plainTextOf(fragment));
         return;
     }
@@ -1991,6 +2001,9 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
     const NoteScopeGuard scopeGuard(c);
     if (!intoBody(c)) return clip;
     clip.fragment = selectionFragment(c);
+    // (A selection that holds one end of a content control copies its words and not the end: a pasted half would leave the file unbalanced.)
+    if (c.hasSelection() && c.document() == doc.story() && splitsContentControl(c.document(), c.selectionStart(), c.selectionEnd()))
+        clip.fragment = QTextDocumentFragment::fromPlainText(plainTextOf(clip.fragment));
     clip.source = doc.id();
     clip.generation = byteStoreGeneration();
     if (!c.hasSelection()) return clip;
@@ -2037,7 +2050,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         pasteText(doc, c, plainTextOf(clip.fragment));   // (the kept bytes its formats stood for are gone)
         return;
     }
-    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c))) {   // (in a content control only the words go in)
+    if (c.document() == doc.story() && (caretInKnownControl(doc, c) || typingReplacesPlaceholder(doc, c) || pasteWouldOverfillControls(doc, clip.fragment))) {
         pasteText(doc, c, plainTextOf(clip.fragment));
         return;
     }

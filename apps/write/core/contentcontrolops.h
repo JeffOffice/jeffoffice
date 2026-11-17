@@ -31,6 +31,7 @@ struct ControlProps {
     QVector<ControlItem> items;    // a drop-down list's
     QString dateFormat;            // a date picker's (as a person writes it: M/d/yyyy)
     QDate date;                    // the date it holds (invalid for none)
+    QString lid;                   // the language its date is written in (w:lid, "en-US"); empty: the program's
     bool checked = false;          // a check box's
     QString lastValue;             // a drop-down list's: the value of the item chosen
     bool operator==(const ControlProps &o) const;
@@ -83,10 +84,17 @@ bool setControlChecked(WriteDoc &doc, int start, bool checked);
 void selectControlContents(QTextCursor &c, const ContentControl &control);
 
 // A date written in a format of the picker (d, dd, ddd, dddd, M, MM, MMM, MMMM, yy, yyyy and the text round them).
-QString formatControlDate(const QDate &date, const QString &format);
+QString formatControlDate(const QDate &date, const QString &format, const QString &lid = QString());
 
 // The place of a drop-down list's choice that is shown (-1: the placeholder, or something not in the list).
 int controlItemShown(const ContentControl &control);
+
+// Whether the range holds one end of a control and not the other (an edit of it would leave half a control).
+bool splitsContentControl(QTextDocument *story, int from, int to);
+// A text control that has been emptied shows its placeholder again (the caret is in it). False where there is none to do.
+bool restoreEmptyPlaceholder(WriteDoc &doc, int position);
+// For tests: how many times the start of a control has been read (what is read once is kept).
+int controlParsesForTest();
 
 // Whether an edit may be made: removing the text from `from` to `to` (when they differ) or putting text in at `from`. A control that can't be deleted keeps both its atoms, one whose contents
 // are locked keeps what it holds, and the check box and the drop-down list hold only what is chosen for them. `typing`: text goes in (else it comes out).

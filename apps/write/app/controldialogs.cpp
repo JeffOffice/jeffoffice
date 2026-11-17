@@ -16,12 +16,24 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QPushButton>
+#include <QTextBoundaryFinder>
+#include <QFontMetrics>
 #include <QVBoxLayout>
 #include <QWidgetAction>
 
 namespace jp::write {
 
 namespace {
+
+// What a person typed, cut to at most `most` characters at a boundary between what a reader sees as letters.
+QString capped(const QString &text, int most)
+{
+    if (text.size() <= most) return text;
+    QTextBoundaryFinder finder(QTextBoundaryFinder::Grapheme, text);
+    finder.setPosition(most);
+    if (!finder.isAtBoundary()) finder.toPreviousBoundary();
+    return text.left(finder.position());
+}
 
 const char *const kDateFormats[] = {"M/d/yyyy", "dddd, MMMM d, yyyy", "MMMM d, yyyy", "d MMMM yyyy", "yyyy-MM-dd", "M/d/yy", "d-MMM-yy", "MMMM yyyy"};
 
@@ -121,8 +133,8 @@ bool contentControlDialog(QWidget *parent, WriteDoc *doc, int start)
     // (OK applies the properties and closes; a box closed any other way as accepted gets them applied once it is gone.)
     auto apply = [&]() {
         ControlProps p = ctl.props;
-        p.title = title->text().trimmed();
-        p.tag = tag->text().trimmed();
+        p.title = capped(title->text().trimmed(), 255);
+        p.tag = capped(tag->text().trimmed(), 255);
         p.lockDelete = deleteLock->isChecked();
         p.lockContents = contentsLock->isChecked();
         if (format) p.dateFormat = format->currentText().trimmed();
@@ -164,7 +176,10 @@ QMenu *controlChoicesMenu(QWidget *parent, WriteDoc *doc, int start, const std::
         const int shown = controlItemShown(ctl);
         for (int i = 0; i < ctl.props.items.size(); ++i) {
             const ControlItem &it = ctl.props.items[i];
-            QAction *a = menu->addAction(it.display.isEmpty() ? it.value : it.display);
+            // (An ampersand is a letter here, not a key; a very long item is cut short.)
+            QString text = it.display.isEmpty() ? it.value : it.display;
+            text = QFontMetrics(menu->font()).elidedText(text, Qt::ElideRight, 400).replace(QLatin1Char('&'), QLatin1String("&&"));
+            QAction *a = menu->addAction(text);
             a->setCheckable(true);
             a->setChecked(i == shown);
             QObject::connect(a, &QAction::triggered, menu, [=] {

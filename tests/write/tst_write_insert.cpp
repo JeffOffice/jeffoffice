@@ -17,6 +17,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/barcodeitem.h"
+#include "app/controldialogs.h"
 #include "core/contentcontrolops.h"
 #include "core/pictureops.h"
 #include "io/zip.h"
@@ -2124,6 +2125,7 @@ private Q_SLOTS:
 
     void choosingADropDownItemADateAndACheckBoxChangesWhatTheyShow()
     {
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
         Win win;
         const int start = makeControl(win, ControlKind::DropDown);
         ControlProps p = contentControlAt(*win.w.document(), start + 1).props;
@@ -2332,18 +2334,19 @@ private Q_SLOTS:
         QVERIFY(documentXml(list->toDocx()).contains("w:value=\"1000\""));
     }
 
-    // A point inside the character at `pos` (a third of the way across it), in the window's text.
-    static QPoint insideChar(WriteWindow &w, int pos)
+    // The middle of a control's words in the window (from where its text begins to where it ends).
+    static QPoint controlPoint(WriteWindow &w, int start)
     {
-        QTextCursor c(w.document()->story());
+        const ContentControl c = contentControlAt(*w.document(), start + 1);
+        QTextCursor cur(w.document()->story());
         QRect a, b;
-        c.setPosition(pos);
-        w.view()->setCursor(c);
+        cur.setPosition(c.start + 1);
+        w.view()->setCursor(cur);
         w.view()->caretRect(&a);
-        c.setPosition(pos + 1);
-        w.view()->setCursor(c);
+        cur.setPosition(c.end);
+        w.view()->setCursor(cur);
         w.view()->caretRect(&b);
-        return a.center() + QPoint((b.center().x() - a.center().x()) / 3, 0);
+        return QPoint((a.center().x() + b.center().x()) / 2, a.center().y());
     }
 
     // The menu of choices a click showed (null if none).
@@ -2381,16 +2384,16 @@ private Q_SLOTS:
         const int box = makeControl(win, ControlKind::CheckBox);
         QVERIFY(box >= 0);
         w.view()->paginateAll();
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, box + 1));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, box));
         QVERIFY(contentControlAt(*w.document(), box + 1).props.checked);
         QCOMPARE(w.view()->cursor().position(), contentControlAt(*w.document(), box + 1).end + 1);   // (the caret goes on after it)
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, box + 1));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, box));
         QVERIFY(!contentControlAt(*w.document(), box + 1).props.checked);
         // With its contents locked the click does nothing.
         ControlProps p = contentControlAt(*w.document(), box + 1).props;
         p.lockContents = true;
         QVERIFY(setContentControlProps(*w.document(), box, p));
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, box + 1));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, box));
         QVERIFY(!contentControlAt(*w.document(), box + 1).props.checked);
         // The space key flips the box when the caret is in it.
         p.lockContents = false;
@@ -2405,7 +2408,7 @@ private Q_SLOTS:
         QTextCursor c(text.w.document()->story());
         c.setPosition(0);
         text.w.view()->setCursor(c);
-        QTest::mouseClick(text.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(text.w, t + 3));
+        QTest::mouseClick(text.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(text.w, t));
         QVERIFY(text.w.view()->cursor().hasSelection());
         QCOMPARE(text.w.view()->cursor().selectedText().remove(QChar::ObjectReplacementCharacter), contentControlAt(*text.w.document(), t + 1).text);
         QTest::keyClicks(text.w.view()->viewport(), QStringLiteral("Zed"));
@@ -2421,7 +2424,7 @@ private Q_SLOTS:
         p.items = {{QStringLiteral("Small"), QStringLiteral("s")}, {QStringLiteral("Large"), QStringLiteral("l")}};
         QVERIFY(setContentControlProps(*w.document(), list, p));
         w.view()->paginateAll();
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, list + 3));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, list));
         QMenu *menu = nullptr;
         QTRY_VERIFY((menu = choicesOf(w)) != nullptr);
         QCOMPARE(menu->actions().size(), 2);
@@ -2432,13 +2435,13 @@ private Q_SLOTS:
         // With its contents locked, no choices are shown.
         p.lockContents = true;
         QVERIFY(setContentControlProps(*w.document(), list, p));
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, list + 3));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, list));
         QVERIFY(choicesOf(w) == nullptr);
 
         Win dateWin;
         const int d = makeControl(dateWin, ControlKind::Date);
         dateWin.w.view()->paginateAll();
-        QTest::mouseClick(dateWin.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(dateWin.w, d + 3));
+        QTest::mouseClick(dateWin.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(dateWin.w, d));
         QMenu *cal = nullptr;
         QTRY_VERIFY((cal = choicesOf(dateWin.w)) != nullptr);
         auto *calendar = cal->findChild<QCalendarWidget *>(QStringLiteral("controlCalendar"));
@@ -2552,9 +2555,9 @@ private Q_SLOTS:
         QVERIFY(setControlDate(*w.document(), all[2].start, QDate(2026, 12, 1)));
         QVERIFY(chooseControlItem(*w.document(), all[1].start, 1));
         w.show();
-        QVERIFY(QTest::qWaitForWindowActive(&w));
+        if (!QTest::qWaitForWindowActive(&w)) QSKIP("the window can't be made active here");
         w.view()->paginateAll();
-        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, insideChar(w, all[1].start + 3));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, controlPoint(w, all[1].start));
         QMenu *menu = nullptr;
         QTRY_VERIFY((menu = choicesOf(w)) != nullptr);
         QImage shot = w.grab().toImage();
@@ -2568,6 +2571,229 @@ private Q_SLOTS:
         none.setPosition(w.document()->story()->characterCount() - 1);
         w.view()->setCursor(none);
         w.grab().save(dir + QLatin1String("/content-controls-form.png"));
+    }
+
+    // The saved text has as many starts of controls as ends.
+    static void verifyBalanced(const QByteArray &xmlText)
+    {
+        QCOMPARE(xmlText.count("<w:sdt>"), xmlText.count("</w:sdt>"));
+        QCOMPARE(xmlText.count("<w:sdtContent>"), xmlText.count("</w:sdtContent>"));
+    }
+
+    void halfAControlIsNeverDeletedTypedOverOrCopiedWithItsAtoms()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::PlainText);
+        QTextCursor &c = win.w.view()->cursor();
+        write::insertText(doc, c, QStringLiteral("abc"));
+        c.setPosition(doc.story()->characterCount() - 1);
+        write::insertText(doc, c, QStringLiteral(" tail"));
+        const ContentControl ctl = contentControlAt(doc, start + 1);
+        const QString before = doc.story()->toPlainText();
+        // From inside past the end, from before into the middle: refused, whatever way the text is taken out.
+        const int ranges[][2] = {{ctl.start + 2, ctl.end + 3}, {1, ctl.start + 3}, {ctl.start, ctl.start + 2}, {ctl.end - 1, ctl.end + 1}};
+        for (const auto &r : ranges) {
+            QVERIFY(splitsContentControl(doc.story(), r[0], r[1]));
+            c.setPosition(r[0]);
+            c.setPosition(r[1], QTextCursor::KeepAnchor);
+            write::removeSelection(doc, c);
+            QCOMPARE(doc.story()->toPlainText(), before);
+            c.setPosition(r[0]);
+            c.setPosition(r[1], QTextCursor::KeepAnchor);
+            write::insertText(doc, c, QStringLiteral("Q"));
+            QCOMPARE(doc.story()->toPlainText(), before);
+            // (Copied, it is its words: a paste of it holds no atom.)
+            c.setPosition(r[0]);
+            c.setPosition(r[1], QTextCursor::KeepAnchor);
+            const Clip clip = write::copySelection(doc, c);
+            QVERIFY(!clip.fragment.toPlainText().contains(QChar::ObjectReplacementCharacter));
+            QVERIFY(!clip.fragment.toPlainText().isEmpty());
+        }
+        verifyBalanced(documentXml(doc.toDocx()));
+        // A selection over the whole control (or none of it) is not half.
+        QVERIFY(!splitsContentControl(doc.story(), ctl.start, ctl.end + 1));
+        QVERIFY(!splitsContentControl(doc.story(), ctl.start + 1, ctl.end));
+        c.setPosition(ctl.start);
+        c.setPosition(ctl.end + 1, QTextCursor::KeepAnchor);
+        write::removeSelection(doc, c);
+        QCOMPARE(contentControls(doc).size(), 0);
+        verifyBalanced(documentXml(doc.toDocx()));
+    }
+
+    void aNewControlIsNotMadeOverOneEndOfAnother()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::PlainText);
+        QTextCursor &c = win.w.view()->cursor();
+        write::insertText(doc, c, QStringLiteral("abc"));
+        const ContentControl ctl = contentControlAt(doc, start + 1);
+        c.setPosition(2);
+        c.setPosition(ctl.start + 3, QTextCursor::KeepAnchor);
+        QString why;
+        QVERIFY(!insertContentControl(doc, c, ControlKind::PlainText, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(contentControls(doc).size(), 1);
+        // Over the whole of it, or inside it, a control is made.
+        c.setPosition(2);
+        c.setPosition(ctl.end + 1, QTextCursor::KeepAnchor);
+        QVERIFY(insertContentControl(doc, c, ControlKind::PlainText, &why));
+        QCOMPARE(contentControls(doc).size(), 2);
+        verifyBalanced(documentXml(doc.toDocx()));
+    }
+
+    void whatIsReadOnceIsNotReadAgainAtEveryKey()
+    {
+        QByteArray body;
+        for (int p = 0; p < 100; ++p) {
+            body += "<w:p>";
+            for (int i = 0; i < 100; ++i) body += "<w:sdt><w:sdtPr><w:id w:val=\"" + QByteArray::number(p * 100 + i + 1) + "\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>x</w:t></w:r></w:sdtContent></w:sdt>";
+            body += "</w:p>";
+        }
+        WriteWindow w;
+        w.setDocument(open(makeDocx(body)), QString());
+        WriteDoc &doc = *w.document();
+        QCOMPARE(w.view()->controlMarks().size(), kMostControls);
+        const int last = w.view()->controlMarks().last().from;
+        QTextCursor c(doc.story());
+        c.setPosition(doc.story()->characterCount() - 1);
+        w.view()->setCursor(c);
+        (void)w.view()->controlMarks();
+        const int parses = controlParsesForTest();
+        for (int k = 0; k < 20; ++k) {
+            write::insertText(doc, w.view()->cursor(), QStringLiteral("k"));
+            QCOMPARE(w.view()->controlMarks().size(), kMostControls);
+        }
+        write::deleteBack(doc, w.view()->cursor(), false);
+        (void)w.view()->controlMarks();
+        QVERIFY2(controlParsesForTest() - parses <= 2, qPrintable(QString::number(controlParsesForTest() - parses)));
+        // Typed at the start of the text, the marks move with it without a new look.
+        c.setPosition(0);
+        w.view()->setCursor(c);
+        write::insertText(doc, w.view()->cursor(), QStringLiteral("ab"));
+        QCOMPARE(w.view()->controlMarks().last().from, last + 2);
+        QCOMPARE(controlParsesForTest() - parses <= 2, true);
+        QCOMPARE(contentControls(doc).last().start, last + 2);
+    }
+
+    void aHostileStartIsKeptAndNotRead()
+    {
+        // A start far longer than the most, and a title and tag longer than the most: the control is shown and kept as it was, and cannot be edited.
+        const QByteArray longTitle(5000, 'T');
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:alias w:val=\"" + longTitle + "\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t xml:space=\"preserve\">x</w:t></w:r></w:sdtContent></w:sdt>";
+        QByteArray huge = "<w:sdt><w:sdtPr><w:text/>";
+        for (int i = 0; i < 4000; ++i) huge += "<w:rPr><w:b/></w:rPr>";
+        huge += "</w:sdtPr><w:sdtContent><w:r><w:t xml:space=\"preserve\">y</w:t></w:r></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p>" + sdt + huge + "</w:p>"));
+        QVERIFY(doc);
+        const QVector<ContentControl> all = contentControls(*doc);
+        QCOMPARE(all.size(), 2);
+        for (const ContentControl &c : all) {
+            QVERIFY(!c.editable);
+            QCOMPARE(c.props.kind, ControlKind::Other);
+        }
+        QVERIFY(!setContentControlProps(*doc, all[0].start, all[0].props));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY(out.contains(sdt));
+        QVERIFY(out.contains(huge));
+    }
+
+    void anAttributeHoldingQuotesAndNumberedCharactersIsReadAndWrittenWhole()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:alias w:val=\"It&#8217;s &#x41;\"/><w:dropDownList><w:listItem w:displayText=\"a value='x' b\" w:value=\"v1\"/>"
+                               "<w:listItem w:displayText=\"R&amp;D &lt;1&gt;\" w:value='q\"r'/></w:dropDownList></w:sdtPr><w:sdtContent><w:r><w:t xml:space=\"preserve\">a</w:t></w:r></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p>" + sdt + "</w:p>"));
+        const ContentControl c = contentControls(*doc).first();
+        QCOMPARE(c.props.title, QString(QStringLiteral("It")) + QChar(0x2019) + QStringLiteral("s A"));
+        QCOMPARE(c.props.items.size(), 2);
+        QCOMPARE(c.props.items[0].display, QStringLiteral("a value='x' b"));
+        QCOMPARE(c.props.items[0].value, QStringLiteral("v1"));
+        QCOMPARE(c.props.items[1].display, QStringLiteral("R&D <1>"));
+        QCOMPARE(c.props.items[1].value, QStringLiteral("q\"r"));
+        ControlProps p = c.props;
+        p.tag = QStringLiteral("t");
+        QVERIFY(setContentControlProps(*doc, c.start, p));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(!out.contains("&amp;#"), out.constData());
+        auto again = open(doc->toDocx());
+        const ContentControl back = contentControls(*again).first();
+        QCOMPARE(back.props.title, c.props.title);
+        QCOMPARE(back.props.items[0].display, c.props.items[0].display);
+        QCOMPARE(back.props.items[1].value, c.props.items[1].value);
+    }
+
+    void aLongTagIsKeptWholeWhenAnotherFieldChanges()
+    {
+        const QByteArray tag(300, 'g');
+        auto doc = open(makeDocx("<w:p><w:sdt><w:sdtPr><w:tag w:val=\"" + tag + "\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>x</w:t></w:r></w:sdtContent></w:sdt></w:p>"));
+        const ContentControl c = contentControls(*doc).first();
+        ControlProps p = c.props;
+        p.title = QStringLiteral("New");
+        QVERIFY(setContentControlProps(*doc, c.start, p));
+        QCOMPARE(contentControls(*doc).first().props.tag, QString::fromLatin1(tag));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tag w:val=\"" + tag + "\"/>"));
+    }
+
+    void anEmptiedTextControlShowsItsPlaceholderAgain()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::PlainText);
+        QTextCursor &c = win.w.view()->cursor();
+        write::insertText(doc, c, QStringLiteral("a"));
+        QVERIFY(!contentControlAt(doc, start + 1).placeholder);
+        c.setPosition(contentControlAt(doc, start + 1).end);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_Backspace);
+        const ContentControl now = contentControlAt(doc, start + 1);
+        QVERIFY(now.placeholder);
+        QCOMPARE(now.text, QStringLiteral("Enter text"));
+        QVERIFY(documentXml(doc.toDocx()).contains("<w:showingPlcHdr/>"));
+    }
+
+    void aDateIsWrittenAgainInANewFormatAndInTheControlsLanguage()
+    {
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::Date);
+        QVERIFY(setControlDate(doc, start, QDate(2026, 3, 9)));
+        ControlProps p = contentControlAt(doc, start + 1).props;
+        p.dateFormat = QStringLiteral("yyyy-MM-dd");
+        QVERIFY(setContentControlProps(doc, start, p));
+        QCOMPARE(contentControlAt(doc, start + 1).text, QStringLiteral("2026-03-09"));
+        QCOMPARE(formatControlDate(QDate(2026, 3, 9), QStringLiteral("MMMM"), QStringLiteral("en-US")), QStringLiteral("March"));
+        QCOMPARE(formatControlDate(QDate(2026, 3, 9), QStringLiteral("MMMM"), QStringLiteral("de-DE")), QStringLiteral("März"));
+    }
+
+    void choosingKeepsABookmarkInsideAndAnUnchangedBoxChangesNothing()
+    {
+        const QByteArray sdt = "<w:sdt><w:sdtPr><w:dropDownList><w:listItem w:displayText=\"A\" w:value=\"a\"/><w:listItem w:displayText=\"B\" w:value=\"b\"/></w:dropDownList></w:sdtPr>"
+                               "<w:sdtContent><w:bookmarkStart w:id=\"3\" w:name=\"keep\"/><w:r><w:t xml:space=\"preserve\">A</w:t></w:r><w:bookmarkEnd w:id=\"3\"/></w:sdtContent></w:sdt>";
+        auto doc = open(makeDocx("<w:p>" + sdt + "</w:p>"));
+        const ContentControl c = contentControls(*doc).first();
+        QVERIFY(chooseControlItem(*doc, c.start, 1));
+        const QByteArray out = documentXml(doc->toDocx());
+        QVERIFY2(out.contains("w:name=\"keep\"") && out.contains("w:bookmarkEnd"), out.constData());
+        QCOMPARE(contentControls(*doc).first().text, QStringLiteral("B"));
+        // The box with nothing changed makes no step and no change.
+        const int revision = doc->story()->revision();
+        QVERIFY(setContentControlProps(*doc, c.start, contentControlAt(*doc, c.start + 1).props));
+        QCOMPARE(doc->story()->revision(), revision);
+    }
+
+    void theMenuOfAListShowsAmpersandsAndCutsLongItems()
+    {
+        Win win;
+        const int list = makeControl(win, ControlKind::DropDown);
+        ControlProps p = contentControlAt(*win.w.document(), list + 1).props;
+        p.items = {{QStringLiteral("R&D"), QStringLiteral("rd")}, {QString(500, QLatin1Char('w')), QStringLiteral("long")}};
+        QVERIFY(setContentControlProps(*win.w.document(), list, p));
+        QMenu *menu = controlChoicesMenu(&win.w, win.w.document(), list, nullptr);
+        QVERIFY(menu);
+        QCOMPARE(menu->actions()[0]->text(), QStringLiteral("R&&D"));
+        QVERIFY(menu->actions()[1]->text().size() < 200);
+        delete menu;
     }
 };
 
