@@ -17,11 +17,11 @@
 #         starts, and crunchtests pulls in jeffcrunch, which it starts (add_dependencies in CMakeLists.txt). crunchtests (1004 s) runs in
 #         both jobs, half of its test classes each (crunchtests:k/2). writetests (309 s) runs whole in 1/2: splitting it by test function put
 #         18,000 characters of names on one line, past what xargs takes on Windows, and no part started (Nov 14 2026).
-#         Seconds of the programs on Windows (run 43728103514, Nov 15 2026; the other two runs of that day within 10 percent), summed (the programs
+#         Seconds of the programs on Windows (the median of the last five green runs on main, Nov 17 2026, 44097488481 and the four before), summed (the programs
 #         of a job run side by side on 4 processors, so a job takes its longest program or a quarter of its sum, whichever is more):
-#           1/2: crunchtests:1/2 266, jptests 646 (moved here from 2/2 on Nov 15), jdtests 222, writetests 211, flowtests 201, officetests 35,
-#                wmltests, odttests, writeodttests 8: 1589 (the job took 268 s without jptests, whose sum was 943)
-#           2/2: crunchtests:2/2 738, sheettests 660, the small write tests 100: 1498 (the job took 740 s with jptests, whose sum was 2144)
+#           1/2: crunchtests:1/2 785, writetests 576, jdtests 450, officetests 72, wmltests, odttests, writeodttests 15: 1898
+#           2/2: crunchtests:2/2 547, jptests 629 (moved here from 1/2 on Nov 17), flowtests 344 (moved here Nov 17; 204-687), sheettests 256,
+#                the small write tests 100: 1876 (before the move 1/2 summed ~3200 and its Test step took 16 min, 2/2 ~950 and 9 min)
 #           (the two parts of crunchtests are dealt equal by the weights in tools/ci_tests.sh and are not: the weights are stale, and each
 #           run prints the seconds of the slowest classes to set them again)
 # checks: the four app-check programs of the App checks step; the four apps (the PDF check, the screenshots of the packages, the
@@ -40,9 +40,9 @@ case "$part/$shard" in
 tests/)
     runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
 tests/1/2)
-    runs="crunchtests:1/2 jptests writetests flowtests jdtests officetests wmltests odttests writeodttests" ;;
+    runs="crunchtests:1/2 writetests jdtests officetests wmltests odttests writeodttests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
+    runs="crunchtests:2/2 jptests flowtests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;
