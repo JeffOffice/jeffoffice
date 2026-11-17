@@ -38,10 +38,12 @@
 #include "wml/wml.h"
 
 #include <QBuffer>
+#include <QScopeGuard>
 #include <QCalendarWidget>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QMenu>
+#include <QMimeData>
 #include <QPainter>
 #include <QGroupBox>
 #include <QFile>
@@ -2125,6 +2127,8 @@ private Q_SLOTS:
 
     void choosingADropDownItemADateAndACheckBoxChangesWhatTheyShow()
     {
+        const QLocale was;
+        const auto restoreLocale = qScopeGuard([&] { QLocale::setDefault(was); });
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
         Win win;
         const int start = makeControl(win, ControlKind::DropDown);
@@ -2334,7 +2338,7 @@ private Q_SLOTS:
         QVERIFY(documentXml(list->toDocx()).contains("w:value=\"1000\""));
     }
 
-    // The middle of a control's words in the window (from where its text begins to where it ends).
+    // A point a third of the way into the first character of a control's words (never on a boundary between two characters).
     static QPoint controlPoint(WriteWindow &w, int start)
     {
         const ContentControl c = contentControlAt(*w.document(), start + 1);
@@ -2343,10 +2347,10 @@ private Q_SLOTS:
         cur.setPosition(c.start + 1);
         w.view()->setCursor(cur);
         w.view()->caretRect(&a);
-        cur.setPosition(c.end);
+        cur.setPosition(c.start + 2);
         w.view()->setCursor(cur);
         w.view()->caretRect(&b);
-        return QPoint((a.center().x() + b.center().x()) / 2, a.center().y());
+        return QPoint(a.center().x() + (b.center().x() - a.center().x()) / 3, a.center().y());
     }
 
     // The menu of choices a click showed (null if none).
@@ -2492,6 +2496,72 @@ private Q_SLOTS:
             d->findChild<QLineEdit *>(QStringLiteral("title"))->setText(QStringLiteral("Other"));
         }, false);
         QCOMPARE(contentControlAt(*w.document(), list + 1).props.title, QStringLiteral("Shirt size"));
+    }
+
+    void aLongTitleAndTagFromAFileSurviveThePropertiesBox()
+    {
+        Win win;
+        WriteWindow &w = win.w;
+        const int start = makeControl(win, ControlKind::PlainText);
+        QVERIFY(start >= 0);
+        ControlProps p = contentControlAt(*w.document(), start + 1).props;
+        p.title = QString(300, QLatin1Char('t'));
+        p.tag = QString(4000, QLatin1Char('g'));
+        QVERIFY(setContentControlProps(*w.document(), start, p));
+        QTRY_VERIFY(w.act(QStringLiteral("insert.control.properties"))->isEnabled());
+        withDialog([&] { w.act(QStringLiteral("insert.control.properties"))->trigger(); }, QStringLiteral("contentControlDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("title"))->text().size(), 300);
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("tag"))->text().size(), 4000);
+            d->findChild<QCheckBox *>(QStringLiteral("lockDelete"))->setChecked(true);
+        });
+        ControlProps now = contentControlAt(*w.document(), start + 1).props;
+        QVERIFY(now.lockDelete);
+        QCOMPARE(now.title, p.title);
+        QCOMPARE(now.tag, p.tag);
+        // What is typed on a short one is cut at 255, never in the middle of a letter.
+        const int other = [&] {
+            ControlProps q = now;
+            q.title.clear();
+            q.tag.clear();
+            q.lockDelete = false;
+            return setContentControlProps(*w.document(), start, q) ? start : -1;
+        }();
+        QCOMPARE(other, start);
+        withDialog([&] { w.act(QStringLiteral("insert.control.properties"))->trigger(); }, QStringLiteral("contentControlDialog"), [](QDialog *d) {
+            auto *title = d->findChild<QLineEdit *>(QStringLiteral("title"));
+            QTest::keyClicks(title, QString(300, QLatin1Char('a')));
+            QCOMPARE(title->text().size(), 255);
+            // (Each of these is two UTF-16 units and one letter: 255 units would cut the last one.)
+            auto *tag = d->findChild<QLineEdit *>(QStringLiteral("tag"));
+            tag->setText(QString(253, QLatin1Char('b')));
+            tag->setCursorPosition(253);
+            QTest::keyClicks(tag, QStringLiteral("cd"));
+            QCOMPARE(tag->text().size(), 255);
+        });
+        now = contentControlAt(*w.document(), start + 1).props;
+        QCOMPARE(now.title.size(), 255);
+    }
+
+    void aListTakesNoItemPastTheMostAndTheBoxAddsNone()
+    {
+        Win win;
+        WriteWindow &w = win.w;
+        const int start = makeControl(win, ControlKind::DropDown);
+        QVERIFY(start >= 0);
+        ControlProps p = contentControlAt(*w.document(), start + 1).props;
+        for (int i = 0; i < kMostControlItems; ++i) p.items.push_back({QString::number(i), QString::number(i)});
+        QVERIFY(setContentControlProps(*w.document(), start, p));
+        p.items.push_back({QStringLiteral("x"), QStringLiteral("x")});
+        QVERIFY(!setContentControlProps(*w.document(), start, p));
+        QCOMPARE(contentControlAt(*w.document(), start + 1).props.items.size(), kMostControlItems);
+        QTRY_VERIFY(w.act(QStringLiteral("insert.control.properties"))->isEnabled());
+        withDialog([&] { w.act(QStringLiteral("insert.control.properties"))->trigger(); }, QStringLiteral("contentControlDialog"), [](QDialog *d) {
+            auto *items = d->findChild<QListWidget *>(QStringLiteral("items"));
+            QCOMPARE(items->count(), kMostControlItems);
+            d->findChild<QPushButton *>(QStringLiteral("addItem"))->click();
+            QCOMPARE(items->count(), kMostControlItems);
+        });
+        QCOMPARE(contentControlAt(*w.document(), start + 1).props.items.size(), kMostControlItems);
     }
 
     void aFormWithEachControlIsDrawnWithABoxForTheOneTheCaretIsIn()
@@ -2677,6 +2747,100 @@ private Q_SLOTS:
         QCOMPARE(contentControls(doc).last().start, last + 2);
     }
 
+    void controlsStopAtTheDepthAndTheCountAndAPastePastTheCountIsPlainText()
+    {
+        // Depth: with seven inside each other, an eighth goes in, and a ninth does not.
+        QByteArray nest = "<w:p>";
+        for (int i = 0; i < kMostControlDepth - 1; ++i) nest += "<w:sdt><w:sdtPr><w:text/></w:sdtPr><w:sdtContent>";
+        nest += "<w:r><w:t>core</w:t></w:r>";
+        for (int i = 0; i < kMostControlDepth - 1; ++i) nest += "</w:sdtContent></w:sdt>";
+        nest += "</w:p>";
+        auto deep = open(makeDocx(nest));
+        QVERIFY(deep);
+        QCOMPARE(contentControls(*deep).size(), kMostControlDepth - 1);
+        const int core = int(contentControls(*deep).last().start) + 2;
+        QTextCursor c(deep->story());
+        c.setPosition(core);
+        QString why;
+        QVERIFY(insertContentControl(*deep, c, ControlKind::PlainText, &why));
+        QCOMPARE(contentControls(*deep).size(), kMostControlDepth);
+        c.setPosition(contentControls(*deep).last().start + 1);
+        why.clear();
+        QVERIFY(!insertContentControl(*deep, c, ControlKind::PlainText, &why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(contentControls(*deep).size(), kMostControlDepth);
+        // Count: a control copied from another document pastes as its words once the file holds the most.
+        Win src;
+        const int one = makeControl(src, ControlKind::PlainText);
+        QVERIFY(one >= 0);
+        write::insertText(*src.w.document(), src.w.view()->cursor(), QStringLiteral("pasted words"));
+        const ContentControl made = contentControlAt(*src.w.document(), one + 1);
+        QTextCursor sel(src.w.document()->story());
+        sel.setPosition(made.start);
+        sel.setPosition(made.end + 1, QTextCursor::KeepAnchor);
+        const Clip clip = write::copySelection(*src.w.document(), sel);
+        QVERIFY(clip.fragment.toPlainText().contains(QChar::ObjectReplacementCharacter));
+        QByteArray body = "<w:p>";
+        for (int i = 0; i < kMostControls; ++i) body += "<w:sdt><w:sdtPr><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>x</w:t></w:r></w:sdtContent></w:sdt>";
+        body += "</w:p>";
+        auto full = open(makeDocx(body));
+        QVERIFY(full);
+        QCOMPARE(contentControls(*full).size(), kMostControls);
+        QTextCursor end(full->story());
+        end.setPosition(full->story()->characterCount() - 1);
+        write::pasteFragment(*full, end, clip.fragment);
+        QVERIFY(full->story()->toPlainText().contains(QStringLiteral("pasted words")));
+        QCOMPARE(contentControls(*full).size(), kMostControls);
+        // (The count read stops at the most, so count the atoms themselves: two for each control, none from the paste.)
+        QCOMPARE(full->story()->toPlainText().count(QChar::ObjectReplacementCharacter), 2 * kMostControls);
+        verifyBalanced(documentXml(full->toDocx()));
+        // The same paste into a document with room keeps the control.
+        auto room = open(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>"));
+        QVERIFY(room);
+        QTextCursor at(room->story());
+        at.setPosition(1);
+        write::pasteFragment(*room, at, clip.fragment);
+        QCOMPARE(contentControls(*room).size(), 1);
+    }
+
+    void draggingHalfAControlIsRefusedLikeCut()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        const int start = makeControl(win, ControlKind::PlainText);
+        QVERIFY(start >= 0);
+        write::insertText(doc, win.w.view()->cursor(), QStringLiteral("abc"));
+        QTextCursor tail(doc.story());
+        tail.setPosition(doc.story()->characterCount() - 1);
+        write::insertText(doc, tail, QStringLiteral(" tail"));
+        const ContentControl ctl = contentControlAt(doc, start + 1);
+        QTextCursor sel(doc.story());
+        sel.setPosition(ctl.start + 2);
+        sel.setPosition(ctl.end + 3, QTextCursor::KeepAnchor);
+        QVERIFY(splitsContentControl(doc.story(), sel.selectionStart(), sel.selectionEnd()));
+        win.w.view()->setCursor(sel);
+        std::unique_ptr<QMimeData> half(win.w.view()->prepareTextDrag());
+        QVERIFY(!half);
+        // The words inside it, or the whole of it, can be dragged.
+        sel.setPosition(ctl.start + 1);
+        sel.setPosition(ctl.end, QTextCursor::KeepAnchor);
+        win.w.view()->setCursor(sel);
+        std::unique_ptr<QMimeData> words(win.w.view()->prepareTextDrag());
+        QVERIFY(words);
+    }
+
+    void typingInADocumentWithNoControlsReadsNoControl()
+    {
+        Win win;
+        WriteDoc &doc = *win.w.document();
+        QVERIFY(contentControls(doc).isEmpty());
+        (void)win.w.view()->controlMarks();
+        const int parses = controlParsesForTest();
+        for (int k = 0; k < 20; ++k) write::insertText(doc, win.w.view()->cursor(), QStringLiteral("k"));
+        (void)win.w.view()->controlMarks();
+        QCOMPARE(controlParsesForTest(), parses);
+    }
+
     void aHostileStartIsKeptAndNotRead()
     {
         // A start far longer than the most, and a title and tag longer than the most: the control is shown and kept as it was, and cannot be edited.
@@ -2753,6 +2917,8 @@ private Q_SLOTS:
 
     void aDateIsWrittenAgainInANewFormatAndInTheControlsLanguage()
     {
+        const QLocale was;
+        const auto restoreLocale = qScopeGuard([&] { QLocale::setDefault(was); });
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
         Win win;
         WriteDoc &doc = *win.w.document();
