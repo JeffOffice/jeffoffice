@@ -33,15 +33,22 @@ template <class Win> struct Rig {
         mini = view->findChild<QFrame *>(QStringLiteral("miniToolbar"));
     }
     QPoint at(int pos) const { return view->mapFromGlobal(canvas->caretScreenRect(pos).center()); }
+    // A point a third of the way into the character after `pos`. Both hit-test styles (nearest boundary, or the start of
+    // the character under the point) give `pos` there; the exact boundary can land on the space's side (macOS, Nov 17).
+    QPoint inside(int pos) const
+    {
+        const QPoint a = at(pos), b = at(pos + 1);
+        return a + (b - a) / 3;
+    }
     // A drag over characters `from` to `to` of the box's text, with the mouse.
     void select(int from = 5, int to = 10)
     {
         ed->beginTextEdit(boxId, 0);
-        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, at(from + lead));
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, inside(from + lead));
         QTest::mouseMove(view, at((from + to) / 2 + lead));
         QVERIFY(!mini->isVisible());   // (not while the mouse is still down)
-        QTest::mouseMove(view, at(to + lead));
-        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, at(to + lead));
+        QTest::mouseMove(view, inside(to + lead));
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, inside(to + lead));
         QTRY_VERIFY2(mini->isVisible(), qPrintable(QStringLiteral("drag %1 to %2 at %3,%4 to %5,%6: the selection is %7 to %8").arg(from).arg(to).arg(at(from + lead).x()).arg(at(from + lead).y()).arg(at(to + lead).x()).arg(at(to + lead).y()).arg(ed->cursor().anchor()).arg(ed->cursor().position())));
     }
     QToolButton *button(const char *id) const
