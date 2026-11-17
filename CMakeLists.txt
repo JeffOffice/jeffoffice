@@ -1023,6 +1023,11 @@ if(JP_BUILD_DECK)
 qt_add_executable(jdecktool tools/jdecktool.cpp)
 target_link_libraries(jdecktool PRIVATE jdcore)
 set_target_properties(jdecktool PROPERTIES WIN32_EXECUTABLE OFF)
+# (jdtests runs it from beside itself (DeckBinaryShapesTests): built with it, so a test never runs an old one. Nov 17 a stale jdecktool
+# failed toolRenderDrawsTheDateJPNowNames in two gates and a Windows precheck after round 4 changed date fields.)
+if(TARGET jdtests)
+  add_dependencies(jdtests jdecktool)
+endif()
 endif()
 
 # Developer tool: pictures of the shared dialog pieces (docs/design/STYLE.md).
