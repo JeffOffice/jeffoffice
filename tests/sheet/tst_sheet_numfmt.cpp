@@ -1451,6 +1451,39 @@ private Q_SLOTS:
                     QVERIFY2(same(again, got), qPrintable(QStringLiteral("[%1] %2 is not kept: %3").arg(c).arg(got, 0, 'g', 17).arg(again, 0, 'g', 17)));
                 }
     }
+
+    // A number near the largest one that the code would round past it (to infinity) is kept as it is, and no value is ever given that is not finite.
+    void shownValueIsNeverInfiniteOrNotANumber()
+    {
+        const double big = std::numeric_limits<double>::max();
+        for (const char *code : {"0.00", "#,##0", "0.0E+0", "0.00E+00"}) {
+            const NumberFormat f{QString::fromUtf8(code)};
+            double out = 0;
+            for (const double v : {big, -big}) {
+                const bool ok = f.shownValue(v, DateSystem::Date1900, &out);
+                QVERIFY2(std::isfinite(out), code);
+                QVERIFY2(!ok || out == v, code);   // (the number itself, or it is kept: never past the largest)
+                if (!ok) QCOMPARE(out, v);
+            }
+        }
+        const char *codes[] = {"0", "0.00", "#,##0", "0.0E+0", "0.00E+300", "##0.0E+0", "0.00%", "0.0,,", "# ?/?", "# ??/??", "?/8", "yyyy-mm-dd", "h:mm:ss", "[h]:mm:ss.00", "[>100]0.0;0.00", "[>100]0.0;[<-100]0.00;0", "0.0;(0.0)"};
+        const double values[] = {big, -big, big / 2, 1.7976931348623e308, 1e300, -1e300, 9.99999999999999e307, std::numeric_limits<double>::denorm_min(), -std::numeric_limits<double>::denorm_min(),
+                                 std::numeric_limits<double>::min(), 1e-300, 1e15, 1e19, 123456789012345678.0, 2958465, 2958465.999999, 2958466, 1e10, -50, -150, 50, 150, 0.5};
+        for (const char *code : codes) {
+            const NumberFormat f{QString::fromUtf8(code)};
+            for (const double v : values) {
+                double out = 0;
+                if (f.shownValue(v, DateSystem::Date1900, &out)) QVERIFY2(std::isfinite(out), qPrintable(QStringLiteral("[%1] %2 gives %3").arg(QString::fromUtf8(code)).arg(v, 0, 'g', 17).arg(out)));
+                else QCOMPARE(out, v);
+            }
+        }
+        // the small ones are rounded as ever, and the one with a second section takes its negative section
+        double out = 1;
+        QVERIFY(NumberFormat(QStringLiteral("0.00")).shownValue(std::numeric_limits<double>::denorm_min(), DateSystem::Date1900, &out));
+        QCOMPARE(out, 0.0);
+        QVERIFY(NumberFormat(QStringLiteral("[>100]0.0;0.00")).shownValue(-2.675, DateSystem::Date1900, &out));
+        QCOMPARE(out, QStringLiteral("-2.68").toDouble());
+    }
 };
 
 JP_TEST_CLASS(SheetNumberFormatTests)

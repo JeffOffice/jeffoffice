@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <limits>
 #include <vector>
 
 #if defined(__SIZEOF_INT128__)
@@ -1608,7 +1609,9 @@ double decValue(const Dec &d, int shift, bool negative)
 {
     if (d.zero()) return 0;
     const QByteArray text = "0." + d.digits + "e" + QByteArray::number(d.point + shift);
-    const double v = text.toDouble();
+    bool ok = false;
+    const double v = text.toDouble(&ok);
+    if (!ok || !std::isfinite(v)) return std::numeric_limits<double>::quiet_NaN();   // (past the largest number, or a text that is not one: no number)
     return negative ? -v : v;
 }
 
@@ -1744,14 +1747,18 @@ bool NumberFormat::shownValue(double value, DateSystem, double *out) const
     Pick pk;
     if (!pick(p, value, &pk)) return false;
     const Section &s = p.secs[pk.index];
+    double shown = value;
     switch (s.kind) {
     case Kind::Text:
     case Kind::General: return true;
-    case Kind::Date: return shownDate(s, value, out);
+    case Kind::Date: shownDate(s, value, &shown); break;
     case Kind::Number:
         if (s.nInt + s.nFrac == 0 && s.slashAt < 0) return true;   // (no place for a digit: the code shows no number)
-        return shownNumber(s, value, out);
+        shownNumber(s, value, &shown);
+        break;
     }
+    if (!std::isfinite(shown)) return false;   // (a number near the largest rounds up past it: it is kept as it is)
+    *out = shown;
     return true;
 }
 
