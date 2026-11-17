@@ -491,6 +491,32 @@ private Q_SLOTS:
         QVERIFY(settings.contains("config:name=\"PositionBottom\" config:type=\"int\">30<"));
     }
 
+    // Precision as displayed: table:precision-as-shown of the calculation settings is read and written again.
+    void precisionAsShownIsReadAndWrittenAgain()
+    {
+        const QString body = table(QStringLiteral("S"), row(floatCell(1.005)));
+        Workbook shown = open(buildOds(contentXml(body, QString(), QStringLiteral("<table:calculation-settings table:precision-as-shown=\"true\"/>"))));
+        QVERIFY(shown.info().precisionAsShown);
+        Workbook plain = open(buildOds(contentXml(body, QString(), QStringLiteral("<table:calculation-settings table:precision-as-shown=\"false\"/>"))));
+        QVERIFY(!plain.info().precisionAsShown);
+        QVERIFY(!open(buildOds(contentXml(body))).info().precisionAsShown);
+        QByteArray out;
+        CopyReport report;
+        QString why;
+        QVERIFY2(saveOds(shown, &out, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(out, parts));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).contains("table:precision-as-shown=\"true\""));
+        Workbook again;
+        QVERIFY2(openBytes(out, QStringLiteral("again.ods"), &again, &why), qPrintable(why));
+        QVERIFY(again.info().precisionAsShown);
+        QByteArray outPlain;
+        QVERIFY2(saveOds(plain, &outPlain, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> plainParts;
+        QVERIFY(jp::readZip(outPlain, plainParts));
+        QVERIFY(!plainParts.value(QStringLiteral("content.xml")).contains("precision-as-shown"));
+    }
+
     // Named ranges and named expressions of the workbook and of a sheet.
     void namedRangesAreDefinedNames()
     {

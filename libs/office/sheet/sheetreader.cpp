@@ -728,6 +728,7 @@ bool readWorkbookPart(QIODevice *in, const Limits &limits, WorkbookInfo *out, QS
                 out->calcMode = mode == QLatin1String("manual") ? CalcMode::Manual : mode == QLatin1String("autoNoTable") ? CalcMode::AutoNoTable : CalcMode::Auto;
                 out->calcOnSave = attribute(r, "calcOnSave").isEmpty() || parseBool(attribute(r, "calcOnSave").toString());
                 out->fullCalcOnLoad = parseBool(attribute(r, "fullCalcOnLoad").toString());
+                out->precisionAsShown = attribute(r, "fullPrecision") == QLatin1String("0") || attribute(r, "fullPrecision") == QLatin1String("false");   // (only those two words: any other is the usual)
                 out->calcUnfinished = !attribute(r, "calcCompleted").isEmpty() && !parseBool(attribute(r, "calcCompleted").toString());
                 out->iterate = parseBool(attribute(r, "iterate").toString());
                 bool okCount = false, okDelta = false;

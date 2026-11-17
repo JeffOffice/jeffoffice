@@ -14,6 +14,7 @@
 #include "calc/eval.h"
 #include "calc/graph.h"
 #include "calc/lookupindex.h"
+#include "calc/numfmt.h"
 #include "calc/linemap.h"
 #include "calc/refs.h"
 #include "sheet/recalc.h"
@@ -183,6 +184,10 @@ public:
     static constexpr int kMaxIterations = 32767;
     void setIteration(bool on, int count, double delta);
     bool iterating() const { return m_iterate; }
+    // Precision as displayed: every number a formula gives is kept as its cell's number format shows it (rounded to the decimals, the percent, the fraction, the unit of a date or time;
+    // see NumberFormat::shownValue). Turning it on or off works the formulas out again. A workbook that asks for it (its info) starts so.
+    void setPrecisionAsShown(bool on);
+    bool precisionAsShown() const { return m_precision; }
     int iterationCount() const { return m_iterCount; }
     double iterationDelta() const { return m_iterDelta; }
     // The formulas found circular (not worked out by going round): how many, and the first `cap` of them in the order of the sheets and cells (`out` may be null). Called with the worker held back.
@@ -1258,6 +1263,10 @@ private:
     bool m_running = false;
     double m_now = 0;
     qint64 m_notDone = 0, m_formulaCount = 0, m_untracked = 0;
+    bool m_precision = false;
+    mutable std::unordered_map<quint32, jp::calc::NumberFormat> m_shownFormats;   // by the cell format, while precision as displayed is on (worked on the thread that works the formulas out)
+    mutable qsizetype m_shownFormatCount = -1;
+    jp::calc::Value shownResult(const Node &n, const jp::calc::Value &v) const;
     bool m_iterate = false;
     int m_iterCount = 100;
     double m_iterDelta = 0.001;

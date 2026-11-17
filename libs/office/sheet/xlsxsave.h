@@ -349,6 +349,7 @@ struct SaveChanges {
     // What happens to the links to other workbooks when the file opens (workbookPr updateLinks): 0 ask, 1 update, 2 leave; -1 leaves what the file has.
     int updateLinks = -1;
     bool calcOnSave = true;
+    bool precisionAsShown = false;   // calcPr fullPrecision="0"
     bool iterate = false;
     int iterateCount = 100;
     double iterateDelta = 0.001;
@@ -475,7 +476,7 @@ qint64 patchDefinedNamesWork();
 // The workbook part with `pivotCache` elements added to its list of caches (the list made if there is none): the elements take the prefix of the list and the file's own prefix for relationships.
 bool addPivotCaches(const QByteArray &xml, const std::vector<std::pair<int, QString>> &caches, QByteArray *out);
 bool patchUpdateLinks(const QByteArray &xml, int mode, QByteArray *out);
-bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out, bool calcOnSave = true);
+bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterateCount, double iterateDelta, QByteArray *out, bool calcOnSave = true, bool precisionAsShown = false);
 // The hidden name that other programs keep for the range of a sheet's filter (`_xlnm._FilterDatabase`, of the sheet at `localSheetId` in the workbook's list of sheets) made, changed, or taken
 // away: `range` is the range as a name writes it ("'Sheet1'!$A$1:$D$9"), or empty to take the name away.
 struct FilterName {

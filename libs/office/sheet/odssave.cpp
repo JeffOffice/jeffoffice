@@ -190,7 +190,7 @@ public:
             h += fontFaces();
             h += QStringLiteral("<office:automatic-styles>") + m_dataStyles + m_styleXml + QStringLiteral("</office:automatic-styles>");
             h += QStringLiteral("<office:body><office:spreadsheet>");
-            h += QStringLiteral("<table:calculation-settings table:case-sensitive=\"false\" table:search-criteria-must-apply-to-whole-cell=\"true\" table:automatic-find-labels=\"false\" table:use-regular-expressions=\"false\" table:use-wildcards=\"true\">");
+            h += QStringLiteral("<table:calculation-settings table:case-sensitive=\"false\" table:search-criteria-must-apply-to-whole-cell=\"true\" table:automatic-find-labels=\"false\" table:use-regular-expressions=\"false\" table:use-wildcards=\"true\"") + (m_book.info().precisionAsShown ? QStringLiteral(" table:precision-as-shown=\"true\"") : QString()) + QStringLiteral(">");
             h += QStringLiteral("<table:null-date table:value-type=\"date\" table:date-value=\"%1\"/>").arg(m_book.info().dateSystem == jp::calc::DateSystem::Date1904 ? QStringLiteral("1904-01-01") : QStringLiteral("1899-12-30"));
             if (m_book.info().iterate)
                 h += QStringLiteral("<table:iteration table:status=\"enable\" table:steps=\"%1\" table:maximum-difference=\"%2\"/>").arg(m_book.info().iterateCount).arg(m_book.info().iterateDelta);

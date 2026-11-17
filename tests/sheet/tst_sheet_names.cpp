@@ -263,6 +263,37 @@ private Q_SLOTS:
         QVERIFY(std::fabs(many.calc->cell(0, 0, 1).number() - 1) < 0.001);
     }
 
+    // Precision as displayed: a workbook that asks for it (calcPr fullPrecision="0") keeps what a formula gives as its cell shows it, and the formulas that read it read that.
+    void aWorkbookThatKeepsPrecisionAsDisplayedRoundsWhatFormulasGive()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"2\"/><xf numFmtId=\"9\"/>"));
+        auto cellS = [](const QString &ref, const QString &f, int style) { return QStringLiteral("<c r=\"%1\" s=\"%3\"><f>%2</f><v>0</v></c>").arg(ref, f).arg(style); };
+        const QString rows = rowXml(1, cellS("A1", "1/3", 1) + cellS("B1", "1/3", 0) + cellS("C1", "A1*3", 1) + cellS("D1", "1/3", 2));
+        Book whole;
+        QVERIFY(whole.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QStringLiteral("calcId=\"1\""), styles)));
+        QVERIFY(!whole.calc->precisionAsShown());
+        QCOMPARE(whole.calc->cell(0, 0, 0).number(), 1.0 / 3.0);
+        Book shown;
+        QVERIFY(shown.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QStringLiteral("calcId=\"1\" fullPrecision=\"0\""), styles)));
+        QVERIFY(shown.calc->precisionAsShown());
+        QCOMPARE(shown.calc->cell(0, 0, 0).number(), QStringLiteral("0.33").toDouble());   // (0.00)
+        QCOMPARE(shown.calc->cell(0, 0, 1).number(), 1.0 / 3.0);                           // (General keeps the digits)
+        QCOMPARE(shown.calc->cell(0, 0, 2).number(), QStringLiteral("0.99").toDouble());   // (reads the rounded 0.33)
+        QCOMPARE(shown.calc->cell(0, 0, 3).number(), QStringLiteral("0.33").toDouble());   // (0% shows 33%: the number is 0.33)
+        // turned off, the formulas are worked out again with all their digits; on again, rounded
+        shown.calc->setPrecisionAsShown(false);
+        QVERIFY(shown.settle());
+        QCOMPARE(shown.calc->cell(0, 0, 0).number(), 1.0 / 3.0);
+        QCOMPARE(shown.calc->cell(0, 0, 2).number(), 1.0);
+        shown.calc->setPrecisionAsShown(true);
+        QVERIFY(shown.settle());
+        QCOMPARE(shown.calc->cell(0, 0, 0).number(), QStringLiteral("0.33").toDouble());
+        // fullPrecision="1" is the usual
+        Book yes;
+        QVERIFY(yes.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QStringLiteral("fullPrecision=\"1\""), styles)));
+        QVERIFY(!yes.calc->precisionAsShown());
+    }
+
     void aCircleBeginsFromTheResultsTheFileStoredAndStaysWhereItIsWhenItIsStill()
     {
         // the file's own results are the fixed point (A1 = B1+1 = 2 and B1 = A1*0.5 = 1): one round changes nothing, and the values are the file's exactly

@@ -191,6 +191,7 @@ struct WorkbookInfo {
     UpdateLinks updateLinks = UpdateLinks::Ask;   // what happens to the links to other workbooks when it opens (workbookPr updateLinks: userSet, always, never)
     bool calcOnSave = true;         // by hand, the formulas are worked out when the workbook is saved (calcPr calcOnSave: true when not written)
     bool fullCalcOnLoad = false;
+    bool precisionAsShown = false;   // the values are kept as the cells show them (calcPr fullPrecision="0"; ods table:precision-as-shown)
     bool calcUnfinished = false;   // saved before its calculation finished (calcCompleted="0", or the old form's UNCALCED record): the results it holds are not the program's own answers
     bool iterate = false;   // the workbook asks for iterative calculation (circular references are worked out by going round them)
     int iterateCount = 100;         // the most rounds it goes

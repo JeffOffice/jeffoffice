@@ -111,6 +111,7 @@ Calculation::Calculation(const Workbook &book, const CalcOptions &options) : Wor
     m_evaluator.seedRandom(quint64(QDateTime::currentMSecsSinceEpoch()) * 0x9E3779B97F4A7C15ull + 12345);
     if (options.workLimit > 0) m_evaluator.setWorkLimit(options.workLimit);
     m_iterate = book.info().iterate;
+    m_precision = book.info().precisionAsShown;
     m_iterCount = book.info().iterateCount;
     m_iterDelta = book.info().iterateDelta;
     m_ctx.dateSystem = book.info().dateSystem;
@@ -966,9 +967,27 @@ void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
     }
 }
 
+// What a number a formula gave is when the workbook keeps values as its cells show them: the number its cell's format shows.
+Value Calculation::shownResult(const Node &n, const Value &v) const
+{
+    if (!m_precision || !v.isNumber()) return v;
+    const Cell *c = cellOf(n);
+    if (!c) return v;
+    const Styles &styles = m_book.styles();
+    if (m_shownFormatCount != styles.cellXfs.size()) {
+        m_shownFormats.clear();
+        m_shownFormatCount = styles.cellXfs.size();
+    }
+    auto at = m_shownFormats.find(c->style);
+    if (at == m_shownFormats.end()) at = m_shownFormats.emplace(c->style, jp::calc::NumberFormat(styles.formatCode(c->style, QLocale::c()))).first;
+    double shown = 0;
+    if (!at->second.shownValue(v.number(), m_ctx.dateSystem, &shown)) return v;
+    return shown == v.number() ? v : Value::number(shown);
+}
+
 void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publish)
 {
-    const Value v = fitToRange(n, given);
+    const Value v = shownResult(n, fitToRange(n, given));
     if (publish && m_sink) tellValue(n, v, true);
     const qint64 held = heldBy(n, id);
     struct Account {
@@ -3040,6 +3059,15 @@ void Calculation::releaseDeferred(bool discardSheetArea)
     m_deferredAreas.clear();
     if (!areas.empty() && !m_running) beginRecalculation();
     for (const CellArea &a : areas) m_begin.changed.push_back(a);   // (these are ids already)
+}
+
+void Calculation::setPrecisionAsShown(bool on)
+{
+    if (on == m_precision) return;
+    m_precision = on;
+    m_shownFormats.clear();
+    m_shownFormatCount = -1;
+    invalidateAll();   // (every formula is worked out again, to the precision it has now)
 }
 
 void Calculation::setIteration(bool on, int count, double delta)

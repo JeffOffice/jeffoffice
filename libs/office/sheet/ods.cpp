@@ -88,6 +88,7 @@ struct Found {
     bool charts = false, oleObjects = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
     QString nullDate = QStringLiteral("1899-12-30");
     bool iterate = false;
+    bool precisionAsShown = false;
     // What a style may have of one thing at the most (4,000 settings; 1,000 parts of a number format) and the document had more of: said in the notice, not dropped without a word.
     qint64 settingsLeftOut = 0, dataPartsLeftOut = 0;
 };
@@ -195,6 +196,8 @@ private:
             n.text = n.isRange ? attr(a, NS_TABLE, QLatin1String("cell-range-address")) : attr(a, NS_TABLE, QLatin1String("expression"));
             n.sheet = m_inTable ? int(m_f.tables.size()) - 1 : -1;
             if (!n.name.isEmpty()) m_f.names.append(n);
+        } else if (name == QLatin1String("calculation-settings")) {
+            m_f.precisionAsShown = attr(a, NS_TABLE, QLatin1String("precision-as-shown")) == QLatin1String("true");
         } else if (name == QLatin1String("null-date")) {
             const QString d = attr(a, NS_TABLE, QLatin1String("date-value"));
             if (!d.isEmpty()) m_f.nullDate = d;
@@ -962,6 +965,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     }
     info->dateSystem = m.dateSystem;
     info->iterate = m.found.iterate;
+    info->precisionAsShown = m.found.precisionAsShown;
     QSet<QString> usedNames;
     for (int i = 0; i < m.found.tables.size(); ++i) {
         const TableInfo &t = m.found.tables[i];
