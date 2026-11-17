@@ -5,6 +5,7 @@
 #include "sheet/xlscodepage.h"
 #include "sheet/xlsprint.h"
 #include "sheet/xlschart.h"
+#include "office/cfbsalvage.h"
 #include "office/chart_write.h"
 #include "io/cfb.h"
 #include "sheet/xlsfunctions.h"
@@ -1323,37 +1324,27 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
         QString ignored;
         return stream.size() > 8 && XlsBook::open(stream, false, limits, &info, &shared, &styles, &ignored) != nullptr;
     };
-    // the container, when it can be read
-    if (startsCompoundFile(file)) {
-        jp::cfb::File container;
-        QString why;
-        if (jp::cfb::read(file, &container, &why)) {
-            QByteArray stream = container.stream(QStringLiteral("Workbook"));
-            if (stream.isEmpty()) stream = container.stream(QStringLiteral("Book"));
-            if (reads(stream)) {
-                if (notes) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
-                return stream;
-            }
-        }
-    }
-    // the stream, found by the first record of a workbook (the start of a workbook's globals, in the form of 1997 or of 1993)
+    // the workbook's stream, from the container as far as it reads, and else by the first record of a workbook (the start of a workbook's globals, in the form of 1997 or of 1993)
     static const char kBiff8[] = {0x09, 0x08, 0x10, 0x00, 0x00, 0x06, 0x05, 0x00};
     static const char kBiff5[] = {0x09, 0x08, 0x08, 0x00, 0x00, 0x05, 0x05, 0x00};
-    for (const QByteArray &mark : {QByteArray(kBiff8, 8), QByteArray(kBiff5, 8)}) {
-        qsizetype at = 0;
-        for (int tried = 0; tried < 64; ++tried) {
-            at = file.indexOf(mark, at);
-            if (at < 0) break;
-            const QByteArray stream = file.mid(at);
-            if (reads(stream)) {
-                if (notes) {
-                    *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was damaged, so the workbook was found by its own records.");
-                    *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
-                }
-                return stream;
+    jp::office::CfbWish wish;
+    wish.name = QStringLiteral("Workbook");
+    wish.nameMatches = [](const QString &n) { return n.compare(QLatin1String("Workbook"), Qt::CaseInsensitive) == 0 || n.compare(QLatin1String("Book"), Qt::CaseInsensitive) == 0; };
+    wish.looksLike = [](QByteArrayView from, const QMap<QString, QByteArray> &) { return from.startsWith(QByteArrayView(kBiff8, 8)) || from.startsWith(QByteArrayView(kBiff5, 8)); };
+    wish.validBytes = [&](QByteArrayView bytes, const QMap<QString, QByteArray> &) -> qint64 { return reads(bytes.toByteArray()) ? bytes.size() : 0; };
+    jp::office::CfbSalvage found;
+    QString why;
+    if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
+        const QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
+        if (notes) {
+            if (found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty()) {
+                *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
+            } else {
+                *notes << found.notes;
+                *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
             }
-            ++at;
         }
+        return stream;
     }
     if (error) *error = QCoreApplication::translate("jp::office::sheet::Xls", "No workbook could be found in the file.");
     return QByteArray();
