@@ -54,6 +54,15 @@ Some words in a cell can look different from the rest. For example, one word can
 
 Only the words you selected change. The rest of the cell keeps the cell's own look. The entry box shows the words in one look while you edit, and the cell shows each part in its own look when you press Enter. If you type or delete words later, the formatting moves with the words. Choosing a font or size with no words selected changes the whole cell, as always.
 
+## The mini toolbar
+
+A small bar of the formatting you use most floats where you work, so you don't have to go up to the ribbon. It never takes the keyboard from the cell: what you were typing stays where it was.
+
+- **Selected text in a cell:** select words with the mouse while you edit a cell, and the bar floats above them. It has the **font** and **size** boxes, **Bold**, **Italic**, **Underline**, **Increase Font Size**, **Decrease Font Size**, and **Font Colour**. They change only the words you selected, the same as on the ribbon.
+- **Selected cells:** right-click the cells, and the bar is at the top of the shortcut menu. It also has **Fill Colour**, **Borders**, **Currency**, **Percent Style**, **Comma Style**, **Increase Decimal**, **Decrease Decimal**, **Merge and Centre**, and **Copy Formatting**. They are the ribbon's own commands, and each one is a single step you can undo.
+
+The bar over selected text fades as you move the pointer away from it, and goes when the pointer is far. It also goes when you type, press Esc, or scroll. To turn the bar off, clear **Show Mini Toolbar on selection** on the **General** page of **File > Options**; the other JeffOffice apps follow that choice too. The Quick Analysis button that appears under a selected range is not in this version.
+
 Cells that have formatting inside the text from another program show it, keep it, and save it back. A cell you change keeps its formatting. Formatting inside a text applies to text, not to numbers or formulas. A copy saved as an older .xls file or as .ods keeps the words, and the save tells you that the formatting inside them is not kept.
 
 ## What you type becomes

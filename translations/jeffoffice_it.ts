@@ -4870,7 +4870,12 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Le versioni beta arrivano prima di quelle normali e potrebbero presentare qualche imperfezione. Lascia disattivata questa opzione per ricevere solo le versioni normali.</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+7"/>
+        <source>Show Mini Toolbar on selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Opzioni di Correzione automatica...</translation>
     </message>
@@ -4966,7 +4971,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished"> minuti</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-118"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-122"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Crea sempre una copia di backup</translation>
     </message>
@@ -5033,7 +5038,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Avanzate</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+143"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+147"/>
         <source>Display Language</source>
         <translation type="unfinished">Lingua di visualizzazione</translation>
     </message>
@@ -7902,7 +7907,17 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>MiniToolbar</name>
     <message>
-        <location filename="../libs/shell/app/minitoolbar.cpp" line="+47"/>
+        <location filename="../libs/shell/app/minitoolbar.cpp" line="+103"/>
+        <source>Fill Color</source>
+        <translation type="unfinished">Colore riempimento</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No Fill</source>
+        <translation type="unfinished">Nessun riempimento</translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Font Color</source>
         <translation type="unfinished">Colore carattere</translation>
     </message>
@@ -9966,7 +9981,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+39"/>
         <location filename="../apps/write/app/spellpane.cpp" line="+79"/>
         <location line="+44"/>
-        <location filename="../apps/crunch/app/celleditor.cpp" line="+117"/>
+        <location filename="../apps/crunch/app/celleditor.cpp" line="+155"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
         <source>Ignore All</source>
         <translation type="unfinished">Ignora tutto</translation>
@@ -21415,18 +21430,18 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+306"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+307"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-131"/>
+        <location line="-132"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+176"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
     <message>
-        <location line="+175"/>
+        <location line="+176"/>
         <source>Name box</source>
         <translation type="unfinished">Casella Nome</translation>
     </message>
@@ -22865,6 +22880,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+3"/>
         <location line="+509"/>
         <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+145"/>
         <source>Borders</source>
         <translation type="unfinished">Bordi</translation>
     </message>
@@ -23105,6 +23121,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+109"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="-21"/>
         <source>Font</source>
         <translation>Carattere</translation>
     </message>
@@ -24054,7 +24071,7 @@ Origine: %3</translation>
         <translation>Righe</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-252"/>
         <location line="+14"/>
         <location line="+14"/>
@@ -24857,7 +24874,7 @@ Origine: %3</translation>
         <translation type="unfinished">Formatta testo</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="-260"/>
+        <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="-261"/>
         <location line="+26"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-259"/>
         <location line="+29"/>

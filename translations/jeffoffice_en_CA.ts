@@ -226,6 +226,10 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>MiniToolbar</name>
     <message>
+        <source>Fill Color</source>
+        <translation>Fill Colour</translation>
+    </message>
+    <message>
         <source>Font Color</source>
         <translation>Font Colour</translation>
     </message>

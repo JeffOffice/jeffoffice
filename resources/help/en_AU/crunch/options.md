@@ -3,6 +3,10 @@
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
+## General
+
+**Show Mini Toolbar on selection** is on by default. It decides whether the small formatting bar floats by selected text and at the top of the shortcut menu of cells (see [Type in cells](edit-cells)). The choice is shared by the JeffOffice apps.
+
 ## Editing
 
 The **Editing** page changes how typing in cells works.

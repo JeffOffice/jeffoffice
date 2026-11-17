@@ -4871,7 +4871,12 @@ Back page story	4</source>
         <translation type="unfinished">Бета-версии выходят раньше обычных и могут содержать недоработки. Выключите эту опцию, чтобы получать только обычные версии.</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+7"/>
+        <source>Show Mini Toolbar on selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Параметры автозамены...</translation>
     </message>
@@ -4967,7 +4972,7 @@ Back page story	4</source>
         <translation type="unfinished"> минут</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-118"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-122"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Всегда создавать резервную копию</translation>
     </message>
@@ -5034,7 +5039,7 @@ Back page story	4</source>
         <translation type="unfinished">Дополнительно</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+143"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+147"/>
         <source>Display Language</source>
         <translation type="unfinished">Язык интерфейса</translation>
     </message>
@@ -7909,7 +7914,17 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>MiniToolbar</name>
     <message>
-        <location filename="../libs/shell/app/minitoolbar.cpp" line="+47"/>
+        <location filename="../libs/shell/app/minitoolbar.cpp" line="+103"/>
+        <source>Fill Color</source>
+        <translation type="unfinished">Цвет заливки</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>No Fill</source>
+        <translation type="unfinished">Без заливки</translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Font Color</source>
         <translation type="unfinished">Цвет шрифта</translation>
     </message>
@@ -9974,7 +9989,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+39"/>
         <location filename="../apps/write/app/spellpane.cpp" line="+79"/>
         <location line="+44"/>
-        <location filename="../apps/crunch/app/celleditor.cpp" line="+117"/>
+        <location filename="../apps/crunch/app/celleditor.cpp" line="+155"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
         <source>Ignore All</source>
         <translation type="unfinished">Пропустить все</translation>
@@ -21431,7 +21446,7 @@ Source: %3</source>
         <translation type="unfinished">Новая книга готовится. Её можно будет изменить через мгновение.</translation>
     </message>
     <message>
-        <location line="+131"/>
+        <location line="+132"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -22638,7 +22653,7 @@ Source: %3</source>
         <translation>Строки</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+53"/>
         <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="-252"/>
         <location line="+14"/>
         <location line="+14"/>
@@ -24800,6 +24815,7 @@ This file is protected with a password. Password:</source>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+3"/>
         <location line="+509"/>
         <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+145"/>
         <source>Borders</source>
         <translation type="unfinished">Границы</translation>
     </message>
@@ -25033,6 +25049,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+109"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="-21"/>
         <source>Font</source>
         <translation>Шрифт</translation>
     </message>
