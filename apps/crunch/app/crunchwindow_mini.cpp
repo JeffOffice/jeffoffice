@@ -95,8 +95,7 @@ void CrunchWindow::addMiniToolbarTo(QMenu *menu)
     holder->setDefaultWidget(bar);
     menu->addAction(holder);
     holder->setEnabled(true);
-    bar->setEnabled(true);
-    bar->show();   // (made hidden, as the bar is for text; in the menu it is always there)
+    holder->setVisible(true);   // (the bar is made hidden, as the one for text is; the action that holds it shows it)
     menu->addSeparator();
 }
 

@@ -27,6 +27,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QWidgetAction>
 #include <QLabel>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -311,7 +312,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.view()->selectionName(), QStringLiteral("D5"));   // (what is under the click is selected)
         QStringList enabled, dimmed;
         for (QAction *a : menu->actions()) {
-            if (a->isSeparator()) continue;
+            if (a->isSeparator() || qobject_cast<QWidgetAction *>(a)) continue;   // (the mini toolbar at the top is a widget: see the mini toolbar tests)
             (a->isEnabled() ? enabled : dimmed) << a->objectName();
         }
         QCOMPARE(enabled, (QStringList{"edit.cut", "edit.copy", "edit.paste", "paste.special", "cells.insert.cells", "cells.delete.cells", "edit.clear.contents", "filter.toggle", QString() /* Sort, a menu of its own */, "notes.edit", "insert.link",
