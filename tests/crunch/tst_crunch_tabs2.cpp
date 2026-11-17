@@ -4,6 +4,7 @@
 #include "app/proofingdialogs.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
+#include "sheet/calculation.h"
 #include "core/advancedfilter.h"
 #include "core/appinfo.h"
 #include "calc/numfmt.h"
@@ -966,6 +967,14 @@ private Q_SLOTS:
         qInfo("Forecast Sheet of %d points: made in %d ms, worked out %d ms later", n, int(madeAt), int(timer.elapsed() - madeAt));
         const jp::calc::ets::Counts made = jp::calc::ets::counts();
         const int fs = w.activeSheet();
+        {
+            // (what the cells that were made read is looked for in the graph in a few blocks, not for each cell: the readers found stay a small multiple of the cells, not as many as cells times readers)
+            const jp::office::sheet::Calculation *c = w.session()->calculation();
+            const qint64 asked = c->graph().cellQueries() + c->graph().areaQueries();
+            QVERIFY2(asked <= 1000, qPrintable(QString::number(asked)));
+            QVERIFY2(c->readersFound() <= 10 * n, qPrintable(QString::number(c->readersFound())));
+            QVERIFY2(c->graph().queryWork() <= 100 * n, qPrintable(QString::number(c->graph().queryWork())));
+        }
         qInfo("sheets: %d", liveSheetCount(w));
         QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 10000, 4).number()));
         QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 1, 3).number()));
@@ -979,6 +988,24 @@ private Q_SLOTS:
         QCOMPARE(changed.fits - made.fits, 1LL);
         QCOMPARE(changed.prepares - made.prepares, 1LL);
         QCOMPARE(changed.detects - made.detects, 1LL);
+    }
+
+    void changingOneCellOfAFilledDownColumnAsksTheGraphTwice()
+    {
+        const int n = 20000;
+        QStringList cells;
+        for (int i = 1; i <= n; ++i) cells << QStringLiteral("A%1=%1").arg(i) << QStringLiteral("B%1==A%1*2").arg(i);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        const jp::office::sheet::Calculation *c = e.win.w.session()->calculation();
+        const jp::calc::DependencyGraph &g = c->graph();
+        const qint64 w0 = g.queryWork(), q0 = g.cellQueries(), a0 = g.areaQueries(), r0 = c->readersFound();
+        QVERIFY(e.win.w.session()->type(0, 0, 0, QStringLiteral("5")).ok);
+        QVERIFY(e.settle());
+        QVERIFY2(g.cellQueries() + g.areaQueries() - q0 - a0 <= 4, qPrintable(QString::number(g.cellQueries() + g.areaQueries() - q0 - a0)));
+        QVERIFY2(c->readersFound() - r0 <= 4, qPrintable(QString::number(c->readersFound() - r0)));
+        QVERIFY2(g.queryWork() - w0 <= 1000, qPrintable(QString::number(g.queryWork() - w0)));
     }
 
     // The sheet is made in any locale: a number with a point (0.95, a time of 12.5) and a formula in its English form are what go in, not what a person in Germany or France would type.

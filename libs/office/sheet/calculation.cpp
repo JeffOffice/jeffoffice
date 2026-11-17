@@ -24,6 +24,49 @@ using namespace jp::calc;
 
 namespace {
 
+// Takes the last block of `changed`. The single cells at the end of the list (the cells of formulas that were marked) are first made into the fewest blocks that hold exactly them (a column of
+// cells that changed, or a few columns side by side), so that they are asked of the graph as those blocks and not cell by cell, each of which would find every formula that reads the whole
+// column again. The cells are the same, and so are the formulas marked; only the number of questions changes.
+CellArea takeChanged(std::vector<CellArea> *changed)
+{
+    size_t first = changed->size();
+    while (first > 0 && (*changed)[first - 1].single()) --first;
+    if (changed->size() - first >= 2) {
+        std::vector<CellArea> cells(changed->begin() + std::ptrdiff_t(first), changed->end());
+        changed->resize(first);
+        std::sort(cells.begin(), cells.end(), [](const CellArea &a, const CellArea &b) {
+            if (a.sheet1 != b.sheet1) return a.sheet1 < b.sheet1;
+            if (a.col1 != b.col1) return a.col1 < b.col1;
+            return a.row1 < b.row1;
+        });
+        cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+        // (runs down each column)
+        std::vector<CellArea> runs;
+        for (const CellArea &c : cells) {
+            if (!runs.empty() && runs.back().sheet1 == c.sheet1 && runs.back().col1 == c.col1 && runs.back().row2 + 1 == c.row1) runs.back().row2 = c.row1;
+            else runs.push_back(c);
+        }
+        // (runs with the same rows in columns side by side are one block)
+        std::vector<CellArea> blocks;
+        for (const CellArea &r : runs) {
+            bool joined = false;
+            for (size_t k = blocks.size(), seen = 0; k > 0 && seen < 8; --k, ++seen) {
+                CellArea &b = blocks[k - 1];
+                if (b.sheet1 == r.sheet1 && b.row1 == r.row1 && b.row2 == r.row2 && b.col2 + 1 == r.col1) {
+                    b.col2 = r.col1;
+                    joined = true;
+                    break;
+                }
+            }
+            if (!joined) blocks.push_back(r);
+        }
+        for (const CellArea &b : blocks) changed->push_back(b);
+    }
+    const CellArea a = changed->back();
+    changed->pop_back();
+    return a;
+}
+
 // A number that says which blocks these are (in the order given): two lists with the same number are taken to be the same, as the graph takes them.
 quint64 hashOfAreas(const std::vector<CellArea> &areas)
 {
@@ -1687,8 +1730,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
     std::vector<quint32> found;
     std::set<CellArea> asked;
     while (!changed->empty()) {
-        const CellArea a = changed->back();
-        changed->pop_back();
+        const CellArea a = takeChanged(changed);
         if (!a.single() && asked.count(a)) continue;   // (the same block again: what reads it is marked)
         if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
         m_askedPeak = std::max<qint64>(m_askedPeak, qint64(asked.size()));
@@ -2120,8 +2162,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
         }
         if (j.changed.empty()) break;
         if (!ck.next()) return false;
-        const CellArea a = j.changed.back();
-        j.changed.pop_back();
+        const CellArea a = takeChanged(&j.changed);
         if (!a.single() && j.askedAreas.count(a)) continue;   // (its readers were marked when it was asked)
         j.found.clear();
         j.foundAt = 0;

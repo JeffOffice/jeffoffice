@@ -61,6 +61,8 @@ public:
 
     // Counted, for the tests: the items and nodes the queries looked at, the times the graph was compacted, and the items moved in sorting, merging, and compacting.
     qint64 queryWork() const;
+    qint64 cellQueries() const;
+    qint64 areaQueries() const;
     qint64 compactions() const;
     qint64 buildWork() const;
 

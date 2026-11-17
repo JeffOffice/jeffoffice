@@ -260,6 +260,7 @@ struct DependencyGraph::Impl {
     qint64 live = 0, stale = 0;   // intervals of the latest reads, and of the earlier
     qint64 bytes = 0;             // what the graph takes
     mutable qint64 queryWork = 0;
+    mutable qint64 cellQueries = 0, areaQueries = 0;
     qint64 compactions = 0;
 
     Impl() { ctx.rec = &rec; }
@@ -468,6 +469,7 @@ bool DependencyGraph::dependentsOfCell(qint32 sheet, quint32 row, quint32 col, s
     const Impl &g = *d;
     if (sheet < 0 || size_t(sheet) >= g.sheets.size() || col >= kColumns) return true;
     const SheetIndex &sh = g.sheets[size_t(sheet)];
+    ++g.cellQueries;
     qint64 &work = g.queryWork;
     bool aborted = false;
     qint64 found = 0;
@@ -491,6 +493,7 @@ bool DependencyGraph::dependentsOfArea(const CellArea &area, std::vector<Node> *
     const Impl &g = *d;
     if (area.col1 >= kColumns || area.col1 > area.col2 || area.row1 > area.row2) return true;
     const quint32 col2 = std::min<quint32>(area.col2, kColumns - 1);
+    ++g.areaQueries;
     qint64 &work = g.queryWork;
     bool aborted = false;
     qint64 found = 0;
@@ -559,6 +562,8 @@ qint64 DependencyGraph::entryCount() const { return d->live; }
 qint64 DependencyGraph::memoryBytes() const { return d->bytes + d->planBytes(); }
 void DependencyGraph::compact() { d->compactAll(); }
 qint64 DependencyGraph::queryWork() const { return d->queryWork; }
+qint64 DependencyGraph::cellQueries() const { return d->cellQueries; }
+qint64 DependencyGraph::areaQueries() const { return d->areaQueries; }
 qint64 DependencyGraph::compactions() const { return d->compactions; }
 qint64 DependencyGraph::buildWork() const { return d->ctx.buildWork; }
 
