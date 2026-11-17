@@ -59,7 +59,7 @@ QString appFolder()
     return folder.isEmpty() ? QString() : QLatin1Char('/') + folder;
 }
 
-// Help's folder in the data folder installed beside the programs (empty when there is none).
+// Help's folder: the resource folder of help.rcc in the data folder installed beside the programs (empty when there is none).
 QString helpRoot() { return dataFolder(QStringLiteral("help")); }
 
 // The folders to look in, the display language's first ("pt_BR", then "pt").
@@ -138,7 +138,7 @@ struct Cache {
 Cache &cache()
 {
     static Cache c;
-    const QString lang = currentUiLanguage() + appFolder() + helpRoot();
+    const QString lang = currentUiLanguage() + appFolder() + helpRoot() + QLatin1Char('#') + QString::number(dataFolderSearches());
     if (c.lang != lang) c = Cache{lang, {}, {}};
     return c;
 }
@@ -179,7 +179,7 @@ QString contextTopic(const QString &key)
     static QHash<QString, QJsonObject> maps;
     const QString folder = appInfo().helpFolder;
     const QString root = helpRoot();
-    const QString mapKey = folder + QLatin1Char('|') + root;
+    const QString mapKey = folder + QLatin1Char('|') + root + QLatin1Char('|') + QString::number(dataFolderSearches());
     auto it = maps.find(mapKey);
     if (it == maps.end()) {
         const QString path = root.isEmpty() ? QString() : folder.isEmpty() ? root + QStringLiteral("/context.json") : root + QStringLiteral("/en") + appFolder() + QStringLiteral("/context.json");

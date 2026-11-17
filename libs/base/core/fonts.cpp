@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "core/appinfo.h"
+#include "core/datafolder.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -46,7 +47,10 @@ QStringList bundledFontDirs()
     // Beside the program (Windows), the Linux packages' share folder (the
     // suite's, which the apps share, or the app's own before 0.7.0), and a
     // macOS app's Resources folder.
-    QStringList dirs{app + "/fonts", app + "/../share/jeffoffice/fonts", app + "/../share/" + appInfo().fileName + "/fonts", app + "/../fonts",
+    QStringList dirs;
+    // The data folder's fonts.rcc, once: registered, its fonts are the resource folder ":/fonts" (mapped, not copied: it is stored uncompressed).
+    if (const QString bundle = dataFolder(QStringLiteral("fonts")); !bundle.isEmpty()) dirs << bundle;
+    dirs << QStringList{app + "/fonts", app + "/../share/jeffoffice/fonts", app + "/../share/" + appInfo().fileName + "/fonts", app + "/../fonts",
                      app + "/../Resources/fonts"};
 #ifdef JP_SOURCE_DIR
     dirs << QStringLiteral(JP_SOURCE_DIR) + "/resources/fonts";

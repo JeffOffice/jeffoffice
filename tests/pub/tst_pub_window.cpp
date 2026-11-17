@@ -3,6 +3,9 @@
 #include "io/jpubfile.h"
 #include "core/datafolder.h"
 #include "app/keymap.h"
+#include <QFontDatabase>
+#include <QMap>
+#include <QProcess>
 #include <QScopeGuard>
 // JeffPub's tests of the window: ribbon, help, keyboard, accessibility, themes, and translations.
 #include "grid/gridview.h"
@@ -34,6 +37,48 @@
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+
+namespace {
+// Makes `name`.rcc in `dir` (prefix /name) from the given files (relative path: text), with rcc as the build does; false when rcc fails.
+bool makeBundle(const QString &dir, const QString &name, const QMap<QString, QByteArray> &files)
+{
+    QString qrc = QStringLiteral("<RCC><qresource prefix=\"/%1\">").arg(name);
+    for (auto it = files.begin(); it != files.end(); ++it) {
+        const QString src = dir + QStringLiteral("/src-") + name + QLatin1Char('/') + it.key();
+        if (!QDir().mkpath(QFileInfo(src).absolutePath())) return false;
+        QFile f(src);
+        if (!f.open(QIODevice::WriteOnly) || f.write(it.value()) != it.value().size()) return false;
+        qrc += QStringLiteral("<file alias=\"%1\">%2</file>").arg(it.key(), src);
+    }
+    qrc += QStringLiteral("</qresource></RCC>");
+    QFile q(dir + QLatin1Char('/') + name + QStringLiteral(".qrc"));
+    if (!q.open(QIODevice::WriteOnly)) return false;
+    q.write(qrc.toUtf8());
+    q.close();
+    return QProcess::execute(QStringLiteral(JO_RCC_PATH), {QStringLiteral("--binary"), QStringLiteral("-o"), dir + QLatin1Char('/') + name + QStringLiteral(".rcc"), q.fileName()}) == 0;
+}
+
+// A data folder of its own: the stamp of this version, the manifest (the listed files, and the translations of the real data folder), and a help.rcc of `help`.
+bool makeDataFolder(const QString &dir, const QMap<QString, QByteArray> &help, bool withTranslations)
+{
+    QStringList manifest;
+    for (auto it = help.begin(); it != help.end(); ++it) manifest << QStringLiteral("help/") + it.key();
+    if (withTranslations) {
+        const QString i18n = jp::dataFolder(QStringLiteral("i18n"));
+        if (!QDir().mkpath(dir + QStringLiteral("/i18n"))) return false;
+        for (const QString &q : QDir(i18n).entryList({QStringLiteral("*.qm")}, QDir::Files)) {
+            if (!QFile::copy(i18n + QLatin1Char('/') + q, dir + QStringLiteral("/i18n/") + q)) return false;
+            manifest << QStringLiteral("i18n/") + q;
+        }
+    }
+    QFile m(dir + QStringLiteral("/manifest.txt"));
+    QFile st(dir + QStringLiteral("/data.stamp"));
+    if (!m.open(QIODevice::WriteOnly) || !st.open(QIODevice::WriteOnly)) return false;
+    m.write(manifest.join(QLatin1Char('\n')).toUtf8() + "\n");
+    st.write(QByteArray(jp::versionString()) + "\n");
+    return help.isEmpty() || makeBundle(dir, QStringLiteral("help"), help);
+}
+}
 
 class PubWindowTests : public QObject {
     Q_OBJECT
@@ -803,40 +848,198 @@ private Q_SLOTS:
         QVERIFY(jp::help::topic(QStringLiteral("index")).isNull());
         QVERIFY(jp::availableUiLanguages().isEmpty());
         QCOMPARE(jp::installTranslations(), QStringLiteral("en"));
-        // A folder that holds them is looked in first (and only).
-        QVERIFY(QDir(empty.path()).mkpath(QStringLiteral("help/en")));
-        auto write = [&empty](const QString &name, const QByteArray &text) {
-            QFile f(empty.path() + QLatin1Char('/') + name);
-            QVERIFY(f.open(QIODevice::WriteOnly));
-            f.write(text);
-        };
-        write(QStringLiteral("help/en/index.md"), "# Only page\n");
-        write(QStringLiteral("help/en/stale.md"), "# Left by an older version\n");
-        write(QStringLiteral("manifest.txt"), "help/en/index.md\n");
+        // A folder whose help.rcc holds them is looked in first (and only).
+        QTemporaryDir bundled;
+        QVERIFY(bundled.isValid());
+        const QMap<QString, QByteArray> two{{QStringLiteral("en/index.md"), "# Only page\n"}, {QStringLiteral("en/stale.md"), "# In the bundle\n"}};
         // (a folder is the data folder only with the stamp of this version)
-        jp::setDataFolderOverride(empty.path());
+        QVERIFY(makeDataFolder(bundled.path(), two, false));
+        QVERIFY(QFile::remove(bundled.path() + QStringLiteral("/data.stamp")));
+        jp::setDataFolderOverride(bundled.path());
         QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
-        write(QStringLiteral("data.stamp"), "0.0.0\n");
-        jp::setDataFolderOverride(empty.path());
+        {
+            QFile st(bundled.path() + QStringLiteral("/data.stamp"));
+            QVERIFY(st.open(QIODevice::WriteOnly));
+            st.write("0.0.0\n");
+        }
+        jp::setDataFolderOverride(bundled.path());
         QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
-        write(QStringLiteral("data.stamp"), QByteArray(jp::versionString()) + "\n");
-        jp::setDataFolderOverride(empty.path());
+        {
+            QFile st(bundled.path() + QStringLiteral("/data.stamp"));
+            QVERIFY(st.open(QIODevice::WriteOnly));
+            st.write(QByteArray(jp::versionString()) + "\n");
+        }
+        // (the manifest lists only the first: the second is not a topic)
+        {
+            QFile m(bundled.path() + QStringLiteral("/manifest.txt"));
+            QVERIFY(m.open(QIODevice::WriteOnly));
+            m.write("help/en/index.md\n");
+        }
+        jp::setDataFolderOverride(bundled.path());
+        QCOMPARE(jp::dataFolder(QStringLiteral("help")), QStringLiteral(":/help"));
         QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});   // (stale.md is not in the manifest)
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Only page"));
         // (CMake writes the manifest with CRLF on Windows: a line's \r is not part of its path)
-        write(QStringLiteral("manifest.txt"), "help/en/index.md\r\nhelp/en/stale.md\r\n");
-        jp::setDataFolderOverride(empty.path());
+        {
+            QFile m(bundled.path() + QStringLiteral("/manifest.txt"));
+            QVERIFY(m.open(QIODevice::WriteOnly));
+            m.write("help/en/index.md\r\nhelp/en/stale.md\r\n");
+        }
+        jp::setDataFolderOverride(bundled.path());
         QCOMPARE(jp::dataManifest(QStringLiteral("help")), (QStringList{QStringLiteral("en/index.md"), QStringLiteral("en/stale.md")}));
         QCOMPARE(jp::help::topicIds().size(), 2);
         // (a page with CRLF lines is the same page: headings are found by "\n## Name\n")
-        write(QStringLiteral("help/en/stale.md"), "# Crlf page\r\n\r\n## First\r\n\r\nText.\r\n");
-        jp::setDataFolderOverride(empty.path());
+        QTemporaryDir crlfDir;
+        QVERIFY(crlfDir.isValid());
+        QVERIFY(makeDataFolder(crlfDir.path(), {{QStringLiteral("en/stale.md"), "# Crlf page\r\n\r\n## First\r\n\r\nText.\r\n"}}, false));
+        jp::setDataFolderOverride(crlfDir.path());
         const jp::help::Topic crlf = jp::help::topic(QStringLiteral("stale"));
         QCOMPARE(crlf.title, QStringLiteral("Crlf page"));
         QVERIFY(crlf.markdown.contains(QStringLiteral("\n## First\n")));
         QVERIFY(!crlf.markdown.contains(QLatin1Char('\r')));
         jp::setDataFolderOverride(QString());
         QVERIFY(jp::help::topicIds().size() >= 45);
+    }
+
+    // Help is read through the registered bundle: it lists, opens, searches, keeps the per-app folder and the F1 map, and falls back by language
+    // (pt_BR, then pt, then English), and a program shown another bundle after one is not shown the first one's pages.
+    void helpIsReadFromTheBundle()
+    {
+        struct Restore {
+            QVariant before = jp::Settings::get().value(QStringLiteral("ui/language"));
+            ~Restore()
+            {
+                jp::setDataFolderOverride(QString());
+                jp::Settings::get().setValue(QStringLiteral("ui/language"), before);
+                jp::installTranslations();
+            }
+        } restore;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QMap<QString, QByteArray> files{
+            {QStringLiteral("context.json"), "{\"tab:Home\": \"printing\"}"},
+            {QStringLiteral("en/index.md"), "# Contents\n\n[Printing](printing)\n"},
+            {QStringLiteral("en/printing.md"), "# Printing\n\n<!-- keywords: paper -->\nSend pages to the printer.\n"},
+            {QStringLiteral("en/zebra.md"), "# Stripes\n\n<!-- keywords: -->\nA zebra has stripes.\n"},
+            {QStringLiteral("pt/printing.md"), "# Imprimir\n\nEnvie as paginas.\n"},
+            {QStringLiteral("pt_BR/index.md"), "# Sumario\n"}};
+        QVERIFY(makeDataFolder(dir.path(), files, true));
+        jp::setDataFolderOverride(dir.path());
+        QVERIFY(QFileInfo(dir.path() + QStringLiteral("/help.rcc")).isFile());
+        QVERIFY(!QFileInfo(dir.path() + QStringLiteral("/help")).exists());
+        QCOMPARE(jp::dataFolder(QStringLiteral("help")), QStringLiteral(":/help"));
+        QCOMPARE(jp::help::topicIds(), (QStringList{QStringLiteral("index"), QStringLiteral("printing"), QStringLiteral("zebra")}));
+        QCOMPARE(jp::help::topic(QStringLiteral("printing")).title, QStringLiteral("Printing"));
+        QCOMPARE(jp::help::contextTopic(QStringLiteral("tab:Home")), QStringLiteral("printing"));
+        QCOMPARE(jp::help::searchTopics(QStringLiteral("zebra")), QStringList{QStringLiteral("zebra")});
+        // the language falls back: the region's page, the language's, English
+        jp::Settings::get().setValue(QStringLiteral("ui/language"), QStringLiteral("pt_BR"));
+        QCOMPARE(jp::installTranslations(), QStringLiteral("pt_BR"));
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Sumario"));
+        QCOMPARE(jp::help::topic(QStringLiteral("printing")).title, QStringLiteral("Imprimir"));
+        QCOMPARE(jp::help::topic(QStringLiteral("zebra")).title, QStringLiteral("Stripes"));
+        // another bundle under the same path is another Help (what was read before is not kept)
+        QTemporaryDir other;
+        QVERIFY(other.isValid());
+        QVERIFY(makeDataFolder(other.path(), {{QStringLiteral("en/index.md"), "# Second\n"}}, true));
+        jp::setDataFolderOverride(other.path());
+        QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("Second"));
+        QVERIFY(jp::help::topic(QStringLiteral("zebra")).isNull());
+        QVERIFY(jp::help::contextTopic(QStringLiteral("tab:Home")).isEmpty());
+    }
+
+    // JO_HELP_DIR (for writing Help) stands in for the bundle's Help while it is set, and only then.
+    void helpFolderVariableStandsInForTheBundle()
+    {
+        struct Restore {
+            ~Restore() { qunsetenv("JO_HELP_DIR"); jp::setDataFolderOverride(QString()); }
+        } restore;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("en")));
+        QFile f(dir.path() + QStringLiteral("/en/index.md"));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("# From the folder\n");
+        f.close();
+        const QString bundled = jp::help::topic(QStringLiteral("index")).title;
+        QVERIFY(!bundled.isEmpty() && bundled != QStringLiteral("From the folder"));
+        qputenv("JO_HELP_DIR", dir.path().toLocal8Bit());
+        jp::setDataFolderOverride(QString());
+        QCOMPARE(jp::dataFolder(QStringLiteral("help")), QDir::cleanPath(dir.path()));
+        QCOMPARE(jp::help::topicIds(), QStringList{QStringLiteral("index")});
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("From the folder"));
+        qunsetenv("JO_HELP_DIR");
+        jp::setDataFolderOverride(QString());
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, bundled);
+    }
+
+    // A missing, empty, or corrupt help.rcc is "no Help installed" (no topics, the notice in the pane), not a crash; fonts.rcc the same.
+    void aMissingOrCorruptBundleMeansNoHelp()
+    {
+        struct Restore {
+            ~Restore() { jp::setDataFolderOverride(QString()); }
+        } restore;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(makeDataFolder(dir.path(), {}, false));
+        for (const QByteArray &bad : {QByteArray(), QByteArray("not a resource file at all, just text"), QByteArray("qres\0\0\0\x01\xff\xff\xff\xff\xff\xff\xff\xff", 16)}) {
+            for (const char *name : {"help.rcc", "fonts.rcc"}) {
+                QFile f(dir.path() + QLatin1Char('/') + QLatin1String(name));
+                QVERIFY(f.open(QIODevice::WriteOnly));
+                f.write(bad);
+            }
+            jp::setDataFolderOverride(dir.path());
+            QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
+            QVERIFY(jp::dataFolder(QStringLiteral("fonts")).isEmpty());
+            QVERIFY(jp::help::topicIds().isEmpty());
+            QVERIFY(jp::help::topic(QStringLiteral("index")).isNull());
+            QVERIFY(jp::help::searchTopics(QStringLiteral("print")).isEmpty());
+            QVERIFY(jp::help::contextTopic(QStringLiteral("tab:Home")).isEmpty());
+        }
+        // a folder left by an older version is not Help: the bundle is the only place
+        QVERIFY(QFile::remove(dir.path() + QStringLiteral("/help.rcc")));
+        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("help/en")));
+        QFile f(dir.path() + QStringLiteral("/help/en/index.md"));
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write("# Old copy\n");
+        f.close();
+        jp::setDataFolderOverride(dir.path());
+        QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
+        // and beside a good bundle it does not win
+        QVERIFY(makeBundle(dir.path(), QStringLiteral("help"), {{QStringLiteral("en/index.md"), "# New copy\n"}}));
+        jp::setDataFolderOverride(dir.path());
+        QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("New copy"));
+    }
+
+    // The programs' fonts come from fonts.rcc: a bundled font file is added to the font database from the resource folder.
+    void bundledFontsLoadFromTheFontBundle()
+    {
+        const QString folder = jp::dataFolder(QStringLiteral("fonts"));
+        QCOMPARE(folder, QStringLiteral(":/fonts"));
+        const QStringList files = QDir(folder).entryList({QStringLiteral("*.ttf")}, QDir::Files);
+        QVERIFY(files.contains(QStringLiteral("Arimo-Regular.ttf")));
+        QVERIFY(jp::bundledFontDirs().first() == folder);
+        QVERIFY(jp::bundledFamilies().contains(QStringLiteral("Arimo")));
+        QVERIFY(QFontDatabase::families().contains(QStringLiteral("Arimo")));
+        QFile ttf(folder + QStringLiteral("/Arimo-Regular.ttf"));
+        QVERIFY(ttf.open(QIODevice::ReadOnly));
+        QVERIFY(ttf.size() > 100000);
+        QFile onDisk(QStringLiteral(JP_TEST_DATA "/../../resources/fonts/Arimo-Regular.ttf"));
+        QVERIFY(onDisk.open(QIODevice::ReadOnly));
+        QCOMPARE(ttf.readAll(), onDisk.readAll());
+    }
+
+    // A fast test of the built data folder (the one the other tests read): Help and the fonts are each one file, and no folder of loose files.
+    void theBuiltDataFolderHoldsTheBundles()
+    {
+        const QString root = QFileInfo(jp::dataFolder(QStringLiteral("i18n"))).absolutePath();
+        QVERIFY(QFileInfo(root + QStringLiteral("/help.rcc")).isFile());
+        QVERIFY(QFileInfo(root + QStringLiteral("/fonts.rcc")).isFile());
+        QVERIFY(!QFileInfo(root + QStringLiteral("/help")).exists());
+        QVERIFY(!QFileInfo(root + QStringLiteral("/fonts")).exists());
+        const QStringList all = jp::dataManifest(QStringLiteral("help"));
+        QVERIFY(all.contains(QStringLiteral("en/printing.md")));
     }
 
     // F1 opens help on what is being done: the contents from the page, a
