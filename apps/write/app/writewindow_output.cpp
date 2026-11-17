@@ -3,6 +3,7 @@
 #include "app/writewindow.h"
 #include "app/printsides.h"
 #include "app/printpage.h"
+#include "app/settings.h"
 
 #include "app/filedialogs.h"
 #include "app/pageoutput.h"
@@ -56,19 +57,33 @@ namespace jp {
 
 namespace {
 // Hidden text shown on the screen, the web view, and the paragraphs that collapsed headings hide are laid out without for the paper and the file (every paragraph is there), and as they were after.
+// What a job prints besides the text is set for as long as this lives (and put back after): hidden text as the job says, and the markup as the screen shows it or not at all (core/printing.h).
 struct HiddenTextOff {
-    explicit HiddenTextOff(write::WriteDoc *doc) : m_doc(doc), m_was(doc && doc->showsHiddenText())
+    explicit HiddenTextOff(write::WriteDoc *doc, write::PageView *view = nullptr, const WriteOutputOptions *options = nullptr, bool paper = true)
+        : m_doc(doc), m_view(view), m_was(doc && doc->showsHiddenText()), m_revisionView(doc ? doc->revisionView() : 0), m_marks(view ? view->reviewMarks() : write::PageView::ReviewMarks())
     {
-        if (m_was) m_doc->setShowHiddenText(false);
-        if (doc) m_print = std::make_unique<write::WriteDoc::PrintLayout>(*doc);
+        if (!doc) return;
+        const bool hidden = options ? options->hidden : false;
+        if (m_was != hidden && (paper || options)) m_doc->setShowHiddenText(hidden);
+        if (options && !options->markup) {
+            m_doc->setRevisionView(write::printRevisionView(false, m_revisionView));
+            if (m_view) m_view->setReviewMarks(write::PageView::ReviewMarks());
+        }
+        if (paper) m_print = std::make_unique<write::WriteDoc::PrintLayout>(*doc);
     }
     ~HiddenTextOff()
     {
         m_print.reset();
-        if (m_was) m_doc->setShowHiddenText(true);
+        if (!m_doc) return;
+        if (m_doc->revisionView() != m_revisionView) m_doc->setRevisionView(m_revisionView);
+        if (m_view && !(m_view->reviewMarks() == m_marks)) m_view->setReviewMarks(m_marks);
+        if (m_doc->showsHiddenText() != m_was) m_doc->setShowHiddenText(m_was);
     }
     write::WriteDoc *m_doc;
+    write::PageView *m_view;
     bool m_was;
+    int m_revisionView;
+    write::PageView::ReviewMarks m_marks;
     std::unique_ptr<write::WriteDoc::PrintLayout> m_print;   // (Web Layout and collapsed headings are for the screen too)
 };
 } // namespace
@@ -91,6 +106,28 @@ QVector<int> bookFoldPages(const QVector<int> &pages, int perBooklet)
     return out;
 }
 } // namespace
+
+WriteOutputOptions::WriteOutputOptions()
+{
+    Settings &settings = Settings::get();
+    markup = settings.value(write::printMarkupKey(), true).toBool();
+    hidden = settings.value(write::printHiddenKey(), false).toBool();
+    if (const QVariant v = settings.value(write::printBackgroundKey()); v.isValid()) background = v.toBool();
+}
+
+write::PrintLook WriteWindow::printLook(const WriteOutputOptions &options, const write::WriteDoc &source) const
+{
+    write::PrintLook look;
+    look.markup = options.markup;
+    look.hidden = options.hidden;
+    look.background = options.background;
+    // (the marks are the window's: what its page view shows, for the document it holds)
+    if (options.markup && m_doc.get() == &source) {
+        const write::PageView::ReviewMarks shown = m_view->reviewMarks();
+        look.marks = {shown.changeBars, shown.formatBars, shown.comments, shown.deletions, shown.carets};
+    }
+    return look;
+}
 
 QVector<int> WriteWindow::outputPages(const WriteOutputOptions &options)
 {
@@ -170,6 +207,8 @@ QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index
     if (turned && page.width() > 0 && page.height() > 0) fit = std::min(sheet.width() / page.width(), sheet.height() / page.height());
     const int pageWidth = turned && sheet.width() > 0 ? std::max(1, int(std::lround(width * fit * page.width() / sheet.width()))) : width;
     QImage image;
+    // (the page as the print will have it: its markup, its hidden text)
+    HiddenTextOff held(m_doc.get(), m_view, &options, false);
     if (options.range != WriteOutputOptions::Range::Selection) {
         image = m_view->pageImage(index, pageWidth);
     } else if (m_selectionDoc) {
@@ -219,7 +258,7 @@ QByteArray WriteWindow::pdfBytes(const QVector<int> &pages, QString *error, cons
         if (error) *error = tr("The pages can't be made.");
         return {};
     }
-    HiddenTextOff noHidden(m_doc.get());
+    HiddenTextOff noHidden(m_doc.get(), m_view, &options);
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     return pdfSheets(*m_doc, m_view->pageCount(), pages, write::SheetLayout(), false, options, error, notTagged);
 }
@@ -248,7 +287,8 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         }
         pdf.setResolution(1200);
         pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
-        ok = write::paintSheets(source, &pdf, sheets, sourcePages, grayscale, layout, options.pdfMinimum ? 150 : 0, tagging ? &tagger : nullptr);
+        const write::PrintLook look = printLook(options, source);
+        ok = write::paintSheets(source, &pdf, sheets, sourcePages, grayscale, layout, options.pdfMinimum ? 150 : 0, tagging ? &tagger : nullptr, &look);
     }
     if (!ok) {
         if (error) *error = tr("The pages can't be made.");
@@ -360,7 +400,7 @@ bool WriteWindow::exportPdfAsk()
 bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
 {
     if (!m_doc || !commitShapeText()) return false;
-    HiddenTextOff noHidden(m_doc.get());
+    HiddenTextOff noHidden(m_doc.get(), m_view, &options);
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     const QVector<int> pages = outputPages(options);
     if (pages.isEmpty()) return false;
@@ -776,7 +816,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         folded.reverse = options.reverse;
         return printOutput(folded);
     }
-    HiddenTextOff noHidden(m_doc.get());
+    HiddenTextOff noHidden(m_doc.get(), m_view, &options);
     EditedStoryHeld held(m_doc->pager(), m_view->inHeaderFooter() ? m_view->headerFooterEdit().story : nullptr);
     // (the pages in their own order: the sheets are put in order below, last sheet first when asked, so that a sheet of several pages, or a front and its back, stays whole)
     WriteOutputOptions forward = options;
@@ -832,6 +872,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     QVector<int> sheets;
     for (const QVector<int> &sheet : sheetSequence(logical, QVector<int>(per, -1), options.reverse, !options.toFile && options.duplex != QPrinter::DuplexNone, sent, options.collate)) sheets += sheet;
     QApplication::setOverrideCursor(Qt::WaitCursor);
+    const write::PrintLook look = printLook(options, *source);
     write::SheetLayout layout;
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
@@ -839,7 +880,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     // (a PDF file is tagged as the export's is)
     write::WriteTagger tagger;
     const bool tagging = options.toFile;
-    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout, 0, tagging ? &tagger : nullptr);
+    bool ok = write::paintSheets(*source, &printer, sheets, sourcePages, printer.colorMode() == QPrinter::GrayScale, layout, 0, tagging ? &tagger : nullptr, &look);
     QString err;
     if (ok && made) {
         QFile whole(made->fileName());

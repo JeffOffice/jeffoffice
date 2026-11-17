@@ -1954,6 +1954,21 @@ void CrunchPrintTests::theLastPageFirstChoiceReversesThePreviewAndThePrintedFile
 }
 
 
+// What prints (markup, hidden text, background colors) is JeffWrite's alone: the other apps' Print pages have none of those choices.
+void CrunchPrintTests::thePrintPageHasNoChoicesOfWhatPrints()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Some words</t></is></c></row>");
+    const QByteArray book = buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), findStyles());
+    EditWindow e;
+    QVERIFY(e.open(book));
+    CrunchWindow &w = e.win.w;
+    w.act(QStringLiteral("file.print"))->trigger();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printGray")));   // (the page is there)
+    for (const char *name : {"printMarkup", "printHidden", "printBackground"}) QVERIFY2(!w.findChild<QWidget *>(QString::fromLatin1(name)), name);
+}
+
+
 // Grayscale: a cell filled with a color comes out gray in the preview and in the PDF; without the choice it keeps its color.
 void CrunchPrintTests::theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray()
 {

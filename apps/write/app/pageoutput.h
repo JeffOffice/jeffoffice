@@ -2,6 +2,8 @@
 // Pages on a sheet: the one way JeffWrite puts its pages on paper, for the PDF export (a PDF writer) and for printing (a printer, to a printer or to a file).
 // Both draw each page with the page view's painter (app/pagepaint.h), one page to a sheet, the sheet the size of the page's section and turned as it is.
 
+#include "app/pagepaint.h"
+#include "core/printing.h"
 #include "core/writedoc.h"
 #include "app/printpage.h"
 #include "io/pdfbookmarks.h"
@@ -10,10 +12,20 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <functional>
 
 namespace jp::write {
 
 class WriteTagger;
+
+// What the marks over a page drew: bars (a line a change touches), comment balloons, deletion balloons, and carets.
+struct MarkupCounts {
+    int bars = 0, comments = 0, deletions = 0, carets = 0;
+};
+// Draws the marks of review over a page (as the page view draws them on the screen) in the page's own coordinates; returns what it drew. Nothing for a page with no body text.
+MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, WriteDoc &doc, const MarkupMarks &marks);
+// A test's way to see the marks each page drew (called by paintSheets once for each page it draws marks on; null to stop).
+void setMarkupObserver(const std::function<void(int pageNumber, const MarkupCounts &)> &observer);
 
 // Draws the pages (indexes from 0), in the order given, a sheet each, on the device. False when nothing could be drawn. `pageCount` is what the pages say they
 // are of (NUMPAGES).
@@ -28,7 +40,8 @@ struct SheetLayout {
 QSize sheetGrid(int perSheet);
 // `tagger`: the pages are marked for a tagged PDF (the pages of a sheet in the order they are laid out on it, which is the order they are read in).
 // `maxImageDpi`: pictures are downsampled to that many pixels to the inch (a PDF of minimum size; 0 leaves them as they are).
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr);
+// `look`: what prints besides the text (core/printing.h): its marks are drawn over each page, and its background says whether the page's color is on the paper (unset: a PDF has it, a printer is not sent it).
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale = false, const SheetLayout &layout = SheetLayout(), double maxImageDpi = 0, WriteTagger *tagger = nullptr, const PrintLook *look = nullptr);
 
 // The sheet (from 0) of the PDF that each of the pages is on, as paintSheets makes them (-1: a page it leaves out); the links and the bookmarks go by it.
 QVector<int> sheetOfPages(WriteDoc &doc, const QVector<int> &pages, const SheetLayout &layout);

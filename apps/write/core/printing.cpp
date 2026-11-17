@@ -91,6 +91,12 @@ QVector<int> parsePageRange(const QString &text, int pageCount, const QVector<in
     return out;
 }
 
+QString printMarkupKey() { return QStringLiteral("print/markup"); }
+QString printHiddenKey() { return QStringLiteral("print/hiddenText"); }
+QString printBackgroundKey() { return QStringLiteral("print/background"); }
+
+int printRevisionView(bool markup, int screenView) { return markup ? screenView : 0; }
+
 QString paperDescription(const QSizeF &points)
 {
     const bool wide = points.width() > points.height();

@@ -31,6 +31,7 @@
 #include <QSizeF>
 #include <QPointer>
 #include <QPrinter>
+#include <optional>
 #include <QKeySequence>
 #include <QSet>
 #include <QTimer>
@@ -74,6 +75,7 @@ class VerticalRuler;
 class SpellPane;
 class AccessPane;
 struct SheetLayout;
+struct PrintLook;
 }
 namespace recovery {
 struct Recovered;
@@ -81,6 +83,8 @@ struct Recovered;
 
 // What Print and Export to PDF are asked to do: which pages and, for printing, where and how many copies.
 struct WriteOutputOptions {
+    // The choices of what prints (markup, hidden text, background) start as the person last made them (the settings); a job that sets them says so.
+    WriteOutputOptions();
     enum class Range { All, Current, Pages, Selection };
     Range range = Range::All;
     QString pages;        // "1-3, 5": for Range::Pages
@@ -105,6 +109,9 @@ struct WriteOutputOptions {
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
     jp::PrintTurn turn = jp::PrintTurn::AsSet;   // the paper turned tall or wide, whichever way each page is (its page is scaled to fit); as set: each page's own way
+    bool markup = true;         // tracked changes as the screen shows them, and the comments in the margin; else the text as it stands, with no comments
+    bool hidden = false;        // text formatted as hidden is printed
+    std::optional<bool> background;   // the page's color is on the paper (unset: a PDF has it, a printer is not sent it)
 };
 
 class WriteWindow : public AppWindow, private ChartDesignHost {
@@ -538,6 +545,8 @@ private:
     // Where a PDF is to be written: asked for, or what the stand-in (tests) gives. Empty when none was chosen.
     QString pdfPathToWrite(const QString &title);
     // The sheets (pages by index, -1 for a blank one) of `source` as a PDF with the choices of `options`, in memory; empty, with the reason, when they can't be made.
+    // What prints besides the text for these options (the marks over the pages are the window's own, for the document in the window).
+    write::PrintLook printLook(const WriteOutputOptions &options, const write::WriteDoc &source) const;
     QByteArray pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);

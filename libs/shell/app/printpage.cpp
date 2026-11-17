@@ -144,6 +144,33 @@ QComboBox *makeColorModeBox(QWidget *parent)
     return color;
 }
 
+QComboBox *makeMarkupBox(QWidget *parent)
+{
+    auto *box = new QComboBox(parent);
+    box->setObjectName(QStringLiteral("printMarkup"));
+    box->setAccessibleName(QCoreApplication::translate("Print", "What prints"));
+    box->addItem(QCoreApplication::translate("Print", "Print Markup"), 1);
+    box->addItem(QCoreApplication::translate("Print", "Without Markup"), 0);
+    box->setToolTip(jp::plainToolTip(QCoreApplication::translate("Print", "Print Markup puts the tracked changes and the comments on the paper as the screen shows them, the comments in the margin. Without Markup prints the text as if every change were accepted, with no comments.")));
+    return box;
+}
+
+QCheckBox *makeHiddenTextBox(QWidget *parent)
+{
+    auto *box = new QCheckBox(QCoreApplication::translate("Print", "Hidden text"), parent);
+    box->setObjectName(QStringLiteral("printHidden"));
+    box->setToolTip(QCoreApplication::translate("Print", "Print the text that is formatted as hidden."));
+    return box;
+}
+
+QCheckBox *makeBackgroundBox(QWidget *parent)
+{
+    auto *box = new QCheckBox(QCoreApplication::translate("Print", "Background colors"), parent);
+    box->setObjectName(QStringLiteral("printBackground"));
+    box->setToolTip(QCoreApplication::translate("Print", "Print the color of the page. Paper is left white unless this is on."));
+    return box;
+}
+
 QComboBox *makeOrientationBox(QWidget *parent, const QString &asSet)
 {
     auto *orientation = new QComboBox(parent);
@@ -207,6 +234,7 @@ PrintColumn::PrintColumn(QWidget *page) : m_page(page), m_column(new QVBoxLayout
 QString PrintColumn::printerHeading() { return QCoreApplication::translate("Print", "Printer"); }
 QString PrintColumn::pagesHeading() { return QCoreApplication::translate("Print", "Pages"); }
 QString PrintColumn::layoutHeading() { return QCoreApplication::translate("Print", "Layout"); }
+QString PrintColumn::whatPrintsHeading() { return QCoreApplication::translate("Print", "What prints"); }
 QString PrintColumn::paperHeading() { return QCoreApplication::translate("Print", "Paper"); }
 
 void PrintColumn::top(QPushButton *print, QSpinBox *copies)

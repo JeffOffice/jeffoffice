@@ -3,7 +3,10 @@
 
 #include "app/pagepaint.h"
 #include "app/writetags.h"
+#include "core/commentops.h"
 #include "core/linkops.h"
+#include "core/reviewops.h"
+#include "text/textprops.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -12,6 +15,7 @@
 #include <QPainter>
 #include <QPrinter>
 #include <algorithm>
+#include <limits>
 
 namespace jp::write {
 
@@ -102,7 +106,131 @@ QVector<PagePlace> placesOfPages(WriteDoc &doc, const QVector<int> &pages, const
     return out;
 }
 
+std::function<void(int, const MarkupCounts &)> g_markupObserver;
+
 } // namespace
+
+void setMarkupObserver(const std::function<void(int, const MarkupCounts &)> &observer) { g_markupObserver = observer; }
+
+MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, WriteDoc &doc, const MarkupMarks &marks)
+{
+    MarkupCounts counts;
+    if (!marks.any()) return counts;
+    QVector<TextItem *> boxes;
+    for (const QString &id : page.boxes)
+        if (Item *item = page.doc->item(id))
+            if (item->type() == ItemType::Text) boxes.push_back(static_cast<TextItem *>(item));
+    if (boxes.isEmpty()) return counts;
+    const LayoutCache::FrameLayout fl = layouts->textFrame(*page.doc, *boxes.first(), page.number, RenderOptions());
+    if (!fl.layout) return counts;
+    const double pageWidth = page.size.width();
+    struct Line { const TextItem *box; QRectF rect; int a, b; };
+    QVector<Line> lines;
+    int lo = std::numeric_limits<int>::max(), hi = 0;
+    for (int f = 0; f < boxes.size(); ++f)
+        for (const auto &line : fl.layout->lineInfo(f)) {
+            const int a = line.docPos + page.storyFrom, b = std::max(line.docEnd, line.docPos + 1) + page.storyFrom;
+            lines.push_back({boxes[f], line.rect, a, b});
+            lo = std::min(lo, a);
+            hi = std::max(hi, b);
+        }
+    if (lines.isEmpty()) return counts;
+    // What the marks are made from: the changes and the comments of the stretch of the story the page shows.
+    struct Mark { int at; QString initials, text; QColor color; bool done; };
+    QVector<std::pair<int, int>> spans, formatSpans;
+    QVector<Mark> comments, deletions;
+    QVector<int> carets;
+    for (const Revision &r : revisionsIn(doc.story(), lo, hi, 4000)) {
+        const bool formatting = r.kind == Revision::Format || r.kind == Revision::ParagraphFormat;
+        (formatting ? formatSpans : spans).push_back({r.from, std::max(r.to, r.from + 1)});
+        if (r.kind != Revision::Deletion && r.kind != Revision::MovedFrom) continue;
+        if (marks.deletions) {
+            const QString words = revisionText(doc.story(), r, 60);
+            if (!words.isEmpty()) deletions.push_back({r.from, QString(), words, tp::revisionColor(doc.reviewerIndex(r.author)), false});
+        }
+        if (marks.carets) carets.push_back(r.from);
+    }
+    auto joined = [](QVector<std::pair<int, int>> &in) {
+        std::sort(in.begin(), in.end());
+        QVector<std::pair<int, int>> out;
+        for (const auto &sp : std::as_const(in)) {
+            if (!out.isEmpty() && sp.first <= out.last().second) out.last().second = std::max(out.last().second, sp.second);
+            else out.push_back(sp);
+        }
+        in = out;
+    };
+    joined(spans);
+    joined(formatSpans);
+    if (marks.comments)
+        for (const Comment &c : commentsIn(doc, lo, hi)) {
+            const QString initials = c.initials.isEmpty() ? c.author.left(2) : c.initials;
+            comments.push_back({c.reference, initials, c.text, tp::revisionColor(doc.reviewerIndex(c.author)), c.done});
+        }
+    p->save();
+    p->setRenderHint(QPainter::Antialiasing, true);
+    const tp::RevisionMarkup &look = tp::revisionMarkup();
+    const int placing = look.bars;
+    const bool rightBar = placing == tp::RevisionMarkup::BarsRight || (placing == tp::RevisionMarkup::BarsOutside && page.number % 2 == 1);
+    const QColor barColor = look.barColor.isValid() ? look.barColor : QColor(0xC0, 0x39, 0x2B);
+    double lastBottom = -1e9;
+    for (int lineAt = 0; lineAt < lines.size(); ++lineAt) {
+        const Line &line = lines[lineAt];
+        const TextItem *box = line.box;
+        const double marginRight = pageWidth - box->rect.right();
+        const int a = line.a, b = lineAt + 1 < lines.size() ? std::max(line.b, lines[lineAt + 1].a) : line.b;
+        const double top = box->rect.top() + line.rect.top(), height = std::max(1.0, line.rect.height());
+        auto bar = [&](const QVector<std::pair<int, int>> &which) {
+            auto it = std::lower_bound(which.begin(), which.end(), a, [](const std::pair<int, int> &sp, int v) { return sp.second <= v; });
+            if (it == which.end() || it->first >= b) return;
+            p->fillRect(QRectF(rightBar ? box->rect.right() + 5.4 : box->rect.left() - 7, top, 1.6, height), barColor);
+            ++counts.bars;
+        };
+        if (placing != tp::RevisionMarkup::BarsNone) {
+            if (marks.changeBars) bar(spans);
+            if (marks.formatBars) bar(formatSpans);
+        }
+        for (const int at : carets) {
+            if (at < a || at >= b) continue;
+            int frame = 0;
+            QRectF caret;
+            if (!fl.layout->caretRect(at - page.storyFrom, &frame, &caret) || frame < 0 || frame >= boxes.size() || boxes[frame] != box) continue;
+            const double x = box->rect.left() + caret.x(), y = top + height;
+            QPainterPath mark;
+            mark.moveTo(x - 2.5, y + 2.5);
+            mark.lineTo(x, y - 0.5);
+            mark.lineTo(x + 2.5, y + 2.5);
+            p->setPen(QPen(tp::revisionColor(0), 0.9));
+            p->setBrush(Qt::NoBrush);
+            p->drawPath(mark);
+            ++counts.carets;
+        }
+        if (marginRight < 30) continue;
+        auto balloon = [&](const Mark &m, bool deletion) {
+            if (m.at < a || m.at >= b) return;
+            const double w = std::min(marginRight - 8, 120.0);
+            QFont font = p->font();
+            font.setPointSizeF(6.5);
+            p->setFont(font);
+            const QString shown = deletion ? QCoreApplication::translate("jp::write::PageView", "Deleted: %1").arg(m.text) : m.initials + QStringLiteral(": ") + m.text;
+            const QRectF want(box->rect.right() + 6, std::max(top, lastBottom + 2), w, 0);
+            const QRectF text = p->boundingRect(want.adjusted(3, 2, -3, 0).adjusted(0, 0, 0, 80), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
+            const QRectF frame(want.left(), want.top(), w, std::min(78.0, text.height() + 5));
+            QColor fill = m.color;
+            fill.setAlpha(m.done ? 28 : 55);
+            p->setPen(QPen(m.color, 0.7));
+            p->setBrush(fill);
+            p->drawRoundedRect(frame, 3, 3);
+            p->setPen(m.done ? QColor(0x70, 0x70, 0x70) : QColor(0x20, 0x20, 0x20));
+            p->drawText(frame.adjusted(3, 2, -3, -1), Qt::TextWordWrap | Qt::AlignLeft | Qt::AlignTop, shown.left(120));
+            lastBottom = frame.bottom();
+            ++(deletion ? counts.deletions : counts.comments);
+        };
+        for (const auto &c : comments) balloon(c, false);
+        for (const auto &d : deletions) balloon(d, true);
+    }
+    p->restore();
+    return counts;
+}
 
 QSize sheetGrid(int perSheet)
 {
@@ -245,7 +373,7 @@ QVector<int> sheetOfPages(WriteDoc &doc, const QVector<int> &pages, const SheetL
     return out;
 }
 
-bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi, WriteTagger *tagger)
+bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &pages, int pageCount, bool grayscale, const SheetLayout &layout, double maxImageDpi, WriteTagger *tagger, const PrintLook *look)
 {
     auto *printer = dynamic_cast<QPrinter *>(device);
     if (printer) printer->setFullPage(true);
@@ -269,6 +397,12 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         d.tagger = tagger;
         if (tagger) tagger->beginPage();
         paintPage(&p, page, &cache, d);
+        if (look && look->marks.any()) {
+            if (tagger) tagger->tags().begin(&p, frameTag);   // (the marks are decoration)
+            const MarkupCounts drawn = paintMarkupMarks(&p, page, &cache, doc, look->marks);
+            if (tagger) tagger->tags().end(&p, frameTag);
+            if (g_markupObserver) g_markupObserver(page.number, drawn);
+        }
         p.restore();
     };
     auto begin = [&] {
@@ -285,8 +419,8 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         for (qsizetype i = first; i < pages.size() && i < first + perSheet; ++i) {
             std::shared_ptr<flow::MaterializedPage> page = pages[i] < 0 ? nullptr : doc.pager().materialize(pages[i]);
             if (!page) continue;
-            // The page's color is in a PDF (a reference PDF of such a file has it), and is not sent to a printer: paper is left white unless it is asked for.
-            if (printer) {
+            // The page's color is in a PDF (a reference PDF of such a file has it), and is not sent to a printer: paper is left white unless it is asked for (a job says which it wants).
+            if (look && look->background.has_value() ? !*look->background : printer != nullptr) {
                 auto &items = page->doc->pages[0]->items;
                 items.erase(std::remove_if(items.begin(), items.end(), [](const std::shared_ptr<Item> &item) { return item->id.startsWith(QLatin1String("flow-page-color-")); }), items.end());
             }

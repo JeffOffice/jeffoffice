@@ -3,6 +3,7 @@
 #include "core/datafolder.h"
 #include "tst_write.h"
 #include "render/pdfpage.h"
+#include "app/theme.h"
 
 
 void WriteTests::thePaperIsDescribedAsTheSectionSetsIt()
@@ -621,6 +622,233 @@ void WriteTests::theGrayscaleChoiceMakesThePrintedPagesAndThePreviewGray()
     const Ink printed = inkOf(render(gray));
     QCOMPARE(printed.colored, 0);
     QVERIFY2(printed.dark > 50, qPrintable(QString::number(printed.dark)));
+}
+
+
+namespace {
+// A document under review: kept words, a long insertion and a long deletion (each of Ann's), and a comment on the first words; the window shows All Markup, comments, and changes inline.
+struct ReviewedWindow {
+    WriteWindow w;
+    explicit ReviewedWindow(const QByteArray &more = QByteArray())
+    {
+        const QByteArray stamp = " w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+        const QByteArray body = "<w:p><w:r><w:t>Kept words stay. </w:t></w:r><w:ins w:id=\"1\"" + stamp + "><w:r><w:t>" + QByteArray("added words ").repeated(40) + "</w:t></w:r></w:ins>"
+                                "<w:del w:id=\"2\"" + stamp + "><w:r><w:delText>" + QByteArray("removed words ").repeated(40) + "</w:delText></w:r></w:del><w:r><w:t>tail.</w:t></w:r></w:p>" + more;
+        auto doc = open(makeDocx(body, kStyles));
+        doc->setReviewer(QStringLiteral("Ann Bee"), QStringLiteral("AB"));
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        addComment(*doc, c, QStringLiteral("Please check"));
+        w.setDocument(std::move(doc), QString());
+        w.setReviewView(WriteWindow::ReviewView::AllMarkup);
+        w.view()->paginateAll();
+    }
+};
+struct MarkupGuard {
+    ~MarkupGuard() { write::setMarkupObserver(nullptr); }
+};
+// The keys of what prints are put back as they were found, so that a test leaves the settings alone.
+struct PrintKeysGuard {
+    QVariant markup, hidden, background;
+    PrintKeysGuard()
+    {
+        markup = Settings::get().value(write::printMarkupKey());
+        hidden = Settings::get().value(write::printHiddenKey());
+        background = Settings::get().value(write::printBackgroundKey());
+        for (const QString &key : {write::printMarkupKey(), write::printHiddenKey(), write::printBackgroundKey()}) Settings::get().remove(key);
+    }
+    ~PrintKeysGuard()
+    {
+        const QPair<QString, QVariant> keys[] = {{write::printMarkupKey(), markup}, {write::printHiddenKey(), hidden}, {write::printBackgroundKey(), background}};
+        for (const auto &k : keys) {
+            if (k.second.isValid()) Settings::get().setValue(k.first, k.second);
+            else Settings::get().remove(k.first);
+        }
+    }
+};
+} // namespace
+
+// Print Markup puts the tracked changes and the comments on the paper as the screen shows them (bars by the changed lines, a box in the margin for a comment); Without Markup is the text as it stands, with neither.
+void WriteTests::printMarkupDrawsTheChangesAndCommentsAndWithoutLeavesThemOut()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+    const int screenView = w.document()->revisionView();
+    QVERIFY(screenView != 0);
+    const MarkupGuard guard;
+    struct Seen {
+        int bars = 0, comments = 0, calls = 0, lines = 0, view = -1;
+    };
+    auto printed = [&](bool markup) {
+        Seen seen;
+        write::setMarkupObserver([&](int, const write::MarkupCounts &c) {
+            seen.bars += c.bars;
+            seen.comments += c.comments;
+            ++seen.calls;
+        });
+        const ObserverGuard observer;
+        write::setPaintObserver([&](const flow::MaterializedPage &, const write::PageDrawing &) {
+            seen.lines = int(w.document()->pager().lines(0).size());
+            seen.view = w.document()->revisionView();
+        });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.markup = markup;
+        const bool ok = w.printOutput(o);
+        write::setPaintObserver(nullptr);
+        write::setMarkupObserver(nullptr);
+        return ok ? seen : Seen{-1, -1, -1, -1, -1};
+    };
+    const Seen with = printed(true);
+    QVERIFY2(with.calls >= 1 && with.bars >= 1, "the changes have no bars");
+    QCOMPARE(with.comments, 1);
+    QCOMPARE(with.view, screenView);
+    const Seen without = printed(false);
+    QCOMPARE(without.calls, 0);   // (no marks are drawn at all)
+    QCOMPARE(without.view, 0);
+    // (the removed words are left out of the lines, so the page has fewer of them)
+    QVERIFY2(without.lines < with.lines, qPrintable(QStringLiteral("%1 against %2 lines").arg(without.lines).arg(with.lines)));
+    // The window is as it was.
+    QCOMPARE(w.document()->revisionView(), screenView);
+    QVERIFY(w.view()->reviewMarks().comments);
+}
+
+// Hidden text prints only when asked, and the screen's own choice to show it is neither read nor changed by a job.
+void WriteTests::hiddenTextPrintsOnlyWhenAskedFor()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    WriteWindow w;
+    const QByteArray secret = QByteArray("secret words ").repeated(60);
+    w.setDocument(open(makeDocx("<w:p><w:r><w:t>shown </w:t></w:r><w:r><w:rPr><w:vanish/></w:rPr><w:t>" + secret + "</w:t></w:r><w:r><w:t>end</w:t></w:r></w:p>", kStyles)), QString());
+    w.view()->paginateAll();
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+    const ObserverGuard observer;
+    auto linesWhenPrinted = [&](bool hidden) {
+        int lines = -1;
+        write::setPaintObserver([&](const flow::MaterializedPage &, const write::PageDrawing &) { lines = int(w.document()->pager().lines(0).size()); });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.hidden = hidden;
+        const bool ok = w.printOutput(o);
+        write::setPaintObserver(nullptr);
+        return ok ? lines : -1;
+    };
+    QCOMPARE(linesWhenPrinted(false), 1);
+    QVERIFY2(linesWhenPrinted(true) > 3, "the hidden text is not printed");
+    QVERIFY(!w.document()->showsHiddenText());
+    QCOMPARE(w.document()->pager().lines(0).size(), 1);
+}
+
+// The page's color is on the paper when asked for, whether the job is a printer's file or a PDF export, and without it when it is not; with nothing said a PDF has it and a printer is not sent it.
+void WriteTests::theBackgroundColorIsOnThePaperWhenAskedFor()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    WriteWindow w;
+    w.setDocument(open(makeDocxWithBackground("<w:background w:color=\"00B8FF\"/>")), QString());
+    w.view()->paginateAll();
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("out.pdf")); });
+    const ObserverGuard observer;
+    auto colored = [&](bool exported, std::optional<bool> background) {
+        QVector<bool> has;
+        write::setPaintObserver([&](const flow::MaterializedPage &page, const write::PageDrawing &) {
+            bool found = false;
+            for (const auto &item : page.doc->pages[0]->items) found |= item->id.startsWith(QLatin1String("flow-page-color-"));
+            has << found;
+        });
+        WriteOutputOptions o;
+        o.toFile = true;
+        o.background = background;
+        const bool ok = exported ? w.exportPdfPages(o) : w.printOutput(o);
+        write::setPaintObserver(nullptr);
+        return ok ? has : QVector<bool>{};
+    };
+    QCOMPARE(colored(false, std::nullopt), QVector<bool>{false});
+    QCOMPARE(colored(true, std::nullopt), QVector<bool>{true});
+    QCOMPARE(colored(false, true), QVector<bool>{true});
+    QCOMPARE(colored(true, false), QVector<bool>{false});
+}
+
+// The Print page has the choices (what prints, hidden text, background colors), they are kept in the settings for the next time and for the PDF export, and the preview follows them.
+void WriteTests::thePrintPageRemembersWhatPrints()
+{
+    const PrintKeysGuard keys;
+    QTemporaryDir dir;
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    w.resize(1300, 1100);
+    const MarkupGuard guard;
+    auto open_ = [&]() {
+        w.act("file.print")->trigger();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *markup = w.findChild<QComboBox *>(QStringLiteral("printMarkup"));
+        QVERIFY(markup);
+        QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printHidden")));
+        QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printBackground")));
+    };
+    open_();
+    // Starting out: the markup, no hidden text, no background.
+    QVERIFY(w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->currentData().toInt() == 1);
+    QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->isChecked());
+    QVERIFY(!w.findChild<QCheckBox *>(QStringLiteral("printBackground"))->isChecked());
+    QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->itemText(0), QStringLiteral("Print Markup"));
+    w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(1);
+    w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->setChecked(true);
+    w.findChild<QCheckBox *>(QStringLiteral("printBackground"))->setChecked(true);
+    // A page opened again has what was chosen.
+    open_();
+    QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->currentData().toInt(), 0);
+    QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->isChecked());
+    QVERIFY(w.findChild<QCheckBox *>(QStringLiteral("printBackground"))->isChecked());
+    // The jobs start from them (the PDF export is one), and the PDF it makes has no marks.
+    const WriteOutputOptions remembered;
+    QVERIFY(!remembered.markup);
+    QVERIFY(remembered.hidden);
+    QCOMPARE(remembered.background, std::optional<bool>(true));
+    int calls = 0;
+    write::setMarkupObserver([&](int, const write::MarkupCounts &) { ++calls; });
+    w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("export.pdf")); });
+    QVERIFY(w.exportPdf());
+    QCOMPARE(calls, 0);
+    // With the markup chosen again, the export draws its marks.
+    w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(0);
+    QVERIFY(w.exportPdf());
+    QVERIFY(calls >= 1);
+    // The Print to PDF of the page follows the same choice.
+    calls = 0;
+    w.findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(1);
+    const QByteArray plain = printToPdf(w, dir.filePath(QStringLiteral("plain.pdf")), [](QWidget *) {});
+    QVERIFY(!plain.isEmpty());
+    QCOMPARE(calls, 0);
+    const QByteArray marked = printToPdf(w, dir.filePath(QStringLiteral("marked.pdf")), [](QWidget *page) { page->findChild<QComboBox *>(QStringLiteral("printMarkup"))->setCurrentIndex(0); });
+    QVERIFY(!marked.isEmpty());
+    QVERIFY(calls >= 1);
+    // (the marks are drawn on the PDF: it is not the same as the one without)
+    QVERIFY(marked != plain);
+}
+
+// A picture of the Print page with its choices of what prints, for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).
+void WriteTests::thePrintPageWithTheChoicesOfWhatPrintsCanBePhotographed()
+{
+    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+    if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+    const PrintKeysGuard keys;
+    jp::applyUiTheme(1);
+    ReviewedWindow r;
+    WriteWindow &w = r.w;
+    w.resize(1300, 1100);
+    w.show();
+    w.act("file.print")->trigger();
+    auto *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+    QVERIFY(preview);
+    QTRY_VERIFY(!preview->pixmap().isNull());
+    QTRY_VERIFY(w.findChild<QCheckBox *>(QStringLiteral("printHidden"))->isVisible());
+    QVERIFY(w.grab().save(dir + QStringLiteral("/write-print-what-prints.png")));
 }
 
 
@@ -2714,3 +2942,4 @@ void WriteTests::theNamesOfTheSuiteAreNeverFlaggedInAnyLanguage()
     doc.setPlainText(QStringLiteral("JeffWritee Jeffoffice qzxqzx"));
     QCOMPARE(int(misspellingsIn(doc.begin(), QStringLiteral("en-US")).size()), 3);
 }
+

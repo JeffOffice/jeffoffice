@@ -904,6 +904,11 @@ private Q_SLOTS:
     void savingAsPdfThroughPrintLeavesAnExistingFileWholeUntilTheNewOneIsDone();
     void copiesAndCollateReachAPrinterThatCannotMakeThem();
     void theGrayscaleChoiceMakesThePrintedPagesAndThePreviewGray();
+    void printMarkupDrawsTheChangesAndCommentsAndWithoutLeavesThemOut();
+    void hiddenTextPrintsOnlyWhenAskedFor();
+    void theBackgroundColorIsOnThePaperWhenAskedFor();
+    void thePrintPageRemembersWhatPrints();
+    void thePrintPageWithTheChoicesOfWhatPrintsCanBePhotographed();
     void thePaperTurnedChoiceTurnsThePrintedSheetsAndThePreview();
     void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
     void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();

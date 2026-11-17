@@ -343,6 +343,13 @@ QWidget *WriteFileScreen::buildPrint()
     paper->setObjectName(QStringLiteral("printPaper"));
     paper->setWordWrap(true);
     QCheckBox *gray = makeGrayscaleBox(w);
+    // What prints besides the text, as the person last chose it (kept in the settings).
+    QComboBox *markup = makeMarkupBox(w);
+    markup->setCurrentIndex(Settings::get().value(write::printMarkupKey(), true).toBool() ? 0 : 1);
+    QCheckBox *hiddenText = makeHiddenTextBox(w);
+    hiddenText->setChecked(Settings::get().value(write::printHiddenKey(), false).toBool());
+    QCheckBox *background = makeBackgroundBox(w);
+    background->setChecked(Settings::get().value(write::printBackgroundKey(), false).toBool());
     auto *all = new QRadioButton(tr("All pages"), w);
     all->setObjectName(QStringLiteral("printRangeAll"));
     auto *current = new QRadioButton(tr("Current page"), w);
@@ -396,6 +403,9 @@ QWidget *WriteFileScreen::buildPrint()
     column.group(PrintColumn::paperHeading(), tr("(as each section says unless changed)"));
     column.pair(tr("Turned"), orientation, tr("Paper"), paper);
     column.checks(gray);
+    column.group(PrintColumn::whatPrintsHeading());
+    column.field(tr("Markup"), markup);
+    column.checks(hiddenText, background);
     left->addLayout(column.layout());
     left->addStretch(1);
     h->addLayout(left, 1);
@@ -470,6 +480,9 @@ QWidget *WriteFileScreen::buildPrint()
         o.scaleTo = scaleTo->currentData().toSizeF();
         o.grayscale = gray->isChecked();
         o.turn = PrintTurn(orientation->currentData().toInt());
+        o.markup = markup->currentData().toInt() != 0;
+        o.hidden = hiddenText->isChecked();
+        o.background = background->isChecked();
         return o;
     };
     auto page = std::make_shared<int>(0);
@@ -537,9 +550,14 @@ QWidget *WriteFileScreen::buildPrint()
             const QSizeF paper = m_win->outputPageSize(options(), pages[*page + k]);
             const int widthPx = std::max(1, int(std::lround(paper.width() * scale * dpr)));
             QImage img = m_win->outputPageImage(options(), pages[*page + k], widthPx);
+            if (img.isNull()) continue;
             img.setDevicePixelRatio(dpr);
             tiles << paperPixmap(img, QSize(int(std::ceil(paper.width() * scale)) + 16, int(std::ceil(paper.height() * scale)) + 18), dpr);
             cell = cell.expandedTo(tiles.last().deviceIndependentSize().toSize());
+        }
+        if (tiles.isEmpty()) {
+            preview->clear();
+            return;
         }
         if (tiles.size() == 1) {
             preview->setPixmap(tiles.first());
@@ -571,6 +589,18 @@ QWidget *WriteFileScreen::buildPrint()
     connect(sides, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });
     connect(gray, &QCheckBox::toggled, w, [=] { paint(); });
+    connect(markup, &QComboBox::currentIndexChanged, w, [=] {
+        Settings::get().setValue(write::printMarkupKey(), markup->currentData().toInt() != 0);
+        paint();
+    });
+    connect(hiddenText, &QCheckBox::toggled, w, [=] {
+        Settings::get().setValue(write::printHiddenKey(), hiddenText->isChecked());
+        paint();
+    });
+    connect(background, &QCheckBox::toggled, w, [=] {
+        Settings::get().setValue(write::printBackgroundKey(), background->isChecked());
+        paint();
+    });
     connect(orientation, &QComboBox::currentIndexChanged, w, [=] { paint(); });
     connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
         Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));

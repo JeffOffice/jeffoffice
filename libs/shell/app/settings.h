@@ -124,6 +124,7 @@ public:
     // From the app's store, or the suite's for a suite-wide key.
     QVariant value(const QString &key, const QVariant &def = QVariant()) const { return store(key).value(key, def); }
     void setValue(const QString &key, const QVariant &v) { store(key).setValue(key, v); }
+    void remove(const QString &key) { store(key).remove(key); }
 
     // Writes what's pending and reads what another app changed meanwhile
     // (a choice made in one stays unseen by a running other until then).

@@ -86,6 +86,12 @@ QCheckBox *makeGrayscaleBox(QWidget *parent);
 enum class PrintColor { Color = 0, Grayscale = 1, BlackAndWhite = 2 };
 QComboBox *makeColorModeBox(QWidget *parent);
 
+// What prints (JeffWrite's page): the markup of a document under review, or the text as it stands; and two switches (printMarkup, printHidden, printBackground).
+// The data of the markup box's entries are 1 (Print Markup) and 0 (Without Markup).
+QComboBox *makeMarkupBox(QWidget *parent);
+QCheckBox *makeHiddenTextBox(QWidget *parent);
+QCheckBox *makeBackgroundBox(QWidget *parent);
+
 // The way the paper turns: what each page says (`asSet` words it for the app), tall, or wide. The data of the entries are the values of PrintTurn.
 enum class PrintTurn { AsSet = -1, Tall = 1, Wide = 2 };
 QComboBox *makeOrientationBox(QWidget *parent, const QString &asSet);
@@ -136,6 +142,7 @@ public:
     static QString pagesHeading();
     static QString layoutHeading();
     static QString paperHeading();
+    static QString whatPrintsHeading();
 
 private:
     QWidget *m_page;

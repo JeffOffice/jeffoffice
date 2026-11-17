@@ -228,6 +228,7 @@ private Q_SLOTS:
     void theOddOrTheEvenPagesCanBePrintedAlone();
     void printToAFileMakesThePdfAndClosesTheScreen();
     void theLastPageFirstChoiceReversesThePreviewAndThePrintedFile();
+    void thePrintPageHasNoChoicesOfWhatPrints();
     void theGrayscaleChoiceMakesThePreviewAndThePrintedFileGray();
     void reverseKeepsEachFrontWithItsBackWhenPrintingOnBothSides();
     void reverseGroupsTheSheetsFirstWhenSeveralPagesShareOne();
