@@ -12,7 +12,7 @@ A **link** (also called a hyperlink) is words that take you somewhere when you C
    - **Email address:** type the address. "mailto:" is added for you.
    - **Place in this document:** pick a heading or a bookmark from the list. A heading gets a hidden bookmark of its own, so the link still works after you save the document and open it again, in any file type. The list shows your bookmarks and headings. (To make a bookmark, use **Insert > Bookmark**.)
    - **Existing file:** type the whole path of a file on your computer, or press **Browse**.
-   - **New document:** type the whole path for a new, empty document, or press **Browse**. JeffWrite makes the document there and links to it. It never writes over a file that is already there.
+   - **New document:** type the whole path for a new, empty document that ends with .docx or .odt, or press **Browse**. JeffWrite makes the document there and links to it. It never writes over a file that is already there.
 4. Type a **Screen tip** if you like. It is the small note that shows when the pointer rests on the link.
 5. Click **OK**. If the address is not one JeffWrite can use, the window stays open and says why.
 
@@ -20,7 +20,7 @@ The words get the link look (blue and underlined). It is one step to undo.
 
 To **change** a link, put the caret in it and press Ctrl+K again. **Remove Link** in that window, or **Insert > Remove Link**, takes the link off and keeps the words.
 
-**Ctrl+click** a link to follow it. A link to a bookmark moves the caret there. A link to a web or email address opens your browser or mail program. A link to a file asks first, and then opens the file in the program that goes with it. For your safety, JeffWrite follows only web, email, FTP, telephone, and file links. It never starts a program because of a link, and it never opens a file on another computer.
+**Ctrl+click** a link to follow it. A link to a bookmark moves the caret there. A link to a web or email address opens your browser or mail program. A link to a file asks first, and then opens the file in the program that goes with it. For your safety, JeffWrite follows only web, email, FTP, telephone, and file links. A file link must give the whole path of a file on your computer, and the file must be a document or a picture (such as .docx, .odt, .pdf, .txt, .xlsx, .pptx, .png, or .jpg). A link to a program, to a script, to a file on another computer, or to a path that is not whole is never opened. JeffWrite does not look for the file before it asks.
 
 ## Text from a file
 

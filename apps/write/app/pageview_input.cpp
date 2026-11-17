@@ -1265,7 +1265,7 @@ bool PageView::followLinkAt(int at)
     const Hyperlink link = hyperlinkAt(*m_doc, at);
     if (link.valid() && link.anchor.isEmpty() && !link.address.isEmpty()) {
         if (mayFollow(link.address) || isFileLink(link.address)) Q_EMIT linkFollowed(link.address, link.text);
-        else Q_EMIT notice(tr("JeffWrite follows links to web addresses, email addresses, and files on this computer, and never starts a program."));
+        else Q_EMIT notice(tr("JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only."));
         return true;
     }
     const int target = linkTargetAt(*m_doc, at);

@@ -3,6 +3,7 @@
 #include "app/uistyle.h"
 
 #include "app/widgets.h"
+#include "io/odpexport.h"
 #include "io/pptxexport.h"
 #include "io/presentationdefaults.h"
 #include "office/hyperlink.h"
@@ -198,18 +199,33 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
     m_picker->setPlaceNames(tr("Place in this presentation"), tr("Place"));
     QVector<LinkPlace> places = {{tr("Next slide"), QStringLiteral("#next")}, {tr("Previous slide"), QStringLiteral("#previous")}, {tr("First slide"), QStringLiteral("#first")},
                                  {tr("Last slide"), QStringLiteral("#last")}, {tr("Last slide viewed"), QStringLiteral("#lastviewed")}};
-    for (int i = 1; i <= slides && places.size() < kMostLinkPlaces - 1; ++i) places.push_back({tr("Slide %1").arg(i), office::slideLink(i)});
+    for (int i = 1; i <= slides && places.size() <= kMostLinkPlaces; ++i) places.push_back({tr("Slide %1").arg(i), office::slideLink(i)});
     for (const auto &show : shows) {
-        if (places.size() >= kMostLinkPlaces - 1) break;
+        if (places.size() > kMostLinkPlaces) break;
         places.push_back({tr("Custom show: %1").arg(show.second), office::customShowLink(show.first, false)});
         places.push_back({tr("Custom show, then back: %1").arg(show.second), office::customShowLink(show.first, true)});
     }
     places.push_back({tr("End show"), QStringLiteral("#end")});
-    m_picker->setPlaces(places);
+    // The place the link has now is always in the list (first), so editing it never sends it somewhere else.
+    LinkPlace here;
+    const office::LinkTarget now = office::parseLink(current);
+    switch (now.kind) {
+    case office::LinkKind::Mail: case office::LinkKind::File: case office::LinkKind::Deck: case office::LinkKind::None: case office::LinkKind::Web: break;
+    default: {
+        here.value = now.kind == office::LinkKind::Slide ? office::slideLink(now.slide) : now.kind == office::LinkKind::CustomShow ? office::customShowLink(now.slide, now.back) : current.trimmed().toLower();
+        bool listed = false;
+        for (const LinkPlace &p : places) listed |= p.value == here.value;
+        if (!listed) here.label = now.kind == office::LinkKind::Slide ? tr("Slide %1").arg(now.slide) : tr("Current link: %1").arg(current.trimmed().left(120));
+        else here = LinkPlace();
+        if (!here.value.isEmpty() && here.label.isEmpty()) here = LinkPlace();
+    }
+    }
+    m_picker->setPlaces(places, here);
     m_picker->enableAppDocument(tr("Another presentation"), tr("Presentations (*.pptx *.ppsx *.pptm *.ppsm *.ppt *.pps *.odp)"));
-    m_picker->enableNewDocument(tr("Presentations (*.pptx)"), QStringLiteral("pptx"), [](const QString &path, QString *why) {
+    m_picker->enableNewDocument(tr("Presentations (*.pptx)"), {QStringLiteral("pptx"), QStringLiteral("odp")}, [](const QString &path, QString *why) {
         QString error;
-        const QByteArray bytes = deck::exportPresentation(*deck::newDefaultPresentation(), &error);
+        const auto blank = deck::newDefaultPresentation();
+        const QByteArray bytes = path.endsWith(QLatin1String(".odp"), Qt::CaseInsensitive) ? deck::exportOdp(*blank, false, &error) : deck::exportPresentation(*blank, &error);
         QFile f(path);
         if (bytes.isEmpty() || !f.open(QIODevice::WriteOnly | QIODevice::NewOnly) || f.write(bytes) != bytes.size()) {
             if (why) *why = tr("The new presentation could not be written there.");
@@ -224,7 +240,6 @@ LinkDialog::LinkDialog(const QString &current, int slides, const QVector<QPair<i
     m_problem->setTextFormat(Qt::PlainText);
     lay->addWidget(m_problem);
     setDisplayShown(QString(), false);
-    const office::LinkTarget now = office::parseLink(current);
     switch (now.kind) {
     case office::LinkKind::Mail: m_picker->setKind(LinkTargetPicker::Email); m_picker->setAddress(now.address.mid(7)); break;
     case office::LinkKind::File: m_picker->setKind(LinkTargetPicker::File); m_picker->setAddress(now.address); break;

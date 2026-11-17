@@ -1,5 +1,7 @@
 #include "app/linktargetpicker.h"
 
+#include "office/hyperlink.h"
+
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QDir>
@@ -50,6 +52,11 @@ LinkTargetPicker::LinkTargetPicker(QWidget *parent) : QWidget(parent)
     m_placeLabel->setTextFormat(Qt::PlainText);
     m_placeLabel->setBuddy(m_place);
     form->addRow(m_placeLabel, m_place);
+    m_placeNote = new QLabel(this);
+    m_placeNote->setObjectName(QStringLiteral("linkPlaceNote"));
+    m_placeNote->setTextFormat(Qt::PlainText);
+    m_placeNote->hide();
+    form->addRow(QString(), m_placeNote);
     connect(m_kind, &QComboBox::currentIndexChanged, this, [this] { refresh(); });
     connect(m_address, &QLineEdit::textChanged, this, &LinkTargetPicker::changed);
     connect(m_place, &QComboBox::currentIndexChanged, this, &LinkTargetPicker::changed);
@@ -64,12 +71,28 @@ void LinkTargetPicker::setPlaceNames(const QString &kindName, const QString &fie
     m_placeLabel->setText(fieldLabel);
 }
 
-void LinkTargetPicker::setPlaces(const QVector<LinkPlace> &places)
+void LinkTargetPicker::setPlaces(const QVector<LinkPlace> &places, const LinkPlace &current)
 {
     m_place->clear();
-    m_truncated = places.size() > kMostLinkPlaces;
-    const int n = int(std::min<qsizetype>(places.size(), kMostLinkPlaces));
-    for (int i = 0; i < n; ++i) m_place->addItem(places[i].label, places[i].value);
+    int room = kMostLinkPlaces;
+    bool cut = false;
+    if (!current.value.isEmpty()) {
+        m_place->addItem(current.label, current.value);
+        --room;
+    }
+    for (const LinkPlace &p : places) {
+        if (!current.value.isEmpty() && p.value == current.value) continue;
+        if (room <= 0) {
+            cut = true;
+            break;
+        }
+        m_place->addItem(p.label, p.value);
+        --room;
+    }
+    m_truncated = cut;
+    m_placeNote->setText(cut ? QCoreApplication::translate("jp::LinkTargetPicker", "Showing the first %1 places.").arg(kMostLinkPlaces) : QString());
+    m_place->setCurrentIndex(0);
+    refresh();
 }
 
 int LinkTargetPicker::placeCount() const { return m_place->count(); }
@@ -80,10 +103,10 @@ void LinkTargetPicker::enableAppDocument(const QString &kindName, const QString 
     if (m_kind->findData(AppDocument) < 0) m_kind->addItem(kindName, AppDocument);
 }
 
-void LinkTargetPicker::enableNewDocument(const QString &filter, const QString &suffix, const std::function<bool(const QString &, QString *)> &createEmpty)
+void LinkTargetPicker::enableNewDocument(const QString &filter, const QStringList &suffixes, const std::function<bool(const QString &, QString *)> &createEmpty)
 {
     m_newFilter = filter;
-    m_newSuffix = suffix;
+    m_newSuffixes = suffixes;
     m_createEmpty = createEmpty;
     if (m_kind->findData(NewDocument) < 0) m_kind->addItem(QCoreApplication::translate("jp::LinkTargetPicker", "New document"), NewDocument);
 }
@@ -129,8 +152,12 @@ bool LinkTargetPicker::prepare(QString *problem)
         return false;
     };
     QString path = m_address->text().trimmed();
-    if (path.isEmpty() || !QDir::isAbsolutePath(path)) return fail(QCoreApplication::translate("jp::LinkTargetPicker", "Choose where the new document goes: type its whole path, or press Browse."));
-    if (!m_newSuffix.isEmpty() && QFileInfo(path).suffix().isEmpty()) path += QLatin1Char('.') + m_newSuffix;
+    // Judged from the text alone, before anything is made: a whole path on this computer (never another computer's), ending as the app's own documents do.
+    if (!office::isLocalAbsolutePath(path)) return fail(QCoreApplication::translate("jp::LinkTargetPicker", "Choose where the new document goes: type its whole path on this computer, or press Browse."));
+    if (!m_newSuffixes.isEmpty()) {
+        if (QFileInfo(path).suffix().isEmpty()) path += QLatin1Char('.') + m_newSuffixes.first();
+        else if (!office::pathEndsWithOneOf(path, m_newSuffixes)) return fail(QCoreApplication::translate("jp::LinkTargetPicker", "A new document here ends with %1.").arg(QLatin1Char('.') + m_newSuffixes.join(QStringLiteral(", ."))));
+    }
     if (path == m_created) return true;   // (made by an earlier try)
     if (!m_created.isEmpty()) discardCreated();
     if (QFileInfo::exists(path)) return fail(QCoreApplication::translate("jp::LinkTargetPicker", "A file with that name is already there. Choose another name."));
@@ -155,6 +182,7 @@ void LinkTargetPicker::refresh()
     m_addressLabel->setVisible(!place);
     m_placeRow->setVisible(place);
     m_placeLabel->setVisible(place);
+    m_placeNote->setVisible(place && m_truncated);
     m_browse->setVisible(k == File || k == AppDocument || k == NewDocument);
     switch (k) {
     case Email:

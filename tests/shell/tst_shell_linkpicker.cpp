@@ -20,7 +20,7 @@ private Q_SLOTS:
         QVERIFY(kinds);
         QCOMPARE(kinds->count(), 4);   // web, email, place, file
         p.enableAppDocument(QStringLiteral("Another"), QStringLiteral("*.x"));
-        p.enableNewDocument(QStringLiteral("*.x"), QStringLiteral("x"), [](const QString &, QString *) { return true; });
+        p.enableNewDocument(QStringLiteral("*.x"), {QStringLiteral("x")}, [](const QString &, QString *) { return true; });
         QCOMPARE(kinds->count(), 6);
         QCOMPARE(p.kind(), LinkTargetPicker::Web);
         p.setAddress(QStringLiteral("  example.com "));
@@ -50,6 +50,11 @@ private Q_SLOTS:
         p.setPlaces(many);
         QCOMPARE(p.placeCount(), kMostLinkPlaces);
         QVERIFY(!p.truncated());
+        // The place a link has now is first and chosen even when it is not among the first places, and the list is still the most.
+        p.setPlaces(many + QVector<LinkPlace>{{QStringLiteral("late"), QStringLiteral("late")}}, {QStringLiteral("late"), QStringLiteral("late")});
+        QCOMPARE(p.placeCount(), kMostLinkPlaces);
+        QCOMPARE(p.placeValue(), QStringLiteral("late"));
+        QVERIFY(p.truncated());
     }
 
     void aNewDocumentIsMadeOnlyWhereNothingIsAndCanBeTakenBack()
@@ -58,7 +63,7 @@ private Q_SLOTS:
         QVERIFY(dir.isValid());
         int made = 0;
         LinkTargetPicker p;
-        p.enableNewDocument(QStringLiteral("*.doc"), QStringLiteral("doc"), [&](const QString &path, QString *) {
+        p.enableNewDocument(QStringLiteral("*.doc"), {QStringLiteral("doc")}, [&](const QString &path, QString *) {
             ++made;
             QFile f(path);
             return f.open(QIODevice::WriteOnly) && f.write("empty") == 5;

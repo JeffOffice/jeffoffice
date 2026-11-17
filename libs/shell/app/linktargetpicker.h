@@ -6,6 +6,7 @@
 #include "core/export.h"
 
 #include <QString>
+#include <QStringList>
 #include <QVector>
 #include <QWidget>
 #include <functional>
@@ -36,13 +37,15 @@ public:
     // What the app calls its places ("Place in this document") and the list's label ("Place").
     void setPlaceNames(const QString &kindName, const QString &fieldLabel);
     // The places to pick from (at most kMostLinkPlaces; the count that was left off is truncated()).
-    void setPlaces(const QVector<LinkPlace> &places);
+    // `current` is the place the link has now (when it has one): it is always in the list, first, inside the most, and chosen, so that editing a link never changes where it goes.
+    void setPlaces(const QVector<LinkPlace> &places, const LinkPlace &current = LinkPlace());
     int placeCount() const;
     bool truncated() const { return m_truncated; }
     // Another document of the app's own kind to link to by its path (a presentation that is played from the link): `kindName` is its name in the list.
     void enableAppDocument(const QString &kindName, const QString &filter);
     // A new document: `createEmpty` writes an empty one of the app's kind at the path (false, with the reason, when it can't); `filter` and `suffix` are for the box that picks its name.
-    void enableNewDocument(const QString &filter, const QString &suffix, const std::function<bool(const QString &path, QString *why)> &createEmpty);
+    // `suffixes` are the endings a new document may have (the first is added to a name with none); a path of any other ending, or not a whole path on this computer, is refused before anything is made.
+    void enableNewDocument(const QString &filter, const QStringList &suffixes, const std::function<bool(const QString &path, QString *why)> &createEmpty);
 
     Kind kind() const;
     void setKind(Kind kind);
@@ -72,7 +75,9 @@ private:
     QLabel *m_addressLabel, *m_placeLabel;
     QWidget *m_addressRow, *m_placeRow;
     QPushButton *m_browse;
-    QString m_placeKindName, m_appDocumentFilter, m_newFilter, m_newSuffix, m_created;
+    QString m_placeKindName, m_appDocumentFilter, m_newFilter, m_created;
+    QStringList m_newSuffixes;
+    QLabel *m_placeNote;
     std::function<bool(const QString &, QString *)> m_createEmpty;
     bool m_truncated = false;
 };

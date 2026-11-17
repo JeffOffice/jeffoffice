@@ -6,6 +6,7 @@
 #include <QRegularExpression>
 #include <QTextStream>
 #include <QDomElement>
+#include <algorithm>
 #include <atomic>
 #include <QUrl>
 #include "office/drawingml.h"
@@ -118,6 +119,59 @@ bool isProgramPath(const QString &address)
     ++g_fileLooks;
     const QFileInfo info(path);
     return info.isFile() && info.isExecutable();
+}
+
+namespace {
+bool hasControl(const QString &t)
+{
+    for (const QChar c : t)
+        if (c.unicode() < 0x20 || c.unicode() == 0x7F || (c.unicode() >= 0x80 && c.unicode() < 0xA0) || c == QChar(0x202E)) return true;
+    return false;
+}
+}
+
+bool isLocalAbsolutePath(const QString &path)
+{
+    if (path.isEmpty() || path.size() > 2000 || hasControl(path)) return false;
+    if (path.startsWith(QLatin1String("//")) || path.startsWith(QLatin1String("\\\\"))) return false;   // (another computer)
+    if (path.startsWith(QLatin1Char('/'))) return true;
+    // A drive letter and a slash: "C:/x" or "C:\x".
+    return path.size() >= 3 && path[0].isLetter() && path[0].unicode() < 128 && path[1] == QLatin1Char(':') && (path[2] == QLatin1Char('/') || path[2] == QLatin1Char('\\'));
+}
+
+bool pathEndsWithOneOf(const QString &path, const QStringList &endings)
+{
+    const int slash = int(std::max(path.lastIndexOf(QLatin1Char('/')), path.lastIndexOf(QLatin1Char('\\'))));
+    const QString name = path.mid(slash + 1);
+    const int dot = int(name.lastIndexOf(QLatin1Char('.')));
+    return dot > 0 && endings.contains(name.mid(dot + 1).toLower());
+}
+
+bool isOpenableFileLink(const QString &address, QString *pathOut)
+{
+    if (pathOut) pathOut->clear();
+    if (address.isEmpty() || address.size() > 2000 || hasControl(address)) return false;
+    QString path = address;
+    if (address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
+        // Only "file:///path" and "file://localhost/path": no host, and a path that is whole (not "file:name" or "file:..\\x").
+        const QString rest = address.mid(5);
+        if (!rest.startsWith(QLatin1String("///")) && !rest.startsWith(QLatin1String("//localhost/"), Qt::CaseInsensitive)) return false;
+        const QString part = rest.startsWith(QLatin1String("///")) ? rest.mid(2) : rest.mid(11);   // (from the first slash of the path)
+        if (part.contains(QLatin1Char('?')) || part.contains(QLatin1Char('#'))) return false;
+        path = QUrl::fromPercentEncoding(part.toUtf8());   // (decoded: a hidden %00 or %0A shows as a control character)
+        if (path.startsWith(QLatin1Char('/')) && path.size() > 2 && path[2] == QLatin1Char(':')) path = path.mid(1);
+    }
+    if (!isLocalAbsolutePath(path)) return false;
+    // A stream or device name ("a.txt:hidden", "CON") and a name that ends with a blank or a dot are not what they look like.
+    if (path.indexOf(QLatin1Char(':'), 2) >= 0 || path.contains(QLatin1Char('?')) || path.contains(QLatin1Char('*')) || path.contains(QLatin1Char('|')) || path.contains(QLatin1Char('<')) || path.contains(QLatin1Char('>'))) return false;
+    if (path.endsWith(QLatin1Char(' ')) || path.endsWith(QLatin1Char('.'))) return false;
+    static const QStringList endings = {QStringLiteral("docx"), QStringLiteral("doc"), QStringLiteral("dotx"), QStringLiteral("odt"), QStringLiteral("rtf"), QStringLiteral("txt"), QStringLiteral("pdf"),
+                                        QStringLiteral("xlsx"), QStringLiteral("xls"), QStringLiteral("ods"), QStringLiteral("csv"), QStringLiteral("pptx"), QStringLiteral("ppt"),
+                                        QStringLiteral("ppsx"), QStringLiteral("pps"), QStringLiteral("odp"), QStringLiteral("pub"), QStringLiteral("png"), QStringLiteral("jpg"),
+                                        QStringLiteral("jpeg"), QStringLiteral("gif"), QStringLiteral("bmp"), QStringLiteral("tif"), QStringLiteral("tiff"), QStringLiteral("md"), QStringLiteral("epub")};
+    if (!pathEndsWithOneOf(path, endings)) return false;
+    if (pathOut) *pathOut = path;
+    return true;
 }
 
 QString linkAddress(const QString &link) { return parseLink(link).address; }

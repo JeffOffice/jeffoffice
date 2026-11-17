@@ -57,19 +57,33 @@ bool linkDialog(QWidget *parent, WriteDoc *doc, PageView *view)
     v->addLayout(form);
     auto *picker = new LinkTargetPicker(&dlg);
     picker->setPlaceNames(QCoreApplication::translate("jp::write::LinkDialog", "Place in this document"), QCoreApplication::translate("jp::write::LinkDialog", "Place"));
-    // The places: the headings, then the bookmarks a person made (the hidden ones belong to headings).
+    // The places: the headings, then the bookmarks a person made (the hidden ones belong to headings). The list stops being built a place past the most it holds, and the place the
+    // link has now is always in it (first), so that changing the link's tip or words never changes where it goes.
     QVector<LinkPlace> places;
-    for (const RefTarget &t : crossReferenceTargets(*doc, RefKind::Heading)) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Heading: %1").arg(t.label), headingPlace(t.position)});
-    for (const BookmarkItem &b : bookmarkList(*doc, false, false)) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(b.name), b.name});
+    const int enough = kMostLinkPlaces + 1;
+    for (const RefTarget &t : crossReferenceTargets(*doc, RefKind::Heading)) {
+        if (places.size() >= enough) break;
+        places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Heading: %1").arg(t.label.left(120)), headingPlace(t.position)});
+    }
+    for (const BookmarkItem &b : bookmarkList(*doc, false, false)) {
+        if (places.size() >= enough) break;
+        places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(b.name.left(120)), b.name});
+    }
+    LinkPlace current;
     const QString here = existing.anchor.isEmpty() ? QString() : placeOfAnchor(*doc, existing.anchor);
     if (!here.isEmpty()) {
-        bool listed = false;
-        for (const LinkPlace &p : places) listed |= p.value == here;
-        if (!listed) places.push_back({QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(existing.anchor), existing.anchor});
+        if (here == existing.anchor) {
+            current = {QCoreApplication::translate("jp::write::LinkDialog", "Bookmark: %1").arg(existing.anchor.left(120)), existing.anchor};
+        } else {
+            QString label = doc->story()->findBlock(headingPositionOfPlace(here)).text();
+            label.remove(QChar::ObjectReplacementCharacter);
+            current = {QCoreApplication::translate("jp::write::LinkDialog", "Heading: %1").arg(label.simplified().left(120)), here};
+        }
     }
-    picker->setPlaces(places);
-    picker->enableNewDocument(QCoreApplication::translate("jp::write::LinkDialog", "Documents (*.docx)"), QStringLiteral("docx"), [](const QString &path, QString *why) {
-        const QByteArray bytes = WriteDoc::blank()->toDocx();
+    picker->setPlaces(places, current);
+    picker->enableNewDocument(QCoreApplication::translate("jp::write::LinkDialog", "Documents (*.docx *.odt)"), {QStringLiteral("docx"), QStringLiteral("odt")}, [](const QString &path, QString *why) {
+        const bool odt = path.endsWith(QLatin1String(".odt"), Qt::CaseInsensitive);
+        const QByteArray bytes = odt ? WriteDoc::blank()->toOdt() : WriteDoc::blank()->toDocx();
         QFile f(path);
         if (bytes.isEmpty() || !f.open(QIODevice::WriteOnly | QIODevice::NewOnly) || f.write(bytes) != bytes.size()) {
             if (why) *why = QCoreApplication::translate("jp::write::LinkDialog", "The new document could not be written there.");

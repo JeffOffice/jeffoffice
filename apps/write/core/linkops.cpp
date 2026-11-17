@@ -92,7 +92,8 @@ bool allowedAddress(const QString &address)
     return url.isValid() && (scheme == QLatin1String("http") || scheme == QLatin1String("https") || scheme == QLatin1String("mailto") || scheme == QLatin1String("ftp") || scheme == QLatin1String("tel"));
 }
 
-const QString kHeadingPrefix = QStringLiteral("heading:");
+// (U+0001 is no character of a name in a file, so no bookmark has a name that begins like this.)
+const QString kHeadingPrefix = QString(QChar(1)) + QStringLiteral("heading:");
 
 int headingPositionOf(const QString &anchor)
 {
@@ -146,24 +147,21 @@ QString normalizedAddress(const QString &typed)
     return QStringLiteral("https://") + t;
 }
 
-bool isFileLink(const QString &address)
-{
-    if (address.size() > kMostAddress || !address.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) return false;
-    const QUrl url(address, QUrl::TolerantMode);
-    if (!url.isValid() || !url.isLocalFile() || (!url.host().isEmpty() && url.host().compare(QLatin1String("localhost"), Qt::CaseInsensitive) != 0)) return false;
-    const QString path = url.toLocalFile();
-    return !path.isEmpty() && !office::isProgramPath(path) && !office::isRemoteFile(address);
-}
+bool isFileLink(const QString &address) { return address.size() <= kMostAddress && office::isOpenableFileLink(address); }
 
 QString fileLinkOfPath(const QString &typed)
 {
     const QString t = typed.trimmed();
     if (t.isEmpty() || t.size() > kMostAddress) return QString();
-    const QString link = t.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t : QDir::isAbsolutePath(t) && !t.startsWith(QLatin1String("//")) ? QUrl::fromLocalFile(t).toString() : QString();
+    const QString link = t.startsWith(QLatin1String("file:"), Qt::CaseInsensitive) ? t : office::isLocalAbsolutePath(t) ? QUrl::fromLocalFile(t).toString(QUrl::FullyEncoded) : QString();
     return isFileLink(link) ? link : QString();
 }
 
-QString pathOfFileLink(const QString &address) { return isFileLink(address) ? QUrl(address, QUrl::TolerantMode).toLocalFile() : QString(); }
+QString pathOfFileLink(const QString &address)
+{
+    QString path;
+    return address.size() <= kMostAddress && office::isOpenableFileLink(address, &path) ? path : QString();
+}
 
 bool mayFollow(const QString &address) { return address.size() <= kMostAddress && allowedAddress(address); }
 
@@ -330,6 +328,8 @@ QVector<LinkSpan> linkSpansIn(WriteDoc &doc, QTextDocument *story, const QTextDo
     return out;
 }
 
+int headingPositionOfPlace(const QString &place) { return headingPositionOf(place); }
+
 QString headingPlace(int paragraphPosition) { return kHeadingPrefix + QString::number(paragraphPosition); }
 
 QString headingBookmark(WriteDoc &doc, int paragraphPosition, bool make, QString *problem)
@@ -390,8 +390,14 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
     if (isLocked(c.block())) return false;
     const WriteDoc::StepGroup group(doc);
     EditScope scope(doc, story);
+    const bool hadBookmark = anchorAsked.startsWith(kHeadingPrefix) && !headingBookmark(doc, headingPositionOf(anchorAsked), false).isEmpty();
     const QString anchor = resolvedAnchor(doc, anchorAsked, problem);
     if (!anchorAsked.isEmpty() && anchor.isEmpty()) return false;
+    // (A bookmark made for this link goes again if the link can't be made.)
+    auto giveUp = [&] {
+        if (anchorAsked.startsWith(kHeadingPrefix) && !hadBookmark) deleteBookmark(doc, anchor);
+        return false;
+    };
     // The text the link covers: the selection, or the words typed for it.
     if (!c.hasSelection()) {
         const QString shown = text.isEmpty() ? (anchorAsked.isEmpty() ? address : anchorAsked.startsWith(kHeadingPrefix) ? doc.story()->findBlock(headingPositionOf(anchorAsked)).text().remove(QChar::ObjectReplacementCharacter).trimmed().left(120) : anchor) : text;
@@ -400,7 +406,7 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
         c.setPosition(c.position() + int(shown.size()), QTextCursor::KeepAnchor);
     }
     const int from = c.selectionStart(), to = c.selectionEnd();
-    if (from == to) return false;
+    if (from == to) return giveUp();
     // A link is inside one paragraph (its two tags are in it): a selection over several becomes a link for each paragraph's part, all to the same place.
     QVector<std::pair<int, int>> ranges;
     for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
@@ -408,7 +414,7 @@ bool insertHyperlink(WriteDoc &doc, QTextCursor &c, const QString &address, cons
         const int a = std::max(from, b.position()), z = std::min(to, b.position() + b.length() - 1);
         if (z > a) ranges.push_back({a, z});
     }
-    if (ranges.isEmpty()) return false;
+    if (ranges.isEmpty()) return giveUp();
     QTextCursor edit(story);
     edit.beginEditBlock();
     {

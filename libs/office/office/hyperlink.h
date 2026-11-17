@@ -4,6 +4,7 @@
 // a link that is ever followed.
 
 #include <QString>
+#include <QStringList>
 
 class QDomElement;
 
@@ -38,6 +39,15 @@ bool isProgramPath(const QString &path);
 int linkFileLooks();
 // The address a person is shown and asked about: the target's address, or "" for links inside the presentation.
 QString linkAddress(const QString &link);
+
+// What a link to a file may be followed to, decided from the text alone (nothing is looked at, so a path on another computer is never touched): an absolute path on this computer (or a
+// "file:" address with no host or "localhost"), with no control character, no "..%00"-style hidden character, no stream or device name, whose ending is a document or picture type (never a
+// script or a program, and not .svg, which can hold scripts). `path` gets the path when it is. A relative path, a path on another computer, and any other ending are refused.
+bool isOpenableFileLink(const QString &fileAddressOrPath, QString *path = nullptr);
+// Whether the text is a whole path on this computer (absolute, not on another computer, no control character), judged from the text alone.
+bool isLocalAbsolutePath(const QString &path);
+// Whether a path ends as one of these (compared without regard to case).
+bool pathEndsWithOneOf(const QString &path, const QStringList &endings);
 
 struct DrawingContext;
 // The link an a:hlinkClick says: an address, or one of the strings above for a jump (r:id and ppaction://hlinkshowjump, hlinksldjump, or hlinkfile); empty for a click

@@ -1338,6 +1338,13 @@ private Q_SLOTS:
         // The places are at most kMostLinkPlaces: a presentation of more slides lists that many.
         LinkDialog big(QString(), 3 * kMostLinkPlaces, {});
         QCOMPARE(big.findChild<LinkTargetPicker *>()->placeCount(), kMostLinkPlaces);
+        // A link keeps its place when the box opens and closes, wherever it is: past the places listed, or in a slide that is no longer there.
+        LinkDialog far(office::slideLink(3 * kMostLinkPlaces - 1), 3 * kMostLinkPlaces, {});
+        QCOMPARE(far.link(), office::slideLink(3 * kMostLinkPlaces - 1));
+        QCOMPARE(far.findChild<LinkTargetPicker *>()->placeCount(), kMostLinkPlaces);
+        LinkDialog gone(office::slideLink(9), 3, {});
+        QCOMPARE(gone.link(), office::slideLink(9));
+
     }
 
     // Pictures of the link box for the change's report (only with JO_SHOT_DIR set).

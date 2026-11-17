@@ -1336,8 +1336,11 @@ void SlideShow::followLink(const QString &link)
     const QString target = t.kind == office::LinkKind::Deck ? resolvedPresentationPath(t.address, m_baseDir) : t.address;
     const bool remote = office::isRemoteFile(target);
     // A program or a script is never run by a link: it is refused, and the person is told.
-    if ((t.kind == office::LinkKind::File && office::isProgramFile(t.address)) || (t.kind == office::LinkKind::Deck && office::isProgramPath(target))) {
-        const QString text = tr("This link opens a program, so it was not opened.");
+    // A file on this computer is opened only when its ending is a document or picture type (from the text alone: the file is not looked at); a file on another computer is asked about as before.
+    const bool program = (t.kind == office::LinkKind::File && office::isProgramFile(t.address)) || (t.kind == office::LinkKind::Deck && office::isProgramPath(target));
+    const bool notAllowed = !program && t.kind == office::LinkKind::File && !remote && !office::isOpenableFileLink(t.address);
+    if (program || notAllowed) {
+        const QString text = notAllowed ? tr("This link goes to a kind of file that is not opened from a link, so it was not opened.") : tr("This link opens a program, so it was not opened.");
         if (m_linkNotice) m_linkNotice(text);
         else jp::plainWarning(this, tr("Open Link"), text);
         return;

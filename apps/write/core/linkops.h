@@ -28,8 +28,8 @@ QString normalizedAddress(const QString &typed);
 // Whether a link to this address is followed (a web or email address; no link starts a program or opens a file).
 bool mayFollow(const QString &address);
 
-// A link to a file on this computer ("file:" and a path, no host). The link is made and kept, and is followed only after a question; one to a program (by the ending of its name) or to a
-// file on another computer is not a link to a file that is made or followed. Nothing looks for the file.
+// A link to a file on this computer that may be made and followed: "file:" and a whole path, no host, of a document or picture type (office/hyperlink.h isOpenableFileLink: decided from the
+// text alone, nothing looks for the file). It is followed only after a question; any other (a relative path, another computer, a program or another ending) is neither made nor followed.
 bool isFileLink(const QString &address);
 // The "file:" address of a path typed or chosen (an absolute path only; empty for any other text, and for a path that names a program or another computer).
 QString fileLinkOfPath(const QString &typed);
@@ -39,9 +39,11 @@ QString pathOfFileLink(const QString &address);
 // Whether following a link to this address, shown as these words, is asked about first: a mail or telephone link, and one whose words look like another address than it goes to.
 bool linkNeedsAsking(const QString &address, const QString &shown);
 
-// A link to a heading is made to a place that stands for it, "heading:" and the position of its paragraph, in the place of a bookmark's name: the link then goes to a hidden bookmark over the
+// A link to a heading is made to a place that stands for it, a mark no bookmark's name can begin with and the position of its paragraph, in the place of a bookmark's name: the link then goes to a hidden bookmark over the
 // heading's text (a _Toc name, the one the heading has already, else a new one made with the link, as one step), which the file keeps in every format.
 QString headingPlace(int paragraphPosition);
+// The paragraph's position a heading place stands for (-1 for a name that is not one).
+int headingPositionOfPlace(const QString &place);
 // The place a link to this bookmark name shows in a list: the name of a bookmark a person made, else the heading that a hidden bookmark covers ("heading:" and its position), else the name.
 QString placeOfAnchor(WriteDoc &doc, const QString &anchor);
 // The hidden bookmark over the heading whose paragraph begins at the position: the one it has, or, with `make`, a new one (one step that undoes; the positions after the heading move by two).
