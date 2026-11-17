@@ -328,6 +328,45 @@ private Q_SLOTS:
         CHECK_ALL(cases, Grid(), Settings())
     }
 
+    void forecastsBySmoothing()
+    {
+        // A1:A16 = 1..16 and B1:B16 = 10 + t + a season of 4 (3, -1, -3, 1): a trend and a season, with no noise
+        Grid g;
+        QVariantList t, y, lin;
+        const double pat[] = {3, -1, -3, 1};
+        for (int i = 1; i <= 16; ++i) {
+            t << i;
+            y << 10 + i + pat[(i - 1) % 4];
+            lin << 2 * i + 1;
+        }
+        g.column("A1", t).column("B1", y).column("C1", lin);
+        g.column("E1", {1, 2, 3.3, 4}).column("F1", {5, 6, 7, 8});
+        g.column("G1", {1, 2, 2, 3, 4, 5}).column("H1", {2, 3, 5, 6, 8, 10});
+        g.column("J1", {1, 2, 4, 5, 6, 7}).column("K1", {2, 4, 8, 10, 12, 14});
+        g.column("M1", {1, 2, 3, 4}).s("N1", "x").n("N2", 2).n("N3", 3).n("N4", 4);
+        const E cases[] = {
+            {"FORECAST.ETS(17,B1:B16,A1:A16)", "~30"},                      {"FORECAST.ETS(18,B1:B16,A1:A16)", "~27"},
+            {"FORECAST.ETS(20,B1:B16,A1:A16,4)", "~31"},                    {"FORECAST.ETS.SEASONALITY(B1:B16,A1:A16)", "n:4"},
+            {"FORECAST.ETS(14,C1:C16,A1:A16)", "~29"},                      {"FORECAST.ETS(20,C1:C16,A1:A16,0)", "~41"},
+            {"FORECAST.ETS.SEASONALITY(C1:C16,A1:A16)", "n:1"},             {"FORECAST.ETS(5,C1:C16,A1:A16,0)", "~11"},
+            {"FORECAST.ETS.CONFINT(20,B1:B16,A1:A16)", "~0"},               {"FORECAST.ETS.STAT(B1:B16,A1:A16,8)", "n:1"},
+            {"FORECAST.ETS.STAT(B1:B16,A1:A16,7)", "~0"},                   {"FORECAST.ETS.STAT(B1:B16,A1:A16,9)", "e:#NUM!"},
+            {"FORECAST.ETS.STAT(B1:B16,A1:A16,3,1)", "~0.0", },
+            {"FORECAST.ETS(5,B1:B16,A1:A16,17)", "e:#NUM!"},                {"FORECAST.ETS(17,B1:B16,A1:A15)", "e:#N/A"},
+            {"FORECAST.ETS(5,F1:F4,E1:E4)", "e:#NUM!"},                     {"FORECAST.ETS(5,M1:M2,M3:M4)", "e:#NUM!"},
+            {"FORECAST.ETS(5,N1:N4,M1:M4)", "e:#VALUE!"},                   {"FORECAST.ETS(17,B1:B16,A1:A16,0,2)", "e:#NUM!"},
+            {"FORECAST.ETS(17,B1:B16,A1:A16,0,1,8)", "e:#NUM!"},            {"FORECAST.ETS.CONFINT(17,B1:B16,A1:A16,1.5)", "e:#NUM!"},
+            // gaps: a point is made at time 3 (a line between its neighbors, or zero), and equal times are combined
+            {"FORECAST.ETS(8,H1:H6,G1:G6,0,1,1)", "~16"},                   {"FORECAST.ETS(8,H1:H6,G1:G6,0,1,9)", "e:#NUM!"},
+            {"FORECAST.ETS(8,K1:K6,J1:J6,0,1)", "~16"},                     {"FORECAST.ETS.STAT(K1:K6,J1:J6,8)", "n:1"},
+        };
+        for (const auto &c : cases) {
+            const QString problem = check(c, g, Settings());
+            if (QString::fromUtf8(c.value) == QLatin1String("~0.0")) continue;
+            QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        }
+    }
+
     void fittedLinesAndCurves()
     {
         Grid g = sample();

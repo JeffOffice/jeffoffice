@@ -1199,6 +1199,15 @@ public:
     // Consolidate without the question: ranges as references ("Sheet2!A1:C10"; one without a sheet is on the sheet in view), the function (the number SUBTOTAL is called with), where the
     // names are, whether the results link to their sources, and the cell the result starts at. One step of Undo.
     bool consolidateIn(const QStringList &references, int function, bool topLabels, bool leftLabels, bool links, const QString &destination);
+    // forecast sheet (v1-forecast)
+    // Data > Forecast Sheet: the question, then the sheet. forecastSheetIn makes it without the question: the ranges of the timeline and the values as references, the time the forecast ends at
+    // (and where it starts, not a number for after the last point), the confidence (0 to 1), the season (1: found, 0: none, else its length), whether to add the statistics, whether a missing point
+    // is interpolated (else zero), how repeated times are combined (1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum), and whether the chart has columns. One step of Undo; the sheet is
+    // put before the one in view. False, with a message, if the data can't be forecast.
+    void forecastSheetDialog();
+    bool forecastSheetIn(const QString &timelineText, const QString &valuesText, double end, double start, double confidence, int seasonality, bool statistics, bool interpolate, int aggregation, bool columns);
+    // The pairs of time and value of two ranges (a blank value is NaN), and whether the timeline is shown as dates; false, with the reason, if they can't be read.
+    bool forecastSource(const QString &timelineText, const QString &valuesText, std::vector<std::pair<double, double>> *pairs, bool *dates, QString *problem);
     // Circle Invalid Data: puts a red oval round each cell of the sheet in view with data its rule does not allow, and gives how many; Clear Validation Circles takes them away. What is circled
     // is looked at again as the sheet is worked out, so a cell that is put right loses its oval.
     int circleInvalidData();

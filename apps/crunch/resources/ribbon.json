@@ -401,7 +401,8 @@
           "keytip": "ZF",
           "items": [
             {"large": "data.goalSeek", "keytip": "GS"},
-            {"large": "data.scenarioManager", "keytip": "SM"}
+            {"large": "data.scenarioManager", "keytip": "SM"},
+            {"large": "data.forecastSheet", "keytip": "FS"}
           ]
         },
         {

@@ -93,8 +93,9 @@ void CrunchWindow::createTabs2Actions()
         formatSelection(change, tr("Do Not Check Spelling"));
     }, true);
     mk("data.consolidate", tr("Consolidate"), "combine", QKeySequence(), [this] { consolidateDialog(); });
+    mk("data.forecastSheet", tr("Forecast Sheet"), "chart-line", QKeySequence(), [this] { forecastSheetDialog(); });
     mk("data.subtotal", tr("Subtotal"), "sigma", QKeySequence(), [this] { subtotalDialog(); });
-    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling", "review.translate", "review.language", "review.noProof"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"review.statistics", "data.goalSeek", "data.scenarioManager", "data.forecastSheet", "data.subtotal", "data.advancedFilter", "formulas.errorChecking", "formulas.watchWindow", "formulas.evaluate", "data.validation", "data.consolidate", "data.circleInvalid", "review.accessibility", "review.thesaurus", "review.spelling", "review.translate", "review.language", "review.noProof"}) m_opsActions << QString::fromLatin1(id);
     connect(this, &CrunchWindow::calculationFinished, this, [this] {
         refreshInvalidCircles();
         refreshCellFlags(true);

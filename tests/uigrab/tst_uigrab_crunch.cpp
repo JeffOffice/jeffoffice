@@ -9,6 +9,7 @@
 #include <QDir>
 #include <QMenu>
 #include <QtTest>
+#include <limits>
 
 using namespace crunchtest;
 
@@ -53,6 +54,46 @@ private Q_SLOTS:
             poll.stop();
             if (!grabbed) qWarning("no dialog for %s", qPrintable(id));
         }
+    }
+
+    // Forecast Sheet: the dialog with its preview, and the sheet it makes.
+    void grabForecastSheet()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        QDir().mkpath(dir);
+        QStringList cells;
+        const double pat[] = {3, -1, -3, 1};
+        for (int i = 1; i <= 36; ++i) {
+            cells << QStringLiteral("A%1=%2").arg(i).arg(i) << QStringLiteral("B%1=%2").arg(i).arg(50 + 1.5 * i + 8 * pat[(i - 1) % 4] + (i * 7 % 5 - 2) * 1.2);
+        }
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        e.view()->selectRange(0, 0, 35, 1);
+        e.win.w.resize(1100, 760);
+        QAction *a = e.win.w.act(QStringLiteral("data.forecastSheet"));
+        QVERIFY(a && a->isEnabled());
+        bool grabbed = false;
+        QTimer poll;
+        QObject::connect(&poll, &QTimer::timeout, [&] {
+            QWidget *m = QApplication::activeModalWidget();
+            if (!m) return;
+            poll.stop();
+            QTimer::singleShot(200, [&, m] {
+                m->grab().save(dir + QStringLiteral("/forecast-dialog.png"));
+                grabbed = true;
+                if (auto *d = qobject_cast<QDialog *>(m)) d->reject();
+            });
+        });
+        poll.start(20);
+        a->trigger();
+        poll.stop();
+        QVERIFY(grabbed);
+        QVERIFY(e.win.w.forecastSheetIn(QStringLiteral("A1:A36"), QStringLiteral("B1:B36"), 48, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, true, true, 1, false));
+        QVERIFY(e.settle());
+        QTest::qWait(300);
+        QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/forecast-sheet.png")));
     }
 
     // The Calculation Options menu with Set Precision as Displayed ticked (the warning itself is grabbed above with JO_GRAB_IDS=formulas.precision).
