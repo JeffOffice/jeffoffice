@@ -3,7 +3,9 @@
 #include "office/barcodemarker.h"
 #include "sheet/xmlscan.h"
 
+#include <QDomDocument>
 #include <QLocale>
+#include <QTextStream>
 #include <QRegularExpression>
 
 #include <algorithm>
@@ -385,6 +387,211 @@ bool setDrawingObjectBarcodeMarkers(const QByteArray &xml, const std::map<int, Q
         qsizetype a = 0, b = 0;
         QByteArray r;
         if (!markerEdit(xml, children[size_t(ordinal)].first, children[size_t(ordinal)].second, ext, &a, &b, &r) || a < copied) continue;
+        result += xml.mid(copied, a - copied) + r;
+        copied = b;
+    }
+    if (copied == 0) return true;
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    return true;
+}
+
+namespace {
+
+QString localNameOf(const QDomNode &n)
+{
+    const QString t = n.nodeName();
+    const int c = t.indexOf(QLatin1Char(':'));
+    return c < 0 ? t : t.mid(c + 1);
+}
+
+QDomElement childLocal(const QDomElement &e, const char *name)
+{
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement())
+        if (localNameOf(c) == QLatin1String(name)) return c;
+    return QDomElement();
+}
+
+// The first xdr:sp at or under `e` (not far down).
+QDomElement firstShape(const QDomElement &e, int depth = 0)
+{
+    if (localNameOf(e) == QLatin1String("sp")) return e;
+    if (depth > 6) return QDomElement();
+    for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        const QDomElement f = firstShape(c, depth + 1);
+        if (!f.isNull()) return f;
+    }
+    return QDomElement();
+}
+
+QString prefixOf(const QDomNode &n)
+{
+    const QString t = n.nodeName();
+    const int c = t.indexOf(QLatin1Char(':'));
+    return c < 0 ? QString() : t.left(c + 1);
+}
+
+// The prefix the drawing uses for its a: elements ("a:" if none is found).
+QString drawingPrefix(const QDomElement &sp)
+{
+    for (const char *name : {"spPr", "txBody"})
+        for (QDomElement c = childLocal(sp, name).firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            const QString p = prefixOf(c);
+            if (!p.isEmpty()) return p;
+        }
+    return QStringLiteral("a:");
+}
+
+QString runText(const QDomElement &p)
+{
+    QString out;
+    for (QDomElement c = p.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+        const QString l = localNameOf(c);
+        if (l == QLatin1String("br")) out += QLatin1Char('\n');
+        else if (l == QLatin1String("r") || l == QLatin1String("fld"))
+            for (QDomElement t = c.firstChildElement(); !t.isNull(); t = t.nextSiblingElement())
+                if (localNameOf(t) == QLatin1String("t")) out += t.text();
+    }
+    return out;
+}
+
+QDomElement renamedCopy(QDomDocument doc, const QDomElement &from, const QString &name)
+{
+    QDomElement e = doc.createElement(name);
+    const QDomNamedNodeMap attrs = from.attributes();
+    for (int i = 0; i < attrs.size(); ++i) e.setAttribute(attrs.item(i).nodeName(), attrs.item(i).nodeValue());
+    for (QDomNode c = from.firstChild(); !c.isNull(); c = c.nextSibling()) e.appendChild(c.cloneNode(true));
+    return e;
+}
+
+} // namespace
+
+bool validShapeLink(const QString &ref)
+{
+    const QString t = ref.trimmed();
+    if (t.isEmpty() || t.size() > kMaxShapeLinkChars) return false;
+    bool quoted = false;
+    for (const QChar ch : t) {
+        if (ch.unicode() < 32) return false;
+        if (ch == QLatin1Char('\'')) quoted = !quoted;
+        else if (!quoted && (ch == QLatin1Char(':') || ch == QLatin1Char(',') || ch == QLatin1Char(';') || ch == QLatin1Char('(') || ch == QLatin1Char(')') || ch == QLatin1Char(' ') || ch == QLatin1Char('+') || ch == QLatin1Char('*') || ch == QLatin1Char('&')))
+            return false;
+    }
+    return !quoted;
+}
+
+QString shapeLinkStoredText(const QDomElement &sp)
+{
+    QStringList lines;
+    for (QDomElement p = childLocal(sp, "txBody").firstChildElement(); !p.isNull(); p = p.nextSiblingElement())
+        if (localNameOf(p) == QLatin1String("p")) lines << runText(p);
+    return lines.join(QLatin1Char('\n'));
+}
+
+void setShapeLinkText(QDomElement sp, const QString &textIn, bool *changed)
+{
+    if (changed) *changed = false;
+    if (sp.isNull()) return;
+    QString text = textIn;
+    text.replace(QStringLiteral("\r\n"), QStringLiteral("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
+    if (text.size() > kMaxShapeLinkText) text.truncate(kMaxShapeLinkText);
+    QDomDocument doc = sp.ownerDocument();
+    const QString a = drawingPrefix(sp);
+    static const QString kA = QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main");
+    QDomElement body = childLocal(sp, "txBody");
+    if (body.isNull()) {
+        body = doc.createElementNS(sp.namespaceURI(), prefixOf(sp) + QStringLiteral("txBody"));
+        body.appendChild(doc.createElementNS(kA, a + QStringLiteral("bodyPr")));
+        body.appendChild(doc.createElementNS(kA, a + QStringLiteral("lstStyle")));
+        // (before the shape's style or anything else that follows the text body, as the file's order has it)
+        QDomNode before;
+        for (QDomElement c = sp.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) {
+            const QString l = localNameOf(c);
+            if (l == QLatin1String("extLst") || l == QLatin1String("txXfrm") || l == QLatin1String("clientData")) {
+                before = c;
+                break;
+            }
+        }
+        if (before.isNull()) sp.appendChild(body);
+        else sp.insertBefore(body, before);
+    } else if (shapeLinkStoredText(sp) == text) {
+        return;
+    }
+    QDomElement pPr, rPr;
+    for (QDomElement p = body.firstChildElement(); !p.isNull() && rPr.isNull(); p = p.nextSiblingElement()) {
+        if (localNameOf(p) != QLatin1String("p")) continue;
+        if (pPr.isNull()) pPr = childLocal(p, "pPr");
+        for (QDomElement r = p.firstChildElement(); !r.isNull() && rPr.isNull(); r = r.nextSiblingElement())
+            if (localNameOf(r) == QLatin1String("r")) rPr = childLocal(r, "rPr");
+        if (rPr.isNull()) rPr = childLocal(p, "endParaRPr");
+    }
+    // (kept to be copied after the paragraphs are taken out)
+    const QDomElement pPrKeep = pPr.isNull() ? QDomElement() : pPr.cloneNode(true).toElement();
+    const QDomElement rPrKeep = rPr.isNull() ? QDomElement() : rPr.cloneNode(true).toElement();
+    for (QDomElement c = body.firstChildElement(); !c.isNull();) {
+        const QDomElement next = c.nextSiblingElement();
+        if (localNameOf(c) == QLatin1String("p")) body.removeChild(c);
+        c = next;
+    }
+    const QStringList lines = text.split(QLatin1Char('\n'));
+    for (const QString &line : lines) {
+        QDomElement p = doc.createElementNS(kA, a + QStringLiteral("p"));
+        if (!pPrKeep.isNull()) p.appendChild(pPrKeep.cloneNode(true));
+        if (!line.isEmpty()) {
+            QDomElement r = doc.createElementNS(kA, a + QStringLiteral("r"));
+            if (!rPrKeep.isNull()) r.appendChild(renamedCopy(doc, rPrKeep, a + QStringLiteral("rPr")));
+            QDomElement t = doc.createElementNS(kA, a + QStringLiteral("t"));
+            t.appendChild(doc.createTextNode(line));
+            r.appendChild(t);
+            p.appendChild(r);
+        } else if (!rPrKeep.isNull()) {
+            p.appendChild(renamedCopy(doc, rPrKeep, a + QStringLiteral("endParaRPr")));
+        }
+        body.appendChild(p);
+    }
+    if (changed) *changed = true;
+}
+
+QByteArray withFirstObjectTextLink(const QByteArray &element, const QString &ref, const QString &text, bool withText)
+{
+    QDomDocument doc;
+    if (!doc.setContent(QByteArrayLiteral("<w>") + element + QByteArrayLiteral("</w>"))) return element;
+    QDomElement sp = firstShape(doc.documentElement());
+    if (sp.isNull()) return element;
+    if (ref.isEmpty()) sp.removeAttribute(QStringLiteral("textlink"));
+    else sp.setAttribute(QStringLiteral("textlink"), ref);
+    if (withText) setShapeLinkText(sp, text);
+    QString out;
+    {
+        QTextStream ts(&out);
+        for (QDomNode c = doc.documentElement().firstChild(); !c.isNull(); c = c.nextSibling()) c.save(ts, -1);
+    }
+    return out.toUtf8();
+}
+
+bool setDrawingObjectTextLinks(const QByteArray &xml, const std::map<int, TextLinkWrite> &links, QByteArray *out, bool *changed)
+{
+    *out = xml;
+    *changed = false;
+    if (links.empty()) return true;
+    std::vector<std::pair<qsizetype, qsizetype>> children;
+    if (!childrenOfRoot(xml, &children)) return false;
+    QByteArray result;
+    qsizetype copied = 0;
+    for (const auto &[ordinal, w] : links) {
+        if (ordinal < 0 || size_t(ordinal) >= children.size()) continue;
+        const qsizetype a = children[size_t(ordinal)].first, b = children[size_t(ordinal)].second;
+        if (a < copied) continue;
+        const QByteArray span = xml.mid(a, b - a);
+        QDomDocument doc;
+        if (!doc.setContent(QByteArrayLiteral("<w>") + span + QByteArrayLiteral("</w>"))) continue;
+        const QDomElement sp = firstShape(doc.documentElement());
+        if (sp.isNull()) continue;
+        // (a shape that says so already is not written again)
+        if (sp.attribute(QStringLiteral("textlink")) == w.ref && (!w.withText || shapeLinkStoredText(sp) == w.text.left(kMaxShapeLinkText).replace(QStringLiteral("\r\n"), QStringLiteral("\n")))) continue;
+        const QByteArray r = withFirstObjectTextLink(span, w.ref, w.text, w.withText);
+        if (r == span) continue;
         result += xml.mid(copied, a - copied) + r;
         copied = b;
     }

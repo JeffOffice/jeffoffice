@@ -50,6 +50,19 @@ QString EditSession::linkText(int sheet, quint32 row, quint32 col) const
     return neutralText(sheet, row, col).trimmed();
 }
 
+bool EditSession::linkShownText(int sheet, quint32 row, quint32 col, QString *text) const
+{
+    if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    const Cell *c = m_book->calc->sheet(sheet).cells.find(row, col);
+    if (!c) {
+        text->clear();
+        return true;
+    }
+    if (c->hasFormula() && valueAt(sheet, row, col).kind() == jp::calc::Value::Kind::Empty) return false;   // (not worked out yet)
+    *text = displayText(sheet, row, col);
+    return true;
+}
+
 EditSession::Outcome EditSession::deleteObject(int sheet, int id, const QString &text, const ObjectState &before, const ObjectState &after)
 {
     ObjectEdit e;

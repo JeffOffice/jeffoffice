@@ -1732,6 +1732,16 @@ private:
     std::vector<std::pair<int, int>> m_barcodeQueue;   // the linked barcodes still to be made again (sheet, id)
     qint64 m_barcodeTries = 0, m_longestBarcodeTurn = 0, m_barcodeFailuresTold = 0;
     int m_mostBarcodeSwapsInATurn = 0, m_barcodeTurns = 0;   // (tests: the work of a turn is bounded by count, not only by the clock)
+    // shape linked to a cell (v1-shapelink)
+public:
+    // With a shape or text box picked, the formula bar shows its link (=Sheet1!$B$2, or nothing) and takes =A1, =Sheet2!B3, a name, or nothing (removes the link); as one step of Undo.
+    bool linkPickedShape(const QString &entry);
+    QString shapeLinkBarText() const { return m_linkBarId >= 0 ? m_formulaFull : QString(); }
+private:
+    void showObjectLink();
+    bool linkBarKey(QKeyEvent *key);
+    int m_linkBarId = -1;       // the shape whose link the formula bar shows (-1: the bar shows the cell)
+    bool m_linkTyping = false;  // an entry is being typed in the bar for that shape
     QHash<quint64, QString> m_barcodeFailed;           // by barcode: the text of its cell that it could not be made from
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)

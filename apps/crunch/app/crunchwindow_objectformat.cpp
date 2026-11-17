@@ -244,6 +244,7 @@ QString textOf(const QDomElement &sp)
 bool setText(QDomElement &sp, const CrunchWindow::ShapeTextChoices &c)
 {
     if (sp.localName() != QLatin1String("sp")) return false;
+    sp.removeAttribute(QStringLiteral("textlink"));   // (words typed in a shape take it off its cell, as the original does)
     QDomDocument doc = sp.ownerDocument();
     QDomElement body = childNamed(sp, QStringLiteral("txBody"));
     if (body.isNull()) {
@@ -347,6 +348,7 @@ QColor styleTextColor(const QDomElement &sp, const jp::office::Theme &theme)
 bool setTextStory(QDomElement &sp, QTextDocument *story, const jp::office::Theme &theme)
 {
     if (sp.localName() != QLatin1String("sp")) return false;
+    sp.removeAttribute(QStringLiteral("textlink"));   // (words typed in a shape take it off its cell, as the original does)
     QDomDocument doc = sp.ownerDocument();
     QDomElement body = childNamed(sp, QStringLiteral("txBody"));
     if (body.isNull()) {

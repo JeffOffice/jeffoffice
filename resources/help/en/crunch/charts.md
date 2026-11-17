@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code -->
+<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, link a shape to a cell, shape shows a cell, text box shows a cell, cell value in a shape -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -117,6 +117,20 @@ Text Art is a shape in the sheet's drawing, with its warp, fill, and outline, so
 A picture from a camera can be much larger than it shows on the sheet, and it makes the file large. Click a picture, then click **Compress Pictures…** in the **Adjust** group of the **Picture Format** tab. Choose where the workbook will be used: **Commercial printing (300 ppi)**, **Desktop printing (220 ppi)**, or **Web (96 ppi)**. Leave **Apply to all pictures on this sheet** checked to make every picture on the sheet smaller, or clear it to make only the picked picture smaller. **Delete cropped areas of pictures** also takes away the hidden parts you cropped, and the crop is gone. A picture is only replaced when the new one is smaller. Its size, place, name, and alt text stay as they were. Undo (Ctrl+Z) gives the pictures back, and the saved workbook holds only the smaller pictures. Pictures on other sheets are not changed: go to each sheet and do it again. A picture that is a drawing (SVG, EMF, or WMF), or an animation, is left as it is.
 
 Each one is a single step you can undo. The new object is picked, so you can drag it, size it, move it forward or back, give it a name and alt text in **Properties**, or press **Delete**.
+
+## Show a cell's text in a shape or text box
+
+A shape or text box can show what a cell shows, and follow it. Pick the shape, click the **formula bar**, type an equals sign and a cell, and press **Enter**.
+
+- `=B2` links the shape to B2 on this sheet. `=Sheet2!B3` links it to a cell on another sheet. `=Total` links it to a name that stands for one cell.
+- The shape then shows the cell's text the way the cell shows it, with its number format. When you change the cell, its format, or a formula it depends on, the shape changes too. Text longer than a cell can hold (32,767 characters) is cut.
+- With the shape picked, the formula bar shows its link, such as `=Sheet1!$B$2`. Clear the formula bar and press **Enter** to take the link off. The shape keeps the words it shows then.
+- Typing words in the shape also takes the link off.
+- A link is one cell. A range such as `=A1:B2`, a list, a calculation, or a name that is not a cell is turned down with a message, and the shape keeps its link.
+- If the cell's row or column is deleted, or its sheet, the shape shows `#REF!` and keeps the link, as a formula would. Undo brings the cell back.
+- Each link, and each time you take one off, is one step you can undo.
+
+The link is saved in an .xlsx file with the text the cell showed, so a program that does not follow links still shows the words, and JeffCrunch opens the file with the link working. OpenDocument has no way to link a text box to a cell, so a workbook saved as an .ods file keeps the words the shape shows at that moment and not the link.
 
 ## Change how a picture, shape, or text box looks
 

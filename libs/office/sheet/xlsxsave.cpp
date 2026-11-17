@@ -2236,6 +2236,12 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         const int index = partBytes(part, &xml);
         if (index >= 0 && setDrawingObjectBarcodeMarkers(xml, markers, &now, &changed) && changed) replaced.insert(index, now);
     }
+    for (const auto &[part, links] : changes.objectTextLinks) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && setDrawingObjectTextLinks(xml, links, &now, &changed) && changed) replaced.insert(index, now);
+    }
     for (const auto &[part, prints] : changes.objectPrints) {
         QByteArray xml, now;
         bool changed = false;

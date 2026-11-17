@@ -54,6 +54,7 @@ struct DrawingCounts {
     int leftOut = 0;         // objects read that cannot be drawn (a chart that is not one, a picture that cannot be read, a group of nothing...)
     int hidden = 0;          // objects the file hides (they are not drawn)
     int skipped = 0;         // anchors that hold nothing that is read (tables, controls, ink)
+    int linksRefused = 0;    // shapes whose textlink is not used (too long, a list, or a range)
     bool truncated = false;  // more anchors than may be read
     QStringList why;         // in words, each thing left out
     int total() const { return charts + pictures + shapes + groups + connectors + diagrams; }
@@ -87,6 +88,9 @@ public:
     // Where the text of a cell is asked (as a barcode linked to the cell holds it).
     using CellTextSource = std::function<QString(int sheet, quint32 row, quint32 col)>;
     void setCellTextSource(CellTextSource text) { m_cellText = std::move(text); }
+    // Where the text of a cell as it is shown is asked, for a shape or text box that shows a cell (false: the cell has no value yet, and the shape keeps the text it has).
+    using LinkTextSource = std::function<bool(int sheet, quint32 row, quint32 col, QString *text)>;
+    void setLinkTextSource(LinkTextSource text) { m_linkText = std::move(text); }
 
     jp::grid::ObjectLayer *layer() { return &m_layer; }
     // The form controls of the workbook's sheets (they are in the layer with the other objects, under ids that start at kControlIdBase).
@@ -232,6 +236,20 @@ public:
     static constexpr qint64 kHeldBytesOfAnObject = 400 * 1024;
     // The reference a barcode links to a cell by: the sheet's name quoted where it needs it, and the cell as $B$3.
     QString barcodeCellRef(int sheet, quint32 row, quint32 col) const;
+    // ---- a shape or text box that shows a cell's text (its textlink)
+    // The reference the shape is linked to as it is now (empty for none, and for an object that is not a shape).
+    QString textLinkOf(int sheet, int id);
+    // The text a linked shape shows now (empty for a shape that is not linked or has not been given its cell's text).
+    QString linkedTextOf(int sheet, int id);
+    // Whether `ref` (as typed after the "=") names one cell or a name of one, as seen from `sheet`: then `canonical` is the reference to keep ($A$1 for a cell, with its sheet; a name as it is),
+    // else `why` says what is wrong. Needs the cells.
+    bool resolveTextLink(int sheet, const QString &ref, QString *canonical, QString *why);
+    // The cell a linked shape shows, as it is now (false for a shape that is not linked or whose reference is not a cell now).
+    bool textLinkCell(int sheet, int id, int *cellSheet, quint32 *row, quint32 *col);
+    // For tests: how many linked shapes were looked at, and how many were given other text, since the workbook was opened; and how many times the index from cells to shapes was made.
+    qint64 linkVisits() const { return m_linkVisits; }
+    qint64 linkUpdates() const { return m_linkUpdates; }
+    qint64 linkIndexBuilds() const { return m_linkIndexBuilds; }
     // The state of the object with a new name (empty: as it is) and alternative text.
     ObjectState stateWithNames(int sheet, int id, const QString &name, const QString &description);
     // Whether another object of the sheet has the name.
@@ -294,6 +312,10 @@ private:
         bool released = false;                         // what was kept of it for Undo is let go (see releaseDead)
         bool provisional = false;                      // a barcode made with a stand-in PNG: the save makes the real one
         bool counted = false;                          // it is counted in m_objectsMade (and, while taken away, in m_deadMade)
+        bool textLinked = false;                       // a shape that shows a cell's text (`refs` has the one reference)
+        bool linkShownValid = false;                   // `linkShown` is the text of its cell that the item was made with
+        QString linkShown;
+        QString linkFileRef, linkSavingRef;            // the textlink the file has, and the one the save in flight writes
         int linkState = -1;                            // a picture that holds a barcode marker with a cell: -1 not looked at, 0 no, 1 yes (found without making the picture)
         quint64 linkEpoch = 0;                         // the m_linkEpoch the cell below was found at
         bool linkFound = false;
@@ -383,6 +405,16 @@ private:
     bool mayBeLinked(Object &o);
     // Writes the barcode of the object again, with the value of its cell and the reference to it as they are, in what the save is made of (see addToSave).
     void saveBarcode(int sheet, Sheet &s, Object &o, jp::office::sheet::SaveChanges *changes, QSet<QString> *claimed);
+    // A shape whose textlink names a cell takes the reference as a chart does (it follows the edits to rows and columns); `made`: it was put here from an element.
+    void linkShape(int sheet, Object &o, bool made);
+    // The text the shape's cell shows (false when it is not known yet: the shape keeps what it has), and the shape made again with it.
+    bool linkWantedText(int sheet, const Object &o, QString *text) const;
+    bool linkTarget(int sheet, const Object &o, int *cellSheet, quint32 *row, quint32 *col) const;
+    bool applyLinkedText(int sheet, Object &o);
+    void refreshAllLinked();
+    void buildLinkIndex();
+    // Writes the reference and text of a linked shape into what the save is made of (see addToSave).
+    void saveTextLink(int sheet, Sheet &s, Object &o, jp::office::sheet::SaveChanges *changes);
     QStringList movedRefList(const QStringList &refs, int sheet, int at, int to) const;
     // A reference as the file's names for the sheets would have it (the renames and deletes of sheets since the file was read or saved taken back).
     QString unfollowSheetOps(const QString &ref) const;
@@ -394,6 +426,16 @@ private:
     EditsSource m_edits;
     SheetOpsSource m_sheetOps;
     CellTextSource m_cellText;
+    LinkTextSource m_linkText;
+    // The shapes that show a cell, by the cell (sheet, row, column): a change of cells looks at those cells' shapes alone. Made again when rows, columns, or sheets move.
+    struct LinkEntry {
+        int sheet = 0;
+        std::weak_ptr<Object> object;
+    };
+    QHash<quint64, QVector<LinkEntry>> m_linkIndex;
+    bool m_linkIndexClean = false;
+    bool m_anyLinked = false;
+    qint64 m_linkVisits = 0, m_linkUpdates = 0, m_linkIndexBuilds = 0;
     std::vector<jp::office::sheet::StructEdit> m_applied;   // the edits the objects have had worked in
     std::vector<Sheet> m_sheets;
     QHash<QString, int> m_drawingOwner;                      // the first sheet that names each drawing part (a file whose sheets share a drawing shows it on the first), lower case

@@ -217,6 +217,10 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     });
     connect(m_formulaBar, &QLineEdit::textEdited, this, [this](const QString &text) {
         if (m_syncingEditors) return;
+        if (!m_edit.active && m_linkBarId >= 0 && m_linkBarId == pickedObject()) {
+            m_linkTyping = true;   // (a shape's link is being typed: no cell is edited)
+            return;
+        }
         if (!m_edit.active) {
             beginEdit(text, CellEditor::Mode::Editing, true);
             return;
@@ -840,6 +844,7 @@ void CrunchWindow::updateBars()
     updateDropDown();
     showNameInBox();
     if (m_edit.active) return;   // (the formula bar holds what is being typed)
+    if (m_linkBarId >= 0 && m_linkBarId == pickedObject()) return;   // (the bar shows the picked shape's link)
     // The formula bar takes about 20 milliseconds to be given 32,000 characters, whenever the cursor moves on to a cell that has them: it is given a part of a long text (with "…"
     // after it) until it is clicked into or tabbed to, and the whole of it then.
     constexpr int kShown = 2000;
@@ -1025,6 +1030,7 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
     // Enter and Escape in the formula bar finish or give up the entry in it (and take the focus back to the grid)
     if (o == m_formulaBar && e->type() == QEvent::KeyPress) {
         auto *k = static_cast<QKeyEvent *>(e);
+        if (!m_edit.active && m_linkBarId >= 0 && linkBarKey(k)) return true;
         if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
             if (m_edit.active) commitEdit((k->modifiers() & Qt::ShiftModifier) ? CellEditor::Way::ShiftEnter : CellEditor::Way::Enter);
             else m_view->setFocus(Qt::OtherFocusReason);

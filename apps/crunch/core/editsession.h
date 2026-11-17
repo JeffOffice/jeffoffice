@@ -1034,6 +1034,8 @@ public:
     bool amendLastStep(std::vector<ObjectEdit> edits);
     // The text of a cell for what is made from it (a barcode linked to the cell): empty for a cell that is empty, holds an error, or is a formula not worked out yet.
     QString linkText(int sheet, quint32 row, quint32 col) const;
+    // The text a cell shows (as its format makes it; an error as its name), for a shape that shows the cell. False when a formula has no value yet.
+    bool linkShownText(int sheet, quint32 row, quint32 col, QString *text) const;
 
     // ---- how the sheets print (editpage.cpp)
     // How a sheet prints now; and a change to it, one step of Undo (nothing if it is as it is). The print area, titles, and breaks follow rows, columns, and cells inserted and deleted.

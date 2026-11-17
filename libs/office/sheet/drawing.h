@@ -59,6 +59,8 @@ struct DrawingObject {
     QString chartPart;             // for a chart: the chart part's name
     QString diagramData;           // for a diagram: the id of the drawing part's link to the diagram's data part, which names the drawing the file keeps of it (libs/office/office/diagram.h)
     qint64 diagramCx = 0, diagramCy = 0;   // for a diagram: the size its frame says (the frame of a spreadsheet's diagram says 0 by 0: the anchor gives the size)
+    QString textLink;              // for a shape: the cell it shows the text of (its textlink; empty for none, and for one that cannot be a link: too long, a list, or a range)
+    bool textLinkRefused = false;  // the shape has a textlink that is not used
     QDomElement element;           // the object's element (xdr:sp, xdr:pic, xdr:grpSp, xdr:cxnSp, or the graphic frame); lives as long as the SheetDrawing's document
 };
 

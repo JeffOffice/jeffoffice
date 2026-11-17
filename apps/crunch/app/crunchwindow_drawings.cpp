@@ -108,7 +108,10 @@ void CrunchWindow::setupObjects()
         if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
         else if (!beginShapeTextEdit(id)) propertiesDialog();   // (a shape or text box: its words are typed in place)
     });
-    connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) { updateChartState(); });
+    connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) {
+        updateChartState();
+        showObjectLink();
+    });
     connect(m_view, &grid::GridView::viewChanged, this, [this] { m_chartButtonsTimer.start(); });
     connect(m_view, &grid::GridView::zoomChanged, this, [this] { m_chartButtonsTimer.start(); });
 }
@@ -183,6 +186,7 @@ void CrunchWindow::connectObjects()
     connect(m_session.get(), &crunch::EditSession::sizesChanged, this, [this](int sheet) {
         if (m_objects) m_objects->sizesChanged(sheet);
     });
+    m_objects->setLinkTextSource([this](int sheet, quint32 row, quint32 col, QString *text) { return m_session && m_session->linkShownText(sheet, row, col, text); });
     m_objects->setCellTextSource([this](int sheet, quint32 row, quint32 col) { return m_session ? m_session->linkText(sheet, row, col) : QString(); });
     m_session->setObjectForgetHook([this](int sheet, int id) {
         if (m_objects) m_objects->releaseDead(sheet, id);
@@ -191,6 +195,81 @@ void CrunchWindow::connectObjects()
         if (m_objects) m_objects->applyState(edit.sheet, edit.id, forward ? edit.after : edit.before);
         updateChartState();
     });
+}
+
+// The formula bar for a picked shape or text box shows what it is linked to, and takes a link.
+void CrunchWindow::showObjectLink()
+{
+    const int id = pickedObject();
+    const bool shape = id >= 0 && m_session && m_objects && !m_chartSheetShown && m_objects->kindOf(m_sheet, id) == jp::office::sheet::ObjectKind::Shape && !pickedIsTextArt();
+    if (shape && !m_edit.active) {
+        m_linkBarId = id;
+        m_linkTyping = false;
+        const QString ref = m_objects->textLinkOf(m_sheet, id);
+        m_formulaFull = ref.isEmpty() ? QString() : QLatin1Char('=') + ref;
+        m_formulaBar->setText(m_formulaFull);
+        m_formulaBar->setCursorPosition(0);
+        return;
+    }
+    if (m_linkBarId >= 0) {
+        m_linkBarId = -1;
+        m_linkTyping = false;
+        if (!m_edit.active) updateBars();
+    }
+}
+
+bool CrunchWindow::linkBarKey(QKeyEvent *k)
+{
+    if (m_linkBarId < 0 || m_linkBarId != pickedObject()) return false;
+    if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
+        const QString entry = m_formulaBar->text();
+        const bool typed = m_linkTyping;
+        m_linkTyping = false;
+        m_view->setFocus(Qt::OtherFocusReason);
+        if (typed) linkPickedShape(entry);
+        return true;
+    }
+    if (k->key() == Qt::Key_Escape) {
+        m_linkTyping = false;
+        showObjectLink();
+        m_view->setFocus(Qt::OtherFocusReason);
+        return true;
+    }
+    return false;
+}
+
+bool CrunchWindow::linkPickedShape(const QString &entry)
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_session || !m_objects || m_chartSheetShown || m_objects->kindOf(m_sheet, id) != jp::office::sheet::ObjectKind::Shape || pickedIsTextArt()) return false;
+    const QString title = tr("Link to Cell");
+    const QString typed = entry.trimmed();
+    QString ref;
+    if (!typed.isEmpty()) {
+        if (!typed.startsWith(QLatin1Char('='))) {
+            notice(title, tr("A link starts with =, as in =A1. Clear the box to take the link off."));
+            showObjectLink();
+            return false;
+        }
+        QString why;
+        if (!m_objects->resolveTextLink(m_sheet, typed, &ref, &why)) {
+            notice(title, why);
+            showObjectLink();
+            return false;
+        }
+    }
+    if (ref == m_objects->textLinkOf(m_sheet, id)) {
+        showObjectLink();
+        return true;
+    }
+    const bool done = restyleObject(ref.isEmpty() ? tr("Remove Shape Link") : tr("Link Shape to Cell"), [&](QDomElement &el, grid::ObjectBox *) {
+        if (el.localName() != QLatin1String("sp")) return false;
+        if (ref.isEmpty()) el.removeAttribute(QStringLiteral("textlink"));
+        else el.setAttribute(QStringLiteral("textlink"), ref);
+        return true;
+    });
+    showObjectLink();
+    return done;
 }
 
 // Delete with an object picked: it is taken away, as a step Undo gives back.

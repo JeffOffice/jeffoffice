@@ -9,6 +9,9 @@
 #include "core/fonts.h"
 #include "core/printjob.h"
 #include "core/sheetobjects.h"
+#include "app/theme.h"
+#include "io/zip.h"
+#include "sheet/drawingsave.h"
 #include "office/chart.h"
 #include "office/diagram.h"
 #include "office/package.h"
@@ -2192,6 +2195,367 @@ private Q_SLOTS:
             // (the cap comes first: no more data parts are inflated than diagrams may be drawn)
             QVERIFY2(o->diagramPartsRead() <= crunch::kMaxDiagramsDrawn, qPrintable(QString::number(o->diagramPartsRead())));
         }
+    }
+
+    // ---- a shape or text box that shows a cell's text (v1-shapelink)
+    // A shape inserted and picked; its id.
+    static int pickedNewShape(EditWindow &e)
+    {
+        if (!e.win.w.insertShape(QStringLiteral("rect"))) return -1;
+        return e.win.w.objects()->layer()->selectedId();
+    }
+    static QByteArray savedDrawing(const QString &path)
+    {
+        const QMap<QString, QByteArray> parts = savedParts(path);
+        for (auto it = parts.begin(); it != parts.end(); ++it)
+            if (it.key().startsWith(QLatin1String("xl/drawings/")) && it.key().endsWith(QLatin1String(".xml")) && !it.key().contains(QLatin1String("_rels"))) return it.value();
+        return {};
+    }
+    static QLineEdit *linkBar(EditWindow &e) { return e.win.w.findChild<QLineEdit *>(QStringLiteral("formulaBar")); }
+    // Types an entry in the formula bar as a person does, and presses Enter.
+    static void typeLink(EditWindow &e, const QString &text)
+    {
+        QLineEdit *bar = linkBar(e);
+        bar->setFocus();
+        bar->selectAll();
+        QTest::keyClick(bar, Qt::Key_Delete);
+        if (!text.isEmpty()) QTest::keyClicks(bar, text);
+        QTest::keyClick(bar, Qt::Key_Return);
+    }
+    static QString linkOf(EditWindow &e) { return e.win.w.objects()->textLinkOf(0, e.win.w.objects()->layer()->selectedId()); }
+    static QString shapeText(EditWindow &e) { return e.win.w.objects()->linkedTextOf(0, e.win.w.objects()->layer()->selectedId()); }
+    static void letEventsRun()
+    {
+        for (int i = 0; i < 3; ++i) QCoreApplication::processEvents();
+    }
+    static QByteArray twoSheets() { return buildXlsx({dataSheet(), dataSheet()}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"))); }
+    static bool saveIt(EditWindow &e)
+    {
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        return e.win.w.save() && savedOk(saved);
+    }
+
+    // =B2 in the formula bar with a shape picked links it: the bar shows the link, the shape shows the cell's text, and the whole is one step of Undo.
+    void aShapeIsLinkedByTheFormulaBar()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(pickedNewShape(e) >= 0);
+        QCOMPARE(linkBar(e)->text(), QString());
+        const int steps = e.win.w.undoStack()->count();
+        typeLink(e, QStringLiteral("=B2"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(linkOf(e), QStringLiteral("Sheet1!$B$2"));
+        QCOMPARE(shapeText(e), QStringLiteral("10"));
+        QCOMPARE(linkBar(e)->text(), QStringLiteral("=Sheet1!$B$2"));
+        QCOMPARE(int(o->idsOf(0).size()), 1);
+        // (the cell under the shape was not edited)
+        QCOMPARE(e.shownAt(QStringLiteral("A1")), QStringLiteral("Region"));
+        // an empty entry takes the link off, the words stay
+        typeLink(e, QString());
+        QCOMPARE(linkOf(e), QString());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        QCOMPARE(linkBar(e)->text(), QString());
+        e.win.w.undoStack()->undo();
+        QCOMPARE(e.win.w.objects()->textLinkOf(0, e.win.w.objects()->idsOf(0).front()), QStringLiteral("Sheet1!$B$2"));
+        QCOMPARE(e.win.w.objects()->linkedTextOf(0, e.win.w.objects()->idsOf(0).front()), QStringLiteral("10"));
+    }
+
+    // A row inserted above a linked shape's cell moves the link with it.
+    void aRowInsertedAboveMovesTheLink()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B3"));
+        QVERIFY(e.win.w.session()->insertRows(0, 0, 2).ok);
+        QCOMPARE(o->textLinkOf(0, o->idsOf(0).front()), QStringLiteral("Sheet1!$B$5"));
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("20"));
+        QVERIFY(e.win.w.session()->type(0, 4, 1, QStringLiteral("moved")).ok);
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("moved"));
+    }
+
+    // The shape follows its cell: a typed value, the cell's format, a recalculation, and a cell of another sheet.
+    void aLinkedShapeFollowsItsCell()
+    {
+        EditWindow e;
+        QVERIFY(e.open(twoSheets()));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        auto *s = e.win.w.session();
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B2"));
+        QCOMPARE(shapeText(e), QStringLiteral("10"));
+        const qint64 updates = o->linkUpdates();
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("42")).ok);
+        QTRY_COMPARE(shapeText(e), QStringLiteral("42"));
+        QVERIFY(o->linkUpdates() > updates);
+        // its format
+        const int shapeId = o->idsOf(0).front();
+        o->layer()->select(-1);
+        e.select(QStringLiteral("B2"));
+        QVERIFY(e.win.w.act(QStringLiteral("fmt.percent"))->isEnabled());
+        e.win.w.act(QStringLiteral("fmt.percent"))->trigger();
+        o->layer()->select(shapeId);
+        QTRY_COMPARE(shapeText(e), QStringLiteral("4200%"));
+        // a recalculation: the shape of a formula's cell
+        QVERIFY(s->type(0, 0, 3, QStringLiteral("=B2*2")).ok);
+        QVERIFY(e.settle());
+        o->layer()->select(o->idsOf(0).front());
+        typeLink(e, QStringLiteral("=D1"));
+        QTRY_COMPARE(shapeText(e), QStringLiteral("84"));
+        QVERIFY(s->type(0, 1, 1, QStringLiteral("5")).ok);
+        QVERIFY(e.settle());
+        QTRY_COMPARE(shapeText(e), QStringLiteral("10"));
+        // a cell of another sheet
+        typeLink(e, QStringLiteral("=Sheet2!B3"));
+        QCOMPARE(linkOf(e), QStringLiteral("Sheet2!$B$3"));
+        QCOMPARE(shapeText(e), QStringLiteral("20"));
+        QVERIFY(s->type(1, 2, 1, QStringLiteral("hello")).ok);
+        QTRY_COMPARE(shapeText(e), QStringLiteral("hello"));
+        // a refused entry leaves the link, with a word
+        QStringList told;
+        e.win.w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        typeLink(e, QStringLiteral("=A1:B2"));
+        QCOMPARE(told.size(), 1);
+        typeLink(e, QStringLiteral("A1"));
+        QCOMPARE(told.size(), 2);
+        typeLink(e, QStringLiteral("=Nowhere!A1"));
+        QCOMPARE(told.size(), 3);
+        QCOMPARE(linkOf(e), QStringLiteral("Sheet2!$B$3"));
+        QCOMPARE(e.win.w.objects()->idsOf(0).size(), size_t(1));
+    }
+
+    // A name that stands for one cell links too.
+    void aLinkCanBeAName()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(QString()), {}, QStringList(), QStringLiteral("<definedName name=\"Total\">Sheet1!$B$3</definedName>"))));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=Total"));
+        QCOMPARE(linkOf(e), QStringLiteral("Total"));
+        QCOMPARE(shapeText(e), QStringLiteral("20"));
+    }
+
+    // Words typed in the shape take it off its cell; Undo puts the link back, Redo takes it off again.
+    void typingInAShapeRemovesItsLink()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B2"));
+        QCOMPARE(linkOf(e), QStringLiteral("Sheet1!$B$2"));
+        CrunchWindow::ShapeTextChoices c;
+        c.text = QStringLiteral("typed words");
+        QVERIFY(e.win.w.setObjectText(c));
+        QCOMPARE(linkOf(e), QString());
+        QCOMPARE(e.win.w.objects()->idsOf(0).size(), size_t(1));
+        QVERIFY(e.win.w.session()->type(0, 1, 1, QStringLiteral("77")).ok);
+        letEventsRun();
+        QCOMPARE(shapeText(e), QString());
+        e.win.w.undoStack()->undo();   // (the typed value)
+        e.win.w.undoStack()->undo();
+        QCOMPARE(e.win.w.objects()->textLinkOf(0, e.win.w.objects()->idsOf(0).front()), QStringLiteral("Sheet1!$B$2"));
+        e.win.w.undoStack()->redo();
+        QCOMPARE(e.win.w.objects()->textLinkOf(0, e.win.w.objects()->idsOf(0).front()), QString());
+    }
+
+    // Undo and Redo of the link, the shape being as its cell is at each moment.
+    void aLinkUndoesAndRedoes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B2"));
+        QVERIFY(e.win.w.session()->type(0, 1, 1, QStringLiteral("31")).ok);
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("31"));
+        e.win.w.undoStack()->undo();   // (the typed value)
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("10"));
+        e.win.w.undoStack()->undo();   // (the link)
+        QCOMPARE(o->textLinkOf(0, o->idsOf(0).front()), QString());
+        e.win.w.undoStack()->redo();
+        QCOMPARE(o->textLinkOf(0, o->idsOf(0).front()), QStringLiteral("Sheet1!$B$2"));
+        QCOMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("10"));
+        e.win.w.undoStack()->redo();
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("31"));
+    }
+
+    // The cell's row deleted: the shape shows #REF! and keeps its link, as a formula would, in the window and in the saved file.
+    void aDeletedRowLeavesRefInTheShape()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B3"));
+        QVERIFY(e.win.w.session()->deleteRows(0, 2, 1).ok);
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("#REF!"));
+        QVERIFY(o->textLinkOf(0, o->idsOf(0).front()).contains(QLatin1String("#REF!")));
+        // (Undo brings the cell, and the link to it, back)
+        e.win.w.undoStack()->undo();
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("20"));
+        QCOMPARE(o->textLinkOf(0, o->idsOf(0).front()), QStringLiteral("Sheet1!$B$3"));
+        e.win.w.undoStack()->redo();
+        QTRY_COMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("#REF!"));
+        QVERIFY(saveIt(e));
+        const QByteArray drawing = savedDrawing(e.path);
+        QVERIFY2(drawing.contains("#REF!"), drawing.left(600).constData());
+    }
+
+    // Saved, the shape has the textlink and the text its cell showed; opened again it is linked, shows the cell, and follows it; saved again after the cell changed, the file has the new text.
+    void aLinkedShapeSurvivesSaveAndReopen()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(shown(e, 0));
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B2"));
+        QVERIFY(saveIt(e));
+        QByteArray drawing = savedDrawing(e.path);
+        QVERIFY2(drawing.contains("textlink=\"Sheet1!$B$2\""), drawing.left(800).constData());
+        QVERIFY2(drawing.contains(">10</a:t>"), drawing.mid(drawing.indexOf("txBody") - 20, 900).constData());
+        EditWindow again;
+        QVERIFY(again.open([&] {
+            QFile f(e.path);
+            f.open(QIODevice::ReadOnly);
+            return f.readAll();
+        }()));
+        QVERIFY(again.settle());
+        QTRY_VERIFY(shown(again, 1));
+        crunch::SheetObjects *o = again.win.w.objects();
+        const int id = o->idsOf(0).front();
+        QCOMPARE(o->textLinkOf(0, id), QStringLiteral("Sheet1!$B$2"));
+        QTRY_COMPARE(o->linkedTextOf(0, id), QStringLiteral("10"));
+        QVERIFY(again.win.w.session()->type(0, 1, 1, QStringLiteral("55")).ok);
+        QTRY_COMPARE(o->linkedTextOf(0, id), QStringLiteral("55"));
+        QVERIFY(saveIt(again));
+        drawing = savedDrawing(again.path);
+        QVERIFY2(drawing.contains(">55</a:t>") && drawing.contains("textlink=\"Sheet1!$B$2\""), drawing.left(1200).constData());
+        QVERIFY(!drawing.contains(">10</a:t>"));
+        // (a part of the package is held once: the drawing is one part)
+        int drawings = 0;
+        for (const QString &k : savedParts(again.path).keys()) drawings += k.startsWith(QLatin1String("xl/drawings/drawing")) && k.endsWith(QLatin1String(".xml"));
+        QCOMPARE(drawings, 1);
+    }
+
+    // A file made elsewhere: its shape with a textlink opens linked, with the text it stored until its cell's value is known, then the cell's.
+    void aFileShapeWithATextlinkOpensLinked()
+    {
+        const QString shape = shapeElement(2, QStringLiteral("Note"), QStringLiteral("rect"), QStringLiteral("stored words"), QStringLiteral("3366CC")).replace(QStringLiteral("textlink=\"\""), QStringLiteral("textlink=\"$B$3\""));
+        const QString plain = shapeElement(3, QStringLiteral("Plain"), QStringLiteral("rect"), QStringLiteral("kept"));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(twoCell(5, 1, 8, 4, shape) + twoCell(5, 6, 8, 9, plain)), {})));
+        QTRY_VERIFY(shown(e, 2));
+        crunch::SheetObjects *o = e.win.w.objects();
+        QVERIFY(e.settle());
+        const std::vector<int> ids = o->idsOf(0);
+        QTRY_COMPARE(o->textLinkOf(0, ids[0]), QStringLiteral("$B$3"));
+        QTRY_COMPARE(o->linkedTextOf(0, ids[0]), QStringLiteral("20"));
+        QCOMPARE(o->textLinkOf(0, ids[1]), QString());
+        QVERIFY(e.win.w.session()->type(0, 2, 1, QStringLiteral("changed")).ok);
+        QTRY_COMPARE(o->linkedTextOf(0, ids[0]), QStringLiteral("changed"));
+        // the formula bar of the picked shape shows its link
+        o->layer()->select(ids[0]);
+        QCOMPARE(linkBar(e)->text(), QStringLiteral("=$B$3"));
+        // saved, the shape that was not linked is as it was (its bytes untouched), and the linked one has the new words
+        QVERIFY(saveIt(e));
+        const QByteArray drawing = savedDrawing(e.path);
+        QVERIFY(drawing.contains(">changed</a:t>"));
+        QVERIFY(drawing.contains(">kept</a:t>"));
+        QVERIFY(drawing.contains("textlink=\"$B$3\""));
+    }
+
+    // Many linked shapes: a change of cells looks at the shapes of those cells alone (an index from cell to shapes), counted, not timed.
+    void tenThousandLinkedShapesUpdateWithoutAScanOfThemAll()
+    {
+        const int n = 10000;
+        QString rows, anchors;
+        for (int i = 0; i < n; ++i) {
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%2</v></c></row>").arg(i + 1).arg(i);
+            const QString shape = shapeElement(i + 2, QStringLiteral("S%1").arg(i), QStringLiteral("rect"), QStringLiteral("old")).replace(QStringLiteral("textlink=\"\""), QStringLiteral("textlink=\"Sheet1!$A$%1\"").arg(i + 1));
+            anchors += twoCell(2 + i % 10, i / 10, 3 + i % 10, i / 10 + 1, shape);
+        }
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({sheettest::worksheet(rows)}, drawingPart(anchors), {})));
+        QTRY_VERIFY2(shown(e, n), "all the shapes are in the layer");
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        QCOMPARE(o->counts(0).shapes, n);
+        QCOMPARE(o->linkedTextOf(0, o->idsOf(0).front()), QStringLiteral("0"));
+        QCOMPARE(o->linkedTextOf(0, o->idsOf(0).back()), QString::number(n - 1));
+        const qint64 visits = o->linkVisits(), updates = o->linkUpdates(), builds = o->linkIndexBuilds();
+        for (int i = 0; i < 40; ++i) QVERIFY(e.win.w.session()->type(0, quint32(i * 250), 0, QStringLiteral("x%1").arg(i)).ok);
+        QTRY_COMPARE(o->linkUpdates() - updates, qint64(40));
+        // (each shape of a cell that changed was looked at once: no scan of the rest)
+        QCOMPARE(o->linkVisits() - visits, qint64(40));
+        QVERIFY2(o->linkIndexBuilds() - builds <= 1, qPrintable(QString::number(o->linkIndexBuilds() - builds)));
+        QCOMPARE(o->linkedTextOf(0, o->idsOf(0)[250]), QStringLiteral("x1"));
+    }
+
+    // A textlink that is huge, broken, or a range is refused, with a note in the counts; the shape keeps its words; one that names what is not there shows #REF!.
+    void aHostileTextlinkIsRefusedWithANote()
+    {
+        auto shape = [](int id, const QString &link) {
+            return shapeElement(id, QStringLiteral("S%1").arg(id), QStringLiteral("rect"), QStringLiteral("words")).replace(QStringLiteral("textlink=\"\""), QStringLiteral("textlink=\"%1\"").arg(link.toHtmlEscaped()));
+        };
+        const QString anchors = twoCell(5, 1, 7, 3, shape(2, QString(300, QLatin1Char('A')) + QStringLiteral("1"))) + twoCell(5, 4, 7, 6, shape(3, QStringLiteral("Sheet1!A1:B2")))
+                                + twoCell(5, 7, 7, 9, shape(4, QStringLiteral("A1,B2"))) + twoCell(5, 10, 7, 12, shape(5, QStringLiteral("Nope!A1")))
+                                + twoCell(5, 13, 7, 15, shape(6, QStringLiteral("Sheet1!#REF!")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {})));
+        QTRY_VERIFY(shown(e, 5));
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        const crunch::DrawingCounts c = o->counts(0);
+        QCOMPARE(c.linksRefused, 3);
+        QVERIFY(!c.why.isEmpty());
+        const std::vector<int> ids = o->idsOf(0);
+        for (int i = 0; i < 3; ++i) QCOMPARE(o->textLinkOf(0, ids[size_t(i)]), QString());
+        QTRY_COMPARE(o->linkedTextOf(0, ids[3]), QStringLiteral("#REF!"));
+        QCOMPARE(o->linkedTextOf(0, ids[4]), QStringLiteral("#REF!"));
+        // the text shown is cut to what a cell holds
+        const QString big = QString(40000, QLatin1Char('w'));
+        QDomDocument doc;
+        QVERIFY(doc.setContent(QStringLiteral("<xdr:sp xmlns:xdr=\"x\" xmlns:a=\"y\"><xdr:txBody><a:p><a:r><a:t>q</a:t></a:r></a:p></xdr:txBody></xdr:sp>")));
+        QDomElement sp = doc.documentElement();
+        jp::office::sheet::setShapeLinkText(sp, big);
+        QCOMPARE(jp::office::sheet::shapeLinkStoredText(sp).size(), jp::office::sheet::kMaxShapeLinkText);
+    }
+
+    // The picture of a shape that shows =B2 with the formula bar, for the docs.
+    void aPictureOfALinkedShapeForTheDocs()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("set JO_SHOT_DIR to take the picture");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({dataSheet()})));
+        QVERIFY(e.settle());
+        QTRY_VERIFY(e.win.w.objects()->shownSheet() == 0);
+        e.win.w.resize(1300, 820);
+        e.win.w.show();
+        QVERIFY(pickedNewShape(e) >= 0);
+        typeLink(e, QStringLiteral("=B2"));
+        QTRY_COMPARE(shapeText(e), QStringLiteral("10"));
+        e.win.w.objects()->layer()->prepareAll();
+        const QImage shot = e.win.w.grab().toImage();
+        QVERIFY(shot.save(qEnvironmentVariable("JO_SHOT_DIR") + QStringLiteral("/crunch-shape-link.png")));
     }
 };
 
