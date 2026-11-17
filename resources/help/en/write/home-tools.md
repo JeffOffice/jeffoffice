@@ -71,7 +71,7 @@ Click the small button in the corner of the **Paragraph** group to open the **Pa
 
 Click **Tabs** in the box to set tab stops. A tab stop is a place the text jumps to when you press **Tab**. Type its position, choose how the text lines up there (left, center, right, or decimal), and choose a leader. A leader is the row of dots, dashes, or a line that fills the space before the stop. Click **Set** to add it. To remove one, pick it in the list and click **Clear**. **Clear All** removes them all.
 
-Choose **Bar** to set a bar. A bar does not stop the text. It draws a thin straight line, up and down, at that place on every line of the paragraph. It is a way to put a rule between columns of text. A bar has no leader. The ruler does not show bars. Set and clear them in the **Tabs** box.
+Choose **Bar** to set a bar. A bar does not stop the text. It draws a thin straight line, up and down, at that place on every line of the paragraph. It is a way to put a rule between columns of text. A bar has no leader. The ruler does not show bars. A paragraph keeps up to 64 of them. Not yet: in a paragraph that reads right to left, bars are still measured from the left edge. Set and clear them in the **Tabs** box.
 
 **Default tab stops** is the distance between the stops that a paragraph gets when it has none of its own, and past the last stop it does have. The usual distance is half an inch. This one is for the whole document, not just the paragraph you are in. The new distance applies to every paragraph as soon as you click **OK**.
 
