@@ -1216,13 +1216,13 @@ private:
         bool active = false;
         size_t stackAt = 0, compAt = 0, dirtyAt = 0;
     } m_refuse;
-    // How the cells that changed are asked of the graph: one at a time, until a cell is found that very many formulas read; from then on the single cells added to the list are made into
-    // blocks of cells (once each: what is below `groupedTo` is not looked at again), so that the formulas that read a whole column are found once for a block and not again for each cell.
+    // How the cells that changed are asked of the graph: one at a time, until a cell is found that very many formulas read; from then on the single cells at the end of the list are made into
+    // blocks of cells, a few hundred cells a step, so that the formulas that read a whole column are found once for a block and not again for each cell. `ready` holds the blocks made.
     struct Blocking {
         bool many = false;
-        size_t groupedTo = 0;
-        qint64 cap = 1024;   // the most cells of a block (made smaller when a block's readers were too many to be one question)
+        qint64 cap = 1024;   // the most cells of a block (made smaller when a block's readers were too many for one question)
         qint64 work = 0;     // what grouping cost since it was last charged
+        std::vector<jp::calc::CellArea> ready;
     };
     static jp::calc::CellArea takeChanged(std::vector<jp::calc::CellArea> *changed, Blocking *b);
     static void splitBlock(std::vector<jp::calc::CellArea> *changed, const jp::calc::CellArea &a, Blocking *b);

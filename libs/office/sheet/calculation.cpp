@@ -26,6 +26,7 @@ namespace {
 
 // The most cells of a block of changed cells that is asked of the graph at once (the cap of a job can be lower).
 constexpr qint64 kMostCellsOfABlock = 1024;
+constexpr size_t kGroupBatch = 512;   // the single cells grouped into blocks in one step
 
 // Whether a question of the graph about a block of cells is limited to the entries it may give (it is one uninterruptible step), and what it was.
 enum class Ask { Whole, Stopped, TooMany };
@@ -51,7 +52,7 @@ Ask askReaders(const DependencyGraph &graph, const CellArea &a, std::vector<quin
 } // namespace
 
 // The two halves of a block, along its longer side, put on the list.
-void Calculation::splitBlock(std::vector<CellArea> *changed, const CellArea &a, Blocking *b)
+void Calculation::splitBlock(std::vector<CellArea> *changed, const CellArea &a, Blocking *)
 {
     CellArea x = a, y = a;
     if (a.rows() >= a.cols()) {
@@ -63,7 +64,6 @@ void Calculation::splitBlock(std::vector<CellArea> *changed, const CellArea &a, 
     }
     changed->push_back(y);
     changed->push_back(x);
-    b->groupedTo = changed->size();
 }
 
 // Takes the last block of `changed`. Once a cell is found that very many formulas read, the single cells put on the list since the last time (the cells of formulas that were marked) are made
@@ -71,53 +71,56 @@ void Calculation::splitBlock(std::vector<CellArea> *changed, const CellArea &a, 
 // of which would find every formula that reads the whole column again. The cells are the same, and so are the formulas marked; only the number of questions changes. Each cell is grouped once.
 CellArea Calculation::takeChanged(std::vector<CellArea> *changed, Blocking *b)
 {
-    b->groupedTo = std::min(b->groupedTo, changed->size());
-    if (b->many && changed->size() - b->groupedTo >= 2) {
-        std::vector<CellArea> cells, others;
-        for (size_t i = b->groupedTo; i < changed->size(); ++i) ((*changed)[i].single() ? cells : others).push_back((*changed)[i]);
-        changed->resize(b->groupedTo);
-        for (const CellArea &o : others) changed->push_back(o);
-        qint64 log2n = 1;
-        for (size_t v = cells.size(); v > 1; v >>= 1) ++log2n;
-        b->work += qint64(others.size()) + qint64(cells.size()) * log2n;
-        std::sort(cells.begin(), cells.end(), [](const CellArea &x, const CellArea &y) {
-            if (x.sheet1 != y.sheet1) return x.sheet1 < y.sheet1;
-            if (x.col1 != y.col1) return x.col1 < y.col1;
-            return x.row1 < y.row1;
-        });
-        cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
-        // (runs down each column)
-        std::vector<CellArea> runs;
-        for (const CellArea &c : cells) {
-            if (!runs.empty() && runs.back().sheet1 == c.sheet1 && runs.back().col1 == c.col1 && runs.back().row2 + 1 == c.row1 && runs.back().rows() < b->cap) runs.back().row2 = c.row1;
-            else runs.push_back(c);
-        }
-        // (runs with the same rows in columns side by side are one block)
-        std::vector<CellArea> blocks;
-        for (const CellArea &r : runs) {
-            bool joined = false;
-            for (size_t k = blocks.size(), seen = 0; k > 0 && seen < 8; --k, ++seen) {
-                CellArea &x = blocks[k - 1];
-                if (x.sheet1 == r.sheet1 && x.row1 == r.row1 && x.row2 == r.row2 && x.col2 + 1 == r.col1 && x.cells() + r.cells() <= b->cap) {
-                    x.col2 = r.col1;
-                    joined = true;
-                    break;
-                }
+    if (b->ready.empty() && b->many) {
+        size_t k = 0;
+        while (k < kGroupBatch && k < changed->size() && (*changed)[changed->size() - 1 - k].single()) ++k;
+        if (k >= 2) {
+            std::vector<CellArea> cells(changed->end() - std::ptrdiff_t(k), changed->end());
+            changed->resize(changed->size() - k);
+            // (a comparison of the sort is a sixteenth of a unit: a unit is a reader looked at)
+            qint64 log2n = 1;
+            for (size_t v = k; v > 1; v >>= 1) ++log2n;
+            b->work += 1 + qint64(k) * log2n / 16;
+            std::sort(cells.begin(), cells.end(), [](const CellArea &x, const CellArea &y) {
+                if (x.sheet1 != y.sheet1) return x.sheet1 < y.sheet1;
+                if (x.col1 != y.col1) return x.col1 < y.col1;
+                return x.row1 < y.row1;
+            });
+            cells.erase(std::unique(cells.begin(), cells.end()), cells.end());
+            // (runs down each column)
+            std::vector<CellArea> runs;
+            for (const CellArea &c : cells) {
+                if (!runs.empty() && runs.back().sheet1 == c.sheet1 && runs.back().col1 == c.col1 && runs.back().row2 + 1 == c.row1 && runs.back().rows() < b->cap) runs.back().row2 = c.row1;
+                else runs.push_back(c);
             }
-            if (!joined) blocks.push_back(r);
+            // (runs with the same rows in columns side by side are one block)
+            for (const CellArea &r : runs) {
+                bool joined = false;
+                for (size_t q = b->ready.size(), seen = 0; q > 0 && seen < 8; --q, ++seen) {
+                    CellArea &x = b->ready[q - 1];
+                    if (x.sheet1 == r.sheet1 && x.row1 == r.row1 && x.row2 == r.row2 && x.col2 + 1 == r.col1 && x.cells() + r.cells() <= b->cap) {
+                        x.col2 = r.col1;
+                        joined = true;
+                        break;
+                    }
+                }
+                if (!joined) b->ready.push_back(r);
+            }
         }
-        for (const CellArea &x : blocks) changed->push_back(x);
-        b->groupedTo = changed->size();
     }
-    CellArea a = changed->back();
-    changed->pop_back();
-    b->groupedTo = std::min(b->groupedTo, changed->size());
+    CellArea a;
+    if (!b->ready.empty()) {
+        a = b->ready.back();
+        b->ready.pop_back();
+    } else {
+        a = changed->back();
+        changed->pop_back();
+    }
     // (a block made when more cells were allowed)
     while (b->many && !a.single() && a.cells() > b->cap && a.cells() <= kMostCellsOfABlock) {
         splitBlock(changed, a, b);
         a = changed->back();
         changed->pop_back();
-        b->groupedTo = std::min(b->groupedTo, changed->size());
     }
     return a;
 }
@@ -1788,7 +1791,7 @@ void Calculation::markDependentsOfIds(std::vector<CellArea> *changed)
     std::set<CellArea> asked;
     Blocking blocking;
     blocking.many = m_manyReaders == 0;
-    while (!changed->empty()) {
+    while (!changed->empty() || !blocking.ready.empty()) {
         const CellArea a = takeChanged(changed, &blocking);
         if (!a.single() && asked.count(a)) continue;   // (the same block again: what reads it is marked)
         if (!a.single() && asked.size() < kMaxAskedAreas) asked.insert(a);
@@ -2225,7 +2228,7 @@ bool Calculation::stepBegin(const std::function<bool()> &timeUp, qint64 *spent)
             if ((n.flags & Kept) || n.state != Done) continue;
             markDirty(id, &j.changed);
         }
-        if (j.changed.empty()) break;
+        if (j.changed.empty() && j.blocking.ready.empty()) break;
         if (!ck.next()) return false;
         if (m_manyReaders == 0) j.blocking.many = true;
         const CellArea a = takeChanged(&j.changed, &j.blocking);
