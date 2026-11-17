@@ -271,7 +271,7 @@ void DeckWindow::createShowActions()
     // What a morph moves, how many spokes a wheel has, and what form a shape takes.
     const struct { const char *by; QString text; } units[] = {{"objects", tr("Objects")}, {"words", tr("Words")}, {"characters", tr("Characters")},
                                                      {"1", tr("1 Spoke")}, {"2", tr("2 Spokes")}, {"3", tr("3 Spokes")}, {"4", tr("4 Spokes")}, {"8", tr("8 Spokes")},
-                                                     {"circle", tr("Circle")}, {"diamond", tr("Diamond")}, {"plus", tr("Plus")}};
+                                                     {"circle", tr("Shape: Circle")}, {"diamond", tr("Shape: Diamond")}, {"plus", tr("Shape: Plus")}};
     for (const auto &k : units) {
         const QString by = QString::fromLatin1(k.by);
         mk(QStringLiteral("transition.by.") + by, k.text, QString(), QKeySequence(), [ed, by, label] {

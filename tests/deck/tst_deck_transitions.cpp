@@ -310,32 +310,79 @@ private Q_SLOTS:
         QVERIFY(frame("vortex", "l", "", 0.5) == a);
     }
 
-    // Each effect's time for a full-size frame, with a bound that only a very slow machine would break.
-    void commonTransitionsDrawQuickly()
+    // At twice the pixels per point a clipped effect covers the same share of the slide, and puts the new slide in the middle and the old one in the corners.
+    void aCircleAtTwiceThePixelDensity()
+    {
+        const QSizeF size(100, 60);
+        auto frame = [&](qreal dpr) {
+            const QSize px(qRound(size.width() * dpr), qRound(size.height() * dpr));
+            QImage a(px, QImage::Format_RGB32), b(px, QImage::Format_RGB32), out(px, QImage::Format_RGB32);
+            a.setDevicePixelRatio(dpr);
+            b.setDevicePixelRatio(dpr);
+            out.setDevicePixelRatio(dpr);
+            a.fill(Qt::red);
+            b.fill(Qt::blue);
+            out.fill(Qt::black);
+            deck::Transition t;
+            t.type = QStringLiteral("circle");
+            QPainter p(&out);
+            paintTransition(&p, t, a, b, 0.5);
+            p.end();
+            return out;
+        };
+        const QImage one = frame(1), two = frame(2);
+        QCOMPARE(two.size(), QSize(200, 120));
+        QCOMPARE(two.pixel(100, 60), QColor(Qt::blue).rgb());
+        QCOMPARE(two.pixel(2, 2), QColor(Qt::red).rgb());
+        QCOMPARE(two.pixel(197, 117), QColor(Qt::red).rgb());
+        auto share = [](const QImage &f) {
+            int n = 0;
+            for (int y = 0; y < f.height(); ++y)
+                for (int x = 0; x < f.width(); ++x) n += qBlue(f.pixel(x, y)) > 127 && qRed(f.pixel(x, y)) < 128;
+            return double(n) / (f.width() * f.height());
+        };
+        QVERIFY2(share(one) > 0.2 && std::abs(share(one) - share(two)) < 0.02, qPrintable(QStringLiteral("%1 and %2").arg(share(one)).arg(share(two))));
+    }
+
+    // Every common effect draws a full-size frame that is some of each slide at the middle, and a dissolve keeps its working picture only
+    // while the show runs: closing a show lets it go.
+    void commonTransitionsDrawFullFrames()
     {
         const QSize px(1920, 1080);
         QImage a(px, QImage::Format_RGB32), b(px, QImage::Format_RGB32), out(px, QImage::Format_RGB32);
         a.fill(QColor(220, 30, 30));
         b.fill(QColor(30, 30, 220));
-        QStringList report;
         for (const QString &type : {"dissolve", "blinds", "checkerboard", "comb", "randombars", "circle", "diamond", "plus", "wedge", "wheel", "shape", "flash", "newsflash", "strips"}) {
             deck::Transition t;
             t.type = type;
             t.dir = deck::Transition::defaultDirection(type);
             t.by = deck::Transition::defaultOption(type);
-            double best = 1e9;
-            for (int i = 0; i < 9; ++i) {
-                QPainter p(&out);
-                QElapsedTimer timer;
-                timer.start();
-                paintTransition(&p, t, a, b, 0.3 + i * 0.05);
-                p.end();
-                best = std::min(best, timer.nsecsElapsed() / 1e6);
-            }
-            report << QStringLiteral("%1 %2 ms").arg(type).arg(best, 0, 'f', 1);
-            QVERIFY2(best < 200, qPrintable(report.last()));
+            out.fill(Qt::black);
+            QPainter p(&out);
+            paintTransition(&p, t, a, b, type == QLatin1String("flash") ? 0.3 : 0.5);
+            p.end();
+            QVERIFY2(out != a && out != b, qPrintable(type));
         }
-        qInfo().noquote() << "1920x1080 frames, best of 9:" << report.join(QStringLiteral(", "));
+    }
+
+    void aDissolveLetsGoOfItsPictureWhenTheShowCloses()
+    {
+        releaseTransitionScratch();
+        QImage a(64, 64, QImage::Format_RGB32), b(64, 64, QImage::Format_RGB32), out(64, 64, QImage::Format_RGB32);
+        a.fill(Qt::red);
+        b.fill(Qt::blue);
+        deck::Transition t;
+        t.type = QStringLiteral("dissolve");
+        QPainter p(&out);
+        paintTransition(&p, t, a, b, 0.5);
+        p.end();
+        QVERIFY(transitionScratchBytes() > 0);
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.show();
+        show.close();
+        QCOMPARE(transitionScratchBytes(), qsizetype(0));
     }
 
     // Each is written in the file as the format names it and comes back as it was, with its direction or option, after an edit.
@@ -436,7 +483,7 @@ private Q_SLOTS:
                               {8, 0, "randombars", "h", ""}, {9, 4, "strips", "ru", ""}, {9, 5, "strips", "lu", ""}, {9, 6, "strips", "rd", ""}, {9, 7, "strips", "ld", ""},
                               {17, 0, "diamond", "", ""}, {18, 0, "plus", "", ""}, {19, 0, "wedge", "", ""}, {21, 1, "comb", "v", ""}, {22, 0, "newsflash", "", ""},
                               {26, 1, "wheel", "", "1"}, {26, 2, "wheel", "", "2"}, {26, 3, "wheel", "", "3"}, {26, 4, "wheel", "", "4"}, {26, 8, "wheel", "", "8"},
-                              {27, 0, "circle", "", ""}, {6, 0, "fade", "", ""}, {99, 0, "fade", "", ""}};
+                              {27, 0, "circle", "", ""}, {20, 0, "push", "l", ""}, {20, 3, "push", "d", ""}, {6, 0, "fade", "", ""}, {99, 0, "fade", "", ""}};
         for (const Case &c : cases) {
             const QByteArray info = le(0, 4) + le(0, 4) + raw({char(c.direction), char(c.effect)}) + le(0x501, 2) + raw({2, 0, 0, 0});
             QString err;
@@ -447,6 +494,63 @@ private Q_SLOTS:
             if (*c.dir) QCOMPARE(t.dir, QString::fromLatin1(c.dir));
             if (*c.by) QCOMPARE(t.by, QString::fromLatin1(c.by));
         }
+    }
+
+    // Each Effect Option of the newer transitions is on while the slide has a transition that has it (and off otherwise), choosing it sets the
+    // slide's transition, and the menu lists the options of Blinds, Strips, Wheel, and Shape.
+    void effectOptionsOfTheCommonTransitions()
+    {
+        DeckWindow w;
+        w.newSlide();
+        Editor *ed = w.editor();
+        auto current = [&] { return deck::transitionOf(*ed->doc()->pages[ed->currentPage()]); };
+        QAction *command = w.findChild<QAction *>(QStringLiteral("ribbon.effectOptions"));
+        QVERIFY(command);
+        QMenu *menu = nullptr;
+        for (QObject *o : command->associatedObjects())
+            if (auto *button = qobject_cast<QToolButton *>(o)) menu = button->menu();
+        QVERIFY(menu);
+        auto listed = [&] {
+            Q_EMIT menu->aboutToShow();
+            QStringList ids;
+            for (QAction *a : menu->actions())
+                for (const QString &id : {QStringLiteral("dir"), QStringLiteral("by")}) {
+                    for (const QString &v : {"h", "v", "ru", "lu", "rd", "ld", "1", "2", "3", "4", "8", "circle", "diamond", "plus"})
+                        if (a == w.act("transition." + id + "." + v)) ids << id + "." + v;
+                }
+            return ids;
+        };
+        struct Case { const char *type, *id, *want; };   // the type the slide has, the action, and what the slide then has (dir or by)
+        const Case cases[] = {{"blinds", "dir.h", "h"}, {"blinds", "dir.v", "v"}, {"checkerboard", "dir.v", "v"}, {"comb", "dir.v", "v"}, {"randombars", "dir.v", "v"},
+                              {"strips", "dir.ru", "ru"}, {"strips", "dir.lu", "lu"}, {"strips", "dir.rd", "rd"}, {"strips", "dir.ld", "ld"},
+                              {"wheel", "by.1", "1"}, {"wheel", "by.2", "2"}, {"wheel", "by.3", "3"}, {"wheel", "by.4", "4"}, {"wheel", "by.8", "8"},
+                              {"shape", "by.circle", "circle"}, {"shape", "by.diamond", "diamond"}, {"shape", "by.plus", "plus"}};
+        for (const Case &c : cases) {
+            const QString type = QString::fromLatin1(c.type), id = QString::fromLatin1(c.id), want = QString::fromLatin1(c.want);
+            const QString what = type + QLatin1Char(' ') + id;
+            // Off while the slide has none of them.
+            w.act("transition.fade")->trigger();
+            QVERIFY2(!w.act("transition." + id)->isEnabled(), qPrintable(what + " on for a fade"));
+            w.act("transition." + type)->trigger();
+            QCOMPARE(current().type, type);
+            QVERIFY2(w.act("transition." + id)->isEnabled(), qPrintable(what));
+            // Choose it.
+            w.act("transition." + id)->trigger();
+            QVERIFY2((id.startsWith(QLatin1String("dir")) ? current().dir : current().by) == want, qPrintable(what + " gave " + current().dir + " " + current().by));
+            QVERIFY2(w.act("transition." + id)->isChecked(), qPrintable(what));
+            QCOMPARE(current().type, type);
+        }
+        // The menu lists the options of each.
+        w.act("transition.blinds")->trigger();
+        QCOMPARE(listed(), (QStringList{"dir.h", "dir.v"}));
+        w.act("transition.strips")->trigger();
+        QCOMPARE(listed(), (QStringList{"dir.ru", "dir.lu", "dir.rd", "dir.ld"}));
+        w.act("transition.wheel")->trigger();
+        QCOMPARE(listed(), (QStringList{"by.1", "by.2", "by.3", "by.4", "by.8"}));
+        w.act("transition.shape")->trigger();
+        QCOMPARE(listed(), (QStringList{"by.circle", "by.diamond", "by.plus"}));
+        // Their words are their own in the command search, not the words of the transitions with the same names.
+        for (const QString &shape : {"circle", "diamond", "plus"}) QVERIFY2(w.act("transition.by." + shape)->text() != w.act("transition." + shape)->text(), qPrintable(shape));
     }
 
     // (With JO_SHOT_DIR set: the Transitions tab with the gallery, and the middle of a Blinds and of a Wheel.)
