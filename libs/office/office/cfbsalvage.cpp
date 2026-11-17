@@ -62,6 +62,7 @@ public:
 
     bool guessed = false, cutShort = false;
     bool directoryRead = false;
+    bool miniUnread = false;   // the header names a size of mini sector the format does not have
     QVector<DirEntry> entries;
 
     bool open()
@@ -69,9 +70,10 @@ public:
         const QByteArrayView h(m_file);
         if (m_file.size() < 512 || !m_file.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1"))) return false;
         const int shift = rd16(h, 30), miniShift = rd16(h, 32);
-        if ((shift != 9 && shift != 12) || miniShift < 1 || miniShift > shift) return false;
+        if (shift != 9 && shift != 12) return false;
         m_ss = qsizetype(1) << shift;
-        m_mss = qsizetype(1) << miniShift;
+        m_mss = 64;   // (the format's only size of a mini sector: any other makes the mini stream unreadable)
+        const bool miniOk = miniShift == 6;
         m_cutoff = rd32(h, 56);
         m_sectors = m_file.size() > m_ss ? (m_file.size() - m_ss + m_ss - 1) / m_ss : 0;
         const quint32 numFat = rd32(h, 44), dirStart = rd32(h, 48), miniFatStart = rd32(h, 60), numMiniFat = rd32(h, 64), difat = rd32(h, 68), numDifat = rd32(h, 72);
@@ -99,7 +101,8 @@ public:
             for (qint64 k = 0; k < perSector; ++k) m_fat[qsizetype(i * perSector + k)] = rd32(s, qsizetype(k * 4));
         }
         readDirectory(dirStart);
-        readMini(miniFatStart, numMiniFat);
+        miniUnread = !miniOk;
+        if (miniOk) readMini(miniFatStart, numMiniFat);
         return true;
     }
 
@@ -119,6 +122,7 @@ public:
             out.reserve(qsizetype(c.size()) * m_ss);
             for (quint32 n : c) out.append(sector(n).toByteArray());
         }
+        if (quint64(out.size()) < e.size) cutShort = true;   // (the file ended inside the stream: in its last sector, or before it)
         return out.left(qsizetype(e.size));
     }
 
@@ -187,7 +191,7 @@ private:
                 if (!plausibleEntry(e)) continue;
                 DirEntry d;
                 const int nameLen = rd16(e, 64);
-                d.name = QString::fromUtf16(reinterpret_cast<const char16_t *>(e.constData()), nameLen / 2 - 1);
+                for (int c = 0; c < nameLen / 2 - 1; ++c) d.name += QChar(rd16(e, c * 2));
                 d.type = quint8(e[66]);
                 d.start = rd32(e, 116);
                 d.size = m_ss == 512 ? rd32(e, 120) : rd64(e, 120);
@@ -256,45 +260,69 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     QMap<QString, qint64> scanStart;
     qint64 total = 0;
     QStringList missing;
+    // what the caller's checks may look at in all: a few times the file, so no number of candidates makes the work more
+    qint64 work = 8 * qint64(file.size()) + (1 << 20);
     for (const CfbWish &w : wishes) {
         QByteArray found;
         bool fromDirectory = false;
-        auto accept = [&](const QByteArray &data) { return !data.isEmpty() && data.size() <= limits.maxStreamBytes && (!w.validBytes || w.validBytes(QByteArrayView(data), out->streams) > 0); };
-        if (opened)
-            for (const DirEntry &e : std::as_const(tolerant.entries)) {
-                if (e.type != 2 || !nameIs(w, e.name)) continue;
+        auto accept = [&](const QByteArray &data) {
+            if (data.isEmpty() || data.size() > limits.maxStreamBytes || data.size() > work) return false;
+            work -= data.size();
+            return !w.validBytes || w.validBytes(QByteArrayView(data), out->streams) > 0;
+        };
+        // (the entries named for this stream, the one named exactly first, at most maxEntryTries of them, each tried through the tables and then as one run of sectors)
+        auto fromTolerant = [&] {
+            if (!opened) return;
+            QVector<const DirEntry *> named;
+            for (int exact = 1; exact >= 0; --exact)
+                for (const DirEntry &e : std::as_const(tolerant.entries))
+                    if (e.type == 2 && (e.name.compare(w.name, Qt::CaseInsensitive) == 0) == bool(exact) && nameIs(w, e.name)) named << &e;
+            for (int i = 0; i < named.size() && i < limits.maxEntryTries && found.isEmpty(); ++i)
                 for (bool contiguous : {false, true}) {
-                    const QByteArray data = tolerant.stream(e, contiguous);
+                    const QByteArray data = tolerant.stream(*named[i], contiguous);
                     if (!accept(data)) continue;
                     found = data;
                     fromDirectory = true;
                     break;
                 }
-                if (!found.isEmpty()) break;
-            }
-        if (found.isEmpty()) {
+        };
+        auto fromSound = [&] {
             if (!soundTried) {
                 soundTried = true;
                 soundRead = jp::cfb::read(file, &sound);
             }
-            if (soundRead)
-                for (const QString &path : sound.streamPaths()) {
-                    if (path.contains(QLatin1Char('/')) || !nameIs(w, path)) continue;
-                    const QByteArray data = sound.stream(path);
-                    if (!accept(data)) continue;
-                    found = data;
-                    break;
-                }
+            if (!soundRead) return;
+            QStringList named;
+            for (int exact = 1; exact >= 0; --exact)
+                for (const QString &path : sound.streamPaths())
+                    if (!path.contains(QLatin1Char('/')) && (path.compare(w.name, Qt::CaseInsensitive) == 0) == bool(exact) && nameIs(w, path)) named << path;
+            for (int i = 0; i < named.size() && i < limits.maxEntryTries && found.isEmpty(); ++i) {
+                const QByteArray data = sound.stream(named[i]);
+                if (accept(data)) found = data;
+            }
+        };
+        if (w.soundFirst) {
+            fromSound();
+            if (found.isEmpty()) fromTolerant();
+        } else {
+            fromTolerant();
+            if (found.isEmpty()) {
+                fromSound();
+                fromDirectory = false;
+            }
         }
         CfbSalvage::How how = fromDirectory ? CfbSalvage::How::Directory : CfbSalvage::How::Whole;
         if (found.isEmpty() && w.validBytes && w.looksLike) {
             // 3. a scan: every place the stream could start, as far as the caller's own check says it is
             int checks = 0;
             const QByteArrayView all(file);
-            for (qsizetype at = 0; at + 8 <= all.size() && checks < limits.maxChecks; at += kScanStep) {
-                if (!w.looksLike(all.mid(at, qsizetype(std::min<qint64>(all.size() - at, limits.maxStreamBytes))), out->streams)) continue;
-                ++checks;
+            const qsizetype step = w.anyOffset ? 1 : kScanStep;
+            for (qsizetype at = 0; at + 8 <= all.size() && checks < limits.maxChecks; at += step) {
                 const QByteArrayView view = all.mid(at, qsizetype(std::min<qint64>(all.size() - at, limits.maxStreamBytes)));
+                if (!w.looksLike(view, out->streams)) continue;
+                if (view.size() > work) break;
+                ++checks;
+                work -= view.size();
                 const qint64 ok = w.validBytes(view, out->streams);
                 if (ok <= 0) continue;
                 found = view.left(qsizetype(std::min<qint64>(ok, view.size()))).toByteArray();
@@ -328,6 +356,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
         out->cutShort = tolerant.cutShort;
         out->tablesGuessed = tolerant.guessed;
         out->directoryRead = tolerant.directoryRead;
+        out->miniUnread = tolerant.miniUnread;
         for (const DirEntry &e : std::as_const(tolerant.entries))
             if (e.type == 2) out->directoryNames << e.name;
     }

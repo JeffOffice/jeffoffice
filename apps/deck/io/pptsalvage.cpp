@@ -20,6 +20,7 @@ quint16 u16(QByteArrayView b, qint64 o) { return o >= 0 && o + 2 <= b.size() ? q
 quint32 u32(QByteArrayView b, qint64 o) { return o >= 0 && o + 4 <= b.size() ? qFromLittleEndian<quint32>(b.constData() + o) : 0; }
 
 thread_local qint64 g_walked = 0;
+thread_local int g_opens = 0;
 
 struct Top {
     qint64 off = 0;   // of the header
@@ -101,6 +102,7 @@ void listedIds(QByteArrayView d, const Top &doc, QVector<quint32> ids[3])
 } // namespace
 
 qint64 salvageRecordsWalkedForTest() { return g_walked; }
+int salvageOpensForTest() { return g_opens; }
 
 QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QString *error)
 {
@@ -150,7 +152,10 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     if (u32(oldUser, 12) == kTokenEncrypted) return protectedFile();
     QStringList said = found.notes;
 
-    auto opens = [&](const CfbSalvage &s, QString *because) { return importBinaryPresentation(jp::office::rebuildCompoundFile(s), because) != nullptr; };
+    g_opens = 0;
+    auto opens = [&](const CfbSalvage &s, QString *because) {
+        ++g_opens;
+        return importBinaryPresentation(jp::office::rebuildCompoundFile(s), because) != nullptr; };
     QString because;
     bool done = opens(found, &because);
     if (!done) {
@@ -164,11 +169,14 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
         // (an edit is whole when its list of places is, in the stream, a record of the right kind)
         QMap<qint64, Top> byOffset;
         for (const Top &t : tops) byOffset.insert(t.off, t);
-        for (int i = int(tops.size()) - 1; i >= 0 && !done; --i) {
+        int tried = 0;
+        for (int i = int(tops.size()) - 1; i >= 0 && !done && tried < kSalvageMaxEditTries; --i) {
             const Top &t = tops[i];
             if (t.type != kUserEdit || t.len < 28) continue;
+            // (only an edit whose list of places is a whole record of the stream is tried)
             const Top dir = byOffset.value(u32(d, t.off + 8 + 12), Top());
             if (dir.type != kPersistDirectory) continue;
+            ++tried;
             fixed.streams.insert(QStringLiteral("Current User"), currentUser(quint32(t.off)));
             if (opens(fixed, &because)) {
                 done = true;
@@ -194,7 +202,9 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
                 quint32 top = 0;
                 for (int k = 0; k < 3; ++k) {
                     for (quint32 id : std::as_const(ids[k])) top = std::max(top, id);
-                    for (int i = 0; i < ids[k].size() && i < offsets[k].size(); ++i) at.insert(ids[k][i], quint32(offsets[k][i]));
+                    // (more records than the list names are older copies, left by saves that added to the file: the newest are the last)
+                    const int skip = std::max<int>(0, offsets[k].size() - ids[k].size());
+                    for (int i = 0; i < ids[k].size() && i + skip < offsets[k].size(); ++i) at.insert(ids[k][i], quint32(offsets[k][i + skip]));
                 }
                 const quint32 docId = at.contains(1) ? top + 1 : 1;
                 at.insert(docId, quint32(doc->off));
@@ -209,7 +219,7 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
                 if (opens(fixed, &because)) {
                     done = true;
                     found = fixed;
-                    said << QCoreApplication::translate("jp::deck::PptSalvage", "The list that says where each slide is kept was lost, so the slides are in the order they are stored, which may not be the order they were in.");
+                    said << QCoreApplication::translate("jp::deck::PptSalvage", "The list that says where each slide is kept was lost, so the slides are in the order they are stored, which may not be the order they were in, and a slide may be an older version of itself.");
                 }
             }
         }

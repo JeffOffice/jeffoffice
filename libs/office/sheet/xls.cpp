@@ -1331,7 +1331,9 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     wish.name = QStringLiteral("Workbook");
     wish.nameMatches = [](const QString &n) { return n.compare(QLatin1String("Workbook"), Qt::CaseInsensitive) == 0 || n.compare(QLatin1String("Book"), Qt::CaseInsensitive) == 0; };
     wish.looksLike = [](QByteArrayView from, const QMap<QString, QByteArray> &) { return from.startsWith(QByteArrayView(kBiff8, 8)) || from.startsWith(QByteArrayView(kBiff5, 8)); };
-    wish.validBytes = [&](QByteArrayView bytes, const QMap<QString, QByteArray> &) -> qint64 { return reads(bytes.toByteArray()) ? bytes.size() : 0; };
+    wish.soundFirst = true;   // (as before: the container as it is, then the workbook found by its first record at any byte of the file)
+    wish.anyOffset = true;
+    wish.validBytes = [&](QByteArrayView bytes, const QMap<QString, QByteArray> &) -> qint64 { return reads(QByteArray::fromRawData(bytes.constData(), bytes.size())) ? bytes.size() : 0; };
     jp::office::CfbSalvage found;
     QString why;
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {

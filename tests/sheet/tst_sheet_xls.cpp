@@ -11,6 +11,7 @@
 #include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
+#include "sheet/xls.h"
 
 #include <QFile>
 #include <QTemporaryDir>
@@ -144,6 +145,21 @@ private Q_SLOTS:
         QMap<QString, QByteArray> parts;
         QVERIFY(jp::readZip(ods, parts));
         QVERIFY2(parts.value(QStringLiteral("settings.xml")).contains("config:name=\"ActiveTable\" config:type=\"string\">B<"), parts.value(QStringLiteral("settings.xml")).right(600).constData());
+    }
+
+    // Open and Repair finds a workbook stream with no container at all, at any byte of the file (here after 37 bytes of something else), and a sound container's stream as it is.
+    void aRawWorkbookStreamAfterJunkIsFoundByItsFirstRecord()
+    {
+        Book b;
+        b.sheet(QStringLiteral("A"), number(0, 0, 7));
+        const QByteArray raw = QByteArray(37, 'j') + b.stream();
+        QStringList notes;
+        QString why;
+        QCOMPARE(salvageXlsStream(raw, Limits(), &notes, &why), b.stream());
+        QVERIFY(!notes.isEmpty());
+        notes.clear();
+        QCOMPARE(salvageXlsStream(b.file(), Limits(), &notes, &why), b.stream());
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("sound")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The UNCALCED record says the workbook was saved before its calculation finished, in every form that has it.

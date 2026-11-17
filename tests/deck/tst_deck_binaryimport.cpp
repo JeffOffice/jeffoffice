@@ -1001,7 +1001,7 @@ private Q_SLOTS:
             QVERIFY2(d, qPrintable(QString::number(percent) + QLatin1Char(' ') + why));
             QVERIFY(int(d->pages.size()) <= before);
             before = int(d->pages.size());
-            QVERIFY(d->pages.size() >= 1 && d->pages.size() <= 2);
+            QCOMPARE(int(d->pages.size()), percent == 95 ? 2 : 1);   // (the large first slide is whole at 95 percent only; the second is before it)
             QVERIFY(!notes.isEmpty());
             if (percent == 50) {
                 QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")));
@@ -1023,9 +1023,10 @@ private Q_SLOTS:
         zeroSector(bad, int(rd32(bad, 76)));
         QStringList notes;
         QString why;
+        QVERIFY(!deck::importBinaryPresentation(bad));
         auto d = repaired(bad, &notes, &why);
         QVERIFY2(d, qPrintable(why));
-        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
         QVERIFY(!notes.isEmpty());
         // a chain that leads back to the second sector of the stream
         bad = good;
@@ -1037,9 +1038,12 @@ private Q_SLOTS:
             if ((rd32(bad, o + 64) & 0xFFFF) == 2 * (QStringLiteral("PowerPoint Document").size() + 1)) start = int(rd32(bad, o + 116));
         QVERIFY(start >= 0);
         qToLittleEndian(quint32(start + 1), bad.data() + (int(rd32(bad, 76)) + 1) * 512 + (start + 4) * 4);
+        QVERIFY(!deck::importBinaryPresentation(bad));
+        notes.clear();
         d = repaired(bad, &notes, &why);
         QVERIFY2(d, qPrintable(why));
-        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     void aPresentationWhoseDirectoryIsZeroedIsFoundByItsRecords()
@@ -1062,6 +1066,66 @@ private Q_SLOTS:
         QString why;
         QVERIFY(deck::salvagePresentation(locked, &notes, &why).isEmpty());
         QVERIFY2(why.contains(QLatin1String("password")), qPrintable(why));
+    }
+
+    void theEditsOfAStreamAreTriedOnlyToTheLimit()
+    {
+        // a document record, then a hundred edits whose lists of places are whole records but name no document, and no Current User
+        cfb::File f;
+        QVERIFY(cfb::read(buildPpt(), &f));
+        const QByteArray whole = f.stream(pptDocumentStream());
+        QByteArray stream = whole.left(topRecordOf(whole, 1006));
+        for (int i = 0; i < 100; ++i) {
+            const quint32 directory = quint32(stream.size());
+            stream += persistDirectory({{1, directory}});
+            stream += userEdit(0, directory, 1);
+        }
+        cfb::File g;
+        g.entries = f.entries;
+        QVERIFY(g.setStream(pptDocumentStream(), stream));
+        QStringList notes;
+        QString why;
+        deck::salvagePresentation(cfb::write(g), &notes, &why);
+        QVERIFY2(deck::salvageOpensForTest() <= 2 + deck::kSalvageMaxEditTries, qPrintable(QString::number(deck::salvageOpensForTest())));
+        QVERIFY(deck::salvageOpensForTest() > deck::kSalvageMaxEditTries);
+    }
+
+    void whenTheListOfPlacesIsMadeAgainTheNewestRecordsAreUsed()
+    {
+        // the first slide (the second slide record in the stream) has a shape of its own that the other slide does not
+        const QByteArray none;
+        const QByteArray shape = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 2, 2) + pptRec(0xF010, le(1000, 2) + le(2000, 2) + le(2800, 2) + le(2600, 2)));
+        const QByteArray good = buildPpt(false, false, false, false, none, none, shape);
+        cfb::File f;
+        QVERIFY(cfb::read(good, &f));
+        const QByteArray stream = f.stream(pptDocumentStream());
+        const int directory = topRecordOf(stream, 6002);
+        // an older copy of the first slide (the last record before the notes) is stored before the others, as a save that added to the file leaves it
+        int firstSlide = -1, last = -1;
+        for (int pos = 0; pos + 8 <= stream.size() && pos < directory; pos += 8 + int(rd32(stream, pos + 4)))
+            if (rd32(stream, pos) >> 16 == 1006) {
+                if (firstSlide < 0) firstSlide = pos;
+                last = pos;
+            }
+        QVERIFY(last > firstSlide);
+        const int afterDocument = 8 + int(rd32(stream, 4));
+        const QByteArray copy = stream.mid(last, 8 + int(rd32(stream, last + 4)));
+        QByteArray cut = stream.left(afterDocument) + copy + stream.mid(afterDocument, directory - afterDocument);
+        const QByteArray bad = withStream(good, pptDocumentStream(), cut);
+        QStringList notes;
+        QString why;
+        auto d = repaired(bad, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        // (two slides are named, so the last two slide records are theirs; the older copy of the first, which has the notes, is not used for the slide listed first)
+        QCOMPARE(int(d->pages.size()), 2);
+        auto shapes = [](const Page &p) {
+            int n = 0;
+            for (const auto &it : p.items) n += it->type() == ItemType::Shape && it->role.isEmpty();
+            return n;
+        };
+        QCOMPARE(shapes(*d->pages[0]), 0);
+        QCOMPARE(shapes(*d->pages[1]), 1);
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("older version")));
     }
 
     void theRecordsOfAStreamAreWalkedOnlyToTheLimit()

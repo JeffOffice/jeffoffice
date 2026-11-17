@@ -13,6 +13,13 @@ namespace jp::office::doc {
 // The text looked for is searched for in the first kSalvageTextSearchBytes of the document stream, at every byte.
 constexpr qint64 kSalvageTextSearchBytes = 65536;
 
+// What the last salvage did that a limit bounds (for a test): the most property modifiers looked through before one table of pieces, and how many times a header was read.
+struct SalvageWork {
+    int maxModifierSteps = 0;
+    int fibReads = 0;
+};
+SalvageWork salvageWorkForTest();
+
 QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error);
 
 } // namespace jp::office::doc

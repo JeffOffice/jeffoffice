@@ -14,6 +14,11 @@ namespace jp::deck {
 // The records of the stream are looked at once, and at most kSalvageMaxRecords of them (at the top of the stream: the records inside them are the reader's, with its own limits).
 constexpr int kSalvageMaxRecords = 1000000;
 
+// The edits at the end of the stream that are tried, newest first, each by reading the whole presentation again.
+constexpr int kSalvageMaxEditTries = 8;
+// How many times the presentation was read to see whether it opens, in the last salvage (for a test of the limit).
+int salvageOpensForTest();
+
 // The most records any one walk of a stream has gone through since the program began (for a test of the limit).
 qint64 salvageRecordsWalkedForTest();
 

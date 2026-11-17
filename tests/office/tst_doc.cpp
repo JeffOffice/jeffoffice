@@ -1839,8 +1839,10 @@ private Q_SLOTS:
         QStringList paras, notes;
         QByteArray bad = repairableDoc(&paras);
         zeroSector(bad, int(le32At(bad, 76)));
+        Document plain;
+        QVERIFY(!read(bad, &plain) || bodyTexts(plain) != paras);
         QCOMPARE(repairedParagraphs(bad, &notes), paras);
-        QVERIFY(!notes.isEmpty());
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     void aDocumentWhoseDirectoryIsZeroedIsFoundByItsRecords()
@@ -1867,6 +1869,7 @@ private Q_SLOTS:
         Document plain;
         QVERIFY(!read(bad, &plain, nullptr) || bodyTexts(plain) != paras);
         QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));   // (the chain was guessed from the directory)
         // the directory's own chain too
         QByteArray bad2 = repairableDoc(&paras);
         setLe32(bad2, (int(le32At(bad2, 76)) + 1) * 512 + int(le32At(bad2, 48)) * 4, le32At(bad2, 48));
@@ -1948,6 +1951,154 @@ private Q_SLOTS:
         QVERIFY(out.streams.isEmpty());
         QVERIFY(jp::office::salvageCompoundFile(good, {w}, &out, &why));
         QVERIFY(out.streams.value(QStringLiteral("WordDocument")).size() > 4096);
+    }
+
+    // The limits on what a hostile file makes the repair do.
+
+    void aTableOfPiecesAfterManyModifiersIsLookedThroughOnlyAFewSteps()
+    {
+        QStringList paras, notes;
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(repairableDoc(&paras), &f));
+        // the table stream is made all of property modifiers (a 1, then a length, again and again), so each place the table of pieces could be would be walked to its end
+        const QByteArray table(60000, '\x01');
+        QVERIFY(f.setStream(QStringLiteral("1Table"), table));
+        doc::salvageDoc(jp::cfb::write(f), &notes, nullptr);
+        QVERIFY(doc::salvageWorkForTest().maxModifierSteps > 0 && doc::salvageWorkForTest().maxModifierSteps <= 16);
+    }
+
+    void theHeaderIsReadOnceWhateverTheNumberOfPlacesScanned()
+    {
+        QStringList paras, notes;
+        QByteArray bad = repairableDoc(&paras);
+        zeroSector(bad, int(le32At(bad, 48)));   // (the directory is gone: the streams are found by scanning)
+        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY(doc::salvageWorkForTest().fibReads <= 2);   // (the file has some 500 places to look at)
+    }
+
+    void aTableWhoseTextEndsBeforeTheHeaderSaysIsNotTaken()
+    {
+        QStringList paras, notes;
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(repairableDoc(&paras), &f));
+        const QByteArray wd = f.stream(QStringLiteral("WordDocument"));
+        const int pairs = 34 + qFromLittleEndian<quint16>(wd.constData() + 32) * 2;
+        const int cslw = qFromLittleEndian<quint16>(wd.constData() + pairs);
+        const int fcAt = pairs + 2 + cslw * 4 + 2 + 33 * 8;
+        const int clx = int(qFromLittleEndian<quint32>(wd.constData() + fcAt));
+        QByteArray table = f.stream(QStringLiteral("1Table"));
+        QVERIFY(clx + 13 < table.size() && table[clx] == 2);
+        qToLittleEndian(quint32(5), table.data() + clx + 9);   // (one piece that holds 5 characters, where the header says there are thousands)
+        QVERIFY(f.setStream(QStringLiteral("1Table"), table));
+        Document plain;
+        const QByteArray bad = jp::cfb::write(f);
+        QVERIFY(read(bad, &plain));
+        QVERIFY(bodyTexts(plain) != paras);
+        QCOMPARE(repairedParagraphs(bad, &notes), paras);   // (the text is found without the table, whole)
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("plain paragraphs")));
+    }
+
+    void onlyAFewDirectoryEntriesOfOneNameAreTried()
+    {
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        for (int i = 0; i < 300; ++i) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("X");
+            e.data = QByteArray(5000 + i, 'a');
+            f.entries[0].children.push_back(int(f.entries.size()));
+            f.entries.push_back(e);
+        }
+        int calls = 0;
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("X");
+        w.validBytes = [&](QByteArrayView, const QMap<QString, QByteArray> &) -> qint64 {
+            ++calls;
+            return 0;
+        };
+        jp::office::CfbSalvage out;
+        QString why;
+        QVERIFY(!jp::office::salvageCompoundFile(jp::cfb::write(f), {w}, &out, &why));
+        QVERIFY2(calls > 0 && calls <= 3 * jp::office::CfbSalvageLimits().maxEntryTries, qPrintable(QString::number(calls)));
+    }
+
+    void whatTheChecksAreGivenAddsUpToAFewTimesTheFile()
+    {
+        const QByteArray junk(200000, 'x');
+        qint64 given = 0;
+        int calls = 0;
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("X");
+        w.looksLike = [](QByteArrayView, const QMap<QString, QByteArray> &) { return true; };
+        w.validBytes = [&](QByteArrayView b, const QMap<QString, QByteArray> &) -> qint64 {
+            given += b.size();
+            ++calls;
+            return 0;
+        };
+        jp::office::CfbSalvageLimits lim;
+        lim.maxChecks = 100000;
+        jp::office::CfbSalvage out;
+        QString why;
+        QVERIFY(!jp::office::salvageCompoundFile(junk, {w}, &out, &why, lim));
+        QVERIFY(calls > 1);
+        QVERIFY2(given <= 8 * qint64(junk.size()) + (1 << 20), qPrintable(QString::number(given)));
+    }
+
+    void aMiniSectorOfTheWrongSizeMakesTheMiniStreamUnread()
+    {
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = QStringLiteral("S");
+        e.data = QByteArray(300, 's');
+        f.entries[0].children.push_back(1);
+        f.entries.push_back(e);
+        QByteArray file = jp::cfb::write(f);
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("S");
+        jp::office::CfbSalvage out;
+        QString why;
+        QVERIFY(jp::office::salvageCompoundFile(file, {w}, &out, &why));
+        QVERIFY(!out.miniUnread);
+        file[32] = 1;   // (2-byte mini sectors: the format has only 64)
+        jp::office::salvageCompoundFile(file, {w}, &out, &why);
+        QVERIFY(out.miniUnread);
+    }
+
+    void aFileEndingInsideTheLastSectorOfAStreamIsCutShort()
+    {
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = QStringLiteral("S");
+        e.data = QByteArray(10000, 's');
+        f.entries[0].children.push_back(1);
+        f.entries.push_back(e);
+        const QByteArray whole = jp::cfb::write(f);
+        const int entry = directoryEntryOf(whole, QStringLiteral("S"));
+        QVERIFY(entry > 0);
+        const int start = int(le32At(whole, entry + 116));
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("S");
+        jp::office::CfbSalvage out;
+        QString why;
+        // (the file ends 100 bytes into the stream's last sector, which is the 20th)
+        QVERIFY(jp::office::salvageCompoundFile(whole.left((start + 20) * 512 + 100), {w}, &out, &why));
+        QVERIFY(out.cutShort);
+        QVERIFY(out.streams.value(QStringLiteral("S")).size() < 10000);
+        QVERIFY(out.notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")));
     }
 
     // A developer's hook, not a test: JO_DOC_SWEEP_IN names a folder (searched through) of .doc files; each is read as it is, and again with bytes

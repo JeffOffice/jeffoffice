@@ -8,6 +8,7 @@
 #include <QtEndian>
 
 #include <algorithm>
+#include <memory>
 
 namespace jp::office::doc {
 
@@ -40,27 +41,49 @@ FibPlaces fibPlaces(const Span &wd)
     return p;
 }
 
+// The property modifiers that may come before the table of pieces in the table of the text (real files have one or two), looked at at most this many.
+constexpr int kMaxModifiers = 16;
+thread_local SalvageWork g_work;
+
+// Where the table of the text's pieces starts in a table stream, after the modifiers that come first; false if the place the header names does not hold one.
+bool clxStart(const Span &s, const Fib &fib, qint64 *at)
+{
+    const Fib::Fc c = fib.at(Fib::Clx);
+    const qint64 stop = qint64(c.fc) + c.lcb;
+    if (c.lcb < 16 || stop > s.size()) return false;
+    qint64 o = c.fc;
+    int steps = 0;
+    while (s.u8(o) == 1) {
+        if (steps >= kMaxModifiers || o >= stop) {
+            g_work.maxModifierSteps = std::max(g_work.maxModifierSteps, steps);
+            return false;
+        }
+        ++steps;
+        o += 3 + s.u16(o + 1);
+    }
+    g_work.maxModifierSteps = std::max(g_work.maxModifierSteps, steps);
+    *at = o;
+    return o < stop && s.u8(o) == 2;
+}
+
 // Whether a place of the table stream holds the table of the text's pieces the header names: the first bytes only.
 bool clxLooksRight(QByteArrayView t, const Fib &fib)
 {
-    const Fib::Fc c = fib.at(Fib::Clx);
-    if (c.lcb < 16 || qint64(c.fc) + c.lcb > t.size()) return false;
     const Span s(reinterpret_cast<const uchar *>(t.constData()), t.size());
-    qint64 o = c.fc;
-    while (s.u8(o) == 1) o += 3 + s.u16(o + 1);   // (property modifiers come first)
-    if (o >= qint64(c.fc) + c.lcb || s.u8(o) != 2) return false;
+    qint64 o = 0;
+    if (!clxStart(s, fib, &o)) return false;
     const qint64 lcb = s.u32(o + 1);
     if (lcb < 16 || (lcb - 4) % 12 != 0 || o + 5 + lcb > t.size()) return false;
     return s.u32(o + 5) == 0 && s.u32(o + 9) > 0;
 }
 
-// The same, whole: the positions climb from the first character, to the end of the text.
-qint64 clxValid(QByteArrayView t, const Fib &fib)
+// The same, whole: the positions climb from the first character to at least the end of the main text, and the first piece's text starts inside the document stream.
+qint64 clxValid(QByteArrayView t, const Fib &fib, qint64 documentBytes)
 {
     if (!clxLooksRight(t, fib)) return 0;
     const Span s(reinterpret_cast<const uchar *>(t.constData()), t.size());
-    qint64 o = fib.at(Fib::Clx).fc;
-    while (s.u8(o) == 1) o += 3 + s.u16(o + 1);
+    qint64 o = 0;
+    clxStart(s, fib, &o);
     const qint64 n = (qint64(s.u32(o + 1)) - 4) / 12;
     if (n > kMaxPieces) return 0;
     qint64 prev = -1;
@@ -69,6 +92,10 @@ qint64 clxValid(QByteArrayView t, const Fib &fib)
         if (cp <= prev) return 0;
         prev = cp;
     }
+    if (prev < fib.ccpText) return 0;
+    const quint32 raw = s.u32(o + 5 + (n + 1) * 4 + 2);
+    const qint64 first = (raw & 0x40000000) ? qint64(raw & 0x3FFFFFFF) / 2 : qint64(raw & 0x3FFFFFFF);
+    if (documentBytes > 0 && first >= documentBytes) return 0;
     return t.size();
 }
 
@@ -106,8 +133,11 @@ bool findText(const Span &wd, qint64 chars, qint64 from, qint64 *at, bool *unico
 
 } // namespace
 
+SalvageWork salvageWorkForTest() { return g_work; }
+
 QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error)
 {
+    g_work = SalvageWork();
     // the document stream, by its header; each table stream, by the piece table the header names, for the one the header says is in use
     auto wordLooks = [](QByteArrayView from, const QMap<QString, QByteArray> &) {
         const Span s(reinterpret_cast<const uchar *>(from.constData()), from.size());
@@ -118,10 +148,26 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         QString why;
         return readFib(Span(reinterpret_cast<const uchar *>(bytes.constData()), bytes.size()), &fib, &why) ? bytes.size() : 0;
     };
-    auto fibOf = [](const QMap<QString, QByteArray> &found, Fib *fib) {
+    // (the header is read once for a document stream, not at each place a scan looks at)
+    struct FibCache {
+        const char *at = nullptr;
+        qsizetype size = 0;
+        Fib fib;
+        bool ok = false;
+    };
+    auto cache = std::make_shared<FibCache>();
+    auto fibOf = [cache](const QMap<QString, QByteArray> &found, Fib *fib) {
         const QByteArray wd = found.value(QStringLiteral("WordDocument"));
-        QString why;
-        return !wd.isEmpty() && readFib(Span(wd), fib, &why);
+        if (wd.isEmpty()) return false;
+        if (cache->at != wd.constData() || cache->size != wd.size()) {
+            QString why;
+            cache->at = wd.constData();
+            cache->size = wd.size();
+            cache->ok = readFib(Span(wd), &cache->fib, &why);
+            ++g_work.fibReads;
+        }
+        *fib = cache->fib;
+        return cache->ok;
     };
     auto tableWish = [&](const char *name, bool second) {
         CfbWish w;
@@ -133,7 +179,7 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         };
         w.validBytes = [=](QByteArrayView bytes, const QMap<QString, QByteArray> &found) -> qint64 {
             Fib fib;
-            return fibOf(found, &fib) && fib.whichTable1 == second ? clxValid(bytes, fib) : 0;
+            return fibOf(found, &fib) && fib.whichTable1 == second ? clxValid(bytes, fib, found.value(QStringLiteral("WordDocument")).size()) : 0;
         };
         return w;
     };
@@ -211,7 +257,7 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
             if (error) *error = QCoreApplication::translate("jp::office::doc::Salvage", "The document's tables are lost, and its text could not be read without them.");
             return QByteArray();
         }
-        said << QCoreApplication::translate("jp::office::doc::Salvage", "The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, or pictures.");
+        said << QCoreApplication::translate("jp::office::doc::Salvage", "The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, pictures, headers, footers, or footnotes.");
     } else if (!found.streams.contains(QStringLiteral("Data")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Data"), Qt::CaseInsensitive)))) {
         said << QCoreApplication::translate("jp::office::doc::Salvage", "The pictures of the document, if it had any, could not be found.");
     }
