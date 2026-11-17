@@ -7,6 +7,7 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "sheet/ods.h"
+#include "sheet/oldsave.h"
 #include "office/binarycrypt.h"
 #include "office/odfcrypt.h"
 #include "office/odraw_inflate.h"
@@ -1236,6 +1237,115 @@ private Q_SLOTS:
                 QCOMPARE(xlstest::shown(wb3, s, QStringLiteral("A2")), QStringLiteral("i:hello"));
             }
         }
+    }
+
+    // The .xls a save writes with a password is checked here against the format's own description, with a reader made apart from the program's: the records that begin a stream, FILEPASS, and the
+    // places in the list of sheets are not enciphered, every other byte is (RC4 with a key from the password's SHA-1 and the number of the 1024-byte block it lies in), and what the
+    // password opens is the stream the save writes with none, with FILEPASS put in and the places of the sheets moved by its size.
+    void anXlsWrittenWithAPasswordIsEncipheredAsTheFormatSays()
+    {
+        QString filler;   // (rows enough that the stream lies over several blocks of 1024 bytes)
+        for (int r = 2; r < 400; ++r) filler += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QByteArray x = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>3</v></c><c r=\"B1\" t=\"inlineStr\"><is><t>hello</t></is></c></row>") + filler),
+                                        worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>2</v></c></row>"))},
+                                       QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("One"), QStringLiteral("Two")});
+        using jp::office::sheet::saveXls;
+        oc::Package pkg;
+        Workbook book;
+        QString why;
+        QVERIFY2(pkg.readLazy(x, &why) && book.open(pkg, &why), qPrintable(why));
+        QByteArray plainFile, lockedFile;
+        QVERIFY2(saveXls(book, &plainFile, nullptr, &why), qPrintable(why));
+        const QString password = QStringLiteral("Tr1cky é pass");
+        QVERIFY2(saveXls(book, &lockedFile, nullptr, &why, nullptr, password), qPrintable(why));
+        jp::cfb::File plainCfb, lockedCfb;
+        QVERIFY(jp::cfb::read(plainFile, &plainCfb, &why) && jp::cfb::read(lockedFile, &lockedCfb, &why));
+        const QByteArray plain = plainCfb.stream(QStringLiteral("Workbook")), locked = lockedCfb.stream(QStringLiteral("Workbook"));
+        // FILEPASS is the record after the first BOF, in the form of the provider's RC4: type 1, version 4.2
+        const int first = 4 + u16At(locked, 2);
+        QCOMPARE(u16At(locked, 0), quint16(0x0809));
+        QCOMPARE(u16At(locked, first), quint16(0x002F));
+        const int fpLen = u16At(locked, first + 2);
+        const QByteArray fp = locked.mid(first + 4, fpLen);
+        auto u32At = [](const QByteArray &b, qsizetype at) { return quint32(u16At(b, at)) | quint32(u16At(b, at + 2)) << 16; };
+        QCOMPARE(u16At(fp, 0), quint16(1));
+        QCOMPARE(u16At(fp, 2), quint16(4));
+        QCOMPARE(u16At(fp, 4), quint16(2));
+        const int header = 14, v = 2 + 12 + int(u32At(fp, 10));
+        QCOMPARE(u32At(fp, header + 8), quint32(0x6801));    // RC4
+        QCOMPARE(u32At(fp, header + 12), quint32(0x8004));   // SHA-1
+        QCOMPARE(u32At(fp, header + 16), quint32(128));
+        QCOMPARE(u32At(fp, v), quint32(16));
+        const QByteArray salt = fp.mid(v + 4, 16), encVerifier = fp.mid(v + 20, 16);
+        QCOMPARE(u32At(fp, v + 36), quint32(20));
+        const QByteArray encHash = fp.mid(v + 40, 20);
+        QCOMPARE(int(fp.size()), v + 60);
+        // (the salt is not the same in two saves)
+        QByteArray again;
+        QVERIFY(saveXls(book, &again, nullptr, &why, nullptr, password));
+        jp::cfb::File againCfb;
+        QVERIFY(jp::cfb::read(again, &againCfb, &why));
+        QVERIFY(againCfb.stream(QStringLiteral("Workbook")).mid(first + 4 + v + 4, 16) != salt);
+        // the key of a block, from the password
+        const QByteArray base = QCryptographicHash::hash(salt + utf16(password, 255), QCryptographicHash::Sha1);
+        auto keystream = [&](quint32 block) {
+            crypto::Rc4 rc4(QCryptographicHash::hash(base + le32(block), QCryptographicHash::Sha1).left(16));
+            return rc4.apply(QByteArray(1024, 0));
+        };
+        crypto::Rc4 vrc(QCryptographicHash::hash(base + le32(0), QCryptographicHash::Sha1).left(16));
+        const QByteArray check = vrc.apply(encVerifier + encHash);
+        QCOMPARE(QCryptographicHash::hash(check.left(16), QCryptographicHash::Sha1), check.mid(16, 20));
+        // the stream with every enciphered byte opened
+        QByteArray opened = locked;
+        qsizetype p = first + 4 + fpLen;
+        int boundSheets = 0, boms = 1;
+        QByteArray ks;
+        qint64 have = -1;
+        while (p + 4 <= opened.size()) {
+            const quint16 id = u16At(locked, p), len = u16At(locked, p + 2);
+            if (id == 0 && len == 0) break;
+            QVERIFY(p + 4 + len <= opened.size());
+            const bool clear = id == 0x0809 || id == 0x00E1;
+            if (id == 0x0809) ++boms;
+            if (id == 0x0085) ++boundSheets;
+            for (int i = (id == 0x0085 ? 4 : 0); !clear && i < len; ++i) {
+                const qsizetype at = p + 4 + i;
+                if (at / 1024 != have) {
+                    ks = keystream(quint32(at / 1024));
+                    have = at / 1024;
+                }
+                opened[at] = char(quint8(locked[at]) ^ quint8(ks[int(at % 1024)]));
+            }
+            p += 4 + len;
+        }
+        QCOMPARE(boundSheets, 2);
+        QCOMPARE(boms, 3);   // (the globals and the two sheets: each begins in the clear)
+        // what the password opens is the stream of a save with none: FILEPASS put in, the places of the sheets moved by its size
+        const int moved = 4 + fpLen;
+        QByteArray expected = plain.left(first) + locked.mid(first, moved);
+        qsizetype q = first;
+        while (q + 4 <= plain.size()) {
+            const quint16 id = u16At(plain, q), len = u16At(plain, q + 2);
+            QByteArray rec = plain.mid(q, 4 + len);
+            if (id == 0x0085) rec.replace(4, 4, le32(u32At(rec, 4) + quint32(moved)));
+            expected += rec;
+            q += 4 + len;
+        }
+        QVERIFY(p > 2048);   // (the records; what lies after them is the zeros that fill the stream out)
+        QCOMPARE(opened.left(p), expected.left(p));
+        // and each place the list of sheets gives is where that sheet's BOF lies
+        qsizetype g = first + moved;
+        int found = 0;
+        while (g + 4 <= locked.size()) {
+            const quint16 id = u16At(locked, g), len = u16At(locked, g + 2);
+            if (id == 0x0085) {
+                QCOMPARE(u16At(locked, qsizetype(u32At(locked, g + 4))), quint16(0x0809));
+                ++found;
+            }
+            if (id == 0x000A) break;
+            g += 4 + len;
+        }
+        QCOMPARE(found, 2);
     }
 
     void aBinaryFileWithTheDefaultPasswordOpensWithNoneGiven()

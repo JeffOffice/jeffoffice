@@ -64,8 +64,8 @@ bool CrunchWindow::exportCopy(const QString &path)
     setStatus(tr("Saving %1…").arg(QFileInfo(path).fileName()));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    // (an .ods or .ots copy of a workbook that has a password is protected with it, enciphered on the thread that makes the copy; the copy of the password goes with the thread and is wiped)
-    const auto secret = std::make_shared<QString>(!xls && hasUserPassword() ? m_filePassword : QString());
+    // (an .xls, .ods, or .ots copy of a workbook that has a password is protected with it, enciphered on the thread that makes the copy; the copy of the password goes with the thread and is wiped)
+    const auto secret = std::make_shared<QString>(hasUserPassword() ? m_filePassword : QString());
     QThread *thread = QThread::create([self, book, snapshot, path, xls, ots, secret] {
         QByteArray xlsx, copy;
         QString message;
@@ -77,9 +77,9 @@ bool CrunchWindow::exportCopy(const QString &path)
             office::Package package;
             office::sheet::Workbook made;
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
-            if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message) : office::sheet::saveOds(made, &copy, &copyReport, &message);
+            if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message, nullptr, *secret) : office::sheet::saveOds(made, &copy, &copyReport, &message);
             if (ok && ots) copy = office::odt::odfAsTemplate(copy);
-            if (ok && !secret->isEmpty()) {
+            if (ok && !xls && !secret->isEmpty()) {
                 copy = office::encryptOdf(copy, *secret, office::kMaxOpenFileBytes);
                 if (copy.isEmpty()) {
                     ok = false;

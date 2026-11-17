@@ -55,6 +55,43 @@ bool findFilePass(const QByteArray &s, FilePass *fp, bool *biff8)
     return false;
 }
 
+// The bytes of the stream after `after` that the provider's and the 40-bit RC4 forms encipher, in place: every record but the ones in the clear, and but the first four bytes of a sheet's entry
+// in the list of sheets (where the sheet begins). The same call enciphers and deciphers. False for a record that is not whole.
+bool rc4Records(QByteArray *stream, qsizetype after, const Rc4Keys &keys)
+{
+    stream->detach();
+    char *d = stream->data();
+    const qsizetype size = stream->size();
+    QByteArray keystream;
+    Wiper wiper;
+    wiper.add(&keystream);
+    qint64 haveBlock = -1;
+    qsizetype p = after;
+    while (p + 4 <= size) {
+        const quint16 id = u16(*stream, p), len = u16(*stream, p + 2);
+        const qsizetype start = p + 4, end = start + len;
+        if (end > size) return false;
+        if (!clearRecord(id)) {
+            qsizetype from = start;
+            if (id == kBoundSheet) from = std::min<qsizetype>(end, start + 4);
+            for (qsizetype q = from; q < end; ++q) {
+                const qint64 block = q / 1024;
+                if (block != haveBlock) {
+                    QByteArray blockKey = keys.forBlock(quint32(block));
+                    crypto::Rc4 rc4(blockKey);
+                    crypto::wipe(blockKey);
+                    crypto::wipe(keystream);
+                    keystream = rc4.apply(QByteArray(1024, 0));
+                    haveBlock = block;
+                }
+                d[q] = char(quint8(d[q]) ^ quint8(keystream[int(q % 1024)]));
+            }
+        }
+        p = end;
+    }
+    return true;
+}
+
 } // namespace
 
 quint16 xorKeyForTest(const QByteArray &password) { return xorKey(password.left(15)); }
@@ -83,11 +120,8 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
     }
     std::array<quint8, 16> table{};
     Rc4Keys keys;
-    QByteArray blockKeystream, blockKey;
     Wiper wiper;
     wiper.add(&keys.base);
-    wiper.add(&blockKeystream);
-    wiper.add(&blockKey);
     struct TableWipe {
         std::array<quint8, 16> *t;
         ~TableWipe() { crypto::secureZero(t->data(), t->size()); }
@@ -109,41 +143,70 @@ CryptResult decryptBiff(QByteArray *stream, const QString &password, bool verify
     }
     if (verifyOnly) return CryptResult::Ok;
     // the records after FILEPASS, one at a time
-    stream->detach();
-    char *d = stream->data();
-    const qsizetype size = stream->size();
-    qint64 haveBlock = -1;
-    qsizetype p = after;
-    while (p + 4 <= size) {
-        const quint16 id = u16(*stream, p), len = u16(*stream, p + 2);
-        const qsizetype start = p + 4, end = start + len;
-        if (end > size) return CryptResult::Damaged;
-        if (!clearRecord(id)) {
-            qsizetype from = start;
-            if (id == kBoundSheet) from = std::min<qsizetype>(end, start + 4);   // (where the sheet begins is not enciphered)
-            if (xorForm) {
+    if (!xorForm) {
+        if (!rc4Records(stream, after, keys)) return CryptResult::Damaged;
+    } else {
+        stream->detach();
+        char *d = stream->data();
+        const qsizetype size = stream->size();
+        qsizetype p = after;
+        while (p + 4 <= size) {
+            const quint16 id = u16(*stream, p), len = u16(*stream, p + 2);
+            const qsizetype start = p + 4, end = start + len;
+            if (end > size) return CryptResult::Damaged;
+            if (!clearRecord(id)) {
+                qsizetype from = start;
+                if (id == kBoundSheet) from = std::min<qsizetype>(end, start + 4);   // (where the sheet begins is not enciphered)
                 for (qsizetype q = from; q < end; ++q) {
                     const quint8 c = quint8(d[q]) ^ table[size_t((start + len + (q - start)) % 16)];
                     d[q] = char(quint8((c << 3) | (c >> 5)));
                 }
-            } else {
-                for (qsizetype q = from; q < end; ++q) {
-                    const qint64 block = q / 1024;
-                    if (block != haveBlock) {
-                        blockKey = keys.forBlock(quint32(block));
-                        crypto::Rc4 rc4(blockKey);
-                        blockKeystream = rc4.apply(QByteArray(1024, 0));
-                        haveBlock = block;
-                    }
-                    d[q] = char(quint8(d[q]) ^ quint8(blockKeystream[int(q % 1024)]));
-                }
             }
+            p = end;
         }
-        p = end;
     }
+    char *d = stream->data();
     d[fp.at] = char(kRenamed & 0xFF);
     d[fp.at + 1] = char(kRenamed >> 8);
     return CryptResult::Ok;
+}
+
+bool encryptBiff(QByteArray *stream, const QString &password, const QByteArray &salt, const QByteArray &verifier)
+{
+    if (password.isEmpty() || stream->size() < 8 || u16(*stream, 0) != kBof) return false;
+    const qsizetype first = 4 + u16(*stream, 2);
+    if (first + 4 > stream->size() || u16(*stream, 4) < 0x0600) return false;   // (the form is BIFF8)
+    FilePass already;
+    bool biff8;
+    if (findFilePass(*stream, &already, &biff8)) return false;
+    Rc4Keys keys;
+    Wiper wiper;
+    wiper.add(&keys.base);
+    const QByteArray body = rc4CryptoApiHeader(password, &keys, salt, verifier);
+    if (body.isEmpty() || body.size() > 0xFFFF) return false;
+    QByteArray record;
+    record.append(char(kFilePass & 0xFF)).append(char(kFilePass >> 8)).append(char(body.size() & 0xFF)).append(char(body.size() >> 8)).append(body);
+    // FILEPASS goes in right after the first BOF; where each sheet begins (the list of sheets is in the globals, before the first EOF) moves by its size
+    QByteArray out = stream->left(first) + record;
+    out.reserve(stream->size() + record.size());
+    qsizetype p = first;
+    bool globals = true;
+    while (p + 4 <= stream->size()) {
+        const quint16 id = u16(*stream, p), len = u16(*stream, p + 2);
+        if (p + 4 + len > stream->size()) return false;
+        QByteArray rec = stream->mid(p, 4 + len);
+        if (globals && id == kBoundSheet && len >= 4) {
+            const quint32 at = quint32(u16(rec, 4)) | quint32(u16(rec, 6)) << 16;
+            const quint32 moved = at + quint32(record.size());
+            for (int i = 0; i < 4; ++i) rec[4 + i] = char((moved >> (8 * i)) & 0xFF);
+        }
+        if (id == kEof) globals = false;
+        out += rec;
+        p += 4 + len;
+    }
+    if (!rc4Records(&out, first + record.size(), keys)) return false;
+    *stream = out;
+    return true;
 }
 
 } // namespace jp::office::sheet

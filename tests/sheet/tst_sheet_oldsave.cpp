@@ -411,6 +411,53 @@ private Q_SLOTS:
         QVERIFY(!c.xlsReport.notKept.join(QLatin1Char('|')).contains(QLatin1String("page setup")));
     }
 
+    // A workbook saved as .xls with a password opens with that password and gives the same sheets, cells, and formulas as the copy with none; a wrong password is refused, and no password is asked of the copy with none.
+    void anXlsCopyWithAPasswordOpensWithItAndNoOther()
+    {
+        const QByteArray x = buildXlsx({worksheet(row(1, num(QStringLiteral("A1"), 3) + str(QStringLiteral("B1"), QStringLiteral("héllo")) + fnum(QStringLiteral("C1"), QStringLiteral("A1*2+Sheet2!A1"), 8))
+                                                  + row(2, fnum(QStringLiteral("A2"), QStringLiteral("SUM(A1:C1)"), 14))),
+                                        worksheet(row(1, num(QStringLiteral("A1"), 2)))},
+                                       QByteArray(), QString(), QString(), QByteArray(), QStringList{QStringLiteral("First"), QStringLiteral("Sheet2")});
+        Workbook original;
+        QString why;
+        QVERIFY2(openXlsx(x, &original, &why), qPrintable(why));
+        QByteArray plain, locked;
+        QVERIFY2(saveXls(original, &plain, nullptr, &why), qPrintable(why));
+        const QString password = QStringLiteral("päss w0rd");
+        QVERIFY2(saveXls(original, &locked, nullptr, &why, nullptr, password), qPrintable(why));
+        QVERIFY(locked != plain);
+        // (no password asked of the plain copy)
+        Workbook open;
+        QVERIFY2(open.openBinary(plain, &why), qPrintable(why));
+        QCOMPARE(open.passwordNeed(), PasswordNeed::None);
+        // (the locked copy asks, refuses a wrong password, and opens with the right one)
+        Workbook asks;
+        QVERIFY(!asks.openBinary(locked, &why));
+        QCOMPARE(asks.passwordNeed(), PasswordNeed::Needed);
+        Limits wrong;
+        wrong.password = QStringLiteral("wrong");
+        Workbook refused;
+        QVERIFY(!refused.openBinary(locked, &why, wrong));
+        QCOMPARE(refused.passwordNeed(), PasswordNeed::Wrong);
+        Limits right;
+        right.password = password;
+        Workbook back;
+        QVERIFY2(back.openBinary(locked, &why, right), qPrintable(why));
+        QCOMPARE(back.passwordNeed(), PasswordNeed::None);
+        QCOMPARE(back.info().sheets.size(), 2);
+        QCOMPARE(back.info().sheets[1].name, QStringLiteral("Sheet2"));
+        Copies c;
+        for (int i = 0; i < 2; ++i) {
+            const Sheet a = c.sheet(open, i), b = c.sheet(back, i);
+            for (const char *ref : {"A1", "B1", "C1", "A2"}) {
+                const QString r = QString::fromLatin1(ref);
+                QCOMPARE(val(back, b, r), val(open, a, r));
+                QCOMPARE(formula(b, r), formula(a, r));
+            }
+        }
+        QVERIFY(formula(c.sheet(back, 0), QStringLiteral("C1")).contains(QLatin1String("Sheet2!A1")));
+    }
+
     void anXlsCopyHoldsSheetsAndNames()
     {
         Copies c;

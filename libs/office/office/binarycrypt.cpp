@@ -5,6 +5,7 @@
 #include "io/crypto.h"
 
 #include <QCryptographicHash>
+#include <QRandomGenerator>
 
 #include <algorithm>
 #include <array>
@@ -143,6 +144,16 @@ crypto::Rc4 Rc4Keys::cipher(quint32 block) const
     return rc4;
 }
 
+// The hash a form made by the provider takes its block keys from: SHA-1 of the salt and the password as two-byte letters.
+static QByteArray cryptoApiBase(const QByteArray &salt, const QString &password)
+{
+    QByteArray typed = utf16Impl(password, 255), seeded = salt + typed;
+    const QByteArray base = QCryptographicHash::hash(seeded, QCryptographicHash::Sha1);
+    crypto::wipe(typed);
+    crypto::wipe(seeded);
+    return base;
+}
+
 CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &password, Rc4Keys *keys)
 {
     (void)verifyOnly;
@@ -193,9 +204,7 @@ CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &passw
         encHash = fp.mid(v + 40, 20);
         keys->cryptoApi = true;
         keys->keyBytes = int(keySize / 8);
-        typed = utf16Impl(password, 255);
-        seeded = salt + typed;
-        keys->base = QCryptographicHash::hash(seeded, QCryptographicHash::Sha1);
+        keys->base = cryptoApiBase(salt, password);
         derived = keys->forBlock(0);
         crypto::Rc4 rc4(derived);
         plain = rc4.apply(encVerifier + encHash);
@@ -204,5 +213,60 @@ CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &passw
     return CryptResult::Unsupported;
 }
 
+static QByteArray randomBytes16()
+{
+    QByteArray b(16, 0);
+    QRandomGenerator *g = QRandomGenerator::system();
+    for (int i = 0; i < 16; i += 4) {
+        const quint32 r = g->generate();
+        for (int j = 0; j < 4; ++j) b[i + j] = char((r >> (8 * j)) & 0xFF);
+    }
+    return b;
+}
+
+QByteArray rc4CryptoApiHeader(const QString &password, Rc4Keys *keys, const QByteArray &saltIn, const QByteArray &verifierIn)
+{
+    if (password.isEmpty()) return QByteArray();
+    const QByteArray salt = saltIn.size() == 16 ? saltIn : randomBytes16();
+    QByteArray verifier = verifierIn.size() == 16 ? verifierIn : randomBytes16(), both, key0;
+    Wiper wiper;
+    wiper.add(&key0);
+    wiper.add(&verifier);
+    wiper.add(&both);
+    keys->cryptoApi = true;
+    keys->keyBytes = 16;
+    keys->base = cryptoApiBase(salt, password);
+    // (the check value and its hash are enciphered in one run of the block-0 key, as the reader opens them)
+    key0 = keys->forBlock(0);
+    crypto::Rc4 rc4(key0);
+    both = rc4.apply(verifier + QCryptographicHash::hash(verifier, QCryptographicHash::Sha1));
+    // (the name of the provider, as the header holds it: two-byte letters and a zero)
+    const QString provider = QStringLiteral("Enhanced Cryptographic Provider v1.0");
+    QByteArray header;
+    auto put32 = [](QByteArray *b, quint32 v) { b->append(le32(v)); };
+    put32(&header, 0x04);            // the flags: made by the cryptographic provider
+    put32(&header, 0);               // the size of what is added to the header
+    put32(&header, 0x6801);          // RC4
+    put32(&header, 0x8004);          // SHA-1
+    put32(&header, 128);             // the bits of the key
+    put32(&header, 1);               // the provider's kind
+    put32(&header, 0);
+    put32(&header, 0);
+    header.append(utf16Impl(provider, 255));
+    header.append(QByteArray(2, 0));
+    QByteArray body;
+    body.append(char(1)).append(char(0));    // the kind of protection: RC4
+    body.append(char(4)).append(char(0));    // the version
+    body.append(char(2)).append(char(0));
+    put32(&body, 0x04);                      // the flags of the whole header
+    put32(&body, quint32(header.size()));
+    body.append(header);
+    put32(&body, 16);
+    body.append(salt);
+    body.append(both.left(16));
+    put32(&body, 20);
+    body.append(both.mid(16, 20));
+    return body;
+}
 
 } // namespace jp::office::bincrypt

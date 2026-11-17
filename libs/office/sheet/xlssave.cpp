@@ -12,6 +12,7 @@
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 #include "sheet/xlsrecord.h"
+#include "sheet/xlscrypt.h"
 
 #include <QCoreApplication>
 #include <QHash>
@@ -161,7 +162,8 @@ struct Rgb {
 
 class XlsWriter {
 public:
-    XlsWriter(const Workbook &book, CopyReport *report, const std::function<bool()> &cancelled) : m_book(book), m_report(report), m_cancelled(cancelled), m_features(book, CopyKind::Xls) {}
+    XlsWriter(const Workbook &book, CopyReport *report, const std::function<bool()> &cancelled, const QString &password)
+        : m_book(book), m_report(report), m_cancelled(cancelled), m_password(password), m_features(book, CopyKind::Xls) {}
 
     bool run(QByteArray *out, QString *error)
     {
@@ -195,6 +197,10 @@ public:
             *error = QCoreApplication::translate("Sheet", "The workbook is larger than the old format can hold.");
             return false;
         }
+        if (!m_password.isEmpty() && !encryptBiff(&stream, m_password)) {
+            *error = QCoreApplication::translate("Sheet", "The workbook could not be protected with the password.");
+            return false;
+        }
         if (stream.size() < 4096) stream.append(QByteArray(4096 - stream.size(), '\0'));   // (a stream of the smallest size lies in whole sectors, not in the container's small-stream area)
         jp::cfb::File file;
         jp::cfb::Entry root;
@@ -225,6 +231,7 @@ private:
     const Workbook &m_book;
     CopyReport *m_report;
     std::function<bool()> m_cancelled;
+    const QString &m_password;
     int m_sinceLook = 0;
     bool m_stopped = false;
     // Whether the save is to stop: the caller is asked once in a few thousand cells, not only between rows.
@@ -1365,10 +1372,10 @@ private:
 
 } // namespace
 
-bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled)
+bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled, const QString &password)
 {
     QString message;
-    XlsWriter w(book, report, cancelled);
+    XlsWriter w(book, report, cancelled, password);
     const bool ok = w.run(out, &message);
     if (error) *error = message;
     return ok && message.isEmpty();

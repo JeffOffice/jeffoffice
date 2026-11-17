@@ -308,9 +308,8 @@ private Q_SLOTS:
         QCOMPARE(win.told.size(), 0);
     }
 
-    // A copy of a protected workbook in a kind of file that can't be protected (.xls) is said to be unprotected before it is made, and the person may cancel; a copy as .ods or .ots is
-    // protected with the same password, and says nothing.
-    void aProtectedWorkbookSavedAsAnOpenDocumentCopyIsProtectedAndAnXlsCopyIsWarnedAbout()
+    // A copy of a protected workbook as .xls, .ods, or .ots is protected with the same password, and says nothing (no question of an unprotected copy is asked).
+    void aProtectedWorkbookSavedAsAnXlsOrOpenDocumentCopyIsProtected()
     {
         Folder folder;
         const QString path = folder.write(QStringLiteral("secret.xlsx"), protectedBook(QStringLiteral("pw")));
@@ -325,13 +324,7 @@ private Q_SLOTS:
             said << text;
             return CrunchWindow::LossAnswer::Cancel;
         });
-        const QString old = folder.dir.filePath(QStringLiteral("copy.xls"));
-        QVERIFY(!win.w.saveAs(old));
-        QCOMPARE(said.size(), 1);
-        QVERIFY2(said.first().contains(QLatin1String("protected with a password")) && said.first().contains(QLatin1String("not be protected")), qPrintable(said.first()));
-        QVERIFY(!QFile::exists(old));
-        said.clear();
-        for (const char *name : {"copy.ods", "copy.ots"}) {
+        for (const char *name : {"copy.xls", "copy.ods", "copy.ots"}) {
             const QString copy = folder.dir.filePath(QString::fromLatin1(name));
             QVERIFY(win.w.saveAs(copy, true));
             QTRY_VERIFY(!win.w.isSaving());
@@ -340,8 +333,13 @@ private Q_SLOTS:
             QFile in(copy);
             QVERIFY(in.open(QIODevice::ReadOnly));
             const QByteArray bytes = in.readAll();
-            QVERIFY(bytes.startsWith("PK"));
-            QVERIFY(jp::office::odfEncrypted(bytes));
+            if (QByteArray(name).endsWith(".xls")) {
+                QVERIFY(bytes.startsWith(QByteArray::fromHex("d0cf11e0a1b11ae1")));
+                QCOMPARE(valueOf(copy, QStringLiteral("pw")), QStringLiteral("n:7"));
+            } else {
+                QVERIFY(bytes.startsWith("PK"));
+                QVERIFY(jp::office::odfEncrypted(bytes));
+            }
             QCOMPARE(passwordNeedOf(copy, QString()), jp::office::sheet::PasswordNeed::Needed);
             QCOMPARE(passwordNeedOf(copy, QStringLiteral("other")), jp::office::sheet::PasswordNeed::Wrong);
             QCOMPARE(passwordNeedOf(copy, QStringLiteral("pw")), jp::office::sheet::PasswordNeed::None);

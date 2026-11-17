@@ -40,4 +40,9 @@ struct Rc4Keys {
 // fields. Ok if the password fits; the keys are made either way.
 CryptResult rc4Setup(const QByteArray &fp, bool verifyOnly, const QString &password, Rc4Keys *keys);
 
+// The other side, for a file to be written: a new header for a workbook's FILEPASS record in the form made by the cryptographic provider (RC4, SHA-1, a 128-bit key), from `password`
+// (its first 255 letters), with a salt and a check value of its own (16 random bytes each; the tests may give them). `keys` is made to encipher the stream with. The body's first two bytes
+// are the kind of protection (1: RC4), then the version (4.2) and the header the reader above takes, so that what this makes, rc4Setup opens. Empty if the password is empty.
+QByteArray rc4CryptoApiHeader(const QString &password, Rc4Keys *keys, const QByteArray &salt = QByteArray(), const QByteArray &verifier = QByteArray());
+
 } // namespace jp::office::bincrypt

@@ -29,7 +29,7 @@ This version of JeffCrunch is a **beta**. It is ready for real work, but it does
 - Macros are kept and saved back, but never run.
 - Pivot tables have a few limits, which [Pivot tables](pivot-tables) lists.
 - A workbook opened from .xls, .ods, or a text file is saved as a new .xlsx file, unless you choose an .xls or .ods copy. A copy can't hold everything, and JeffCrunch says what it will leave out before it saves.
-- A password can protect an .xlsx workbook, but not an .xls or .ods copy.
+- A password can protect an .xlsx workbook and an .xls, .ods, or .ots copy of it, but not a text copy.
 - A data table (what-if table) can be worked out but not made.
 
 ## Do these five things first

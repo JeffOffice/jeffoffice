@@ -46,7 +46,8 @@ enum class CopyKind { Xls, Ods };
 QStringList featuresNotInCopy(const Workbook &book, CopyKind kind);
 
 // Writes the workbook as an .xls (BIFF8) or an .ods. False, with `error`, if it could not be made (or `cancelled` said stop). `report` may be null.
-bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled = nullptr);
+// An .xls with a `password` (not empty; the first 255 letters count) is enciphered as the format has it: see xlscrypt.h.
+bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled = nullptr, const QString &password = QString());
 bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString *error, const std::function<bool()> &cancelled = nullptr);
 
 // For tests of cost: the intervals the .ods writer has looked at in all to find which cells of a row a merged range covers (one per cell if it is a lookup, many more if a scan).

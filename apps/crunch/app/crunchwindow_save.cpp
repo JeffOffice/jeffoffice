@@ -86,8 +86,9 @@ bool CrunchWindow::saveAs(const QString &pathIn, bool asCopy)
 {
     if (!m_session || !m_loaded) return false;
     if (crunch::isCsvName(pathIn) || crunch::isCopyName(pathIn)) {
-        // a workbook that is protected with a password is written protected as .xlsx, .ods, and .ots: the person is told before a copy of another kind is made without it, and may cancel
-        if (hasUserPassword() && crunch::copyKindOf(pathIn) != QLatin1String("ods") && crunch::copyKindOf(pathIn) != QLatin1String("ots")) {
+        // a workbook that is protected with a password is written protected as .xlsx, .xls, .ods, and .ots: the person is told before a copy of another kind (text) is made without it, and may cancel
+        const QString copyKind = crunch::copyKindOf(pathIn);
+        if (hasUserPassword() && copyKind != QLatin1String("xls") && copyKind != QLatin1String("ods") && copyKind != QLatin1String("ots")) {
             const LossAnswer answer = askBeforeLosing(tr("Save"), tr("This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it."),
                                                       tr("Save Without Password"), QString());
             if (answer != LossAnswer::Continue) {
