@@ -10,6 +10,7 @@
 #include <QGraphicsOpacityEffect>
 #include <QHBoxLayout>
 #include <QKeyEvent>
+#include <QMenu>
 #include <QScrollBar>
 #include <QShowEvent>
 #include <QTimer>
