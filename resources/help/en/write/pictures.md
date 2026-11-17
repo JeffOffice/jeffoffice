@@ -114,6 +114,18 @@ A picture that only decorates the page, such as a line or a border, does not nee
 
 **Alt text** is a short description that screen readers read aloud, and that shows when a picture can't be. Select the picture and click **Picture Format > Alt Text** (or right-click the picture and choose **Alt Text**), type the description, and click **OK**.
 
+## Change a graphic (an SVG picture)
+
+An **SVG** is a picture made of lines and shapes instead of dots, so it stays sharp at any size. Icons are usually SVGs. When you put in a picture from an SVG file, JeffWrite keeps the SVG itself and also a plain picture drawn from it, so programs that can't draw an SVG still show it. Select an SVG picture (a **graphic**) and the **Graphics Format** tab appears in place of the Picture Format tab.
+
+- **Change Graphic** puts another SVG in the same frame, **From a File** or **From Icons**. The frame keeps its size and place, and the new graphic is drawn to fit it.
+- **Graphics Fill** gives every filled part of the drawing one color, or no fill. **Graphics Outline** gives every part a line of one color, or no line. A part that already had a line keeps its width; the others get a thin one. Taking a fill or a line away and picking a color later puts it back where it was. A drawing made of lines alone (most icons) has no fill to color; use **Graphics Outline** for it.
+- **Graphics Effects** adds a shadow, a glow, or soft edges, and **Graphics Styles** applies a ready-made frame. They are kept with the picture.
+- **Convert to Shape** turns the graphic into drawing shapes you can edit, one shape for each part of the drawing (the parts come in a group). Parts hidden by a clip (a cut-out edge in the drawing) are cut the same way. Text and pictures inside the drawing can't become shapes and are left out; the status bar says so. Click Undo once to get the graphic back. A graphic with more than 10,000 parts is not converted, and one that refers to files or web addresses outside itself is never opened or converted.
+- **Alt Text**, **Wrap Text**, and the size boxes work as they do for any picture.
+
+Every change is one step you can undo. When you save as a .docx file, the graphic keeps its SVG and its colors, and a graphic you converted is saved as ordinary drawing shapes. In an .odt file, the SVG stays an SVG image, and shapes are saved as drawing shapes in a group.
+
 ## Pictures from other documents
 
 JeffWrite shows and keeps the pictures of the documents it opens. It can change the size, wrap, place, and alt text of a picture that the document stores as a plain picture. A picture stored in a form JeffWrite doesn't change (a group of drawings, for instance) is selected and kept as it was; its commands are off.
