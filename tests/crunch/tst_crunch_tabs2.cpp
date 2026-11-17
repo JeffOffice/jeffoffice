@@ -972,7 +972,7 @@ private Q_SLOTS:
             const jp::office::sheet::Calculation *c = w.session()->calculation();
             const qint64 asked = c->graph().cellQueries() + c->graph().areaQueries();
             QVERIFY2(asked <= 1000, qPrintable(QString::number(asked)));
-            QVERIFY2(c->readersFound() <= 10 * n, qPrintable(QString::number(c->readersFound())));
+            QVERIFY2(c->readersFound() <= 100 * n, qPrintable(QString::number(c->readersFound())));
             QVERIFY2(c->graph().queryWork() <= 100 * n, qPrintable(QString::number(c->graph().queryWork())));
         }
         qInfo("sheets: %d", liveSheetCount(w));

@@ -1216,6 +1216,7 @@ private:
         bool active = false;
         size_t alwaysAt = 0, listed = 0;
         bool dependents = false;
+        bool many = false;   // the last cell asked of the graph is read by very many formulas (the cells beside it are asked as a block)
         std::vector<jp::calc::CellArea> changed;
         std::set<jp::calc::CellArea> askedAreas;   // the blocks the graph was asked the readers of, whole: a change in rows put in at one place is the same block for each (asked once)
         std::vector<quint32> found;
