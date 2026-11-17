@@ -1148,18 +1148,47 @@ private Q_SLOTS:
         QVERIFY(swap);
         QCOMPARE(show.audienceScreen().name, QStringLiteral("A"));
         QCOMPARE(show.presenterScreen().name, QStringLiteral("B"));
-        QCOMPARE(show.geometry(), a.geometry);
-        QCOMPARE(pv.geometry(), b.available);
         QVERIFY(show.canSwapScreens());
         QTRY_VERIFY(swap->isEnabled());
         swap->click();
         QCOMPARE(show.audienceScreen().name, QStringLiteral("B"));
         QCOMPARE(show.presenterScreen().name, QStringLiteral("A"));
-        QCOMPARE(show.geometry(), b.geometry);
-        QCOMPARE(pv.geometry(), a.available);
         swap->click();   // and back
-        QCOMPARE(show.geometry(), a.geometry);
-        QCOMPARE(pv.geometry(), b.available);
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("A"));
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("B"));
+    }
+
+    // A screen unplugged during the show: the windows that were on it go to the screens that are left by the same rule, and with one screen left
+    // there is nothing to swap. (The screens here are not the computer's, so no window is moved: the decision is what is tested.)
+    void showFollowsScreensComingAndGoing()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        auto screen = [](const QString &name, int x, bool primary) { return ScreenInfo{name, QRect(x, 0, 1920, 1080), QRect(x, 0, 1920, 1040), primary}; };
+        const ScreenInfo a = screen(QStringLiteral("A"), 0, true), b = screen(QStringLiteral("B"), 1920, false), c = screen(QStringLiteral("C"), 3840, false);
+        show.placeOn(a, b);
+        PresenterView &pv = *show.presenterView();
+        auto *swap = pv.findChild<QAbstractButton *>(QStringLiteral("swapScreens"));
+        QTRY_VERIFY(swap->isEnabled());
+        show.reconcileScreens({a, b, c});   // one came: nothing moves
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("A"));
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("B"));
+        show.reconcileScreens({a, c});   // Presenter View's screen went: it takes the other one
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("A"));
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("C"));
+        show.reconcileScreens({c, screen(QStringLiteral("D"), 0, true)});   // the show's went too, and the one Presenter View was on stays its place
+        QCOMPARE(show.presenterScreen().name, QStringLiteral("C"));
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("D"));
+        show.reconcileScreens({c});   // one left
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("C"));
+        QVERIFY(show.presenterScreen().geometry.isEmpty());
+        QVERIFY(!show.canSwapScreens());
+        QVERIFY(!swap->isEnabled());
+        show.swapScreens();   // nothing to trade
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("C"));
+        show.reconcileScreens({});   // no screens known: nothing is done
+        QCOMPARE(show.audienceScreen().name, QStringLiteral("C"));
     }
 
     // The notes in Presenter View are typed in the same kind of box as the notes pane: each edit is one step of the window's Undo, the notes stay
@@ -1216,6 +1245,90 @@ private Q_SLOTS:
         QCOMPARE(notes(0), QStringLiteral("First notes and more"));
     }
 
+    // The notes pane and Presenter View's notes on the same slide: typing in one while the other holds typing not yet saved keeps both, in order,
+    // each as its own step of Undo.
+    void presenterViewAndNotesPaneKeepEachOthersWords()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        ed->setCurrentPage(0);
+        auto notes = [&] { return deck::notesText(*ed->doc(), *ed->doc()->pages[0]); };
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        PresenterView *pv = show->presenterView();
+        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        QVERIFY(edit);
+        // Typed in the pane (not saved yet), then in Presenter View, then in the pane again, with no pause and no focus change between.
+        QTest::keyClicks(w.notesPane(), QStringLiteral("one"));
+        QVERIFY(w.notesPane()->hasTyping());
+        edit->moveCursor(QTextCursor::End);
+        QTest::keyClicks(edit, QStringLiteral(" two"));
+        QCOMPARE(notes(), QStringLiteral("one"));   // the pane's words were saved before the first key here
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two"));
+        w.notesPane()->moveCursor(QTextCursor::End);
+        QTest::keyClicks(w.notesPane(), QStringLiteral(" three"));
+        QCOMPARE(notes(), QStringLiteral("one two"));   // and Presenter View's before the first key in the pane
+        w.notesPane()->commit();
+        QCOMPARE(notes(), QStringLiteral("one two three"));
+        QTRY_COMPARE(edit->toPlainText(), QStringLiteral("one two three"));
+        ed->undo();
+        QCOMPARE(notes(), QStringLiteral("one two"));
+        ed->undo();
+        QCOMPARE(notes(), QStringLiteral("one"));
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // With the notes box holding the keyboard, Page Down and Page Up still move the show; letters and arrows stay in the text; a click on Next
+    // gives the keyboard back to the show.
+    void presenterViewNotesKeepTheShowsPageKeys()
+    {
+        DeckWindow w;
+        w.newSlide();
+        w.newSlide();
+        w.editor()->setCurrentPage(0);
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        PresenterView *pv = show->presenterView();
+        pv->activateWindow();
+        QPlainTextEdit *edit = pv->findChild<QPlainTextEdit *>(QStringLiteral("notesText"));
+        edit->setFocus();
+        QTest::keyClicks(edit, QStringLiteral("abc"));
+        QCOMPARE(show->currentSlide(), 0);   // letters are the text's
+        QTest::keyClick(edit, Qt::Key_Left);
+        QCOMPARE(show->currentSlide(), 0);   // so are the arrows
+        QTest::keyClick(edit, Qt::Key_PageDown);
+        QCOMPARE(show->currentSlide(), 1);
+        QTest::keyClick(edit, Qt::Key_PageUp);
+        QCOMPARE(show->currentSlide(), 0);
+        QCOMPARE(edit->toPlainText(), QStringLiteral("abc"));
+        // Clicking a button of Presenter View leaves the box (what was typed is saved).
+        QTRY_VERIFY(edit->hasFocus());
+        QTest::mousePress(pv->findChild<QAbstractButton *>(QStringLiteral("nextButton")), Qt::LeftButton);
+        QVERIFY(!edit->hasFocus());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+    }
+
+    // A presentation open for reading only: Presenter View's notes are read only, so nothing typed is dropped silently.
+    void presenterViewNotesAreReadOnlyInAReadOnlyPresentation()
+    {
+        DeckWindow w;
+        w.newSlide();
+        w.editor()->setReadOnly(true);
+        w.act("show.presenterView")->trigger();
+        SlideShow *show = w.slideShow();
+        QVERIFY(show && show->presenterView());
+        QVERIFY(show->notesReadOnly());
+        QVERIFY(show->presenterView()->findChild<QPlainTextEdit *>(QStringLiteral("notesText"))->isReadOnly());
+        show->close();
+        QTRY_VERIFY(!w.slideShow());
+        w.editor()->setReadOnly(false);
+    }
+
     // With JO_SHOT_DIR set: pictures of Presenter View with notes being typed, and of the Slide Show tab's list.
     void presenterViewShots()
     {
@@ -1238,18 +1351,18 @@ private Q_SLOTS:
         edit->setFocus();
         edit->moveCursor(QTextCursor::End);
         QTest::keyClicks(edit, QStringLiteral(" Then pause for questions."));
-        QTest::qWait(300);
+        QTRY_VERIFY(pv->isVisible() && edit->toPlainText().endsWith(QStringLiteral("questions.")));
         shotOf(pv, QStringLiteral("show-presenter-view-notes"));
         show->close();
         QTRY_VERIFY(!w.slideShow());
         w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Slide Show")));
-        QTest::qWait(300);
         auto *box = w.ribbon()->findChild<QComboBox *>(QStringLiteral("showOn"));
         QVERIFY(box);
+        QTRY_VERIFY(box->isVisible());
         shotOf(&w, QStringLiteral("show-ribbon"));
         box->showPopup();
-        QTest::qWait(300);
-        if (QAbstractItemView *view = box->view()) shotOf(view->window(), QStringLiteral("show-ribbon-list"));
+        QTRY_VERIFY(box->view()->isVisible());
+        shotOf(box->view()->window(), QStringLiteral("show-ribbon-list"));
         box->hidePopup();
     }
 

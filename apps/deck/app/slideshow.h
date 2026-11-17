@@ -277,15 +277,24 @@ public:
     void placeOn(const ScreenInfo &audience, const ScreenInfo &presenter);
     bool canSwapScreens() const;
     void swapScreens();
+    // The computer's screens changed (one unplugged or added) to `live`: a window on a screen that is gone goes to the live ones by the same rule as
+    // placeOn's choice; with one screen left there is nothing to swap. Nothing moves to a screen that is not there.
+    void reconcileScreens(const QVector<ScreenInfo> &live);
     const ScreenInfo &audienceScreen() const { return m_audience; }
     const ScreenInfo &presenterScreen() const { return m_presenterScreen; }
     // Notes typed in Presenter View for a slide (by its page): the window makes them a step of Undo; the show's own presentation is read only.
     void editNotes(const QString &pageId, const QString &text);
+    // A presentation open for reading only keeps no typed notes: Presenter View's notes are read only too.
+    void setNotesReadOnly(bool on) { m_notesReadOnly = on; }
+    bool notesReadOnly() const { return m_notesReadOnly; }
+    // Someone is about to type in Presenter View's notes: whoever holds typed notes that are not saved yet saves them first.
+    void startNotesTyping() { Q_EMIT notesTypingStarted(); }
 
     void setVisible(bool visible) override;
 
 Q_SIGNALS:
     void notesEdited(const QString &pageId, const QString &text);
+    void notesTypingStarted();
     // The show was ended; `lastSlide` is the slide it was on.
     void ended(int lastSlide);
     // The ink or the laser pointer changed, or the pointer did.
@@ -440,6 +449,7 @@ private:
     qreal m_nowRatio = 1;
     bool m_nowValid = false;
     QPointer<PresenterView> m_presenter;
+    bool m_notesReadOnly = false, m_watchingScreens = false;
     ScreenInfo m_audience, m_presenterScreen;   // where placeOn put them
     ShowMedia *m_media = nullptr;   // the movies and sounds (showmedia.h)
     // The pointer, and the ink the pen and highlighter left, by slide.

@@ -621,6 +621,12 @@ void DeckWindow::watchShow(SlideShow *show, bool recording)
         setStoryText(d->storyDoc(slide.notesStoryId), text);
         m_ed->endChange();
     });
+    show->setNotesReadOnly(m_ed->readOnly());
+    // The notes pane and Presenter View's notes never overwrite each other: whichever is about to be typed in, the other saves what it holds first.
+    connect(show, &SlideShow::notesTypingStarted, this, [this] { m_notes->commit(); });
+    connect(m_notes, &NotesPane::typingStarted, show, [show] {
+        if (show->presenterView()) show->presenterView()->commitNotes();
+    });
     connect(m_ed, &Editor::documentReplaced, show, [this, show] {
         show->rebind(m_ed->doc());
         show->close();

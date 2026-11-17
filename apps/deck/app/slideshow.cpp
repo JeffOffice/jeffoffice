@@ -2218,15 +2218,20 @@ void SlideShow::place()
     // Without Presenter View, only a chosen screen moves the show.
     if (!usePresenterView()) {
         if (showOn().isEmpty() || screens.at(c.audience).name != showOn()) return;
-        m_audience = screens.at(c.audience);
-        applyScreens();
+        placeOn(screens.at(c.audience), ScreenInfo());
         return;
     }
     placeOn(screens.at(c.audience), screens.at(c.presenter));
 }
 
+
 void SlideShow::placeOn(const ScreenInfo &audience, const ScreenInfo &presenter)
 {
+    if (!m_watchingScreens) {
+        m_watchingScreens = true;
+        connect(qApp, &QGuiApplication::screenRemoved, this, [this] { reconcileScreens(screensNow()); });
+        connect(qApp, &QGuiApplication::screenAdded, this, [this] { reconcileScreens(screensNow()); });
+    }
     m_audience = audience;
     m_presenterScreen = presenter;
     applyScreens();
@@ -2240,23 +2245,59 @@ static QScreen *screenOf(const ScreenInfo &info)
     return nullptr;
 }
 
-// The windows go where m_audience and m_presenterScreen say; a screen that is not one of the computer's (a test's) is only a place.
+// The windows go where m_audience and m_presenterScreen say, when those screens are the computer's (a place that is not a screen is only kept).
 void SlideShow::applyScreens()
 {
-    if (!m_audience.geometry.isEmpty()) {
-        if (QScreen *s = screenOf(m_audience)) setScreen(s);
-        const bool full = isVisible() && isFullScreen();
-        if (full) showNormal();
-        setGeometry(m_audience.geometry);
-        if (full) showFullScreen();
+    if (QScreen *s = screenOf(m_audience)) {
+        setScreen(s);   // the screen first: a full-screen window goes full screen again on the new one
+        if (isVisible() && isFullScreen()) showFullScreen();
+        else setGeometry(m_audience.geometry);
     }
-    if (m_presenterScreen.geometry.isEmpty()) return;
-    if (!m_presenter) {
-        openPresenterView(screenOf(m_presenterScreen));
+    if (!m_presenterScreen.geometry.isEmpty()) {
+        QScreen *s = screenOf(m_presenterScreen);
+        if (!m_presenter) {
+            openPresenterView(s);   // (on no screen of the computer when the screen is only a place)
+            return;
+        }
+        if (s) {
+            m_presenter->setScreen(s);
+            m_presenter->setGeometry(m_presenterScreen.available);
+        }
+    } else if (m_presenter && screenOf(m_audience)) {
+        m_presenter->setGeometry(m_audience.available);   // one screen left: Presenter View is a window on it
+    }
+}
+
+void SlideShow::reconcileScreens(const QVector<ScreenInfo> &live)
+{
+    if (m_audience.geometry.isEmpty() || live.isEmpty()) return;
+    auto at = [&live](const ScreenInfo &info) {
+        for (int i = 0; i < live.size(); ++i)
+            if (live.at(i).name == info.name && live.at(i).geometry == info.geometry) return i;
+        return -1;
+    };
+    const int audience = at(m_audience), presenter = m_presenterScreen.geometry.isEmpty() ? -2 : at(m_presenterScreen);
+    if (audience >= 0 && presenter != -1) {   // both are still there (-2: there is no Presenter View screen)
+        if (m_presenter) m_presenter->refresh();
         return;
     }
-    if (QScreen *s = screenOf(m_presenterScreen)) m_presenter->setScreen(s);
-    m_presenter->setGeometry(m_presenterScreen.available);
+    if (audience >= 0) {
+        // Presenter View's screen is gone: the show stays, and Presenter View takes another screen (the main one when it will do).
+        int other = -1;
+        for (int i = 0; i < live.size() && other < 0; ++i)
+            if (i != audience && live.at(i).primary) other = i;
+        for (int i = 0; i < live.size() && other < 0; ++i)
+            if (i != audience) other = i;
+        m_presenterScreen = other >= 0 ? live.at(other) : ScreenInfo();
+        m_audience = live.at(audience);
+    } else {
+        // The show's screen is gone: Presenter View stays where it is (if it is still there), and the show goes by the usual rule.
+        const ScreenChoice c = chooseScreens(live, showOn(), presenter);
+        m_audience = live.at(c.audience);
+        m_presenterScreen = c.presenter >= 0 ? live.at(c.presenter) : ScreenInfo();
+    }
+    applyScreens();
+    if (m_presenter) m_presenter->refresh();
 }
 
 bool SlideShow::canSwapScreens() const
@@ -2279,8 +2320,10 @@ void SlideShow::openPresenterView(QScreen *on)
         const int right = geometry().left() - 12;
         m_presenter->setGeometry(QRect(area.left() + 12, area.top() + 12, std::max(640, right - area.left() - 12), area.height() - 24));
     } else {
-        if (on) m_presenter->setScreen(on);
-        m_presenter->setGeometry(m_presenterScreen.available);
+        if (on) {
+            m_presenter->setScreen(on);
+            m_presenter->setGeometry(m_presenterScreen.available);
+        }
     }
     m_presenter->show();
 }

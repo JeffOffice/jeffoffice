@@ -27,7 +27,13 @@ public:
     bool addGrammarSuggestions(QMenu &menu, int position);
     void setGrammarDelayMs(int ms) { m_grammar->setDelayMs(ms); }
 
+Q_SIGNALS:
+    // Typing is about to start here (a key, or the box got the keyboard): Presenter View's notes, if it holds typing, save it first.
+    void typingStarted();
+
 protected:
+    void keyPressEvent(QKeyEvent *e) override;
+    void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void contextMenuEvent(QContextMenuEvent *e) override;
 

@@ -78,6 +78,7 @@ private:
     QAbstractButton *button(const QString &name, const QString &text);
     void buildGrid();
     void tick();
+    void leaveNotes();   // the keyboard goes back to the show
     void setPaused(bool paused);
     QPointer<SlideShow> m_show;
     SlideView *m_current = nullptr, *m_nextView = nullptr;

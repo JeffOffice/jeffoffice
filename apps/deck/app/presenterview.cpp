@@ -300,9 +300,18 @@ PresenterView::PresenterView(SlideShow *show) : QWidget(nullptr, Qt::Window), m_
     tick();
 }
 
+void PresenterView::leaveNotes()
+{
+    commitNotes();
+    if (!m_notes->hasFocus()) return;
+    m_notes->clearFocus();
+    setFocus();
+}
+
 QAbstractButton *PresenterView::button(const QString &name, const QString &text)
 {
     auto *b = new QPushButton(text, this);
+    connect(b, &QAbstractButton::pressed, this, &PresenterView::leaveNotes);
     b->setObjectName(name);
     b->setFocusPolicy(Qt::NoFocus);   // keys go to the show, not to a button
     return b;
@@ -328,11 +337,15 @@ void PresenterView::refresh()
         commitNotes();
         const QString notes = onSlide ? deck::notesText(*doc, *doc->pages[slide]) : QString();
         m_loadingNotes = true;
-        if (notes != m_notes->toPlainText()) m_notes->setPlainText(notes);
+        if (notes != m_notes->toPlainText()) {
+            const bool atEnd = m_notes->textCursor().position() >= m_notes->document()->characterCount() - 1;   // (a cursor at the end stays there)
+            m_notes->setPlainText(notes);
+            if (atEnd) m_notes->moveCursor(QTextCursor::End);
+        }
         m_loadingNotes = false;
         m_notesPage = pageId;
-        m_notes->setReadOnly(!onSlide);
     }
+    m_notes->setReadOnly(!onSlide || m_show->notesReadOnly());
     m_swap->setEnabled(m_show->canSwapScreens());
     m_black->setChecked(m_show->blankColor() == QColor(Qt::black));
     if (isShowingAllSlides() && slide >= 0 && slide < m_grid->count()) m_grid->setCurrentRow(slide);
@@ -455,11 +468,20 @@ bool PresenterView::eventFilter(QObject *o, QEvent *e)
 {
     if (o == m_notes) {
         if (e->type() == QEvent::FocusOut) commitNotes();
+        // Whoever else holds typed notes saves them before these are typed in.
+        if (m_show && (e->type() == QEvent::FocusIn || (e->type() == QEvent::KeyPress && !static_cast<QKeyEvent *>(e)->text().isEmpty() && !m_notes->isReadOnly())))
+            m_show->startNotesTyping();
+        // The keys that move the show on belong to the show, as the arrows and the letters belong to the text.
+        if (e->type() == QEvent::KeyPress && m_show) {
+            const int key = static_cast<QKeyEvent *>(e)->key();
+            if (key == Qt::Key_PageDown || key == Qt::Key_PageUp) {
+                QCoreApplication::sendEvent(m_show, e);
+                return true;
+            }
+        }
         // Esc leaves the box (the arrow keys and the rest are the box's while it has the keyboard) instead of ending the show.
         if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_notes->hasFocus()) {
-            commitNotes();
-            m_notes->clearFocus();
-            setFocus();
+            leaveNotes();
             return true;
         }
         return QWidget::eventFilter(o, e);
@@ -467,6 +489,7 @@ bool PresenterView::eventFilter(QObject *o, QEvent *e)
     if (o == m_current && m_show) {
         const auto page = [this](QEvent *ev) { return m_current->pageAt(static_cast<QMouseEvent *>(ev)->position()); };
         if (e->type() == QEvent::MouseButtonPress) {
+            leaveNotes();
             // A right click opens the show's menu, as it does in the show.
             if (static_cast<QMouseEvent *>(e)->button() == Qt::RightButton && !m_show->isKiosk() && !m_show->isRecording()) {
                 QMenu *menu = m_show->buildMenu(this);

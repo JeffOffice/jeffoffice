@@ -7,6 +7,7 @@
 #include "app/settings.h"
 
 #include <QContextMenuEvent>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QPointer>
 #include <QTextBlock>
@@ -48,7 +49,9 @@ void NotesPane::reload()
     m_typed = false;
     m_loading = true;
     m_pageId = slide.id;
+    const bool atEnd = textCursor().position() >= document()->characterCount() - 1;   // (a cursor at the end stays there)
     setPlainText(text);
+    if (atEnd) moveCursor(QTextCursor::End);
     m_loading = false;
 }
 
@@ -127,6 +130,18 @@ void NotesPane::contextMenuEvent(QContextMenuEvent *e)
     standard->setParent(&menu);
     menu.addActions(standard->actions());
     menu.exec(e->globalPos());
+}
+
+void NotesPane::keyPressEvent(QKeyEvent *e)
+{
+    if (!isReadOnly() && !e->text().isEmpty()) Q_EMIT typingStarted();
+    QPlainTextEdit::keyPressEvent(e);
+}
+
+void NotesPane::focusInEvent(QFocusEvent *e)
+{
+    Q_EMIT typingStarted();
+    QPlainTextEdit::focusInEvent(e);
 }
 
 void NotesPane::focusOutEvent(QFocusEvent *e)
