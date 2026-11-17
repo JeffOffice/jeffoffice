@@ -240,6 +240,7 @@ public:
         qint64 n = 0;
         for (const CellChange &c : m_step.cells) n += qint64(sizeof(c)) + contentBytes(c.before) + contentBytes(c.after) + qint64(c.formatCode.size()) * 2;
         n += qint64(m_step.styles.size()) * qint64(sizeof(StyleCell));
+        n += qint64(m_step.numbers.size()) * qint64(sizeof(NumberCell));
         for (const TableRename &r : m_step.renames) n += qint64(sizeof(r)) + qint64(r.before.size() + r.after.size()) * 2;
         for (const TableEdit &e : m_step.tables) n += qint64(sizeof(e)) + tableBytes(e.before) + tableBytes(e.after);
         for (const PivotEdit &e : m_step.pivots) n += qint64(sizeof(e)) + (e.cacheAfter && e.cacheAfter != e.cacheBefore ? pivotCacheBytes(*e.cacheAfter) : 0);
@@ -331,6 +332,7 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
         m_nameTable.load(info.definedNames);
         m_calcNow.mode = info.calcMode;
         m_calcNow.calcOnSave = info.calcOnSave;
+        m_calcNow.precisionAsShown = info.precisionAsShown;
         m_calcNow.iterate = info.iterate;
         m_calcNow.count = info.iterateCount;
         m_calcNow.delta = info.iterateDelta;
@@ -1199,6 +1201,8 @@ bool EditSession::apply(Step *step, bool forward)
     if (!forward) putFills();   // (Undo takes the fills out first: the cells that were there come back after)
     {
         Calculation::BulkEdit bulk(calc);   // (what waits to be worked out is put right once, not at each of the cells)
+        std::optional<ShownRounder> shown;   // (precision as displayed: a number put in is kept as its cell shows it)
+        if (forward && m_calcNow.precisionAsShown) shown.emplace(book.styles(), book.info().dateSystem);
         for (CellChange &ch : step->cells) {
             if (forward) {
                 if (ch.textToShare) {
@@ -1229,6 +1233,7 @@ bool EditSession::apply(Step *step, bool forward)
                     ch.after.style = book.formatWith(ch.after.style, wrap);
                     ch.wrapToSet = false;
                 }
+                if (shown && !ch.styleOnly && ch.after.exists && !ch.after.isFormula && ch.after.value.isNumber()) ch.after.value = Value::number(shown->round(ch.after.style, ch.after.value.number()));
             }
             const Calculation::CellContent &c = forward ? ch.after : ch.before;
             if (ch.styleOnly) {
@@ -1257,6 +1262,19 @@ bool EditSession::apply(Step *step, bool forward)
         }
     }
     if (forward) putFills();
+    if (!step->numbers.empty()) {
+        // the numbers rounded to what their cells show (nothing else of the cell changes)
+        Calculation::BulkEdit bulk(calc);
+        for (const NumberCell &n : step->numbers) {
+            calc->setValue(n.sheet, n.row, n.col, Value::number(forward ? n.after : n.before), Calculation::Marking::Later);
+            markTouched(n.sheet, n.row, n.col);
+            ValueStore::Item it;
+            it.sheet = n.sheet;
+            it.row = n.row;
+            it.col = n.col;
+            cells[n.sheet].push_back(it);
+        }
+    }
     {
         // the cells whose format alone changed: told one by one, or, when there are very many, as the whole sheet being drawn again
         const bool many = step->styles.size() > 20000;
@@ -2021,6 +2039,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         changes.calcChanged = true;
         changes.calcMode = m_calcNow.mode;
         changes.calcOnSave = m_calcNow.calcOnSave;
+        changes.precisionAsShown = m_calcNow.precisionAsShown;
         changes.iterate = m_calcNow.iterate;
         changes.iterateCount = m_calcNow.count;
         changes.iterateDelta = m_calcNow.delta;

@@ -10,6 +10,8 @@
 #include <QDoubleSpinBox>
 #include <QFormLayout>
 #include <QLabel>
+#include <QPointer>
+#include <QProgressDialog>
 #include <QListWidget>
 #include <QCheckBox>
 #include <QSpinBox>
@@ -87,6 +89,7 @@ void CrunchWindow::createCalcActions()
         const crunch::EditSession::Outcome o = m_session->setCalcSettings(s);
         if (!o.ok) notice(tr("Circular Formulas"), o.problem);
     }, false, false);
+    mk("formulas.precision", tr("Set Precision as Displayed"), "", QKeySequence(), [this] { setPrecisionAsShown(!m_session || !m_session->calcSettings().precisionAsShown); }, true, false);
     mk("formulas.options", tr("Calculation Options"), "settings-2", QKeySequence(), [] {}, false, false);
     mk("formulas.calcBeforeSave", tr("Calculate Before Save"), "", QKeySequence(), [this] {
         if (!m_session || !m_loaded) return;
@@ -106,8 +109,89 @@ void CrunchWindow::createCalcActions()
     mk("formulas.rebuildAndCalculate", tr("Rebuild Dependencies and Recalculate"), "calculator", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::ALT | Qt::Key_F9),
        [this] { act("formulas.calculate")->trigger(); }, false, false);
     mk("formulas.circular", tr("Circular References…"), "triangle-alert", QKeySequence(), [this] { showCircularReferences(); }, false, false);
-    for (const char *id : {"formulas.iteration", "formulas.options", "formulas.calcBeforeSave", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"formulas.iteration", "formulas.precision", "formulas.options", "formulas.calcBeforeSave", "formulas.calculateSheet", "formulas.circular", "formulas.calculateEverything", "formulas.rebuildAndCalculate"}) m_opsActions << QString::fromLatin1(id);
     updateEditActions();
+}
+
+// "Set Precision as Displayed": on, after a warning, every number is rounded to what its cell shows (a plan looks at the cells a slice at a time under a note with Cancel, which changes nothing; the
+// rounding is then put in as one step); off, the numbers are kept with all their digits from then on, and the ones rounded stay so.
+void CrunchWindow::setPrecisionAsShown(bool on)
+{
+    if (!m_session || !m_loaded) return;
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) {
+        sendCalcSettings();
+        return;
+    }
+    if (!editingAllowed()) {
+        sendCalcSettings();
+        return;
+    }
+    if (!on) {
+        const crunch::EditSession::Outcome o = m_session->setPrecisionAsShown(false);
+        if (!o.ok) notice(tr("Set Precision as Displayed"), o.problem);
+        sendCalcSettings();
+        return;
+    }
+    if (!confirm(tr("Set Precision as Displayed"),
+                 tr("The numbers in the cells will be rounded to the digits the cells show, and the digits that are hidden are lost. From then on, every number you type and every result of a formula is rounded the same way. "
+                    "Undo brings the numbers back, but turning this setting off later does not. Choose Cancel to keep everything as it is."))) {
+        sendCalcSettings();
+        return;
+    }
+    QString why;
+    const auto plan = m_session->planPrecisionAsShown(&why);
+    if (!plan) {
+        notice(tr("Set Precision as Displayed"), why);
+        sendCalcSettings();
+        return;
+    }
+    auto cancelled = std::make_shared<bool>(false);
+    auto prepared = std::make_shared<bool>(false);
+    auto *progress = new QProgressDialog(tr("Rounding the numbers…"), tr("Cancel"), 0, 100, this);
+    progress->setObjectName(QStringLiteral("precisionProgress"));
+    progress->setWindowModality(Qt::WindowModal);
+    progress->setMinimumDuration(0);
+    progress->setAutoClose(false);
+    progress->setAutoReset(false);
+    progress->setAttribute(Qt::WA_DeleteOnClose);
+    connect(progress, &QProgressDialog::canceled, this, [cancelled, prepared] {
+        if (!*prepared) *cancelled = true;
+    });
+    const QPointer<QProgressDialog> note(progress);
+    progress->show();
+    setStatus(tr("Rounding the numbers…"));
+    const qint64 before = m_loader.changesMade();
+    runApply(
+        3,
+        [this, plan, cancelled, prepared, note](qint64 budget) {
+            crunch::EditSession::Outcome o;
+            if (!*prepared) {
+                if (*cancelled) {
+                    o.ok = false;   // (nothing was changed: the plan is dropped)
+                    return o;
+                }
+                *prepared = m_session->preparePrecision(*plan, budget);
+                if (note) note->setValue(int(std::min<qint64>(99, crunch::EditSession::precisionLooked(*plan) * 100 / std::max<qint64>(1, crunch::EditSession::precisionTotal(*plan)))));
+                if (!*prepared) {
+                    o.pending = true;
+                    return o;
+                }
+                if (note) note->setCancelButtonText(QString());   // (from here the rounding is put in, and can be undone but not cancelled)
+            }
+            return m_session->applyPrecision(*plan, budget);
+        },
+        [this, plan, note, before](const crunch::EditSession::Outcome &o) {
+            if (note) note->close();
+            if (!o.ok && !o.problem.isEmpty()) notice(tr("Set Precision as Displayed"), o.problem);
+            if (o.ok) {
+                if (m_loader.changesMade() != before) m_calculating = true;
+                const int rounded = int(qMin<qint64>(crunch::EditSession::precisionChanges(*plan), 1000000000));
+                setStatus(tr("Rounded %n number(s) to what the cells show", nullptr, rounded));
+            } else if (!m_calculating && !m_loading) {
+                setStatus(tr("Ready"));
+            }
+            sendCalcSettings();
+        });
 }
 
 void CrunchWindow::calculateThisWorkbook()
@@ -151,6 +235,10 @@ void CrunchWindow::sendCalcSettings()
     const char *id = s.mode == CalcMode::Manual ? "formulas.calcManual" : s.mode == CalcMode::AutoNoTable ? "formulas.calcNoTables" : "formulas.calcAuto";
     if (QAction *a = act(QString::fromLatin1(id))) a->setChecked(true);
     if (QAction *a = act(QStringLiteral("formulas.calcBeforeSave"))) a->setChecked(s.calcOnSave);
+    if (QAction *a = act(QStringLiteral("formulas.precision"))) {
+        a->setChecked(s.precisionAsShown);
+        a->setToolTip(s.precisionAsShown ? tr("The numbers are kept as the cells show them") : tr("The numbers are kept with all their digits"));
+    }
     if (QAction *a = act(QStringLiteral("formulas.iteration"))) a->setToolTip(s.iterate ? tr("Circular formulas are worked out by going round them") : tr("Circular formulas are not worked out"));
     updateCalcStatus();
 }

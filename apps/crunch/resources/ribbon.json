@@ -350,7 +350,7 @@
             {
               "large": "formulas.options",
               "keytip": "O",
-              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "formulas.calcBeforeSave", "-", "formulas.iteration"]
+              "menu": ["formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "formulas.calcBeforeSave", "-", "formulas.iteration", "formulas.precision"]
             }
           ]
         }

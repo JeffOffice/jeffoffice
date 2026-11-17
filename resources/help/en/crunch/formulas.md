@@ -1,5 +1,5 @@
 # How formulas are shown and calculated
-<!-- keywords: spill, spilled, #SPILL!, dynamic array, spill range, A1#, next error, previous error, step through errors, trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath-->
+<!-- keywords: spill, spilled, #SPILL!, dynamic array, spill range, A1#, next error, previous error, step through errors, trace error, calculate before save, formula, formulas, calculate, calculation, recalculate, function, functions, value, result, stored, F9, circular, show formulas, formula bar, error, point, pointing, click a cell, reference, F4, error checking, ignore error, evaluate formula, step, watch window, watch, let, name a value, cell function, info function, filterxml, xml, xpath, precision as displayed, set precision as displayed, round, rounding, decimals, digits-->
 
 A **formula** is a cell that works out its value from other cells, such as =SUM(B3:B8). The cell shows the value, and the **formula bar** shows the formula.
 
@@ -68,6 +68,16 @@ The choice is saved with the workbook, and it is one step you can undo.
 A formula that reads its own result, directly or through other cells, can't be worked out in the usual way. JeffCrunch tells you once, names the cells, and outlines them on the sheet; they keep the values they had. Click **Circular References** on the **Formulas** tab for the list, and double-click a cell in it to go there.
 
 Some models need such a circle on purpose. Choose **Go Round Circular Formulas** in the **Calculation Mode** menu, and the formulas are worked out again and again, each reading the latest values of the others, until no value changes by more than the amount you give or the number of rounds you allow is used.
+
+## Keep the numbers as the cells show them
+
+A cell can show fewer digits than it holds. If a cell holds 2.675 and shows 2.68, the formulas that read it still use 2.675. Sometimes you want them to use what you see. Then choose **Set Precision as Displayed** in the **Calculation Options** menu on the **Formulas** tab.
+
+JeffCrunch warns you first, because the digits that are hidden are lost. Choose **Cancel** and nothing changes. Choose **OK** and every number in the workbook is rounded to what its cell shows. A cell that shows two decimals keeps two. A cell that shows a percent keeps the percent. A cell with a date keeps the day, and a cell with a time keeps the least part of the time it shows, such as the minute. A cell that shows **General** keeps all its digits. A big workbook shows a note with a **Cancel** button while this is done. Cancel while the note is up, and nothing is changed.
+
+After that, every number you type or paste, and every answer a formula gives, is rounded the same way. The formulas themselves are not changed. The choice is saved with the workbook.
+
+Rounding is one step you can undo, and **Undo** brings the numbers back. Choosing **Set Precision as Displayed** again turns it off. That only stops the rounding from then on. The numbers that were already rounded stay rounded.
 
 ## See what a formula reads
 

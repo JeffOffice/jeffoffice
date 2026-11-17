@@ -45,6 +45,21 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
     }
     const size_t total = step.cells.size();
     qint64 left = budget;
+    // the numbers rounded (Precision as Displayed), a slice at a time
+    while (push.nextNumber < step.numbers.size()) {
+        const size_t count = step.numbers.size();
+        const size_t to = budget > 0 ? std::min<size_t>(count, push.nextNumber + size_t(std::max<qint64>(left, 1))) : count;
+        Step part;
+        part.numbers.assign(step.numbers.begin() + std::ptrdiff_t(push.nextNumber), step.numbers.begin() + std::ptrdiff_t(to));
+        const bool ok = apply(&part, true);
+        m_longestSlice = std::max<qint64>(m_longestSlice, qint64(to - push.nextNumber));
+        ++m_slicesPushed;
+        if (!ok) return fail();
+        left -= qint64(to - push.nextNumber);
+        push.nextNumber = to;
+        if (push.nextNumber < count) return false;
+        if (budget > 0 && left <= 0) return false;
+    }
     // the cells, a slice at a time (each slice is a step of its own as far as the model is concerned: the worker is held for it, and told what changed)
     if (push.next < total) {
         const size_t to = budget > 0 ? std::min<size_t>(total, push.next + size_t(budget)) : total;
@@ -94,6 +109,7 @@ bool EditSession::continueSlicedPush(SlicedPush &push, qint64 budget)
         rest.filters = step.filters;
         rest.rowSpecs = step.rowSpecs;
         rest.permutes = step.permutes;
+        rest.calcs = step.calcs;
         if (!rest.empty()) {
             if (!apply(&rest, true)) return fail();
         }

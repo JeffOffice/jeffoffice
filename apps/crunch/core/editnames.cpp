@@ -388,6 +388,7 @@ EditSession::Outcome EditSession::setCalcSettings(const CalcSettings &settings)
         return out;
     }
     CalcSettings now = settings;
+    now.precisionAsShown = m_calcNow.precisionAsShown;   // (only setPrecisionAsShown changes it)
     now.count = std::clamp(now.count, 1, jp::office::sheet::Calculation::kMaxIterations);
     if (!(now.delta >= 0) || now.delta > 1e9) now.delta = m_calcNow.delta;
     if (now == m_calcNow) return out;   // (nothing to change)
@@ -405,6 +406,7 @@ void EditSession::applyCalcEdits(Step *step, bool forward, Calculation *calc)
     for (const CalcEdit &e : step->calcs) {
         const CalcSettings &to = forward ? e.after : e.before;
         calc->setIteration(to.iterate, to.count, to.delta);
+        calc->setPrecisionAsShown(to.precisionAsShown);
         m_calcNow = to;
     }
 }

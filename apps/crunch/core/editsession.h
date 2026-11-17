@@ -188,11 +188,25 @@ struct CalcSettings {
     int count = 100;
     double delta = 0.001;
     bool calcOnSave = true;   // by hand, the formulas are worked out before the workbook is saved
-    bool operator==(const CalcSettings &o) const { return mode == o.mode && calcOnSave == o.calcOnSave && iterate == o.iterate && count == o.count && delta == o.delta; }
+    bool precisionAsShown = false;   // the values are kept as the cells show them (only setPrecisionAsShown changes it: turning it on rounds the numbers already there)
+    bool operator==(const CalcSettings &o) const { return mode == o.mode && calcOnSave == o.calcOnSave && iterate == o.iterate && count == o.count && delta == o.delta && precisionAsShown == o.precisionAsShown; }
     bool operator!=(const CalcSettings &o) const { return !(*this == o); }
 };
 struct CalcEdit {
     CalcSettings before, after;
+};
+
+// A number as its cell's number format shows it (what precision as displayed keeps), with the formats made once for each cell format.
+class ShownRounder {
+public:
+    ShownRounder(const jp::office::sheet::Styles &styles, jp::calc::DateSystem system) : m_styles(styles), m_system(system) {}
+    // The number a cell of this format shows of `value`; `value` itself for a format that shows it whole (or a number no section takes).
+    double round(quint32 style, double value);
+
+private:
+    const jp::office::sheet::Styles &m_styles;
+    jp::calc::DateSystem m_system;
+    std::unordered_map<quint32, jp::calc::NumberFormat> m_formats;
 };
 
 // The default sizes of a sheet (the height of rows and the width of columns that have none of their own) changed by a step: as they were and as they are.
@@ -257,6 +271,13 @@ struct ProtectEdit {
     jp::office::sheet::WorkbookProtection bookBefore, bookAfter;
 };
 
+// A number constant a step rounded (Precision as Displayed): where it is, and the number it was and is. Very many are kept this small.
+struct NumberCell {
+    qint32 sheet = 0;
+    quint32 row = 0, col = 0;
+    double before = 0, after = 0;
+};
+
 struct StyleCell {
     qint32 sheet = 0;
     quint32 row = 0, col = 0;
@@ -267,6 +288,7 @@ struct StyleCell {
 struct Step {
     std::vector<CellChange> cells;
     std::vector<StyleCell> styles;
+    std::vector<NumberCell> numbers;           // or number constants rounded to what their cells show
     std::vector<TableRename> renames;
     std::vector<TableEdit> tables;
     std::vector<PivotEdit> pivots;
@@ -285,7 +307,7 @@ struct Step {
     std::vector<ProtectEdit> protections;      // or the protection of a sheet or the workbook
     std::vector<NameEdit> names;               // or defined names made, changed, or taken away
     std::vector<CalcEdit> calcs;               // or how the workbook calculates
-    bool empty() const { return pivots.empty() && protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
+    bool empty() const { return numbers.empty() && pivots.empty() && protections.empty() && sides.empty() && cells.empty() && styles.empty() && renames.empty() && tables.empty() && fills.empty() && sizes.empty() && merges.empty() && formats.empty() && filters.empty() && rowSpecs.empty() && permutes.empty() && sheets.empty() && !structure && objects.empty() && pages.empty() && names.empty() && calcs.empty(); }
 };
 
 // About how many bytes a cell's content takes in a step: the structure, and the texts in it.
@@ -584,6 +606,7 @@ public:
         size_t next = 0;
         bool began = false;
         bool tablesApplied = false;
+        size_t nextNumber = 0;     // the numbers (Step::numbers) put in so far
         size_t fillAt = 0;         // the fill the slices are at, and its next row
         quint32 fillRow = 0;
     };
@@ -1132,6 +1155,23 @@ public:
     // ---- how the workbook calculates
     CalcSettings calcSettings() const { return m_calcNow; }
     Outcome setCalcSettings(const CalcSettings &settings);
+    // ---- precision as displayed (editprecision.cpp)
+    // Turning it on rounds every number constant of every sheet to what its cell's number format shows (General keeps the number; a percent, fixed decimals, a currency, a fraction, scientific
+    // notation, and a date or time by the least unit shown), and from then on a number typed, pasted, or given by a formula is kept rounded so (the formulas themselves are not changed: the
+    // cells that put a value in, `apply`, and the calculation, `storeResult`, round it). It is one step of Undo, with the setting. Turning it off only stops the rounding.
+    // A plan is made first (nothing is changed by it, so it may be dropped to cancel), its cells looked at about `budget` at a time (0: all), then it is put in (a slice at a time, with `pending` set while there is more).
+    struct PrecisionPlan;
+    std::shared_ptr<PrecisionPlan> planPrecisionAsShown(QString *why);
+    bool preparePrecision(PrecisionPlan &plan, qint64 budget);
+    Outcome applyPrecision(PrecisionPlan &plan, qint64 budget = 0);
+    // How many cells the plan has looked at, and how many there are to look at (for a progress bar), and how many numbers it changes.
+    static qint64 precisionLooked(const PrecisionPlan &plan);
+    static qint64 precisionTotal(const PrecisionPlan &plan);
+    static qint64 precisionChanges(const PrecisionPlan &plan);
+    // All of it at once (for the tools and the tests). `on` false: the setting is turned off.
+    Outcome setPrecisionAsShown(bool on);
+    // The most numbers one such step changes.
+    static constexpr qint64 kMaxPrecisionNumbers = 8000000;
 
     // ---- saving
     // Whether there is anything the file lacks: the undo stack is not at the state that was last saved.

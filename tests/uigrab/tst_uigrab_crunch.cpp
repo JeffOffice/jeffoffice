@@ -7,6 +7,7 @@
 #include "../withdialog.h"
 
 #include <QDir>
+#include <QMenu>
 #include <QtTest>
 
 using namespace crunchtest;
@@ -52,6 +53,24 @@ private Q_SLOTS:
             poll.stop();
             if (!grabbed) qWarning("no dialog for %s", qPrintable(id));
         }
+    }
+
+    // The Calculation Options menu with Set Precision as Displayed ticked (the warning itself is grabbed above with JO_GRAB_IDS=formulas.precision).
+    void grabThePrecisionSwitch()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        QDir().mkpath(dir);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->setPrecisionAsShown(true).ok);
+        QVERIFY(e.settle());
+        QMenu menu;
+        for (const char *id : {"formulas.calcAuto", "formulas.calcNoTables", "formulas.calcManual", "formulas.calcBeforeSave", "formulas.iteration", "formulas.precision"}) menu.addAction(e.win.w.act(QString::fromLatin1(id)));
+        menu.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&menu));
+        QVERIFY(menu.grab().save(dir + QStringLiteral("/precision-switch.png")));
     }
 };
 

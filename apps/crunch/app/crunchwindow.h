@@ -955,6 +955,7 @@ private:
     void followCalcBatch(const crunch::CalcBatch &batch);
     void updateCalcStatus();
     void sendCalcSettings();
+    void setPrecisionAsShown(bool on);
     void announceCircles();
     void refreshCheckMarks();
     struct TraceArrow {
