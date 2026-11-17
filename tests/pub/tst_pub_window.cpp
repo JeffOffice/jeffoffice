@@ -1009,8 +1009,9 @@ private Q_SLOTS:
             QVERIFY(jp::help::searchTopics(QStringLiteral("print")).isEmpty());
             QVERIFY(jp::help::contextTopic(QStringLiteral("tab:Home")).isEmpty());
         }
-        // a folder left by an older version is not Help: the bundle is the only place
+        // a damaged bundle is not kept registered (mapped, and so locked on Windows): it can be replaced while the program runs
         QVERIFY(QFile::remove(dir.path() + QStringLiteral("/help.rcc")));
+        // a folder left by an older version is not Help: the bundle is the only place
         QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("help/en")));
         QFile f(dir.path() + QStringLiteral("/help/en/index.md"));
         QVERIFY(f.open(QIODevice::WriteOnly));

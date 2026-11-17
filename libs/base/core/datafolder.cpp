@@ -70,6 +70,11 @@ void find()   // (the mutex is held)
             for (const char *name : kBundles) {
                 const QString file = s_root + QLatin1Char('/') + QLatin1String(name) + QStringLiteral(".rcc");
                 if (QFileInfo(file).isFile() && QResource::registerResource(file)) {
+                    // (a damaged file can pass Qt's header check and hold nothing: it is let go at once, or Windows keeps it mapped and in use)
+                    if (!QFileInfo(QStringLiteral(":/") + QLatin1String(name)).isDir()) {
+                        QResource::unregisterResource(file);
+                        continue;
+                    }
                     s_bundles << file;
                     s_bundled << QLatin1String(name);
                 }
