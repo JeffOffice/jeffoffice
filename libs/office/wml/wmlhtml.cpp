@@ -72,6 +72,8 @@ public:
     QByteArray run()
     {
         QString body = range(0, int(d.body.size()), 0);
+        if (o.xhtml) body.replace(QLatin1String("<br>"), QLatin1String("<br/>")).replace(QLatin1String("&nbsp;"), QLatin1String("&#160;"));
+        if (o.bodyOnly) return body.toUtf8();
         QString head = QStringLiteral("<!DOCTYPE html>\n<html");
         if (!o.language.isEmpty()) head += QStringLiteral(" lang=\"") + escaped(o.language) + QLatin1Char('"');
         head += QStringLiteral(">\n<head>\n<meta charset=\"utf-8\">\n<title>") + escaped(o.title) + QStringLiteral("</title>\n");
@@ -103,6 +105,7 @@ private:
     const Document &d;
     HtmlOptions o;
     qint64 pictureBytes = 0;
+    int headingCount = 0, noteCount = 0, footnoteSeq = 0, endnoteSeq = 0;
 
     QString css() const
     {
@@ -239,17 +242,36 @@ private:
         return out + QStringLiteral("</table>\n");
     }
 
+    int headingOf(const ParaProps &pp, const QString &sid, bool *title) const
+    {
+        if (title) *title = false;
+        if (pp.outlineLvl && *pp.outlineLvl >= 0 && *pp.outlineLvl < 9) return std::min(6, *pp.outlineLvl + 1);
+        if (const Style *st = d.styles.find(sid))
+            if (st->name.compare(QLatin1String("Title"), Qt::CaseInsensitive) == 0) {
+                if (title) *title = true;
+                return 1;
+            }
+        return 0;
+    }
+
+public:
     QString styleId(const ParaProps &p) const { return p.style.isEmpty() ? d.styles.defaultId(QStringLiteral("paragraph")) : p.style; }
+    int headingLevel(const Paragraph &para, bool *title) const
+    {
+        const QString sid = styleId(para.props);
+        ParaProps pp = d.styles.paragraph(sid);
+        pp.overlay(para.props);
+        return headingOf(pp, sid, title);
+    }
+
+private:
 
     void paragraph(const Paragraph &para, QString *out, QVector<ListLevel> *lists, const std::function<void(int)> &closeLists)
     {
         const QString sid = styleId(para.props);
         ParaProps pp = d.styles.paragraph(sid);
         pp.overlay(para.props);
-        int heading = 0;
-        if (pp.outlineLvl && *pp.outlineLvl >= 0 && *pp.outlineLvl < 9) heading = std::min(6, *pp.outlineLvl + 1);
-        else if (const Style *st = d.styles.find(sid))
-            if (st->name.compare(QLatin1String("Title"), Qt::CaseInsensitive) == 0) heading = 1;
+        const int heading = headingOf(pp, sid, nullptr);
         const int numId = pp.numId.value_or(0);
         const bool item = !heading && numId > 0 && d.numbering.levelOf(numId, std::clamp(pp.ilvl.value_or(0), 0, 8));
         const QString inner = inlines(para, sid, heading != 0);
@@ -282,7 +304,19 @@ private:
         }
         closeLists(0);
         if (heading) {
-            *out += QStringLiteral("<h%1").arg(heading) + styleAttribute(pp, false) + QLatin1Char('>') + inner + QStringLiteral("</h%1>\n").arg(heading);
+            QString id;
+            if (!o.headingIdPrefix.isEmpty()) {
+                id = o.headingIdPrefix + QString::number(headingCount + 1);
+                if (o.headings) {
+                    static const QRegularExpression tags(QStringLiteral("<[^>]*>"));
+                    QString text = inner;
+                    text.remove(tags).replace(QLatin1String("&nbsp;"), QLatin1String(" ")).replace(QLatin1String("&#160;"), QLatin1String(" "));
+                    o.headings->push_back({heading, unescapedXml(text).simplified(), id});
+                }
+                ++headingCount;
+                id = QStringLiteral(" id=\"") + id + QLatin1Char('"');
+            }
+            *out += QStringLiteral("<h%1").arg(heading) + id + styleAttribute(pp, false) + QLatin1Char('>') + inner + QStringLiteral("</h%1>\n").arg(heading);
             return;
         }
         if (inner.trimmed().isEmpty()) {
@@ -400,7 +434,14 @@ private:
         else if (lower.endsWith(QLatin1String(".bmp"))) mime = QStringLiteral("image/bmp");
         if (mime.isEmpty() || pictureBytes + part->data.size() > kMostHtmlPictureBytes) return QString();
         pictureBytes += part->data.size();
-        QString img = QStringLiteral("<img src=\"data:") + mime + QStringLiteral(";base64,") + QString::fromLatin1(part->data.toBase64()) + QStringLiteral("\" alt=\"") + escaped(attributeOf(atom.raw, QStringLiteral("descr"))) + QLatin1Char('"');
+        QString src;
+        if (o.pictureHref) {
+            src = o.pictureHref(part->name, part->data, mime);
+            if (src.isEmpty()) return QString();
+        } else {
+            src = QStringLiteral("data:") + mime + QStringLiteral(";base64,") + QString::fromLatin1(part->data.toBase64());
+        }
+        QString img = QStringLiteral("<img src=\"") + escaped(src) + QStringLiteral("\" alt=\"") + escaped(attributeOf(atom.raw, QStringLiteral("descr"))) + QLatin1Char('"');
         if (o.singleFile) {
             static const QRegularExpression extent(QStringLiteral("<wp:extent\\s+cx=\"(\\d+)\"\\s+cy=\"(\\d+)\""));
             const QRegularExpressionMatch e = extent.match(xml);
@@ -409,7 +450,7 @@ private:
                 if (cx > 0 && cy > 0 && cx < 100000 && cy < 100000) img += QStringLiteral(" width=\"%1\" height=\"%2\"").arg(cx).arg(cy);
             }
         }
-        return img + QLatin1Char('>');
+        return img + (o.xhtml ? QStringLiteral("/>") : QStringLiteral(">"));
     }
 
     QString inlines(const Paragraph &para, const QString &sid, bool heading)
@@ -536,11 +577,34 @@ private:
                         out += QStringLiteral("<br>");
                     }
                 } else if (in.tag == QLatin1String("footnoteReference") || in.tag == QLatin1String("endnoteReference")) {
-                    if (!in.display.isEmpty()) {
+                    const bool endnote = in.tag == QLatin1String("endnoteReference");
+                    const bool linked = o.notes && noteCount < o.mostNotes;
+                    // (A file's own reference shows its number; one made here has none, and is numbered from where the last page left off.)
+                    const QString number = !in.display.isEmpty() ? in.display : linked ? QString::number((endnote ? o.firstEndnote : o.firstFootnote) + (endnote ? endnoteSeq : footnoteSeq)) : QString();
+                    if (linked) ++(endnote ? endnoteSeq : footnoteSeq);
+                    if (!number.isEmpty()) {
                         Segment s;
                         s.open = QStringLiteral("<sup>");
                         s.close = QStringLiteral("</sup>");
-                        addText(escaped(in.display), s);
+                        if (linked) {
+                            static const QRegularExpression noteId(QStringLiteral("w:id=\"(-?\\d{1,9})\""));
+                            bool known = false;
+                            int id = in.key.toInt(&known);
+                            if (!known) {
+                                const QRegularExpressionMatch idm = noteId.match(QString::fromUtf8(in.raw.left(400)));
+                                id = idm.hasMatch() ? idm.captured(1).toInt() : 0;
+                            }
+                            HtmlNote note;
+                            note.endnote = endnote;
+                            note.id = id;
+                            note.number = number;
+                            note.referenceId = QStringLiteral("fnr-%1").arg(++noteCount);
+                            note.noteId = QStringLiteral("fn-%1").arg(noteCount);
+                            o.notes->push_back(note);
+                            s.open = QStringLiteral("<a class=\"noteref\" epub:type=\"noteref\" id=\"") + note.referenceId + QStringLiteral("\" href=\"#") + note.noteId + QStringLiteral("\"><sup>");
+                            s.close = QStringLiteral("</sup></a>");
+                        }
+                        addText(escaped(number), s);
                     }
                 } else if (!in.display.isEmpty() && !in.display.startsWith(QLatin1Char('['))) {
                     addText(escaped(in.display).replace(QChar(QChar::LineSeparator), QStringLiteral("<br>")), marksFor(in.props).second);
@@ -561,6 +625,11 @@ private:
 };
 
 } // namespace
+
+int htmlHeadingLevel(const Document &doc, const Paragraph &para, bool *title)
+{
+    return Writer(doc, HtmlOptions()).headingLevel(para, title);
+}
 
 QByteArray documentToHtml(const Document &doc, const HtmlOptions &options)
 {

@@ -315,6 +315,9 @@ public:
     // Save as Web Page (the page with its looks and pictures in one file) or as Filtered Web Page (the structure alone): asks for the file, and the writing itself.
     bool exportWebAsk(bool singleFile);
     bool exportWeb(const QString &path, bool singleFile);
+    // Save as E-book (EPUB): asks for the title, the author, whether the first picture is the cover, and the file; and the writing itself (an empty title or author is the document's own).
+    bool exportEpubAsk();
+    bool exportEpub(const QString &path, const QString &title, const QString &author, bool cover);
     // Asks how a text file is read or written (the encoding and line ends, with a preview of `sample`, the file's bytes, if given); false if cancelled. Tests stand in for the dialog.
     bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.

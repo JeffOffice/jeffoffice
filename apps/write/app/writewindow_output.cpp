@@ -12,6 +12,7 @@
 #include "core/booklet.h"
 #include "io/pdftags.h"
 #include "core/editops.h"
+#include "core/epubexport.h"
 #include "app/pageview.h"
 #include "core/appinfo.h"
 #include "app/emailops.h"
@@ -510,6 +511,69 @@ bool WriteWindow::exportWebAsk(bool singleFile)
     if (path.isEmpty()) return false;
     if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".html");
     return exportWeb(path, singleFile);
+}
+
+bool WriteWindow::exportEpub(const QString &path, const QString &title, const QString &author, bool cover)
+{
+    if (!m_doc || path.isEmpty() || !commitShapeText()) return false;
+    const QString what = tr("Save as E-book");
+    const office::PackageProps props = m_doc->packageProps();
+    write::EpubExportOptions options;
+    options.title = !title.isEmpty() ? title : props.title.isEmpty() ? displayName() : props.title;
+    options.author = !author.isEmpty() ? author : m_personalInfoRemoved ? QString() : props.creator;
+    options.cover = cover;
+    office::wml::Document snapshot;
+    QString err;
+    QByteArray bytes;
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    if (m_doc->docxSnapshot(&snapshot)) bytes = write::epubFromDocument(snapshot, options, &err);
+    QApplication::restoreOverrideCursor();
+    QSaveFile file(path);
+    const bool ok = !bytes.isEmpty() && file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+    if (!ok) {
+        if (err.isEmpty()) err = bytes.isEmpty() ? tr("The document could not be made into an e-book.") : file.errorString();
+        jp::plainWarning(this, what, tr("%1 couldn't export \"%2\".\n%3%4").arg(appInfo().name, QFileInfo(path).fileName(), err, saveFailureHint(err)));
+        return false;
+    }
+    statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()), 5000);
+    return true;
+}
+
+bool WriteWindow::exportEpubAsk()
+{
+    if (!m_doc) return false;
+    const office::PackageProps props = m_doc->packageProps();
+    QDialog dialog(this);
+    dialog.setObjectName(QStringLiteral("epubDialog"));
+    dialog.setWindowTitle(tr("Save as E-book"));
+    auto *layout = new QVBoxLayout(&dialog);
+    auto *intro = new QLabel(tr("Makes an EPUB book that readers and stores open. Each Heading 1 starts a new chapter, and the contents list Heading 1 to Heading 3."), &dialog);
+    intro->setWordWrap(true);
+    intro->setTextFormat(Qt::PlainText);
+    layout->addWidget(intro);
+    auto *form = new QFormLayout;
+    auto *title = new QLineEdit(props.title.isEmpty() ? displayName() : props.title, &dialog);
+    title->setObjectName(QStringLiteral("epubTitle"));
+    form->addRow(tr("Title"), title);
+    auto *author = new QLineEdit(m_personalInfoRemoved ? QString() : props.creator, &dialog);
+    author->setObjectName(QStringLiteral("epubAuthor"));
+    form->addRow(tr("Author"), author);
+    layout->addLayout(form);
+    auto *cover = new QCheckBox(tr("Use the first picture as the cover"), &dialog);
+    cover->setObjectName(QStringLiteral("epubCover"));
+    layout->addWidget(cover);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+    layout->addWidget(buttons);
+    if (dialog.exec() != QDialog::Accepted) return false;
+    const QString dir = m_path.isEmpty() ? QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation) : QFileInfo(m_path).absolutePath();
+    const QString suggested = dir + QLatin1Char('/') + displayName() + QStringLiteral(".epub");
+    const QString filter = tr("E-book (*.epub)");
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, tr("Save as E-book"), suggested, filter);
+    if (path.isEmpty()) return false;
+    if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".epub");
+    return exportEpub(path, title->text().trimmed(), author->text().trimmed(), cover->isChecked());
 }
 
 bool WriteWindow::exportEmailAsk()

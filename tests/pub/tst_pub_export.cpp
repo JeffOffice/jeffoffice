@@ -97,6 +97,7 @@ private Q_SLOTS:
         QVERIFY(nav.contains(QStringLiteral("epub:type=\"page-list\"")));
         QCOMPARE(zip.value(QStringLiteral("mimetype")), QByteArray("application/epub+zip"));
         if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QFile::copy(path, qEnvironmentVariable("JP_SHOT_DIR") + QStringLiteral("/fixed.epub"));
+        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/fixed.epub"));
     }
 
     // What is wrong with an EPUB's files: names that lead nowhere in it (the
@@ -1145,6 +1146,7 @@ private Q_SLOTS:
         const QString path = dir.filePath(QStringLiteral("book.epub"));
         QString err;
         QVERIFY2(w.exportEpubTo(path, QStringLiteral("My Book"), QString(), true, &err), qPrintable(err));
+        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/reflow.epub"));
         QFile f(path);
         QVERIFY(f.open(QIODevice::ReadOnly));
         const QByteArray epub = f.readAll();

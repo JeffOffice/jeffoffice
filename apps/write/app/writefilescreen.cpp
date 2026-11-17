@@ -625,6 +625,12 @@ QWidget *WriteFileScreen::buildExport()
         if (m_win->exportWebAsk(false)) Q_EMIT closeRequested();
     });
     v->addWidget(filtered);
+    auto *book = new ActionCard(QStringLiteral("book-open"), tr("Save as E-book (EPUB)"), tr("A book for e-readers and stores, with a chapter at each Heading 1, the contents, and the notes at the end of each chapter."), w);
+    book->setObjectName(QStringLiteral("exportEpub"));
+    connect(book, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportEpubAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(book);
     // A message as a file, for an email program: nothing is sent through an account.
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the document, a PDF, or the pages in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));

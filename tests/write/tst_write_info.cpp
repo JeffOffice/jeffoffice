@@ -20,6 +20,15 @@
 #include "core/appinfo.h"
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/epubexport.h"
+#include "core/pictureops.h"
+#include "core/tableops.h"
+#include <QRegularExpression>
+#include <QXmlStreamReader>
+#include <QTextBrowser>
+#include <QTimer>
+#include <QBuffer>
+#include <QImage>
 #include "core/fieldops.h"
 #include "core/fonts.h"
 #include "core/inspectops.h"
@@ -170,6 +179,59 @@ void protect(WriteWindow &w, const QString &password)
         return NewPasswordChoice::Set;
     });
     w.encryptWithPassword();
+}
+
+// A book for the e-book tests: front words, then chapters of Heading 1 with Heading 2 and Heading 4 inside, a footnote, a picture, and a table.
+void paragraphOf(WriteDoc &doc, QTextCursor &c, const QString &text, const QString &style, bool first = false)
+{
+    if (!first) insertParagraph(doc, c);
+    typeText(doc, c, text);
+    applyParagraphStyle(doc, c, style);
+}
+
+QByteArray pngBytes(int width, int height)
+{
+    QImage image(width, height, QImage::Format_RGB32);
+    image.fill(Qt::darkGreen);
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+bool wellFormed(const QByteArray &xml, QString *why = nullptr)
+{
+    QXmlStreamReader r(xml);
+    while (!r.atEnd()) r.readNext();
+    if (r.hasError() && why) *why = r.errorString();
+    return !r.hasError();
+}
+
+void buildBook(WriteWindow &w)
+{
+    WriteDoc &doc = *w.document();
+    QTextCursor c = w.view()->cursor();
+    paragraphOf(doc, c, QStringLiteral("Front words."), QStringLiteral("Normal"), true);
+    paragraphOf(doc, c, QStringLiteral("Chapter One"), QStringLiteral("Heading1"));
+    paragraphOf(doc, c, QStringLiteral("Noted"), QStringLiteral("Normal"));
+    QTextDocument *note = insertFootnote(doc, c);
+    QVERIFY(note);
+    typeText(doc, c, QStringLiteral("The footnote words."));   // (the cursor is in the note)
+    c = QTextCursor(doc.story());
+    c.movePosition(QTextCursor::End);
+    c.setCharFormat(QTextCharFormat());
+    paragraphOf(doc, c, QStringLiteral("A section"), QStringLiteral("Heading2"));
+    paragraphOf(doc, c, QStringLiteral("Too deep"), QStringLiteral("Heading4"));
+    paragraphOf(doc, c, QStringLiteral("Chapter Two"), QStringLiteral("Heading1"));
+    paragraphOf(doc, c, QStringLiteral("Pic: "), QStringLiteral("Normal"));
+    QCOMPARE(insertPicture(doc, c, pngBytes(40, 20), QStringLiteral("green"), PictureWrap::Inline, QStringLiteral("A green box")), PictureResult::Ok);
+    QCOMPARE(insertPicture(doc, c, pngBytes(40, 20), QStringLiteral("green"), PictureWrap::Inline, QStringLiteral("A green box")), PictureResult::Ok);
+    insertParagraph(doc, c);
+    NewTable table;
+    table.rows = 2;
+    table.columns = 2;
+    QVERIFY(insertTable(doc, c, table));
 }
 
 struct Quiet {
@@ -1236,6 +1298,184 @@ private Q_SLOTS:
         QVERIFY(page.contains(QLatin1String("<style>")));
         QVERIFY(small.contains(QStringLiteral("<b>caf\u00e9</b> &lt;b&gt; &amp; more")));
         QVERIFY(!small.contains(QLatin1String("<style>")));
+    }
+
+    // Save as E-book: a chapter for each Heading 1 (the front words are a chapter of their own), the contents from Heading 1 to 3, the notes at each chapter's end with a link back, pictures
+    // as files of the book, a table in place, and the cover only when asked for.
+    void anEbookHasAChapterForEachHeading1()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        buildBook(w);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("book.epub"));
+        QVERIFY(!w.exportEpub(QString(), QString(), QString(), false));
+        QVERIFY(w.exportEpub(path, QStringLiteral("My Book"), QStringLiteral("Pat Writer"), false));
+        if (!qEnvironmentVariableIsEmpty("JP_EPUB_DUMP")) QFile::copy(path, qEnvironmentVariable("JP_EPUB_DUMP") + QStringLiteral("/write.epub"));
+        const QByteArray bytes = fileBytes(path);
+        QCOMPARE(bytes.mid(30, 28), QByteArray("mimetypeapplication/epub+zip"));   // first, and stored
+        QCOMPARE(int(bytes[8]), 0);
+        QMap<QString, QByteArray> z;
+        QString err;
+        QVERIFY2(readZip(bytes, z, &err), qPrintable(err));
+        for (auto it = z.cbegin(); it != z.cend(); ++it) {
+            const QString &name = it.key();
+            if (!name.endsWith(QLatin1String(".xhtml")) && !name.endsWith(QLatin1String(".opf")) && !name.endsWith(QLatin1String(".ncx")) && !name.endsWith(QLatin1String(".xml"))) continue;
+            QVERIFY2(wellFormed(it.value(), &err), qPrintable(name + ": " + err));
+        }
+        const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+        QVERIFY(opf.contains(QStringLiteral("<dc:title>My Book</dc:title>")) && opf.contains(QStringLiteral("<dc:creator>Pat Writer</dc:creator>")));
+        QVERIFY(opf.contains(QStringLiteral("<spine toc=\"ncx\">")) && z.contains(QStringLiteral("OEBPS/toc.ncx")));
+        QVERIFY(!z.contains(QStringLiteral("OEBPS/chapter4.xhtml")));
+        QVERIFY(z.contains(QStringLiteral("OEBPS/chapter3.xhtml")));
+        QVERIFY(!opf.contains(QStringLiteral("cover-image")));   // no cover unless asked for
+        const QString c1 = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter1.xhtml"))), c2 = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter2.xhtml"))),
+                      c3 = QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter3.xhtml")));
+        QVERIFY(c1.contains(QStringLiteral("Front words.")) && !c1.contains(QStringLiteral("Chapter One")));
+        QVERIFY(c2.contains(QStringLiteral("<h1 id=\"h1\">Chapter One</h1>")) && c2.contains(QStringLiteral("A section")));
+        QVERIFY(c3.contains(QStringLiteral("Chapter Two")));
+        // the footnote: its number links to the note at the end of the chapter, which links back
+        QVERIFY2(c2.contains(QStringLiteral("href=\"#fn-1\"")) && c2.contains(QStringLiteral("id=\"fnr-1\"")), qPrintable(c2));
+        QVERIFY2(c2.contains(QStringLiteral("id=\"fn-1\"")) && c2.contains(QStringLiteral("The footnote words.")) && c2.contains(QStringLiteral("href=\"#fnr-1\"")), qPrintable(c2));
+        // the contents: Heading 1 to 3 (not the Heading 4), each at its chapter and place
+        const QString nav = QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml")));
+        QVERIFY2(nav.contains(QStringLiteral("epub:type=\"toc\"")) && nav.contains(QStringLiteral("<a href=\"chapter2.xhtml\">Chapter One</a>")), qPrintable(nav));
+        QVERIFY(nav.contains(QStringLiteral("<a href=\"chapter2.xhtml#h2\">A section</a>")) && nav.contains(QStringLiteral("<a href=\"chapter3.xhtml\">Chapter Two</a>")));
+        QVERIFY(!nav.contains(QStringLiteral("Too deep")));
+        QVERIFY(c2.contains(QStringLiteral("Too deep")));
+        // the picture is a file of the book, used once however many times it is placed; the table is in place
+        QCOMPARE(c3.count(QStringLiteral("src=\"images/pic1.png\"")), 2);
+        QVERIFY(c3.contains(QStringLiteral("alt=\"A green box\"")) && !c3.contains(QStringLiteral("data:")));
+        QVERIFY(z.contains(QStringLiteral("OEBPS/images/pic1.png")) && !z.contains(QStringLiteral("OEBPS/images/pic2.png")));
+        QVERIFY(opf.contains(QStringLiteral("href=\"images/pic1.png\" media-type=\"image/png\"")));
+        QVERIFY(c3.contains(QStringLiteral("<table>")) && c3.contains(QStringLiteral("</table>")));
+        // asked for, the first picture is the cover
+        const QString coverPath = dir.filePath(QStringLiteral("cover.epub"));
+        QVERIFY(w.exportEpub(coverPath, QString(), QString(), true));
+        QMap<QString, QByteArray> cz;
+        QVERIFY(readZip(fileBytes(coverPath), cz, &err));
+        QVERIFY(QString::fromUtf8(cz.value(QStringLiteral("OEBPS/content.opf"))).contains(QStringLiteral("properties=\"cover-image\"")));
+        QVERIFY(!QImage::fromData(cz.value(QStringLiteral("OEBPS/images/cover.jpg"))).isNull());
+        QVERIFY(QString::fromUtf8(cz.value(QStringLiteral("OEBPS/cover.xhtml"))).contains(QStringLiteral("images/cover.jpg")));
+    }
+
+    // The title and the author come from the document's properties when none is given, the book's language from its text.
+    void anEbookTakesItsTitleAndAuthorFromTheProperties()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        buildBook(w);
+        office::PackageProps p = w.document()->packageProps();
+        p.title = QStringLiteral("From Properties");
+        p.creator = QStringLiteral("Sam Author");
+        w.applyProperties(p);
+        QTemporaryDir dir;
+        QVERIFY(w.exportEpub(dir.filePath(QStringLiteral("a.epub")), QString(), QString(), false));
+        QMap<QString, QByteArray> z;
+        QVERIFY(readZip(fileBytes(dir.filePath(QStringLiteral("a.epub"))), z));
+        const QString opf = QString::fromUtf8(z.value(QStringLiteral("OEBPS/content.opf")));
+        QVERIFY2(opf.contains(QStringLiteral("<dc:title>From Properties</dc:title>")) && opf.contains(QStringLiteral("<dc:creator>Sam Author</dc:creator>")), qPrintable(opf));
+        QVERIFY(opf.contains(QRegularExpression(QStringLiteral("<dc:language>[a-z]{2,3}(-[A-Za-z0-9]+)?</dc:language>"))));
+    }
+
+    // A hostile document is held to the bounds: the chapters, the contents' lines, and the pictures (a count and a size) are cut off, and nothing is lost from the text.
+    void anEbookIsHeldToItsBounds()
+    {
+        WriteWindow w;
+        Quiet quiet(w);
+        buildBook(w);
+        office::wml::Document snapshot;
+        QVERIFY(w.document()->docxSnapshot(&snapshot));
+        auto read = [&](const EpubExportOptions &o) {
+            QMap<QString, QByteArray> z;
+            QString err;
+            const QByteArray bytes = epubFromDocument(snapshot, o, &err);
+            readZip(bytes, z, &err);
+            return z;
+        };
+        EpubExportOptions few;
+        few.mostChapters = 2;
+        QMap<QString, QByteArray> z = read(few);
+        QVERIFY(z.contains(QStringLiteral("OEBPS/chapter2.xhtml")) && !z.contains(QStringLiteral("OEBPS/chapter3.xhtml")));
+        // (the chapter past the last is not lost: it is in the last one)
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter2.xhtml"))).contains(QStringLiteral("Chapter Two")));
+        EpubExportOptions lines;
+        lines.mostNavEntries = 2;
+        z = read(lines);
+        const QString nav = QString::fromUtf8(z.value(QStringLiteral("OEBPS/nav.xhtml")));
+        QCOMPARE(nav.count(QStringLiteral("<li><a href=\"chapter")), 2);
+        EpubExportOptions noPictures;
+        noPictures.mostPictures = 0;
+        z = read(noPictures);
+        QVERIFY(!z.contains(QStringLiteral("OEBPS/images/pic1.png")));
+        EpubExportOptions small;
+        small.mostPictureBytes = 10;
+        z = read(small);
+        QVERIFY(!z.contains(QStringLiteral("OEBPS/images/pic1.png")));
+        QVERIFY(QString::fromUtf8(z.value(QStringLiteral("OEBPS/chapter3.xhtml"))).contains(QStringLiteral("<table>")));
+        QVERIFY(read(EpubExportOptions()).contains(QStringLiteral("OEBPS/images/pic1.png")));   // (the bounds are what stopped it)
+        // the real bounds are the documented ones
+        QCOMPARE(EpubExportOptions().mostChapters, 500);
+        QCOMPARE(EpubExportOptions().mostNavEntries, 4000);
+        QCOMPARE(EpubExportOptions().mostPictures, 1000);
+        QCOMPARE(kMostEpubHeadingLevel, 3);
+    }
+
+    // File > Export has Save as E-book.
+    void theExportPageOffersSaveAsEbook()
+    {
+        WriteWindow w;
+        w.show();
+        w.showFileScreen(QStringLiteral("export"));
+        QVERIFY(w.findChild<QAbstractButton *>(QStringLiteral("exportEpub")));
+    }
+
+    // Pictures for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it): the export page, the dialog, and chapters as a reader's page.
+    void ebookScreenshots()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        applyUiTheme(1);   // the program's own look, as a person sees it; a bare test has none
+        WriteWindow w;
+        Quiet quiet(w);
+        w.resize(1100, 800);
+        buildBook(w);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.showFileScreen(QStringLiteral("export"));
+        QTest::qWait(100);
+        w.grab().save(dir + QStringLiteral("/epub-export-page.png"));
+        w.showFileScreen(QString());
+        auto *timer = new QTimer;
+        timer->setInterval(20);
+        connect(timer, &QTimer::timeout, [timer, dir] {
+            QWidget *modal = QApplication::activeModalWidget();
+            if (!modal) return;
+            timer->stop();
+            timer->deleteLater();
+            modal->grab().save(dir + QStringLiteral("/epub-export-dialog.png"));
+            static_cast<QDialog *>(modal)->reject();
+        });
+        timer->start();
+        w.setSavePathChooser([](const QString &, const QString &) { return QString(); });
+        QVERIFY(!w.exportEpubAsk());
+        QTemporaryDir out;
+        const QString path = out.filePath(QStringLiteral("book.epub"));
+        QVERIFY(w.exportEpub(path, QStringLiteral("My Book"), QStringLiteral("Pat Writer"), false));
+        QMap<QString, QByteArray> z;
+        QVERIFY(readZip(fileBytes(path), z));
+        for (const QString &chapter : {QStringLiteral("chapter2"), QStringLiteral("chapter3"), QStringLiteral("nav")}) {
+            QTextBrowser view;
+            view.resize(480, 420);
+            for (auto it = z.cbegin(); it != z.cend(); ++it)
+                if (it.key().startsWith(QLatin1String("OEBPS/images/"))) view.document()->addResource(QTextDocument::ImageResource, QUrl(it.key().mid(6)), QImage::fromData(it.value()));
+            QString html = QString::fromUtf8(z.value(QStringLiteral("OEBPS/") + chapter + QStringLiteral(".xhtml")));
+            html.remove(QRegularExpression(QStringLiteral("^<\\?xml[^>]*>\\s*<!DOCTYPE html>")));
+            view.setHtml(html);
+            view.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&view));
+            view.grab().save(dir + QLatin1Char('/') + QStringLiteral("epub-") + chapter + QStringLiteral(".png"));
+        }
     }
 
     // A web page opens as a document (what Save as Web Page wrote comes back with its words), and Save does not write over it.

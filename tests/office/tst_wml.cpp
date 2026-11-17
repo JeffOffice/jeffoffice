@@ -1928,6 +1928,56 @@ private Q_SLOTS:
         QVERIFY(html.trimmed().endsWith(QLatin1String("</html>")));
     }
 
+    // For an e-book, the page is XML a reader parses: its empty tags closed, no entity XML lacks, only the body, the pictures as files the caller names (and left out when it gives no name),
+    // each heading with an id and listed, and a note reference a link to its note.
+    void htmlForAnEbookIsXmlWithFilesLinksAndIds()
+    {
+        const QByteArray body =
+            R"(<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Head &amp; one</w:t></w:r></w:p>)"
+            R"(<w:p><w:r><w:t xml:space="preserve">A  line</w:t></w:r><w:r><w:br/></w:r><w:r><w:t>next</w:t></w:r><w:r><w:footnoteReference w:id="7"/></w:r></w:p>)"
+            R"(<w:p><w:r><w:drawing><wp:inline><wp:extent cx="952500" cy="476250"/><wp:docPr id="1" name="p" descr="logo"/><a:graphic><a:graphicData><a:blip r:embed="rIdPic"/></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>)";
+        Document d;
+        QString err;
+        QVERIFY2(readDocx(htmlPackage(body, htmlStyles(), htmlNumbering()), &d, &err), qPrintable(err));
+        HtmlOptions opt;
+        opt.xhtml = true;
+        opt.bodyOnly = true;
+        QVector<HtmlHeading> headings;
+        QVector<HtmlNote> notes;
+        opt.headingIdPrefix = QStringLiteral("h");
+        opt.headings = &headings;
+        opt.notes = &notes;
+        QStringList asked;
+        opt.pictureHref = [&asked](const QString &name, const QByteArray &data, const QString &mime) {
+            asked << name + QLatin1Char(' ') + mime + QLatin1Char(' ') + QString::number(data.size() > 0);
+            return QStringLiteral("images/pic1.png");
+        };
+        const QString html = QString::fromUtf8(documentToHtml(d, opt));
+        QVERIFY2(!html.contains(QLatin1String("<html")) && !html.contains(QLatin1String("<body")), qPrintable(html));
+        QVERIFY2(html.contains(QLatin1String("<h1 id=\"h1\">Head &amp; one</h1>")), qPrintable(html));
+        QVERIFY(html.contains(QLatin1String("<br/>")) && !html.contains(QLatin1String("<br>")) && !html.contains(QLatin1String("&nbsp;")) && html.contains(QLatin1String("&#160;")));
+        QVERIFY2(html.contains(QLatin1String("<img src=\"images/pic1.png\" alt=\"logo\"/>")), qPrintable(html));
+        QCOMPARE(asked.size(), 1);
+        QVERIFY(asked[0].endsWith(QLatin1String(" image/png 1")));
+        QCOMPARE(headings.size(), 1);
+        QCOMPARE(headings[0].text, QStringLiteral("Head & one"));
+        QCOMPARE(headings[0].id, QStringLiteral("h1"));
+        QCOMPARE(notes.size(), 1);
+        QCOMPARE(notes[0].id, 7);
+        QVERIFY2(html.contains(QLatin1String("<a class=\"noteref\" epub:type=\"noteref\" id=\"fnr-1\" href=\"#fn-1\"><sup>1</sup></a>")), qPrintable(html));
+        QCOMPARE(htmlHeadingLevel(d, d.body[0].para), 1);
+        QCOMPARE(htmlHeadingLevel(d, d.body[1].para), 0);
+        // no name for the picture: it is left out; no limit on notes (0): the number alone
+        opt.pictureHref = [](const QString &, const QByteArray &, const QString &) { return QString(); };
+        opt.mostNotes = 0;
+        notes.clear();
+        const QString bare = QString::fromUtf8(documentToHtml(d, opt));
+        QVERIFY(!bare.contains(QLatin1String("<img")) && !bare.contains(QLatin1String("noteref")) && notes.isEmpty());
+        // without the options, the page is as it was: HTML with the picture inside it
+        const QString plain = QString::fromUtf8(documentToHtml(d, HtmlOptions()));
+        QVERIFY(plain.contains(QLatin1String("<br>")) && plain.contains(QLatin1String("data:image/png;base64,")) && plain.contains(QLatin1String("<h1>")));
+    }
+
     void htmlOfASingleFileCarriesTheLooksAndSizes()
     {
         const QByteArray body =

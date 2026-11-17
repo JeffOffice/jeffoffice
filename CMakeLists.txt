@@ -92,7 +92,8 @@ include(cmake/bergamot.cmake)
 #   jo_draw   shapes, fills and outlines, Text Art, placed objects, SVG
 #   jo_text   the text engine
 #   jo_office the file packages (OPC), themes, and DrawingML colors of the
-#             presentation, word processor, and spreadsheet formats
+#             presentation, word processor, and spreadsheet formats, and
+#             EPUB books (libs/office/epub)
 #   jo_shell  the window: ribbon, KeyTips, themes, Help, updater, automatic recovery
 #   jo_page   pages of placed objects: the document, its drawing, the editor
 #             and the canvas (JeffPub's publications, JeffDeck's slides)
@@ -398,6 +399,7 @@ qt_add_executable(officetests
   tests/office/tst_office_dmlshape.cpp
   tests/office/tst_office_dmltable.cpp
   tests/office/tst_office_dmlwrite.cpp
+  tests/office/tst_office_epub.cpp
   tests/office/tst_office_fonts.cpp
   tests/office/tst_office_odraw.cpp
   tests/office/tst_office_package.cpp

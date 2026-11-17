@@ -387,7 +387,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 The gaps in an exported PDF (links, bookmarks, and tags) are listed under Share and Export.
 
 ### E-books, web pages, and pictures out
-- [x] **1.0** Export EPUB: reflowable (chapters at Heading 1, contents from Heading 1-3) or page for page (fixed layout)
+- [x] **1.0** Export EPUB: reflowable (chapters at Heading 1, contents from Heading 1-3) or page for page (fixed layout) *(since November 17, 2026 the package (container, package document, contents, zip) is made by the shared libs/office/epub, which JeffWrite uses too; JeffPub's files are byte for byte what they were, but for the book's new identifier and its modified time)*
 - [x] **1.0** Export a single-file web page (HTML), and pages as SVG drawings
 - [x] **1.0** Export pages as pictures: PNG, JPEG, GIF, TIFF, and BMP at a chosen resolution
 
