@@ -584,7 +584,7 @@ QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
 EntryOptions EditSession::entryOptions(int, bool textFormat) const
 {
     EntryOptions o;
-    o.locale = m_locale;
+    o.locale = m_entryInFileForm ? QLocale::c() : m_locale;
     o.dateSystem = m_book->book->info().dateSystem;
     o.today = m_today;
     o.textFormat = textFormat;

@@ -841,6 +841,7 @@ public:
         enum class Operation { None, Add, Subtract, Multiply, Divide } operation = Operation::None;
         bool skipBlanks = false;
         bool transpose = false;
+        bool fileForm = false;   // pasteText: the texts are in the form a file has them (a point in a number, a formula in its English form), whatever the person's locale
     };
     // This workbook's name for the clipboard: a copy made here carries it.
     qint64 token() const { return m_token; }
@@ -1391,6 +1392,7 @@ private:
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
+    bool m_entryInFileForm = false;   // what is typed is read in the form a file has it (pasteText with fileForm), not as the person's locale writes it
     QList<QStringList> m_customLists;
     quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
     struct CondSnap {

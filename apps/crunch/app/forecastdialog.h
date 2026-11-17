@@ -22,9 +22,11 @@ namespace jp {
 struct ForecastSourceInfo {
     crunch::ForecastInput input;
     bool dates = false;
+    bool sampled = false;       // only the last `maxPoints` points were read
     QString problem;
 };
-using ForecastSourceReader = std::function<ForecastSourceInfo(const QString &timeline, const QString &values)>;
+// `maxPoints` above 0 asks for no more than that many of the last points (the picture of the dialog does not need a million).
+using ForecastSourceReader = std::function<ForecastSourceInfo(const QString &timeline, const QString &values, long long maxPoints)>;
 
 // The picture of a forecast: the values, the forecast, and the band between its bounds.
 class ForecastPreview : public QWidget {
@@ -56,6 +58,8 @@ public:
     // The picture is brought up to date at once, not after the pause that follows typing.
     void refreshNow();
     QString problemText() const;
+    // What the picture says of itself when it is made from the last points of a longer series (empty otherwise).
+    QString noteText() const;
     const crunch::ForecastResult &result() const { return m_result; }
 
 private:
@@ -69,7 +73,7 @@ private:
     QComboBox *m_kind, *m_seasonMode, *m_fill, *m_aggregate;
     QSpinBox *m_confidence, *m_season;
     QCheckBox *m_statistics;
-    QLabel *m_problem;
+    QLabel *m_problem, *m_note;
     ForecastPreview *m_preview;
     QTimer *m_timer;
     crunch::ForecastInput m_input;

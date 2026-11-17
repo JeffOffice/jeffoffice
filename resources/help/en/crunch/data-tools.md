@@ -175,4 +175,6 @@ Forecast Sheet makes a new sheet with a table and a chart of future values, work
 
 The new sheet is put before the one you were on. Its table has the columns Timeline, Values, Forecast, Lower Confidence Bound, and Upper Confidence Bound. The Forecast and the bounds are formulas that use `FORECAST.ETS` and `FORECAST.ETS.CONFINT` on the table's own Timeline and Values columns, so they are worked out again when you change a value. The chart shows the values, the forecast, and the band. Forecast Sheet is one step that you can undo.
 
+The numbers can differ by a few percent from those of other spreadsheet programs, which use their own way of fitting the smoothing, and a forecast that a file already holds keeps the values the file stored until the data it reads is changed.
+
 A file with more than 1,000,000 points is not used.

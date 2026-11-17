@@ -456,6 +456,12 @@ EditSession::Outcome EditSession::pasteText(int sheet, const CellRange &target, 
     for (const QStringList &row : table) width = std::max<quint32>(width, quint32(row.size()));
     const quint32 blockRows = o.transpose ? width : quint32(table.size()), blockCols = o.transpose ? quint32(table.size()) : width;
     using Op = PasteOptions::Operation;
+    struct FileForm {
+        bool &flag;
+        bool was;
+        FileForm(bool &f, bool on) : flag(f), was(f) { flag = on; }
+        ~FileForm() { flag = was; }
+    } fileForm(m_entryInFileForm, o.fileForm || m_entryInFileForm);
     PasteMaker make = [&](const PasteSpot &spot, CellChange *ch, Outcome *) {
         const quint32 sr = o.transpose ? spot.dCol : spot.dRow, sc = o.transpose ? spot.dRow : spot.dCol;
         const QString text = sr < quint32(table.size()) && sc < quint32(table[int(sr)].size()) ? table[int(sr)][int(sc)] : QString();

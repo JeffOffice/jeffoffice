@@ -61,9 +61,9 @@ void CrunchWindow::forecastSheetDialog()
         }
     }
     const jp::calc::DateSystem system = m_loaded->book->info().dateSystem;
-    const ForecastSourceReader reader = [this](const QString &timelineText, const QString &valuesText) {
+    const ForecastSourceReader reader = [this](const QString &timelineText, const QString &valuesText, long long maxPoints) {
         ForecastSourceInfo info;
-        if (!forecastSource(timelineText, valuesText, &info.input.pairs, &info.dates, &info.problem)) info.input.pairs.clear();
+        if (!forecastSource(timelineText, valuesText, &info.input.pairs, &info.dates, &info.problem, maxPoints, &info.sampled)) info.input.pairs.clear();
         return info;
     };
     ForecastDialog dialog(reader, system, timeline, values, this);
@@ -72,7 +72,7 @@ void CrunchWindow::forecastSheetDialog()
     forecastSheetIn(dialog.timelineText(), dialog.valuesText(), s.end, s.start, s.confidence, s.seasonality, s.statistics, s.interpolate, int(s.aggregation), s.columns);
 }
 
-bool CrunchWindow::forecastSource(const QString &timelineText, const QString &valuesText, std::vector<std::pair<double, double>> *pairs, bool *dates, QString *problem)
+bool CrunchWindow::forecastSource(const QString &timelineText, const QString &valuesText, std::vector<std::pair<double, double>> *pairs, bool *dates, QString *problem, long long maxPoints, bool *sampled)
 {
     if (!m_session) {
         *problem = tr("The workbook is not open.");
@@ -94,7 +94,7 @@ bool CrunchWindow::forecastSource(const QString &timelineText, const QString &va
     crunch::ForecastInput input;
     const crunch::ForecastCellReader readTimeline = [&](quint32 row, quint32 col) { return m_session->valueAt(t.sheet, row, col); };
     const crunch::ForecastCellReader readValues = [&](quint32 row, quint32 col) { return m_session->valueAt(v.sheet, row, col); };
-    if (!crunch::readForecastInput(t.range, readTimeline, v.range, readValues, &input, problem)) return false;
+    if (!crunch::readForecastInput(t.range, readTimeline, v.range, readValues, &input, problem, maxPoints, sampled)) return false;
     *pairs = std::move(input.pairs);
     *dates = showsDates(m_session->formatCodeOf(t.sheet, t.range.row1, t.range.col1));
     return true;
@@ -150,8 +150,14 @@ bool CrunchWindow::forecastSheetIn(const QString &timelineText, const QString &v
         r.col2 = col2;
         return r;
     };
-    if (o.ok) o = m_session->pasteText(made, cells(0, 0, 0, 0), plan.table, crunch::EditSession::PasteOptions());
-    if (o.ok && !plan.statistics.isEmpty()) o = m_session->pasteText(made, cells(0, 6, 0, 6), plan.statistics, crunch::EditSession::PasteOptions());
+    // (the texts of the plan are in the form a file has them, so a person's locale does not change a number or a formula)
+    crunch::EditSession::PasteOptions inFileForm;
+    inFileForm.fileForm = true;
+    // (a paste takes at most 100,000 cells: a long table goes in a block of rows at a time, all in the one step)
+    constexpr int kRowsAtATime = 15000;
+    for (int from = 0; o.ok && from < int(plan.table.size()); from += kRowsAtATime)
+        o = m_session->pasteText(made, cells(quint32(from), 0, quint32(from), 0), plan.table.mid(from, kRowsAtATime), inFileForm);
+    if (o.ok && !plan.statistics.isEmpty()) o = m_session->pasteText(made, cells(0, 6, 0, 6), plan.statistics, inFileForm);
     if (o.ok && !timeFormat.isEmpty() && timeFormat != QLatin1String("General") && plan.dataRows > 0) {
         jp::office::sheet::FormatChange change;
         change.numberFormat = timeFormat;
@@ -163,7 +169,10 @@ bool CrunchWindow::forecastSheetIn(const QString &timelineText, const QString &v
         wide.setSize = true;
         wide.custom = true;
         wide.size = 12;
-        o = m_session->resizeColumns(made, 0, 1, wide, QString());
+        o = m_session->resizeColumns(made, 1, 1, wide, QString());
+        // (the times as their format shows them: a long date format is not #####)
+        wide.size = crunch::forecastTimeColumnWidth(plan, timeFormat, m_loaded->book->info().dateSystem);
+        if (o.ok) o = m_session->resizeColumns(made, 0, 0, wide, QString());
         wide.size = 24;
         if (o.ok) o = m_session->resizeColumns(made, 2, 4, wide, QString());
         wide.size = 18;

@@ -21,6 +21,7 @@ namespace jp::crunch {
 
 constexpr long long kMaxForecastInput = 1000000;    // points of the data: past it the data is refused
 constexpr long long kMaxForecastPoints = 10000;     // rows of forecast
+constexpr long long kPreviewPoints = 50000;         // the points the dialog's picture is made from (the last of a longer series)
 
 struct ForecastSettings {
     double end = 0;                         // the time the forecast ends at
@@ -41,8 +42,8 @@ struct ForecastInput {
 using ForecastCellReader = std::function<jp::calc::Value(quint32 row, quint32 col)>;
 
 // The data of two ranges that are each one column or one row of the same number of cells. False with the problem in plain words: a range that is not a line, ranges of different lengths,
-// text or an error in them, more than kMaxForecastInput points.
-bool readForecastInput(const jp::office::sheet::CellRange &timeline, const ForecastCellReader &readTimeline, const jp::office::sheet::CellRange &values, const ForecastCellReader &readValues, ForecastInput *out, QString *problem);
+// text or an error in them, more than kMaxForecastInput points. With `maxPoints` above 0 only the last that many cells are read (`sampled` then says whether some were left out).
+bool readForecastInput(const jp::office::sheet::CellRange &timeline, const ForecastCellReader &readTimeline, const jp::office::sheet::CellRange &values, const ForecastCellReader &readValues, ForecastInput *out, QString *problem, long long maxPoints = 0, bool *sampled = nullptr);
 
 struct ForecastPoint {
     double time = 0;
@@ -78,5 +79,8 @@ struct ForecastSheetPlan {
 
 // The table, with the forecast and bounds as formulas.
 ForecastSheetPlan planForecastSheet(const ForecastResult &result, const ForecastSettings &settings);
+
+// The width (in the units of a column's width) that column A needs to show the times of the plan in the number format code given (the header's width at least): the longest text that the code makes of them.
+double forecastTimeColumnWidth(const ForecastSheetPlan &plan, const QString &formatCode, jp::calc::DateSystem system);
 
 } // namespace jp::crunch

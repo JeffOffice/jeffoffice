@@ -1,6 +1,8 @@
 #include "core/forecastsheet.h"
 
 #include <QCoreApplication>
+#include "calc/numfmt.h"
+
 #include <QLocale>
 
 #include <algorithm>
@@ -17,7 +19,7 @@ QString number(double v)
 
 } // namespace
 
-bool readForecastInput(const jp::office::sheet::CellRange &timeline, const ForecastCellReader &readTimeline, const jp::office::sheet::CellRange &values, const ForecastCellReader &readValues, ForecastInput *out, QString *problem)
+bool readForecastInput(const jp::office::sheet::CellRange &timeline, const ForecastCellReader &readTimeline, const jp::office::sheet::CellRange &values, const ForecastCellReader &readValues, ForecastInput *out, QString *problem, long long maxPoints, bool *sampled)
 {
     using jp::office::sheet::cellName;
     if (!timeline.valid || !values.valid) {
@@ -40,8 +42,11 @@ bool readForecastInput(const jp::office::sheet::CellRange &timeline, const Forec
         return false;
     }
     out->pairs.clear();
-    out->pairs.reserve(size_t(tn));
-    for (qint64 k = 0; k < tn; ++k) {
+    // only the last `maxPoints` cells are read when it is asked (the picture of the dialog: the last of a long series is what the forecast follows)
+    const qint64 first = maxPoints > 0 && tn > maxPoints ? tn - maxPoints : 0;
+    if (sampled) *sampled = first > 0;
+    out->pairs.reserve(size_t(tn - first));
+    for (qint64 k = first; k < tn; ++k) {
         const quint32 trow = timeline.row1 + quint32(tr == 1 ? 0 : k), tcol = timeline.col1 + quint32(tr == 1 ? k : 0);
         const quint32 vrow = values.row1 + quint32(vr == 1 ? 0 : k), vcol = values.col1 + quint32(vr == 1 ? k : 0);
         const jp::calc::Value t = readTimeline(trow, tcol), v = readValues(vrow, vcol);
@@ -117,7 +122,7 @@ ForecastResult computeForecast(const ForecastInput &input, const ForecastSetting
     if (early) first = std::max<long long>(n, (long long)std::llround(tl.position(settings.start)));
     const double endPos = tl.position(settings.end);
     if (!std::isfinite(endPos) || endPos > double(n) + double(ets::kMaxHorizon)) {
-        r.problem = QCoreApplication::translate("jp::crunch::ForecastSheet", "The forecast would be longer than 10,000 points. Choose an earlier end.");
+        r.problem = QCoreApplication::translate("jp::crunch::ForecastSheet", "The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.");
         return r;
     }
     const long long last = (long long)std::floor(endPos + 1e-9);
@@ -212,6 +217,26 @@ ForecastSheetPlan planForecastSheet(const ForecastResult &r, const ForecastSetti
             plan.statistics.append({QCoreApplication::translate("jp::crunch::ForecastSheet", labels[k]), QStringLiteral("=FORECAST.ETS.STAT(") + values + QLatin1Char(',') + times + QLatin1Char(',') + QString::number(k + 1) + tail});
     }
     return plan;
+}
+
+double forecastTimeColumnWidth(const ForecastSheetPlan &plan, const QString &formatCode, jp::calc::DateSystem system)
+{
+    constexpr double kLeast = 12, kMost = 255;
+    if (formatCode.isEmpty()) return kLeast;
+    const jp::calc::NumberFormat format(formatCode);
+    // (a long table is looked at from every few rows on: the longest text of dates is found in any year)
+    const int rows = int(plan.table.size());
+    const int stride = std::max(1, rows / 20000);
+    int longest = 0;
+    for (int i = 1; i < rows; i += stride) {
+        if (plan.table[i].isEmpty()) continue;
+        bool ok = false;
+        const double t = plan.table[i][0].toDouble(&ok);
+        if (!ok) continue;
+        const jp::calc::Formatted f = format.format(t, system);
+        longest = std::max(longest, int(f.failed ? 8 : f.text.size()));
+    }
+    return std::min(kMost, std::max(kLeast, std::ceil(longest * 1.1) + 2));
 }
 
 } // namespace jp::crunch

@@ -1207,7 +1207,7 @@ public:
     void forecastSheetDialog();
     bool forecastSheetIn(const QString &timelineText, const QString &valuesText, double end, double start, double confidence, int seasonality, bool statistics, bool interpolate, int aggregation, bool columns);
     // The pairs of time and value of two ranges (a blank value is NaN), and whether the timeline is shown as dates; false, with the reason, if they can't be read.
-    bool forecastSource(const QString &timelineText, const QString &valuesText, std::vector<std::pair<double, double>> *pairs, bool *dates, QString *problem);
+    bool forecastSource(const QString &timelineText, const QString &valuesText, std::vector<std::pair<double, double>> *pairs, bool *dates, QString *problem, long long maxPoints = 0, bool *sampled = nullptr);
     // Circle Invalid Data: puts a red oval round each cell of the sheet in view with data its rule does not allow, and gives how many; Clear Validation Circles takes them away. What is circled
     // is looked at again as the sheet is worked out, so a cell that is put right loses its oval.
     int circleInvalidData();

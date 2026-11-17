@@ -152,6 +152,12 @@ ForecastDialog::ForecastDialog(const ForecastSourceReader &reader, jp::calc::Dat
     m_problem->setTextFormat(Qt::PlainText);
     m_problem->setAccessibleName(tr("What is wrong"));
     layout->addWidget(m_problem);
+    m_note = new QLabel(this);
+    m_note->setObjectName(QStringLiteral("forecastNote"));
+    m_note->setWordWrap(true);
+    m_note->setTextFormat(Qt::PlainText);
+    m_note->hide();
+    layout->addWidget(m_note);
     auto *form = new QFormLayout;
     m_timeline = new QLineEdit(timeline, this);
     m_timeline->setObjectName(QStringLiteral("forecastTimeline"));
@@ -246,6 +252,7 @@ ForecastDialog::ForecastDialog(const ForecastSourceReader &reader, jp::calc::Dat
 QString ForecastDialog::timelineText() const { return m_timeline->text().trimmed(); }
 QString ForecastDialog::valuesText() const { return m_values->text().trimmed(); }
 QString ForecastDialog::problemText() const { return m_problem->text(); }
+QString ForecastDialog::noteText() const { return m_note->isHidden() ? QString() : m_note->text(); }
 
 void ForecastDialog::schedule()
 {
@@ -298,8 +305,10 @@ void ForecastDialog::refreshNow()
     if (m_timeline->text().trimmed() != m_loadedTimeline || m_values->text().trimmed() != m_loadedValues || m_loadedTimeline.isEmpty()) {
         m_loadedTimeline = m_timeline->text().trimmed();
         m_loadedValues = m_values->text().trimmed();
-        const ForecastSourceInfo info = m_reader(m_loadedTimeline, m_loadedValues);
+        const ForecastSourceInfo info = m_reader(m_loadedTimeline, m_loadedValues, crunch::kPreviewPoints);
         m_input = info.input;
+        m_note->setText(info.sampled ? tr("The picture follows the last %1 points of the data. The sheet is made from all of them.").arg(QLocale().toString(crunch::kPreviewPoints)) : QString());
+        m_note->setVisible(info.sampled);
         m_dates = info.dates;
         m_sourceOk = info.problem.isEmpty();
         if (!m_sourceOk) {
