@@ -3,6 +3,10 @@
 #include <QMessageBox>
 #include <QBuffer>
 #include "deckhelpers.h"
+#include "../withdialog.h"
+#include "app/theme.h"
+#include <QClipboard>
+#include <QMimeData>
 #include "app/picturetools.h"
 #include "core/picturestyles.h"
 
@@ -1762,6 +1766,134 @@ private Q_SLOTS:
         back = savedAndRead(*ed->doc(), true);
         QVERIFY(back);
         QVERIFY(firstPicture(*back));
+    }
+    // The HTML a JeffCrunch copy puts on the clipboard (the same styles as CrunchWindow::htmlOfClip writes; the Crunch test pastes a real copy), with a merged cell as another program's page has it.
+    static QString cellsHtml()
+    {
+        return QStringLiteral("<html><body><table><tr>"
+                              "<td style=\"font-weight:bold;background:#ffff00;color:#ff0000;font-family:'Courier New';font-size:14pt;text-align:center;border-left:1px solid #000000;border-bottom:3px double #0000ff;\">Total</td>"
+                              "<td style=\"text-align:right;\">1,234.50</td><td rowspan=\"2\" style=\"background:#00ff00;\">tall</td></tr>"
+                              "<tr><td colspan=\"2\">wide</td></tr></table></body></html>");
+    }
+    static void putCells(const QString &html = cellsHtml())
+    {
+        auto *mime = new QMimeData;
+        mime->setHtml(html);
+        mime->setText(QStringLiteral("Total\t1,234.50\ttall\nwide\t\t\n"));
+        QApplication::clipboard()->setMimeData(mime);
+    }
+
+    // Cells copied from JeffCrunch (or a table from a document) pasted on a slide are a table with their fonts, fills, borders, and merges, as one step; the table saves and opens with them.
+    void pastedCellsLandOnTheSlideAsATable()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QVERIFY(!theTable(ed));
+        putCells();
+        QVERIFY(command(w, "edit.paste"));
+        TableItem *t = theTable(ed);
+        QVERIFY(t);
+        QCOMPARE(t->rows, 2);
+        QCOMPARE(t->cols, 3);
+        QCOMPARE(cellText(ed, 0, 1), QStringLiteral("1,234.50"));
+        QCOMPARE(t->cell(0, 0).fill.color, ColorRef::rgb(QColor("#ffff00")));
+        QCOMPARE(t->cell(0, 0).border.bottom.compound, Stroke::Double);
+        QCOMPARE(t->cell(0, 0).border.left.width, 0.75);
+        QCOMPARE(t->cell(0, 2).rowSpan, 2);
+        QVERIFY(t->cell(1, 2).covered);
+        QCOMPARE(t->cell(1, 0).colSpan, 2);
+        QVERIFY(cellIsBold(ed, 0, 0));
+        QTextCursor cur(ed->doc()->storyDoc(t->cell(0, 0).storyId));
+        cur.setPosition(1);
+        QCOMPARE(cur.charFormat().fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        QCOMPARE(cur.charFormat().fontPointSize(), 14.0);
+        const QSizeF page = ed->doc()->pageSize();
+        QVERIFY(t->rect.left() >= 0 && t->rect.right() <= page.width() && t->rect.width() <= page.width() * 0.8 + 0.01);
+        QCOMPARE(ed->selection(), QStringList{t->id});
+        // The saved presentation keeps the fills, the merge, and the text.
+        const auto back = savedAndRead(*ed->doc(), false);
+        QVERIFY(back);
+        const TableItem *bt = firstTable(*back);
+        QVERIFY(bt);
+        QCOMPARE(bt->cell(0, 2).rowSpan, 2);
+        QCOMPARE(bt->cell(0, 0).fill.color, ColorRef::rgb(QColor("#ffff00")));
+        // One step.
+        ed->undo();
+        QVERIFY(!theTable(ed));
+        ed->redo();
+        QVERIFY(theTable(ed));
+    }
+
+    // Cells pasted while a table cell is being typed in fill the cells from that one on, with their look; what is past the table's edge is left out, and said.
+    void pastedCellsFillTheTableBeingEdited()
+    {
+        DeckWindow w;
+        tableOnSlide(w, 2, 2);
+        Editor *ed = w.editor();
+        TableItem *t = theTable(ed);
+        const QString id = t->id;
+        QString said;
+        QObject::connect(ed, &Editor::status, &w, [&said](const QString &m) { said = m; });
+        ed->beginTextEdit(id, -1, 1, 0);
+        putCells();
+        QVERIFY(command(w, "edit.paste"));
+        t = theTable(ed);
+        QCOMPARE(t->id, id);
+        QCOMPARE(cellText(ed, 1, 0), QStringLiteral("Total"));
+        QCOMPARE(cellText(ed, 1, 1), QStringLiteral("1,234.50"));
+        QCOMPARE(cellText(ed, 0, 0), QStringLiteral("A1"));   // (above the cell: as it was)
+        QCOMPARE(t->cell(1, 0).fill.color, ColorRef::rgb(QColor("#ffff00")));
+        QVERIFY(said.contains(QStringLiteral("did not fit")));
+        ed->undo();
+        QCOMPARE(cellText(ed, 1, 0), QStringLiteral("B1"));
+        QVERIFY(theTable(ed)->cell(1, 0).fill.color != ColorRef::rgb(QColor("#ffff00")));
+    }
+
+    // Paste Special lists the table as a form of its own, and still offers the clipboard's words (as text only) and a table is not made by it.
+    void pasteSpecialStillOffersPlainTextForCells()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        putCells();
+        withDialog([&w] { w.act(QStringLiteral("edit.pasteSpecial"))->trigger(); }, QStringLiteral("pasteSpecialDialog"), [](QDialog *d) {
+            auto *list = d->findChild<QListWidget *>(QStringLiteral("pasteSpecialList"));
+            QVERIFY(list);
+            QVERIFY(list->count() >= 4);
+            QVERIFY(list->item(1)->text().contains(QStringLiteral("text only")));
+            list->setCurrentRow(1);
+        });
+        QVERIFY(!theTable(ed));
+        QVERIFY(command(w, "edit.pasteText"));
+        QVERIFY(!theTable(ed));
+        // A table too big for the bounds is its words.
+        QString big = QStringLiteral("<table>");
+        for (int r = 0; r < 1001; ++r) big += QStringLiteral("<tr><td>x</td><td>y</td></tr>");
+        putCells(big + QStringLiteral("</table>"));
+        QString said;
+        QObject::connect(ed, &Editor::status, &w, [&said](const QString &m) { said = m; });
+        QVERIFY(command(w, "edit.paste"));
+        QVERIFY(!theTable(ed));
+        QVERIFY(said.contains(QStringLiteral("too big")));
+    }
+
+    // A picture of a JeffCrunch range pasted on a slide, when JO_SHOT_DIR names a folder.
+    void pictureOfCellsPastedOnASlide()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) return;
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        w.editor()->doc()->pages[0]->items.clear();
+        putCells(QStringLiteral("<html><body><table>"
+                                "<tr><td style=\"font-weight:bold;background:#1f4e79;color:#ffffff;text-align:center;\">Region</td><td style=\"font-weight:bold;background:#1f4e79;color:#ffffff;text-align:center;\">Q1</td><td style=\"font-weight:bold;background:#1f4e79;color:#ffffff;text-align:center;\">Q2</td></tr>"
+                                "<tr><td style=\"border-bottom:1px solid #808080;\">North</td><td style=\"text-align:right;border-bottom:1px solid #808080;\">$12,400.00</td><td style=\"text-align:right;color:#c00000;border-bottom:1px solid #808080;\">($1,250.50)</td></tr>"
+                                "<tr><td style=\"background:#fff2cc;font-style:italic;\">South</td><td style=\"text-align:right;background:#fff2cc;\">$9,870.25</td><td style=\"text-align:right;background:#fff2cc;font-weight:bold;\">$15.5K</td></tr>"
+                                "<tr><td style=\"font-family:'Courier New';border-top:3px double #000000;\">Total</td><td style=\"text-align:right;border-top:3px double #000000;\">$22,270.25</td><td style=\"text-align:right;border-top:3px double #000000;\">$14,249.50</td></tr>"
+                                "</table></body></html>"));
+        QVERIFY(command(w, "edit.paste"));
+        QCoreApplication::processEvents();
+        shotOf(&w, QStringLiteral("deck-pasted-cells"));
     }
 };
 

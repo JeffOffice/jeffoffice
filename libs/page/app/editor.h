@@ -46,6 +46,7 @@ struct ViewOptions {
 // The drag-and-drop format of Extra Content: the ids of the items, one a line.
 constexpr const char *kExtraContentMime = "application/x-jeffpub-extra";
 
+enum class PastedTableResult;
 enum class Tool { Select, Text, Table, Picture, Shape, Line, Arrow, DoubleArrow, Freeform, TextArt, Link, FormatPainter, TablePen, TableEraser };
 
 class JO_COMMON_EXPORT Editor : public QObject {
@@ -292,6 +293,10 @@ public:
     // The Paste Cells command: the spreadsheet cells the clipboard holds (an HTML table, or lines with tabs) are written over the selected table's cells, else made a table of their own (paste
     // does not: it pastes the clipboard as it is). False, with a status, when there are none. A look that parses nothing says whether the clipboard may hold some.
     bool pasteCells(const QMimeData *md);
+    // A table of HTML on the clipboard (from JeffCrunch, a document, or another program's page) pasted as a table with the fonts, fills, borders, merged cells, and column widths it has: a table of
+    // its own in the upper middle of the page, or, while a cell is being typed in (or, with `overSelected`, with a table selected), written over the cells from that cell on (what is past the edge of
+    // the table is left out, and said). One step. NotATable: nothing was done, paste as before; TooBig: nothing was done, the clipboard is past a bound or too big for a table, and the status says so.
+    PastedTableResult pasteHtmlTable(const QMimeData *md, bool overSelected = false);
     static bool clipboardMayHaveCells(const QMimeData *md);
     // Objects as copying writes them (pictures and text with them), added to
     // the page being edited and selected: what pasting and building blocks

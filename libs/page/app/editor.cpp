@@ -2,6 +2,7 @@
 
 #include <QSet>
 #include <QThreadPool>
+#include "app/pastetable.h"
 #include "app/pictureask.h"
 #include "app/settings.h"
 #include "app/spelling.h"
@@ -1800,10 +1801,67 @@ bool Editor::clipboardMayHaveCells(const QMimeData *md)
     return md && office::wml::mayBeClipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString());
 }
 
+PastedTableResult Editor::pasteHtmlTable(const QMimeData *md, bool overSelected)
+{
+    PastedTable pasted;
+    const PastedTableResult res = md && md->hasHtml() ? readPastedTable(md->html(), &pasted) : PastedTableResult::NotATable;
+    if (res == PastedTableResult::TooBig) {
+        Q_EMIT status(tr("That table is too big to paste as a table (it has more than %1 rows, %2 columns, or %3 cells), so it was pasted as text.").arg(kPasteMaxRows).arg(kPasteMaxColumns).arg(kPasteMaxCells));
+        return res;
+    }
+    if (res != PastedTableResult::Ok) return res;
+    // The cell the cells go from: the one being typed in, the block of selected cells, or the first cell of a selected table (for the Paste Cells command).
+    TableItem *into = nullptr;
+    int r0 = 0, c0 = 0;
+    if (isEditingText() && m_text.row >= 0) {
+        into = dynamic_cast<TableItem *>(m_doc->item(m_text.itemId));
+        if (into) {
+            const CellRange at = targetCells();
+            r0 = at.valid() ? at.r0 : m_text.row;
+            c0 = at.valid() ? at.c0 : m_text.col;
+        }
+    } else if (overSelected) {
+        into = dynamic_cast<TableItem *>(single());
+        const CellRange at = targetCells();
+        if (into && at.valid()) r0 = at.r0, c0 = at.c0;
+    }
+    if (!into && (pasted.rows > kMaxTableRowsOrColumns || pasted.cols > kMaxTableRowsOrColumns)) {
+        Q_EMIT status(tr("That table has more than %1 rows, which is more than a table here holds, so it was pasted as text.").arg(kMaxTableRowsOrColumns));
+        return PastedTableResult::TooBig;
+    }
+    if (isEditingText()) endTextEdit();
+    QStringList said;
+    if (pasted.truncated) said << tr("Some of the pasted cells were left out: a cell holds at most %1 characters.").arg(kPasteMaxCellChars);
+    if (into) {
+        change(tr("Paste Cells"), [&] {
+            for (int r = 0; r < pasted.rows && r0 + r < into->rows; ++r)
+                for (int c = 0; c < pasted.cols && c0 + c < into->cols; ++c) {
+                    const PastedCell &src = pasted.cell(r, c);
+                    TableCell &dst = into->cell(r0 + r, c0 + c);
+                    if (src.origin && !dst.covered) writePastedCell(m_doc.get(), dst, src);
+                }
+        });
+        if (r0 + pasted.rows > into->rows || c0 + pasted.cols > into->cols) said << tr("Some of the pasted cells did not fit in the table and were left out.");
+    } else {
+        change(tr("Paste Table"), [&] {
+            auto t = makePastedTable(m_doc.get(), pasted, m_doc->pageSize());
+            surfaceItems().push_back(t);
+            m_sel = QStringList{t->id};
+        });
+    }
+    Q_EMIT selectionChanged();
+    if (!said.isEmpty()) Q_EMIT status(said.join(QLatin1Char(' ')));
+    return res;
+}
+
 // Spreadsheet cells on the clipboard: written over the cells of the table that is selected (from its selected cell on; what is past its edge is left out), else a table of their own in the
 // middle of the page. One step. False, with a word of why, when the clipboard holds no cells. Only a command of its own does this: Paste itself pastes the clipboard as it is.
 bool Editor::pasteCells(const QMimeData *md)
 {
+    if (md && md->hasHtml()) {
+        const PastedTableResult res = pasteHtmlTable(md, true);
+        if (res == PastedTableResult::Ok) return true;
+    }
     const auto cells = md ? office::wml::clipTable(md->hasHtml() ? md->html() : QString(), md->hasText() ? md->text() : QString()) : std::nullopt;
     if (!cells || cells->rows.isEmpty()) {
         Q_EMIT status(tr("The clipboard has no spreadsheet cells to paste."));
@@ -1852,6 +1910,12 @@ void Editor::paste(bool textOnly)
 {
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return;
+    // A table of HTML (cells from JeffCrunch, a table from a document or a page) is a table, or fills the cells from the one being typed in; one too big for that is pasted as its text.
+    if (!textOnly && md->hasHtml() && !md->hasFormat("application/x-jeffpub-text") && !md->hasFormat(kItemsMime) && !(md->hasImage() && !isEditingText())) {
+        const PastedTableResult res = pasteHtmlTable(md);
+        if (res == PastedTableResult::Ok) return;
+        if (res == PastedTableResult::TooBig) textOnly = true;
+    }
     if (isEditingText()) {
         beginChange(tr("Paste"));
         if (!textOnly && md->hasFormat("application/x-jeffpub-text")) {

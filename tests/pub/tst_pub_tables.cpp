@@ -1,6 +1,7 @@
 // JeffPub's tests of tables: editing, dividing cells, and saving them.
 #include "pubhelpers.h"
 #include "app/tableedit.h"
+#include "text/textprops.h"
 #include "wml/wmlhtmlread.h"
 #include <QClipboard>
 #include <QMimeData>
@@ -69,12 +70,14 @@ private Q_SLOTS:
         auto text = [&](jp::TableItem *t, int r, int c) { return ed->doc()->storyDoc(t->cell(r, c).storyId)->toPlainText(); };
         QString said;
         QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
-        // Ctrl+V: words with tabs are words, and a table of HTML is a text box of it: no table of cells.
+        // Ctrl+V: a table of HTML is a table; Keep Text Only pastes its words (a text box), as before.
         setCells(3);
-        const int parses = jp::office::wml::clipTableParses();
         ed->paste();
+        QCOMPARE(tables().size(), 1);
+        ed->undo();
         QCOMPARE(tables().size(), 0);
-        QCOMPARE(jp::office::wml::clipTableParses(), parses);
+        ed->paste(true);
+        QCOMPARE(tables().size(), 0);
         ed->undo();
         w.act(QStringLiteral("edit.pasteCells"))->trigger();
         QCOMPARE(tables().size(), 1);
@@ -106,6 +109,198 @@ private Q_SLOTS:
         QCOMPARE(tables().size(), 2);
         QCOMPARE(tables().last()->rows, jp::kMaxTableRowsOrColumns);
         QVERIFY(said.contains(QStringLiteral("left out")));
+    }
+
+    // The HTML a JeffCrunch copy puts on the clipboard (the same styles as CrunchWindow::htmlOfClip writes; the Crunch test pastes a real copy), and one from another program with a merged cell.
+    static QString crunchLikeHtml()
+    {
+        return QStringLiteral("<html><body><table><tr>"
+                              "<td style=\"font-weight:bold;background:#ffff00;color:#ff0000;font-family:'Courier New';font-size:14pt;text-decoration:underline line-through;text-align:center;vertical-align:middle;"
+                              "border-left:1px solid #000000;border-bottom:3px double #0000ff;border-top:2px dashed #00aa00;\">Total</td>"
+                              "<td style=\"text-align:right;font-style:italic;\">1,234.50</td></tr>"
+                              "<tr><td>plain</td><td>12%</td></tr></table></body></html>");
+    }
+    static QString mergedHtml()
+    {
+        return QStringLiteral("<table border=\"1\"><col width=\"100\"><col width=\"50\"><col width=\"50\"><tr><td colspan=\"2\">wide</td><td rowspan=\"2\">tall</td></tr><tr><td>a</td><td>b</td></tr></table>");
+    }
+    static void setHtml(const QString &html, const QString &text = QString())
+    {
+        auto *mime = new QMimeData;
+        mime->setHtml(html);
+        if (!text.isEmpty()) mime->setText(text);
+        QGuiApplication::clipboard()->setMimeData(mime);
+    }
+
+    // Ctrl+V on cells copied from JeffCrunch (or a table from a document): a table with each cell's fonts, fill, borders, and how the text sits; one step that undoes.
+    void pastedHtmlTableKeepsFontsFillsAndBorders()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(crunchLikeHtml(), QStringLiteral("Total\t1,234.50\nplain\t12%\n"));
+        const int before = int(ed->doc()->pages[0]->items.size());
+        ed->paste();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+        auto *t = dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(t);
+        QCOMPARE(t->rows, 2);
+        QCOMPARE(t->cols, 2);
+        QCOMPARE(ed->selection(), QStringList{t->id});
+        const jp::TableCell &a = t->cell(0, 0);
+        QCOMPARE(a.fill.type, jp::Fill::Solid);
+        QCOMPARE(a.fill.color, jp::ColorRef::rgb(QColor("#ffff00")));
+        QCOMPARE(a.border.left.color, jp::ColorRef::rgb(QColor("#000000")));
+        QCOMPARE(a.border.left.width, 0.75);
+        QCOMPARE(a.border.bottom.width, 2.25);
+        QCOMPARE(a.border.bottom.compound, jp::Stroke::Double);
+        QCOMPARE(a.border.bottom.color, jp::ColorRef::rgb(QColor("#0000ff")));
+        QCOMPARE(a.border.top.dash, jp::Stroke::DashLine);
+        QVERIFY(a.border.right.isNone());
+        QCOMPARE(a.valign, jp::VAlign::Middle);
+        QTextDocument *story = ed->doc()->storyDoc(a.storyId);
+        QCOMPARE(story->toPlainText(), QStringLiteral("Total"));
+        QTextCursor cur(story);
+        cur.setPosition(1);
+        const QTextCharFormat cf = cur.charFormat();
+        QCOMPARE(cf.fontFamilies().toStringList().value(0), QStringLiteral("Courier New"));
+        QCOMPARE(cf.fontPointSize(), 14.0);
+        QVERIFY(cf.fontWeight() >= QFont::Bold);
+        QVERIFY(cf.fontUnderline() && cf.fontStrikeOut());
+        QCOMPARE(cf.stringProperty(jp::tp::ColorRefP), QStringLiteral("#ff0000"));
+        QCOMPARE(cur.blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignHCenter);
+        // The shown text of a number, right aligned and italic; a plain cell has none of it.
+        QTextDocument *num = ed->doc()->storyDoc(t->cell(0, 1).storyId);
+        QCOMPARE(num->toPlainText(), QStringLiteral("1,234.50"));
+        QTextCursor nc(num);
+        nc.setPosition(1);
+        QVERIFY(nc.charFormat().fontItalic());
+        QVERIFY(nc.blockFormat().alignment() & Qt::AlignRight);
+        QVERIFY(t->cell(1, 0).fill.isNone());
+        QVERIFY(t->cell(1, 0).border.left.isNone());
+        QCOMPARE(ed->doc()->storyDoc(t->cell(1, 1).storyId)->toPlainText(), QStringLiteral("12%"));
+        // Column widths are the text's (and fit the page), and the table is on the page.
+        for (double cw : t->colW) QVERIFY(cw >= 30);
+        QVERIFY(t->rect.right() <= ed->doc()->pageSize().width() && t->rect.left() >= 0);
+        QVERIFY(!t->header && !t->banded);
+        // One step.
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before);
+        ed->redo();
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), before + 1);
+    }
+
+    // A table from another program's page: merged cells, the widths its col tags give, and thin lines when the table has a border.
+    void pastedHtmlTableKeepsMergesAndWidths()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(mergedHtml());
+        ed->paste();
+        auto *t = dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(t);
+        QCOMPARE(t->rows, 2);
+        QCOMPARE(t->cols, 3);
+        QCOMPARE(t->cell(0, 0).colSpan, 2);
+        QVERIFY(t->cell(0, 1).covered);
+        QCOMPARE(t->cell(0, 2).rowSpan, 2);
+        QVERIFY(t->cell(1, 2).covered);
+        QVERIFY(!t->cell(1, 0).covered);
+        QCOMPARE(ed->doc()->storyDoc(t->cell(0, 2).storyId)->toPlainText(), QStringLiteral("tall"));
+        QCOMPARE(t->colW[0], 75.0);
+        QCOMPARE(t->colW[1], 37.5);
+        QCOMPARE(t->colW[2], 37.5);
+        QCOMPARE(t->cell(1, 1).border.top.width, 0.75);
+    }
+
+    // A hostile clipboard is held to bounds: past 1,000 rows, 64 columns, 100,000 cells, 4 MB, or a span past them, it is pasted as plain text with a word of why, and nothing is built from it.
+    void aHostileHtmlTablePastesAsText()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        QString said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t) { said = t; });
+        auto tablesAndBoxes = [&](int *boxes) {
+            int tables = 0;
+            *boxes = 0;
+            for (const auto &it : ed->doc()->pages[0]->items) {
+                tables += dynamic_cast<jp::TableItem *>(it.get()) != nullptr;
+                *boxes += dynamic_cast<jp::TextItem *>(it.get()) != nullptr;
+            }
+            return tables;
+        };
+        auto row = [](int cells, const QString &td = QStringLiteral("<td>x</td>")) { return QStringLiteral("<tr>") + td.repeated(cells) + QStringLiteral("</tr>"); };
+        // exactly at the bounds is a table (the 256 most rows of a table here are the limit of the paste's destination)
+        const struct { QString html; const char *what; } hostile[] = {
+            {QStringLiteral("<table>") + row(65) + QStringLiteral("</table>"), "65 columns"},
+            {QStringLiteral("<table>") + row(2).repeated(1001) + QStringLiteral("</table>"), "1001 rows"},
+            {QStringLiteral("<table>") + row(2, QStringLiteral("<td colspan=\"9999\">x</td>")) + QStringLiteral("</table>"), "a span of 9999 columns"},
+            {QStringLiteral("<table>") + row(2, QStringLiteral("<td rowspan=\"4000000000\">x</td>")) + QStringLiteral("</table>"), "a span of 4 billion rows"},
+            {QStringLiteral("<table><tr><td>") + QString(4 * 1024 * 1024 + 10, QLatin1Char('a')) + QStringLiteral("</td><td>b</td></tr></table>"), "4 MB"},
+            {QStringLiteral("<table>") + row(2).repeated(300) + QStringLiteral("</table>"), "more rows than a table holds"},
+        };
+        for (const auto &h : hostile) {
+            said.clear();
+            setHtml(h.html, QStringLiteral("some words"));
+            int boxes0 = 0, boxes1 = 0;
+            const int tables0 = tablesAndBoxes(&boxes0);
+            ed->paste();
+            QCOMPARE(tablesAndBoxes(&boxes1), tables0);   // (no table made)
+            QVERIFY2(boxes1 == boxes0 + 1, h.what);        // (the clipboard's words, in a text box)
+            QVERIFY2(!said.isEmpty(), h.what);
+            ed->undo();
+        }
+        // At the bounds: 64 columns, 1,000 rows is not past them (the table here holds 256 rows, said as text)
+        said.clear();
+        setHtml(QStringLiteral("<table>") + row(64).repeated(4) + QStringLiteral("</table>"));
+        ed->paste();
+        int boxes = 0;
+        QCOMPARE(tablesAndBoxes(&boxes), 1);
+        QCOMPARE(dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get())->cols, 64);
+    }
+
+    // A table fills the cells from the cell being typed in; what is past the table's edge is left out and said. Keep Text Only and Paste Special keep offering the words.
+    void pastedHtmlTableFillsCellsFromTheOneBeingTypedIn()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        setHtml(crunchLikeHtml(), QStringLiteral("Total\t1,234.50\nplain\t12%\n"));
+        ed->paste();
+        auto *t = dynamic_cast<jp::TableItem *>(ed->doc()->pages[0]->items.back().get());
+        QVERIFY(t);
+        const QString id = t->id;
+        // A table of 3 x 3 of our own, the cursor in its middle cell.
+        ed->undo();
+        QCOMPARE(ed->doc()->item(id), nullptr);
+        auto made = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(50, 50, 300, 150), 3, 3));
+        ed->addItem(made);
+        ed->select(made->id);
+        ed->beginTextEdit(made->id, -1, 1, 1);
+        QVERIFY(ed->isEditingText());
+        QString said;
+        QObject::connect(ed, &jp::Editor::status, &w, [&said](const QString &t2) { said = t2; });
+        ed->paste();
+        auto *back = dynamic_cast<jp::TableItem *>(ed->doc()->item(made->id));
+        QVERIFY(back);
+        QCOMPARE(back->rows, 3);
+        QCOMPARE(ed->doc()->storyDoc(back->cell(1, 1).storyId)->toPlainText(), QStringLiteral("Total"));
+        QCOMPARE(ed->doc()->storyDoc(back->cell(2, 2).storyId)->toPlainText(), QStringLiteral("12%"));
+        QCOMPARE(back->cell(1, 1).fill.color, jp::ColorRef::rgb(QColor("#ffff00")));
+        QCOMPARE(back->cell(1, 1).border.bottom.compound, jp::Stroke::Double);
+        QVERIFY(said.isEmpty());   // (it fits)
+        ed->undo();
+        QCOMPARE(ed->doc()->storyDoc(dynamic_cast<jp::TableItem *>(ed->doc()->item(made->id))->cell(1, 1).storyId)->toPlainText(), QString());
+        // At the last cell, only the first cell fits.
+        ed->beginTextEdit(made->id, -1, 2, 2);
+        ed->paste();
+        QVERIFY(said.contains(QStringLiteral("did not fit")));
+        QCOMPARE(ed->doc()->storyDoc(dynamic_cast<jp::TableItem *>(ed->doc()->item(made->id))->cell(2, 2).storyId)->toPlainText(), QStringLiteral("Total"));
+        ed->undo();
+        // Keep Text Only in a cell types the words of the clipboard there, with no table.
+        ed->beginTextEdit(made->id, -1, 0, 0);
+        ed->paste(true);
+        auto *plain = dynamic_cast<jp::TableItem *>(ed->doc()->item(made->id));
+        QVERIFY(plain->cell(0, 1).fill.color != jp::ColorRef::rgb(QColor("#ffff00")));
+        QVERIFY(ed->doc()->storyDoc(plain->cell(0, 0).storyId)->toPlainText().contains(QStringLiteral("1,234.50")));
     }
 
     // Tab-indented words paste as the words (a text box), with Ctrl+V, in a text box, and through Paste Special's other choices.

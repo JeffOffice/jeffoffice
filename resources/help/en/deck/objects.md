@@ -104,6 +104,12 @@ A **table** is a grid of rows and columns. Each box in the grid is a cell, and e
 
 While you type in a cell, the font, size, color, and alignment buttons on the **Home** tab work on its text.
 
+### Paste cells as a table
+
+Copy cells in JeffCrunch, or a table from a document or a web page, and press **Ctrl+V** on a slide. The cells land as a table in the upper middle of the slide. Each cell keeps its font, size, bold, italic, underline, and text color, its shade, its borders, and how its text sits. Merged cells stay merged, and the words are what the cells showed, so a number shows as it did, with its dollar sign or its percent. The columns are as wide as the web page says, or wide enough for the words, and the table is never wider than the slide. One **Ctrl+Z** takes the whole table back.
+
+If you are typing in a table cell when you paste, the cells fill the table from that cell on, with their look. Cells that would be past the edge of the table are left out, and the status bar says so. **Keep Text Only** and **Paste Special** still paste just the words. A table of more than 1,000 rows, 64 columns, or 100,000 cells, or of more than 256 rows (the most a table here holds), is pasted as plain words, and the status bar says why.
+
 ### Change a table
 
 Click a table to select it, or click a cell to type in it. The **Table Design** and **Table Layout** tabs show. To pick several cells, drag across them, or click one and then Shift+click another. Most buttons below work on the cells you picked, or on the whole table if you picked none. Each change is one step, so **Ctrl+Z** takes it back.
