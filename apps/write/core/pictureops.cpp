@@ -31,6 +31,7 @@
 #include "core/wrapoutline.h"
 #include "app/settings.h"
 #include "core/picturecrop.h"
+#include "core/svg.h"
 
 #include <QBuffer>
 #include <QDomDocument>
@@ -38,10 +39,14 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QImageReader>
+#include <QPainter>
 #include <QRegularExpression>
+#include <QSvgRenderer>
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextFragment>
+#include <QXmlStreamReader>
+#include <QXmlStreamWriter>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -251,6 +256,22 @@ QByteArray pictureGraphic(const QString &rid, qint64 cx, qint64 cy, const QByteA
     return "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + n(id) + "\" name=\"" + name +
            "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>" + blip + "<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
            "<a:ext cx=\"" + n(cx) + "\" cy=\"" + n(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>";
+}
+
+// The ids of the parts a picture's blip names: the picture itself (r:embed) and the SVG linked in its extension list (the svgBlip).
+struct BlipRefs {
+    QString png, svg;
+};
+
+BlipRefs blipRefsOf(const QByteArray &graphic)
+{
+    static const QRegularExpression blip(QStringLiteral("<a:blip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
+    static const QRegularExpression svg(QStringLiteral("<[A-Za-z0-9]+:svgBlip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
+    const QString text = QString::fromUtf8(graphic);
+    BlipRefs refs;
+    if (const QRegularExpressionMatch m = blip.match(text); m.hasMatch()) refs.png = m.captured(1);
+    if (const QRegularExpressionMatch m = svg.match(text); m.hasMatch()) refs.svg = m.captured(1);
+    return refs;
 }
 
 qint64 emuAttr(const XmlTree &t, int n, const char *name)
@@ -468,6 +489,7 @@ struct Prepared {
     QByteArray bytes;
     QString extension, contentType;
     QSizeF size;
+    QByteArray svg;   // an SVG picture's own file, kept beside the PNG that `bytes` holds
 };
 
 PictureResult encodeImage(const QImage &image, Prepared *out)
@@ -512,6 +534,52 @@ bool svgReachesOutside(const QByteArray &svg)
     return false;
 }
 
+// Whether the first of a part's bytes are an SVG's (a picture's part is looked at as often as the pages are drawn: no more than the start of it is read).
+bool startsLikeSvg(const QByteArray &bytes)
+{
+    if (bytes.startsWith("\x1f\x8b")) return false;
+    const QByteArray head = bytes.left(4096);
+    return head.contains("<svg") || head.contains("<SVG");
+}
+
+// The SVG of a graphic: the one its svgBlip links, or a picture whose own part is an SVG (as a file of the other format that keeps SVGs gives it).
+QByteArray graphicSvgOf(const WriteDoc &doc, const QByteArray &graphic)
+{
+    if (!graphic.contains("blip") || graphic.contains("wsp") || graphic.contains("wpg")) return QByteArray();
+    const BlipRefs refs = blipRefsOf(graphic);
+    if (!refs.svg.isEmpty()) {
+        const QByteArray bytes = doc.relatedPartData(refs.svg);
+        if (!bytes.isEmpty() && startsLikeSvg(bytes)) return bytes;
+    }
+    if (!refs.png.isEmpty()) {
+        const QByteArray bytes = doc.relatedPartData(refs.png);
+        if (!bytes.isEmpty() && startsLikeSvg(bytes)) return bytes;
+    }
+    return QByteArray();
+}
+
+// The PNG that goes beside a graphic's SVG: the drawing as the shared renderer draws it, on a clear ground, from 256 to 1024 pixels on its longer side.
+bool graphicPng(const QByteArray &svg, QByteArray *png)
+{
+    QSvgRenderer renderer(svg);
+    if (!renderer.isValid()) return false;
+    const QSizeF box = renderer.viewBoxF().size();
+    if (!(box.width() > 0 && box.height() > 0) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return false;
+    const double longest = std::max(box.width(), box.height()), target = std::clamp(longest, 256.0, 1024.0);
+    const QSize px(std::max(1, int(std::lround(box.width() * target / longest))), std::max(1, int(std::lround(box.height() * target / longest))));
+    QImage image(px, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    {
+        QPainter painter(&image);
+        painter.setRenderHint(QPainter::Antialiasing);
+        svg::paint(renderer, svg, &painter, QRectF(QPointF(), QSizeF(px)));
+    }
+    png->clear();
+    QBuffer buffer(png);
+    buffer.open(QIODevice::WriteOnly);
+    return image.save(&buffer, "PNG") && !png->isEmpty() && qint64(png->size()) <= kMostPictureBytes;
+}
+
 PictureResult prepare(const QByteArray &input, Prepared *out)
 {
     if (input.isEmpty()) return PictureResult::Unreadable;
@@ -546,7 +614,14 @@ PictureResult prepare(const QByteArray &input, Prepared *out)
         out->size = QSizeF(size.width() * 0.75, size.height() * 0.75);
         return PictureResult::Ok;
     }
-    return encodeImage(reader.read(), out);
+    const PictureResult drawn = encodeImage(reader.read(), out);
+    if (drawn == PictureResult::Ok && (format == "svg") && looksLikeSvg(input)) {
+        // (An SVG is kept as itself, with a PNG drawn from it by the shared renderer beside it: sharp at 256 pixels or more, though the picture is as large as the SVG says.)
+        out->svg = input;
+        QByteArray png;
+        if (graphicPng(input, &png)) out->bytes = png;
+    }
+    return drawn;
 }
 
 // The size a new picture is made at: the one it asks for, no wider than the column or taller than the page's text.
@@ -570,11 +645,14 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
         return PictureResult::Refused;
     }
     const QSizeF size = fitted(doc, c.selectionStart(), p.size);
-    bool added = false;
+    bool added = false, svgAdded = false;
     const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
+    // (An SVG picture is linked as the SVG itself, with the PNG beside it for the programs that can't draw one.)
+    const QString svgRid = p.svg.isEmpty() ? QString() : doc.addMedia(p.svg, QStringLiteral("svg"), QStringLiteral("image/svg+xml"), &svgAdded);
     // (The pictures of a document come to no more than the total.)
-    if (added && doc.mediaBytes() > doc.mediaLimit) {
-        doc.removeMedia(rid);
+    if ((added || svgAdded) && doc.mediaBytes() > doc.mediaLimit) {
+        if (added) doc.removeMedia(rid);
+        if (svgAdded) doc.removeMedia(svgRid);
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
         return PictureResult::TooLarge;
     }
@@ -603,13 +681,14 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
             m.wrapRaw.replace("wrapText=\"bothSides\"", QByteArray("wrapText=\"") + side + "\"");
         }
     }
-    m.graphic = pictureGraphic(rid, m.cx, m.cy, pictureName, id);
+    m.graphic = pictureGraphic(rid, m.cx, m.cy, pictureName, id, svgRid);
     Inline atom;
     atom.kind = Inline::RunAtom;
     atom.tag = QStringLiteral("drawing");
     atom.raw = drawingXml(m);
     if (!insertDrawnAtom(doc, c, atom)) {
         if (added) doc.removeMedia(rid);
+        if (svgAdded) doc.removeMedia(svgRid);
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
         return PictureResult::Refused;
     }
@@ -809,6 +888,7 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
     info.decorative = isDecorativeInner(m.docPrInner);
     info.barcode = verifiedBarcode(doc, atom.raw, m.graphic);
     if (info.kind == DrawnKind::Picture) {
+        info.svg = info.barcode.isEmpty() && !graphicSvgOf(doc, m.graphic).isEmpty();
         info.cropLeft = s.cropL;
         info.cropTop = s.cropT;
         info.cropRight = s.cropR;
@@ -4010,6 +4090,37 @@ QByteArray withBlip(const QByteArray &graphic, const BlipSpot &b)
     return graphic.left(b.begin) + start + b.inner + "</a:blip>" + graphic.mid(b.end);
 }
 
+// What is inside a blip, with the SVG link of its extension list taken away and, where `svgRid` is given, put in (the other children and extensions stay, in their order).
+QByteArray blipInnerWithSvg(const QByteArray &inner, const QString &svgRid)
+{
+    static const QRegularExpression link(QStringLiteral("<a:ext\\s+uri=\"\\{96DAC541-7B7A-43D3-8B79-37D633B846F1\\}\"[^>]*>.*?</a:ext>"), QRegularExpression::DotMatchesEverythingOption);
+    QString text = QString::fromUtf8(inner);
+    text.remove(link);
+    text.remove(QStringLiteral("<a:extLst></a:extLst>"));
+    text.remove(QStringLiteral("<a:extLst/>"));
+    if (!svgRid.isEmpty()) {
+        const QString ext = QStringLiteral("<a:ext uri=\"{96DAC541-7B7A-43D3-8B79-37D633B846F1}\"><asvg:svgBlip xmlns:asvg=\"http://schemas.microsoft.com/office/drawing/2016/SVG/main\" r:embed=\"") + svgRid +
+                            QStringLiteral("\"/></a:ext>");
+        const qsizetype list = text.indexOf(QStringLiteral("<a:extLst>"));
+        if (list >= 0) text.insert(list + 10, ext);
+        else text += QStringLiteral("<a:extLst>") + ext + QStringLiteral("</a:extLst>");
+    }
+    return text.toUtf8();
+}
+
+// The blip with `rid` as its picture.
+void blipWithEmbed(BlipSpot *b, const QString &rid)
+{
+    Attributes attrs = attributesOf(b->startTag);
+    setAttribute(&attrs, "r:embed", quote(rid.toUtf8()));
+    const qsizetype nameEnd = b->startTag.indexOf(' ') > 0 ? b->startTag.indexOf(' ') : b->startTag.size() - 1;
+    QByteArray start = b->startTag.left(nameEnd);
+    Attributes declared;
+    attributesOf(b->startTag, &declared);
+    for (const auto &d : declared) start += " " + d.first + "=" + d.second;
+    b->startTag = start + written(attrs) + (b->selfClosing ? "/>" : ">");
+}
+
 const QRegularExpression &effectsPattern()
 {
     static const QRegularExpression re(QStringLiteral("<a:(lum|grayscl|biLevel)\\b[^>]*/>|<a:(lum|grayscl|biLevel)\\b[^>]*></a:(lum|grayscl|biLevel)>"));
@@ -4279,14 +4390,19 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
     if (!isPictureAt(story, position) || position + 1 > story->characterCount() - 1) return PictureResult::Refused;
     bool added = false;
     const QString rid = doc.addMedia(p.bytes, p.extension, p.contentType, &added);
-    if (added && doc.mediaBytes() > doc.mediaLimit) {
-        doc.removeMedia(rid);
+    bool svgAdded = false;
+    const QString svgRid = p.svg.isEmpty() ? QString() : doc.addMedia(p.svg, QStringLiteral("svg"), QStringLiteral("image/svg+xml"), &svgAdded);
+    if ((added || svgAdded) && doc.mediaBytes() > doc.mediaLimit) {
+        if (added) doc.removeMedia(rid);
+        if (svgAdded) doc.removeMedia(svgRid);
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
         return PictureResult::TooLarge;
     }
+    QString oldSvg;
     const bool changed = changePicture(doc, position, [&](Model &m) {
         BlipSpot b;
         if (!findBlip(m.graphic, &b)) return false;
+        oldSvg = blipRefsOf(m.graphic).svg;
         // The new picture goes where the old one was, with its cut and size when it has the old one's proportions; any other has no cut, and the frame keeps its width and takes
         // its proportions. The colors, the border, the shape, and the effects stay.
         double was[4];
@@ -4307,6 +4423,8 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
         attributesOf(b.startTag, &declared);
         for (const auto &d : declared) start += " " + d.first + "=" + d.second;
         b.startTag = start + written(attrs) + (b.selfClosing ? "/>" : ">");
+        // (The old picture's SVG link goes with it; an SVG that comes in is linked in its place.)
+        if (!oldSvg.isEmpty() || !svgRid.isEmpty()) b.inner = blipInnerWithSvg(b.inner, svgRid);
         m.graphic = withBlip(m.graphic, b);
         if (same) return true;
         const qint64 h = std::clamp<qint64>(qint64(std::llround(double(m.cx) * p.size.height() / std::max(1.0, p.size.width()))), qint64(kLeastPictureSize * kEmuPerPoint), qint64(kMostPictureSize * kEmuPerPoint));
@@ -4316,8 +4434,10 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
     });
     if (!changed) {
         if (added) doc.removeMedia(rid);
+        if (svgAdded) doc.removeMedia(svgRid);
         return PictureResult::Refused;
     }
+    if (!oldSvg.isEmpty()) doc.letGoOfMediaIfUnused(oldSvg);
     return PictureResult::Ok;
 }
 
@@ -4669,6 +4789,385 @@ QByteArray withDrawingId(const QByteArray &raw, int id)
     const qsizetype end = raw.indexOf('"', key + 5);
     if (end < 0) return raw;
     return raw.left(key + 5) + QByteArray::number(id) + raw.mid(end);
+}
+
+// ---- SVG graphics
+
+QByteArray graphicSvgAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return QByteArray();
+    Inline atom;
+    Model m;
+    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return QByteArray();
+    return graphicSvgOf(doc, m.graphic);
+}
+
+namespace {
+
+struct GraphicMedia {
+    QString png, svg;
+    bool pngAdded = false, svgAdded = false;
+};
+
+// The graphic's two pictures put in the document's media (the PNG drawn from the SVG, and the SVG): false, with a note, where the document can't hold them or the SVG can't be drawn.
+bool addGraphicMedia(WriteDoc &doc, const QByteArray &svg, GraphicMedia *out)
+{
+    QByteArray png;
+    if (!graphicPng(svg, &png)) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic can't be drawn.");
+        return false;
+    }
+    out->png = doc.addMedia(png, QStringLiteral("png"), QStringLiteral("image/png"), &out->pngAdded);
+    out->svg = doc.addMedia(svg, QStringLiteral("svg"), QStringLiteral("image/svg+xml"), &out->svgAdded);
+    if ((out->pngAdded || out->svgAdded) && doc.mediaBytes() > doc.mediaLimit) {
+        if (out->pngAdded) doc.removeMedia(out->png);
+        if (out->svgAdded) doc.removeMedia(out->svg);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.");
+        return false;
+    }
+    return true;
+}
+
+void letGoOfGraphicMedia(WriteDoc &doc, GraphicMedia *m)
+{
+    if (m->pngAdded) doc.removeMedia(m->png);
+    if (m->svgAdded) doc.removeMedia(m->svg);
+}
+
+// Puts a graphic's two pictures in its blip (the PNG as its picture, the SVG linked in its extension list) and takes the old ones back where nothing else names them.
+bool replaceGraphicMedia(WriteDoc &doc, int position, const GraphicMedia &media, const std::function<void(Model &)> &also = {})
+{
+    BlipRefs old;
+    const bool changed = changePicture(doc, position, [&](Model &m) {
+        if (graphicSvgOf(doc, m.graphic).isEmpty()) return false;
+        BlipSpot b;
+        if (!findBlip(m.graphic, &b)) return false;
+        old = blipRefsOf(m.graphic);
+        blipWithEmbed(&b, media.png);
+        b.inner = blipInnerWithSvg(b.inner, media.svg);
+        m.graphic = withBlip(m.graphic, b);
+        if (also) also(m);
+        return true;
+    });
+    if (!changed) return false;
+    for (const QString &id : {old.png, old.svg})
+        if (!id.isEmpty() && id != media.png && id != media.svg) doc.letGoOfMediaIfUnused(id);
+    return true;
+}
+
+} // namespace
+
+PictureResult changeGraphic(WriteDoc &doc, int position, const QByteArray &svg)
+{
+    if (svg.isEmpty() || !looksLikeSvg(svg)) return PictureResult::Unreadable;
+    if (qint64(svg.size()) > kMostSvgBytes) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic is too large to put in a document.");
+        return PictureResult::TooLarge;
+    }
+    if (svgReachesOutside(svg)) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic refers to files or addresses outside itself, which JeffWrite doesn't open.");
+        return PictureResult::External;
+    }
+    if (graphicSvgAt(doc, position).isEmpty()) return PictureResult::Refused;
+    GraphicMedia media;
+    if (!addGraphicMedia(doc, svg, &media)) return doc.pictureNotice.isEmpty() ? PictureResult::Unreadable : PictureResult::TooLarge;
+    if (!replaceGraphicMedia(doc, position, media)) {
+        letGoOfGraphicMedia(doc, &media);
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+namespace {
+
+// A style attribute's properties, in order.
+QVector<std::pair<QString, QString>> styleProperties(const QString &style)
+{
+    QVector<std::pair<QString, QString>> out;
+    for (const QString &part : style.split(QLatin1Char(';'), Qt::SkipEmptyParts)) {
+        const qsizetype colon = part.indexOf(QLatin1Char(':'));
+        if (colon <= 0) continue;
+        out.push_back({part.left(colon).trimmed().toLower(), part.mid(colon + 1).trimmed()});
+    }
+    return out;
+}
+
+bool isGraphicLeaf(const QStringView name)
+{
+    static const QSet<QString> leaves = {QStringLiteral("path"), QStringLiteral("rect"), QStringLiteral("circle"), QStringLiteral("ellipse"), QStringLiteral("line"),
+                                         QStringLiteral("polyline"), QStringLiteral("polygon"), QStringLiteral("text"), QStringLiteral("tspan")};
+    return leaves.contains(name.toString());
+}
+
+// The parts of an SVG whose paint is not the drawing's own (clips, masks, gradients, filters, patterns, and markers): left as they are.
+bool isPaintServer(const QStringView name)
+{
+    static const QSet<QString> skipped = {QStringLiteral("clipPath"), QStringLiteral("mask"), QStringLiteral("linearGradient"), QStringLiteral("radialGradient"), QStringLiteral("filter"),
+                                          QStringLiteral("pattern"), QStringLiteral("marker"), QStringLiteral("style"), QStringLiteral("script"), QStringLiteral("title"), QStringLiteral("desc"),
+                                          QStringLiteral("metadata")};
+    return skipped.contains(name.toString());
+}
+
+QString colorText(const QColor &c) { return c.name(QColor::HexRgb); }
+
+} // namespace
+
+QByteArray svgWithColors(const QByteArray &svg, const GraphicColors &colors)
+{
+    if (svg.isEmpty() || qint64(svg.size()) > kMostSvgBytes || !looksLikeSvg(svg) || svgReachesOutside(svg)) return QByteArray();
+    if (colors.fill == GraphicColors::Keep && colors.outline == GraphicColors::Keep) return svg;
+    struct Inherited {
+        QString fill, stroke, strokeWidth;
+    };
+    QByteArray out;
+    QXmlStreamWriter w(&out);
+    QXmlStreamReader r(svg);
+    QVector<Inherited> stack;
+    int skipping = 0, elements = 0;
+    double unit = 1;
+    while (!r.atEnd()) {
+        r.readNext();
+        if (r.hasError()) return QByteArray();
+        if (r.isDTD() || r.isEntityReference()) return QByteArray();
+        if (r.isStartElement()) {
+            if (++elements > 200000 || stack.size() >= kMostGraphicNesting) return QByteArray();
+            const QXmlStreamAttributes attrs = r.attributes();
+            if (stack.isEmpty()) {
+                // (The line a part gets where it had none is a thirty-second of the drawing's longer side.)
+                const QStringList box = attrs.value(QStringLiteral("viewBox")).toString().split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+                double a = box.size() == 4 ? box[2].toDouble() : attrs.value(QStringLiteral("width")).toDouble(), b = box.size() == 4 ? box[3].toDouble() : attrs.value(QStringLiteral("height")).toDouble();
+                if (!(a > 0 && b > 0 && std::isfinite(a) && std::isfinite(b))) a = b = 32;
+                unit = std::max(a, b) / 32.0;
+            }
+            Inherited here = stack.isEmpty() ? Inherited() : stack.last();
+            const QVector<std::pair<QString, QString>> props = styleProperties(attrs.value(QStringLiteral("style")).toString());
+            auto declared = [&](const char *name) {
+                const QString key = QLatin1String(name);
+                for (const auto &p : props)
+                    if (p.first == key) return p.second;
+                return attrs.value(key).toString().trimmed();
+            };
+            const QString ownFill = declared("fill"), ownStroke = declared("stroke"), ownWidth = declared("stroke-width");
+            if (!ownFill.isEmpty() && ownFill != QLatin1String("inherit")) here.fill = ownFill;
+            if (!ownStroke.isEmpty() && ownStroke != QLatin1String("inherit")) here.stroke = ownStroke;
+            if (!ownWidth.isEmpty() && ownWidth != QLatin1String("inherit")) here.strokeWidth = ownWidth;
+            stack.push_back(here);
+            const QStringView name = r.name();
+            if (skipping > 0 || isPaintServer(name)) {
+                ++skipping;
+                w.writeCurrentToken(r);
+                continue;
+            }
+            if (!isGraphicLeaf(name)) {
+                w.writeCurrentToken(r);
+                continue;
+            }
+            // A part that is drawn: what it was painted with before (what it says, or what its parents give it; a fill was black and a line none where nothing said), and what it is now.
+            const QString wasFill = attrs.hasAttribute(QStringLiteral("data-jw-fill")) ? attrs.value(QStringLiteral("data-jw-fill")).toString() : (here.fill.isEmpty() ? QStringLiteral("black") : here.fill);
+            const QString wasStroke = attrs.hasAttribute(QStringLiteral("data-jw-stroke")) ? attrs.value(QStringLiteral("data-jw-stroke")).toString() : (here.stroke.isEmpty() ? QStringLiteral("none") : here.stroke);
+            QString fill, stroke, width, keptFill = attrs.value(QStringLiteral("data-jw-fill")).toString(), keptStroke = attrs.value(QStringLiteral("data-jw-stroke")).toString();
+            bool dropFill = false, dropStroke = false;
+            if (colors.fill == GraphicColors::Color && wasFill != QLatin1String("none")) {
+                fill = colorText(colors.fillColor);
+                keptFill.clear();
+                dropFill = true;
+            } else if (colors.fill == GraphicColors::None && wasFill != QLatin1String("none")) {
+                fill = QStringLiteral("none");
+                keptFill = wasFill;
+                dropFill = true;
+            }
+            if (colors.outline == GraphicColors::Color) {
+                stroke = colorText(colors.outlineColor);
+                keptStroke.clear();
+                dropStroke = true;
+                if (wasStroke == QLatin1String("none") && here.strokeWidth.isEmpty()) width = QString::number(unit, 'g', 4);
+            } else if (colors.outline == GraphicColors::None && wasStroke != QLatin1String("none")) {
+                stroke = QStringLiteral("none");
+                keptStroke = wasStroke;
+                dropStroke = true;
+            }
+            w.writeStartElement(r.qualifiedName().toString());
+            for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations()) w.writeNamespace(d.namespaceUri().toString(), d.prefix().toString());
+            QString style;
+            for (const QXmlStreamAttribute &a : attrs) {
+                const QString key = a.qualifiedName().toString();
+                if (key == QLatin1String("data-jw-fill") || key == QLatin1String("data-jw-stroke")) continue;
+                if (key == QLatin1String("style")) continue;
+                if ((dropFill && key == QLatin1String("fill")) || (dropStroke && key == QLatin1String("stroke")) || (!width.isEmpty() && key == QLatin1String("stroke-width"))) continue;
+                w.writeAttribute(key, a.value().toString());
+            }
+            for (const auto &p : props) {
+                if ((dropFill && p.first == QLatin1String("fill")) || (dropStroke && p.first == QLatin1String("stroke")) || (!width.isEmpty() && p.first == QLatin1String("stroke-width"))) continue;
+                style += p.first + QLatin1Char(':') + p.second + QLatin1Char(';');
+            }
+            // (The paint goes in the style, which a style sheet of the drawing's own does not outweigh.)
+            if (!fill.isEmpty()) style += QStringLiteral("fill:") + fill + QLatin1Char(';');
+            if (!stroke.isEmpty()) style += QStringLiteral("stroke:") + stroke + QLatin1Char(';');
+            if (!width.isEmpty()) style += QStringLiteral("stroke-width:") + width + QLatin1Char(';');
+            if (!style.isEmpty()) w.writeAttribute(QStringLiteral("style"), style);
+            if (!keptFill.isEmpty()) w.writeAttribute(QStringLiteral("data-jw-fill"), keptFill);
+            if (!keptStroke.isEmpty()) w.writeAttribute(QStringLiteral("data-jw-stroke"), keptStroke);
+            continue;
+        }
+        if (r.isEndElement()) {
+            if (!stack.isEmpty()) stack.removeLast();
+            if (skipping > 0) --skipping;
+            w.writeCurrentToken(r);
+            continue;
+        }
+        w.writeCurrentToken(r);
+        if (qint64(out.size()) > 2 * kMostSvgBytes) return QByteArray();
+    }
+    if (r.hasError() || qint64(out.size()) > 2 * kMostSvgBytes) return QByteArray();
+    return out;
+}
+
+bool setGraphicColors(WriteDoc &doc, int position, const GraphicColors &colors)
+{
+    const QByteArray svg = graphicSvgAt(doc, position);
+    if (svg.isEmpty()) return false;
+    const QByteArray colored = svgWithColors(svg, colors);
+    if (colored.isEmpty()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "The colors of this graphic can't be changed: it is too large, too deeply nested, or refers outside itself.");
+        return false;
+    }
+    if (colored == svg) return false;
+    GraphicMedia media;
+    if (!addGraphicMedia(doc, colored, &media)) return false;
+    if (!replaceGraphicMedia(doc, position, media)) {
+        letGoOfGraphicMedia(doc, &media);
+        return false;
+    }
+    return true;
+}
+
+namespace {
+
+// The properties of a shape (`p:spPr`) the drawing code writes for `item`, with its frame at `rect` (points) put in; the turn and flips of the old picture go with them.
+QByteArray shapeLook(const Item &item, const QRectF &rect, const QByteArray &turn)
+{
+    office::DrawingWriteContext ctx;
+    QByteArray xml;
+    {
+        QBuffer buffer(&xml);
+        buffer.open(QIODevice::WriteOnly);
+        QXmlStreamWriter w(&buffer);
+        office::writeShape(w, item, ctx);
+    }
+    const qsizetype open = xml.indexOf("<p:spPr>"), close = xml.indexOf("</p:spPr>");
+    if (open < 0 || close < open) return QByteArray();
+    QString look = QString::fromUtf8(xml.mid(open + 8, close - open - 8));
+    static const QRegularExpression frame(QStringLiteral("<a:xfrm\\b[^>]*?(?:/>|>.*?</a:xfrm>)"), QRegularExpression::DotMatchesEverythingOption);
+    const QString mine = QStringLiteral("<a:xfrm%1><a:off x=\"%2\" y=\"%3\"/><a:ext cx=\"%4\" cy=\"%5\"/></a:xfrm>")
+                             .arg(QString::fromUtf8(turn)).arg(emuOf(rect.x())).arg(emuOf(rect.y())).arg(emuOf(rect.width())).arg(emuOf(rect.height()));
+    const QRegularExpressionMatch found = frame.match(look);
+    if (found.hasMatch()) look.replace(found.capturedStart(), found.capturedLength(), mine);
+    else look.prepend(mine);
+    return look.toUtf8();
+}
+
+QByteArray shapeBodyProperties() { return "<wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" anchor=\"ctr\" anchorCtr=\"0\"><a:noAutofit/></wps:bodyPr>"; }
+
+} // namespace
+
+GraphicConversion convertGraphicToShapes(WriteDoc &doc, int position)
+{
+    GraphicConversion out;
+    QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return out;
+    Inline atom;
+    Model m;
+    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return out;
+    const QByteArray svgBytes = graphicSvgOf(doc, m.graphic);
+    if (svgBytes.isEmpty()) {
+        out.result = GraphicConvert::NotGraphic;
+        return out;
+    }
+    if (qint64(svgBytes.size()) > kMostSvgBytes || svgReachesOutside(svgBytes)) {
+        out.result = GraphicConvert::Outside;
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic is too large or refers to files or addresses outside itself, so it isn't turned into shapes.");
+        return out;
+    }
+    const svg::Drawing drawing = svg::read(svgBytes);
+    out.partial = drawing.skipped;
+    if (!drawing.isValid() || drawing.elements.isEmpty()) {
+        out.result = GraphicConvert::Nothing;
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has no lines or areas to turn into shapes.");
+        return out;
+    }
+    // (The parts, and the points of their outlines together, are counted before anything is made.)
+    qint64 points = 0;
+    for (const svg::Element &e : drawing.elements) points += e.path.elementCount();
+    if (drawing.elements.size() > kMostGraphicShapes || points > 20 * qint64(kMostGraphicShapes)) {
+        out.result = GraphicConvert::TooMany;
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has too many parts to turn into shapes (the most is %1).").arg(kMostGraphicShapes);
+        return out;
+    }
+    const QRectF frame(0, 0, double(m.cx) / kEmuPerPoint, double(m.cy) / kEmuPerPoint);
+    const ItemPtr made = svg::shapes(drawing, frame, false);
+    if (!made) {
+        out.result = GraphicConvert::Nothing;
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has no lines or areas to turn into shapes.");
+        return out;
+    }
+    // The picture's turn and flips (its frame's attributes) go to the shape or the group.
+    QByteArray turn;
+    {
+        static const QRegularExpression xfrm(QStringLiteral("<a:xfrm\\b([^>]*)>"));
+        const QRegularExpressionMatch found = xfrm.match(QString::fromUtf8(m.graphic));
+        if (found.hasMatch())
+            for (const char *name : {"rot", "flipH", "flipV"}) {
+                const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"([^\"]*)\"").arg(QLatin1String(name))).match(found.captured(1));
+                if (v.hasMatch()) turn += QByteArray(" ") + name + "=\"" + v.captured(1).toUtf8() + "\"";
+            }
+    }
+    auto n = [](qint64 v) { return QByteArray::number(v); };
+    QByteArray graphic;
+    int count = 0;
+    if (made->type() == ItemType::Shape) {
+        const QByteArray look = shapeLook(*made, frame, turn);
+        if (look.isEmpty()) return out;
+        graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(kShapeUri) + "\"><wps:wsp><wps:cNvSpPr/><wps:spPr>" + look + "</wps:spPr>" + shapeBodyProperties() + "</wps:wsp></a:graphicData></a:graphic>";
+        count = 1;
+    } else if (made->type() == ItemType::Group) {
+        QByteArray children;
+        for (const ItemPtr &child : static_cast<const GroupItem &>(*made).children) {
+            if (child->type() != ItemType::Shape) continue;
+            const QByteArray look = shapeLook(*child, child->rect, QByteArray());
+            if (look.isEmpty()) continue;
+            children += "<wps:wsp><wps:cNvPr id=\"" + n(doc.nextDrawingId(story)) + "\" name=\"Graphic part " + n(++count) + "\"/><wps:cNvSpPr/><wps:spPr>" + look + "</wps:spPr>" + shapeBodyProperties() + "</wps:wsp>";
+        }
+        if (count == 0) {
+            out.result = GraphicConvert::Nothing;
+            return out;
+        }
+        graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(kGroupUri) + "\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm" + turn + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(m.cx) + "\" cy=\"" + n(m.cy) +
+                  "\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"" + n(m.cx) + "\" cy=\"" + n(m.cy) + "\"/></a:xfrm></wpg:grpSpPr>" + children + "</wpg:wgp></a:graphicData></a:graphic>";
+    } else {
+        return out;
+    }
+    const BlipRefs old = blipRefsOf(m.graphic);
+    const bool changed = changePicture(doc, position, [&](Model &g) {
+        g.graphic = graphic;
+        g.frameProps = "<wp:cNvGraphicFramePr/>";
+        for (const auto &required : {std::pair<QByteArray, QByteArray>{"xmlns:wpg", quote(kGroupUri)}, {"xmlns:wps", quote(kShapeUri)}}) {
+            bool has = false;
+            for (const auto &d : g.declarations) has = has || d.first == required.first;
+            if (!has) g.declarations.push_back(required);
+        }
+        return true;
+    }, true);
+    if (!changed) {
+        out.result = GraphicConvert::Refused;
+        if (doc.pictureNotice.isEmpty()) doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic can't be turned into shapes here.");
+        return out;
+    }
+    for (const QString &id : {old.png, old.svg})
+        if (!id.isEmpty()) doc.letGoOfMediaIfUnused(id);
+    out.result = GraphicConvert::Done;
+    out.shapes = count;
+    return out;
 }
 
 QString cleanAltText(const QString &text) { return cleanText(text, kMostAltTextLength); }

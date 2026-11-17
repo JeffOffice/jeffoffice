@@ -2315,6 +2315,163 @@
       ]
     },
     {
+      "name": "Graphics Format",
+      "keytip": "JX",
+      "context": "Graphics Tools",
+      "color": "picture",
+      "groups": [
+        {
+          "name": "Adjust",
+          "keytip": "XA",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.graphicsChange",
+                "text": "Change Graphic",
+                "icon": "replace"
+              },
+              "keytip": "CG",
+              "menu": "@graphicsChange"
+            },
+            {
+              "large": "graphics.convert",
+              "keytip": "CV"
+            }
+          ]
+        },
+        {
+          "name": "Graphics Styles",
+          "keytip": "XY",
+          "items": [
+            {
+              "widget": "pictureStyles",
+              "keytip": "PS"
+            },
+            {
+              "widget": "graphicsFill",
+              "keytip": "GF"
+            },
+            {
+              "widget": "graphicsOutline",
+              "keytip": "GO"
+            },
+            {
+              "large": {
+                "id": "ribbon.graphicsEffects",
+                "text": "Graphics Effects",
+                "icon": "sparkles"
+              },
+              "keytip": "GE",
+              "menu": "@graphicsEffects"
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "XR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.graphicsWrapText",
+                "text": "Wrap Text",
+                "icon": "wrap-text"
+              },
+              "keytip": "WT",
+              "menu": "@pictureWrap"
+            },
+            {
+              "large": {
+                "id": "ribbon.graphicsBringForward",
+                "text": "Bring Forward",
+                "icon": "arrow-up"
+              },
+              "keytip": "BF",
+              "menu": "@pictureForward"
+            },
+            {
+              "large": {
+                "id": "ribbon.graphicsSendBackward",
+                "text": "Send Backward",
+                "icon": "arrow-down"
+              },
+              "keytip": "SB",
+              "menu": "@pictureBackward"
+            },
+            {
+              "large": {
+                "id": "ribbon.graphicsAlign",
+                "text": "Align",
+                "icon": "align-center-vertical"
+              },
+              "keytip": "AL",
+              "menu": "@objectAlign"
+            },
+            {
+              "large": "arrange.group",
+              "keytip": "GP"
+            },
+            {
+              "large": "arrange.ungroup",
+              "keytip": "UP"
+            },
+            {
+              "large": "view.selectionPane",
+              "keytip": "SP"
+            },
+            {
+              "large": {
+                "id": "ribbon.graphicsRotate",
+                "text": "Rotate",
+                "icon": "rotate-cw"
+              },
+              "keytip": "RO",
+              "menu": "@shapeRotate"
+            },
+            {
+              "large": "picture.altText",
+              "keytip": "AT"
+            },
+            {
+              "large": "picture.decorative",
+              "keytip": "MD"
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "XS",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "graphicsHeight",
+                  "keytip": "PH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "graphicsWidth",
+                  "keytip": "PW"
+                }
+              ]
+            },
+            {
+              "small": "picture.lockAspect",
+              "keytip": "LA"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Shape Format",
       "keytip": "JS",
       "context": "Shape Tools",

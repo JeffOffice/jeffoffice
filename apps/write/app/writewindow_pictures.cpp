@@ -162,10 +162,12 @@ void WriteWindow::createPictureActions()
     }, true);
     mk("picture.lockAspect", tr("Lock Aspect Ratio"), "link", QKeySequence(), [] {}, true)->setChecked(true);
     connect(m_view, &write::PageView::notice, this, [this](const QString &text) { statusBar()->showMessage(text, 8000); });
+    createGraphicsActions();
 }
 
 void WriteWindow::pictureRibbonParts(RibbonParts &parts)
 {
+    graphicsRibbonParts(parts);
     parts.colors[QStringLiteral("picture")] = QColor(0xD3, 0x7B, 0x2B);
     parts.menus[QStringLiteral("pictureWrap")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
@@ -362,7 +364,8 @@ void WriteWindow::refreshPictureUi()
     act("insert.barcode")->setEnabled(body);
     const int at = m_doc ? m_view->selectedPicture() : -1;
     const write::PictureInfo info = at >= 0 ? write::pictureAt(*m_doc, m_doc->story(), at) : write::PictureInfo();
-    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture, false);
+    // (A graphic, an SVG picture, has its own tab in place of the Picture Format one.)
+    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), info.valid && info.kind == write::DrawnKind::Picture && !info.svg, false);
     const bool editable = info.valid && info.editable;
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("picture."))) a->setEnabled(editable);
@@ -398,6 +401,7 @@ void WriteWindow::refreshPictureUi()
     }
     m_updatingFields = false;
     refreshShapeUi();
+    refreshGraphicsUi(info);
 }
 
 void WriteWindow::addPictureContextMenu(QMenu &menu)

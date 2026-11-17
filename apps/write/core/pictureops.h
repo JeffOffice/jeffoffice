@@ -11,6 +11,7 @@
 #include "core/writedoc.h"
 #include "sheet/chartops.h"
 
+#include <QColor>
 #include <QImage>
 #include <QJsonObject>
 #include <QMarginsF>
@@ -101,6 +102,7 @@ struct PictureInfo {
     double gradientAngle = 0;
     bool pictureFill = false;   // a shape filled with a picture
     QJsonObject barcode;        // a barcode of Insert > Barcode: the settings its marker holds (empty for any other picture)
+    bool svg = false;           // a graphic: the picture is an SVG (kept with a PNG beside it for the programs that can't draw one)
 };
 
 // The layout Set as Default Layout keeps for the pictures put in afterward: the kind of wrap, the side the text goes on, and the room round the picture in points. It is the program's
@@ -218,6 +220,36 @@ bool setPictureStyle(WriteDoc &doc, int position, int style);
 bool setPictureEffects(WriteDoc &doc, int position, const std::function<void(Effects &)> &change);
 // Another picture in the place of this one, with the same place, wrap, alt text, colors, border, shape, and effects; of the old one's proportions it keeps its size and cut, any other has no cut and the frame keeps its width and takes its proportions. The result is as insertPicture's.
 PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &bytes);
+// ---- SVG graphics (the Graphics Format tab)
+
+// The most shapes Convert to Shape makes from one graphic; a graphic with more is refused with a note.
+constexpr int kMostGraphicShapes = 10000;
+// How deep the groups of an SVG may nest for its colors to be changed (a deeper one is refused); Convert to Shape reads no deeper than the shared reader does, and says what it left out.
+constexpr int kMostGraphicNesting = 32;
+// The SVG of the graphic at `position` (empty for any other object).
+QByteArray graphicSvgAt(const WriteDoc &doc, int position);
+// Another SVG in the place of the graphic at `position`: the frame (its size and place) stays, the new graphic is drawn in it, and a PNG made of it goes beside it for the programs that
+// can't draw one. One step. Refused (with a note in doc.pictureNotice) for an SVG that reaches outside itself or is too large; Unreadable where it can't be drawn.
+PictureResult changeGraphic(WriteDoc &doc, int position, const QByteArray &svg);
+// The colors of a graphic: each part of the drawing's fills (and its lines) is `Keep`, one color, or none. The SVG is written again with them, and the PNG beside it is drawn again.
+struct GraphicColors {
+    enum Mode { Keep, Color, None };
+    Mode fill = Keep, outline = Keep;
+    QColor fillColor, outlineColor;
+};
+bool setGraphicColors(WriteDoc &doc, int position, const GraphicColors &colors);
+// The SVG with the colors put in (empty where it can't be: too large, too deep, or not an SVG). A fill that was taken off, or a line that was not there, is kept in the file so that a later
+// color is put back where it was.
+QByteArray svgWithColors(const QByteArray &svg, const GraphicColors &colors);
+enum class GraphicConvert { Done, NotGraphic, Nothing, TooMany, Outside, Refused };
+struct GraphicConversion {
+    GraphicConvert result = GraphicConvert::Refused;
+    int shapes = 0;        // how many shapes the graphic became
+    bool partial = false;  // the graphic held text or pictures, which are left out
+};
+// Convert to Shape: the graphic at `position` becomes a group of drawing shapes (one shape of the drawing format for each part of the drawing, with its fill and line; clip paths cut the
+// shapes they cover), or one shape where the drawing is a single part, in the same frame (place, size, turn, and alt text stay). One step. Past kMostGraphicShapes it is refused.
+GraphicConversion convertGraphicToShapes(WriteDoc &doc, int position);
 // The places of the body text's pictures (a picture that is a picture of the file: not a shape, a text box, a chart, or a group), in the order of the text.
 QVector<int> picturePositions(const WriteDoc &doc);
 // Compress Pictures: each picture at `positions` is made no more detailed than `ppi` pixels to the inch of the size it is shown at, and kept only when that makes it smaller; with

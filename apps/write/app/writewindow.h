@@ -529,6 +529,13 @@ private:
     void editBarcodeField(int position);   // the dialog of a barcode field, which is changed as the person asks
     void showPageSetupDialog();
     void refreshPictureUi();
+    // The Graphics Format tab (app/writewindow_graphics.cpp): the commands for an SVG picture.
+    void createGraphicsActions();
+    void graphicsRibbonParts(RibbonParts &parts);
+    void refreshGraphicsUi(const write::PictureInfo &info);
+    void changeSelectedGraphic(bool fromIcons);
+    void convertSelectedGraphic();
+    void setSelectedGraphicColors(bool fill, const ColorRef &color);
     void addPictureContextMenu(QMenu &menu);
     void tableRibbonParts(RibbonParts &parts);
     void tableCommand(const std::function<void(write::WriteDoc &, QTextCursor &)> &fn);
@@ -649,6 +656,7 @@ private:
     write::FormatBrush m_brush;
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
     QList<MeasureSpin *> m_shapeFields;     // the height and width of the Shape Format tab
+    QList<MeasureSpin *> m_graphicFields;   // the height and width of the Graphics Format tab
     write::Ruler *m_ruler = nullptr;
     write::VerticalRuler *m_vruler = nullptr;
     QList<MeasureSpin *> m_hfFields;        // the header and footer distances of the Header & Footer tab
