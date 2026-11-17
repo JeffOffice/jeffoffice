@@ -69,8 +69,9 @@
        "text": "c5d2330907f0800bca3df1215be68905622bf53c70cf0704add444d37861b495"
       },
       {
-       "status": "partly",
-       "text": "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "0fd10c8b3c8a6c7e39ab67e23edec3776de4b80bdf5991245bedfe899d8a70c9"
       },
       {
        "hide_soon": true,
@@ -110,7 +111,12 @@
         },
         {
          "status": "partly",
-         "text": "31c1d069071d31f3697058bf804407460c09c8925e91d8d692af25ad28fa258b"
+         "text": "00a4fb5484e8c072662174815ca185b250d0ed972f9f69f73f84cf434b7165ee"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "ada3894f3b3772a4c8462a218f088cc30134274d1dc1812ed66c2f7d61b58d5b"
         },
         {
          "status": "partly",
@@ -118,7 +124,7 @@
         },
         {
          "status": "partly",
-         "text": "686875ca101595565f3d9aec4566dce92469c69b9d93af9da2d31cf4cc6d8355"
+         "text": "45f2315a4e3cb480b1e1a6d616debdd2cd8a86b4d5fe4f69bab1f06a54358eb0"
         },
         {
          "hide_soon": true,
@@ -287,8 +293,9 @@
          "text": "86d4fd2ebc486f01f2f4cfbc972259f19ec4329da39f67f7bb1bca4b5971681d"
         },
         {
-         "status": "partly",
-         "text": "236dda2a67e1ccf07f32f27c6d1140a2914819aa0834366c955a405745e4e573"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b3f0d78256e18d18bc0c8c8ccc6c31181b0a5b3b7490e9adb8c0393fd81cf865"
         },
         {
          "hide_soon": true,
@@ -2408,8 +2415,9 @@
          "text": "5884021f54e4f5ccbf16ba141545eef188032d789094182c5222870cc0706ac4"
         },
         {
-         "status": "partly",
-         "text": "5552c0066505bd5bff6e675fb58ca1c3358b8a9c95da92b58f02837ba79657a5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "87e406042918758f74419dd421dc8551c9d9bd4cf36716e61f4a2fc818c1e2e8"
         },
         {
          "hide_soon": true,
@@ -2485,7 +2493,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0"
+         "text": "eb598e7bd021c2d34c5ecaed87dc0858fac308c83468bbffd238a568baf4d7cc"
         },
         {
          "hide_soon": true,
@@ -4340,7 +4348,12 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "2165c63d4346ea1c560903cc21ef578d2bdd248e07136e5faa0b2177d9edde64"
+         "text": "1d98e8110f22c373ed1abefccdd37c2f885f267d41ea4b3118c516e09eea6e53"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "f51a506ed0b4571ef98974aed61e0f54c17e34a3f7538ed735907eb9ecd941a6"
         },
         {
          "hide_soon": true,
@@ -5633,7 +5646,7 @@
       },
       {
        "status": "partly",
-       "text": "ce1ba4fe8cd4c9c74c800056660f9e3e36365affb29c13a9edd4bf2ad164a2c4"
+       "text": "0f03a60b8bab28f933c465b6a2b75f89a657b31b2b88940709eda6018af0decb"
       },
       {
        "status": "partly",
@@ -5682,12 +5695,17 @@
         {
          "hide_soon": true,
          "status": "done",
+         "text": "1e7fa97057816b07938229d67969b8ba5ef69017d3166212008e856bae9103a9"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "093e9776f645d8cf75f5f4ae5866cf268d2f832635871fd1aa6f90d1fc939c1d"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "46030e52feb48b10d3fd55b6acb1380f379ad3221392baa5dfe81df565c6c61d"
+         "text": "0120d4eb5ae0f32617e0ac9e5195ec7473a2030d706ce0a29b74a758b67f04c1"
         },
         {
          "status": "partly",
@@ -5775,8 +5793,9 @@
          "text": "83b998cc32a30e8b7450c11b4e19fa3e724370c438e1ba7d297a037312777494"
         },
         {
-         "status": "partly",
-         "text": "811bcc8a346db5d61746006a5e0d4e6721c5dd9175d70e26fbd300bfba44d3bc"
+         "hide_soon": true,
+         "status": "done",
+         "text": "908be1579511040c7ff241bd6d51dd04ea926287c5a2e6fea7b8f76521a9122e"
         },
         {
          "hide_soon": true,
@@ -5836,7 +5855,7 @@
         },
         {
          "status": "partly",
-         "text": "7098ac7389e34aaca872db3323b12a059d9c6630059e6cebcc594e83eb008548"
+         "text": "7ff95bb0a0ecc207b95ca88e6f45abcb6925712ac7e3d26984818492a4fc71b9"
         },
         {
          "hide_soon": true,
@@ -7500,6 +7519,18 @@
     "fr": ""
    }
   },
+  "00a4fb5484e8c072662174815ca185b250d0ed972f9f69f73f84cf434b7165ee": {
+   "drop": false,
+   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
+   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
+   "fr": "Protéger avec un mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
+   "soon": {
+    "drop": false,
+    "en": "Mark as Final",
+    "es": "Marcar como final",
+    "fr": "Marquer comme final"
+   }
+  },
   "00abd1ae6c41e46195f6f8804b3d26fa51737f43d7a4665155dbb33af349f5d1": {
    "drop": true,
    "en": "",
@@ -7553,6 +7584,18 @@
    "en": "Mark a document as final: it opens read-only with a note in the status bar, and it can be made editable again.",
    "es": "Marque un documento como final: se abre en modo de solo lectura con una nota en la barra de estado, y se puede volver a hacer editable.",
    "fr": "Marquez un document comme final : il s’ouvre en lecture seule avec une note dans la barre d’état, et peut être rendu de nouveau modifiable.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "0120d4eb5ae0f32617e0ac9e5195ec7473a2030d706ce0a29b74a758b67f04c1": {
+   "drop": false,
+   "en": "Inspect the document before sharing to find and remove comments, tracked changes, personal information, hidden text, custom XML, headers and footers, and links to other files, each with one button.",
+   "es": "Inspeccione el documento antes de compartirlo para encontrar y quitar comentarios, cambios de seguimiento, información personal, texto oculto, XML personalizado, encabezados y pies de página, y vínculos a otros archivos, cada uno con un solo botón.",
+   "fr": "Inspectez le document avant de le partager pour trouver et supprimer les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé, les en-têtes et pieds de page, et les liens vers d’autres fichiers, chacun d’un seul bouton.",
    "soon": {
     "drop": true,
     "en": "",
@@ -8640,6 +8683,18 @@
     "fr": ""
    }
   },
+  "0f03a60b8bab28f933c465b6a2b75f89a657b31b2b88940709eda6018af0decb": {
+   "drop": false,
+   "en": "Export PDF with bookmarks from headings, tags for screen readers, PDF/A-1b, and clickable links, including links to the exact spot of a target on the page. Pages printed several to a sheet keep bookmarks, links, and tags.",
+   "es": "Exporte PDF con marcadores a partir de los encabezados, etiquetas para lectores de pantalla, PDF/A-1b y vínculos en los que se puede hacer clic, incluidos vínculos al punto exacto de un destino en la página. Las páginas impresas varias por hoja conservan marcadores, vínculos y etiquetas.",
+   "fr": "Exportez des PDF avec signets issus des titres, balises pour les lecteurs d’écran, PDF/A-1b et liens cliquables, y compris des liens vers l’emplacement exact d’une cible dans la page. Les pages imprimées à plusieurs par feuille conservent signets, liens et balises.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X-1a and PDF/X-4 for commercial printers, with a print check",
+    "es": "PDF/X-1a y PDF/X-4 para imprentas comerciales, con verificación de impresión",
+    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs professionnels, avec contrôle avant impression"
+   }
+  },
   "0f4ee42b3e8043be77a9e30d84eea5b6cdeedd944f44eaf2cf4c323628213fa8": {
    "drop": true,
    "en": "",
@@ -8686,6 +8741,18 @@
     "en": "More functions",
     "es": "Más funciones",
     "fr": "Davantage de fonctions"
+   }
+  },
+  "0fd10c8b3c8a6c7e39ab67e23edec3776de4b80bdf5991245bedfe899d8a70c9": {
+   "drop": false,
+   "en": "Export PDF with a bookmark for each sheet, optional tags for screen readers, and PDF/A-1b.",
+   "es": "Exporte PDF con un marcador por cada hoja, etiquetas opcionales para lectores de pantalla y PDF/A-1b.",
+   "fr": "Exportez des PDF avec un signet par feuille, des balises facultatives pour les lecteurs d’écran et le format PDF/A-1b.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
@@ -9684,6 +9751,18 @@
     "fr": ""
    }
   },
+  "1d98e8110f22c373ed1abefccdd37c2f885f267d41ea4b3118c516e09eea6e53": {
+   "drop": false,
+   "en": "Mark a publication as final: it is saved, then opens read-only with a note.",
+   "es": "Marque una publicación como final: se guarda y después se abre en modo de solo lectura con una nota.",
+   "fr": "Marquez une publication comme finale : elle est enregistrée, puis s’ouvre en lecture seule avec une note.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1db56d1b1eb814a1a09d3d5482f651440495744fcc565b924dc338b3ed06f150": {
    "drop": false,
    "en": "Add Animation gives a shape a second effect, started on a click.",
@@ -9768,16 +9847,16 @@
     "fr": "E-mail : un fichier `.eml` prêt à envoyer avec la présentation ou un PDF en pièce jointe"
    }
   },
-  "1e987b7140aa9156f4c443080aba94d1a7a6d7404e5da9cb0591611177233fa0": {
+  "1e7fa97057816b07938229d67969b8ba5ef69017d3166212008e856bae9103a9": {
    "drop": false,
-   "en": "A damaged `.pptx` or `.odp` file opens with what can be read. Open and Repair, under More Ways to Open, also finds the parts of a `.pptx` file that is cut short or has lost its directory, keeps what broke part way, and opens the result as a copy with a note of what was left out.",
-   "es": "Un archivo `.pptx` o `.odp` dañado se abre con lo que se puede leer. Abrir y reparar, en Más formas de abrir, también encuentra las partes de un archivo `.pptx` truncado o sin su directorio, conserva lo que se rompió a medias y abre el resultado como copia con una nota de lo que se omitió.",
-   "fr": "Un fichier `.pptx` ou `.odp` endommagé s’ouvre avec ce qui peut être lu. Ouvrir et réparer, sous Autres façons d’ouvrir, retrouve aussi les parties d’un fichier `.pptx` tronqué ou dont le répertoire a disparu, conserve ce qui s’est interrompu en cours de route et ouvre le résultat comme copie avec une note de ce qui a été omis.",
+   "en": "Set a document to always open read-only, with a note each time it opens. The setting is kept in `.docx` files.",
+   "es": "Configure un documento para que se abra siempre en modo de solo lectura, con una nota cada vez que se abre. El ajuste se conserva en los archivos `.docx`.",
+   "fr": "Réglez un document pour qu’il s’ouvre toujours en lecture seule, avec une note à chaque ouverture. Le réglage est conservé dans les fichiers `.docx`.",
    "soon": {
-    "drop": false,
-    "en": "Open and Repair for badly damaged `.ppt` files",
-    "es": "Abrir y reparar para archivos `.ppt` muy dañados",
-    "fr": "Ouvrir et réparer pour les fichiers `.ppt` très endommagés"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "1eca182d04724a67c2a94bea3211de575f7d578c740debe216a8b9cc75b48dd4": {
@@ -10042,18 +10121,6 @@
     "en": "Playback of linked movies and sounds when the file can be found",
     "es": "Reproducción de películas y sonidos vinculados cuando se encuentra el archivo",
     "fr": "Lecture des films et sons liés lorsque le fichier est trouvé"
-   }
-  },
-  "2165c63d4346ea1c560903cc21ef578d2bdd248e07136e5faa0b2177d9edde64": {
-   "drop": false,
-   "en": "Mark a publication as final on the Info page: it is saved, then opens read-only with a note. A `.pub` file cannot hold the mark.",
-   "es": "Marque una publicación como final en la página Información: se guarda y luego se abre en modo de solo lectura con una nota. Un archivo `.pub` no puede conservar la marca.",
-   "fr": "Marquez une publication comme finale sur la page Informations : elle est enregistrée, puis s’ouvre en lecture seule avec une note. Un fichier `.pub` ne peut pas conserver ce marquage.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "216c52721693e443f90aaa4fdbf5da02e65616357ca25c9c69d6822e245ecc98": {
@@ -10330,18 +10397,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "236dda2a67e1ccf07f32f27c6d1140a2914819aa0834366c955a405745e4e573": {
-   "drop": false,
-   "en": "Export the whole workbook as PDF/A-1b, with the fonts, the identification, and the color output intent written into the file.",
-   "es": "Exporte todo el libro como PDF/A-1b, con las fuentes, la identificación y la intención de salida de color escritas en el archivo.",
-   "fr": "Exportez tout le classeur en PDF/A-1b, avec les polices, l’identification et l’intention de rendu des couleurs écrites dans le fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Tagged PDF export",
-    "es": "Exportación a PDF etiquetado",
-    "fr": "Export en PDF balisé"
    }
   },
   "23fd5cc048f070e73188d96572c256002a7ebb11dad6f0031e103c761aac6ed2": {
@@ -11338,18 +11393,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "31c1d069071d31f3697058bf804407460c09c8925e91d8d692af25ad28fa258b": {
-   "drop": false,
-   "en": "Protect with Password encrypts `.xlsx` files when they are saved.",
-   "es": "Proteger con contraseña cifra los archivos `.xlsx` al guardarlos.",
-   "fr": "Protéger avec un mot de passe chiffre les fichiers `.xlsx` lors de leur enregistrement.",
-   "soon": {
-    "drop": false,
-    "en": "Mark as Final",
-    "es": "Marcar como final",
-    "fr": "Marquer comme final"
    }
   },
   "31cd8faaf0632351cecf7ae278e47816f1cc05f69ad6a217c423e15b2ad3e01a": {
@@ -12828,16 +12871,16 @@
     "fr": "Variantes > Effets : styles d’effets du thème"
    }
   },
-  "46030e52feb48b10d3fd55b6acb1380f379ad3221392baa5dfe81df565c6c61d": {
+  "45f2315a4e3cb480b1e1a6d616debdd2cd8a86b4d5fe4f69bab1f06a54358eb0": {
    "drop": false,
-   "en": "Inspect a document to find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers before sharing. Tracked changes are accepted.",
-   "es": "Inspeccione un documento para encontrar y eliminar comentarios, cambios controlados, información personal, texto oculto, XML personalizado y encabezados y pies de página antes de compartirlo. Los cambios controlados se aceptan.",
-   "fr": "Inspectez un document pour trouver et supprimer les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé et les en-têtes et pieds de page avant de le partager. Les modifications suivies sont acceptées.",
+   "en": "Check Compatibility lists what an `.xls` file or a `.csv` file cannot hold before saving, such as charts, pictures, notes, pivot tables, tables, conditional formats, and limits on rows and columns.",
+   "es": "Comprobar compatibilidad enumera lo que un archivo `.xls` o `.csv` no puede contener antes de guardar, como gráficos, imágenes, notas, tablas dinámicas, tablas, formatos condicionales y límites de filas y columnas.",
+   "fr": "Vérifier la compatibilité indique avant l’enregistrement ce qu’un fichier `.xls` ou `.csv` ne peut pas contenir, comme les graphiques, les images, les notes, les tableaux croisés dynamiques, les tableaux, les mises en forme conditionnelles et les limites de lignes et de colonnes.",
    "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
+    "drop": false,
+    "en": "Compatibility check for `.ods` files, newer functions, and slicers",
+    "es": "Comprobación de compatibilidad para archivos `.ods`, funciones más recientes y segmentaciones",
+    "fr": "Vérification de compatibilité pour les fichiers `.ods`, les fonctions récentes et les segments"
    }
   },
   "4627c99ec9cc49efaf636dd1a8f3e5bf13e59a0a27cce9ac0f7a4596b0625bd0": {
@@ -14026,18 +14069,6 @@
     "en": "Help (F1): offline pane of topics with contents, links, and search",
     "es": "Ayuda (F1): panel sin conexión con temas, contenido, vínculos y búsqueda",
     "fr": "Aide (F1) : volet hors ligne avec sujets, sommaire, liens et recherche"
-   }
-  },
-  "5552c0066505bd5bff6e675fb58ca1c3358b8a9c95da92b58f02837ba79657a5": {
-   "drop": false,
-   "en": "Find and remove comments, notes, personal information, hidden slides, and content off the slide before sharing, from the Info page. Each removal is a step that can be undone.",
-   "es": "Busque y elimine comentarios, notas, información personal, diapositivas ocultas y contenido fuera de la diapositiva antes de compartir, desde la página Información. Cada eliminación es un paso que se puede deshacer.",
-   "fr": "Recherchez et supprimez les commentaires, les notes, les informations personnelles, les diapositives masquées et le contenu hors diapositive avant de partager, depuis la page Informations. Chaque suppression est une étape qui peut être annulée.",
-   "soon": {
-    "drop": false,
-    "en": "Custom XML: find and remove",
-    "es": "XML personalizado: buscar y eliminar",
-    "fr": "XML personnalisé : recherche et suppression"
    }
   },
   "55810b2788ed7ddb45688314a8ce67c929b9ff852496b1ed58a365140513e237": {
@@ -15540,18 +15571,6 @@
     "fr": ""
    }
   },
-  "686875ca101595565f3d9aec4566dce92469c69b9d93af9da2d31cf4cc6d8355": {
-   "drop": false,
-   "en": "Before saving as `.xls`, `.ods`, or `.ots`, a warning lists what the file can't hold and the limits that cut content, with the choice to save anyway, save as `.xlsx`, or cancel. Check Compatibility in File > Info lists the same for `.xls` without saving. A `.csv` file has its own warning.",
-   "es": "Antes de guardar como `.xls`, `.ods` o `.ots`, un aviso enumera lo que el archivo no puede contener y los límites que recortan contenido, con la opción de guardar de todos modos, guardar como `.xlsx` o cancelar. Comprobar compatibilidad en Archivo > Información muestra lo mismo para `.xls` sin guardar. Un archivo `.csv` tiene su propio aviso.",
-   "fr": "Avant l’enregistrement en `.xls`, `.ods` ou `.ots`, un avertissement liste ce que le fichier ne peut pas contenir et les limites qui suppriment du contenu, avec le choix d’enregistrer quand même, d’enregistrer en `.xlsx` ou d’annuler. La vérification de compatibilité dans Fichier > Informations affiche la même chose pour `.xls` sans enregistrer. Un fichier `.csv` a son propre avertissement.",
-   "soon": {
-    "drop": false,
-    "en": "Check Compatibility for `.ods` and `.csv`, and for newer functions and slicers",
-    "es": "Comprobar compatibilidad para `.ods` y `.csv`, y para funciones más recientes y segmentaciones",
-    "fr": "Vérification de compatibilité pour `.ods` et `.csv`, et pour les fonctions plus récentes et les segmentations"
-   }
-  },
   "689127f2e98deea85bc06c6cf7178a31c2f40a9086a336cf0ae555e1bf004a21": {
    "drop": false,
    "en": "Change the style and warp of a text style box from the Shape Format tab.",
@@ -16306,18 +16325,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7098ac7389e34aaca872db3323b12a059d9c6630059e6cebcc594e83eb008548": {
-   "drop": false,
-   "en": "Export to PDF as PDF/A-2b with all fonts embedded, or as a tagged PDF with paragraphs, headings, lists, tables, and pictures with alt text marked up.",
-   "es": "Exporte a PDF como PDF/A-2b con todas las fuentes incrustadas, o como PDF etiquetado con párrafos, encabezados, listas, tablas e imágenes con texto alternativo.",
-   "fr": "Exportez en PDF/A-2b avec toutes les polices incorporées, ou en PDF balisé avec paragraphes, titres, listes, tableaux et images avec texte de remplacement.",
-   "soon": {
-    "drop": false,
-    "en": "PDF/X-1a and PDF/X-4 for printers",
-    "es": "PDF/X-1a y PDF/X-4 para imprentas",
-    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs"
    }
   },
   "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056": {
@@ -17340,6 +17347,18 @@
     "fr": ""
    }
   },
+  "7ff95bb0a0ecc207b95ca88e6f45abcb6925712ac7e3d26984818492a4fc71b9": {
+   "drop": false,
+   "en": "Export to PDF/A-1b with every font embedded, and to tagged PDF with paragraphs, headings, lists, tables, and pictures with alternative text.",
+   "es": "Exporte a PDF/A-1b con todas las fuentes incrustadas y a PDF etiquetado con párrafos, encabezados, listas, tablas e imágenes con texto alternativo.",
+   "fr": "Exportez en PDF/A-1b avec toutes les polices incorporées, et en PDF balisé avec paragraphes, titres, listes, tableaux et images avec texte alternatif.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X-1a and PDF/X-4 for printers",
+    "es": "PDF/X-1a y PDF/X-4 para imprentas",
+    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs"
+   }
+  },
   "802d914fd246a1b8844e2fa017b9e924e129a297521ea3e5343370362f71f3dd": {
    "drop": false,
    "en": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
@@ -17386,18 +17405,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "811bcc8a346db5d61746006a5e0d4e6721c5dd9175d70e26fbd300bfba44d3bc": {
-   "drop": false,
-   "en": "Open and Repair recovers what can be read from a damaged `.docx` file, opens the result as a copy, and says what was cut or left out.",
-   "es": "Abrir y reparar recupera lo que se puede leer de un archivo `.docx` dañado, abre el resultado como copia e indica qué se cortó o se omitió.",
-   "fr": "Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.docx` endommagé, ouvre le résultat comme copie et indique ce qui a été coupé ou omis.",
-   "soon": {
-    "drop": false,
-    "en": "Open and Repair for `.doc` files",
-    "es": "Abrir y reparar para archivos `.doc`",
-    "fr": "Ouvrir et réparer pour les fichiers `.doc`"
    }
   },
   "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662": {
@@ -17789,6 +17796,18 @@
    "en": "Shape Format, Text Box, and text effects tabs",
    "es": "Pestañas Formato de forma, Cuadro de texto y Efectos de texto",
    "fr": "Onglets Format de forme, Zone de texte et Effets de texte",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "87e406042918758f74419dd421dc8551c9d9bd4cf36716e61f4a2fc818c1e2e8": {
+   "drop": false,
+   "en": "Inspect the presentation before sharing to find and remove comments, notes, personal information, hidden slides, content off the slide, headers and footers, and custom XML. Each removal can be undone.",
+   "es": "Inspeccione la presentación antes de compartirla para encontrar y quitar comentarios, notas, información personal, diapositivas ocultas, contenido fuera de la diapositiva, encabezados y pies de página, y XML personalizado. Cada eliminación se puede deshacer.",
+   "fr": "Inspectez la présentation avant de la partager pour trouver et supprimer les commentaires, les notes, les informations personnelles, les diapositives masquées, le contenu hors de la diapositive, les en-têtes et pieds de page, et le XML personnalisé. Chaque suppression peut être annulée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -18346,6 +18365,18 @@
     "en": "Notes master text styles: edit",
     "es": "Estilos de texto del patrón de notas: editar",
     "fr": "Styles de texte du masque des notes : modifier"
+   }
+  },
+  "908be1579511040c7ff241bd6d51dd04ea926287c5a2e6fea7b8f76521a9122e": {
+   "drop": false,
+   "en": "Open and Repair recovers the text and pictures that can be read from a damaged `.docx` or `.doc` file and opens the result as a copy, saying what was left out. A password-protected document is refused.",
+   "es": "Abrir y reparar recupera el texto y las imágenes que se pueden leer de un archivo `.docx` o `.doc` dañado y abre el resultado como copia, indicando lo que se omitió. Un documento protegido con contraseña se rechaza.",
+   "fr": "Ouvrir et réparer récupère le texte et les images lisibles d’un fichier `.docx` ou `.doc` endommagé et ouvre le résultat comme copie, en indiquant ce qui a été omis. Un document protégé par mot de passe est refusé.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "908e56f9d41e2f11df0c45780cdeca715dd47b799273f0b7d5d6910f367bd389": {
@@ -20088,18 +20119,6 @@
     "fr": ""
    }
   },
-  "aab8ccdd715e8e1fbb741a3cd4c8e4c593baa6359a1731d7b3cb24fe25bcfd7b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "PDF export with a bookmark for each sheet, screen reader tags, and PDF/A",
-    "es": "Exportación a PDF con un marcador por hoja, etiquetas para lectores de pantalla y PDF/A",
-    "fr": "Export PDF avec un signet par feuille, balises pour lecteurs d’écran et PDF/A"
-   }
-  },
   "aac28b576a5c9bd8d8087ff3fef12af7624eeff15bcd7bcd3d141ad56a3fefae": {
    "drop": false,
    "en": "Table of Authorities",
@@ -20261,6 +20280,18 @@
    "en": "Name an object in the Selection Pane; a name that starts with `!!` pairs two objects for Morph, just as a name from a file does.",
    "es": "Nombre un objeto en el panel de selección; un nombre que empiece por `!!` empareja dos objetos para Morph, igual que un nombre procedente de un archivo.",
    "fr": "Nommez un objet dans le volet Sélection ; un nom commençant par `!!` associe deux objets pour Morph, comme un nom provenant d’un fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ada3894f3b3772a4c8462a218f088cc30134274d1dc1812ed66c2f7d61b58d5b": {
+   "drop": false,
+   "en": "Set a workbook to always open read-only, with a note on the status bar. The setting is kept in `.xlsx` files.",
+   "es": "Configure un libro para que se abra siempre en modo de solo lectura, con una nota en la barra de estado. El ajuste se conserva en los archivos `.xlsx`.",
+   "fr": "Réglez un classeur pour qu’il s’ouvre toujours en lecture seule, avec une note dans la barre d’état. Le réglage est conservé dans les fichiers `.xlsx`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20561,6 +20592,18 @@
    "en": "Links on printed slides are clickable in a PDF: web and email addresses open, and jumps to the next, previous, first, last, or a numbered slide go to that page.",
    "es": "Los enlaces de las diapositivas impresas se pueden pulsar en un PDF: las direcciones web y de correo electrónico se abren, y los saltos a la diapositiva siguiente, anterior, primera, última o numerada van a esa página.",
    "fr": "Les liens des diapositives imprimées sont cliquables dans un PDF : les adresses web et e-mail s’ouvrent, et les sauts vers la diapositive suivante, précédente, première, dernière ou numérotée mènent à cette page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "b3f0d78256e18d18bc0c8c8ccc6c31181b0a5b3b7490e9adb8c0393fd81cf865": {
+   "drop": false,
+   "en": "Export the whole workbook as PDF/A-1b, or as a tagged PDF for screen readers.",
+   "es": "Exporte todo el libro como PDF/A-1b o como PDF etiquetado para lectores de pantalla.",
+   "fr": "Exportez tout le classeur en PDF/A-1b ou en PDF balisé pour les lecteurs d’écran.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22390,18 +22433,6 @@
     "en": "More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors",
     "es": "Más plantillas integradas: currículos, cartas de presentación, facturas, volantes, folletos, notas de reunión, escritos legales e interiores de libros",
     "fr": "Plus de modèles intégrés : CV, lettres de motivation, factures, flyers, brochures, notes de réunion, actes de procédure et intérieurs de livres"
-   }
-  },
-  "ce1ba4fe8cd4c9c74c800056660f9e3e36365affb29c13a9edd4bf2ad164a2c4": {
-   "drop": false,
-   "en": "Export to PDF with bookmarks, tags for screen readers, and PDF/A-2b. Web and email links, table of contents entries, cross-references, and bookmark links are clickable and go to the exact spot of their target.",
-   "es": "Exporte a PDF con marcadores, etiquetas para lectores de pantalla y PDF/A-2b. Los enlaces web y de correo electrónico, las entradas de la tabla de contenido, las referencias cruzadas y los enlaces a marcadores se pueden pulsar y van al lugar exacto de su destino.",
-   "fr": "Exportez en PDF avec signets, balises pour lecteurs d’écran et PDF/A-2b. Les liens web et e-mail, les entrées de table des matières, les renvois et les liens vers des signets sont cliquables et mènent à l’endroit exact de leur cible.",
-   "soon": {
-    "drop": false,
-    "en": "PDF/X export and print check",
-    "es": "Exportación a PDF/X y verificación de impresión",
-    "fr": "Export PDF/X et contrôle avant impression"
    }
   },
   "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7": {
@@ -24540,6 +24571,18 @@
     "fr": ""
    }
   },
+  "eb598e7bd021c2d34c5ecaed87dc0858fac308c83468bbffd238a568baf4d7cc": {
+   "drop": false,
+   "en": "Open and Repair recovers what can be read from a damaged `.pptx`, `.odp`, or `.ppt` file and opens it as a copy with a note of what was left out. A password-protected presentation is refused.",
+   "es": "Abrir y reparar recupera lo que se puede leer de un archivo `.pptx`, `.odp` o `.ppt` dañado y lo abre como copia con una nota de lo que se omitió. Una presentación protegida con contraseña se rechaza.",
+   "fr": "Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.pptx`, `.odp` ou `.ppt` endommagé et l’ouvre comme copie avec une note indiquant ce qui a été omis. Une présentation protégée par mot de passe est refusée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "eb8507fa2ba7c3a8a2e86fad4969bf4c3d839ff52cf53396d80377f01e2efd59": {
    "drop": true,
    "en": "",
@@ -25181,6 +25224,18 @@
    "en": "A table grows when you type under it or beside it. A formula typed in an empty column fills the whole column as a calculated column, and formulas can refer to a table’s column by name, such as `=SUM(Sales[Amount])`.",
    "es": "Una tabla crece cuando se escribe debajo o a su lado. Una fórmula escrita en una columna vacía llena toda la columna como columna calculada, y las fórmulas pueden referirse a una columna de la tabla por su nombre, como `=SUM(Sales[Amount])`.",
    "fr": "Un tableau s’agrandit lorsque vous saisissez sous lui ou à côté. Une formule saisie dans une colonne vide remplit toute la colonne comme colonne calculée, et les formules peuvent désigner une colonne du tableau par son nom, par exemple `=SUM(Sales[Amount])`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f51a506ed0b4571ef98974aed61e0f54c17e34a3f7538ed735907eb9ecd941a6": {
+   "drop": false,
+   "en": "Set a publication to always open read-only, with a note each time it opens.",
+   "es": "Configure una publicación para que se abra siempre en modo de solo lectura, con una nota cada vez que se abre.",
+   "fr": "Réglez une publication pour qu’elle s’ouvre toujours en lecture seule, avec une note à chaque ouverture.",
    "soon": {
     "drop": true,
     "en": "",
