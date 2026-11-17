@@ -103,6 +103,7 @@ QString Paginator::imageIdOf(Document *d, int image)
     if (found != m_imageIds.constEnd()) return found.value();
     const FlowImage &img = m_doc->images[image];
     const QString id = d->addImage(img.bytes, img.format);
+    if (img.graphic && !id.isEmpty()) d->images[id].graphic = true;
     m_imageIds.insert(image, id);
     return id;
 }

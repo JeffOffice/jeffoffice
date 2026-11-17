@@ -1039,6 +1039,7 @@ private:
     QSet<QString> m_diagramImages;                            // the picture parts that went into those, each counted once
     int m_barcodePictures = 0;   // the pictures of barcodes drawn from their markers so far (no more than kMostBarcodesHonored)
     qint64 m_diagramBytes = 0, m_diagramImageBytes = 0;       // what the pictures made, and the picture parts copied, come to
+    int m_groupParts = 0;   // the parts of the groups set in the text that have been drawn so far (a document has kMostGroupParts of them in all)
     int m_letteringShapes = 0, m_letteringLetters = 0;   // the lettering on a path the document has drawn so far, and its letters (each is outlined, and may be stroked: they are bounded)
     bool m_syncing = false;
     bool m_trackChanges = false, m_trackAtOpen = false;

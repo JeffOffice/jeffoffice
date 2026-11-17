@@ -101,6 +101,7 @@ constexpr int kMostLinkedBoxes = 64;
 struct FlowImage {
     QByteArray bytes;
     QString format;
+    bool graphic = false;   // an SVG graphic: drawn as vectors on the screen too, placed in its frame as its preserveAspectRatio says (the PNG beside it in the file is for other programs)
 };
 
 // What the id of an inline picture begins with, until a page changes it to the picture's id in the page's own document.

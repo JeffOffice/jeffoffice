@@ -38,6 +38,7 @@ struct ImageData {
     // keeps no copy, the preview stands in (and `format` is the preview's).
     QByteArray bytes;
     QString format;             // "png", "jpg", "svg", ...
+    bool graphic = false;       // not saved: an SVG graphic of a text document, drawn as vectors on the screen too, in its frame's shape as its preserveAspectRatio says
     QSize pixelSize;
     QString sourcePath;         // where it was inserted from (Graphics Manager); a link's file
     bool linked = false;        // tied to the file at sourcePath

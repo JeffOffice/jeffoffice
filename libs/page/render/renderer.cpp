@@ -1056,8 +1056,9 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             });
         } else if (ctx.opt.output && plain && metafile && mf.load(data.bytes)) {
             mf.play(p, pic.imgRect);
-        } else if (ctx.opt.output && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
-            svg::paint(svg, data.bytes, p, pic.imgRect);
+        } else if ((ctx.opt.output || data.graphic) && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
+            if (data.graphic) svg::paintFitted(svg, data.bytes, p, pic.imgRect, svg::kMostClipRuns);
+            else svg::paint(svg, data.bytes, p, pic.imgRect);
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) svg::paintText(data.bytes, p, pic.imgRect, r);
         } else if (ctx.opt.output && plain && data.format == QLatin1String("pdf") && PdfDocument::shared(data.bytes)->isValid()) {
             PdfDocument::shared(data.bytes)->play(p, 0, pic.imgRect);

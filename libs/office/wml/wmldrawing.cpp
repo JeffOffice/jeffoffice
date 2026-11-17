@@ -7,6 +7,7 @@
 #include "core/wrapoutline.h"
 #include "office/barcodemarker.h"
 
+#include <QCache>
 #include <QHash>
 #include <QRegularExpression>
 #include <algorithm>
@@ -848,7 +849,7 @@ QVector<Shape> readFallbackShapes(const QByteArray &xml)
     return out;
 }
 
-QVector<Shape> readShapes(const QByteArray &xml)
+static QVector<Shape> parseShapes(const QByteArray &xml)
 {
     QVector<Shape> out;
     // (An element kept as written has no declarations of the prefixes it uses: the usual ones are given on a root of their own.)
@@ -884,6 +885,26 @@ QVector<Shape> readShapes(const QByteArray &xml)
             }
     }
     return out;
+}
+
+static thread_local qint64 g_shapeParses = 0;
+qint64 readShapesParsesForTest() { return g_shapeParses; }
+
+QVector<Shape> readShapes(const QByteArray &xml)
+{
+    // A group of thousands of members (a graphic turned into shapes) is read once for as long as its element is the same one: the object's place, its wrap, and the picture's parts all
+    // ask for it (the copy of a result that is kept is cheap: the list is shared).
+    static thread_local QCache<QByteArray, QVector<Shape>> kept(24 << 20);
+    if (xml.size() > (4 << 20)) {
+        ++g_shapeParses;
+        return parseShapes(xml);
+    }
+    if (const QVector<Shape> *hit = kept.object(xml)) return *hit;
+    ++g_shapeParses;
+    auto *made = new QVector<Shape>(parseShapes(xml));
+    const QVector<Shape> result = *made;
+    kept.insert(xml, made, std::max<qsizetype>(xml.size(), 1));
+    return result;
 }
 
 QByteArray keptElementDeclarations() { return declarations(); }

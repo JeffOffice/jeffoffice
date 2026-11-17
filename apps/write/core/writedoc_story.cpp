@@ -3,6 +3,8 @@
 
 #include "core/barcodeitem.h"
 #include "core/items.h"
+#include "core/svg.h"
+#include "core/pictureops.h"
 #include "office/barcodemarker.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"
@@ -51,7 +53,7 @@ struct NumState {
 
 void WriteDoc::buildStory(const QVector<Block> &body)
 {
-    m_letteringShapes = m_letteringLetters = m_boxTableCells = 0;
+    m_letteringShapes = m_letteringLetters = m_boxTableCells = m_groupParts = 0;
     m_diagramPictures.clear();
     m_diagramsSeen.clear();
     m_diagramPackages.clear();
@@ -71,6 +73,8 @@ constexpr int kMostHeaderParagraphs = 400;
 // The most objects set at places that a file's pages have, and the most pictures (a file with more has the rest left out).
 constexpr int kMostObjects = 20000;
 constexpr int kMostImages = 2000;
+// The most parts that the groups set in the text have in all (a group's file may hold ten thousand: the parts past this many, over every group of the document, are left out).
+constexpr int kMostGroupParts = 20000;
 // The most cells of the tables of text boxes that a document has laid out in its boxes (a box whose tables would go over it keeps them as stand-ins).
 constexpr int kMostBoxTableCells = 2000;
 // The most endnotes that are set after the text (the rest are left out: a reference to one shows only its number), as many as the footnotes that are made into stories.
@@ -1749,6 +1753,23 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             }
         shownMissing = missing;
         if (bytes.isEmpty()) return -1;
+        // A graphic (a picture with an SVG of its own, its blip's svgBlip) is drawn from the SVG, as vectors, where the SVG is one that may be drawn; else from the PNG beside it.
+        if (!missing && s.barcode.isEmpty()) {
+            QByteArray svgBytes;
+            for (const Relationship &r : links)
+                if (!s.svgEmbed.isEmpty() && r.id == s.svgEmbed && !r.external) svgBytes = partData(r.target);
+            if (svgBytes.isEmpty() && svg::startsLikeSvg(bytes)) svgBytes = bytes;
+            if (!svgBytes.isEmpty() && svg::startsLikeSvg(svgBytes) && graphicDrawable(svgBytes)) {
+                for (int i = 0; i < f.images.size(); ++i)
+                    if (f.images[i].bytes == svgBytes) return i;
+                flow::FlowImage image;
+                image.bytes = svgBytes;
+                image.format = QStringLiteral("svg");
+                image.graphic = true;
+                f.images.push_back(image);
+                return int(f.images.size()) - 1;
+            }
+        }
         for (int i = 0; i < f.images.size(); ++i)
             if (f.images[i].bytes == bytes) return i;
         flow::FlowImage image;
@@ -1789,7 +1810,16 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             if (!s.parts.empty()) {
                 // A group in the line: its parts, from its corner, set in the line as one object (so the line is as tall as the group and the parts move with it).
                 auto group = std::make_shared<GroupItem>();
+                // (The group is as large as its frame says, whatever its parts cover: an empty part of the frame's size is the first, so that the line sets the frame and the parts are where the frame puts them.)
+                auto frame = std::make_shared<ShapeItem>();
+                frame->rect = QRectF(0, 0, s.width, s.height);
+                frame->fill = Fill::none();
+                frame->stroke = Stroke::none();
+                frame->wrap.left = frame->wrap.right = frame->wrap.top = frame->wrap.bottom = 0;
+                group->children.push_back(frame);
                 for (const Shape &part : s.parts) {
+                    if (m_groupParts >= kMostGroupParts) break;
+                    ++m_groupParts;
                     ItemPtr child;
                     if (part.kind == Shape::Picture) {
                         const int image = pictureOf(part);
@@ -1817,7 +1847,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                 }
                 group->rect = QRectF(0, 0, s.width, s.height);
                 group->wrap.left = group->wrap.right = group->wrap.top = group->wrap.bottom = 0;
-                if (!group->children.empty()) inlineItem = group;
+                if (group->children.size() > 1) inlineItem = group;
             }
             format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(inlineItem->toJson()).toJson(QJsonDocument::Compact)));
             inlinePicture = true;

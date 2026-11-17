@@ -674,6 +674,8 @@ struct Shape {
 // The objects of a w:pict, w:drawing, or mc:AlternateContent element kept as written (a run's atom): in order, nested ones (a group's members) after it.
 // A VML shape that is only a template (a shape type) is none.
 QVector<Shape> readShapes(const QByteArray &xml);
+// How many times readShapes has read an element (not found one it kept) on this thread: a count for tests of cost.
+qint64 readShapesParsesForTest();
 // The objects of the fallback of an mc:AlternateContent element (the older form of the object, a picture usually); none for any other element.
 QVector<Shape> readFallbackShapes(const QByteArray &xml);
 
