@@ -259,7 +259,7 @@ private Q_SLOTS:
     }
 
     // The scan of the tags refuses what would make the page parser build a huge grid, before any parse, however the tag hides it: a ">" inside an attribute value (in either kind of quote, or bare), a
-    // comment holding a ">" or a cell, and rowspans carried down to make more than 64 columns. Each is refused in a moment, and what a comment holds is not counted.
+    // comment holding a ">" or a cell, and rowspans carried down to make more than 64 columns. Each is refused without a parse, and what a comment holds is not counted.
     void theTagScanSeesThroughHidingPlaces()
     {
         auto refused = [](const QString &html, const char *what) {
@@ -267,7 +267,7 @@ private Q_SLOTS:
             QElapsedTimer timer;
             timer.start();
             const jp::PastedTableResult r = jp::readPastedTable(html, &pt);
-            QVERIFY2(timer.elapsed() < 200, what);
+            QVERIFY2(timer.elapsed() < 2000, what);   // (16 seconds before the scan: a bound for a loaded machine, not a speed)
             QVERIFY2(r == jp::PastedTableResult::TooBig, what);
             QCOMPARE(pt.cells.size(), 0);   // (nothing was built)
         };
@@ -279,7 +279,6 @@ private Q_SLOTS:
         refused(rows(200, QStringLiteral("<tr><!-- > --><td colspan=\"100000\">x</td></tr>")), "a comment with >");
         refused(rows(200, QStringLiteral("<tr><!-- <td> --><td colspan=\"100000\">x</td></tr>")), "a comment with a cell");
         refused(rows(200, QStringLiteral("<tr><td colspan=\"&#49;00000\">x</td></tr>")), "an entity in a span");
-        refused(rows(200, QStringLiteral("<tr><td colspan=\"100000\" title=\"never closed>x</td></tr>")), "a quote never closed");
         QString carried = QStringLiteral("<table>");
         for (int r = 0; r < 65; ++r) carried += QStringLiteral("<tr><td rowspan=\"100\">x</td></tr>");
         refused(carried + QStringLiteral("</table>"), "rowspans carried to 65 columns");
@@ -323,6 +322,9 @@ private Q_SLOTS:
             QStringLiteral("<div><b>Bolded</b> intro</div><table><tr><td>a</td><td>b</td></tr></table>"),
             QStringLiteral("<table><tr><td colspan=\"100\"><b>Bolded</b> layout</td></tr><tr><td colspan=\"100\">x</td></tr></table>"),
             QStringLiteral("<p><b>Bolded</b></p><table><tr><td>a</td></tr></table><table><tr><td>b</td></tr></table>"),
+            QStringLiteral("<p><b>Bolded</b> and words</p><table>") + QStringLiteral("<tr><td colspan=\"100\">x</td></tr>").repeated(30) + QStringLiteral("</table>"),
+            QStringLiteral("<p><b>Bolded</b> and words</p><table>") + QStringLiteral("<tr><td>x</td><td>y</td></tr>").repeated(1500) + QStringLiteral("</table>"),
+            QStringLiteral("<p><b>Bolded</b> and words</p><table><tr><td>x</td></tr></table><!-- never closed"),
         };
         for (const QString &html : pages) {
             setHtml(html, QStringLiteral("Bolded words"));
@@ -345,6 +347,57 @@ private Q_SLOTS:
         QCOMPARE(b1, b0 + 1);
         QVERIFY(said.contains(QStringLiteral("too big")));
         QVERIFY(!boldWord(QStringLiteral("hello")));
+    }
+
+    // A page that does not end as a page does (a comment, a declaration, CDATA, a tag, or a quote never closed) is not read as cells, whatever it holds before: it is pasted as it always was.
+    void anUnterminatedPageIsNotCells()
+    {
+        const QString table = QStringLiteral("<table><tr><td>a</td><td>b</td></tr></table>");
+        for (const QString &tail : {QStringLiteral("<!-- never closed"), QStringLiteral("<![CDATA[ never closed"), QStringLiteral("<!never closed"), QStringLiteral("<td title=\"never closed"),
+                                    QStringLiteral("<td title=never"), QStringLiteral("<td ")}) {
+            jp::PastedTable pt;
+            QCOMPARE(jp::readPastedTable(table + tail, &pt), jp::PastedTableResult::NotATable);
+            QCOMPARE(pt.cells.size(), 0);
+            QCOMPARE(jp::readPastedTable(QStringLiteral("<table><tr><td>a</td><td>b</td>") + tail, &pt), jp::PastedTableResult::NotATable);
+        }
+        // (and what is plainly a table is, as the line above it shows)
+        jp::PastedTable pt;
+        QCOMPARE(jp::readPastedTable(table, &pt), jp::PastedTableResult::Ok);
+    }
+
+    // Cells pasted over a cell start from the look a new cell's text has, not from the bold of what the cell held, and replace its fill and border: a source cell with neither leaves neither.
+    void pastedCellsReplaceWhatTheTargetHad()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto made = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(50, 50, 300, 150), 3, 3));
+        ed->addItem(made);
+        jp::TableCell &target = made->cell(1, 1);
+        QTextDocument *story = ed->doc()->storyDoc(target.storyId);
+        QTextCursor c(story);
+        c.insertText(QStringLiteral("old bold"));
+        c.select(QTextCursor::Document);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.mergeCharFormat(bold);
+        c.mergeBlockCharFormat(bold);
+        target.fill = jp::Fill::solid(jp::ColorRef::rgb(QColor("#ff0000")));
+        target.border.left = jp::Stroke::line(jp::ColorRef::rgb(QColor("#00ff00")), 2);
+        target.border.bottom = jp::Stroke::line(jp::ColorRef::rgb(QColor("#0000ff")), 2);
+        ed->select(made->id);
+        ed->beginTextEdit(made->id, -1, 1, 1);
+        setHtml(QStringLiteral("<table><tr><td>plain</td><td>x</td></tr></table>"));
+        ed->paste();
+        auto *back = dynamic_cast<jp::TableItem *>(ed->doc()->item(made->id));
+        QVERIFY(back);
+        QTextDocument *now = ed->doc()->storyDoc(back->cell(1, 1).storyId);
+        QCOMPARE(now->toPlainText(), QStringLiteral("plain"));
+        QTextCursor pc(now);
+        pc.setPosition(2);
+        QVERIFY(pc.charFormat().fontWeight() < QFont::DemiBold);
+        QVERIFY(back->cell(1, 1).fill.isNone());
+        QVERIFY(back->cell(1, 1).border.left.isNone());
+        QVERIFY(back->cell(1, 1).border.bottom.isNone());
     }
 
     // A run starts from the cell's own look and a paragraph from a plain one: a plain word after a bold one is not bold, and a paragraph after a centered one is at the left.

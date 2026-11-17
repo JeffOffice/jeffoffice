@@ -50,7 +50,8 @@ struct Scan {
     qint64 cells = 0;
     bool outside = false;       // words, pictures, or lists outside the table
     bool spanOver = false;      // a cell spans past a table's bounds (not cells: a page laid out with a table)
-    bool hostile = false;       // would make the parser build a grid past kMostWorkArea, or read oddly
+    bool hostile = false;       // would make the parser build a grid past kMostWorkArea
+    bool unterminated = false;  // a comment, CDATA, declaration, tag, or quote that never ends: the page is not read as cells
     bool big = false;           // past the bounds of rows, columns, or cells (the rest is not counted)
     QVector<double> colWidths;
     qint64 area() const { return qint64(std::max(rows, extentRows)) * cols; }
@@ -75,8 +76,9 @@ Scan scanTags(const QString &html)
     int depth = 0, col = 0;
     QVector<int> carry;
     auto newRow = [&] {
+        ++s.rows;   // (rows are counted to the end, so that the grid asked for is known whatever stops the rest of the counting)
         if (s.big) return;
-        if (++s.rows > kPasteMaxRows) {
+        if (s.rows > kPasteMaxRows) {
             s.big = true;
             return;
         }
@@ -92,20 +94,32 @@ Scan scanTags(const QString &html)
         i = lt;
         if (all.mid(i).startsWith(QLatin1String("<!--"))) {
             const qsizetype e = html.indexOf(QLatin1String("-->"), i + 4);
-            if (e < 0) break;
+            if (e < 0) {
+                s.unterminated = true;
+                break;
+            }
             i = e + 3;
             continue;
         }
         if (all.mid(i).startsWith(QLatin1String("<![CDATA["))) {
             const qsizetype e = html.indexOf(QLatin1String("]]>"), i + 9);
-            if (e < 0) break;
+            if (e < 0) {
+                s.unterminated = true;
+                break;
+            }
             i = e + 3;
             continue;
         }
-        if (i + 1 >= n) break;
+        if (i + 1 >= n) {
+            s.unterminated = true;
+            break;
+        }
         if (html[i + 1] == QLatin1Char('!') || html[i + 1] == QLatin1Char('?')) {
             const qsizetype e = html.indexOf(QLatin1Char('>'), i);
-            if (e < 0) break;
+            if (e < 0) {
+                s.unterminated = true;
+                break;
+            }
             i = e + 1;
             continue;
         }
@@ -125,6 +139,7 @@ Scan scanTags(const QString &html)
         while (true) {
             while (k < n && (html[k].isSpace() || html[k] == QLatin1Char('/'))) ++k;
             if (k >= n) {
+                s.unterminated = true;
                 ended = true;
                 break;
             }
@@ -140,7 +155,7 @@ Scan scanTags(const QString &html)
                 if (k < n && (html[k] == QLatin1Char('"') || html[k] == QLatin1Char('\''))) {
                     const qsizetype e = html.indexOf(html[k], k + 1);
                     if (e < 0) {
-                        s.hostile = true;   // (a quote never closed: the parser may take the rest of the page for the value)
+                        s.unterminated = true;   // (a quote never closed: the parser may take the rest of the page for the value)
                         ended = true;
                         break;
                     }
@@ -179,7 +194,7 @@ Scan scanTags(const QString &html)
             if (s.big) continue;
             bool odd = false;
             const int cs = std::max(1, spanValue(colspan, &odd)), rs = std::max(1, spanValue(rowspan, &odd));
-            if (odd) s.hostile = true;
+            Q_UNUSED(odd)   // (an entity in a span reads as a span past every bound, so it makes the grid past the guard)
             if (cs > kPasteMaxColumns || rs > kPasteMaxRows) s.spanOver = true;
             if (++s.cells > kPasteMaxCells) {
                 s.big = true;
@@ -187,7 +202,9 @@ Scan scanTags(const QString &html)
             }
             while (col < carry.size() && carry[col] > 0) ++col;
             if (col + qint64(cs) > kMostScanColumns) {
-                s.hostile = true;
+                s.cols = std::max(s.cols, int(std::min<qint64>(col + qint64(cs), 1000000000)));
+                s.extentRows = std::max(s.extentRows, s.rows - 1 + rs);
+                s.hostile = s.area() > kMostWorkArea;
                 s.big = true;
                 continue;
             }
@@ -332,9 +349,11 @@ PastedTableResult readPastedTable(const QString &html, PastedTable *out)
     // (one look at the tags, before any parse: a page that asks the parser for a huge grid is refused whatever it is)
     if (html.size() > kMostPasteScanChars) return PastedTableResult::TooBig;
     const Scan scan = scanTags(html);
+    // A page that asks the parser for a huge grid is refused whatever it is (the one guard that every page has).
     if (scan.hostile || scan.area() > kMostWorkArea) return PastedTableResult::TooBig;
-    // Only a page that is one table and nothing else (what a copy of cells puts on the clipboard) is cells: any other page is pasted as it always was.
-    if (scan.tables != 1 || scan.outside || scan.spanOver) return PastedTableResult::NotATable;
+    // Only a page that is one table and nothing else (what a copy of cells puts on the clipboard) is cells, and only cells are held to the bounds of a table: any other page, and any that does not
+    // end as a page does, is pasted as it always was.
+    if (scan.tables != 1 || scan.outside || scan.unterminated || scan.spanOver) return PastedTableResult::NotATable;
     if (scan.big || html.size() > kPasteMaxHtmlBytes || std::max(scan.rows, scan.extentRows) > kPasteMaxRows || scan.cols > kPasteMaxColumns || scan.cells > kPasteMaxCells) return PastedTableResult::TooBig;
     const QVector<double> colWidths = scan.colWidths;
     QTextDocument page;
@@ -408,8 +427,15 @@ void writePastedCell(Document *doc, TableCell &target, const PastedCell &source)
     if (!story) return;
     if (source.paragraphs.isEmpty() && story->isEmpty()) return;
     QTextCursor cur(story);
-    const QTextCharFormat baseChar = cur.blockCharFormat();   // (every run and paragraph starts from the cell's own look, not from the one before)
-    const QTextBlockFormat baseBlock = cur.blockFormat();
+    // (every run and paragraph starts from the look a new cell's text has, the Normal style's, not from the one before it or from what the cell held: a bold word typed there is not carried on)
+    QTextCharFormat baseChar = cur.blockCharFormat();
+    QTextBlockFormat baseBlock = cur.blockFormat();
+    if (const TextStyle *normal = doc->style(QStringLiteral("Normal"))) {
+        baseChar = QTextCharFormat();
+        baseChar.merge(normal->chr);
+        baseBlock = QTextBlockFormat();
+        baseBlock.merge(normal->blk);
+    }
     cur.select(QTextCursor::Document);
     cur.removeSelectedText();
     bool first = true;
