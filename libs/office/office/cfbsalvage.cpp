@@ -372,6 +372,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     }
     if (byDirectory) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.");
     if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The directory of the file was damaged or gone, so its parts were found by their own records.");
+    if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts kept in the mini stream of the file could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
     if (!missing.isEmpty()) {
         if (error) *error = QCoreApplication::translate("jp::office::CfbSalvage", "No %1 could be found in the file.").arg(missing.join(QStringLiteral(", ")));

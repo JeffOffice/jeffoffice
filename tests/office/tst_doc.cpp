@@ -1976,7 +1976,9 @@ private Q_SLOTS:
         QVERIFY(doc::salvageWorkForTest().fibReads <= 2);   // (the file has some 500 places to look at)
     }
 
-    void aTableWhoseTextEndsBeforeTheHeaderSaysIsNotTaken()
+private:
+    // The table of pieces of a document of one piece, made wrong in one place (the document and its stream of tables are the file's own): `change` gets the table and where the piece table starts.
+    void tableWrongIn(const std::function<void(QByteArray &, int, int)> &change)
     {
         QStringList paras, notes;
         jp::cfb::File f;
@@ -1984,18 +1986,31 @@ private Q_SLOTS:
         const QByteArray wd = f.stream(QStringLiteral("WordDocument"));
         const int pairs = 34 + qFromLittleEndian<quint16>(wd.constData() + 32) * 2;
         const int cslw = qFromLittleEndian<quint16>(wd.constData() + pairs);
-        const int fcAt = pairs + 2 + cslw * 4 + 2 + 33 * 8;
-        const int clx = int(qFromLittleEndian<quint32>(wd.constData() + fcAt));
+        const int clx = int(qFromLittleEndian<quint32>(wd.constData() + pairs + 2 + cslw * 4 + 2 + 33 * 8));
         QByteArray table = f.stream(QStringLiteral("1Table"));
-        QVERIFY(clx + 13 < table.size() && table[clx] == 2);
-        qToLittleEndian(quint32(5), table.data() + clx + 9);   // (one piece that holds 5 characters, where the header says there are thousands)
+        QVERIFY(clx + 21 < table.size() && table[clx] == 2);
+        const int pieces = int((qFromLittleEndian<quint32>(table.constData() + clx + 1) - 4) / 12);
+        QCOMPARE(pieces, 1);
+        change(table, clx + 5, int(wd.size()));
         QVERIFY(f.setStream(QStringLiteral("1Table"), table));
-        Document plain;
         const QByteArray bad = jp::cfb::write(f);
-        QVERIFY(read(bad, &plain));
-        QVERIFY(bodyTexts(plain) != paras);
+        Document plain;
+        QVERIFY(!read(bad, &plain) || bodyTexts(plain) != paras);
         QCOMPARE(repairedParagraphs(bad, &notes), paras);   // (the text is found without the table, whole)
         QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("plain paragraphs")));
+    }
+
+private Q_SLOTS:
+    void aTableWhoseTextEndsBeforeTheHeaderSaysIsNotTaken()
+    {
+        // the last position of the table says the text is 5 characters long, where the header says there are thousands
+        tableWrongIn([](QByteArray &table, int plc, int) { qToLittleEndian(quint32(5), table.data() + plc + 4); });
+    }
+
+    void aTableWhoseFirstPieceStartsPastTheDocumentIsNotTaken()
+    {
+        // the piece's text is said to start far past the end of the document stream
+        tableWrongIn([](QByteArray &table, int plc, int wdSize) { qToLittleEndian(quint32(wdSize + 100000), table.data() + plc + 8 + 2); });
     }
 
     void onlyAFewDirectoryEntriesOfOneNameAreTried()
@@ -2071,6 +2086,9 @@ private Q_SLOTS:
         file[32] = 1;   // (2-byte mini sectors: the format has only 64)
         jp::office::salvageCompoundFile(file, {w}, &out, &why);
         QVERIFY(out.miniUnread);
+        QVERIFY(!out.cutShort);
+        const QString said = out.notes.join(QLatin1Char(' '));
+        QVERIFY2(!said.contains(QLatin1String("cut short")) && said.contains(QLatin1String("mini stream")), qPrintable(said));
     }
 
     void aFileEndingInsideTheLastSectorOfAStreamIsCutShort()
