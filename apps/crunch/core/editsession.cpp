@@ -1266,7 +1266,7 @@ bool EditSession::apply(Step *step, bool forward)
         // the numbers rounded to what their cells show (nothing else of the cell changes)
         Calculation::BulkEdit bulk(calc);
         for (const NumberCell &n : step->numbers) {
-            calc->setValue(n.sheet, n.row, n.col, Value::number(forward ? n.after : n.before), Calculation::Marking::Later);
+            calc->setValue(n.sheet, n.row, n.col, Value::number(forward ? n.after : n.before), Calculation::Marking::Later, -1, true);   // (a date stays a date)
             markTouched(n.sheet, n.row, n.col);
             ValueStore::Item it;
             it.sheet = n.sheet;

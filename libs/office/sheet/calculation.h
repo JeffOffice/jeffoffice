@@ -253,7 +253,7 @@ public:
     // at a time, by its first slices): the edit itself then costs what moving the cell in its block of rows does, whatever number of formulas read it. A window that edits on its own thread
     // and calculates on another takes Later.
     enum class Marking { Now, Later };
-    bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, Marking marking = Marking::Now, qint32 sharedString = -1);   // an empty value empties the cell
+    bool setValue(int sheet, quint32 row, quint32 col, const jp::calc::Value &value, Marking marking = Marking::Now, qint32 sharedString = -1, bool keepDate = false);   // an empty value empties the cell; keepDate: a number put in a date cell leaves it a date
     // `sharedString`: for a text, its place in the workbook's shared strings if it is there (the cell then refers to it, and no text is kept in the sheet).
     // `stored`, if given, is the result the cell has until the formula is worked out (for a formula the engine keeps apart, which it does not work out).
     // `dynamic`: the formula is worked out as an array, and what it gives that is a block fills the cells below and beside it (a spill: see calcspill.cpp). A cell whose formula spills may be given another
@@ -1266,7 +1266,7 @@ private:
     bool m_precision = false;
     mutable std::unordered_map<quint32, jp::calc::NumberFormat> m_shownFormats;   // by the cell format, while precision as displayed is on (worked on the thread that works the formulas out)
     mutable qsizetype m_shownFormatCount = -1;
-    jp::calc::Value shownResult(const Node &n, const jp::calc::Value &v) const;
+    jp::calc::Value shownResult(const Node &n, jp::calc::Value v) const;   // (by value: it is the result handed on, not copied, when the setting is off)
     bool m_iterate = false;
     int m_iterCount = 100;
     double m_iterDelta = 0.001;

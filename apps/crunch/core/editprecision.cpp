@@ -30,6 +30,8 @@ struct EditSession::PrecisionPlan {
     qint64 looked = 0, total = 0;        // the cells looked at, and all there are
     bool done = false;
     QString problem;                     // a number cannot be changed: why (nothing is changed then)
+    qint64 wouldChange = 0;              // the numbers that would change (counted past the most a step holds, to say how many)
+    qint64 holds = 0;                    // the most numbers one step holds
     qint64 changesAtPlan = 0;
     int undoIndexAtPlan = 0;
     std::unique_ptr<ShownRounder> rounder;
@@ -40,6 +42,13 @@ struct EditSession::PrecisionPlan {
 qint64 EditSession::precisionLooked(const PrecisionPlan &plan) { return plan.looked; }
 qint64 EditSession::precisionTotal(const PrecisionPlan &plan) { return plan.total; }
 qint64 EditSession::precisionChanges(const PrecisionPlan &plan) { return qint64(plan.push ? plan.changed : plan.step.numbers.size()); }
+
+// What Undo can keep of one step: half of what it holds (a step after it must not push it out), and never more than kMaxPrecisionNumbers.
+qint64 EditSession::precisionHolds() const
+{
+    const qint64 room = std::max<qint64>(0, m_undoByteLimit / 2 - qint64(sizeof(CalcEdit)));
+    return std::min<qint64>(kMaxPrecisionNumbers, room / qint64(sizeof(NumberCell)));
+}
 
 std::shared_ptr<EditSession::PrecisionPlan> EditSession::planPrecisionAsShown(QString *why)
 {
@@ -53,6 +62,7 @@ std::shared_ptr<EditSession::PrecisionPlan> EditSession::planPrecisionAsShown(QS
     auto plan = std::make_shared<PrecisionPlan>();
     const Calculation *calc = m_book->calc.get();
     for (int i = 0; i < calc->sheetCount(); ++i) plan->total += calc->sheet(i).cells.cellCount();
+    plan->holds = precisionHolds();
     plan->rounder = std::make_unique<ShownRounder>(m_book->book->styles(), m_book->book->info().dateSystem);
     plan->changesAtPlan = m_loader->changesMade();
     plan->undoIndexAtPlan = m_undo.index();
@@ -82,16 +92,15 @@ bool EditSession::preparePrecision(PrecisionPlan &plan, qint64 budget)
                 plan.problem = tr("%1 is protected, and some of its numbers are locked, so they can't be rounded. Unprotect it, and try again.").arg(m_book->book->info().sheets[sheet].name);
                 return true;
             }
-            if (qint64(plan.step.numbers.size()) >= kMaxPrecisionNumbers) {
-                plan.problem = tr("That is more numbers than JeffCrunch rounds at once (%1).").arg(QLocale().toString(kMaxPrecisionNumbers));
-                return true;
-            }
+            ++plan.wouldChange;
+            if (qint64(plan.step.numbers.size()) >= plan.holds) return false;   // (counted, not kept: the step that would hold them is refused when the count is known)
             NumberCell n;
             n.sheet = sheet;
             n.row = row;
             n.col = col;
             n.before = c.number;
             n.after = shown;
+            if (plan.step.numbers.size() == plan.step.numbers.capacity()) plan.step.numbers.reserve(std::min<size_t>(size_t(plan.holds), std::max<size_t>(1024, plan.step.numbers.size() + plan.step.numbers.size() / 4)));   // (steady growth, not doubling: the step is large)
             plan.step.numbers.push_back(n);
             return false;
         });
@@ -100,6 +109,8 @@ bool EditSession::preparePrecision(PrecisionPlan &plan, qint64 budget)
         ++plan.sheet;
         plan.cursor = CellStore::RowTailCursor();
     }
+    if (plan.problem.isEmpty() && plan.wouldChange > plan.holds)
+        plan.problem = tr("That would round %1 numbers, and JeffCrunch rounds at most %2 at once, so that Undo can bring them back.").arg(QLocale().toString(plan.wouldChange), QLocale().toString(plan.holds));
     plan.done = true;
     return true;
 }

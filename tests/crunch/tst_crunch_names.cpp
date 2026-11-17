@@ -531,6 +531,75 @@ private Q_SLOTS:
         QCOMPARE(numberAt(s, 0, QStringLiteral("B1")), D("5.36"));
     }
 
+    // A date cell stays a date (its type, not only its number) when the rounding is done, undone, and done again.
+    void aDateCellKeepsItsTypeThroughTheRoundingAndUndo()
+    {
+        const QString cells = QStringLiteral("<c r=\"A1\" s=\"7\" t=\"d\"><v>2024-03-15T18:30:20</v></c><c r=\"A2\" s=\"7\"><v>45366.75</v></c>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(1, cells))}, QByteArray(), QString(), QString(), precisionStyles())));
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(e.settle());
+        auto type = [&](quint32 r, quint32 c) { return int(s->calculation()->sheet(0).cells.find(r, c)->type); };
+        const double before = s->calculation()->sheet(0).cells.find(0, 0)->number;
+        QVERIFY(before > 45366.7 && before < 45366.8);
+        QCOMPARE(type(0, 0), int(jp::office::sheet::CellType::Date));
+        QCOMPARE(type(1, 0), int(jp::office::sheet::CellType::Number));
+        QVERIFY(s->setPrecisionAsShown(true).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(numberAt(s, 0, QStringLiteral("A1")), 45366.0);
+        QCOMPARE(type(0, 0), int(jp::office::sheet::CellType::Date));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(numberAt(s, 0, QStringLiteral("A1")), before);
+        QCOMPARE(type(0, 0), int(jp::office::sheet::CellType::Date));
+        QCOMPARE(type(1, 0), int(jp::office::sheet::CellType::Number));
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(numberAt(s, 0, QStringLiteral("A1")), 45366.0);
+        QCOMPARE(type(0, 0), int(jp::office::sheet::CellType::Date));
+    }
+
+    // What Undo holds is what a step may change: a rounding of more numbers than that is refused, with how many it would change, and nothing is changed; one that fits stays undoable.
+    void aRoundingThatUndoCouldNotKeepIsRefusedWithTheCount()
+    {
+        EditWindow e;
+        QVERIFY(e.open(precisionBook()));
+        crunch::EditSession *s = e.win.w.session();
+        s->setLocale(QLocale(QLocale::English, QLocale::UnitedStates));
+        QVERIFY(e.settle());
+        QString why;
+        auto plan = s->planPrecisionAsShown(&why);
+        QVERIFY(plan);
+        QVERIFY(s->preparePrecision(*plan, 0));
+        const qint64 n = crunch::EditSession::precisionChanges(*plan);
+        QVERIFY(n > 3);
+        const qint64 per = qint64(sizeof(crunch::NumberCell));
+        const qint64 other = qint64(sizeof(crunch::CalcEdit));
+        const qint64 steps = e.win.w.undoStack()->count();
+        // one number too many for the budget
+        s->setUndoByteLimit(2 * ((n - 1) * per + other));
+        QCOMPARE(s->precisionHolds(), n - 1);
+        const crunch::EditSession::Outcome refused = s->setPrecisionAsShown(true);
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QString::number(n)) && refused.problem.contains(QString::number(n - 1)), qPrintable(refused.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!s->calcSettings().precisionAsShown);
+        QCOMPARE(numberAt(s, 0, QStringLiteral("A2")), 2.675);
+        // as many as it holds: done, and still there to undo after the next edit
+        s->setUndoByteLimit(2 * (n * per + other) + 4096);   // (and room for the small edit that follows)
+        QVERIFY(s->precisionHolds() >= n);
+        QVERIFY(s->setPrecisionAsShown(true).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(e.settle());
+        QVERIFY(s->type(0, 12, 1, QStringLiteral("5")).ok);
+        QVERIFY(s->canUndo());
+        QCOMPARE(e.win.w.undoStack()->index(), steps + 2);
+        e.win.w.undoStack()->undo();
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(numberAt(s, 0, QStringLiteral("A2")), 2.675);
+    }
+
     void whileItIsOnNewNumbersAndFormulaResultsAreKeptAsShown()
     {
         EditWindow e;

@@ -968,7 +968,7 @@ void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
 }
 
 // What a number a formula gave is when the workbook keeps values as its cells show them: the number its cell's format shows.
-Value Calculation::shownResult(const Node &n, const Value &v) const
+Value Calculation::shownResult(const Node &n, Value v) const
 {
     if (!m_precision || !v.isNumber()) return v;
     const Cell *c = cellOf(n);
@@ -982,7 +982,8 @@ Value Calculation::shownResult(const Node &n, const Value &v) const
     if (at == m_shownFormats.end()) at = m_shownFormats.emplace(c->style, jp::calc::NumberFormat(styles.formatCode(c->style, QLocale::c()))).first;
     double shown = 0;
     if (!at->second.shownValue(v.number(), m_ctx.dateSystem, &shown)) return v;
-    return shown == v.number() ? v : Value::number(shown);
+    if (shown != v.number()) return Value::number(shown);
+    return v;
 }
 
 void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publish)
@@ -3160,7 +3161,7 @@ void Calculation::queueDependents(const CellArea &area)
     idAreasOn(area, false, &m_begin.changed);   // (the places are turned into ids now: an edit before the worker gets to it changes none)
 }
 
-bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString)
+bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString, bool keepDate)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
@@ -3180,7 +3181,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     c.flags &= quint8(~(HasFormula | SharedFormula | DataTable | Tainted | SpillFormula | ArrayMember | SpillMember));
     c.formula = -1;
     switch (v.kind()) {
-    case Value::Kind::Number: c.type = CellType::Number; c.number = v.number(); break;
+    case Value::Kind::Number: c.type = keepDate && c.type == CellType::Date ? CellType::Date : CellType::Number; c.number = v.number(); break;
     case Value::Kind::Bool: c.type = CellType::Bool; c.number = v.boolean() ? 1 : 0; break;
     case Value::Kind::Error: c.type = CellType::Error; c.number = double(int(v.errorKind())); break;
     case Value::Kind::Text:

@@ -1172,6 +1172,8 @@ public:
     Outcome setPrecisionAsShown(bool on);
     // The most numbers one such step changes.
     static constexpr qint64 kMaxPrecisionNumbers = 8000000;
+    // The most one step can change that Undo keeps (what the undo budget holds, kUndoBytes, if less).
+    qint64 precisionHolds() const;
 
     // ---- saving
     // Whether there is anything the file lacks: the undo stack is not at the state that was last saved.
