@@ -220,6 +220,7 @@ private:
     PackageWriter m_out;
     QHash<QString, QString> m_imageRel;               // the picture's path in the package -> its relationship Id
     QHash<QString, QString> m_linkRel;                // address -> relationship Id
+    qint64 m_chartBytes = 0, m_chartPoints = 0;       // what the charts made so far come to (a budget for the whole document)
     int m_chartCount = 0;                             // the chart parts made (at most kMostCharts)
     int m_imageCount = 0, m_docPrId = 0, m_bookmarkId = 0, m_footnoteCount = 0, m_endnoteCount = 0, m_commentCount = 0;
     QByteArray m_footnotesBody, m_endnotesBody, m_commentsBody;

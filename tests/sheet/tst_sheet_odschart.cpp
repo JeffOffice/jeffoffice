@@ -260,14 +260,158 @@ private Q_SLOTS:
     // What a chart has that an .ods chart does not is named in the copy's report: trendlines and error bars of a series.
     void whatIsNotKeptOfAChartIsNamed()
     {
+        // (a trendline and error bars are kept now: what is named is the fifth trendline of a series, which a series may not have, and a chart's drop lines)
         QByteArray part = chartPart(QStringLiteral("lineChart"), twoSeries(), QStringLiteral("Fitted"));
-        part.replace("<c:cat>", "<c:trendline><c:trendlineType val=\"linear\"/></c:trendline><c:errBars><c:errBarType val=\"both\"/><c:errValType val=\"fixedVal\"/><c:val val=\"1\"/></c:errBars><c:cat>");
+        QByteArray lines;
+        for (int i = 0; i < 5; ++i) lines += "<c:trendline><c:trendlineType val=\"linear\"/></c:trendline>";
+        part.replace("<c:cat>", lines + "<c:cat>");
         Saved s;
         QString why;
         QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), part), &s, &why), qPrintable(why));
         const QString notes = s.report.notKept.join(QLatin1Char('|'));
-        QVERIFY2(notes.contains(QLatin1String("trendlines")), qPrintable(notes));
-        QVERIFY2(notes.contains(QLatin1String("error bars")), qPrintable(notes));
+        QVERIFY2(notes.contains(QLatin1String("trendlines of charts past the 4")), qPrintable(notes));
+        // (the four that fit are in the file)
+        Back b;
+        QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+        QCOMPARE(int(b.charts[0].plots[0].series[0].trendlines.size()), 4);
+    }
+
+    // Typed-in amounts of custom error bars are written into the chart's own table and read again, in a spreadsheet's chart and as a chart on its own.
+    void customErrorBarAmountsAreKept()
+    {
+        QByteArray part = chartPart(QStringLiteral("lineChart"), twoSeries(), QStringLiteral("Bars"));
+        part.replace("<c:cat>", "<c:errBars><c:errDir val=\"y\"/><c:errBarType val=\"both\"/><c:errValType val=\"cust\"/><c:noEndCap val=\"0\"/>"
+                                "<c:plus><c:numLit><c:ptCount val=\"2\"/><c:pt idx=\"0\"><c:v>1.5</c:v></c:pt><c:pt idx=\"1\"><c:v>2.5</c:v></c:pt></c:numLit></c:plus>"
+                                "<c:minus><c:numLit><c:ptCount val=\"2\"/><c:pt idx=\"0\"><c:v>0.5</c:v></c:pt><c:pt idx=\"1\"><c:v>0.25</c:v></c:pt></c:numLit></c:minus></c:errBars><c:cat>");
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(sheetWithChart(twoCell(0, 6, 5, 20, chartFrame(2, QStringLiteral("rId1"))), part), &s, &why), qPrintable(why));
+        QVERIFY2(!s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("error bars")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+        Back b;
+        QVERIFY2(readBack(s.ods, &b, &why), qPrintable(why));
+        const auto &bars = b.charts[0].plots[0].series[0].errorBars;
+        QCOMPARE(int(bars.size()), 1);
+        QCOMPARE(bars[0].valueType, QStringLiteral("cust"));
+        QCOMPARE(bars[0].plus, (QVector<double>{1.5, 2.5}));
+        QCOMPARE(bars[0].minus, (QVector<double>{0.5, 0.25}));
+    }
+
+    // A chart's kept parts, and what a chart without trendlines and error bars says: nothing is added to a chart that has neither.
+    void aChartWithNeitherTrendlinesNorErrorBarsIsWrittenAsBefore()
+    {
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        jp::office::ChartSeries sr;
+        sr.name = QStringLiteral("S");
+        sr.values << 1 << 3 << 2;
+        sr.categories << "a" << "b" << "c";
+        plot.series.append(sr);
+        model.plots.append(plot);
+        QStringList notes;
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+        QVERIFY(notes.isEmpty());
+        QVERIFY(!document.contains("regression-curve") && !document.contains("error-indicator") && !document.contains("error-category"));
+        jp::office::sheet::ods::StyleStore store;
+        QString why;
+        QVERIFY2(jp::office::sheet::odschart::parseStyles(document, Limits(), &store, &why), qPrintable(why));
+        Chart back;
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(document, store, nullptr, &back, &why, nullptr), qPrintable(why));
+        const jp::office::ChartSeries &read = back.plots[0].series[0];
+        QCOMPARE(read.values, sr.values);
+        QCOMPARE(read.categories, sr.categories);
+        QVERIFY(read.trendlines.isEmpty() && read.errorBars.isEmpty());
+    }
+
+    // The amounts of error bars count against the chart's points: past them the bars are left out, written and read, and said.
+    void errorBarAmountsCountAgainstTheChartsPoints()
+    {
+        auto manyPoints = [](int n) {
+            QVector<double> v;
+            for (int i = 0; i < n; ++i) v << double(i % 7);
+            return v;
+        };
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        for (int k = 0; k < 3; ++k) {
+            jp::office::ChartSeries sr;
+            sr.name = QStringLiteral("S%1").arg(k);
+            sr.values = manyPoints(jp::office::sheet::odschart::kMaxPoints);
+            plot.series.append(sr);
+        }
+        auto custom = [&](int n) {
+            jp::office::ChartErrorBars bars;
+            bars.valueType = QStringLiteral("cust");
+            bars.plus = manyPoints(n);
+            bars.minus = manyPoints(n);
+            return bars;
+        };
+        plot.series[2].errorBars.append(custom(50000));   // (300,000 points and 100,000 more: the whole of what a chart may hold)
+        plot.series[2].errorBars.append(custom(50000));   // (past it)
+        model.plots.append(plot);
+        QStringList notes;
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("points past the 400000 a chart may have")), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(int(document.count("<chart:error-indicator")), 1);
+        // (a file that has more: each series names the same two ranges again; what is read is held to the same total)
+        QByteArray many = document;
+        const int at = many.indexOf("<chart:error-indicator");
+        const QByteArray indicator = many.mid(at, many.indexOf("/>", at) + 2 - at);
+        many.replace("</chart:series>", indicator + "</chart:series>");
+        QVERIFY(many.count("<chart:error-indicator") > 1);
+        jp::office::sheet::ods::StyleStore store;
+        QString why;
+        QVERIFY2(jp::office::sheet::odschart::parseStyles(many, Limits(), &store, &why), qPrintable(why));
+        Chart back;
+        QStringList readNotes;
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(many, store, nullptr, &back, &why, &readNotes), qPrintable(why));
+        int bars = 0;
+        for (const auto &sr : back.plots[0].series) bars += int(sr.errorBars.size());
+        QCOMPARE(bars, 2);   // (the first two series and their bars use up the total: the third series' numbers and bars are past it)
+        QVERIFY2(readNotes.join(QLatin1Char('|')).contains(QStringLiteral("points past")), qPrintable(readNotes.join(QLatin1Char('|'))));
+    }
+
+    // A standard deviation keeps its multiple, and a variance (which the model has no kind for) is left out with a word, not read as a deviation; a third bar of a series is said.
+    void deviationMultipleKeptAndVarianceNamed()
+    {
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        jp::office::ChartSeries sr;
+        sr.name = QStringLiteral("S");
+        sr.values << 1 << 3 << 2;
+        jp::office::ChartErrorBars dev;
+        dev.valueType = QStringLiteral("stdDev");
+        dev.value = 2.5;
+        sr.errorBars.append(dev);
+        jp::office::ChartErrorBars x = dev;
+        x.direction = QStringLiteral("x");
+        sr.errorBars.append(x);
+        sr.errorBars.append(dev);
+        plot.series.append(sr);
+        model.plots.append(plot);
+        QStringList notes;
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("error bars of charts past the 2")), qPrintable(notes.join(QLatin1Char('|'))));
+        auto read = [&](const QByteArray &doc, QStringList *readNotes) {
+            jp::office::sheet::ods::StyleStore store;
+            QString why;
+            [&] { QVERIFY2(jp::office::sheet::odschart::parseStyles(doc, Limits(), &store, &why), qPrintable(why)); }();
+            Chart back;
+            [&] { QVERIFY2(jp::office::sheet::odschart::chartFromOdf(doc, store, nullptr, &back, &why, readNotes), qPrintable(why)); }();
+            return back;
+        };
+        const Chart back = read(document, nullptr);
+        QCOMPARE(int(back.plots[0].series[0].errorBars.size()), 2);
+        QCOMPARE(back.plots[0].series[0].errorBars[0].valueType, QStringLiteral("stdDev"));
+        QCOMPARE(back.plots[0].series[0].errorBars[0].value, 2.5);
+        QByteArray variance = document;
+        variance.replace("chart:error-category=\"standard-deviation\"", "chart:error-category=\"variance\"");
+        QStringList readNotes;
+        const Chart other = read(variance, &readNotes);
+        QCOMPARE(int(other.plots[0].series[0].errorBars.size()), 0);
+        QVERIFY2(readNotes.join(QLatin1Char('|')).contains(QStringLiteral("variance")), qPrintable(readNotes.join(QLatin1Char('|'))));
     }
 
     // A chart that another program wrote (the standard's own elements, a series' cells on a sheet with a quoted name, styles by name): a frame in a cell, and one between two cells.

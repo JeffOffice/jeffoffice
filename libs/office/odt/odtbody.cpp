@@ -190,42 +190,51 @@ QString Reader::imageRelationship(const Odf &o, int image)
 namespace {
 // The most chart parts one document makes.
 constexpr int kMostCharts = 200;
+// All the charts of one document together: the bytes of their documents and the points they hold.
+constexpr qint64 kMostChartBytes = qint64(96) << 20, kMostChartPoints = 400000;
 }
 
 QString Reader::chartRelationship(const Odf &o, int object)
 {
     if (m_flat) return QString();
-    QString path = o.at(object, "xlink:href");
+    // (one object is one object however its name is written: "Object 1", "./Object 1/", and "object 1" are the same)
+    QString path = o.at(object, "xlink:href").trimmed();
     if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
     while (path.endsWith(QLatin1Char('/'))) path.chop(1);
-    if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#'))) return QString();
-    const QString key = QStringLiteral("chart:") + path;
+    const QString key = QStringLiteral("chart:") + path.toLower();
     const auto done = m_imageRel.constFind(m_owner + QLatin1Char('|') + key);
-    if (done != m_imageRel.constEnd()) return done.value();
-    const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
-    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > sheet::odschart::kMaxPartBytes) return QString();
-    const QByteArray content = m_pkg.part(part);
-    // (an equation is an embedded object too: it has no chart in it)
-    if (!content.contains("<chart:chart")) return QString();
-    if (m_chartCount >= kMostCharts) {
-        left(QCoreApplication::translate("odt", "charts past the %1 a document may have").arg(kMostCharts));
+    if (done != m_imageRel.constEnd()) return done.value();   // (a failure is kept too, as an empty Id: it was told once)
+    auto failed = [&](const QString &why) {
+        m_imageRel.insert(m_owner + QLatin1Char('|') + key, QString());
+        if (!why.isEmpty()) left(why);
         return QString();
-    }
+    };
+    if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
+        return failed(QCoreApplication::translate("odt", "charts the file does not hold"));
+    const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
+    if (!m_pkg.hasPart(part)) return failed(QString());   // (an object with no content.xml is not a chart: an equation or another kind says so where it is read)
+    if (m_pkg.partSize(part) > sheet::odschart::kMaxPartBytes) return failed(QCoreApplication::translate("odt", "charts larger than a chart may be"));
+    // (all the charts of one document together are held to a budget of bytes and of points)
+    if (m_chartBytes + m_pkg.partSize(part) > kMostChartBytes) return failed(QCoreApplication::translate("odt", "charts past the size all the charts of a document may come to"));
+    const QByteArray content = m_pkg.part(part);
+    m_chartBytes += content.size();
+    // (an equation is an embedded object too: it has no chart in it)
+    if (!content.contains("<chart:chart")) return failed(QString());
+    if (m_chartCount >= kMostCharts) return failed(QCoreApplication::translate("odt", "charts past the %1 a document may have").arg(kMostCharts));
     sheet::ods::StyleStore store;
     QString why;
-    if (!sheet::odschart::parseStyles(content, sheet::Limits(), &store, &why)) {
-        left(QCoreApplication::translate("odt", "charts that could not be read"));
-        return QString();
-    }
+    if (!sheet::odschart::parseStyles(content, sheet::Limits(), &store, &why)) return failed(QCoreApplication::translate("odt", "charts that could not be read"));
     Chart chart;
     QStringList notes;
-    if (!sheet::odschart::chartFromOdf(content, store, nullptr, &chart, &why, &notes)) {
-        left(QCoreApplication::translate("odt", "charts that could not be read"));
-        return QString();
-    }
+    if (!sheet::odschart::chartFromOdf(content, store, nullptr, &chart, &why, &notes)) return failed(QCoreApplication::translate("odt", "charts that could not be read"));
+    qint64 points = 0;
+    for (const ChartPlot &plot : chart.plots)
+        for (const ChartSeries &series : plot.series) points += series.values.size() + series.xValues.size() + series.categories.size();
+    if (m_chartPoints + points > kMostChartPoints) return failed(QCoreApplication::translate("odt", "charts past the number of points all the charts of a document may have"));
+    m_chartPoints += points;
     for (const QString &n : std::as_const(notes)) left(n);
     const QByteArray bytes = writeChartPart(chart);
-    if (bytes.isEmpty()) return QString();
+    if (bytes.isEmpty()) return failed(QString());
     const QString name = QStringLiteral("/word/charts/chart%1.xml").arg(++m_chartCount);
     m_out.addPart(name, bytes, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
     const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("chart"), name);

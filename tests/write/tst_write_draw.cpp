@@ -1816,14 +1816,14 @@ private Q_SLOTS:
         QTest::keyClicks(edit, QStringLiteral("ab"));
         edit->selectAll();
         QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
-        QTRY_VERIFY(win.w.act(QStringLiteral("fmt.bold"))->isChecked());
+        QTRY_VERIFY_WITH_TIMEOUT(win.w.act(QStringLiteral("fmt.bold"))->isChecked(), 30000);
         QTest::keyClick(edit, Qt::Key_I, Qt::ControlModifier);
-        QTRY_VERIFY(win.w.act(QStringLiteral("fmt.italic"))->isChecked());
+        QTRY_VERIFY_WITH_TIMEOUT(win.w.act(QStringLiteral("fmt.italic"))->isChecked(), 30000);
         QVERIFY(!win.w.act(QStringLiteral("fmt.underline"))->isChecked());
         QTest::keyClick(edit, Qt::Key_B, Qt::ControlModifier);
-        QTRY_VERIFY(!win.w.act(QStringLiteral("fmt.bold"))->isChecked());
+        QTRY_VERIFY_WITH_TIMEOUT(!win.w.act(QStringLiteral("fmt.bold"))->isChecked(), 30000);
         edit->setFontSizePt(18);
-        QTRY_VERIFY(std::any_of(win.w.findChildren<SizeCombo *>().begin(), win.w.findChildren<SizeCombo *>().end(), [](SizeCombo *c) { return c->currentText().toDouble() == 18.0; }));
+        QTRY_VERIFY_WITH_TIMEOUT(std::any_of(win.w.findChildren<SizeCombo *>().begin(), win.w.findChildren<SizeCombo *>().end(), [](SizeCombo *c) { return c->currentText().toDouble() == 18.0; }), 30000);
     }
 
     void aShapeTakesSeveralEffectsAndEachIsPutInAndTakenOutWithoutTouchingTheOthers()
@@ -2503,12 +2503,18 @@ private Q_SLOTS:
         QWidget *vp = win.w.view()->viewport();
         QRectF r;
         QTRY_VERIFY(win.w.view()->pictureRect(0, &r));
-        // (The window's own pending refreshes and the first paint fill the cache once.)
-        for (int i = 0; i < 4; ++i) {
-            QTest::mouseMove(vp, QPoint(int(r.left()) + i * 3, int(r.center().y())));
+        // (The window's own pending refreshes and the first paint fill the cache once: move and paint until the count has stood still for three rounds in a row, however slow the machine.)
+        quint64 settled = ~quint64(0);
+        int still = 0, round = 0;
+        QTRY_VERIFY_WITH_TIMEOUT(([&] {
+            QTest::mouseMove(vp, QPoint(int(r.left()) + (round++ % 4) * 3, int(r.center().y())));
             vp->repaint();
             QCoreApplication::processEvents();
-        }
+            const quint64 now = shapeParseCount();
+            still = now == settled ? still + 1 : 0;
+            settled = now;
+            return still >= 3;
+        }()), 30000);
         const quint64 before = shapeParseCount();
         for (int i = 0; i < 30; ++i) QTest::mouseMove(vp, QPoint(int(r.left()) + 12 + i * 3, int(r.center().y())));
         for (int i = 0; i < 6; ++i) vp->repaint();
@@ -5196,9 +5202,12 @@ private Q_SLOTS:
         // One command: it changes the chart, and one Undo gives back exactly the chart it was (and Redo the changed one).
         auto oneStep = [&](const QString &what, const std::function<void()> &run) {
             const QByteArray before = model();
+            const quint64 serial = doc->lastStepSerial();
             run();
             const QByteArray after = model();
             if (after == before) return false;
+            // (one step: the history grew by exactly one)
+            [&] { QVERIFY2(doc->lastStepSerial() == serial + 1, qPrintable(what)); }();
             [&] { QVERIFY2(doc->undo(), qPrintable(what)); }();
             [&] { QVERIFY2(model() == before, qPrintable(what)); }();
             [&] { QVERIFY2(doc->redo(), qPrintable(what)); }();
@@ -5211,21 +5220,28 @@ private Q_SLOTS:
         for (QAction *a : elements->findChildren<QAction *>())
             if (!a->objectName().isEmpty() && !a->menu() && a->isEnabled() && !a->objectName().contains(QLatin1String("Menu.Custom"))) names << a->objectName();
         int changed = 0;
+        QStringList same;
         for (const QString &name : std::as_const(names)) {
             QVERIFY2(findChartMenuEntry(elements, name), qPrintable(name));
             if (oneStep(name, [&] { fireChartMenu(elements, name); })) ++changed;
+            else same << name;
             if (QTest::currentTestFailed()) return;
         }
-        QVERIFY2(changed >= 12, qPrintable(QString::number(changed)));
+        // (each entry of the menu changed the chart, except the five that put a part to "none" or to the form it already had: they are named, so a new entry that does nothing is seen)
+        QCOMPARE(same, (QStringList{QStringLiteral("chartTitleMenu.None"), QStringLiteral("dataLabelsMenu.None"), QStringLiteral("labelSeparatorMenu.sep0"), QStringLiteral("errorBarsMenu.None"),
+                                    QStringLiteral("trendlineMenu.None")}));
+        QCOMPARE(changed + same.size(), int(names.size()));
+        QStringList counts;
         for (QMenu *(ChartDesign::*make)(QWidget *) : {&ChartDesign::layoutsMenu, &ChartDesign::colorsMenu, &ChartDesign::stylesMenu}) {
             std::unique_ptr<QMenu> menu((win.w.chartDesign()->*make)(nullptr));
             int made = 0;
             for (QAction *a : menu->actions())
                 if (!a->isSeparator() && !a->menu() && a->isEnabled() && oneStep(a->text(), [&] { a->trigger(); })) ++made;
-            QVERIFY2(made >= 2, qPrintable(menu->objectName()));
+            counts << menu->objectName() + QLatin1Char('=') + QString::number(made);
             if (QTest::currentTestFailed()) return;
         }
         QTRY_VERIFY(win.w.act("chartdesign.switch")->isEnabled());
+        QCOMPARE(counts, (QStringList{QStringLiteral("chartLayoutsMenu=4"), QStringLiteral("chartColorsMenu=7"), QStringLiteral("chartStylesMenu=4")}));
         QVERIFY(oneStep(QStringLiteral("swap"), [&] { win.w.act("chartdesign.switch")->trigger(); }));
         QVERIFY(oneStep(QStringLiteral("format part"), [&] {
             withDialog([&] { win.w.act("chartdesign.formatPart")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {

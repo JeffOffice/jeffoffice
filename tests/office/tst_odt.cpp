@@ -7,6 +7,10 @@
 #include "odt/odt.h"
 #include "odt/odtcommon.h"
 #include "odt/odttemplate.h"
+#include "office/chart.h"
+#include "office/chart_write.h"
+#include "office/theme.h"
+#include "sheet/odschart.h"
 #include "office/package.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
@@ -432,6 +436,119 @@ private Q_SLOTS:
         QVERIFY(external);
         wml::Document doc;
         QVERIFY(wml::readDocx(docx, &doc));
+    }
+
+    // The chart document of an object of a made .odt: `points` numbers in one series.
+    static QByteArray chartDocument(int points)
+    {
+        jp::office::Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = jp::office::ChartType::Bar;
+        jp::office::ChartSeries series;
+        series.name = QStringLiteral("S");
+        for (int i = 0; i < points; ++i) series.values << double(i % 5);
+        plot.series.append(series);
+        model.plots.append(plot);
+        QStringList notes;
+        return jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, &notes);
+    }
+    static QByteArray chartFrame(const QString &href, const char *size = "svg:width=\"3in\" svg:height=\"2in\"")
+    {
+        return "<draw:frame text:anchor-type=\"as-char\" " + QByteArray(size) + "><draw:object xlink:href=\"" + href.toUtf8() + "\"/></draw:frame>";
+    }
+    static int chartParts(const QByteArray &docx)
+    {
+        Package p;
+        if (!p.read(docx)) return -1;
+        int n = 0;
+        for (const QString &name : p.partNames())
+            if (name.startsWith(QLatin1String("/word/charts/")) && name.endsWith(QLatin1String(".xml"))) ++n;
+        return n;
+    }
+
+    // A chart is an object of its own: read into one chart part, however many frames name it and however its name is written, and a name that goes out of the package is not followed.
+    void aChartObjectIsOnePartForEveryFrameThatNamesIt()
+    {
+        Made m;
+        m.extra.insert(QStringLiteral("Object 1/content.xml"), chartDocument(5));
+        QByteArray body = "<text:p>";
+        for (const char *href : {"./Object 1", "./Object 1/", "Object 1", "object 1", "OBJECT 1/"}) body += chartFrame(QString::fromLatin1(href));
+        for (int i = 0; i < 40; ++i) body += chartFrame(QStringLiteral("./Object 1"));
+        m.body = body + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QCOMPARE(chartParts(docx), 1);
+        QCOMPARE(part(docx, QStringLiteral("/word/document.xml")).count(QLatin1String("<c:chart ")), 45);   // (every spelling is the one object)
+        QCOMPARE(int(notes.count(QStringLiteral("charts the file does not hold"))), 0);
+    }
+
+    void aChartObjectThatLeavesThePackageIsNotFollowedAndIsToldOnce()
+    {
+        Made m;
+        m.extra.insert(QStringLiteral("Object 1/content.xml"), chartDocument(5));
+        QByteArray body = "<text:p>";
+        for (int i = 0; i < 30; ++i)
+            for (const char *href : {"../Object 1", "/Object 1", "Object 1/../Object 1", "file:///tmp/x", "#Object 1", "..\\Object 1"}) body += chartFrame(QString::fromLatin1(href));
+        m.body = body + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QCOMPARE(chartParts(docx), 0);
+        QCOMPARE(int(notes.count(QStringLiteral("charts the file does not hold"))), 1);
+    }
+
+    void aDocumentIsHeldToTwoHundredCharts()
+    {
+        Made m;
+        QByteArray body = "<text:p>";
+        const QByteArray one = chartDocument(3);
+        for (int i = 1; i <= 205; ++i) {
+            m.extra.insert(QStringLiteral("Object %1/content.xml").arg(i), one);
+            body += chartFrame(QStringLiteral("./Object %1").arg(i));
+        }
+        m.body = body + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QCOMPARE(chartParts(docx), 200);
+        QCOMPARE(int(notes.count(QStringLiteral("charts past the 200 a document may have"))), 1);
+    }
+
+    void allTheChartsOfADocumentShareOneBudgetOfPoints()
+    {
+        Made m;
+        QByteArray body = "<text:p>";
+        const QByteArray big = chartDocument(jp::office::sheet::odschart::kMaxPoints);
+        for (int i = 1; i <= 12; ++i) {
+            m.extra.insert(QStringLiteral("Object %1/content.xml").arg(i), big);
+            body += chartFrame(QStringLiteral("./Object %1").arg(i));
+        }
+        m.body = body + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        // (a chart of 100,000 points: four of them are the most that fit in 400,000, so the fifth is told; the budget of bytes would let five through)
+        const int made = chartParts(docx);
+        QVERIFY2(made >= 2 && made <= 4, qPrintable(QString::number(made)));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("all the charts of a document")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A chart named by two frames of two sizes is one object in the .odt, and each frame keeps its own size.
+    void aChartInTwoSizesIsOneObjectAndEachFrameKeepsItsSize()
+    {
+        Made m;
+        m.extra.insert(QStringLiteral("Object 1/content.xml"), chartDocument(4));
+        m.body = "<text:p>" + chartFrame(QStringLiteral("./Object 1"), "svg:width=\"3in\" svg:height=\"2in\"") + chartFrame(QStringLiteral("./Object 1"), "svg:width=\"6in\" svg:height=\"1in\"") + "</text:p>";
+        QStringList notes;
+        const QByteArray docx = docxOf(m.build(), &notes);
+        QCOMPARE(chartParts(docx), 1);
+        const QString d = part(docx, QStringLiteral("/word/document.xml"));
+        QVERIFY(d.contains(QLatin1String("<wp:extent cx=\"2743200\" cy=\"1828800\"/>")));
+        QVERIFY(d.contains(QLatin1String("<wp:extent cx=\"5486400\" cy=\"914400\"/>")));
+        const QByteArray back = fromDocxPackage(docx, nullptr, &notes);
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(back, files));
+        QVERIFY(files.contains(QStringLiteral("Object 1/content.xml")) && !files.contains(QStringLiteral("Object 2/content.xml")));
+        const QByteArray content = files.value(QStringLiteral("content.xml"));
+        QCOMPARE(int(content.count("<draw:object ")), 2);
+        QVERIFY(content.contains("svg:width=\"3.0000in\"") && content.contains("svg:width=\"6.0000in\""));
     }
 
     void picturesAndTextBoxes()

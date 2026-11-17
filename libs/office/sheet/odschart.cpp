@@ -221,6 +221,18 @@ public:
                 }
                 total += allowed;
                 ChartSeries kept = s;
+                // (typed-in amounts of custom error bars are numbers of the chart too)
+                for (int b = int(kept.errorBars.size()) - 1; b >= 0; --b) {
+                    const ChartErrorBars &eb = kept.errorBars[b];
+                    if (eb.valueType != QLatin1String("cust") || (!eb.plusRef.isEmpty() && !eb.minusRef.isEmpty())) continue;
+                    const qint64 n = std::min<qint64>(eb.plus.size(), kMaxPoints) + std::min<qint64>(eb.minus.size(), kMaxPoints);
+                    if (total + n > kMaxPointsInChart) {
+                        kept.errorBars.remove(b);
+                        cutChartPoints = true;
+                    } else {
+                        total += n;
+                    }
+                }
                 kept.values = s.values.mid(0, int(allowed));
                 kept.xValues = s.xValues.mid(0, int(allowed));
                 kept.categories = s.categories.mid(0, int(allowed));
@@ -243,6 +255,9 @@ public:
         for (const Entry &e : all)
             if (categories.isEmpty() && !e.series.categories.isEmpty()) categories = e.series.categories.mid(0, rows);
         QVector<QPair<QString, QVector<double>>> columns;   // header and numbers, from column 1
+        QVector<QPair<QString, QVector<double>>> extras;    // the typed-in amounts of custom error bars, in the columns after the series'
+        int seriesColumns = 0;
+        for (size_t i = 0; i < all.size(); ++i) seriesColumns += scatter ? 2 : 1;
         QString firstCategoryRef;
         for (const Entry &e : all)
             if (firstCategoryRef.isEmpty()) firstCategoryRef = odfRange(e.series.categoryRef);
@@ -265,11 +280,12 @@ public:
             if (!nameRef.isEmpty() && !nameRef.contains(QLatin1Char(':'))) x += QStringLiteral(" chart:label-cell-address=\"%1\"").arg(odsdraw::xmlText(nameRef));
             else if (!s.name.isEmpty()) x += QStringLiteral(" chart:label-cell-address=\"%1\"").arg(odsdraw::xmlText(localHeader(col)));
             x += QStringLiteral(" chart:class=\"%1\" chart:style-name=\"%2\">").arg(classOf(e.plot->type), styleName(seriesStyle(s, *e.plot))) + domain;
-            x += curvesOf(s) + errorBarsOf(s) + pointsOf(s);
+            x += curvesOf(s) + errorBarsOf(s, &extras, 1 + seriesColumns, rows) + pointsOf(s);
             x += QStringLiteral("</chart:series>");
             seriesXml << x;
             ++col;
         }
+        for (const auto &x : std::as_const(extras)) columns.append(x);
         // the axes
         const ChartAxis *xAxis = nullptr, *yAxis = nullptr;
         for (const ChartAxis &a : m_c.axes) {
@@ -307,7 +323,7 @@ public:
         QString head = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\""
                                       " xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\""
                                       " xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\" xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\""
-                                      " xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" office:version=\"1.2\">");
+                                      " xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" office:version=\"1.2\">");
         head += QStringLiteral("<office:automatic-styles>") + m_data + m_styles + QStringLiteral("</office:automatic-styles><office:body><office:chart>");
         head += QStringLiteral("<chart:chart svg:width=\"%1\" svg:height=\"%2\" chart:class=\"%3\" chart:style-name=\"%4\">").arg(odsdraw::lengthText(m_w), odsdraw::lengthText(m_h), classOf(m_c.type()), chartStyle);
         return (head + body + QStringLiteral("</chart:chart></office:chart></office:body></office:document-content>")).toUtf8();
@@ -528,7 +544,14 @@ private:
         QString x;
         int count = 0;
         for (const ChartTrendline &t : s.trendlines) {
-            if (++count > kMaxOdfTrendlines || !kinds.contains(t.type)) continue;
+            if (!kinds.contains(t.type)) {
+                note(QCoreApplication::translate("Sheet", "trendlines of a kind the format does not have"));
+                continue;
+            }
+            if (++count > kMaxOdfTrendlines) {
+                note(QCoreApplication::translate("Sheet", "trendlines of charts past the %1 a series may have").arg(kMaxOdfTrendlines));
+                continue;
+            }
             Sty st;
             st.chart = QStringLiteral(" chart:regression-type=\"%1\"").arg(kinds.value(t.type));
             if (t.type == QLatin1String("poly")) st.chart += QStringLiteral(" loext:regression-max-degree=\"%1\"").arg(std::clamp(t.order, 2, 6));
@@ -547,19 +570,22 @@ private:
     }
 
     // The error bars of a series: an error indicator each, what they run by in the style.
-    QString errorBarsOf(const ChartSeries &s)
+    QString errorBarsOf(const ChartSeries &s, QVector<QPair<QString, QVector<double>>> *extras, int firstExtraColumn, int rows)
     {
         QString x;
         int count = 0;
         for (const ChartErrorBars &b : s.errorBars) {
-            if (++count > 2) continue;
+            if (++count > 2) {
+                note(QCoreApplication::translate("Sheet", "error bars of charts past the 2 a series may have"));
+                continue;
+            }
             Sty st;
             QString category;
             if (b.valueType == QLatin1String("fixedVal")) category = QStringLiteral("constant");
             else if (b.valueType == QLatin1String("percentage")) category = QStringLiteral("percentage");
             else if (b.valueType == QLatin1String("stdDev")) category = QStringLiteral("standard-deviation");
             else if (b.valueType == QLatin1String("stdErr")) category = QStringLiteral("standard-error");
-            else if (b.valueType == QLatin1String("cust") && !odfRange(b.plusRef).isEmpty() && !odfRange(b.minusRef).isEmpty()) category = QStringLiteral("cell-range");
+            else if (b.valueType == QLatin1String("cust") && ((!odfRange(b.plusRef).isEmpty() && !odfRange(b.minusRef).isEmpty()) || !b.plus.isEmpty() || !b.minus.isEmpty())) category = QStringLiteral("cell-range");
             if (category.isEmpty()) {
                 note(QCoreApplication::translate("Sheet", "error bars of charts whose amounts are typed in, not read from cells"));
                 continue;
@@ -567,12 +593,28 @@ private:
             st.chart = QStringLiteral(" chart:error-category=\"%1\"").arg(category);
             if (category == QLatin1String("constant")) st.chart += QStringLiteral(" chart:error-upper-limit=\"%1\" chart:error-lower-limit=\"%1\"").arg(decimal(b.value));
             if (category == QLatin1String("percentage")) st.chart += QStringLiteral(" chart:error-percentage=\"%1\"").arg(decimal(b.value));
-            if (category == QLatin1String("cell-range"))
-                st.chart += QStringLiteral(" chart:error-upper-range=\"%1\" chart:error-lower-range=\"%2\"").arg(odsdraw::xmlText(odfRange(b.plusRef)), odsdraw::xmlText(odfRange(b.minusRef)));
+            const QString multiple = category == QLatin1String("standard-deviation") && b.value != 1 ? QStringLiteral(" jo:std-dev-multiplier=\"%1\"").arg(decimal(b.value)) : QString();
+            if (category == QLatin1String("cell-range")) {
+                QString up = odfRange(b.plusRef), down = odfRange(b.minusRef);
+                if (up.isEmpty() || down.isEmpty()) {
+                    // (amounts typed in: they go into columns of the chart's own table, which the indicator's ranges name)
+                    const qsizetype n = std::min<qsizetype>(std::max(b.plus.size(), b.minus.size()), rows);
+                    QVector<double> plus = b.plus.mid(0, n), minus = b.minus.mid(0, n);
+                    plus.resize(n);
+                    minus.resize(n);
+                    for (double &v : plus) if (!std::isfinite(v)) v = 0;
+                    for (double &v : minus) if (!std::isfinite(v)) v = 0;
+                    up = localAddress(firstExtraColumn + int(extras->size()), int(n));
+                    extras->append({QString(), plus});
+                    down = localAddress(firstExtraColumn + int(extras->size()), int(n));
+                    extras->append({QString(), minus});
+                }
+                st.chart += QStringLiteral(" chart:error-upper-range=\"%1\" chart:error-lower-range=\"%2\"").arg(odsdraw::xmlText(up), odsdraw::xmlText(down));
+            }
             st.chart += QStringLiteral(" chart:error-upper-indicator=\"%1\" chart:error-lower-indicator=\"%2\"").arg(b.barType != QLatin1String("minus") ? QStringLiteral("true") : QStringLiteral("false"),
                                                                                                                    b.barType != QLatin1String("plus") ? QStringLiteral("true") : QStringLiteral("false"));
             st.graphic = lineOf(b.line);
-            x += QStringLiteral("<chart:error-indicator chart:style-name=\"%1\" chart:dimension=\"%2\"/>").arg(styleName(st), b.direction == QLatin1String("x") ? QStringLiteral("x") : QStringLiteral("y"));
+            x += QStringLiteral("<chart:error-indicator chart:style-name=\"%1\" chart:dimension=\"%2\"%3/>").arg(styleName(st), b.direction == QLatin1String("x") ? QStringLiteral("x") : QStringLiteral("y"), multiple);
         }
         return x;
     }
@@ -1293,8 +1335,12 @@ private:
                     b.valueType = QStringLiteral("percentage");
                     b.value = attr("error-percentage").toDouble(&good);
                     if (!good || !std::isfinite(b.value)) continue;
-                } else if (category == QLatin1String("standard-deviation") || category == QLatin1String("variance")) {
+                } else if (category == QLatin1String("variance")) {
+                    note(QCoreApplication::translate("Sheet", "error bars of charts that run by the variance"));
+                    continue;
+                } else if (category == QLatin1String("standard-deviation")) {
                     b.valueType = QStringLiteral("stdDev");
+                    if (const double m = d->attrs.value(QStringLiteral("std-dev-multiplier")).toDouble(&good); good && std::isfinite(m) && m > 0 && m < 1e6) b.value = m;
                 } else if (category == QLatin1String("standard-error")) {
                     b.valueType = QStringLiteral("stdErr");
                 } else if (category == QLatin1String("cell-range")) {
@@ -1303,6 +1349,13 @@ private:
                     int ucol = 0, u1 = 0, u2 = 0, dcol = 0, d1 = 0, d2 = 0;
                     bool cut = false;
                     if (localRange(up, &ucol, &u1, &u2) && localRange(down, &dcol, &d1, &d2)) {
+                        // (the amounts are numbers of the chart: they count against its total)
+                        const qint64 wanted = qint64(std::max(u2 - u1, 0)) + std::max(d2 - d1, 0) + 2;
+                        if (*total + wanted > kMaxPointsInChart) {
+                            *cutPoints = true;
+                            continue;
+                        }
+                        *total += wanted;
                         b.plus = numbersOf(ucol, u1, u2, &cut);
                         b.minus = numbersOf(dcol, d1, d2, &cut);
                     } else {
