@@ -439,6 +439,46 @@ private Q_SLOTS:
         QCOMPARE(fields, 300);
     }
 
+    // An .odp date style's words are cut to 16 letters each before they are used: one of 200,000 letters gives a short quoted word in the format, where without the cut it
+    // is too long for the format to be kept at all.
+    void anOdpDateStyleWordIsCutTo16Letters()
+    {
+        QString err;
+        DeckWindow w;
+        auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        QTextCharFormat f;
+        f.setProperty(tp::Field, QStringLiteral("datetime:yyyy"));
+        QTextCursor c(w.editor()->doc()->storyDoc(title->storyId));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), f);
+        QMap<QString, QByteArray> zip;
+        QVERIFY2(readZip(deck::exportOdp(*w.editor()->doc(), false, &err), zip, &err), qPrintable(err));
+        QString xml = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        static const QRegularExpression style(QStringLiteral("(<number:date-style [^>]*>).*?(</number:date-style>)"));
+        QVERIFY(xml.contains(style));
+        xml.replace(style, QStringLiteral("\\1<number:year number:style=\"long\"/><number:text>") + QString(200000, QLatin1Char('A')) + QStringLiteral("</number:text>\\2"));
+        const auto build = [&](const QString &content) {
+            ZipWriter out;
+            out.add(QStringLiteral("mimetype"), zip.value(QStringLiteral("mimetype")));
+            for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+                if (it.key() != QLatin1String("mimetype")) out.add(it.key(), it.key() == QLatin1String("content.xml") ? content.toUtf8() : it.value());
+            return out.finish();
+        };
+        {
+            auto back = deck::importOdp(build(xml), &err);
+            QVERIFY2(back, qPrintable(err));
+            const auto &t = static_cast<const TextItem &>(*back->pages[0]->items[0]);
+            QStringList codes;
+            const QTextDocument *story = back->storyDoc(t.storyId);
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it) {
+                    const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                    if (!code.isEmpty()) codes << code;
+                }
+            QCOMPARE(codes.size(), 1);   // (the field still opens)
+            QCOMPARE(splitDateFieldCode(codes[0]).format, QStringLiteral("yyyy'") + QString(16, QLatin1Char('A')) + QLatin1Char('\''));
+        }
+    }
+
     // Insert > Link (Ctrl+K) makes the selected text a link to the address typed.
     void hyperlinkLinksTheSelectedText()
     {

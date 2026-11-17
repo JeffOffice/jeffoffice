@@ -595,7 +595,7 @@ private:
     void field(const QString &type, const QDomElement &c, const Bag &bag, const QString &href, const QString &dataStyle = QString())
     {
         flush();
-        const QString shown = c.text().left(256).trimmed();   // (what the field showed last, held to 256 letters)
+        const QString shown = c.text().left(256).trimmed();   // (what the field showed last, held to 256 letters; this only bounds the text handed to the .pptx reader, which shows a page number or a date by its own kind, so no story ever has it)
         QString props = m_runs.props("rPr", bag, href), extra;
         if (!dataStyle.isEmpty()) {
             QString format, language;

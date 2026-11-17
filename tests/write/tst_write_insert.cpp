@@ -1438,12 +1438,21 @@ private Q_SLOTS:
     // ---------------------------------------------------------------- Insert > Date & Time
     void theDateAndTimeDialogPutsInFixedTextOrAFieldThatUpdates()
     {
+        const QDateTime moment(QDate(2026, 3, 9), QTime(23, 59, 59));   // (a fixed clock: the text cannot change at midnight)
+        jp::setFieldClock(moment);
+        const QScopeGuard clock([] { jp::setFieldClock(QDateTime()); });
         Win win;
         QVERIFY(win.w.act("insert.dateTime"));
         const QString format = QStringLiteral("MMMM d, yyyy");
+        const QString tag = QStringLiteral("en-US");   // (the dialog is set to a language, so the machine's locale is not used)
+        const QString expected = QLocale(tag).toString(moment.date(), format);
+        inLanguage(win, tag);
         withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
             auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
             QVERIFY(formats && formats->count() >= 5);
+            auto *language = dlg->findChild<QComboBox *>(QStringLiteral("language"));
+            QVERIFY(language && language->findData(tag) >= 0);
+            language->setCurrentIndex(language->findData(tag));
             int row = -1;
             for (int i = 0; i < formats->count(); ++i)
                 if (formats->item(i)->data(Qt::UserRole).toString() == format) row = i;
@@ -1451,19 +1460,21 @@ private Q_SLOTS:
             formats->setCurrentRow(row);
             dlg->findChild<QCheckBox *>(QStringLiteral("update"))->setChecked(false);
         });
-        QVERIFY2(win.text().contains(QDate::currentDate().toString(format)), qPrintable(win.text()));
+        QVERIFY2(win.text().contains(expected), qPrintable(win.text()));
         QVERIFY(!documentXml(win.w.document()->toDocx()).contains("DATE"));
         win.w.document()->undo();
         QCOMPARE(win.text(), QStringLiteral("Hello"));
         withDialog([&] { win.w.act("insert.dateTime")->trigger(); }, QStringLiteral("dateTimeDialog"), [&](QDialog *dlg) {
             auto *formats = dlg->findChild<QListWidget *>(QStringLiteral("formats"));
+            auto *language = dlg->findChild<QComboBox *>(QStringLiteral("language"));
+            language->setCurrentIndex(language->findData(tag));
             for (int i = 0; i < formats->count(); ++i)
                 if (formats->item(i)->data(Qt::UserRole).toString() == format) formats->setCurrentRow(i);
             QVERIFY(dlg->findChild<QCheckBox *>(QStringLiteral("update"))->isChecked());
         });
         const QByteArray out = documentXml(win.w.document()->toDocx());
         QVERIFY2(out.contains("DATE") && out.contains("MMMM d, yyyy"), out.constData());
-        QVERIFY2(out.contains(QDate::currentDate().toString(format).toUtf8()), "the field has no result");   // (a field is one character of the text, and its result is what the file keeps)
+        QVERIFY2(out.contains(expected.toUtf8()), "the field has no result");   // (a field is one character of the text, and its result is what the file keeps)
     }
 
     // The dialog has a Language list: the formats are shown in the language, and a field made in it keeps it (the language of its runs), so that it shows its names in that language
