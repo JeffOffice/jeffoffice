@@ -12,6 +12,7 @@
 #include "core/appinfo.h"
 #include "io/odpimport.h"
 #include "io/pptimport.h"
+#include "io/pptsalvage.h"
 #include "io/pptximport.h"
 #include "io/presentationfile.h"
 #include "app/passworddialogs.h"
@@ -77,8 +78,20 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         QByteArray bytes;
         if (office::readWholeFile(path, &bytes, &notes)) {
-            const QByteArray fixed = office::repairPackage(bytes, &notes, &repair);
-            if (!fixed.isEmpty()) doc = deck::importPresentation(fixed, &notes);
+            if (bytes.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1"))) {
+                // an old binary presentation (or a package protected with a password, which is refused): its streams are found again
+                QStringList said;
+                const QByteArray fixed = deck::salvagePresentation(bytes, &said, &notes);
+                if (!fixed.isEmpty()) {
+                    QString readNotes;
+                    doc = deck::importBinaryPresentation(fixed, &readNotes);
+                    if (!doc) notes = readNotes;
+                    else repair.notes = said + (readNotes.isEmpty() ? QStringList() : readNotes.split(QLatin1Char('\n')));
+                }
+            } else {
+                const QByteArray fixed = office::repairPackage(bytes, &notes, &repair);
+                if (!fixed.isEmpty()) doc = deck::importPresentation(fixed, &notes);
+            }
         }
     } else {
         // A presentation protected with a password is a compound file holding the package: it is opened with the password, asked for as often as it takes (an old binary presentation is

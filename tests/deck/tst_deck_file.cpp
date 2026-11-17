@@ -1328,6 +1328,32 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // Open and Repair of an old .ppt cut short: it does not open as it is, and opens as a repaired copy with the slides that were whole and a note that says so.
+    void aDamagedPptOpensRepaired()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray none;
+        const QByteArray whole = buildPpt(false, false, false, false, none, none, none, none, none, none, 1016, none, pptRec(2999, QByteArray(9000, 'x')));
+        const QString damaged = dir.filePath(QStringLiteral("cut.ppt"));
+        QFile out(damaged);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(whole.left(whole.size() / 2));
+        out.close();
+        QString why;
+        QVERIFY(!deck::importAnyPresentationFile(damaged, &why));
+        DeckWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+        QVERIFY(w.openFile(damaged, OpenHow::Repair));
+        QVERIFY(w.editor()->filePath().isEmpty());
+        QVERIFY(w.editor()->isModified());
+        QVERIFY(w.editor()->displayName().contains(QLatin1String("cut")));
+        QVERIFY(w.editor()->doc()->pages.size() >= 1);
+        QVERIFY2(!told.isEmpty() && told.first().contains(QLatin1String("Open and Repair")) && told.first().contains(QLatin1String("cut short")), qPrintable(told.join(QLatin1Char('|'))));
+        w.editor()->markSaved();
+    }
+
     // Export: a button for each way out, each running the command the window
     // has, and the screen goes away once the file is written.
     void windowFileScreenExports()

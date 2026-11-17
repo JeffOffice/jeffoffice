@@ -3,6 +3,7 @@
 #include "../timing.h"
 
 #include "office/pptcrypt.h"
+#include "io/pptsalvage.h"
 
 class DeckBinaryImportTests : public QObject {
     Q_OBJECT
@@ -904,6 +905,182 @@ private Q_SLOTS:
         QVERIFY2(items > 100000 && items <= 300000, qPrintable(QString::number(items)));
         QVERIFY2(err.contains(QStringLiteral("more shapes")), qPrintable(err));
     }
+
+private:
+    // ---- Open and Repair of a damaged presentation
+
+    // A presentation whose stream is long (the first slide holds a record of 9,000 bytes the reader does not use), so that it is kept in sectors of its own and not in the container's mini stream.
+    static QByteArray bigDeck()
+    {
+        const QByteArray none;
+        return buildPpt(false, false, false, false, none, none, none, none, none, none, 1016, none, pptRec(2999, QByteArray(9000, 'x')));
+    }
+    static quint32 rd32(const QByteArray &b, int at) { return at + 4 <= b.size() ? qFromLittleEndian<quint32>(b.constData() + at) : 0; }
+    static void zeroSector(QByteArray &f, int n) { f.replace((n + 1) * 512, 512, QByteArray(512, '\0')); }
+    // The offset in the stream of the first record of a kind at its top.
+    static int topRecordOf(const QByteArray &s, int type)
+    {
+        for (int pos = 0; pos + 8 <= s.size();) {
+            if (rd32(s, pos) >> 16 == quint32(type)) return pos;
+            pos += 8 + int(rd32(s, pos + 4));
+        }
+        return -1;
+    }
+    static QStringList titles(const Document &d)
+    {
+        QStringList out = titlesOf(d);
+        out.sort();
+        return out;
+    }
+    // The file repaired and opened: the document, and what was said.
+    static std::unique_ptr<Document> repaired(const QByteArray &file, QStringList *notes, QString *error = nullptr)
+    {
+        const QByteArray fixed = deck::salvagePresentation(file, notes, error);
+        return fixed.isEmpty() ? nullptr : deck::importBinaryPresentation(fixed, error);
+    }
+
+private Q_SLOTS:
+    void aSoundPresentationIsRepairedToItself()
+    {
+        QStringList notes;
+        QString why;
+        auto d = repaired(buildPpt(), &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(int(d->pages.size()), 2);
+        QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    void aPresentationWhoseLastEditIsCutOffOpensAsItWasAtTheEditBefore()
+    {
+        const QByteArray good = buildPpt();
+        cfb::File f;
+        QVERIFY(cfb::read(good, &f));
+        QByteArray stream = f.stream(pptDocumentStream());
+        stream.chop(20);   // (the newest edit and its list of places are the end of the stream)
+        const QByteArray cut = withStream(good, pptDocumentStream(), stream);
+        QVERIFY(!deck::importBinaryPresentation(cut));
+        QStringList notes;
+        QString why;
+        auto d = repaired(cut, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(int(d->pages.size()), 2);
+        QVERIFY(!d->pages[1]->hidden);   // (the hiding is the newest edit's)
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("last save")));
+    }
+
+    void aPresentationCutInsideItsSlidesHasTheListOfPlacesMadeAgain()
+    {
+        const QByteArray good = bigDeck();
+        cfb::File f;
+        QVERIFY(cfb::read(good, &f));
+        const QByteArray stream = f.stream(pptDocumentStream());
+        // (the stream is cut in the notes, the last record before the first list of places)
+        const int directory = topRecordOf(stream, 6002);
+        QVERIFY(directory > 100);
+        const QByteArray cut = withStream(good, pptDocumentStream(), stream.left(directory - 10));
+        QVERIFY(!deck::importBinaryPresentation(cut));
+        QStringList notes;
+        QString why;
+        auto d = repaired(cut, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(int(d->pages.size()), 2);   // (the slides are in the order stored, which this file does not keep in its list's order)
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("order")));
+    }
+
+    void aPresentationFileCutShortKeepsTheSlidesBeforeTheCut()
+    {
+        const QByteArray good = bigDeck();
+        int before = 1 << 20;
+        for (int percent : {95, 70, 50}) {
+            const QByteArray cut = good.left(good.size() * percent / 100);
+            QVERIFY(!deck::importBinaryPresentation(cut));   // (the tables at the end that name the streams are gone)
+            QStringList notes;
+            QString why;
+            auto d = repaired(cut, &notes, &why);
+            QVERIFY2(d, qPrintable(QString::number(percent) + QLatin1Char(' ') + why));
+            QVERIFY(int(d->pages.size()) <= before);
+            before = int(d->pages.size());
+            QVERIFY(d->pages.size() >= 1 && d->pages.size() <= 2);
+            QVERIFY(!notes.isEmpty());
+            if (percent == 50) {
+                QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")));
+                QCOMPARE(int(d->pages.size()), 1);   // (the first slide, which is the large one, is cut in the middle)
+            }
+        }
+        // cut before the slides: nothing to keep
+        QStringList notes;
+        QString why;
+        QVERIFY(deck::salvagePresentation(good.left(1000), &notes, &why).isEmpty());
+        QVERIFY(!why.isEmpty());
+    }
+
+    void aPresentationWhoseTablesOfSectorsAreZeroedOrLoopIsRepaired()
+    {
+        const QByteArray good = bigDeck();
+        // the table of sectors zeroed
+        QByteArray bad = good;
+        zeroSector(bad, int(rd32(bad, 76)));
+        QStringList notes;
+        QString why;
+        auto d = repaired(bad, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(int(d->pages.size()), 2);
+        QVERIFY(!notes.isEmpty());
+        // a chain that leads back to the second sector of the stream
+        bad = good;
+        cfb::File f;
+        QVERIFY(cfb::read(good, &f));
+        const int root = (int(rd32(bad, 48)) + 1) * 512;
+        int start = -1;
+        for (int o = root; o < root + 512; o += 128)
+            if ((rd32(bad, o + 64) & 0xFFFF) == 2 * (QStringLiteral("PowerPoint Document").size() + 1)) start = int(rd32(bad, o + 116));
+        QVERIFY(start >= 0);
+        qToLittleEndian(quint32(start + 1), bad.data() + (int(rd32(bad, 76)) + 1) * 512 + (start + 4) * 4);
+        d = repaired(bad, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(int(d->pages.size()), 2);
+    }
+
+    void aPresentationWhoseDirectoryIsZeroedIsFoundByItsRecords()
+    {
+        QByteArray bad = bigDeck();
+        zeroSector(bad, int(rd32(bad, 48)));
+        QVERIFY(!deck::importBinaryPresentation(bad));
+        QStringList notes;
+        QString why;
+        auto d = repaired(bad, &notes, &why);
+        QVERIFY2(d, qPrintable(why));
+        QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")));
+    }
+
+    void aPresentationProtectedWithAPasswordIsNotRepaired()
+    {
+        const QByteArray locked = encryptPpt(buildPpt(), QStringLiteral("pw"));
+        QStringList notes;
+        QString why;
+        QVERIFY(deck::salvagePresentation(locked, &notes, &why).isEmpty());
+        QVERIFY2(why.contains(QLatin1String("password")), qPrintable(why));
+    }
+
+    void theRecordsOfAStreamAreWalkedOnlyToTheLimit()
+    {
+        // a document record, then more empty records than the limit
+        cfb::File f;
+        QVERIFY(cfb::read(buildPpt(), &f));
+        QByteArray stream = f.stream(pptDocumentStream());
+        const QByteArray empty = pptRec(1100, QByteArray());
+        QByteArray many;
+        many.reserve(empty.size() * (deck::kSalvageMaxRecords + 200000));
+        for (int i = 0; i < deck::kSalvageMaxRecords + 200000; ++i) many += empty;
+        stream += many;
+        QStringList notes;
+        QString why;
+        deck::salvagePresentation(withStream(buildPpt(), pptDocumentStream(), stream), &notes, &why);
+        QCOMPARE(deck::salvageRecordsWalkedForTest(), qint64(deck::kSalvageMaxRecords));
+    }
+
 
     // Damage to the bytes of the streams never crashes or hangs the reader: a
     // file is a presentation, or says it isn't.
