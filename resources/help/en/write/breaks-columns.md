@@ -36,3 +36,5 @@ A **section** is a part of the document with its own page setup, so it can have 
 ## Line numbers
 
 **Layout > Line Numbers** puts a number beside each line, in the margin. **Continuous** counts on from page to page. **Restart Each Page** and **Restart Each Section** start again at 1. **None** takes them away. **Line Numbering Options** opens a window where you can count by a number other than 1 (every 5th line, for example), pick the first number, and set the space between the numbers and the text.
+
+To leave one paragraph out, open the **Paragraph** box, go to the line and page breaks, and check **Suppress line numbers**. That paragraph gets no numbers, and its lines are not counted. Saved as an OpenDocument file (.odt), the choice is kept on the paragraph.
