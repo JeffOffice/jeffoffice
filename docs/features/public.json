@@ -2988,7 +2988,7 @@
         },
         {
          "status": "partly",
-         "text": "2aaf865e4ddb9908f040510f827b45d0319fa85cbfb7d4f439fb3f35769423f0"
+         "text": "ab1c090499b7ba91b92e52fa942f0b5d6cc22565f3b14079dbd0ea2c3f6f4785"
         }
        ]
       },
@@ -3047,8 +3047,9 @@
        "heading": "2e5f80a1c3bd8e8f07f1ea7cd7c3f8c5151fd579aaf1872af252f43eeb8eb6a4",
        "items": [
         {
-         "status": "partly",
-         "text": "6c9c4bf07b42c1fb80188b2b5742b5e88e2d9c47b185b9eb049c25afcac7d588"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e0815a5cc8d1e612aaf954b27108dce88469f46c0ea93e40477a5c53253bc2e8"
         },
         {
          "hide_soon": true,
@@ -3851,7 +3852,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "145f60e2306c6403b646f531ce9945f3a8fc6d64f0bf8e6d097b86e588ba1726"
+       "text": "206b00281e74753ec41ccd8df5d16d52002682bff04124f217c447aafa6672f8"
       },
       {
        "status": "partly",
@@ -5521,7 +5522,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "9deb3758823f0642aa092f40799f5da953a3e9f087ea20c7bc7b253f9a795be5"
+         "text": "e2eb61cbc056f206e31bf8fcd3b567882a5476881c2e34a04cb051ec21d4f870"
         },
         {
          "hide_soon": true,
@@ -5641,8 +5642,9 @@
        "text": "85e3ad49a81d74009f2faf57eb7898980400a5198d62414e9866afb9c31515a5"
       },
       {
-       "status": "todo",
-       "text": "b87f50b478b67c2e006c7f0029a0ff50c21742bd4b46e088f4453293e4679b12"
+       "hide_soon": true,
+       "status": "done",
+       "text": "f46646763be29a3ac2a7efd092603c29aa261c36aded85fcfb0a17a4404661ef"
       },
       {
        "status": "partly",
@@ -6000,8 +6002,9 @@
          "text": "06718b48d9de60d8a06b725cdae156f26b8c4c7e2b8c2e9ba3b5414590b01d02"
         },
         {
-         "status": "partly",
-         "text": "65060dc08b8f3c63c1ad597c5318e1c837301eb48b5f3416838446a6a33ca523"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1280f78a70aaede490888b30b43e87095bee9375c293470c7554f8f330ddaec3"
         },
         {
          "status": "partly",
@@ -6060,8 +6063,9 @@
          "text": "4b22e52adbdf6d98fdf6665c419ce3e60cd814cb81cd9fd048abcac021dbb1d3"
         },
         {
-         "status": "partly",
-         "text": "33cec58339bf15aabda4591e349104efe74e9ffe43615434ae73349c902a55b2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "aa031782dd741b7be8b245e8c77b10e36e8e70882beba2b975bf8b4e8fd6e118"
         },
         {
          "hide_soon": true,
@@ -6247,8 +6251,9 @@
        "heading": "d7cae9433ad234931b01e864330ee4408111aecfac33b90e13c191d7bea47210",
        "items": [
         {
-         "status": "partly",
-         "text": "d6c534a0793379abdab8fbba73704477b4c62b752bd00955877a4bc40b5339f2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "4bc225d89895558c124c06fb27d7adf05a408aef6f3610affd451ed963928abd"
         },
         {
          "hide_soon": true,
@@ -6383,8 +6388,9 @@
          "text": "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6"
         },
         {
-         "status": "partly",
-         "text": "d471723dfae2576cd2a0841baa81a3fb1884608c5e51a2b1efdc0fd4764fd904"
+         "hide_soon": true,
+         "status": "done",
+         "text": "09dc87bf59e1b28145f674f9b5a7452b479650b14f650c7ccf1094816ee96f74"
         }
        ]
       },
@@ -7420,8 +7426,9 @@
          "text": "01b8335451dfa9436d91f1a37098cb43c406fb0c53a8c3e281a5dd6c02746e51"
         },
         {
-         "status": "todo",
-         "text": "b77111e2125a4ed7792e5843ce518549a20742997dbc3b782376ed123a4d8d5a"
+         "hide_soon": true,
+         "status": "done",
+         "text": "c2805f8a4955d237862800f152a2603f512826c87d9b403f915cd2ff53358f02"
         }
        ]
       }
@@ -8323,6 +8330,18 @@
     "fr": "Options avancées : nombre d’annulations, choix par défaut du diaporama, de l’impression, du couper-coller et qualité des images"
    }
   },
+  "09dc87bf59e1b28145f674f9b5a7452b479650b14f650c7ccf1094816ee96f74": {
+   "drop": false,
+   "en": "Number lines continuously or restart each page or section, with options for count by, start at, and distance from text, for a section or the whole document. Suppress line numbers for a paragraph, in `.docx` and `.odt`.",
+   "es": "Numere las líneas de forma continua o reinicie en cada página o sección, con opciones de intervalo, inicio y distancia del texto, para una sección o todo el documento. Suprima los números de línea de un párrafo, en `.docx` y `.odt`.",
+   "fr": "Numérotez les lignes en continu ou redémarrez à chaque page ou section, avec des options de pas, de début et de distance au texte, pour une section ou tout le document. Supprimez la numérotation des lignes d’un paragraphe, en `.docx` et `.odt`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "09f4463054751fcc2b053afac4e1bb01151f7d7d1e12310d47f88b3d8d310d22": {
    "drop": true,
    "en": "",
@@ -8959,6 +8978,18 @@
     "fr": ""
    }
   },
+  "1280f78a70aaede490888b30b43e87095bee9375c293470c7554f8f330ddaec3": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Character spacing: expanded, condensed, raised, and lowered",
+    "es": "Espaciado entre caracteres: expandido, comprimido, elevado y reducido",
+    "fr": "Espacement des caractères : étendu, condensé, relevé et abaissé"
+   }
+  },
   "12829b222f423cb661ad775aebd0ecf821cb69c8c2d2b05093b08e256ef6f884": {
    "drop": false,
    "en": "Content controls are shown and kept as saved, including the table of contents’ own wrapper.",
@@ -9108,18 +9139,6 @@
    "en": "Set nine-way cell alignment, cell margins, text direction, and hyphenation for table cells.",
    "es": "Defina la alineación de celdas en nueve posiciones, los márgenes de celda, la dirección del texto y la separación silábica de las celdas de una tabla.",
    "fr": "Définissez l’alignement des cellules selon neuf positions, les marges de cellule, l’orientation du texte et la césure des cellules d’un tableau.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "145f60e2306c6403b646f531ce9945f3a8fc6d64f0bf8e6d097b86e588ba1726": {
-   "drop": false,
-   "en": "Equations are shown as the picture the file keeps beside them, and embedded objects are shown as their saved picture.",
-   "es": "Las ecuaciones se muestran como la imagen que el archivo guarda junto a ellas, y los objetos incrustados se muestran como su imagen guardada.",
-   "fr": "Les équations s’affichent sous la forme de l’image que le fichier conserve à côté, et les objets incorporés s’affichent comme leur image enregistrée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10051,6 +10070,18 @@
     "fr": ""
    }
   },
+  "206b00281e74753ec41ccd8df5d16d52002682bff04124f217c447aafa6672f8": {
+   "drop": false,
+   "en": "Equations are shown as the picture the file keeps beside them, and embedded objects are shown as their saved picture.",
+   "es": "Las ecuaciones se muestran como la imagen que el archivo guarda junto a ellas, y los objetos incrustados se muestran como su imagen guardada.",
+   "fr": "Les équations sont affichées comme l’image que le fichier conserve à côté d’elles, et les objets incorporés sont affichés comme leur image enregistrée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "20b294c1d8cfbf92c6f30f3fd68d119761785a0033e239a97bce762f7d850795": {
    "drop": false,
    "en": "Behind the scenes: object behavior and canvas",
@@ -10975,18 +11006,6 @@
     "fr": ""
    }
   },
-  "2aaf865e4ddb9908f040510f827b45d0319fa85cbfb7d4f439fb3f35769423f0": {
-   "drop": false,
-   "en": "Links to the next, previous, first, or last slide, a numbered slide, the end of the show, a file, or a web or email address, on click, for shapes, pictures, text boxes, and words. Action buttons start with the matching link. Links are saved in `.pptx` and `.odp` files.",
-   "es": "Enlaces a la diapositiva siguiente, anterior, primera o última, a una diapositiva numerada, al final de la presentación, a un archivo o a una dirección web o de correo electrónico, al hacer clic, en formas, imágenes, cuadros de texto y palabras. Los botones de acción comienzan con el enlace correspondiente. Los enlaces se guardan en archivos `.pptx` y `.odp`.",
-   "fr": "Liens vers la diapositive suivante, précédente, première ou dernière, vers une diapositive numérotée, la fin du diaporama, un fichier ou une adresse web ou e-mail, au clic, pour les formes, les images, les zones de texte et les mots. Les boutons d’action commencent par le lien correspondant. Les liens sont enregistrés dans les fichiers `.pptx` et `.odp`.",
-   "soon": {
-    "drop": false,
-    "en": "Links to the last viewed slide, a custom show, or a new document, links on pointing, and actions that run a program or play a sound",
-    "es": "Enlaces a la última diapositiva vista, a una presentación personalizada o a un documento nuevo, enlaces al apuntar, y acciones que ejecutan un programa o reproducen un sonido",
-    "fr": "Liens vers la dernière diapositive vue, un diaporama personnalisé ou un nouveau document, liens au survol, et actions qui lancent un programme ou jouent un son"
-   }
-  },
   "2ac84829082ecdf59238791f62e70b641d9f700fb726582a56dc24e98d1f87a9": {
    "drop": false,
    "en": "Home tab",
@@ -11573,18 +11592,6 @@
     "en": "Professional and Linear equation forms with Unicode or LaTeX input, Normal Text, and equation options",
     "es": "Formas profesional y lineal de ecuaciones con entrada Unicode o LaTeX, texto normal y opciones de ecuación",
     "fr": "Formes professionnelle et linéaire des équations avec saisie Unicode ou LaTeX, texte normal et options d’équation"
-   }
-  },
-  "33cec58339bf15aabda4591e349104efe74e9ffe43615434ae73349c902a55b2": {
-   "drop": false,
-   "en": "Tab stops with their leaders and the default stops are laid out. You can set, move, and remove tab stops on the ruler, or use the Tabs dialog to set position, alignment (left, center, right, decimal), and leader, with Set, Clear, and Clear All.",
-   "es": "Se muestran las tabulaciones con sus caracteres de relleno y las tabulaciones predeterminadas. Puede definir, mover y quitar tabulaciones en la regla, o usar el cuadro Tabulaciones para fijar posición, alineación (izquierda, centrada, derecha, decimal) y carácter de relleno, con Establecer, Borrar y Borrar todo.",
-   "fr": "Les taquets de tabulation, avec leurs points de suite, et les taquets par défaut sont mis en page. Vous pouvez définir, déplacer et supprimer des taquets sur la règle, ou utiliser la boîte Tabulations pour régler la position, l’alignement (gauche, centré, droite, décimal) et le point de suite, avec Définir, Effacer et Tout effacer.",
-   "soon": {
-    "drop": false,
-    "en": "Default tab stop distance and bar tab stops in the Tabs dialog",
-    "es": "Distancia de las tabulaciones predeterminadas y tabulaciones de barra en el cuadro Tabulaciones",
-    "fr": "Distance des taquets par défaut et taquets de barre dans la boîte Tabulations"
    }
   },
   "341f21fb161bb64cafb25f95362749082a81e6ab998805cb8711b39c1fbcde0a": {
@@ -13313,6 +13320,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "4bc225d89895558c124c06fb27d7adf05a408aef6f3610affd451ed963928abd": {
+   "drop": false,
+   "en": "Links in a file are kept.",
+   "es": "Los vínculos de un archivo se conservan.",
+   "fr": "Les liens d’un fichier sont conservés.",
+   "soon": {
+    "drop": false,
+    "en": "Insert, edit, and remove hyperlinks",
+    "es": "Insertar, editar y quitar hipervínculos",
+    "fr": "Insérer, modifier et supprimer des liens hypertextes"
    }
   },
   "4bc5cbadcafb7a0a2caefa92dfce77ed2864b0338321e4044a15202f4b352b40": {
@@ -15307,18 +15326,6 @@
     "fr": ""
    }
   },
-  "65060dc08b8f3c63c1ad597c5318e1c837301eb48b5f3416838446a6a33ca523": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Character spacing: expanded, condensed, raised, and lowered",
-    "es": "Espaciado entre caracteres: expandido, comprimido, elevado y reducido",
-    "fr": "Espacement des caractères : étendu, condensé, relevé et abaissé"
-   }
-  },
   "650ec837ff91daa8fb533f3b9c47b6f23fc7e33810fe985097c40f8d1ffe3e1e": {
    "drop": false,
    "en": "Version History on the Info page keeps a version of a workbook saved as `.xlsx`, lists the versions, goes back to one (first keeping the current workbook as a version), and opens one as a copy beside the workbook.",
@@ -16037,18 +16044,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6c9c4bf07b42c1fb80188b2b5742b5e88e2d9c47b185b9eb049c25afcac7d588": {
-   "drop": false,
-   "en": "An equation in a file is shown as the picture the file keeps and is kept whole.",
-   "es": "Una ecuación en un archivo se muestra como la imagen que el archivo conserva y se mantiene completa.",
-   "fr": "Une équation dans un fichier s’affiche comme l’image que le fichier conserve et reste intacte.",
-   "soon": {
-    "drop": false,
-    "en": "Equation: type or write math and edit it",
-    "es": "Ecuación: escribir matemáticas y editarlas",
-    "fr": "Équation : saisir des formules mathématiques et les modifier"
    }
   },
   "6ca3c3f6a4a60ac10db7566a6b9e7feca671cb162779d9c44b7c015e7af724f2": {
@@ -19339,18 +19334,6 @@
     "fr": ""
    }
   },
-  "9deb3758823f0642aa092f40799f5da953a3e9f087ea20c7bc7b253f9a795be5": {
-   "drop": false,
-   "en": "Export EPUB as reflowable (chapters at Heading 1, contents from Heading 1-3) or page for page (fixed layout).",
-   "es": "Exporte EPUB con texto adaptable (capítulos en Título 1, contenido a partir de Título 1-3) o página por página (diseño fijo).",
-   "fr": "Exportez en EPUB à mise en page fluide (chapitres au Titre 1, table des matières des Titres 1 à 3) ou page par page (mise en page fixe).",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "9dfec36c5160e5cdc2ae8ba03fd09dd02880c7128d0f5f71aef264147097c483": {
    "drop": false,
    "en": "Opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
@@ -20071,6 +20054,18 @@
     "fr": "Retour d’une note à sa marque, et modification d’un champ contenant d’autres champs dans son code"
    }
   },
+  "aa031782dd741b7be8b245e8c77b10e36e8e70882beba2b975bf8b4e8fd6e118": {
+   "drop": false,
+   "en": "Set left, center, right, decimal, and bar tab stops with dot, dash, or line leaders on the ruler or in the Tabs box. The box also sets default tab stops and has Clear and Clear All.",
+   "es": "Establezca tabulaciones izquierda, centrada, derecha, decimal y de barra, con relleno de puntos, guiones o línea, en la regla o en el cuadro Tabulaciones. El cuadro también define las tabulaciones predeterminadas y tiene Borrar y Borrar todo.",
+   "fr": "Définissez des taquets de tabulation gauche, centré, droit, décimal et barre, avec points de suite, tirets ou ligne, sur la règle ou dans la boîte Tabulations. La boîte définit aussi les taquets par défaut et propose Effacer et Effacer tout.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "aa46f3974fc986549a454199be5b450e6a3af8e6b64591e7efbaf952c9da5894": {
    "drop": false,
    "en": "Use a light or dark interface that follows the system’s setting, and Windows high contrast.",
@@ -20129,6 +20124,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "ab1c090499b7ba91b92e52fa942f0b5d6cc22565f3b14079dbd0ea2c3f6f4785": {
+   "drop": false,
+   "en": "Link a shape, picture, text box, or words to the next, previous, first, or last slide, a numbered slide, the end of the show, a file, or a web or email address, on click. Action buttons start with the link they are for. Links are read from and saved in `.pptx`, and jumps and file links also in `.odp`. Links to a new document and to other presentations can be made from the Insert Link box.",
+   "es": "Vincule una forma, imagen, cuadro de texto o palabras a la diapositiva siguiente, anterior, primera o última, a una diapositiva numerada, al final de la presentación, a un archivo o a una dirección web o de correo electrónico, al hacer clic. Los botones de acción comienzan con el vínculo que les corresponde. Los vínculos se leen y se guardan en `.pptx`, y los saltos y vínculos a archivos también en `.odp`. Desde el cuadro Insertar vínculo puede crear vínculos a un documento nuevo y a otras presentaciones.",
+   "fr": "Liez une forme, une image, une zone de texte ou des mots à la diapositive suivante, précédente, première ou dernière, à une diapositive numérotée, à la fin du diaporama, à un fichier ou à une adresse web ou e-mail, par un clic. Les boutons d’action démarrent avec le lien qui leur correspond. Les liens sont lus et enregistrés en `.pptx`, et les sauts et liens vers des fichiers aussi en `.odp`. La boîte Insérer un lien permet de créer des liens vers un nouveau document et vers d’autres présentations.",
+   "soon": {
+    "drop": false,
+    "en": "Links to the last viewed slide and custom shows, links on pointing, running a program, and playing a sound",
+    "es": "Vínculos a la última diapositiva vista y a presentaciones personalizadas, vínculos al apuntar, ejecución de un programa y reproducción de un sonido",
+    "fr": "Liens vers la dernière diapositive vue et les diaporamas personnalisés, liens au survol, lancement d’un programme et lecture d’un son"
    }
   },
   "ab67eee0cd587c7011b8d13213b3e8389c2038426557dbc3ba0d4ba0619188bc": {
@@ -20875,18 +20882,6 @@
     "fr": ""
    }
   },
-  "b77111e2125a4ed7792e5843ce518549a20742997dbc3b782376ed123a4d8d5a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "EPUB export",
-    "es": "Exportación a EPUB",
-    "fr": "Exportation EPUB"
-   }
-  },
   "b79f58e9cfb8b90e647410b608bc397a1a119f1e10a784d0e8cd878f261a5dcd": {
    "drop": false,
    "en": "Captions",
@@ -20933,18 +20928,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b87f50b478b67c2e006c7f0029a0ff50c21742bd4b46e088f4453293e4679b12": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "EPUB export with chapters at each Heading 1, contents from the headings, pop-up footnotes, and pictures and tables in place",
-    "es": "Exportación a EPUB con capítulos en cada Título 1, índice a partir de los títulos, notas al pie emergentes e imágenes y tablas en su lugar",
-    "fr": "Export EPUB avec chapitres à chaque Titre 1, table des matières issue des titres, notes de bas de page contextuelles, et images et tableaux en place"
    }
   },
   "b87f7bf9120370a724bedfee5c9c6f2ca2c9cfd4cac11a9613246dd69422b617": {
@@ -21552,6 +21535,18 @@
    "en": "Keep a backup copy on every save, as an option in General.",
    "es": "Conserve una copia de seguridad en cada guardado, como opción en General.",
    "fr": "Conservez une copie de sauvegarde à chaque enregistrement, grâce à une option dans Général.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "c2805f8a4955d237862800f152a2603f512826c87d9b403f915cd2ff53358f02": {
+   "drop": false,
+   "en": "Export an EPUB e-book for e-book readers and stores.",
+   "es": "Exporte un libro electrónico EPUB para lectores y tiendas de libros electrónicos.",
+   "fr": "Exportez un livre numérique EPUB pour les liseuses et les boutiques de livres numériques.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22939,18 +22934,6 @@
     "fr": "Regrouper et plus d’options de rotation"
    }
   },
-  "d471723dfae2576cd2a0841baa81a3fb1884608c5e51a2b1efdc0fd4764fd904": {
-   "drop": false,
-   "en": "Set line numbers to None, Continuous, Restart Each Page, or Restart Each Section, with options for count by, start at, and distance from text, for the section or the whole document.",
-   "es": "Establezca la numeración de líneas en Ninguna, Continua, Reiniciar en cada página o Reiniciar en cada sección, con opciones de intervalo, inicio y distancia del texto, para la sección o todo el documento.",
-   "fr": "Réglez la numérotation des lignes sur Aucune, Continue, Redémarrer à chaque page ou Redémarrer à chaque section, avec des options de pas, de début et de distance au texte, pour la section ou tout le document.",
-   "soon": {
-    "drop": false,
-    "en": "Line numbers: suppress for a paragraph",
-    "es": "Numeración de líneas: suprimir en un párrafo",
-    "fr": "Numérotation des lignes : suppression pour un paragraphe"
-   }
-  },
   "d47c9d908f866d7e4015243b8828e6577f31aed757ce39f3ce0bfeaa5ead58b1": {
    "drop": false,
    "en": "Platform and accessibility",
@@ -23105,18 +23088,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d6c534a0793379abdab8fbba73704477b4c62b752bd00955877a4bc40b5339f2": {
-   "drop": false,
-   "en": "Links in a file are kept.",
-   "es": "Los vínculos de un archivo se conservan.",
-   "fr": "Les liens d’un fichier sont conservés.",
-   "soon": {
-    "drop": false,
-    "en": "Insert, edit, and remove hyperlinks",
-    "es": "Insertar, editar y quitar hipervínculos",
-    "fr": "Insérer, modifier et supprimer des liens hypertexte"
    }
   },
   "d74eff852a078b352e0c03f813faddefefd4ba5626faf7779a380fee8e6c8347": {
@@ -23707,6 +23678,18 @@
     "fr": ""
    }
   },
+  "e0815a5cc8d1e612aaf954b27108dce88469f46c0ea93e40477a5c53253bc2e8": {
+   "drop": false,
+   "en": "Type or write math and see it set in type. An equation goes in the middle of the slide as one object that can be moved, resized, and edited with a double click, and it is saved in `.pptx`.",
+   "es": "Escriba o redacte matemáticas y véalas compuestas tipográficamente. Una ecuación se coloca en el centro de la diapositiva como un solo objeto que puede moverse, cambiar de tamaño y editarse con doble clic, y se guarda en `.pptx`.",
+   "fr": "Saisissez ou écrivez des formules mathématiques et voyez-les composées. Une équation se place au centre de la diapositive comme un seul objet que l’on peut déplacer, redimensionner et modifier d’un double clic, et elle est enregistrée en `.pptx`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f": {
    "drop": false,
    "en": "Insert a link (`Ctrl+K`) to a web page or file address, a place in this workbook (a sheet and cells, or a name), or an email address, with a screen tip. `Ctrl`+click follows it, and a file or other kind of address asks first. Edit and remove links.",
@@ -23868,6 +23851,18 @@
    "en": "Use dynamic-array functions: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP`, and `XMATCH`, plus `LET` to name values inside a formula. A formula whose result is a list fills the cells below and beside it.",
    "es": "Use funciones de matriz dinámica: `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` y `XMATCH`, además de `LET` para dar nombre a valores dentro de una fórmula. Una fórmula cuyo resultado es una lista llena las celdas de abajo y de al lado.",
    "fr": "Utilisez les fonctions de matrice dynamique : `FILTER`, `SORT`, `SORTBY`, `UNIQUE`, `SEQUENCE`, `RANDARRAY`, `XLOOKUP` et `XMATCH`, ainsi que `LET` pour nommer des valeurs dans une formule. Une formule dont le résultat est une liste remplit les cellules en dessous et à côté.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e2eb61cbc056f206e31bf8fcd3b567882a5476881c2e34a04cb051ec21d4f870": {
+   "drop": false,
+   "en": "Export an EPUB e-book either reflowable, with chapters at Heading 1 and contents from Heading 1-3, or page for page with a fixed layout.",
+   "es": "Exporte un libro electrónico EPUB reajustable, con capítulos en Título 1 y contenido a partir de Título 1-3, o página por página con diseño fijo.",
+   "fr": "Exportez un livre numérique EPUB à mise en page adaptable, avec des chapitres au niveau Titre 1 et une table des matières issue des Titres 1 à 3, ou page par page avec une mise en page fixe.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25188,6 +25183,18 @@
    "en": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
    "es": "La pestaña Formato de forma tiene una galería de 24 estilos basados en el tema, que se conservan en archivos `.pptx` y `.odp`.",
    "fr": "L’onglet Format de la forme comporte une galerie de 24 styles tirés du thème, conservés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f46646763be29a3ac2a7efd092603c29aa261c36aded85fcfb0a17a4404661ef": {
+   "drop": false,
+   "en": "Export an EPUB e-book with a chapter for each Heading 1, contents from Heading 1-3, footnotes and endnotes at the end of each chapter, and pictures and tables in place. Choose the title and author, and whether the first picture is the cover.",
+   "es": "Exporte un libro electrónico EPUB con un capítulo por cada Título 1, contenido a partir de Título 1-3, notas al pie y notas finales al final de cada capítulo, e imágenes y tablas en su lugar. Elija el título y el autor, y si la primera imagen es la portada.",
+   "fr": "Exportez un livre numérique EPUB avec un chapitre par Titre 1, une table des matières issue des Titres 1 à 3, des notes de bas de page et de fin à la fin de chaque chapitre, et les images et tableaux à leur place. Choisissez le titre et l’auteur, et si la première image sert de couverture.",
    "soon": {
     "drop": true,
     "en": "",
