@@ -1123,8 +1123,9 @@
          "text": "7aea90d6d9c19a07b07ae9517628abbfd92ee206310ca8d503057b8ee25cd2d5"
         },
         {
-         "status": "todo",
-         "text": "55d9a3cec33ab867a4aa2d3671a86980bf199a8ae7e964f1480c773bb25333c2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5efb93f220a9ff3cd7e8e7a61887e4bce26a4b49e6e44bf750d9852a4860034c"
         }
        ]
       },
@@ -1576,8 +1577,9 @@
          "text": "f973e308360a112e61bebb001ba5338936e93f51a08d5c75e66537638da6767b"
         },
         {
-         "status": "todo",
-         "text": "747f04533a17f0892ba282f42021c623f6cd2ceedcd8c792c04abdb841a87dba"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a7fa0c9e5ec73ba19f2efa9c8bbfd34256f2ca0a5ce7fe6c5220cae266eacdba"
         }
        ]
       },
@@ -1744,7 +1746,7 @@
       },
       {
        "status": "partly",
-       "text": "9fceb32801340ec6e3bb42ff24a2ec43252e144b5f609beb593d7cafe735ac30"
+       "text": "0c9838ddd71b2de7f7f321f34554f8d323af26712a6a0f49dd74e1cf13481a04"
       },
       {
        "hide_soon": true,
@@ -3155,7 +3157,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "009b3de0946ff315b78384cc74116d2078909f9500543335238af9144f8ab9c1"
+       "text": "e10c7ed7f974a9ed1c50462141a7e8a28898776a21b4f0c8e546b318b41f5506"
       },
       {
        "hide_soon": true,
@@ -3183,8 +3185,9 @@
        "text": "35d755aadb9a81fa2c77f8ab28ab243d0db5bcba6cbc250b00a1060507c93e50"
       },
       {
-       "status": "todo",
-       "text": "716409f30904946ca858107af8a333624c7037b645c93013609ad9d5ce28dcfd"
+       "hide_soon": true,
+       "status": "done",
+       "text": "695987b8035a7133a2813486780ce34bdee85ef4572f0b15351fec21aba20939"
       },
       {
        "hide_soon": true,
@@ -5624,7 +5627,7 @@
       },
       {
        "status": "partly",
-       "text": "8d1e78d4db3534d900462db7fa9c2e9dc7ba71db72c97f45f0624f40f0d95404"
+       "text": "3b57a9766c1ff6a2cadd36768e8415b8703f9bb6cc32cd269b80267033c0f1fa"
       },
       {
        "status": "partly",
@@ -6254,7 +6257,7 @@
         },
         {
          "status": "partly",
-         "text": "a94fe7d7c612d9d0d8415b17a13fdabced472dcce88f4f729092eb9966146671"
+         "text": "2471b7a72f9a679cba3f169430e0ab81f71cf8bde4b7e03d4e100d3edb59883f"
         },
         {
          "hide_soon": true,
@@ -6999,8 +7002,9 @@
          "text": "fbff3445a9c9af034b5ec3b52368570967db4466b22c4ea0937ffee6ea7393a0"
         },
         {
-         "status": "todo",
-         "text": "7ad2afc4809c758bf0c81c7d73cdbfbc807bd5cb5eeca8da07d2218300e65825"
+         "hide_soon": true,
+         "status": "done",
+         "text": "2d2a76510b66df890c1da6fdba8146aae6315769bb7c2c56664edb23e7af0038"
         }
        ]
       }
@@ -7530,18 +7534,6 @@
     "en": "Mixed formatting shown in the entry box while editing, and in cells turned at an angle",
     "es": "Formato mixto visible en el cuadro de entrada durante la edición y en celdas giradas en ángulo",
     "fr": "Mise en forme mixte visible dans la zone de saisie pendant la modification et dans les cellules inclinées"
-   }
-  },
-  "009b3de0946ff315b78384cc74116d2078909f9500543335238af9144f8ab9c1": {
-   "drop": false,
-   "en": "Choose a transition from a gallery: None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut (a cut goes through black). Slides with a transition are marked with a star in the slide pane.",
-   "es": "Elija una transición de una galería: Ninguna, Transformación, Desvanecer, Empujar, Barrido, Dividir, Revelar, Cubrir, Descubrir, Zoom y Corte (un corte pasa por negro). Las diapositivas con transición se marcan con una estrella en el panel de diapositivas.",
-   "fr": "Choisissez une transition dans une galerie : Aucune, Morphose, Fondu, Poussée, Balayage, Division, Révélation, Recouvrement, Découvrement, Zoom et Coupure (une coupure passe par le noir). Les diapositives avec une transition sont marquées d’une étoile dans le volet des diapositives.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "00a4fb5484e8c072662174815ca185b250d0ed972f9f69f73f84cf434b7165ee": {
@@ -8629,6 +8621,18 @@
    "en": "A theme is a slide master, its layouts, and a theme part. It is saved as theme, slide master, and layout parts and read back as it was, in `.pptx` and `.odp`.",
    "es": "Un tema es un patrón de diapositivas, sus diseños y una parte de tema. Se guarda como partes de tema, patrón y diseño y se lee de nuevo tal como estaba, en `.pptx` y `.odp`.",
    "fr": "Un thème comprend un masque de diapositives, ses dispositions et une partie de thème. Il est enregistré en parties de thème, de masque et de disposition et relu tel quel, en `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "0c9838ddd71b2de7f7f321f34554f8d323af26712a6a0f49dd74e1cf13481a04": {
+   "drop": false,
+   "en": "Statistical functions including the `.DIST`, `.INV`, `.TEST`, `.S`, and `.P` forms of the distributions, `MAXIFS`, `MINIFS`, and the `FORECAST.ETS` forecasting functions.",
+   "es": "Funciones estadísticas, incluidas las formas `.DIST`, `.INV`, `.TEST`, `.S` y `.P` de las distribuciones, `MAXIFS`, `MINIFS` y las funciones de previsión `FORECAST.ETS`.",
+   "fr": "Fonctions statistiques, dont les formes `.DIST`, `.INV`, `.TEST`, `.S` et `.P` des distributions, `MAXIFS`, `MINIFS` et les fonctions de prévision `FORECAST.ETS`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10448,6 +10452,18 @@
     "fr": ""
    }
   },
+  "2471b7a72f9a679cba3f169430e0ab81f71cf8bde4b7e03d4e100d3edb59883f": {
+   "drop": false,
+   "en": "Insert a chart in line with the text, choosing from column, stacked column, bar, line, pie, doughnut, area, and scatter types. Edit its data in a grid, and change its kind, title, legend, and data labels. Charts are saved in `.docx` and `.odt` files.",
+   "es": "Inserte un gráfico alineado con el texto y elija entre los tipos columna, columna apilada, barras, líneas, circular, anillo, área y dispersión. Edite sus datos en una cuadrícula y cambie su tipo, título, leyenda y etiquetas de datos. Los gráficos se guardan en archivos `.docx` y `.odt`.",
+   "fr": "Insérez un graphique dans le texte et choisissez parmi les types colonne, colonne empilée, barres, courbes, secteurs, anneau, aires et nuage de points. Modifiez ses données dans une grille, ainsi que son type, son titre, sa légende et ses étiquettes de données. Les graphiques sont enregistrés dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Data table, secondary axes, drop lines, and high-low lines in `.odt` charts",
+    "es": "Tabla de datos, ejes secundarios, líneas de caída y líneas de máximos y mínimos en gráficos `.odt`",
+    "fr": "Tableau de données, axes secondaires, lignes de projection et lignes haut-bas dans les graphiques `.odt`"
+   }
+  },
   "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b": {
    "drop": false,
    "en": "`TRANSPOSE` works.",
@@ -11142,6 +11158,18 @@
     "en": "Sharpen and soften, saturation and tone, transparent color, and artistic effects",
     "es": "Nitidez y suavizado, saturación y tono, color transparente y efectos artísticos",
     "fr": "Netteté et adoucissement, saturation et teinte, couleur transparente et effets artistiques"
+   }
+  },
+  "2d2a76510b66df890c1da6fdba8146aae6315769bb7c2c56664edb23e7af0038": {
+   "drop": false,
+   "en": "Work with SVG pictures on a Graphics Format tab: change the graphic, convert it to shapes, and set fill, outline, styles, effects, alt text, wrap, and size.",
+   "es": "Trabaje con imágenes SVG en una pestaña Formato de gráficos: cambie el gráfico, conviértalo en formas y defina relleno, contorno, estilos, efectos, texto alternativo, ajuste de texto y tamaño.",
+   "fr": "Travaillez avec des images SVG dans un onglet Format du graphique : changez le graphique, convertissez-le en formes et réglez le remplissage, le contour, les styles, les effets, le texte alternatif, l’habillage et la taille.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81": {
@@ -12066,6 +12094,18 @@
     "en": "Filters and sorts on pivot tables",
     "es": "Filtros y ordenaciones en tablas dinámicas",
     "fr": "Filtres et tris sur les tableaux croisés dynamiques"
+   }
+  },
+  "3b57a9766c1ff6a2cadd36768e8415b8703f9bb6cc32cd269b80267033c0f1fa": {
+   "drop": false,
+   "en": "Open and save OpenDocument text files (`.odt`) with styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, tracked changes, and charts. `.ott` files open as new documents.",
+   "es": "Abra y guarde archivos de texto OpenDocument (`.odt`) con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios, cambios con seguimiento y gráficos. Los archivos `.ott` se abren como documentos nuevos.",
+   "fr": "Ouvrez et enregistrez des fichiers texte OpenDocument (`.odt`) avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires, modifications suivies et graphiques. Les fichiers `.ott` s’ouvrent comme de nouveaux documents.",
+   "soon": {
+    "drop": false,
+    "en": "Formulas and some freeform shapes in `.odt` files",
+    "es": "Fórmulas y algunas formas libres en archivos `.odt`",
+    "fr": "Formules et certaines formes libres dans les fichiers `.odt`"
    }
   },
   "3ba3cb60d581888eb1c93b1e94f10d0cc7c58beeccfcc064112098376fbec76b": {
@@ -14060,18 +14100,6 @@
     "fr": ""
    }
   },
-  "55d9a3cec33ab867a4aa2d3671a86980bf199a8ae7e964f1480c773bb25333c2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Forecast Sheet: chart and table of future values with confidence band and seasonality",
-    "es": "Hoja de previsión: gráfico y tabla de valores futuros con banda de confianza y estacionalidad",
-    "fr": "Feuille de prévision : graphique et tableau de valeurs futures avec intervalle de confiance et saisonnalité"
-   }
-  },
   "55ec9dea8a6cf8ffee77e01f22610b2327e4a4f1e4fc9571e46691fd7df3e78e": {
    "drop": false,
    "en": "Chart Data lists the series, each with a name, values, and X values from cells, plus the horizontal axis labels. Swap Rows and Columns, edit, add, and remove series, and choose how hidden and empty cells are shown: gaps, zero, or a connecting line, with or without hidden rows and columns.",
@@ -14773,6 +14801,18 @@
    "en": "Save a workbook as a template (`.xltx`, `.ots`) and reuse it from My Templates. A template can hold formulas, styles, and sheets.",
    "es": "Guarde un libro como plantilla (`.xltx`, `.ots`) y reutilícela desde Mis plantillas. Una plantilla puede contener fórmulas, estilos y hojas.",
    "fr": "Enregistrez un classeur comme modèle (`.xltx`, `.ots`) et réutilisez-le depuis Mes modèles. Un modèle peut contenir des formules, des styles et des feuilles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "5efb93f220a9ff3cd7e8e7a61887e4bce26a4b49e6e44bf750d9852a4860034c": {
+   "drop": false,
+   "en": "Create a forecast sheet from a timeline and a series of values, with a chart, a table, a confidence band, and seasonality, using `FORECAST.ETS`.",
+   "es": "Cree una hoja de previsión a partir de una escala de tiempo y una serie de valores, con gráfico, tabla, banda de confianza y estacionalidad, mediante `FORECAST.ETS`.",
+   "fr": "Créez une feuille de prévision à partir d’une chronologie et d’une série de valeurs, avec graphique, tableau, bande de confiance et saisonnalité, grâce à `FORECAST.ETS`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15656,6 +15696,18 @@
     "fr": "Liens vers des sources qui sont des adresses web"
    }
   },
+  "695987b8035a7133a2813486780ce34bdee85ef4572f0b15351fec21aba20939": {
+   "drop": false,
+   "en": "Use more transitions, including Dissolve, Blinds, Checkerboard, Comb, Random Bars, Circle, Diamond, Plus, Wedge, Wheel, Flash, Newsflash, Strips, Shape, and Random, with effect options such as direction, corners, spokes, and shape. They are saved in and read from presentation files.",
+   "es": "Utilice más transiciones, entre ellas Disolver, Persianas, Tablero de damas, Peine, Barras aleatorias, Círculo, Diamante, Más, Cuña, Rueda, Destello, Noticias, Tiras, Forma y Aleatoria, con opciones de efecto como dirección, esquinas, radios y forma. Se guardan en los archivos de presentación y se leen de ellos.",
+   "fr": "Utilisez d’autres transitions, notamment Dissolution, Stores, Damier, Peigne, Barres aléatoires, Cercle, Losange, Plus, Coin, Roue, Éclair, Flash info, Bandes, Forme et Aléatoire, avec des options d’effet comme la direction, les coins, les rayons et la forme. Elles sont enregistrées dans les fichiers de présentation et lues depuis ceux-ci.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "698f03c7d1e0998511a15e2c9ab946feed7ee5d99a44b5826326fe4afa0ee241": {
    "drop": false,
    "en": "Contextual tabs",
@@ -16292,18 +16344,6 @@
     "fr": ""
    }
   },
-  "716409f30904946ca858107af8a333624c7037b645c93013609ad9d5ce28dcfd": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "More subtle transitions: Dissolve, Blinds, Checkerboard, Comb, Random Bars, Circle, Diamond, Plus, Wedge, Wheel, Newsflash, Strips, and the Shape and Uncover variants",
-    "es": "Más transiciones sutiles: Disolver, Persianas, Tablero de ajedrez, Peine, Barras aleatorias, Círculo, Rombo, Más, Cuña, Rueda, Noticias, Tiras y las variantes de Forma y Descubrir",
-    "fr": "Autres transitions discrètes : Dissolve, Blinds, Checkerboard, Comb, Random Bars, Circle, Diamond, Plus, Wedge, Wheel, Newsflash, Strips et les variantes Shape et Uncover"
-   }
-  },
   "7174b0162c27f7059ec122c13a0e5ad07de305bf845a28e697fbcfe047ffa758": {
    "drop": false,
    "en": "Export and Share",
@@ -16458,18 +16498,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "747f04533a17f0892ba282f42021c623f6cd2ceedcd8c792c04abdb841a87dba": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Shape text that shows a cell’s value: type `=A1` in the formula bar with a shape or text box selected",
-    "es": "Texto de forma que muestra el valor de una celda: escriba `=A1` en la barra de fórmulas con una forma o un cuadro de texto seleccionado",
-    "fr": "Texte de forme affichant la valeur d’une cellule : saisissez `=A1` dans la barre de formule avec une forme ou une zone de texte sélectionnée"
    }
   },
   "74a08bf8159ca58ac4cdb6091a432da0529d5768c58ffe509d0348a064b2a892": {
@@ -16902,18 +16930,6 @@
     "en": "Screen reader access: cell address, value, formula, and format read as the selection moves",
     "es": "Acceso con lectores de pantalla: dirección, valor, fórmula y formato de la celda leídos al mover la selección",
     "fr": "Accessibilité aux lecteurs d’écran : adresse, valeur, formule et format de la cellule lus au fil de la sélection"
-   }
-  },
-  "7ad2afc4809c758bf0c81c7d73cdbfbc807bd5cb5eeca8da07d2218300e65825": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Graphics tab for SVG pictures: change the graphic, Convert to Shape, styles, fill, outline, and effects",
-    "es": "Pestaña Gráficos para imágenes SVG: cambiar el gráfico, convertir en forma, estilos, relleno, contorno y efectos",
-    "fr": "Onglet Graphiques pour les images SVG : changer le graphique, convertir en forme, styles, remplissage, contour et effets"
    }
   },
   "7aea90d6d9c19a07b07ae9517628abbfd92ee206310ca8d503057b8ee25cd2d5": {
@@ -18090,18 +18106,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8d1e78d4db3534d900462db7fa9c2e9dc7ba71db72c97f45f0624f40f0d95404": {
-   "drop": false,
-   "en": "Open and save `.odt` documents, including styles, lists, tables, sections, headers and footers, notes, fields, pictures, text boxes, comments, and tracked changes. `.ott` files open as a new document.",
-   "es": "Abra y guarde documentos `.odt`, con estilos, listas, tablas, secciones, encabezados y pies de página, notas, campos, imágenes, cuadros de texto, comentarios y cambios con seguimiento. Los archivos `.ott` se abren como un documento nuevo.",
-   "fr": "Ouvrez et enregistrez des documents `.odt`, avec styles, listes, tableaux, sections, en-têtes et pieds de page, notes, champs, images, zones de texte, commentaires et modifications suivies. Les fichiers `.ott` s’ouvrent comme un nouveau document.",
-   "soon": {
-    "drop": false,
-    "en": "Formulas, charts, and freeform shapes in `.odt` files; saving `.ott`",
-    "es": "Fórmulas, gráficos y formas libres en archivos `.odt`; guardar `.ott`",
-    "fr": "Formules, graphiques et formes libres dans les fichiers `.odt` ; enregistrement en `.ott`"
    }
   },
   "8d20257dd0f068ae601a6f0316439ce155688514af03142a67e011d04ff61796": {
@@ -19424,18 +19428,6 @@
     "fr": ""
    }
   },
-  "9fceb32801340ec6e3bb42ff24a2ec43252e144b5f609beb593d7cafe735ac30": {
-   "drop": false,
-   "en": "Use 62 newer statistical functions, including the `.DIST`, `.INV`, `.TEST`, `.S`, and `.P` forms, FORECAST.LINEAR, MAXIFS, and MINIFS.",
-   "es": "Utilice 62 funciones estadísticas más recientes, entre ellas las formas `.DIST`, `.INV`, `.TEST`, `.S` y `.P`, FORECAST.LINEAR, MAXIFS y MINIFS.",
-   "fr": "Utilisez 62 fonctions statistiques plus récentes, dont les formes `.DIST`, `.INV`, `.TEST`, `.S` et `.P`, FORECAST.LINEAR, MAXIFS et MINIFS.",
-   "soon": {
-    "drop": false,
-    "en": "Exponential smoothing forecast functions: FORECAST.ETS and its three companions",
-    "es": "Funciones de pronóstico por suavizado exponencial: FORECAST.ETS y sus tres complementarias",
-    "fr": "Fonctions de prévision par lissage exponentiel : FORECAST.ETS et ses trois fonctions associées"
-   }
-  },
   "a01cee174c33518608ce6de980cfdc7faf82668718c3c4d9bf8034872de00f31": {
    "drop": true,
    "en": "",
@@ -19880,6 +19872,18 @@
     "fr": "Éditeur d’étapes de requête : choisir des colonnes, filtrer, trier, fractionner, regrouper, pivoter, fusionner, ajouter et charger"
    }
   },
+  "a7fa0c9e5ec73ba19f2efa9c8bbfd34256f2ca0a5ce7fe6c5220cae266eacdba": {
+   "drop": false,
+   "en": "Show a cell’s value in a shape or text box: with it selected, type `=A1` in the formula bar and the text follows the cell.",
+   "es": "Muestre el valor de una celda en una forma o cuadro de texto: con él seleccionado, escriba `=A1` en la barra de fórmulas y el texto sigue a la celda.",
+   "fr": "Affichez la valeur d’une cellule dans une forme ou une zone de texte : après l’avoir sélectionnée, saisissez `=A1` dans la barre de formule et le texte suit la cellule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a8554254f5f837308c961675a672b6e8c443a45f770798837c017582721edd44": {
    "drop": false,
    "en": "Save and Save As, with automatic recovery that offers unsaved work again after a crash, and backup on save.",
@@ -19962,18 +19966,6 @@
     "en": "Watermark: picture",
     "es": "Marca de agua: imagen",
     "fr": "Filigrane : image"
-   }
-  },
-  "a94fe7d7c612d9d0d8415b17a13fdabced472dcce88f4f729092eb9966146671": {
-   "drop": false,
-   "en": "Insert a chart of 12 kinds (column, stacked and 100% stacked column, bar, stacked bar, line, line with markers, pie, doughnut, area, stacked area, and scatter) with sample numbers. Edit categories, series, and numbers in a grid, and change the kind, title, legend, and data labels. Charts in files are drawn.",
-   "es": "Inserte un gráfico de 12 tipos (columnas, columnas apiladas y apiladas al 100 %, barras, barras apiladas, líneas, líneas con marcadores, circular, anillo, áreas, áreas apiladas y dispersión) con números de ejemplo. Edite categorías, series y números en una cuadrícula, y cambie el tipo, el título, la leyenda y las etiquetas de datos. Los gráficos de los ficheros se dibujan.",
-   "fr": "Insérez un graphique de 12 types (colonnes, colonnes empilées et empilées à 100 %, barres, barres empilées, courbes, courbes avec marqueurs, secteurs, anneau, aires, aires empilées et nuage de points) avec des chiffres d’exemple. Modifiez catégories, séries et chiffres dans une grille, et changez le type, le titre, la légende et les étiquettes de données. Les graphiques des fichiers sont affichés.",
-   "soon": {
-    "drop": false,
-    "en": "Charts: axes, gridlines, trendlines, error bars, quick layouts, colors, and styles",
-    "es": "Gráficos: ejes, líneas de cuadrícula, líneas de tendencia, barras de error, diseños rápidos, colores y estilos",
-    "fr": "Graphiques : axes, quadrillage, courbes de tendance, barres d’erreur, dispositions rapides, couleurs et styles"
    }
   },
   "a966f17e43e787982650e8eddd1b2f14a16dda87a31cd0584466f5ac8a5a5437": {
@@ -23725,6 +23717,18 @@
    "en": "Lists with nine levels, level overrides, restart and continue rules, start at, legal numbering, symbol and picture bullets, the text and tab after a number, and numbering linked to heading styles, all read and kept in files.",
    "es": "Listas de nueve niveles, anulaciones de nivel, reglas de reinicio y continuación, valor inicial, numeración legal, viñetas de símbolo y de imagen, el texto y la tabulación después de un número, y numeración vinculada a estilos de título, todo leído y conservado en los archivos.",
    "fr": "Listes à neuf niveaux, remplacements de niveau, règles de redémarrage et de continuation, valeur de départ, numérotation légale, puces symbole et image, texte et tabulation après un numéro, et numérotation liée aux styles de titre, le tout lu et conservé dans les fichiers.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e10c7ed7f974a9ed1c50462141a7e8a28898776a21b4f0c8e546b318b41f5506": {
+   "drop": false,
+   "en": "Choose a slide transition from the gallery, including None, Morph, Fade, Push, Wipe, Split, Reveal, Cover, Uncover, Zoom, and Cut, which goes through black.",
+   "es": "Elija una transición de diapositiva en la galería, entre ellas Ninguna, Transformación, Desvanecer, Empujar, Barrido, Dividir, Revelar, Cubrir, Descubrir, Zoom y Corte, que pasa por negro.",
+   "fr": "Choisissez une transition de diapositive dans la galerie, notamment Aucune, Morphose, Fondu, Poussée, Balayage, Division, Révélation, Recouvrement, Découvrement, Zoom et Coupure, qui passe par le noir.",
    "soon": {
     "drop": true,
     "en": "",
