@@ -1009,20 +1009,27 @@ private Q_SLOTS:
             QVERIFY(jp::help::searchTopics(QStringLiteral("print")).isEmpty());
             QVERIFY(jp::help::contextTopic(QStringLiteral("tab:Home")).isEmpty());
         }
-        // a damaged bundle is not kept registered (mapped, and so locked on Windows): it can be replaced while the program runs
-        QVERIFY(QFile::remove(dir.path() + QStringLiteral("/help.rcc")));
         // a folder left by an older version is not Help: the bundle is the only place
-        QVERIFY(QDir(dir.path()).mkpath(QStringLiteral("help/en")));
-        QFile f(dir.path() + QStringLiteral("/help/en/index.md"));
+        // (in a folder of its own: on Windows, Qt keeps a file that failed to register as a bundle open until the program ends, so
+        // the damaged help.rcc above can't be deleted here; GitHub's Windows machines showed it, Nov 17)
+        jp::setDataFolderOverride(QString());
+        QTemporaryDir old;
+        QVERIFY(old.isValid());
+        QVERIFY(makeDataFolder(old.path(), {}, false));
+        QVERIFY(!QFileInfo::exists(old.path() + QStringLiteral("/help.rcc")));
+        const QString oldPath = old.path();
+        QVERIFY(QDir(oldPath).mkpath(QStringLiteral("help/en")));
+        QFile f(oldPath + QStringLiteral("/help/en/index.md"));
         QVERIFY(f.open(QIODevice::WriteOnly));
         f.write("# Old copy\n");
         f.close();
-        jp::setDataFolderOverride(dir.path());
+        jp::setDataFolderOverride(oldPath);
         QVERIFY(jp::dataFolder(QStringLiteral("help")).isEmpty());
         // and beside a good bundle it does not win
-        QVERIFY(makeBundle(dir.path(), QStringLiteral("help"), {{QStringLiteral("en/index.md"), "# New copy\n"}}));
-        jp::setDataFolderOverride(dir.path());
+        QVERIFY(makeBundle(oldPath, QStringLiteral("help"), {{QStringLiteral("en/index.md"), "# New copy\n"}}));
+        jp::setDataFolderOverride(oldPath);
         QCOMPARE(jp::help::topic(QStringLiteral("index")).title, QStringLiteral("New copy"));
+        jp::setDataFolderOverride(QString());   // (the good bundle is let go before its folder is removed)
     }
 
     // The built data folder (the one the other tests read): Help is one file, and no folder of loose files.
