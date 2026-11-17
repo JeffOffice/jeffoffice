@@ -19,6 +19,13 @@ namespace jp::write {
 class SpellCheck;
 class WriteTagger;
 
+// A content control that is drawn with a box: the places of its first and last atoms, whether the caret is in it (its box is outlined and its title is on a tab above), and its title.
+struct ControlMark {
+    int from = 0, to = 0;
+    bool focus = false;
+    QString title;
+};
+
 struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
     bool shadeFields = false;                    // fields shaded (screen only)
@@ -49,6 +56,7 @@ struct PageDrawing {
     bool editFooter = false;
     bool hideBody = false;     // the header or footer is edited with "Show Document Text" off: the page's own text is covered, not dimmed
     QColor pageColor;          // (what covers it: the page's color, white where it has none)
+    const QVector<ControlMark> *controls = nullptr;   // the content controls of the text that are drawn with a box (screen only)
     bool editIsNote = false;   // the edited story is a footnote's (its box is among the page's notes; the text of the page is not dimmed)
 };
 

@@ -459,6 +459,8 @@ private:
     void alignSelectedObject(int align);
     void gradientSelectedShape(double angle, bool twoColors);
     void createInsertActions();
+    void createControlActions();
+    void refreshControlUi();
     void createLayoutExtraActions();
     void createViewExtraActions();
     void createOutlineActions();

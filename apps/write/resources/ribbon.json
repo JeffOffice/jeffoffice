@@ -460,6 +460,22 @@
             {
               "large": "insert.dateTime",
               "keytip": "DT"
+            },
+            {
+              "large": {
+                "id": "ribbon.contentControl",
+                "text": "Content Control",
+                "icon": "text-cursor-input"
+              },
+              "keytip": "CN",
+              "menu": [
+                "insert.control.text",
+                "insert.control.dropDown",
+                "insert.control.date",
+                "insert.control.checkBox",
+                "-",
+                "insert.control.properties"
+              ]
             }
           ]
         },

@@ -337,6 +337,7 @@ void WriteWindow::createActions()
     createShapeActions();
     createPictureAdjustActions();
     createInsertActions();
+    createControlActions();
     createLayoutExtraActions();
     createThemeActions();
     createViewExtraActions();
@@ -574,6 +575,7 @@ void WriteWindow::refreshUi()
         refreshPictureUi();
         refreshMailUi();
         refreshInsertUi();
+        refreshControlUi();
         refreshLayoutUi();
         refreshViewUi();
         return;
@@ -727,6 +729,7 @@ void WriteWindow::refreshUi()
     refreshPictureUi();
     refreshMailUi();
     refreshInsertUi();
+    refreshControlUi();
     refreshLayoutUi();
     refreshViewUi();
 }

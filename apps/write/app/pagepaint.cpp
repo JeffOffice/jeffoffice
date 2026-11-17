@@ -109,6 +109,52 @@ void paintCellFound(QPainter *p, const flow::MaterializedPage &page, const PageD
     }
 }
 
+// The boxes of the content controls (the text of the page): a light shade over each, and for the one the caret is in an outline with its title on a tab above.
+void paintControlMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const RenderOptions &opt, const PageDrawing &d)
+{
+    const QString bodyId = bodyStoryId(page);
+    const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
+    if (!body || !body->doc || !layouts) return;
+    const int length = body->doc->characterCount();
+    for (const QString &id : page.boxes) {
+        const Item *item = page.doc->item(id);
+        if (!item || item->type() != ItemType::Text) continue;
+        const auto *box = static_cast<const TextItem *>(item);
+        const LayoutCache::FrameLayout fl = layouts->textFrame(*page.doc, *box, page.number, opt);
+        if (!fl.layout || fl.frame < 0) continue;
+        p->save();
+        for (const ControlMark &mark : *d.controls) {
+            const int from = std::max(0, mark.from - page.storyFrom), to = std::min(length, mark.to + 1 - page.storyFrom);
+            if (to <= from) continue;
+            const QVector<QRectF> rects = fl.layout->rangeRects(fl.frame, from, to);
+            QRectF first;
+            for (const QRectF &r : rects) {
+                const QRectF at = box->transform().mapRect(r).adjusted(-1, 0, 1, 0);
+                if (at.width() < 1.5) continue;
+                if (first.isNull()) first = at;
+                p->fillRect(at, QColor(0, 0, 0, mark.focus ? 10 : 22));
+                if (mark.focus) {
+                    p->setPen(QPen(QColor(0x2b, 0x6c, 0xb0), 0.8));
+                    p->setBrush(Qt::NoBrush);
+                    p->drawRect(at);
+                }
+            }
+            if (mark.focus && !first.isNull() && !mark.title.isEmpty()) {
+                QFont f;
+                f.setPointSizeF(7);
+                p->setFont(f);
+                const QFontMetricsF fm(f);
+                const double w = std::min(120.0, fm.horizontalAdvance(mark.title) + 8), h = fm.height() + 2;
+                const QRectF tab(first.left(), first.top() - h, w, h);
+                p->fillRect(tab, QColor(0x2b, 0x6c, 0xb0));
+                p->setPen(Qt::white);
+                p->drawText(tab.adjusted(4, 0, -4, 0), Qt::AlignVCenter | Qt::AlignLeft, fm.elidedText(mark.title, Qt::ElideRight, w - 8));
+            }
+        }
+        p->restore();
+    }
+}
+
 // While a header or footer is edited the text of the page is dimmed (the headers and footers are not), and the edge of the one being edited is a dashed line with its name.
 void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const PageDrawing &d)
 {
@@ -262,6 +308,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
         inBoxes(page.noteBoxes);
     }
     Renderer::paintPage(p, ctx, 0);
+    if (d.controls && !d.output && !d.controls->isEmpty()) paintControlMarks(p, page, layouts, ctx.opt, d);
     flow::TablePaint tables;
     tables.output = d.textOutput;
     tables.marks = d.marks;

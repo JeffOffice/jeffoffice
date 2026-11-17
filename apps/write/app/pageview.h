@@ -6,6 +6,8 @@ namespace jp { class ShapeTextEdit; }
 // worked out. The view also takes the keyboard and the mouse: the caret is drawn on the page that holds it, and what is typed goes to
 // the story through the commands of core/editops.h.
 
+#include "app/pagepaint.h"
+#include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/tableops.h"
@@ -149,6 +151,14 @@ public:
     void setGrammarEnabled(bool on);
     // Follows the link at a position of the text as a Ctrl+click does (a web or email address is handed on, a link to a bookmark or a reference moves the caret); false where there is none.
     bool followLinkAt(int position);
+    // Content controls: a click on one acts on it (a check box flips; a list or a date asks the window, with controlChoiceWanted, to show its choices; the placeholder of a text box is
+    // selected). The same for Enter, Space, or Alt+Down with the caret inside one. False where there is no control to act on (the click or the key is an ordinary one).
+    bool clickInControl(int position, const QPoint &viewportPos, const QPoint &globalPos, int clicks = 1);
+    // The control whose words (on one line: its box) the point of the window is on; the caret position a click there gives is beside the control's atoms, not always inside them.
+    write::ContentControl controlUnder(int position, const QPoint &viewportPos);
+    bool activateControlAtCaret(int key, const QPoint &globalPos);
+    // The controls drawn with a box (the caret's has an outline and its title), worked out again when the text changes.
+    const QVector<ControlMark> &controlMarks();
     // Edits the footnote whose mark is at the position (a double click on a mark), at the foot of its page; false where there is no mark.
     bool openNoteAt(int position);
     // The place a menu is for: where the last right click was (a click inside a selection leaves the selection and the caret as they were), else the caret.
@@ -366,6 +376,7 @@ Q_SIGNALS:
     void pagesChanged();                    // how many pages there are, or whether all are known
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
+    void controlChoiceWanted(int start, const QPoint &globalPos);   // a content control that holds a choice (a list, a date) was clicked: where its start is, and where to show the choices
     void selectionMade();                   // a click or a drag with the mouse ended: the selection (or the caret) is where it was left
     void contextMenuWanted(const QPoint &globalPos);
     // A barcode picture was double-clicked (and selected): the barcode dialog edits it.
@@ -637,6 +648,9 @@ private:
     void fitWebWidth();
     bool m_marks = false;
     QVector<QPair<int, int>> m_findHighlights;
+    QVector<ControlMark> m_controlMarks;
+    quint64 m_controlRevision = ~quint64(0);
+    const QTextDocument *m_controlStory = nullptr;
     std::function<QVector<QPair<int, int>>(const QTextDocument *)> m_findSide;
     // What a paste was made from, kept so that the choices after it paste the same, whatever the clipboard holds by then: a copy of the clipboard's words, HTML, and picture, and the copy this
     // program made last (what pasting it again keeps), and the cells the clipboard holds as a table, parsed when they are asked for.

@@ -727,6 +727,7 @@ void PageView::paintEvent(QPaintEvent *e)
             d.shadeFields = m_shadeFields;
             d.draft = m_draft || m_web;
             d.found = m_findHighlights.isEmpty() ? nullptr : &m_findHighlights;
+            if (m_doc && !m_hf.active && !m_note.active) d.controls = &controlMarks();
             d.foundIn = m_findSide;
             d.pageCount = std::max(1, m_knownPages);
             if (m_hf.active) {

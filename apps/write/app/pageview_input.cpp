@@ -4,6 +4,7 @@
 #include "app/shapetextedit.h"
 
 #include "core/autoops.h"
+#include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/linkops.h"
 #include "app/settings.h"
@@ -593,6 +594,11 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     m_movedFrom = m_cursor.position();
     const bool shift = m & Qt::ShiftModifier, ctrl = m & Qt::ControlModifier;
     const QTextCursor::MoveMode mode = shift ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor;
+    if (!shift && !ctrl && ((key == Qt::Key_Space || key == Qt::Key_Return || key == Qt::Key_Enter) || (key == Qt::Key_Down && (m & Qt::AltModifier)))) {
+        QRect r;
+        const QPoint where = caretRect(&r) ? viewport()->mapToGlobal(r.bottomLeft()) : QCursor::pos();
+        if (activateControlAtCaret(key, where)) return;
+    }
     switch (key) {
     case Qt::Key_Left:
         if (ctrl) m_cursor.movePosition(QTextCursor::PreviousWord, mode);
@@ -798,6 +804,10 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Space && !(e->modifiers() & ~Qt::KeypadModifier) && activateControlAtCaret(Qt::Key_Space, QPoint())) {   // (Space flips a check box the caret is in)
+        e->accept();
+        return;
+    }
     if (!text.isEmpty() && !shortcut && text[0].isPrint()) {
         insertText(text);
         e->accept();
@@ -943,6 +953,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_clicks = again ? (m_clicks % 3) + 1 : e->type() == QEvent::MouseButtonDblClick ? 2 : 1;
     m_lastClickTime = now;
     m_lastPos = e->position().toPoint();
+    if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInControl(at, e->position().toPoint(), e->globalPosition().toPoint(), m_clicks)) return;
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
     if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !m_readOnly && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
         at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
@@ -1257,6 +1268,94 @@ bool PageView::openNoteAt(int at)
     if (!m_doc || m_hf.active || m_cursor.document() != m_doc->story()) return false;
     const int id = footnoteReferenceAt(*m_doc, at);
     return id >= 0 && enterFootnote(id);
+}
+
+const QVector<ControlMark> &PageView::controlMarks()
+{
+    QTextDocument *story = m_doc ? m_doc->story() : nullptr;
+    if (!story) {
+        m_controlMarks.clear();
+        return m_controlMarks;
+    }
+    if (m_controlStory != story || m_controlRevision != quint64(story->revision())) {
+        m_controlStory = story;
+        m_controlRevision = quint64(story->revision());
+        m_controlMarks.clear();
+        for (const write::ContentControl &c : write::contentControls(*m_doc))
+            if (c.props.kind != write::ControlKind::Other) m_controlMarks.push_back({c.start, c.end, false, c.props.title});
+    }
+    // (The control the caret is in has the outline: the innermost that holds it.)
+    for (ControlMark &mark : m_controlMarks) mark.focus = false;
+    if (m_cursor.document() == story) {
+        const int at = m_cursor.hasSelection() ? m_cursor.selectionStart() + 1 : m_cursor.position();
+        int best = -1;
+        for (int i = 0; i < m_controlMarks.size(); ++i)
+            if (at > m_controlMarks[i].from && at <= m_controlMarks[i].to && (best < 0 || m_controlMarks[i].from > m_controlMarks[best].from)) best = i;
+        if (best >= 0) m_controlMarks[best].focus = true;
+    }
+    return m_controlMarks;
+}
+
+write::ContentControl PageView::controlUnder(int at, const QPoint &viewportPos)
+{
+    // (A click on the first or last letter of a control gives the place before its first atom or after its last: those are asked too.)
+    for (int p : {at, at + 1, at - 1}) {
+        const write::ContentControl c = write::contentControlAt(*m_doc, p);
+        if (!c.valid()) continue;
+        QRect a, b;
+        if (!positionRect(c.start + 1, &a) || !positionRect(c.end, &b)) continue;
+        if (std::abs(a.center().y() - b.center().y()) > 2) {
+            if (p == at) return c;   // (over lines: only what the place says)
+            continue;
+        }
+        if (viewportPos.y() >= a.top() && viewportPos.y() <= a.bottom() && viewportPos.x() >= a.left() - 1 && viewportPos.x() <= b.left() + 1) return c;
+    }
+    return write::ContentControl();
+}
+
+bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &globalPos, int clicks)
+{
+    if (!m_doc || m_readOnly || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
+    const write::ContentControl c = controlUnder(at, viewportPos);
+    if (!c.valid() || !c.editable || (clicks > 1 && c.props.kind != write::ControlKind::CheckBox)) return false;   // (a check box flips at each click, however quick; the others are a double click's word)
+    switch (c.props.kind) {
+    case write::ControlKind::CheckBox:
+        if (!c.props.lockContents) write::toggleControlCheck(*m_doc, c.start);
+        m_cursor.setPosition(std::min(write::contentControlAt(*m_doc, c.start + 1).end + 1, m_doc->story()->characterCount() - 1));
+        break;
+    case write::ControlKind::DropDown:
+    case write::ControlKind::Date:
+        if (c.placeholder) write::selectControlContents(m_cursor, c);
+        else m_cursor.setPosition(std::clamp(at, c.start + 1, c.end));
+        if (!c.props.lockContents) Q_EMIT controlChoiceWanted(c.start, globalPos);
+        break;
+    case write::ControlKind::PlainText:
+        if (!c.placeholder || c.props.lockContents) return false;
+        write::selectControlContents(m_cursor, c);
+        break;
+    default:
+        return false;
+    }
+    m_dragging = false;
+    caretMoved();
+    return true;
+}
+
+bool PageView::activateControlAtCaret(int key, const QPoint &globalPos)
+{
+    if (!m_doc || m_readOnly || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
+    const write::ContentControl c = write::contentControlAt(*m_doc, m_cursor.position());
+    if (!c.valid() || !c.editable || c.props.lockContents) return false;
+    if (c.props.kind == write::ControlKind::CheckBox && key == Qt::Key_Space) {
+        write::toggleControlCheck(*m_doc, c.start);
+        caretMoved();
+        return true;
+    }
+    if ((c.props.kind == write::ControlKind::DropDown || c.props.kind == write::ControlKind::Date) && key != Qt::Key_Space) {
+        Q_EMIT controlChoiceWanted(c.start, globalPos);
+        return true;
+    }
+    return false;
 }
 
 bool PageView::followLinkAt(int at)

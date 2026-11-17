@@ -39,6 +39,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Comments"),
     QT_TRANSLATE_NOOP("Ribbon", "Compare"),
     QT_TRANSLATE_NOOP("Ribbon", "Connect"),
+    QT_TRANSLATE_NOOP("Ribbon", "Content Control"),
     QT_TRANSLATE_NOOP("Ribbon", "Corrections"),
     QT_TRANSLATE_NOOP("Ribbon", "Cover Page"),
     QT_TRANSLATE_NOOP("Ribbon", "Create"),
