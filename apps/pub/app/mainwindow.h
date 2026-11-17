@@ -121,6 +121,10 @@ public:
     int removePersonalInformation();
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
+    // Whether the publication is set to open for reading only each time (a property it keeps in its file); turning it off also lets this window edit.
+    bool alwaysOpensReadOnly() const;
+    QString alwaysReadOnlyBlocked() const;
+    void setAlwaysOpenReadOnly(bool on);
     // Whether the file asks for a password when it is opened (it was opened with one, or Encrypt with Password was used); the password is put on when the publication is saved. Only a .jpub file
     // can have one.
     bool isPasswordProtected() const { return m_fileProtected; }
@@ -293,6 +297,7 @@ private:
     write::VersionKey m_versions;   // what the versions kept for the file are protected with (they follow a new password when the file is saved)
     bool m_protectionNoted = false;
     bool m_recovered = false;       // the document is recovered work, not yet saved
+    bool m_readOnlyByChoice = false;      // this window is read-only only because the publication is set to always open that way
     bool m_personalInfoRemoved = false;   // Inspect took the names out of the properties: they stay out until the publication is closed
     void notice(const QString &title, const QString &text, bool warning = false);
     QPointer<QWidget> m_measurement;

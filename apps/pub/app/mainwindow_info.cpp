@@ -96,6 +96,9 @@ QWidget *MainWindow::buildInfoPage(QWidget *parent)
         rows.push_back({tr("Words"), QLocale().toString(words)});
         return rows;
     };
+    h.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    h.setAlwaysReadOnly = [this](bool on) { setAlwaysOpenReadOnly(on); };
+    h.alwaysReadOnlyBlocked = [this] { return alwaysReadOnlyBlocked(); };
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
@@ -167,6 +170,37 @@ QString MainWindow::markFinalBlocked() const
     if (properties().truncated) return tr("This file has more properties than %1 reads, so the mark can't be added.").arg(QStringLiteral("JeffPub"));
     if (m_ed->filePath().endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) return tr("A .pub file can't hold the mark. Save the publication as a .jpub file first.");
     return {};
+}
+
+bool MainWindow::alwaysOpensReadOnly() const
+{
+    return office::isAlwaysOpenReadOnly(properties().custom);
+}
+
+QString MainWindow::alwaysReadOnlyBlocked() const
+{
+    if (properties().truncated) return tr("This file has more properties than %1 reads, so this choice can't be kept.").arg(QStringLiteral("JeffPub"));
+    if (m_ed->filePath().endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) return tr("A .pub file can't hold this choice. Save the publication as a .jpub file first.");
+    return {};
+}
+
+void MainWindow::setAlwaysOpenReadOnly(bool on)
+{
+    if (!m_ed->doc() || m_ed->doc()->pages.empty()) return;
+    if (on && !alwaysReadOnlyBlocked().isEmpty()) {
+        notice(tr("Always Open Read-Only"), alwaysReadOnlyBlocked());
+        return;
+    }
+    office::PackageProps p = properties();
+    p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
+    // (the editor changes nothing while it is read-only, so the change is made with it lifted; a window that is read-only for another reason, opened so or marked final, is put back)
+    const bool keepReadOnly = isReadOnly() && !(!on && m_readOnlyByChoice);
+    if (isReadOnly()) setReadOnly(false);
+    applyProperties(p);
+    if (keepReadOnly) setReadOnly(true);
+    if (!on) m_readOnlyByChoice = false;
+    statusBar()->showMessage(on ? tr("This publication will open for reading only. Save it to keep this choice.") : tr("This publication will open for editing again. Save it to keep this choice."), 8000);
+    if (m_backstage && m_backstage->isVisible()) showBackstage(QStringLiteral("info"));
 }
 
 void MainWindow::setMarkedFinal(bool on)
@@ -308,6 +342,7 @@ QStringList MainWindow::pubLosses()
     QStringList lost = m_lossCache.get(QStringLiteral("pub"), [&] { return publisherLosses(*m_ed->doc()); });
     if (m_fileProtected) lost << tr("The password: a .pub file can't keep a password.");
     if (markedAsFinal()) lost << tr("The mark that the publication is final.");
+    if (alwaysOpensReadOnly()) lost << tr("The choice to always open the publication for reading only.");
     return lost;
 }
 

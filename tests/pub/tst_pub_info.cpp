@@ -871,6 +871,91 @@ private Q_SLOTS:
         QVERIFY(!quietD.said.isEmpty());
     }
 
+    void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow a;
+        Quiet quiet(a);
+        QVERIFY(!a.alwaysOpensReadOnly());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.alwaysOpensReadOnly());
+        QVERIFY(!a.isReadOnly());   // (it applies the next time the file is opened)
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("r.jpub"))));
+        // opened, it is for reading only, with a note; the Info page's card turns it off and lets the window edit
+        jp::MainWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("r.jpub"))));
+        QVERIFY(b.isReadOnly());
+        QVERIFY(b.alwaysOpensReadOnly());
+        QVERIFY(b.statusBar()->currentMessage().contains(QLatin1String("reading only")));
+        b.showBackstage(QStringLiteral("info"));
+        auto *card = b.findChild<jp::Backstage *>()->findChild<QAbstractButton *>(QStringLiteral("infoAlwaysReadOnly"));
+        QVERIFY(card);
+        QVERIFY(card->isEnabled());
+        card->click();
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(!b.isReadOnly());
+        QVERIFY(b.save());
+        jp::MainWindow c;
+        Quiet quietC(c);
+        QVERIFY(c.openFile(dir.filePath(QStringLiteral("r.jpub"))));
+        QVERIFY(!c.isReadOnly());
+        // opened as a copy it is a publication to edit
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("r2.jpub"))));
+        jp::MainWindow d;
+        Quiet quietD(d);
+        QVERIFY(d.openFile(dir.filePath(QStringLiteral("r2.jpub")), jp::OpenHow::Copy));
+        QVERIFY(!d.isReadOnly());
+    }
+
+    void turningAlwaysOpenReadOnlyOffKeepsAWindowThatIsReadOnlyForAnotherReason()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow a;
+        Quiet quiet(a);
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("k.jpub"))));
+        jp::MainWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("k.jpub")), jp::OpenHow::ReadOnly));
+        QVERIFY(b.isReadOnly());
+        b.setAlwaysOpenReadOnly(false);
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(b.isReadOnly());
+    }
+
+    // What a .pub file keeps: the writer gives it no properties of this program's kind and the reader takes only the title, author, subject, keywords, and comments, so neither the final mark nor
+    // the choice to always open for reading only is in one. A save to one says so (the list) and the window stops saying they are kept.
+    void aPubFileHoldsNeitherTheFinalMarkNorTheReadOnlyChoice()
+    {
+        QTemporaryDir dir;
+        jp::MainWindow a;
+        Quiet quiet(a);
+        office::PackageProps p = a.properties();
+        p.custom = office::withMarkAsFinal(office::withAlwaysOpenReadOnly(p.custom, true), true);
+        a.applyProperties(p);
+        const QString joined = a.pubLosses().join(QLatin1Char('|'));
+        QVERIFY(joined.contains(QLatin1String("always open")));
+        QVERIFY(joined.contains(QLatin1String("final")));
+        // a copy is written as it is: the open publication keeps both, and the file has neither
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("c.pub")), true));
+        QVERIFY(a.alwaysOpensReadOnly() && a.markedAsFinal());
+        jp::MainWindow b;
+        Quiet quietB(b);
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("c.pub"))));
+        QVERIFY(!b.markedAsFinal());
+        QVERIFY(!b.alwaysOpensReadOnly());
+        QVERIFY(!b.isReadOnly());
+        // saved under that name, the window stops saying they are kept; and the card says a .pub can't hold the choice
+        QVERIFY(a.saveTo(dir.filePath(QStringLiteral("s.pub"))));
+        QVERIFY(!a.alwaysOpensReadOnly());
+        QVERIFY(!a.markedAsFinal());
+        QVERIFY(!a.alwaysReadOnlyBlocked().isEmpty());
+        a.setAlwaysOpenReadOnly(true);
+        QVERIFY(!a.alwaysOpensReadOnly());
+    }
+
     void inspectFindsAndRemovesWhatIsThere()
     {
         jp::MainWindow w;

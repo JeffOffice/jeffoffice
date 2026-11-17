@@ -612,6 +612,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     const int chartsAsPictures = doc->chartsKeptAsPictures;
     const int equationsLeftOut = doc->equationsLeftOut;
     setReadOnly(false);
+    m_readOnlyByChoice = false;
     // (a copy of a protected publication is protected too)
     crypto::wipe(m_filePassword);
     m_fileProtected = wasProtected;
@@ -634,6 +635,12 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
         else if (how == OpenHow::Normal && markedAsFinal()) {
             setReadOnly(true);
             statusBar()->showMessage(tr("Marked as final: this publication is open for reading only. Open File > Info and choose Marked as Final to edit it."), 12000);
+        }
+        // A publication set to always open for reading only does (the Info page lets it be edited).
+        else if (how == OpenHow::Normal && alwaysOpensReadOnly()) {
+            setReadOnly(true);
+            m_readOnlyByChoice = true;
+            statusBar()->showMessage(tr("This publication is open for reading only, as you chose. Open File > Info and choose Always Opens Read-Only to edit it."), 12000);
         }
     }
     Settings::get().addRecentFile(path);
@@ -702,6 +709,11 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
     NamesOutScope namesOut(m_ed->doc()->props, privacy::removeOnSave());
     // The mark that a publication is final is a property a .pub file does not keep: it was said in the list before, and the file is saved without it.
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && markedAsFinal() && !asCopy) m_ed->doc()->props.custom = office::withMarkAsFinal(m_ed->doc()->props.custom, false);
+    // The choice to always open for reading only is one a .pub file does not keep either: the window stops saying it is kept.
+    if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) && alwaysOpensReadOnly() && !asCopy) {
+        m_ed->doc()->props.custom = office::withAlwaysOpenReadOnly(m_ed->doc()->props.custom, false);
+        m_readOnlyByChoice = false;
+    }
     // Options > "Always create backup copy": the file as it was before this save is kept as "Backup of <name>".
     if (!backupBeforeSave(this, path, password)) return false;
     if (path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive)) {
