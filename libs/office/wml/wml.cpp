@@ -1571,7 +1571,9 @@ QByteArray paraPropsXml(const ParaProps &p)
     }
     if (p.tabs && !p.tabs->isEmpty()) {
         QByteArray e = "<w:tabs>";
+        int bars = 0;
         for (const TabStop &t : *p.tabs) {
+            if (t.val == QLatin1String("bar") && ++bars > 64) continue;   // (a paragraph keeps up to 64 bar stops)
             e += "<w:tab" + valAttr("val", t.val.isEmpty() ? QStringLiteral("left") : t.val);
             if (!t.leader.isEmpty()) e += valAttr("leader", t.leader);
             e += intAttr("pos", t.pos) + "/>";

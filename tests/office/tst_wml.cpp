@@ -2676,6 +2676,18 @@ private Q_SLOTS:
         }
     }
 
+    // Fed 70 bar stops in memory, the writer says 64 of them (and keeps the other stops).
+    void aParagraphIsWrittenWithAtMost64BarStops()
+    {
+        ParaProps p;
+        QVector<TabStop> tabs{{900, QStringLiteral("right"), QString()}};
+        for (int i = 0; i < 70; ++i) tabs.push_back({100 + i * 10, QStringLiteral("bar"), QString()});
+        p.tabs = tabs;
+        const QByteArray x = paraPropsXml(p);
+        QCOMPARE(int(x.count("w:val=\"bar\"")), 64);
+        QCOMPARE(int(x.count("w:val=\"right\"")), 1);
+    }
+
     void differencesFromTheStyleAreWhatIsWrittenDirectly()
     {
         RunProps base;

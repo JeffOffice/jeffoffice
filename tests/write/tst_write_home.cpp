@@ -924,11 +924,11 @@ private Q_SLOTS:
         QCOMPARE(merged, 1);
     }
 
-    // With JW_SHOTS set to a folder, saves a picture of each dialog there (for looking at them); skipped otherwise.
+    // With JO_SHOT_DIR set to a folder, saves a picture of each dialog there (for looking at them); skipped otherwise.
     void picturesOfTheDialogs()
     {
-        const QString dir = qEnvironmentVariable("JW_SHOTS");
-        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
         jp::applyUiTheme(1);
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
@@ -973,11 +973,11 @@ private Q_SLOTS:
         w.view()->pageImage(0, 1224).copy(0, 0, 1224, 400).save(qEnvironmentVariable("JO_SHOT_DIR") + QStringLiteral("/write-page-bars-and-scaled.png"));
     }
 
-    // With JW_SHOTS set: a picture of every dialog the commands of JW_GRAB_IDS (or a standard list) open, named after the command.
+    // With JO_SHOT_DIR set: a picture of every dialog the commands of JW_GRAB_IDS (or a standard list) open, named after the command.
     void morePicturesOfTheDialogs()
     {
-        const QString dir = qEnvironmentVariable("JW_SHOTS");
-        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
         jp::applyUiTheme(1);
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
@@ -1266,6 +1266,40 @@ private Q_SLOTS:
         withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { points = d->findChild<QListWidget *>(QStringLiteral("tabList"))->item(0)->text(); }, false);
         QVERIFY2(inches.startsWith(QLatin1String("2\"")) && inches.contains(QLatin1String("bar")), qPrintable(inches));
         QVERIFY2(points.startsWith(QLatin1String("144")) && points != inches, qPrintable(points));
+    }
+
+    // The most bar stops a paragraph keeps is 64: setTabStopsOf drops the rest, and the Tabs box refuses a 65th and says so.
+    void bar64StopsAreTheMostAndTheTabsBoxRefusesAnother()
+    {
+        QTextBlockFormat bf;
+        QVector<TabStopEntry> many;
+        for (int i = 0; i < 70; ++i) {
+            TabStopEntry e;
+            e.position = 10 + i * 5;
+            e.bar = true;
+            many.push_back(e);
+        }
+        setTabStopsOf(bf, many);
+        QCOMPARE(int(tabStopsOf(bf).size()), 64);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("ab")))), QString());
+        QTextCursor cursor(w.document()->story());
+        many.resize(64);
+        setTabStops(*w.document(), cursor, many);
+        QCOMPARE(int(tabStopsOf(w.document()->story()->begin().blockFormat()).size()), 64);
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 64);
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("tabNote"))->text().isEmpty());
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("tabPosition"))->setValue(500.0);
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("tabType"));
+            type->setCurrentIndex(type->findText(QStringLiteral("Bar")));
+            d->findChild<QPushButton *>(QStringLiteral("tabSet"))->click();
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 64);
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("tabNote"))->text().isEmpty());
+        });
+        QCOMPARE(int(tabStopsOf(w.document()->story()->begin().blockFormat()).size()), 64);
     }
 
     void theTabsBoxSetsBarStopsThatAreDrawnAsLinesAndKeptInTheFile()
