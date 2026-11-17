@@ -27,6 +27,7 @@
 #include <QListWidget>
 #include <QCheckBox>
 #include <QTemporaryDir>
+#include <QLayout>
 #include <memory>
 
 namespace {
