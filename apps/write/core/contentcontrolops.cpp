@@ -378,8 +378,9 @@ QTextCharFormat charFormatAt(QTextDocument *d, int position)
 // The look of ordinary text put at the place: the text before it, or the mark of the paragraph, with nothing a piece kept as XML has.
 QTextCharFormat plainLookAt(QTextDocument *d, int position)
 {
-    QTextCharFormat look = charFormatAt(d, std::max(0, position - 1));
+    QTextCharFormat look;
     if (position <= d->findBlock(position).position()) look = d->findBlock(position).charFormat();
+    else look = charFormatAt(d, position - 1);
     look.clearProperty(prop::Atom);
     look.clearProperty(tp::Field);
     look.clearProperty(tp::LinkResult);
