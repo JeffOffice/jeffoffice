@@ -473,6 +473,15 @@ void WriteDoc::setHyphenation(double zonePoints, int limit)
     setSectionProps(sectionCount() - 1, last);
 }
 
+void WriteDoc::setDefaultTabStop(double points)
+{
+    const int twips = std::clamp(int(std::lround(std::isfinite(points) ? points * 20 : 720)), 20, 31680);
+    if (twips == m_wml.defaultTabStop) return;
+    SectionProps last = m_last;
+    last.defaultTabStop = twips;
+    setSectionProps(sectionCount() - 1, last);
+}
+
 void WriteDoc::setHyphenateCaps(bool on)
 {
     if (m_flow->hyphenateCaps == on) return;
@@ -735,6 +744,7 @@ void WriteDoc::writeHeaderParts(office::wml::Document *out)
     if (m_flow->hyphenate != m_hyphenAtOpen) changeSetting(settingsWithAutoHyphenation, m_flow->hyphenate);
     if (const int zone = int(std::lround(m_flow->hyphenZone * 20)); zone != m_hyphenZoneAtOpen)
         changeSetting([zone](const QByteArray &settings, bool) { return settingsWithHyphenationZone(settings, zone); }, zone != 360);
+    if (m_wml.defaultTabStop != m_defaultTabAtOpen) changeSetting([twips = m_wml.defaultTabStop](const QByteArray &settings, bool) { return settingsWithDefaultTabStop(settings, twips); }, true);
     if (!m_flow->hyphenateCaps != m_noHyphenCapsAtOpen) changeSetting(settingsWithDoNotHyphenateCaps, !m_flow->hyphenateCaps);
     if (m_flow->hyphenLimit != m_hyphenLimitAtOpen)
         changeSetting([limit = m_flow->hyphenLimit](const QByteArray &settings, bool) { return settingsWithConsecutiveHyphenLimit(settings, limit); }, m_flow->hyphenLimit > 0);

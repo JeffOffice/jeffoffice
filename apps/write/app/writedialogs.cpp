@@ -387,6 +387,8 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto kernOf = [](const QTextCharFormat &f) { return f.hasProperty(tp::KernAbove) ? f.property(tp::KernAbove).toDouble() : 0.0; };
     const bool spacingMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(spacingOf(f) * 100)); });
     const bool raisedMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(raisedOf(f) * 100)); });
+    auto scaleOf = [](const QTextCharFormat &f) { return f.hasProperty(QTextFormat::FontStretch) && f.fontStretch() > 0 ? f.fontStretch() : 100; };
+    const bool scaleMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(scaleOf(f)); });
     const bool kernMixed = !agree(formats, [&](const QTextCharFormat &f) { return QVariant(qRound(kernOf(f) * 100)); });
     auto kindCombo = [&](const char *name, const QString &a, const QString &b, int index, bool mixed) {
         auto *combo = new QComboBox(spacingBox);
@@ -432,6 +434,16 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     sg->addWidget(raisedBy, 1, 3);
     sg->addWidget(kern, 2, 0, 1, 3);
     sg->addWidget(kernFrom, 2, 3);
+    // Scaling: how wide the letters are drawn, in percent of their own width (a box that the selection does not agree on shows "(mixed)").
+    const int scale0 = scaleOf(first);
+    auto *scaling = new QSpinBox(spacingBox);
+    scaling->setObjectName(QStringLiteral("scaling"));
+    scaling->setRange(scaleMixed ? 0 : 1, 600);
+    scaling->setSuffix(QCoreApplication::translate("jp::write::Dialogs", "%"));
+    scaling->setSpecialValueText(QCoreApplication::translate("jp::write::Dialogs", "(mixed)"));
+    scaling->setValue(scaleMixed ? 0 : std::clamp(scale0, 1, 600));
+    sg->addWidget(plainLabel(new QLabel(QCoreApplication::translate("jp::write::Dialogs", "Scale"), spacingBox)), 3, 0);
+    sg->addWidget(scaling, 3, 3);
     auto syncSpacing = [=] {
         spacingBy->setEnabled(spacingKind->currentIndex() == 1 || spacingKind->currentIndex() == 2);
         raisedBy->setEnabled(raisedKind->currentIndex() == 1 || raisedKind->currentIndex() == 2);
@@ -521,6 +533,7 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     const int smallChange = smallCaps.change(), allChange = allCaps.change(), hiddenChange = hidden.change();
     const bool spacingChanged = spacingKind->currentIndex() != 3 && (spacingKind->currentIndex() != (spacing0 > 0.001 ? 1 : spacing0 < -0.001 ? 2 : 0) || (spacingKind->currentIndex() != 0 && std::abs(spacingBy->value() - std::abs(spacing0)) > 0.001) || spacingMixed);
     const bool raisedChanged = raisedKind->currentIndex() != 3 && (raisedKind->currentIndex() != (raised0 > 0.001 ? 1 : raised0 < -0.001 ? 2 : 0) || (raisedKind->currentIndex() != 0 && std::abs(raisedBy->value() - std::abs(raised0)) > 0.001) || raisedMixed);
+    const bool scaleChanged = scaleMixed ? scaling->value() != 0 : scaling->value() != std::clamp(scale0, 1, 600);
     const bool kernChanged = kern->checkState() != Qt::PartiallyChecked && (kernMixed || (kern->checkState() == Qt::Checked) != (kern0 > 0.001) || (kern->checkState() == Qt::Checked && std::abs(kernFrom->value() - kern0) > 0.001));
     const OpenTypeBox::Change openTypeChange = openType->change();
     c.beginEditBlock();   // (one step for all of it)
@@ -603,6 +616,10 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
             if (std::abs(by) < 0.001) f.clearProperty(prop::Raised);
             else f.setProperty(prop::Raised, int(std::lround(by * 2)));
         }
+        if (scaleChanged) {
+            if (scaling->value() == 100) f.clearProperty(QTextFormat::FontStretch);
+            else f.setFontStretch(scaling->value());
+        }
         if (kernChanged) {
             if (kern->checkState() == Qt::Checked) f.setProperty(tp::KernAbove, kernFrom->value());
             else f.clearProperty(tp::KernAbove);
@@ -624,6 +641,8 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
 
 void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
 {
+    // (A bar is a kind of stop in the box's list of kinds, though it is no kind of Qt's tab: the stop has `bar` set and the kind left.)
+    constexpr int kBarKind = 100;
     if (!doc || !cursor) return;
     QVector<TabStopEntry> stops = tabStopsOf(cursor->block().blockFormat());
     QDialog dlg(parent);
@@ -641,6 +660,7 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Center"), int(QTextOption::CenterTab));
     type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Right"), int(QTextOption::RightTab));
     type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Decimal"), int(QTextOption::DelimiterTab));
+    type->addItem(QCoreApplication::translate("jp::write::Dialogs", "Bar"), kBarKind);
     auto *leader = new QComboBox(&dlg);
     leader->setObjectName(QStringLiteral("tabLeader"));
     leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "None"), QChar(QLatin1Char(' ')));
@@ -648,8 +668,8 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "Dashes"), QChar(QLatin1Char('-')));
     leader->addItem(QCoreApplication::translate("jp::write::Dialogs", "Line"), QChar(QLatin1Char('_')));
     auto describe = [](const TabStopEntry &t) {
-        const char *kinds[] = {QT_TRANSLATE_NOOP("jp::write::Dialogs", "left"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "right"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "center"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "decimal")};
-        const int k = t.type == QTextOption::LeftTab ? 0 : t.type == QTextOption::RightTab ? 1 : t.type == QTextOption::CenterTab ? 2 : 3;
+        const char *kinds[] = {QT_TRANSLATE_NOOP("jp::write::Dialogs", "left"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "right"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "center"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "decimal"), QT_TRANSLATE_NOOP("jp::write::Dialogs", "bar")};
+        const int k = t.bar ? 4 : t.type == QTextOption::LeftTab ? 0 : t.type == QTextOption::RightTab ? 1 : t.type == QTextOption::CenterTab ? 2 : 3;
         return QCoreApplication::translate("jp::write::Dialogs", "%1 pt, %2%3").arg(t.position, 0, 'f', 1).arg(QCoreApplication::translate("jp::write::Dialogs", kinds[k]), t.leader == QLatin1Char(' ') ? QString() : QCoreApplication::translate("jp::write::Dialogs", ", with a leader"));
     };
     auto refill = [&] {
@@ -662,6 +682,12 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Tab stops to clear"), list);
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Alignment"), type);
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Leader"), leader);
+    // The distance of the default stops is the document's, not the paragraph's.
+    auto *defaultStops = new MeasureSpin(&dlg);
+    defaultStops->setObjectName(QStringLiteral("defaultTabStop"));
+    defaultStops->setRange(1, kMostTabPosition);
+    defaultStops->setPoints(doc->defaultTabStop() / 20.0);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Default tab stops"), defaultStops);
     v->addLayout(form);
     auto *row = new QHBoxLayout;
     auto *set = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Set"), &dlg);
@@ -677,10 +703,11 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(set, &QPushButton::clicked, &dlg, [&] {
         TabStopEntry t;
         t.position = position->value();
-        t.type = QTextOption::TabType(type->currentData().toInt());
-        t.leader = leader->currentData().toChar();
+        t.bar = type->currentData().toInt() == kBarKind;
+        t.type = t.bar ? QTextOption::LeftTab : QTextOption::TabType(type->currentData().toInt());
+        t.leader = t.bar ? QChar(QLatin1Char(' ')) : leader->currentData().toChar();
         for (TabStopEntry &e : stops)
-            if (std::abs(e.position - t.position) < 0.5) {
+            if (e.bar == t.bar && std::abs(e.position - t.position) < 0.5) {
                 e = t;
                 refill();
                 return;
@@ -702,7 +729,7 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     QObject::connect(list, &QListWidget::currentRowChanged, &dlg, [&](int i) {
         if (i < 0 || i >= stops.size()) return;
         position->setPoints(stops.at(i).position);
-        type->setCurrentIndex(std::max(0, type->findData(int(stops.at(i).type))));
+        type->setCurrentIndex(std::max(0, type->findData(stops.at(i).bar ? kBarKind : int(stops.at(i).type))));
         leader->setCurrentIndex(std::max(0, leader->findData(QChar(stops.at(i).leader))));
     });
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
@@ -711,6 +738,7 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     v->addWidget(buttons);
     if (dlg.exec() != QDialog::Accepted) return;
     if (stops != tabStopsOf(cursor->block().blockFormat())) setTabStops(*doc, *cursor, stops);
+    if (std::abs(defaultStops->value() - doc->defaultTabStop() / 20.0) > 0.01) doc->setDefaultTabStop(defaultStops->value());
 }
 
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)

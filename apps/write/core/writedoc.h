@@ -710,6 +710,8 @@ public:
     void setModified(bool modified);
     // The settings of the file the program reads.
     int defaultTabStop() const { return m_wml.defaultTabStop; }
+    // The distance of the default tab stops, in points (1 to 1584): the settings' w:defaultTabStop. One step of the history.
+    void setDefaultTabStop(double points);
     const office::Theme *theme() const { return m_wml.hasTheme ? &m_wml.theme : nullptr; }
     bool isTemplate() const { return m_wml.mainContentType.contains(QLatin1String("template")); }
     // What the file had that its reading left out, for the person.
@@ -940,7 +942,7 @@ private:
     bool m_forcedDirty = false;
     bool m_wasModified = false;
     QString m_pageColorAtOpen;                                         // the file's page color ("RRGGBB") when it was read
-    int m_hyphenZoneAtOpen = 360, m_hyphenLimitAtOpen = 0;
+    int m_hyphenZoneAtOpen = 360, m_hyphenLimitAtOpen = 0, m_defaultTabAtOpen = 720;
     bool m_noHyphenCapsAtOpen = false;
     bool m_bookFold = false, m_bookFoldAtOpen = false;                 // book fold printing (the document's, kept in its settings; not a step of the history), and what the file had
     int m_bookFoldSheets = 0, m_bookFoldSheetsAtOpen = 0;

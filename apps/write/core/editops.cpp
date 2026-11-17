@@ -2535,7 +2535,7 @@ namespace {
 // Properties of a character format that a character style or a paragraph style gives, and so are told apart from what the text says.
 const int kStyleDriven[] = {QTextFormat::FontFamilies,   QTextFormat::FontPointSize,    QTextFormat::FontWeight,   QTextFormat::FontItalic,   QTextFormat::TextUnderlineStyle,
                             QTextFormat::FontStrikeOut,  QTextFormat::ForegroundBrush,  QTextFormat::FontCapitalization, QTextFormat::TextVerticalAlignment,
-                            QTextFormat::FontLetterSpacing, QTextFormat::FontLetterSpacingType, QTextFormat::TextUnderlineColor,
+                            QTextFormat::FontLetterSpacing, QTextFormat::FontLetterSpacingType, QTextFormat::FontStretch, QTextFormat::TextUnderlineColor,
                             tp::ThemeFont, tp::ColorRefP, tp::HighlightRefP, tp::UnderlineKind, prop::UnderlineAttrs, prop::ColorAttrs, prop::ColorAttrsRgb, prop::DoubleStrike, tp::HiddenText, prop::Raised, tp::NoProof, tp::Language};
 
 // The format with what `was` gave it (and it still has) taken for what `now` gives.

@@ -130,6 +130,8 @@ public:
                 p.color = k;
             } else if (name == "spacing") {
                 if (auto v = intOf(t, c)) p.spacing = *v;
+            } else if (name == "w") {
+                if (auto v = intOf(t, c)) p.scale = std::clamp(*v, 1, 600);
             } else if (name == "position") {
                 if (auto v = intOf(t, c)) p.position = *v;
             } else if (name == "kern") {

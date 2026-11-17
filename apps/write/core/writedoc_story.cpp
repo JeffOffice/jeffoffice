@@ -932,11 +932,11 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);
         // A paragraph that says it is numbered as its style says: that it said so is kept, for it changes whose indents win.
         if (numId > 0 && numberedByItself && base.numId.value_or(0) == numId) bf.setProperty(prop::NumDirect, true);
-        // The tab stops of its own that the engine has no kind for (a bar) are kept beside the others.
+        // The tab stops of its own that the engine has no kind for (the list tab) are kept beside the others (a bar is the layout's own property, tp::BarTabs).
         if (direct.tabs) {
             QVector<TabStop> odd;
             for (const TabStop &t : *direct.tabs)
-                if (t.val == QLatin1String("bar") || t.val == QLatin1String("num")) odd.push_back(t);
+                if (t.val == QLatin1String("num")) odd.push_back(t);
             if (!odd.isEmpty()) setStored(bf, prop::OddTabs, packTabs(odd));
         }
         if (!pending.isEmpty()) {

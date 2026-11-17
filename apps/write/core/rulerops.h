@@ -18,7 +18,8 @@ struct TabStopEntry {
     double position = 0;
     QTextOption::TabType type = QTextOption::LeftTab;
     QChar leader = QLatin1Char(' ');   // ' ' for none, '.' dots, '-' dashes, '_' a line, U+00B7 middle dots
-    bool operator==(const TabStopEntry &o) const { return position == o.position && type == o.type && leader == o.leader; }
+    bool bar = false;                  // a bar: a vertical line at the place on each line of the paragraph, taking no room (its type and leader mean nothing)
+    bool operator==(const TabStopEntry &o) const { return position == o.position && type == o.type && leader == o.leader && bar == o.bar; }
 };
 
 // The tab stops of a paragraph's format, in order of position (the leaders of its format matched to them).

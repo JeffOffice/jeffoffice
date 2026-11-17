@@ -418,6 +418,12 @@ static const QVector<QByteArray> &afterDocumentProtection()
     return later;
 }
 
+QByteArray settingsWithDefaultTabStop(const QByteArray &settings, int twips)
+{
+    const QVector<QByteArray> &after = afterDocumentProtection();
+    return settingsWithFlag(settings, "defaultTabStop", true, after.mid(after.indexOf("defaultTabStop") + 1), QByteArray::number(std::clamp(twips, 1, 31680)));
+}
+
 // The value of the attribute `name` (without its prefix) in the start tag `tag`, or empty.
 static QString protectionAttribute(const QByteArray &tag, const QByteArray &name)
 {
@@ -961,6 +967,7 @@ void RunProps::overlay(const RunProps &t)
     if (t.noProof) noProof = t.noProof;
     if (t.color) color = t.color;
     if (t.spacing) spacing = t.spacing;
+    if (t.scale) scale = t.scale;
     if (t.position) position = t.position;
     if (t.kern) kern = t.kern;
     if (t.size) size = t.size;
@@ -977,6 +984,7 @@ RunProps RunProps::normalized() const
         if (!*b) *b = false;
     if (!n.color) n.color = Color{QStringLiteral("auto"), QString(), QString(), QString()};
     if (!n.spacing) n.spacing = 0;
+    if (!n.scale) n.scale = 100;
     if (!n.position) n.position = 0;
     if (!n.kern) n.kern = 0;
     if (!n.size) n.size = 20;
@@ -989,7 +997,7 @@ RunProps RunProps::normalized() const
 bool RunProps::operator==(const RunProps &o) const
 {
     return style == o.style && fonts == o.fonts && bold == o.bold && italic == o.italic && caps == o.caps && smallCaps == o.smallCaps && strike == o.strike &&
-           dstrike == o.dstrike && vanish == o.vanish && noProof == o.noProof && color == o.color && spacing == o.spacing && position == o.position && kern == o.kern && size == o.size &&
+           dstrike == o.dstrike && vanish == o.vanish && noProof == o.noProof && color == o.color && spacing == o.spacing && scale == o.scale && position == o.position && kern == o.kern && size == o.size &&
            highlight == o.highlight && underline == o.underline && vertAlign == o.vertAlign && extra == o.extra;
 }
 
@@ -1030,6 +1038,7 @@ RunProps RunProps::differences(const RunProps &base) const
     flag(&RunProps::noProof);
     if (n.color != b.color) d.color = n.color;
     if (n.spacing != b.spacing) d.spacing = n.spacing;
+    if (n.scale != b.scale) d.scale = n.scale;
     if (n.position != b.position) d.position = n.position;
     if (n.kern != b.kern) d.kern = n.kern;
     if (size && n.size != b.size) d.size = size;
@@ -1099,8 +1108,8 @@ ParaProps ParaProps::normalized() const
         if (t.leader == QLatin1String("none")) t.leader.clear();
         if (t.val.isEmpty()) t.val = QStringLiteral("left");
     }
-    // (A bar and a list's tab are not tab stops the text engine has: they are kept apart from the tabs that are compared.)
-    n.tabs->erase(std::remove_if(n.tabs->begin(), n.tabs->end(), [](const TabStop &t) { return t.val == QLatin1String("bar") || t.val == QLatin1String("num"); }), n.tabs->end());
+    // (A list's tab is not a tab stop the text engine has: it is kept apart from the tabs that are compared. A bar is compared: the layout draws it.)
+    n.tabs->erase(std::remove_if(n.tabs->begin(), n.tabs->end(), [](const TabStop &t) { return t.val == QLatin1String("num"); }), n.tabs->end());
     if (!n.before) n.before = 0;
     if (!n.after) n.after = 0;
     if (!n.line) n.line = 240;
@@ -1528,6 +1537,7 @@ QByteArray runPropsXml(const RunProps &p, bool)
         parts.add(runChildRank("color"), e + "/>");
     }
     if (p.spacing) parts.add(runChildRank("spacing"), intEl("spacing", *p.spacing));
+    if (p.scale) parts.add(runChildRank("w"), intEl("w", *p.scale));
     if (p.kern) parts.add(runChildRank("kern"), intEl("kern", *p.kern));
     if (p.position) parts.add(runChildRank("position"), intEl("position", *p.position));
     if (p.size) parts.add(runChildRank("sz"), intEl("sz", *p.size));

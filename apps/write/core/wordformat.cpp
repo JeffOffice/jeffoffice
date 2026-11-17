@@ -523,6 +523,7 @@ QTextCharFormat charFormatOf(const RunProps &r, const Theme *theme, const RunPro
         cf.setFontLetterSpacingType(QFont::AbsoluteSpacing);
         cf.setFontLetterSpacing(*r.spacing / 20.0);
     }
+    if (r.scale && *r.scale != 100) cf.setFontStretch(std::clamp(*r.scale, 1, 600));
     if (r.position && *r.position != 0) cf.setProperty(prop::Raised, *r.position);
     if (r.kern && *r.kern > 0) cf.setProperty(tp::KernAbove, *r.kern / 2.0);   // (a run that says none isn't kerned: the engine's word processor lines keep to the file)
     if (r.vanish.value_or(false)) cf.setProperty(tp::HiddenText, true);
@@ -633,6 +634,7 @@ RunProps runPropsOf(const QTextCharFormat &f)
                                                                              : QStringLiteral("baseline");
     if (f.hasProperty(QTextFormat::FontPointSize)) r.size = std::clamp(int(std::lround(f.fontPointSize() * 2)), 1, 4000);
     r.spacing = f.hasProperty(QTextFormat::FontLetterSpacing) && f.fontLetterSpacingType() == QFont::AbsoluteSpacing ? int(std::lround(f.fontLetterSpacing() * 20)) : 0;
+    if (f.hasProperty(QTextFormat::FontStretch) && f.fontStretch() != 100) r.scale = std::clamp(f.fontStretch(), 1, 600);
     r.position = f.intProperty(prop::Raised);
     r.kern = f.hasProperty(tp::KernAbove) ? std::max(0, int(std::lround(f.property(tp::KernAbove).toDouble() * 2))) : 0;
     Color color{QStringLiteral("auto"), QString(), QString(), QString()};
@@ -775,7 +777,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     }
     if (p.tabs && !p.tabs->isEmpty()) {
         QList<QTextOption::Tab> tabs;
-        QString leaders;
+        QString leaders, bars;
         for (const TabStop &t : *p.tabs) {
             QTextOption::Tab tab;
             tab.position = t.pos / 20.0;
@@ -787,7 +789,10 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
             } else if (t.val == QLatin1String("num")) {
                 bf.setProperty(tp::NumberTab, t.pos / 20.0);   // (the stop of the number's tab: the engine has it for that tab alone)
                 continue;
-            } else if (t.val == QLatin1String("bar")) continue;
+            } else if (t.val == QLatin1String("bar")) {
+                if (bars.count(QLatin1Char(' ')) < 64) bars += (bars.isEmpty() ? QString() : QStringLiteral(" ")) + QString::number(t.pos / 20.0, 'f', 2);   // (a vertical line, no room: the layout draws it)
+                continue;
+            }
             else tab.type = QTextOption::LeftTab;
             tabs << tab;
             leaders += t.leader == QLatin1String("dot") ? QLatin1Char('.')
@@ -797,6 +802,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
                                                                 : QLatin1Char(' ');
         }
         if (!tabs.isEmpty()) bf.setTabPositions(tabs);   // (none is none, whether the paragraph says so or says nothing)
+        if (!bars.isEmpty()) bf.setProperty(tp::BarTabs, bars);
         if (leaders.contains(QRegularExpression(QStringLiteral("[^ ]")))) bf.setProperty(tp::TabLeaders, leaders);
     }
     if (!p.extra.isEmpty()) setStored(bf, prop::RawPPr, packRaw(p.extra));
@@ -870,6 +876,13 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
                                               : QString();
         tabs.push_back(t);
     }
+    for (const QString &at : f.stringProperty(tp::BarTabs).split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        TabStop t;
+        t.pos = int(std::lround(at.toDouble() * 20));
+        t.val = QStringLiteral("bar");
+        tabs.push_back(t);
+    }
+    std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
     p.tabs = tabs;
     if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(storedBytes(f, prop::RawPPr));
     // Borders the program made (a horizontal line): written as w:pBdr, in the place the schema has it (those a file had stay as it wrote them, among the kept properties).

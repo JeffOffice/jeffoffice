@@ -474,7 +474,7 @@ public:
     const QVector<InlineObject> &inlineObjects() const { return m_inline; }
 
     struct Seg { int docPos, docLen, dispPos, dispLen; bool hidden = false; };   // hidden: text a word processor hides (it shows nothing, and belongs to the line that follows)
-    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; };   // below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
+    struct Line { int frame = -1; int column = 0; QRectF rect; double below = 0; double pushed = 0; double band = 0; double above = 0; double edge = 0; };   // edge: where the text area begins in the line's column (bar tab stops are from there); below: the spacing under the text; pushed: how far wrapping moved it down; band: the height of its text that wrapping kept clear of objects; above: of a paragraph's first line, the space before the paragraph that is above it (none where the paragraph's was not kept)
     struct Block {
         int docStart = 0, docLen = 0;
         int propsStart = 0;   // where the paragraph whose properties it has begins: its last, where paragraphs are joined
@@ -514,6 +514,7 @@ public:
         int cutAt = 0;
         QVector<QPair<int, int>> fieldRanges;        // display ranges of fields
         QString leaders;                             // a leader character per tab stop (space = none)
+        QVector<double> bars;                        // the places of a word processor's bar tab stops (tp::BarTabs), from the text area's edge in the layout's units
         QStringList alignTabs;                       // a word processor's absolute position tabs of the paragraph (tp::AlignTab of each), in order
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
         struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };

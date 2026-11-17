@@ -309,9 +309,22 @@ QByteArray Reader::pPrXml(const Props &p, const QByteArray &tabs, const QByteArr
         x += on ? "<w:widowControl/>" : "<w:widowControl w:val=\"0\"/>";
     }
     x += numPr;
+    if (has("text:number-lines")) x += g("text:number-lines") == QLatin1String("false") ? "<w:suppressLineNumbers/>" : "<w:suppressLineNumbers w:val=\"0\"/>";
     x += bordersXml(p, QStringLiteral("para:"), "pBdr", false);
     if (has("fo:background-color")) x += shadingXml(g("fo:background-color"));
-    x += tabs;
+    // Bar tab stops are a list of places of ours (ODF has no bar): each is a w:tab of the kind bar, with the stops.
+    QByteArray barTabs;
+    if (has("bar-tabs")) {
+        int count = 0;
+        for (const QString &at : g("bar-tabs").split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+            bool ok = false;
+            const qint64 v = at.toLongLong(&ok);
+            if (ok && v >= 0 && v <= 31680 && ++count <= 64) barTabs += "<w:tab w:val=\"bar\" w:pos=\"" + num(v) + "\"/>";
+        }
+    }
+    if (barTabs.isEmpty()) x += tabs;
+    else if (tabs.isEmpty()) x += "<w:tabs>" + barTabs + "</w:tabs>";
+    else x += QByteArray(tabs).replace("</w:tabs>", barTabs + "</w:tabs>");
     {
         QByteArray sp;
         bool ok = false;

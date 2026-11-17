@@ -11,6 +11,10 @@
 #include "app/writedialogs.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
+#include "app/pageoutput.h"
+#include "render/pdfpage.h"
+#include <QBuffer>
+#include <QPdfWriter>
 #include "app/ruler.h"
 #include "app/writefindpane.h"
 #include "core/appinfo.h"
@@ -947,6 +951,25 @@ private Q_SLOTS:
         w.grab().save(dir + QStringLiteral("/window-accessibility.png"));
     }
 
+    // With JW_SHOTS set to a folder: the Tabs box (with a bar stop listed) and a page with bar tab stops and a scaled run, saved there; skipped otherwise.
+    void picturesOfTheTabsBoxAndABarAndScaledLetters()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOTS");
+        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 700);
+        w.show();
+        const QByteArray bars = "<w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"2880\"/><w:tab w:val=\"bar\" w:pos=\"5760\"/></w:tabs></w:pPr>";
+        w.setDocument(open(makeDocx(onePage("<w:p>" + bars + "<w:r><w:t>Name</w:t></w:r></w:p><w:p>" + bars + "<w:r><w:t xml:space=\"preserve\">Plain letters, then </w:t></w:r><w:r><w:rPr><w:w w:val=\"200\"/></w:rPr><w:t>wide</w:t></w:r>"
+                                              "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:rPr><w:w w:val=\"50\"/></w:rPr><w:t>narrow letters</w:t></w:r></w:p><w:p>" + bars + "<w:r><w:t>Third line</w:t></w:r></w:p>"), "<w:defaultTabStop w:val=\"360\"/>")), QString());
+        QTextCursor cursor(w.document()->story());
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("tabType"))->setCurrentIndex(4); d->grab().save(dir + QStringLiteral("/dialog-tabs-bar.png")); }, false);
+        QTRY_VERIFY(w.view()->pageImage(0, 816).width() == 816);
+        w.view()->pageImage(0, 1224).copy(0, 0, 1224, 400).save(dir + QStringLiteral("/page-bar-and-scaled.png"));
+    }
+
     // With JW_SHOTS set: a picture of every dialog the commands of JW_GRAB_IDS (or a standard list) open, named after the command.
     void morePicturesOfTheDialogs()
     {
@@ -1113,6 +1136,201 @@ private Q_SLOTS:
             d->findChild<QPushButton *>(QStringLiteral("tabClearAll"))->click();
         });
         QVERIFY(!part(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("<w:tab w:val"));
+    }
+
+    // The first dark pixel of a page's first line, in points from its left edge, and the last (a page 612 points wide, drawn 816 pixels wide).
+    static QPair<double, double> inkOf(PageView &view)
+    {
+        const QImage img = view.pageImage(0, 816);
+        const double perPoint = 816 / 612.0;
+        int first = -1, last = -1;
+        for (int x = 0; x < img.width(); ++x)
+            for (int y = int(72 * perPoint); y < int(92 * perPoint); ++y)
+                if (qGray(img.pixel(x, y)) < 128) {
+                    if (first < 0) first = x;
+                    last = x;
+                    break;
+                }
+        return {first < 0 ? -1.0 : first / perPoint, last < 0 ? -1.0 : last / perPoint};
+    }
+
+    static QByteArray onePage(const QByteArray &body)
+    {
+        return body + "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    }
+
+    void theTabsBoxSetsTheDistanceOfTheDefaultTabStopsAndTheLayoutAndTheFileFollow()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        const QByteArray plain = "<w:p><w:r><w:t>HHHH</w:t></w:r></w:p>", tabbed = "<w:p><w:r><w:tab/><w:t>HHHH</w:t></w:r></w:p>";
+        PageView ref;
+        ref.resize(900, 700);
+        auto base = open(makeDocx(onePage(plain), "<w:defaultTabStop w:val=\"720\"/>"));
+        ref.setDocument(base.get());
+        const double margin = inkOf(ref).first;
+        QVERIFY(margin > 60 && margin < 90);
+        w.setDocument(open(makeDocx(onePage(tabbed), "<w:defaultTabStop w:val=\"720\"/>")), QString());
+        QVERIFY2(std::abs(inkOf(*w.view()).first - margin - 36) < 3, qPrintable(QString::number(inkOf(*w.view()).first - margin)));
+        w.view()->selectAll();
+        QTextCursor cursor = w.view()->cursor();
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            auto *distance = d->findChild<QDoubleSpinBox *>(QStringLiteral("defaultTabStop"));
+            QVERIFY(distance);
+            QCOMPARE(distance->value(), 36.0);
+            distance->setValue(18.0);
+            shotOf(d, QStringLiteral("write-tabs-box"));
+        });
+        QCOMPARE(w.document()->defaultTabStop(), 360);
+        QTRY_VERIFY2(std::abs(inkOf(*w.view()).first - margin - 18) < 3, qPrintable(QString::number(inkOf(*w.view()).first - margin)));
+        QVERIFY2(part(w.document()->toDocx(), QStringLiteral("/word/settings.xml")).contains("<w:defaultTabStop w:val=\"360\"/>"), "settings.xml");
+        QCOMPARE(open(w.document()->toDocx())->defaultTabStop(), 360);
+        // One step of the history: undone, the stops are as they were.
+        QTextCursor at(w.document()->story());
+        w.document()->undo(&at);
+        QCOMPARE(w.document()->defaultTabStop(), 720);
+        // Left alone, the box changes nothing.
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *) {});
+        QCOMPARE(w.document()->defaultTabStop(), 720);
+    }
+
+    // Scaled letters and a bar stop go to a PDF as the page shows them (the page is drawn the same way for the screen, PDF, and the printer).
+    void scaledLettersAndBarStopsAreInThePdfAsOnThePage()
+    {
+        auto pdfInk = [](const QByteArray &body, int *barColumns = nullptr) {
+            auto doc = open(makeDocx(onePage(body)));
+            QBuffer buffer;
+            buffer.open(QIODevice::WriteOnly);
+            {
+                QPdfWriter pdf(&buffer);
+                if (!paintSheets(*doc, &pdf, {0}, 1)) return QPair<double, double>(-1, -1);
+            }
+            PdfDocument pages(buffer.data());
+            if (!pages.isValid()) return QPair<double, double>(-1, -1);
+            QImage img(816, 1056, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            {
+                QPainter on(&img);
+                on.drawImage(0, 0, pages.render(0, QSize(816, 1056)));
+            }
+            const double perPoint = 816 / 612.0;
+            int first = -1, last = -1;
+            for (int x = 0; x < img.width(); ++x)
+                for (int y = int(72 * perPoint); y < int(92 * perPoint); ++y)
+                    if (qGray(img.pixel(x, y)) < 128) {
+                        if (first < 0) first = x;
+                        last = x;
+                        break;
+                    }
+            if (barColumns) {
+                *barColumns = 0;
+                for (int x = int(140 * perPoint); x <= int(148 * perPoint); ++x) {
+                    int run = 0, best = 0;
+                    for (int y = int(72 * perPoint); y < int(120 * perPoint); ++y) {
+                        run = qGray(img.pixel(x, y)) < 160 ? run + 1 : 0;
+                        best = std::max(best, run);
+                    }
+                    *barColumns = std::max(*barColumns, best);
+                }
+            }
+            return QPair<double, double>(first / perPoint, last / perPoint);
+        };
+        const QPair<double, double> plain = pdfInk("<w:p><w:r><w:t>HHHH</w:t></w:r></w:p>"), wide = pdfInk("<w:p><w:r><w:rPr><w:w w:val=\"200\"/></w:rPr><w:t>HHHH</w:t></w:r></w:p>");
+        QVERIFY2(plain.first > 0 && wide.first > 0, qPrintable(QStringLiteral("%1 %2 %3 %4").arg(plain.first).arg(plain.second).arg(wide.first).arg(wide.second)));
+        const double ratio = (wide.second - wide.first) / (plain.second - plain.first);
+        QVERIFY2(ratio > 1.8 && ratio < 2.2, qPrintable(QString::number(ratio)));
+        int bar = 0;
+        pdfInk("<w:p><w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"1440\"/></w:tabs></w:pPr><w:r><w:t>ab</w:t></w:r></w:p>", &bar);
+        QVERIFY2(bar >= 8, qPrintable(QString::number(bar)));
+    }
+
+    void theTabsBoxSetsBarStopsThatAreDrawnAsLinesAndKeptInTheFile()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(onePage("<w:p><w:r><w:t>ab</w:t></w:r></w:p><w:p><w:r><w:t>cd</w:t></w:r></w:p>"))), QString());
+        // The longest run of dark pixels in a column, in the stretch of the first line at 144 points from the page's edge.
+        auto barHeight = [&] {
+            const QImage img = w.view()->pageImage(0, 816);
+            const double perPoint = 816 / 612.0;
+            int best = 0;
+            for (int x = int(140 * perPoint); x <= int(148 * perPoint); ++x) {
+                int run = 0;
+                for (int y = int(72 * perPoint); y < int(120 * perPoint); ++y) {
+                    run = qGray(img.pixel(x, y)) < 160 ? run + 1 : 0;
+                    best = std::max(best, run);
+                }
+            }
+            return best;
+        };
+        QVERIFY(barHeight() < 4);
+        QTextCursor cursor(w.document()->story());
+        cursor.setPosition(0);
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("tabPosition"))->setValue(72.0);
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("tabType"));
+            const int bar = type->findText(QStringLiteral("Bar"));
+            QVERIFY(bar >= 0);
+            type->setCurrentIndex(bar);
+            d->findChild<QPushButton *>(QStringLiteral("tabSet"))->click();
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 1);
+            QVERIFY(d->findChild<QListWidget *>(QStringLiteral("tabList"))->item(0)->text().contains(QLatin1String("bar")));
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w:tab w:val=\"bar\" w:pos=\"1440\"/>"), out.constData());
+        QCOMPARE(int(out.count("w:val=\"bar\"")), 1);   // (the first paragraph's alone)
+        QTRY_VERIFY2(barHeight() >= 8, qPrintable(QString::number(barHeight())));
+        const QVector<TabStopEntry> stops = tabStopsOf(open(w.document()->toDocx())->story()->begin().blockFormat());
+        QCOMPARE(stops.size(), 1);
+        QVERIFY(stops[0].bar);
+        QCOMPARE(stops[0].position, 72.0);
+        // The ruler shows the stops the text goes to, not the line.
+        QVERIFY(w.ruler()->tabStops().isEmpty());
+        // The stop is listed again and taken away by Clear.
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 1);
+            d->findChild<QPushButton *>(QStringLiteral("tabClearAll"))->click();
+        });
+        QVERIFY(!part(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("w:val=\"bar\""));
+        QTRY_VERIFY(barHeight() < 4);
+    }
+
+    void theFontBoxScalesCharactersAndTheLayoutAndTheFileFollow()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(onePage("<w:p><w:r><w:t>HHHH</w:t></w:r></w:p>"))), QString());
+        const QPair<double, double> before = inkOf(*w.view());
+        const double wideBefore = before.second - before.first;
+        QVERIFY(wideBefore > 10);
+        w.view()->selectAll();
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) {
+            auto *scaling = d->findChild<QSpinBox *>(QStringLiteral("scaling"));
+            QVERIFY(scaling);
+            QCOMPARE(scaling->value(), 100);
+            QCOMPARE(scaling->maximum(), 600);
+            QCOMPARE(scaling->minimum(), 1);
+            scaling->setValue(200);
+        });
+        const QByteArray out = part(w.document()->toDocx(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(out.contains("<w:w w:val=\"200\"/>"), out.constData());
+        QTRY_VERIFY(inkOf(*w.view()).second > 0);
+        const QPair<double, double> after = inkOf(*w.view());
+        const double ratio = (after.second - after.first) / wideBefore;
+        QVERIFY2(ratio > 1.8 && ratio < 2.2, qPrintable(QString::number(ratio)));
+        QCOMPARE(open(w.document()->toDocx())->story()->begin().begin().fragment().charFormat().fontStretch(), 200);
+        // The box reads it back, and left alone changes nothing.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) { QCOMPARE(d->findChild<QSpinBox *>(QStringLiteral("scaling"))->value(), 200); });
+        QCOMPARE(part(w.document()->toDocx(), QStringLiteral("/word/document.xml")), out);
+        // Back to 100: the element goes.
+        withDialog([&w] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [](QDialog *d) { d->findChild<QSpinBox *>(QStringLiteral("scaling"))->setValue(100); });
+        QVERIFY(!part(w.document()->toDocx(), QStringLiteral("/word/document.xml")).contains("<w:w "));
     }
 
     void setAsDefaultGivesTheNormalStyleTheFontChosen()

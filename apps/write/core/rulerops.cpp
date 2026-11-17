@@ -21,6 +21,12 @@ QVector<TabStopEntry> tabStopsOf(const QTextBlockFormat &format)
         e.leader = i < leaders.size() ? leaders[i] : QLatin1Char(' ');
         out.push_back(e);
     }
+    for (const QString &at : format.stringProperty(tp::BarTabs).split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+        TabStopEntry e;
+        e.position = at.toDouble();
+        e.bar = true;
+        out.push_back(e);
+    }
     std::stable_sort(out.begin(), out.end(), [](const TabStopEntry &a, const TabStopEntry &b) { return a.position < b.position; });
     return out;
 }
@@ -29,10 +35,11 @@ void setTabStopsOf(QTextBlockFormat &format, QVector<TabStopEntry> stops)
 {
     for (TabStopEntry &s : stops) s.position = std::isfinite(s.position) ? std::clamp(s.position, 0.0, kMostTabPosition) : 0.0;
     std::stable_sort(stops.begin(), stops.end(), [](const TabStopEntry &a, const TabStopEntry &b) { return a.position < b.position; });
-    QVector<TabStopEntry> kept;
+    QVector<TabStopEntry> kept, bars;
     for (const TabStopEntry &s : std::as_const(stops)) {
-        if (!kept.isEmpty() && std::abs(kept.last().position - s.position) < 0.05) kept.last() = s;
-        else kept.push_back(s);
+        QVector<TabStopEntry> &into = s.bar ? bars : kept;
+        if (!into.isEmpty() && std::abs(into.last().position - s.position) < 0.05) into.last() = s;
+        else into.push_back(s);
     }
     QList<QTextOption::Tab> tabs;
     QString leaders;
@@ -49,6 +56,10 @@ void setTabStopsOf(QTextBlockFormat &format, QVector<TabStopEntry> stops)
     format.setTabPositions(tabs);
     if (anyLeader) format.setProperty(tp::TabLeaders, leaders);
     else format.clearProperty(tp::TabLeaders);
+    QString barText;
+    for (const TabStopEntry &s : std::as_const(bars)) barText += (barText.isEmpty() ? QString() : QStringLiteral(" ")) + QString::number(s.position, 'f', 2);
+    if (barText.isEmpty()) format.clearProperty(tp::BarTabs);
+    else format.setProperty(tp::BarTabs, barText);
 }
 
 void setTabStops(WriteDoc &doc, QTextCursor &c, const QVector<TabStopEntry> &stops)
@@ -63,7 +74,7 @@ int indexNear(const QVector<TabStopEntry> &stops, double at)
     int best = -1;
     double distance = 0.5;
     for (int i = 0; i < stops.size(); ++i)
-        if (std::abs(stops[i].position - at) <= distance) {
+        if (!stops[i].bar && std::abs(stops[i].position - at) <= distance) {
             best = i;
             distance = std::abs(stops[i].position - at);
         }

@@ -3893,6 +3893,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         opt.setTabs(tabs);
         opt.setTabStopDistance(std::max(1.0, env.defaultTab) * scale * kFine);
         B->leaders = bf.stringProperty(tp::TabLeaders);
+        B->bars.clear();
+        if (env.wordLines && bf.hasProperty(tp::BarTabs))
+            for (const QString &at : bf.stringProperty(tp::BarTabs).split(QLatin1Char(' '), Qt::SkipEmptyParts)) {
+                bool ok = false;
+                const double pos = at.toDouble(&ok);
+                if (ok && pos >= 0 && pos <= 1584 && B->bars.size() < 64) B->bars << pos * scale;
+            }
         // (A word processor's absolute position tabs: the tabs whose runs say where they go, as many as a paragraph may have.)
         B->alignTabs.clear();
         if (env.wordLines) {
@@ -4911,7 +4918,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             if (!spaced && !spreads) line.setLineWidth(line.naturalTextWidth() + 0.01);   // (the line is as wide as its letters: there is nothing to spread)
                         }
                     }
-                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0};
+                    B->lines << Line{f, c, QRectF(iv.x0, col.top() + y, iv.x1 - iv.x0, h), below, rowPushed, band, lineNo == 0 && f == B->spaceFrame && c == B->spaceColumn ? B->spaceAbove : 0.0, col.left()};
                     if (!lineNotes.isEmpty()) {
                         const bool firstNotes = !reserve.contains(rkey(f, c));
                         double &room = reserve[rkey(f, c)];
@@ -6586,6 +6593,22 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     if (line) p->restore();
                 }
             }
+        }
+
+        // A word processor's bar tab stops: a vertical line at each, the height of each line of the paragraph.
+        if (!B->bars.isEmpty()) {
+            p->save();
+            p->setPen(QPen(m_env.colors.slot(Main), 0.75));
+            for (int i = 0; i < B->lines.size(); ++i) {
+                if (B->lines[i].frame != frame) continue;
+                const PtLine l(B->tl->lineAt(i));
+                const double top = off.y() + l.position().y(), bottom = top + l.height();
+                for (const double at : std::as_const(B->bars)) {
+                    const double x = off.x() + B->lines[i].edge + at;
+                    p->drawLine(QLineF(x, top, x, bottom));
+                }
+            }
+            p->restore();
         }
 
         // The words a search found.

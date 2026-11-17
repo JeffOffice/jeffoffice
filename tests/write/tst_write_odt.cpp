@@ -11,6 +11,8 @@
 #include "core/fieldops.h"
 #include "core/fonts.h"
 #include "core/pictureops.h"
+#include "core/rulerops.h"
+#include "flow/flowdocument.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -41,7 +43,7 @@ const char kNs[] =
     " xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\""
     " xmlns:draw=\"urn:oasis:names:tc:opendocument:xmlns:drawing:1.0\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"";
 
-QByteArray makeOdt(const QByteArray &body, const QByteArray &autoStyles = QByteArray())
+QByteArray makeOdt(const QByteArray &body, const QByteArray &autoStyles = QByteArray(), const QByteArray &commonStyles = QByteArray())
 {
     jp::ZipWriter z;
     z.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.text"), false);
@@ -50,7 +52,7 @@ QByteArray makeOdt(const QByteArray &body, const QByteArray &autoStyles = QByteA
               "</office:automatic-styles><office:body><office:text>" + body + "</office:text></office:body></office:document-content>",
           true);
     z.add(QStringLiteral("styles.xml"),
-          QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-styles") + kNs + " office:version=\"1.2\"><office:styles><style:style style:name=\"Standard\" style:family=\"paragraph\"/>"
+          QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-styles") + kNs + " office:version=\"1.2\"><office:styles>" + commonStyles + "<style:style style:name=\"Standard\" style:family=\"paragraph\"/>"
               "<style:style style:name=\"Heading_20_1\" style:display-name=\"Heading 1\" style:family=\"paragraph\" style:default-outline-level=\"1\"><style:text-properties fo:font-size=\"20pt\"/></style:style></office:styles>"
               "<office:automatic-styles/><office:master-styles/></office:document-styles>",
           true);
@@ -154,6 +156,45 @@ private Q_SLOTS:
         for (const char *w : {"A heading", "Plain bold words and more.", "first item", "second item", "cell a", "cell b", "Last paragraph."}) QVERIFY2(text.contains(QLatin1String(w)), w);
         QVERIFY(hasBold(*doc, QStringLiteral("bold words")));
         QVERIFY(!hasBold(*doc, QStringLiteral("Plain")));
+    }
+
+    // The distance of the default tab stops, character scaling, suppressed line numbers, and bar stops come in from an .odt, are drawn (the first two) or kept as the document's, and go out again.
+    void theDefaultTabsScalingLineNumbersAndBarStopsOfAnOdtSurviveAnOpenAndASave()
+    {
+        const QByteArray auto_ = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" text:number-lines=\"false\" jo:bar-tabs=\"1440\"/></style:style>"
+                                 "<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:text-scale=\"200%\"/></style:style>";
+        const QByteArray body = "<text:p text:style-name=\"P1\">a<text:span text:style-name=\"T1\">wide</text:span></text:p><text:p>plain</text:p>";
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, auto_, "<style:default-style style:family=\"paragraph\"><style:paragraph-properties style:tab-stop-distance=\"0.25in\"/></style:default-style>"), &err);
+        QVERIFY2(doc, qPrintable(err));
+        auto check = [](const WriteDoc &d) {
+            QCOMPARE(d.defaultTabStop(), 360);
+            const QTextBlock first = d.story()->begin();
+            QVERIFY(first.blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+            QVERIFY(!first.next().blockFormat().boolProperty(flow::fp::SuppressLineNumbers));
+            const QVector<TabStopEntry> stops = tabStopsOf(first.blockFormat());
+            QCOMPARE(stops.size(), 1);
+            QVERIFY(stops[0].bar);
+            QCOMPARE(stops[0].position, 72.0);
+            bool scaled = false;
+            for (auto it = first.begin(); !it.atEnd(); ++it) scaled = scaled || (it.fragment().text() == QLatin1String("wide") && it.fragment().charFormat().fontStretch() == 200);
+            QVERIFY(scaled);
+        };
+        check(*doc);
+        const QByteArray odt = doc->toOdt();
+        const QByteArray content = odtPart(odt, QStringLiteral("content.xml")), styles = odtPart(odt, QStringLiteral("styles.xml"));
+        QVERIFY2(styles.contains("style:tab-stop-distance=\"0.2500in\""), styles.constData());
+        QVERIFY2(content.contains("text:number-lines=\"false\"") && content.contains("jo:bar-tabs=\"1440\"") && content.contains("style:text-scale=\"200%\""), content.constData());
+        auto again = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(again, qPrintable(err));
+        check(*again);
+        // The .docx the document makes says the same things.
+        const QByteArray docx = doc->toDocx();
+        office::Package pkg;
+        QVERIFY(pkg.read(docx));
+        const QByteArray x = pkg.part(QStringLiteral("/word/document.xml")), s = pkg.part(QStringLiteral("/word/settings.xml"));
+        QVERIFY2(x.contains("<w:suppressLineNumbers/>") && x.contains("<w:tab w:val=\"bar\" w:pos=\"1440\"/>") && x.contains("<w:w w:val=\"200\"/>"), x.constData());
+        QVERIFY2(s.contains("<w:defaultTabStop w:val=\"360\"/>"), s.constData());
     }
 
     // The markup of a paragraph's look is made once for each style, not for each paragraph: five thousand paragraphs of two styles make some looks, not thousands. (Counted.)

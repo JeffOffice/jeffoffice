@@ -446,6 +446,7 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
             else if (t.has(c, "firstLine")) x += " fo:text-indent=\"" + inchesFromTwips(t.attr(c, "firstLine").toDouble()).toUtf8() + "\"";
             else if (t.has(c, "hanging")) x += " fo:text-indent=\"0in\"";
         } else if (name == "contextualSpacing") x += on(c) ? " style:contextual-spacing=\"true\"" : " style:contextual-spacing=\"false\"";
+        else if (name == "suppressLineNumbers") x += on(c) ? " text:number-lines=\"false\"" : " text:number-lines=\"true\"";
         else if (name == "keepNext") x += on(c) ? " fo:keep-with-next=\"always\"" : " fo:keep-with-next=\"auto\"";
         else if (name == "keepLines") x += on(c) ? " fo:keep-together=\"always\"" : " fo:keep-together=\"auto\"";
         else if (name == "pageBreakBefore") {
@@ -460,11 +461,15 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
         else if (name == "outlineLvl") {
             if (outline) *outline = t.val(c).toInt() + 1;
         } else if (name == "tabs" && tabs) {
-            QByteArray tx;
+            QByteArray tx, bars;
             for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                 if (!t.is(k, "tab")) continue;
                 const QString val = t.attr(k, "val");
                 if (val == QLatin1String("clear") || !t.has(k, "pos")) continue;
+                if (val == QLatin1String("bar")) {   // (no stop in ODF: a list of places of ours)
+                    bars += (bars.isEmpty() ? "" : " ") + QByteArray::number(qint64(t.attr(k, "pos").toDouble()));
+                    continue;
+                }
                 const char *type = val == QLatin1String("center") ? "center" : val == QLatin1String("right") || val == QLatin1String("end") ? "right" : val == QLatin1String("decimal") ? "char" : "left";
                 tx += "<style:tab-stop style:position=\"" + inchesFromTwips(t.attr(k, "pos").toDouble()).toUtf8() + "\" style:type=\"" + type + "\"";
                 if (std::strcmp(type, "char") == 0) tx += " style:char=\".\"";
@@ -475,6 +480,7 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
                 tx += "/>";
             }
             if (!tx.isEmpty()) *tabs = "<style:tab-stops>" + tx + "</style:tab-stops>";
+            if (!bars.isEmpty()) x += " jo:bar-tabs=\"" + bars + "\"";
         }
     }
     return x;

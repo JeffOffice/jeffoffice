@@ -62,7 +62,7 @@ QByteArray packSection(const SectionProps &s)
     d << s.type << qint32(s.pageW) << qint32(s.pageH) << s.orient << qint32(s.top) << qint32(s.right) << qint32(s.bottom) << qint32(s.left) << qint32(s.header)
       << qint32(s.footer) << qint32(s.gutter) << qint32(s.cols) << qint32(s.colSpace) << s.colSep << s.colEqual << qint32(s.colDefs.size());
     for (const ColumnDef &c : s.colDefs) d << qint32(c.width) << qint32(c.space);
-    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit) << s.doNotHyphenateCaps << s.footnoteSettings << s.endnoteSettings;
+    d << qint32(s.pageStart.value_or(-1)) << s.pageFormat << s.titlePg << s.hasPgSz << s.hasPgMar << s.hasCols << s.attrs << packRaw(s.extra) << s.pgSzAttrs << s.pgMarAttrs << s.pgNumAttrs << s.colsAttrs << s.oddEvenHeaders << s.mirrorMargins << s.autoHyphenation << s.pageColor << qint32(s.hyphenationZone) << qint32(s.consecutiveHyphenLimit) << s.doNotHyphenateCaps << s.footnoteSettings << s.endnoteSettings << qint32(s.defaultTabStop);
     return out;
 }
 
@@ -118,6 +118,9 @@ SectionProps unpackSection(const QByteArray &packed)
     QByteArray endnotes;
     d >> endnotes;
     if (d.status() == QDataStream::Ok) s.endnoteSettings = endnotes;   // (a record made before the endnotes' has none)
+    qint32 tab = 0;
+    d >> tab;
+    if (d.status() == QDataStream::Ok && tab > 0) s.defaultTabStop = tab;
     return s;
 }
 
@@ -451,6 +454,7 @@ void WriteDoc::setUpEnvironment()
         f.env.colors = cs;
     }
     f.env.defaultTab = std::max(1, m_wml.defaultTabStop) / 20.0;
+    m_last.defaultTabStop = m_defaultTabAtOpen = m_wml.defaultTabStop;
     // The page color (w:background), when it is a color.
     {
         static const QRegularExpression background(QStringLiteral("<(?:[\\w.-]+:)?background\\b[^>]*?\\bcolor=\"([0-9A-Fa-f]{6})\""));
@@ -735,6 +739,11 @@ void WriteDoc::syncSections()
         }
         if (m_last.endnoteSettings != m_endnoteBytes) {
             followEndnoteSettings(m_last.endnoteSettings);
+            oddEvenChanged = true;
+        }
+        if (m_last.defaultTabStop > 0 && m_last.defaultTabStop != m_wml.defaultTabStop) {
+            m_wml.defaultTabStop = m_last.defaultTabStop;
+            m_flow->env.defaultTab = m_wml.defaultTabStop / 20.0;
             oddEvenChanged = true;
         }
         if (m_last.autoHyphenation != m_flow->hyphenate) {

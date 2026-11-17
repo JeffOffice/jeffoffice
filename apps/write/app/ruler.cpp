@@ -100,6 +100,7 @@ Ruler::State Ruler::read() const
     s.right = bf.rightMargin();
     s.first = bf.textIndent();
     s.tabs = tabStopsOf(bf);
+    s.tabs.removeIf([](const TabStopEntry &e) { return e.bar; });   // (a bar is a line, set in the Tabs box: the ruler shows the stops the text goes to)
     if (s.tabs.size() > kMostTabStopsShown) s.tabs.resize(kMostTabStopsShown);   // (drawn, not changed: the stops are the paragraph's)
     return s;
 }

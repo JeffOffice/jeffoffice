@@ -73,6 +73,7 @@ struct RunProps {
     std::optional<bool> bold, italic, caps, smallCaps, strike, dstrike, vanish, noProof;
     std::optional<Color> color;
     std::optional<int> spacing;       // twentieths of a point added after each letter
+    std::optional<int> scale;         // percent width of the letters (w:w), 1 to 600 (100 when not stated)
     std::optional<int> position;      // half-points raised (lowered when negative)
     std::optional<int> kern;          // half-points: the letters are kerned from this size up (0: not kerned)
     std::optional<int> size;          // half-points
@@ -179,6 +180,7 @@ struct SectionProps {
     QByteArray endnoteSettings;        // and for the endnotes'
     int hyphenationZone = 360, consecutiveHyphenLimit = 0;   // w:hyphenationZone (twentieths of a point) and w:consecutiveHyphenLimit (0: none), the settings' own
     QString pageColor;                // and the page color (w:background): "RRGGBB", empty for none
+    int defaultTabStop = 0;           // and the distance of the default tab stops (w:defaultTabStop, twentieths of a point; 0: not recorded, as in a record made before it)
     bool hasPgSz = false, hasPgMar = false, hasCols = false;   // stated in the file
     QByteArray attrs;                 // the attributes of w:sectPr (revision marks), as written
     // The attributes of w:pgSz (code...), w:pgMar, w:pgNumType (chapStyle, chapSep...), and w:cols that have no field here, as written.
@@ -509,6 +511,8 @@ QByteArray settingsWithAutoHyphenation(const QByteArray &settings, bool on);
 // The hyphenation zone (w:hyphenationZone, twentieths of a point; 360, the usual, takes the element away) and the limit of lines in a row that end in a hyphen (w:consecutiveHyphenLimit; 0 takes it away).
 QByteArray settingsWithHyphenationZone(const QByteArray &settings, int twips);
 QByteArray settingsWithConsecutiveHyphenLimit(const QByteArray &settings, int limit);
+// The distance of the default tab stops (w:defaultTabStop, twentieths of a point), in the place the schema gives it.
+QByteArray settingsWithDefaultTabStop(const QByteArray &settings, int twips);
 // Words in capitals left whole (w:doNotHyphenateCaps).
 QByteArray settingsWithDoNotHyphenateCaps(const QByteArray &settings, bool on);
 // The settings with the page color shown (w:displayBackgroundShape), which a page color needs to be seen by the programs that read the file.

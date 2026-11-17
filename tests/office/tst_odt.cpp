@@ -609,6 +609,43 @@ private Q_SLOTS:
         QVERIFY(d.indexOf(QLatin1String("<w:pageBreakBefore/>"), d.indexOf(QLatin1String(">next<"))) < 0);
     }
 
+    // The four settings JeffWrite sets that an .odt keeps: the distance of the default tab stops (style:tab-stop-distance of the default paragraph style), character scaling
+    // (style:text-scale), a paragraph's suppressed line numbers (text:number-lines), and bar tab stops (a list of places of ours, jo:bar-tabs, for ODF has no bar).
+    void defaultTabsScalingLineNumbersAndBarStopsAreReadFromAnOdt()
+    {
+        Made m;
+        m.styles = "<style:default-style style:family=\"paragraph\"><style:paragraph-properties style:tab-stop-distance=\"0.25in\"/></style:default-style>";
+        m.autoStyles = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" text:number-lines=\"false\" jo:bar-tabs=\"1440 2880\">"
+                       "<style:tab-stops><style:tab-stop style:position=\"1in\" style:type=\"right\"/></style:tab-stops></style:paragraph-properties></style:style>"
+                       "<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:text-scale=\"200%\"/></style:style>";
+        m.body = "<text:p text:style-name=\"P1\">a<text:span text:style-name=\"T1\">wide</text:span></text:p>";
+        const QByteArray docx = docxOf(m.build());
+        const QString d = part(docx, QStringLiteral("/word/document.xml")), s = part(docx, QStringLiteral("/word/settings.xml"));
+        QVERIFY2(s.contains(QLatin1String("<w:defaultTabStop w:val=\"360\"/>")), qPrintable(s));
+        QVERIFY2(d.contains(QLatin1String("<w:suppressLineNumbers/>")), qPrintable(d));
+        QVERIFY2(d.contains(QLatin1String("<w:tab w:val=\"bar\" w:pos=\"1440\"/>")) && d.contains(QLatin1String("<w:tab w:val=\"bar\" w:pos=\"2880\"/>")), qPrintable(d));
+        QVERIFY2(d.contains(QLatin1String("<w:tab w:val=\"right\" w:pos=\"1440\"/>")), qPrintable(d));
+        QVERIFY2(d.contains(QLatin1String("<w:w w:val=\"200\"/>")), qPrintable(d));
+        // A list of bar places that a file makes enormous is held to 64 stops, and a place that is no number or is out of range is none.
+        QByteArray many = "1 x -5 99999999";
+        for (int i = 0; i < 200; ++i) many += " " + QByteArray::number(i + 10);
+        Made h;
+        h.autoStyles = "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" jo:bar-tabs=\"" + many + "\"/></style:style>";
+        h.body = "<text:p text:style-name=\"P1\">x</text:p>";
+        QCOMPARE(int(document(h).count(QLatin1String("w:val=\"bar\""))), 64);
+    }
+
+    void defaultTabsScalingLineNumbersAndBarStopsAreWrittenToAnOdt()
+    {
+        const QString c = odtContentOf("<w:p><w:pPr><w:suppressLineNumbers/><w:tabs><w:tab w:val=\"bar\" w:pos=\"1440\"/><w:tab w:val=\"left\" w:pos=\"720\"/></w:tabs></w:pPr>"
+                                       "<w:r><w:rPr><w:w w:val=\"150\"/></w:rPr><w:t>wide</w:t></w:r></w:p><w:p><w:pPr><w:suppressLineNumbers w:val=\"0\"/></w:pPr><w:r><w:t>numbered</w:t></w:r></w:p>");
+        QVERIFY2(c.contains(QLatin1String("text:number-lines=\"false\"")) && c.contains(QLatin1String("text:number-lines=\"true\"")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("jo:bar-tabs=\"1440\"")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("<style:tab-stop style:position=\"0.5000in\" style:type=\"left\"/>")) && !c.contains(QLatin1String("<style:tab-stop style:position=\"1.0000in\"")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("style:text-scale=\"150%\"")), qPrintable(c));
+        QVERIFY(wellFormed(c.toUtf8()));
+    }
+
     // ---- hostile input
 
     void refusesWhatItShould()
