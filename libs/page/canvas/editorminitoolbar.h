@@ -17,8 +17,8 @@ class Editor;
 class JO_COMMON_EXPORT EditorMiniToolbar : public QObject {
     Q_OBJECT
 public:
-    // `blocked`: asked before the bar is shown (a window that can be read-only says so here).
-    EditorMiniToolbar(Canvas *canvas, std::unique_ptr<MiniTarget> target, std::function<bool()> blocked = nullptr);
+    // `blocked`: asked before the bar is shown (a window that can be read-only says so here). `refresh`: called as the bar appears, so that its buttons show the selection's state at once.
+    EditorMiniToolbar(Canvas *canvas, std::unique_ptr<MiniTarget> target, std::function<bool()> blocked = nullptr, std::function<void()> refresh = nullptr);
     MiniToolbar *bar() const { return m_bar; }
     // Shown when the mouse selection that has ended holds words; `show` false only keeps a bar that is up with the selection.
     void update(bool show);
@@ -30,6 +30,7 @@ private:
     Canvas *m_canvas;
     MiniToolbar *m_bar;
     std::function<bool()> m_blocked;
+    std::function<void()> m_refresh;
 };
 
 } // namespace jp

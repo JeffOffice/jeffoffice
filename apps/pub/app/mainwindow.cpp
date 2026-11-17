@@ -182,7 +182,10 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
             m_ed->setTextColor(c);
             m_canvas->setFocus();
         };
-        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); });
+        auto *tints = new QAction(tr("Tints…"), this);
+        connect(tints, &QAction::triggered, this, [this] { tintsDialog(this, m_ed, [this](const ColorRef &c) { m_ed->setTextColor(c); }); });
+        target->extras = {tints};
+        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); }, [this] { refreshUi(); });
         m_fontCombos << mini->bar()->fontBox();
         m_colorButtons << mini->bar()->colorButton();
     }

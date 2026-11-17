@@ -349,8 +349,11 @@ void Editor::setFontFamily(const QString &family)
     if (family.startsWith(QLatin1String("+"))) {
         // "+Heading" / "+Body": follow the font scheme.
         f.setProperty(tp::ThemeFont, family == QLatin1String("+Heading") ? QStringLiteral("major") : QStringLiteral("minor"));
-        clearCharProperty(QTextFormat::FontFamilies, tr("Font"));
-        mergeCharFormat(f, tr("Font"));
+        // (one step of Undo: the families go and the scheme's font comes)
+        change(tr("Font"), [&] {
+            clearCharProperty(QTextFormat::FontFamilies, tr("Font"));
+            mergeCharFormat(f, tr("Font"));
+        });
         return;
     }
     f.setFontFamilies(QStringList{family});

@@ -9,6 +9,7 @@
 #include "core/version.h"
 #include "pubhelpers.h"
 #include "../withdialog.h"
+#include "../minitoolbartest.h"
 #include "app/icons.h"
 #include "app/optionsdialog.h"
 #include "app/firstwindow.h"
@@ -16,8 +17,6 @@
 #include "core/appinfo.h"
 #include "canvas/canvasaccessible.h"
 #include <QComboBox>
-#include <QScrollBar>
-#include <QToolButton>
 #include <QTabWidget>
 #include "../withdialog.h"
 #include <QDoubleSpinBox>
@@ -3162,7 +3161,7 @@ private Q_SLOTS:
         jptest::saveCommandSearchPicture(w, QStringLiteral("jeffpub"), QStringLiteral("page size"));
     }
 
-    // The mini toolbar floats above words selected with the mouse, never takes the keyboard, does the ribbon's commands as one step of Undo each, and goes with typing, Escape, and scrolling.
+    // The mini toolbar floats above words selected with the mouse, shows the selection's state at once, and never takes the keyboard.
     void theMiniToolbarFloatsByWordsSelectedWithTheMouse()
     {
         jp::MainWindow w;
@@ -3170,74 +3169,60 @@ private Q_SLOTS:
         w.show();
         QVERIFY(QTest::qWaitForWindowExposed(&w));
         jp::Editor *ed = w.editor();
-        auto box = ed->newTextBox(QRectF(72, 72, 400, 60), QStringLiteral("\nSome words to pick out of the line"));
+        auto rig = [&] {
+            auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 60), QLatin1Char('\n') + minitest::kText));
         ed->addItem(box);
-        const QString boxId = box->id, storyId = static_cast<jp::TextItem *>(box.get())->storyId;
-        auto *canvas = w.canvas();
-        QWidget *view = canvas->viewport();
-        auto *mini = view->findChild<QFrame *>(QStringLiteral("miniToolbar"));
-        QVERIFY(mini);
-        QVERIFY(!mini->isVisible());
-        const int o = 1;   // (the words are on the second line, well inside the box: a press near its edge would take a handle)
-        auto at = [&](int pos) { return view->mapFromGlobal(canvas->caretScreenRect(pos).center()); };
-        auto select = [&] {
-            ed->beginTextEdit(boxId, 0);
-            QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, at(5 + o));
-            QTest::mouseMove(view, at(8 + o));
-            QVERIFY(!mini->isVisible());   // (not while the mouse is still down)
-            QTest::mouseMove(view, at(10 + o));
-            QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, at(10 + o));
-            QTRY_VERIFY(mini->isVisible());
-        };
-        select();
-        QCOMPARE(ed->cursor().selectedText(), QStringLiteral("words"));
-        const QRect first = QRect(view->mapFromGlobal(canvas->caretScreenRect(5 + o).topLeft()), canvas->caretScreenRect(5 + o).size());
-        QVERIFY2(mini->geometry().bottom() <= first.top() + 2 || mini->geometry().top() > first.bottom(), "above the words, or below them when there is no room above");
-        QVERIFY(view->rect().contains(mini->geometry()));
-        // The buttons are the window's own commands, one step of Undo each; the bar stays for the next choice and keeps no keyboard.
-        QToolButton *bold = nullptr;
-        for (QToolButton *b : mini->findChildren<QToolButton *>())
-            if (b->defaultAction() == w.act(QStringLiteral("fmt.bold"))) bold = b;
-        QVERIFY(bold);
-        QVERIFY(mini->findChildren<QToolButton *>().size() >= 6);
-        QVERIFY(mini->findChild<jp::FontCombo *>() && mini->findChild<jp::ColorButton *>());
-        auto boldAt = [&](int pos) {
-            QTextCursor probe(ed->doc()->storyDoc(storyId));
-            probe.setPosition(pos);
-            probe.setPosition(pos + 1, QTextCursor::KeepAnchor);
-            return probe.charFormat().fontWeight() >= QFont::DemiBold;
-        };
-        QTRY_VERIFY(bold->isEnabled());
-        QTRY_VERIFY(mini->findChild<jp::FontCombo *>()->isEnabled());
-        shotOf(&w, QStringLiteral("pub-mini-toolbar"));
-        const bool wasBold = boldAt(6 + o);
-        const int steps = ed->undoStack()->index();
-        bold->click();
-        QCOMPARE(boldAt(6 + o), !wasBold);
-        QCOMPARE(ed->undoStack()->index(), steps + 1);
-        QVERIFY(mini->isVisible());
-        QVERIFY(!QApplication::focusWidget() || !mini->isAncestorOf(QApplication::focusWidget()));
-        ed->undo();
-        QCOMPARE(boldAt(6 + o), wasBold);
-        // Typing takes it away; so does Escape; so does scrolling (the wheel, or the scroll bar).
-        select();
-        QTest::keyClick(canvas, Qt::Key_X);
-        QVERIFY(!mini->isVisible());
-        select();
-        QTest::keyClick(canvas, Qt::Key_Escape);
-        QVERIFY(!mini->isVisible());
-        select();
-        QWheelEvent wheel(QPointF(20, 20), QPointF(view->mapToGlobal(QPoint(20, 20))), QPoint(), QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
-        QApplication::sendEvent(view, &wheel);
-        QVERIFY(!mini->isVisible());
-        select();
-        canvas->verticalScrollBar()->triggerAction(QAbstractSlider::SliderPageStepAdd);
-        QVERIFY(!mini->isVisible());
-        // A click that leaves no selection brings none.
-        ed->beginTextEdit(boxId, 0);
-        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, at(3 + o));
-        QTest::qWait(30);
-        QVERIFY(!mini->isVisible());
+        return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
+        }();
+        minitest::floats(w, rig, QStringLiteral("pub-mini-toolbar"));
+    }
+
+    // The font box, the color button, an alignment, bullets, and the size buttons each change the selected words in one step of Undo.
+    void theMiniToolbarsControlsChangeTheSelectionInOneStepEach()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        auto rig = [&] {
+            auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 60), QLatin1Char('\n') + minitest::kText));
+        ed->addItem(box);
+        return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
+        }();
+        minitest::buttonsChangeTheSelection(w, rig, "para.right");
+    }
+
+    // The bar hides on typing, Escape, scrolling, zoom, and resize, and when the words go (undo, a deleted box).
+    void theMiniToolbarGoesWhenTheViewOrTheWordsMove()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        auto rig = [&] {
+            auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 60), QLatin1Char('\n') + minitest::kText));
+        ed->addItem(box);
+        return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
+        }();
+        minitest::goesWhenTheWordsMove(w, rig, "para.right");
+    }
+
+    // Another page takes the bar away.
+    void theMiniToolbarGoesWithAnotherPage()
+    {
+        jp::MainWindow w;
+        w.resize(1000, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        auto rig = [&] {
+            auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 60), QLatin1Char('\n') + minitest::kText));
+        ed->addItem(box);
+        return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
+        }();
+        minitest::goesWithAnotherPage(rig);
     }
 };
 

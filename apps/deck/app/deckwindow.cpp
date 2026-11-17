@@ -214,7 +214,7 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
             m_ed->setTextColor(c);
             m_canvas->setFocus();
         };
-        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); });
+        auto *mini = new EditorMiniToolbar(m_canvas, std::move(target), [this] { return isReadOnly(); }, [this] { refreshUi(); });
         m_fontCombos << mini->bar()->fontBox();
         m_colorButtons << mini->bar()->colorButton();
     }

@@ -1,24 +1,28 @@
 #include "canvas/editorminitoolbar.h"
 #include "canvas/canvas.h"
 #include <QMouseEvent>
-#include <QTimer>
 
 namespace jp {
 
-EditorMiniToolbar::EditorMiniToolbar(Canvas *canvas, std::unique_ptr<MiniTarget> target, std::function<bool()> blocked)
-    : QObject(canvas), m_canvas(canvas), m_bar(new MiniToolbar(canvas->viewport(), std::move(target))), m_blocked(std::move(blocked))
+EditorMiniToolbar::EditorMiniToolbar(Canvas *canvas, std::unique_ptr<MiniTarget> target, std::function<bool()> blocked, std::function<void()> refresh)
+    : QObject(canvas), m_canvas(canvas), m_bar(new MiniToolbar(canvas->viewport(), std::move(target))), m_blocked(std::move(blocked)), m_refresh(std::move(refresh))
 {
     m_bar->hideOnTypingAndScrolling(canvas);
     canvas->viewport()->installEventFilter(this);
     connect(canvas->editor(), &Editor::textCursorChanged, this, [this] { update(false); });
     connect(canvas->editor(), &Editor::selectionChanged, this, [this] { update(false); });
+    // A change of the text moves the words (the bar follows or goes); a change of the view, the page, or the file leaves it where no words are.
+    connect(canvas->editor(), &Editor::changed, this, [this] { update(false); });
+    connect(canvas->editor(), &Editor::pageChanged, this, [this] { m_bar->hide(); });
+    connect(canvas->editor(), &Editor::documentReplaced, this, [this] { m_bar->hide(); });
+    connect(canvas, &Canvas::zoomChanged, this, [this] { m_bar->hide(); });
 }
 
 bool EditorMiniToolbar::eventFilter(QObject *watched, QEvent *event)
 {
     // (The canvas handles the release itself first: look once it has.)
     if (watched == m_canvas->viewport() && event->type() == QEvent::MouseButtonRelease && static_cast<QMouseEvent *>(event)->button() == Qt::LeftButton)
-        QTimer::singleShot(0, this, [this] { update(true); });
+        QMetaObject::invokeMethod(this, [this] { update(true); }, Qt::QueuedConnection);
     return false;
 }
 
@@ -35,6 +39,7 @@ void EditorMiniToolbar::update(bool show)
         m_bar->hide();
         return;
     }
+    if (show && !m_bar->isVisible() && m_refresh) m_refresh();
     QWidget *view = m_canvas->viewport();
     m_bar->showBeside(QRect(view->mapFromGlobal(a.topLeft()), a.size()), QRect(view->mapFromGlobal(b.topLeft()), b.size()));
 }

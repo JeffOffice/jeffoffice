@@ -6,6 +6,7 @@
 #include "core/export.h"
 #include "core/color.h"
 #include <QFrame>
+#include <QList>
 #include <functional>
 #include <memory>
 
@@ -27,6 +28,7 @@ public:
     virtual bool supportsColor() const { return true; }
     virtual void chooseFont(const QString &family) = 0;
     virtual void chooseColor(const ColorRef &c) = 0;
+    virtual QList<QAction *> colorExtras() const { return {}; }   // more choices under the color button (as the ribbon's has)
 };
 
 // A target made of functions, for a window that would rather not be one.
@@ -35,7 +37,9 @@ public:
     std::function<QAction *(Command)> actionFor;
     std::function<void(const QString &)> setFont;
     std::function<void(const ColorRef &)> setColor;
+    QList<QAction *> extras;
     QAction *action(Command c) const override { return actionFor ? actionFor(c) : nullptr; }
+    QList<QAction *> colorExtras() const override { return extras; }
     bool supportsFont() const override { return bool(setFont); }
     bool supportsColor() const override { return bool(setColor); }
     void chooseFont(const QString &family) override { if (setFont) setFont(family); }
@@ -52,7 +56,7 @@ public:
     // Shown above the first line of a selection (`first` is where it starts and `last` where it ends, in the host's coordinates), below the last
     // line when there is no room above; kept inside the host.
     void showBeside(const QRect &first, const QRect &last);
-    // Hidden by typing, by Escape, and by scrolling the area (the wheel, and the scroll bars when the user moves them).
+    // Hidden by typing, by Escape, by the area changing size, and by scrolling it (the wheel, and any move of a scroll bar: a hand-tool pan too).
     void hideOnTypingAndScrolling(QAbstractScrollArea *area);
 
 protected:

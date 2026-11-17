@@ -46,6 +46,7 @@ MiniToolbar::MiniToolbar(QWidget *host, std::unique_ptr<MiniTarget> owned) : QFr
     if (target->supportsColor()) {
         m_color = new ColorButton(QStringLiteral("baseline"), QCoreApplication::translate("MiniToolbar", "Font Color"), true, QCoreApplication::translate("MiniToolbar", "Automatic"), this);
         m_color->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
+        m_color->setExtraActions(target->colorExtras());
         connect(m_color, &ColorButton::colorPicked, this, [target](const ColorRef &c) { target->chooseColor(c); });
         row->addWidget(m_color);
     }
@@ -68,13 +69,13 @@ void MiniToolbar::hideOnTypingAndScrolling(QAbstractScrollArea *area)
     area->installEventFilter(this);
     area->viewport()->installEventFilter(this);
     for (QScrollBar *bar : {area->horizontalScrollBar(), area->verticalScrollBar()})
-        connect(bar, &QScrollBar::actionTriggered, this, [this] { hide(); });
+        connect(bar, &QScrollBar::valueChanged, this, [this] { hide(); });
 }
 
 bool MiniToolbar::eventFilter(QObject *, QEvent *event)
 {
     if (!isVisible()) return false;
-    if (event->type() == QEvent::Wheel) {
+    if (event->type() == QEvent::Wheel || event->type() == QEvent::Resize) {
         hide();
     } else if (event->type() == QEvent::KeyPress) {
         const auto *k = static_cast<QKeyEvent *>(event);
