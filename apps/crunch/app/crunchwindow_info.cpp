@@ -4,6 +4,7 @@
 
 #include "core/appinfo.h"
 #include "core/outline.h"
+#include "app/lossywarning.h"
 #include "app/settings.h"
 
 #include <QDateTime>
@@ -53,6 +54,9 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.markFinalBlocked = [this] { return markFinalBlocked(); };
     h.markedFinal = [this] { return markedAsFinal(); };
     h.setMarkedFinal = [this](bool on) { setMarkedFinal(on); };
+    h.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    h.setAlwaysReadOnly = [this](bool on) { setAlwaysOpenReadOnly(on); };
+    h.alwaysReadOnlyBlocked = [this] { return alwaysReadOnlyBlocked(); };
     h.hasPassword = [this] { return hasUserPassword(); };
     h.encrypt = [this] { protectWithPassword(); };
     h.inspect = [this] { inspectWorkbook(); };
@@ -60,6 +64,7 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.protectStructure = [this] { protectWorkbook(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
     h.versionHistory = [this] { versionHistory(); };
+    h.extraCards.push_back({QStringLiteral("infoCheckCsv"), QStringLiteral("list-checks"), tr("Check .csv Compatibility"), tr("See what a .csv file would leave out of this workbook, without saving."), [this] { checkCsvCompatibility(); }});
     return jp::buildInfoPage(parent, h);
 }
 
@@ -70,6 +75,56 @@ QString CrunchWindow::markFinalBlocked() const
     if (!m_path.isEmpty() && (crunch::isCsvName(m_path) || crunch::isCopyName(m_path)))
         return tr("A text file, an .xls file, and an .ods file can't hold the mark. Save the workbook as an .xlsx file first.");
     return {};
+}
+
+QString CrunchWindow::alwaysReadOnlyBlocked() const
+{
+    if (properties().truncated) return tr("This file has more properties than %1 reads, so this choice can't be kept.").arg(appInfo().name);
+    if (!m_path.isEmpty() && (crunch::isCsvName(m_path) || crunch::isCopyName(m_path)))
+        return tr("A text file, an .xls file, and an .ods file can't hold this choice. Save the workbook as an .xlsx file first.");
+    return {};
+}
+
+void CrunchWindow::setAlwaysOpenReadOnly(bool on)
+{
+    if (!m_session || m_saving) return;
+    if (on && !alwaysReadOnlyBlocked().isEmpty()) {
+        notice(tr("Always Open Read-Only"), alwaysReadOnlyBlocked());
+        return;
+    }
+    office::PackageProps p = properties();
+    p.custom = office::withAlwaysOpenReadOnly(p.custom, on);
+    applyProperties(p);
+    // (a window that is read-only for another reason, opened so or marked final, stays so)
+    if (!on && m_readOnlyByChoice) setReadOnly(false);
+    if (!on) m_readOnlyByChoice = false;
+    setStatus(on ? tr("This workbook will open for reading only. Save it to keep this choice.") : tr("This workbook will open for editing again. Save it to keep this choice."));
+    if (m_fileScreen) showFileScreen(QStringLiteral("info"));
+}
+
+// What a .csv file leaves out, for the sheet in view: the list the save question gives (the other sheets, the formulas, the pictures and charts, and the rest the workbook has), and the
+// choices kept in the file's properties.
+QStringList CrunchWindow::csvLosses() const
+{
+    QStringList lost;
+    if (!m_loaded || !m_loaded->book) return lost;
+    lost = crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0);
+    if (m_loaded->calc && m_loaded->calc->notWhole().contains(m_loaded->book->info().sheets.value(m_sheet).name))
+        lost << tr("The rest of the sheet: it was read only in part, so the file has only the part that was read.");
+    if (markedAsFinal()) lost << tr("The mark that the workbook is final.");
+    if (alwaysOpensReadOnly()) lost << tr("The choice to always open the workbook for reading only.");
+    return lost;
+}
+
+void CrunchWindow::checkCsvCompatibility()
+{
+    if (!m_session || !m_loaded || !m_loaded->book || m_saving) return;
+    if (m_loading || !m_haveCalc) {
+        notice(tr("Check Compatibility"), tr("The workbook is still being read. Check it when the status bar says Ready."));
+        return;
+    }
+    const QStringList lost = csvLosses();
+    notice(tr("Check Compatibility"), lossyReport({QString(), tr("workbook"), QStringLiteral(".csv"), QStringLiteral(".xlsx"), lost}), !lost.isEmpty());
 }
 
 void CrunchWindow::updateFinalNote()

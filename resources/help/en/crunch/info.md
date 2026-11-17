@@ -17,6 +17,10 @@ Click **Custom Properties** to make properties of your own, such as **Project** 
 
 Click **Mark as Final** to tell readers the workbook is finished. JeffCrunch saves the workbook and then holds it for reading only. When someone opens it, the title bar says it is read-only. This is a gentle way to say "please don't change this". It is not a lock, because anyone can choose **Marked as Final** again to edit it.
 
+## Always Open Read-Only
+
+Click **Always Open Read-Only** to have the workbook open for reading only each time, so nobody changes it by accident. The choice is saved with the file when you save it. The next time someone opens the file, the status bar says it is open for reading only. To edit it, open **File > Info** and click **Always Opens Read-Only**. It is one click, so this is a reminder and not a lock. Other programs don't read this choice. A text file, an .xls file, and an .ods file can't hold it, so save the workbook as an .xlsx file first.
+
 ## Encrypt with Password
 
 Click **Encrypt with Password** to ask for a password whenever the file is opened. This is the same as **Protect with Password**. See [Open password-protected workbooks](open-password). A password protects an **.xlsx** file with strong protection. A password **can't be found again** if you forget it. The versions you kept and the backup copy follow the password.
@@ -53,6 +57,10 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 Save the workbook afterward to keep the clean copy.
 
 **Remove personal information from this file when saving**, under the cards, does it every time you save, for any file, without changing the document you have open. It is the same box as in **Options**, and the same in every JeffOffice app.
+
+## Check .csv Compatibility
+
+Click **Check .csv Compatibility** to see what a .csv file would leave out of your workbook. A .csv file holds only the values of one sheet. The list names the other sheets, the formulas (the file has their results), the pictures, charts, notes, pivot tables, and the rest that your workbook has, and always the number formats, fonts, colors, and column widths. It also lists the choices kept in the file's properties, such as Mark as Final and Always Open Read-Only. It saves nothing. Choose **Save as .xlsx** when you save to keep them all.
 
 ## Check Compatibility
 

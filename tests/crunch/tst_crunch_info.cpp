@@ -6,6 +6,7 @@
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
 #include "app/settings.h"
+#include "app/theme.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "core/crunchtemplates.h"
@@ -209,6 +210,106 @@ private Q_SLOTS:
         Window copy;
         QVERIFY(copy.open(second, OpenHow::Copy));
         QVERIFY(!copy.w.isReadOnly());
+    }
+
+    void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(!e.win.w.alwaysOpensReadOnly());
+        e.win.w.setAlwaysOpenReadOnly(true);
+        QVERIFY(e.win.w.alwaysOpensReadOnly());
+        QVERIFY(!e.win.w.isReadOnly());   // (it applies the next time the file is opened)
+        QVERIFY(saveAndWaitHere(e.win.w));
+        const QString second = e.copyOfFile();
+        QVERIFY(!second.isEmpty());
+        Window again;
+        QVERIFY(again.open(second));
+        QVERIFY(again.w.isReadOnly());
+        QVERIFY(again.w.alwaysOpensReadOnly());
+        // the Info page's card turns it off and lets the window edit
+        std::unique_ptr<QWidget> page(again.w.buildInfoPage(nullptr));
+        auto *card = page->findChild<QAbstractButton *>(QStringLiteral("infoAlwaysReadOnly"));
+        QVERIFY(card);
+        QVERIFY(card->isEnabled());
+        card->click();
+        QVERIFY(!again.w.alwaysOpensReadOnly());
+        QVERIFY(!again.w.isReadOnly());
+        // opened as a copy it is a workbook to edit
+        Window copy;
+        QVERIFY(copy.open(second, OpenHow::Copy));
+        QVERIFY(!copy.w.isReadOnly());
+    }
+
+    void turningAlwaysOpenReadOnlyOffKeepsAWindowThatIsReadOnlyForAnotherReason()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.setAlwaysOpenReadOnly(true);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        const QString second = e.copyOfFile();
+        Window b;
+        QVERIFY(b.open(second, OpenHow::ReadOnly));
+        QVERIFY(b.w.isReadOnly());
+        b.w.setAlwaysOpenReadOnly(false);
+        QVERIFY(!b.w.alwaysOpensReadOnly());
+        QVERIFY(b.w.isReadOnly());
+    }
+
+    void alwaysOpenReadOnlyIsRefusedForTextFilesAnXlsAndAnOds()
+    {
+        EditWindow t;
+        QVERIFY(t.open("a,b\n1,2\n", QStringLiteral("data.csv")));
+        QVERIFY(!t.win.w.alwaysReadOnlyBlocked().isEmpty());
+        t.win.w.setAlwaysOpenReadOnly(true);
+        QVERIFY(!t.win.w.alwaysOpensReadOnly());
+        QVERIFY(t.win.told.last().contains(QLatin1String("can't hold this choice")));
+        for (const char *name : {"old.xls", "sheet.ods"}) {
+            EditWindow o;
+            QVERIFY(o.open(editBook(), QString::fromLatin1(name)));
+            QVERIFY2(!o.win.w.alwaysReadOnlyBlocked().isEmpty(), name);
+        }
+    }
+
+    // Check Compatibility for a .csv: the file holds the values of one sheet, so the other sheets, the formulas, and the formats are named, with the choices the file's properties keep.
+    void checkCsvCompatibilityNamesWhatACsvFileCannotHold()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>A1*2</f><v>2</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows), worksheet(rows)})));
+        QTRY_VERIFY(e.win.w.csvLosses().join(QLatin1Char('|')).contains(QLatin1String("formulas")));
+        const QString before = e.win.w.csvLosses().join(QLatin1Char('|'));
+        QVERIFY(before.contains(QLatin1String("1 other sheet")));
+        QVERIFY(before.contains(QLatin1String("number formats")));
+        QVERIFY(!before.contains(QLatin1String("always open")));
+        e.win.w.setAlwaysOpenReadOnly(true);
+        QVERIFY(e.win.w.csvLosses().join(QLatin1Char('|')).contains(QLatin1String("always open")));
+        // the Info page has the card, and it says the same in the shared sentence
+        std::unique_ptr<QWidget> page(e.win.w.buildInfoPage(nullptr));
+        auto *card = page->findChild<QAbstractButton *>(QStringLiteral("infoCheckCsv"));
+        QVERIFY(card);
+        card->click();
+        QVERIFY(!e.win.told.isEmpty());
+        QVERIFY2(e.win.told.last().contains(QLatin1String("A .csv file can't hold some of what this workbook has")), qPrintable(e.win.told.last()));
+        QVERIFY(e.win.told.last().contains(QLatin1String("1 other sheet")));
+    }
+
+    // Pictures for a person to look at (JC_SHOT_DIR names the folder; nothing is made without it).
+    void shotInfoPage()
+    {
+        const QString dir = qEnvironmentVariable("JC_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JC_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.setAlwaysOpenReadOnly(true);
+        e.win.w.resize(1300, 800);
+        e.win.w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+        e.win.w.showFileScreen(QStringLiteral("info"));
+        QTest::qWait(300);
+        QDir().mkpath(dir);
+        QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/crunch-info.png")));
     }
 
     void inspectFindsHiddenSheetsAndPersonalInformation()

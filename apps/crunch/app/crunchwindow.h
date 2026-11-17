@@ -163,6 +163,13 @@ public:
     bool markedAsFinal() const { return office::isMarkedFinal(properties().custom); }
     // The reason Mark as Final can't be done for this workbook ("" when it can): the file it is saved to must be a kind that keeps the mark.
     QString markFinalBlocked() const;
+    // Whether the workbook is set to open for reading only each time (a property it keeps in its file); turning it off also lets this window edit.
+    bool alwaysOpensReadOnly() const { return office::isAlwaysOpenReadOnly(properties().custom); }
+    QString alwaysReadOnlyBlocked() const;
+    void setAlwaysOpenReadOnly(bool on);
+    // Check Compatibility for a .csv file: what the file would leave out of the workbook, said without saving (crunchwindow_info.cpp).
+    QStringList csvLosses() const;
+    void checkCsvCompatibility();
     int removePersonalInformation();
     // Shows or hides the note on the status bar that says the workbook is marked as final and open for reading only.
     void updateFinalNote();
@@ -1873,6 +1880,7 @@ private:
     void protectWorkbook();
     void allowEditRanges();
     QLabel *m_finalNote = nullptr;                       // (on the status bar while the workbook is marked as final and read-only)
+    bool m_readOnlyByChoice = false;                     // (this window is read-only only because the workbook is set to always open that way)
     bool m_personalInfoRemoved = false;                  // (Inspect took the personal information out: saving does not put the name of the person back)
     std::optional<office::PackageProps> m_editedProps;   // properties a person edited, written at the next save
     OpenHow m_openHow = OpenHow::Normal;                 // how the file being read was asked for

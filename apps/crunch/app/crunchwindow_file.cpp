@@ -378,8 +378,15 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         updateTitle();
     }
     // A workbook marked as final opens for reading only (the Info page lets it be edited again).
+    m_readOnlyByChoice = false;
     if (m_openHow == OpenHow::Normal && !m_blank && repairedName.isEmpty() && !m_path.isEmpty() && m_loaded->book && office::isMarkedFinal(office::readPackageProps(m_loaded->book->package()).custom)) {
         setReadOnly(true);
+    }
+    // A workbook set to always open for reading only does (the Info page lets it be edited).
+    else if (m_openHow == OpenHow::Normal && !m_blank && repairedName.isEmpty() && !m_path.isEmpty() && m_loaded->book && office::isAlwaysOpenReadOnly(office::readPackageProps(m_loaded->book->package()).custom)) {
+        setReadOnly(true);
+        m_readOnlyByChoice = true;
+        setStatus(tr("This workbook is open for reading only, as you chose. Open File > Info and choose Always Opens Read-Only to edit it."));
     }
     createEditing();
     // (opened from a copy a crash left: it is unsaved work, which has no file, and keeps a copy of its own before the old one goes)
