@@ -39,7 +39,15 @@ What the newer effects do:
 - **Strips**: diagonal steps of the new slide fill the slide from a corner.
 - **Random**: the show picks one of these effects each time it plays the transition.
 
-Some of these are in the file format of a presentation made elsewhere, and some are in the open document format. A **Plus**, **Comb**, **Strips**, **Newsflash**, **Flash**, or **Random** transition saved as an open document presentation is saved without an effect. A **Shape** is saved as the **Circle**, **Diamond**, or **Plus** it is.
+Some of these are in the file format of a presentation made elsewhere, and some are in the open document format. In an open document presentation, JeffDeck keeps the transition you chose, and other programs show the nearest effect they have for it. They show these differently:
+
+- **Plus** is shown as four boxes growing from the middle.
+- **Comb** is shown as **Blinds**.
+- **Strips** is shown as a diagonal wipe from the same corner.
+- **Newsflash** is shown as **Zoom**.
+- **Flash** is shown as a fade through white.
+- **Shape** with **Plus** is shown as four boxes growing from the middle. **Shape** with **Circle** or **Diamond** is shown as that shape.
+- **Random** is the standard "random" effect, and the other program picks its own.
 
 ## Morph
 

@@ -1363,8 +1363,8 @@ private Q_SLOTS:
         }
     }
 
-    // The common effects the standard has a name for come back as they were, with their direction or option; the ones it has none for
-    // (plus, comb, strips, newsflash, flash, random) are written without an effect.
+    // The common effects come back as they were, with their direction or option: the standard's own name where it has one, and for plus, comb,
+    // strips, newsflash, and flash the nearest effect beside our own type (random is the standard's "random").
     void odpCommonTransitionsComeBack()
     {
         struct Case {
@@ -1375,9 +1375,9 @@ private Q_SLOTS:
                               {"randombars", "v", "", "randombars", "", "v"}, {"circle", "l", "", "circle", "", ""},        {"diamond", "l", "", "diamond", "", ""},
                               {"wedge", "l", "", "wedge", "", ""},           {"wheel", "l", "1", "wheel", "1", ""},        {"wheel", "l", "2", "wheel", "2", ""},
                               {"wheel", "l", "3", "wheel", "3", ""},         {"wheel", "l", "4", "wheel", "4", ""},        {"wheel", "l", "8", "wheel", "8", ""},
-                              {"shape", "l", "circle", "circle", "", ""},    {"shape", "l", "diamond", "diamond", "", ""}, {"plus", "l", "", "none", "", ""},
-                              {"comb", "h", "", "none", "", ""},             {"strips", "rd", "", "none", "", ""},         {"newsflash", "l", "", "none", "", ""},
-                              {"flash", "l", "", "none", "", ""},            {"random", "l", "", "none", "", ""}};
+                              {"shape", "l", "circle", "circle", "", ""},    {"shape", "l", "diamond", "diamond", "", ""}, {"plus", "l", "", "plus", "", ""},
+                              {"comb", "v", "", "comb", "", "v"},            {"strips", "lu", "", "strips", "", "lu"},     {"newsflash", "l", "", "newsflash", "", ""},
+                              {"flash", "l", "", "flash", "", ""},           {"random", "l", "", "random", "", ""},        {"shape", "l", "plus", "shape", "plus", ""}};
         auto d = deck::newPresentation();
         for (size_t i = 0; i < std::size(cases); ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
         for (size_t i = 0; i < std::size(cases); ++i) {

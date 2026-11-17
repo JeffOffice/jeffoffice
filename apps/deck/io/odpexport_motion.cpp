@@ -10,6 +10,8 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPainterPath>
 #include <algorithm>
 #include <cmath>
@@ -102,10 +104,43 @@ QString Exporter::transitionAttrs(const Page &page)
         subtype = t.by == QLatin1String("1") ? QStringLiteral("oneBlade") : t.by == QLatin1String("2") ? QStringLiteral("twoBladeVertical")
                 : t.by == QLatin1String("3") ? QStringLiteral("threeBlade") : t.by == QLatin1String("8") ? QStringLiteral("eightBlade") : QStringLiteral("fourBlade");
     }
+    // The ones the standard has no name for: the nearest effect, and our own type kept beside it.
+    else if (t.type == QLatin1String("plus") || (t.type == QLatin1String("shape") && t.by == QLatin1String("plus"))) {
+        type = QStringLiteral("fourBoxWipe");
+        subtype = QStringLiteral("cornersOut");
+    } else if (t.type == QLatin1String("comb")) {
+        type = QStringLiteral("blindsWipe");
+        subtype = t.dir == QLatin1String("v") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
+    } else if (t.type == QLatin1String("strips")) {
+        type = QStringLiteral("diagonalWipe");
+        subtype = t.dir == QLatin1String("ru") ? QStringLiteral("bottomLeft") : t.dir == QLatin1String("lu") ? QStringLiteral("bottomRight")
+                : t.dir == QLatin1String("ld") ? QStringLiteral("topRight") : QStringLiteral("topLeft");
+    } else if (t.type == QLatin1String("newsflash")) {
+        type = QStringLiteral("irisWipe");
+        subtype = QStringLiteral("rectangle");
+    } else if (t.type == QLatin1String("flash")) {
+        type = QStringLiteral("fade");
+        subtype = QStringLiteral("fadeOverColor");
+    }
+    if (!type.isEmpty() && (t.type == QLatin1String("plus") || (t.type == QLatin1String("shape") && t.by == QLatin1String("plus")) || t.type == QLatin1String("comb") || t.type == QLatin1String("strips") ||
+                            t.type == QLatin1String("newsflash") || t.type == QLatin1String("flash"))) {
+        QJsonObject own;
+        own["type"] = t.type;
+        own["dir"] = t.dir;
+        own["by"] = t.by;
+        out += attrOf("jo:transition", QString::fromUtf8(QJsonDocument(own).toJson(QJsonDocument::Compact)));
+    }
+    if (t.type == QLatin1String("random")) {
+        // The standard's own name for one the show picks.
+        out += attrOf("presentation:transition-style", QStringLiteral("random"));
+        out += attrOf("presentation:transition-speed", t.duration >= 0.85 ? QStringLiteral("slow") : t.duration <= 0.55 ? QStringLiteral("fast") : QStringLiteral("medium"));
+        out += attrOf("smil:dur", QStringLiteral("PT%1S").arg(number(t.duration, 2)));
+    }
     if (!type.isEmpty()) {
         out += attrOf("smil:type", type) + attrOf("smil:subtype", subtype);
         if (reverse) out += attrOf("smil:direction", QStringLiteral("reverse"));
         if (t.type == QLatin1String("cut")) out += attrOf("smil:fadeColor", QStringLiteral("#000000"));
+        if (t.type == QLatin1String("flash")) out += attrOf("smil:fadeColor", QStringLiteral("#ffffff"));
         out += attrOf("presentation:transition-speed", t.duration >= 0.85 ? QStringLiteral("slow") : t.duration <= 0.55 ? QStringLiteral("fast") : QStringLiteral("medium"));
         out += attrOf("smil:dur", QStringLiteral("PT%1S").arg(number(t.duration, 2)));
     }

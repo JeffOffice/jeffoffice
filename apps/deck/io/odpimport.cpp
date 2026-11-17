@@ -15,6 +15,8 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -580,6 +582,12 @@ void Reader::readTransition(const Bag &style, Page &page)
         t.type = QStringLiteral("wheel");
         t.by = subtype == QLatin1String("oneBlade") ? QStringLiteral("1") : subtype.startsWith(QLatin1String("twoBlade")) ? QStringLiteral("2")
              : subtype == QLatin1String("threeBlade") ? QStringLiteral("3") : subtype == QLatin1String("eightBlade") ? QStringLiteral("8") : QStringLiteral("4");
+    } else if (type == QLatin1String("fourBoxWipe") && subtype == QLatin1String("cornersOut")) {
+        t.type = QStringLiteral("plus");
+    } else if (type == QLatin1String("diagonalWipe")) {
+        t.type = QStringLiteral("strips");
+        t.dir = subtype == QLatin1String("bottomLeft") ? QStringLiteral("ru") : subtype == QLatin1String("bottomRight") ? QStringLiteral("lu")
+              : subtype == QLatin1String("topRight") ? QStringLiteral("ld") : QStringLiteral("rd");
     } else if (type == QLatin1String("fade")) {
         t.type = QStringLiteral("fade");
     } else if (type == QLatin1String("pushWipe")) {
@@ -606,6 +614,7 @@ void Reader::readTransition(const Bag &style, Page &page)
         else if (oldStyle.startsWith(QLatin1String("move-from-"))) { t.type = QStringLiteral("push"); t.dir = side(oldStyle); }
         else if (oldStyle.startsWith(QLatin1String("roll-from-"))) { t.type = QStringLiteral("cover"); t.dir = side(oldStyle); }
         else if (oldStyle.startsWith(QLatin1String("uncover-to-"))) { t.type = QStringLiteral("uncover"); t.dir = opposite(side(oldStyle)); }
+        else if (oldStyle == QLatin1String("random")) t.type = QStringLiteral("random");
         else if (oldStyle == QLatin1String("dissolve")) t.type = QStringLiteral("dissolve");
         else if (oldStyle == QLatin1String("fade-from-center")) { t.type = QStringLiteral("zoom"); t.dir = QStringLiteral("in"); }
         else if (oldStyle == QLatin1String("fade-to-center")) { t.type = QStringLiteral("zoom"); t.dir = QStringLiteral("out"); }
@@ -614,6 +623,17 @@ void Reader::readTransition(const Bag &style, Page &page)
         else matched = false;
     } else if (!type.isEmpty()) {
         matched = false;
+    }
+    // Our own type, kept beside the nearest effect the standard has.
+    if (type == QLatin1String("fourBoxWipe") || type == QLatin1String("diagonalWipe") || type == QLatin1String("blindsWipe") || type == QLatin1String("irisWipe") || type == QLatin1String("fade")) {
+        const QJsonObject own = QJsonDocument::fromJson(style.get(Graphic, "jo:transition").toUtf8()).object();
+        const QString ownType = own.value(QLatin1String("type")).toString();
+        if (ownType == QLatin1String("plus") || ownType == QLatin1String("shape") || ownType == QLatin1String("comb") || ownType == QLatin1String("strips") ||
+            ownType == QLatin1String("newsflash") || ownType == QLatin1String("flash")) {
+            t.type = ownType;
+            t.dir = own.value(QLatin1String("dir")).toString();
+            t.by = own.value(QLatin1String("by")).toString();
+        }
     }
     if (!matched) ++m_transitionsLost;
     // How fast, and when it moves on.
