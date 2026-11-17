@@ -1421,6 +1421,7 @@ private Q_SLOTS:
     void hostileKernValuesAreReadWithoutHarm();
     void whatAParagraphSaysThatHasNoFieldIsKept();
     void tabStopsTheEngineHasNoKindForAreKeptAndNotMade();
+    void aBarStopFromAParagraphStyleShowsAndStaysTheStyles();
     void aKindOfJustifiedIsKeptUntilTheAlignmentIsChosen();
     void aParagraphMarkThatSaysItsSizeKeepsSayingItUnderACharacterStyle();
     void aStyleThatNumbersKeepsItsOwnIndentsOverTheList();

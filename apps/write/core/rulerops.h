@@ -13,6 +13,7 @@ namespace jp::write {
 constexpr int kMostTabStops = 64;       // a paragraph is given no more than this many
 constexpr int kMostTabStopsShown = 4000; // the ruler draws no more than this many (a paragraph keeps all it has)
 constexpr double kMostTabPosition = 1584;
+constexpr int kMostBarStops = 64;       // and no more bar stops (lines the layout draws; each file format is written with no more)
 
 struct TabStopEntry {
     double position = 0;

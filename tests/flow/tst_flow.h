@@ -1446,6 +1446,7 @@ private Q_SLOTS:
     void aNumberedCourierNewItemKeepsCourierNewsLine();
     void keepWithNextMeasuresTheNextParagraphInCourierNewsLine();
     void aStretchedStandInsStretchStaysWithItsRun();
+    void aScaledRunInAMissingStockFontIsAsWideAsItsScaleAsksSpacesIncluded();
     void wholePointLinesFollowMultipleAtLeastAndExactSpacing();
     void aFontsAlternateIsKeptWhereTheWordProcessorHasIt();
     void wordTextKernsOnlyWhereTheFileAsks();

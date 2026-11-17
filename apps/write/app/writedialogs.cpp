@@ -701,7 +701,14 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     row->addWidget(clear);
     row->addWidget(clearAll);
     v->addLayout(row);
+    // (Said when a stop is refused.)
+    auto *note = new QLabel(&dlg);
+    note->setObjectName(QStringLiteral("tabNote"));
+    note->setTextFormat(Qt::PlainText);
+    note->setWordWrap(true);
+    v->addWidget(note);
     QObject::connect(set, &QPushButton::clicked, &dlg, [&] {
+        note->clear();
         TabStopEntry t;
         t.position = position->value();
         t.bar = type->currentData().toInt() == kBarKind;
@@ -713,6 +720,10 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
                 refill();
                 return;
             }
+        if (t.bar && std::count_if(stops.cbegin(), stops.cend(), [](const TabStopEntry &e) { return e.bar; }) >= kMostBarStops) {
+            note->setText(QCoreApplication::translate("jp::write::Dialogs", "A paragraph keeps up to 64 bar stops."));
+            return;
+        }
         if (stops.size() >= kMostTabStops) return;
         stops.push_back(t);
         std::sort(stops.begin(), stops.end(), [](const TabStopEntry &a, const TabStopEntry &b) { return a.position < b.position; });

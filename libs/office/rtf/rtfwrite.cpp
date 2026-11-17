@@ -200,6 +200,7 @@ struct Writer {
         if (p.color && !p.color->val.isEmpty()) o += "\\cf" + QByteArray::number(p.color->val == QLatin1String("auto") ? 0 : color(p.color->val));
         if (p.size) o += "\\fs" + QByteArray::number(*p.size);
         if (p.spacing) o += "\\expndtw" + QByteArray::number(*p.spacing);
+        if (p.scale) o += "\\charscalex" + QByteArray::number(std::clamp(*p.scale, 1, 600));
         if (p.position) o += (*p.position >= 0 ? "\\up" : "\\dn") + QByteArray::number(std::abs(*p.position));
         if (p.vertAlign == QLatin1String("superscript")) o += "\\super";
         else if (p.vertAlign == QLatin1String("subscript")) o += "\\sub";

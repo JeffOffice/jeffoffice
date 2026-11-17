@@ -462,12 +462,13 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
             if (outline) *outline = t.val(c).toInt() + 1;
         } else if (name == "tabs" && tabs) {
             QByteArray tx, bars;
+            int barCount = 0;
             for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                 if (!t.is(k, "tab")) continue;
                 const QString val = t.attr(k, "val");
                 if (val == QLatin1String("clear") || !t.has(k, "pos")) continue;
-                if (val == QLatin1String("bar")) {   // (no stop in ODF: a list of places of ours)
-                    bars += (bars.isEmpty() ? "" : " ") + QByteArray::number(qint64(t.attr(k, "pos").toDouble()));
+                if (val == QLatin1String("bar")) {   // (no stop in ODF: a list of places of ours, as many as the program keeps)
+                    if (++barCount <= 64) bars += (bars.isEmpty() ? "" : " ") + QByteArray::number(qint64(t.attr(k, "pos").toDouble()));
                     continue;
                 }
                 const char *type = val == QLatin1String("center") ? "center" : val == QLatin1String("right") || val == QLatin1String("end") ? "right" : val == QLatin1String("decimal") ? "char" : "left";

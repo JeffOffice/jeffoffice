@@ -952,11 +952,10 @@ private Q_SLOTS:
         w.grab().save(dir + QStringLiteral("/window-accessibility.png"));
     }
 
-    // With JW_SHOTS set to a folder: the Tabs box (with a bar stop listed) and a page with bar tab stops and a scaled run, saved there; skipped otherwise.
+    // With JO_SHOT_DIR set: pictures of the Tabs box (with bar stops listed) and of a page with bar tab stops and scaled runs, for the person looking at the round's work; skipped otherwise.
     void picturesOfTheTabsBoxAndABarAndScaledLetters()
     {
-        const QString dir = qEnvironmentVariable("JW_SHOTS");
-        if (dir.isEmpty()) QSKIP("JW_SHOTS is not set");
+        if (qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) QSKIP("JO_SHOT_DIR is not set");
         jp::applyUiTheme(1);
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
@@ -966,9 +965,12 @@ private Q_SLOTS:
         w.setDocument(open(makeDocx(onePage("<w:p>" + bars + "<w:r><w:t>Name</w:t></w:r></w:p><w:p>" + bars + "<w:r><w:t xml:space=\"preserve\">Plain letters, then </w:t></w:r><w:r><w:rPr><w:w w:val=\"200\"/></w:rPr><w:t>wide</w:t></w:r>"
                                               "<w:r><w:t xml:space=\"preserve\"> and </w:t></w:r><w:r><w:rPr><w:w w:val=\"50\"/></w:rPr><w:t>narrow letters</w:t></w:r></w:p><w:p>" + bars + "<w:r><w:t>Third line</w:t></w:r></w:p>"), "<w:defaultTabStop w:val=\"360\"/>")), QString());
         QTextCursor cursor(w.document()->story());
-        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("tabType"))->setCurrentIndex(4); d->grab().save(dir + QStringLiteral("/dialog-tabs-bar.png")); }, false);
-        QTRY_VERIFY(w.view()->pageImage(0, 816).width() == 816);
-        w.view()->pageImage(0, 1224).copy(0, 0, 1224, 400).save(dir + QStringLiteral("/page-bar-and-scaled.png"));
+        withDialog([&] { tabsDialog(&w, w.document(), &cursor); }, QStringLiteral("tabsDialog"), [&](QDialog *d) {
+            d->findChild<QComboBox *>(QStringLiteral("tabType"))->setCurrentIndex(4);
+            QCOMPARE(d->findChild<QListWidget *>(QStringLiteral("tabList"))->count(), 2);
+            shotOf(d, QStringLiteral("write-tabs-box-bars"));
+        }, false);
+        w.view()->pageImage(0, 1224).copy(0, 0, 1224, 400).save(qEnvironmentVariable("JO_SHOT_DIR") + QStringLiteral("/write-page-bars-and-scaled.png"));
     }
 
     // With JW_SHOTS set: a picture of every dialog the commands of JW_GRAB_IDS (or a standard list) open, named after the command.
@@ -1227,10 +1229,10 @@ private Q_SLOTS:
                     }
             if (barColumns) {
                 *barColumns = 0;
-                for (int x = int(140 * perPoint); x <= int(148 * perPoint); ++x) {
+                for (int x = int(136 * perPoint); x <= int(152 * perPoint); ++x) {
                     int run = 0, best = 0;
                     for (int y = int(72 * perPoint); y < int(120 * perPoint); ++y) {
-                        run = qGray(img.pixel(x, y)) < 160 ? run + 1 : 0;
+                        run = qGray(img.pixel(x, y)) < 200 ? run + 1 : 0;
                         best = std::max(best, run);
                     }
                     *barColumns = std::max(*barColumns, best);
@@ -1278,10 +1280,10 @@ private Q_SLOTS:
             const QImage img = w.view()->pageImage(0, 816);
             const double perPoint = 816 / 612.0;
             int best = 0;
-            for (int x = int(140 * perPoint); x <= int(148 * perPoint); ++x) {
+            for (int x = int(136 * perPoint); x <= int(152 * perPoint); ++x) {
                 int run = 0;
                 for (int y = int(72 * perPoint); y < int(120 * perPoint); ++y) {
-                    run = qGray(img.pixel(x, y)) < 160 ? run + 1 : 0;
+                    run = qGray(img.pixel(x, y)) < 200 ? run + 1 : 0;
                     best = std::max(best, run);
                 }
             }

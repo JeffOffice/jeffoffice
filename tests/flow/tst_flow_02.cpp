@@ -431,6 +431,38 @@ void FlowTests::aStretchedStandInsStretchStaysWithItsRun()
 }
 
 
+// A run scaled to 200 percent is twice as wide, spaces included, also in a stock font that isn't installed: its letters and spaces are set to the original's widths, and those
+// widths are scaled with the run.
+void FlowTests::aScaledRunInAMissingStockFontIsAsWideAsItsScaleAsksSpacesIncluded()
+{
+    QString family;
+    for (const QString &f : {QStringLiteral("Times New Roman"), QStringLiteral("Agency FB"), QStringLiteral("Calibri"), QStringLiteral("Arial")})
+        if (family.isEmpty() && !QFontDatabase::hasFamily(f) && originalLetterWidths(f, false, false)) family = f;
+    if (family.isEmpty()) QSKIP("every measured stock font is installed here");
+    auto widthOf = [&](int stretch, const QString &text) {
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextCharFormat cf;
+        cf.setFontFamilies({family});
+        cf.setFontPointSize(12);
+        if (stretch != 100) cf.setFontStretch(stretch);
+        c.insertText(text, cf);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(2000, 700)}, env);
+        int frame = -1;
+        QRectF at;
+        return lay.caretRect(doc->characterCount() - 1, &frame, &at) ? at.left() : -1.0;
+    };
+    const QString words = QStringLiteral("a b a b a b a b");
+    const double plain = widthOf(100, words), wide = widthOf(200, words), spaces = widthOf(200, QStringLiteral("        ")) / widthOf(100, QStringLiteral("        "));
+    QVERIFY(plain > 20);
+    QVERIFY2(wide / plain > 1.9 && wide / plain < 2.1, qPrintable(QStringLiteral("%1 and %2").arg(plain).arg(wide)));
+    QVERIFY2(spaces > 1.9 && spaces < 2.1, qPrintable(QString::number(spaces)));
+}
+
+
 // Lines of whole points follow every kind of line spacing: a multiple is a multiple of the whole-point line (Times New Roman 11, 12.65 high, is 13), an at-least
 // height more than that is a descent above its bottom, and one less is the whole-point line itself; an exact height keeps the parts in proportion.
 void FlowTests::wholePointLinesFollowMultipleAtLeastAndExactSpacing()

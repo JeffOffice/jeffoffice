@@ -778,6 +778,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.tabs && !p.tabs->isEmpty()) {
         QList<QTextOption::Tab> tabs;
         QString leaders, bars;
+        int barCount = 0;
         for (const TabStop &t : *p.tabs) {
             QTextOption::Tab tab;
             tab.position = t.pos / 20.0;
@@ -790,7 +791,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
                 bf.setProperty(tp::NumberTab, t.pos / 20.0);   // (the stop of the number's tab: the engine has it for that tab alone)
                 continue;
             } else if (t.val == QLatin1String("bar")) {
-                if (bars.count(QLatin1Char(' ')) < 64) bars += (bars.isEmpty() ? QString() : QStringLiteral(" ")) + QString::number(t.pos / 20.0, 'f', 2);   // (a vertical line, no room: the layout draws it)
+                if (barCount < 64 && ++barCount) bars += (bars.isEmpty() ? QString() : QStringLiteral(" ")) + QString::number(t.pos / 20.0, 'f', 2);   // (a vertical line, no room: the layout draws it)
                 continue;
             }
             else tab.type = QTextOption::LeftTab;

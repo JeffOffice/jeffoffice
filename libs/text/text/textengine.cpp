@@ -454,6 +454,7 @@ std::atomic<qint64> g_ownUnderlines{0}, g_underlineVisits{0};   // (see StoryLay
 // Layout only: a missing stock font measured letter by letter, "family|bold|italic"
 // (applyLetterWidths gives each letter the original's width).
 constexpr int kLetterWidths = QTextFormat::UserProperty + 91;
+constexpr int kLetterScale = QTextFormat::UserProperty + 92;   // int: the run's own character scaling in percent (absent: 100), which the original's letter widths are multiplied by
 // The face Courier New is drawn in where the machine lacks it (resolveCharFormat): its font's families are this and then the family whose line it keeps.
 const QString kThinCourier = QStringLiteral("TeX Gyre Cursor");
 // The bundled face a word processor's face is drawn in where the machine lacks it, for the faces its machine has that no table of letter widths measures: the nearest of the same
@@ -1276,6 +1277,8 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     }
     // A missing stock font JeffPub has measured: its letters take the
     // original's widths (applyLetterWidths), so lines break as they do there.
+    // (Scaled letters are that much wider: the run's own scaling is kept for it.)
+    if (f.hasProperty(QTextFormat::FontStretch) && f.fontStretch() != 100) r.setProperty(kLetterScale, f.fontStretch());
     {
         const QStringList fams = r.fontFamilies().toStringList();
         const bool bold = f.hasProperty(QTextFormat::FontWeight) && f.fontWeight() >= QFont::DemiBold, italic = f.fontItalic();
@@ -2650,6 +2653,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         plain.setCapitalization(QFont::MixedCase);
         const double em = plain.pointSizeF() / fontPointFactor();
         if (!(em > 0)) { out << r; continue; }
+        const double scaleBy = r.format.hasProperty(kLetterScale) ? std::clamp(r.format.intProperty(kLetterScale), 1, 600) / 100.0 : 1.0;   // (the original's widths, as wide as the run is scaled)
         const QString fk = emKey(plain) + QLatin1Char('|');
         auto adv = [&](QChar c) {
             const QString ck = fk + c;
@@ -2666,7 +2670,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         if (nit == needed.constEnd()) {
             double worst = 0;
             for (char16_t c : u"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
-                if (auto t = table->constFind(c); t != table->constEnd()) worst = std::max(worst, std::abs(*t - adv(QChar(c)) / em));
+                if (auto t = table->constFind(c); t != table->constEnd()) worst = std::max(worst, std::abs(*t * scaleBy - adv(QChar(c)) / em));
             nit = needed.insert(nk, ofSymbols || worst > 0.004);   // (a symbol font's pictures are none of the letters and digits the stand-in is compared by)
         }
         const auto space = table->constFind(u' ');
@@ -2677,12 +2681,12 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         if (!*nit) {
             // Letters alike: only the space, by word spacing.
             QTextLayout::FormatRange x = r;
-            if (space != table->constEnd()) x.format.setFontWordSpacing(r.format.fontWordSpacing() + *space * em - adv(QLatin1Char(' ')));
+            if (space != table->constEnd()) x.format.setFontWordSpacing(r.format.fontWordSpacing() + *space * em * scaleBy - adv(QLatin1Char(' ')));
             // (A fixed-pitch face that is a hair narrower than the original's letters, 600 to the em where the original has 1,229 of 2,048: a line of 65 letters at 12 points is
             // 468.08 points long in the original and does not fit its 468; the hair is added to each letter, as far as the layout's units go.)
             if (k.value(3) == QLatin1String("c"))
             if (const auto a = table->constFind(u'a'), m = table->constFind(u'm'); a != table->constEnd() && m != table->constEnd() && *a == *m && *a > 0.5) {
-                if (const double hair = *a * em - adv(QLatin1Char('a')); hair > 0 && hair < 0.01) {
+                if (const double hair = *a * em * scaleBy - adv(QLatin1Char('a')); hair > 0 && hair < 0.01) {
                     x.format.setFontLetterSpacingType(QFont::AbsoluteSpacing);
                     x.format.setFontLetterSpacing(base + std::max(hair, 0.002));   // (the layout keeps spacing in sixty-fourths of a pixel of eighths of a point: less is none)
                 }
@@ -2706,7 +2710,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
         for (int i = r.start; i < end; ++i) {
             const QChar c = disp[i];
             if (transparent(c)) continue;
-            if (auto t = table->constFind(c.unicode()); t != table->constEnd()) diff[i - r.start] = *t * em - adv(c);
+            if (auto t = table->constFind(c.unicode()); t != table->constEnd()) diff[i - r.start] = *t * em * scaleBy - adv(c);
             if (firstLetter < 0) firstLetter = i;
         }
         // A piece is shaped alone, so a cut may fall only between two
@@ -2802,7 +2806,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             next = i + 1;
             while (next < end && transparent(disp[next])) ++next;
             want[i - r.start] = diff[i - r.start] - shift[i - r.start] + (next < end ? shift[next - r.start] : 0);
-            if (kerning && next < end) want[i - r.start] += kerning->value(quint32(disp[i].unicode()) << 16 | disp[next].unicode()) * em;
+            if (kerning && next < end) want[i - r.start] += kerning->value(quint32(disp[i].unicode()) << 16 | disp[next].unicode()) * em * scaleBy;
         }
         for (const Stretch &part : stretches) {
             constexpr double kGapCapEm = 0.05;

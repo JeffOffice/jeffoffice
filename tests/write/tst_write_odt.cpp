@@ -197,6 +197,61 @@ private Q_SLOTS:
         QVERIFY2(s.contains("<w:defaultTabStop w:val=\"360\"/>"), s.constData());
     }
 
+    // A paragraph keeps up to 64 bar stops: a file with more (a .docx or an .odt) is read with the first 64, and both formats are written with those, the same ones.
+    void aParagraphKeepsAtMost64BarStopsInEveryFormat()
+    {
+        QByteArray tabs = "<w:tabs>";
+        QByteArray places;
+        for (int i = 0; i < 70; ++i) {
+            tabs += "<w:tab w:val=\"bar\" w:pos=\"" + QByteArray::number(100 + i * 50) + "\"/>";
+            places += (i ? " " : "") + QByteArray::number(100 + i * 50);
+        }
+        tabs += "</w:tabs>";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body><w:p><w:pPr>" + tabs + "</w:pPr><w:r><w:t>x</w:t></w:r></w:p></w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        QString err;
+        auto fromDocx = WriteDoc::fromDocx(w.finish(), &err);
+        QVERIFY2(fromDocx, qPrintable(err));
+        const QByteArray body = "<text:p text:style-name=\"P1\">x</text:p>";
+        auto fromOdt = WriteDoc::fromFile(makeOdt(body, "<style:style style:name=\"P1\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" jo:bar-tabs=\"" + places + "\"/></style:style>"), &err);
+        QVERIFY2(fromOdt, qPrintable(err));
+        for (WriteDoc *d : {fromDocx.get(), fromOdt.get()}) {
+            QCOMPARE(int(tabStopsOf(d->story()->begin().blockFormat()).size()), 64);
+            office::Package pkg;
+            QVERIFY(pkg.read(d->toDocx()));
+            QCOMPARE(int(pkg.part(QStringLiteral("/word/document.xml")).count("w:val=\"bar\"")), 64);
+            const QByteArray odt = d->toOdt();
+            const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
+            const qsizetype at = content.indexOf("jo:bar-tabs=\"");
+            QVERIFY(at >= 0);
+            QCOMPARE(int(content.mid(at + 13, content.indexOf('"', at + 13) - at - 13).split(' ').size()), 64);
+            auto back = WriteDoc::fromFile(odt, &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(int(tabStopsOf(back->story()->begin().blockFormat()).size()), 64);
+        }
+        // Both read the same 64.
+        QCOMPARE(tabStopsOf(fromDocx->story()->begin().blockFormat()), tabStopsOf(fromOdt->story()->begin().blockFormat()));
+    }
+
+    // Character scaling goes into an .rtf (\charscalex) and comes back from it.
+    void aScaledRunIsKeptInAnRtf()
+    {
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt("<text:p>a<text:span text:style-name=\"T1\">wide</text:span></text:p>", "<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:text-scale=\"200%\"/></style:style>"), &err);
+        QVERIFY2(doc, qPrintable(err));
+        const QByteArray rtf = doc->toRtf(&err);
+        QVERIFY2(rtf.contains("\\charscalex200"), rtf.constData());
+        auto back = WriteDoc::fromFile(rtf, &err);
+        QVERIFY2(back, qPrintable(err));
+        int scale = 0;
+        for (auto it = back->story()->begin().begin(); !it.atEnd(); ++it)
+            if (it.fragment().text().contains(QLatin1String("wide"))) scale = it.fragment().charFormat().fontStretch();
+        QCOMPARE(scale, 200);
+    }
+
     // The markup of a paragraph's look is made once for each style, not for each paragraph: five thousand paragraphs of two styles make some looks, not thousands. (Counted.)
     void theLooksOfParagraphsAreMadeOnceForEachStyle()
     {

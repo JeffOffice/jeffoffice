@@ -130,6 +130,21 @@ void WriteTests::whatAParagraphSaysThatHasNoFieldIsKept()
 }
 
 
+// A bar stop that a paragraph style gives is the paragraph's too (drawn, and listed in the Tabs box); written back it stays the style's, and the paragraph says none of its own.
+void WriteTests::aBarStopFromAParagraphStyleShowsAndStaysTheStyles()
+{
+    const QByteArray styles = kStyles + "<w:style w:type=\"paragraph\" w:styleId=\"Barred\"><w:name w:val=\"Barred\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"2000\"/></w:tabs></w:pPr></w:style>";
+    auto doc = open(makeDocx("<w:p><w:pPr><w:pStyle w:val=\"Barred\"/></w:pPr><w:r><w:t>styled</w:t></w:r></w:p>", styles));
+    QVERIFY(doc);
+    const QVector<TabStopEntry> stops = tabStopsOf(doc->story()->begin().blockFormat());
+    QCOMPARE(int(stops.size()), 1);
+    QVERIFY(stops[0].bar);
+    QCOMPARE(stops[0].position, 100.0);
+    const QByteArray x = documentXml(doc->toDocx());
+    QVERIFY2(!x.contains("<w:tab "), x.constData());
+}
+
+
 void WriteTests::tabStopsTheEngineHasNoKindForAreKeptAndNotMade()
 {
     // A list's own tab (num) is the definition's, and a bar tab is the paragraph's: neither is turned into a left tab, and the bar stays.

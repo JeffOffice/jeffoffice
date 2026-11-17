@@ -57,6 +57,7 @@ void setTabStopsOf(QTextBlockFormat &format, QVector<TabStopEntry> stops)
     if (anyLeader) format.setProperty(tp::TabLeaders, leaders);
     else format.clearProperty(tp::TabLeaders);
     QString barText;
+    if (bars.size() > kMostBarStops) bars.resize(kMostBarStops);
     for (const TabStopEntry &s : std::as_const(bars)) barText += (barText.isEmpty() ? QString() : QStringLiteral(" ")) + QString::number(s.position, 'f', 2);
     if (barText.isEmpty()) format.clearProperty(tp::BarTabs);
     else format.setProperty(tp::BarTabs, barText);
