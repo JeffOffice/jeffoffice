@@ -1853,7 +1853,7 @@ private Q_SLOTS:
         w.setSavePathChooser([&](const QString &, const QString &) { return path; });
         QStringList warnings;
         auto *timer = new QTimer;
-        timer->setInterval(1);
+        timer->setInterval(0);   // (0, not 1: a 1 ms timer may not be due yet at the export's few processEvents calls, so a fast machine finished the book first: macOS CI, Nov 17)
         QObject::connect(timer, &QTimer::timeout, [&w, timer, &warnings] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
                 warnings << box->text();
