@@ -226,8 +226,12 @@ PictureResult changePictureFile(WriteDoc &doc, int position, const QByteArray &b
 constexpr int kMostGraphicShapes = 10000;
 // How deep the groups of an SVG may nest for its colors to be changed (a deeper one is refused); Convert to Shape reads no deeper than the shared reader does, and says what it left out.
 constexpr int kMostGraphicNesting = 32;
+// Whether an SVG may be drawn as a graphic (as the vetting of graphics and the page's own look at an SVG's cost say); a file's SVG that is not is not drawn (its PNG is). Kept by bytes.
+bool graphicDrawable(const QByteArray &svg);
 // The SVG of the graphic at `position` (empty for any other object).
 QByteArray graphicSvgAt(const WriteDoc &doc, int position);
+// The graphic at `position` drawn small (240 pixels on its longer side, in the shape of its frame) on a clear ground, for the tiles of the Graphics Styles gallery; null for any other object.
+QImage graphicSample(const WriteDoc &doc, int position);
 // Another SVG in the place of the graphic at `position`: the frame (its size and place) stays, the new graphic is drawn in it, and a PNG made of it goes beside it for the programs that
 // can't draw one. One step. Refused (with a note in doc.pictureNotice) for an SVG that reaches outside itself or is too large; Unreadable where it can't be drawn.
 PictureResult changeGraphic(WriteDoc &doc, int position, const QByteArray &svg);

@@ -32,8 +32,11 @@
 #include "app/settings.h"
 #include "core/picturecrop.h"
 #include "core/svg.h"
+#include "core/document.h"
 
 #include <QBuffer>
+#include <QCache>
+#include <QCryptographicHash>
 #include <QDomDocument>
 #include <QCoreApplication>
 #include <QFile>
@@ -266,7 +269,7 @@ struct BlipRefs {
 BlipRefs blipRefsOf(const QByteArray &graphic)
 {
     static const QRegularExpression blip(QStringLiteral("<a:blip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
-    static const QRegularExpression svg(QStringLiteral("<[A-Za-z0-9]+:svgBlip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
+    static const QRegularExpression svg(QStringLiteral("<(?:[A-Za-z0-9_.-]+:)?svgBlip\\b[^>]*?\\br:embed=\"([^\"]+)\""));
     const QString text = QString::fromUtf8(graphic);
     BlipRefs refs;
     if (const QRegularExpressionMatch m = blip.match(text); m.hasMatch()) refs.png = m.captured(1);
@@ -513,34 +516,11 @@ bool looksLikeSvg(const QByteArray &bytes)
     return bytes.contains("<svg") || bytes.contains("<SVG");
 }
 
-// Whether an SVG refers to anything outside itself: a file, an address, a style sheet, or a definition of its own that a reader might load. What it holds of its own (a link to an
-// element of it, or an image carried in it as data) is its own.
-bool svgReachesOutside(const QByteArray &svg)
-{
-    const QString text = QString::fromUtf8(svg);
-    static const QRegularExpression doctype(QStringLiteral("<!\\s*(DOCTYPE|ENTITY)|<\\?xml-stylesheet|@import"), QRegularExpression::CaseInsensitiveOption);
-    if (doctype.match(text).hasMatch()) return true;
-    static const QRegularExpression href(QStringLiteral("(?:^|[\\s:])(?:href|src)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"), QRegularExpression::CaseInsensitiveOption);
-    for (auto it = href.globalMatch(text); it.hasNext();) {
-        const QRegularExpressionMatch m = it.next();
-        const QString value = (m.captured(1).isEmpty() ? m.captured(2) : m.captured(1)).trimmed();
-        if (!value.startsWith(QLatin1Char('#')) && !value.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return true;
-    }
-    static const QRegularExpression url(QStringLiteral("url\\(\\s*[\"']?\\s*([^)\"']*)"), QRegularExpression::CaseInsensitiveOption);
-    for (auto it = url.globalMatch(text); it.hasNext();) {
-        const QString value = it.next().captured(1).trimmed();
-        if (!value.startsWith(QLatin1Char('#')) && !value.startsWith(QLatin1String("data:"), Qt::CaseInsensitive)) return true;
-    }
-    return false;
-}
+// Whether an SVG refers to anything outside itself, or carries a picture in itself (the shared reader's look at the text, with the attributes as the reader finds them).
+bool svgReachesOutside(const QByteArray &svg) { return svg::reachesOutside(svg); }
 
 // Whether the first of a part's bytes are an SVG's (a picture's part is looked at as often as the pages are drawn: no more than the start of it is read).
-bool startsLikeSvg(const QByteArray &bytes)
-{
-    if (bytes.startsWith("\x1f\x8b")) return false;
-    const QByteArray head = bytes.left(4096);
-    return head.contains("<svg") || head.contains("<SVG");
-}
+bool startsLikeSvg(const QByteArray &bytes) { return svg::startsLikeSvg(bytes); }
 
 // The SVG of a graphic: the one its svgBlip links, or a picture whose own part is an SVG (as a file of the other format that keeps SVGs gives it).
 QByteArray graphicSvgOf(const WriteDoc &doc, const QByteArray &graphic)
@@ -558,26 +538,46 @@ QByteArray graphicSvgOf(const WriteDoc &doc, const QByteArray &graphic)
     return QByteArray();
 }
 
-// The PNG that goes beside a graphic's SVG: the drawing as the shared renderer draws it, on a clear ground, from 256 to 1024 pixels on its longer side.
-bool graphicPng(const QByteArray &svg, QByteArray *png)
+}   // namespace
+
+bool graphicDrawable(const QByteArray &svg)
 {
+    static thread_local QCache<QByteArray, bool> known(512);   // by the SHA-1 of the bytes
+    const QByteArray key = QCryptographicHash::hash(svg, QCryptographicHash::Sha1);
+    if (const bool *hit = known.object(key)) return *hit;
+    const bool ok = svg::vetGraphic(svg) == svg::Vet::Ok && svgIsSafe(svg);
+    known.insert(key, new bool(ok));
+    return ok;
+}
+
+namespace {
+
+// The PNG that goes beside a graphic's SVG: the drawing as the shared renderer draws it, from 256 to 1024 pixels on its longer side, in the shape of the frame it is shown in
+// (`frame`, in points; the drawing's own where that is empty), the drawing placed in it as its preserveAspectRatio says (whole and centered, as a viewer shows it), on a clear ground.
+// Not made for a drawing that is too much to draw (refused as the vetting of graphics refuses it).
+enum class GraphicDrawn { Ok, Cannot, TooMuch };
+GraphicDrawn graphicPng(const QByteArray &svg, QByteArray *png, QSizeF frame = QSizeF())
+{
+    if (const svg::Vet vet = svg::vetGraphic(svg); vet == svg::Vet::TooComplex || vet == svg::Vet::TooLarge) return GraphicDrawn::TooMuch;
+    else if (vet != svg::Vet::Ok) return GraphicDrawn::Cannot;
     QSvgRenderer renderer(svg);
-    if (!renderer.isValid()) return false;
+    if (!renderer.isValid()) return GraphicDrawn::Cannot;
     const QSizeF box = renderer.viewBoxF().size();
-    if (!(box.width() > 0 && box.height() > 0) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return false;
-    const double longest = std::max(box.width(), box.height()), target = std::clamp(longest, 256.0, 1024.0);
-    const QSize px(std::max(1, int(std::lround(box.width() * target / longest))), std::max(1, int(std::lround(box.height() * target / longest))));
+    if (!(box.width() > 0 && box.height() > 0) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return GraphicDrawn::Cannot;
+    const QSizeF shape = frame.width() > 0 && frame.height() > 0 && std::isfinite(frame.width()) && std::isfinite(frame.height()) ? frame : box;
+    const double longest = std::max(box.width(), box.height()), target = std::clamp(longest, 256.0, 1024.0), side = std::max(shape.width(), shape.height());
+    const QSize px(std::max(1, int(std::lround(shape.width() * target / side))), std::max(1, int(std::lround(shape.height() * target / side))));
     QImage image(px, QImage::Format_ARGB32_Premultiplied);
     image.fill(Qt::transparent);
     {
         QPainter painter(&image);
         painter.setRenderHint(QPainter::Antialiasing);
-        svg::paint(renderer, svg, &painter, QRectF(QPointF(), QSizeF(px)));
+        svg::paintFitted(renderer, svg, &painter, QRectF(QPointF(), QSizeF(px)), svg::kMostClipRuns);
     }
     png->clear();
     QBuffer buffer(png);
     buffer.open(QIODevice::WriteOnly);
-    return image.save(&buffer, "PNG") && !png->isEmpty() && qint64(png->size()) <= kMostPictureBytes;
+    return image.save(&buffer, "PNG") && !png->isEmpty() && qint64(png->size()) <= kMostPictureBytes ? GraphicDrawn::Ok : GraphicDrawn::Cannot;
 }
 
 PictureResult prepare(const QByteArray &input, Prepared *out)
@@ -585,8 +585,12 @@ PictureResult prepare(const QByteArray &input, Prepared *out)
     if (input.isEmpty()) return PictureResult::Unreadable;
     if (qint64(input.size()) > kMostPictureBytes) return PictureResult::TooLarge;
     if (looksLikeSvg(input)) {
-        if (qint64(input.size()) > kMostSvgBytes) return PictureResult::TooLarge;
-        if (svgReachesOutside(input)) return PictureResult::External;
+        switch (svg::vetGraphic(input)) {
+        case svg::Vet::TooLarge:
+        case svg::Vet::TooComplex: return PictureResult::TooLarge;
+        case svg::Vet::Outside: return PictureResult::External;
+        default: break;
+        }
     } else if (input.startsWith("\x1f\x8b")) {
         return PictureResult::Unreadable;   // (a compressed SVG hides what it refers to)
     }
@@ -619,7 +623,7 @@ PictureResult prepare(const QByteArray &input, Prepared *out)
         // (An SVG is kept as itself, with a PNG drawn from it by the shared renderer beside it: sharp at 256 pixels or more, though the picture is as large as the SVG says.)
         out->svg = input;
         QByteArray png;
-        if (graphicPng(input, &png)) out->bytes = png;
+        if (graphicPng(input, &png, out->size) == GraphicDrawn::Ok) out->bytes = png;
     }
     return drawn;
 }
@@ -4093,7 +4097,8 @@ QByteArray withBlip(const QByteArray &graphic, const BlipSpot &b)
 // What is inside a blip, with the SVG link of its extension list taken away and, where `svgRid` is given, put in (the other children and extensions stay, in their order).
 QByteArray blipInnerWithSvg(const QByteArray &inner, const QString &svgRid)
 {
-    static const QRegularExpression link(QStringLiteral("<a:ext\\s+uri=\"\\{96DAC541-7B7A-43D3-8B79-37D633B846F1\\}\"[^>]*>.*?</a:ext>"), QRegularExpression::DotMatchesEverythingOption);
+    // (The extension that holds an svgBlip, whatever prefix the svgBlip has and whatever the extension's own attributes are.)
+    static const QRegularExpression link(QStringLiteral("<a:ext\\b[^>]*>(?:(?!</a:ext>).)*?<(?:[A-Za-z0-9_.-]+:)?svgBlip\\b(?:(?!</a:ext>).)*</a:ext>"), QRegularExpression::DotMatchesEverythingOption);
     QString text = QString::fromUtf8(inner);
     text.remove(link);
     text.remove(QStringLiteral("<a:extLst></a:extLst>"));
@@ -4800,10 +4805,22 @@ QByteArray graphicSvgAt(const WriteDoc &doc, int position)
     Inline atom;
     Model m;
     if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return QByteArray();
+    // (A barcode of ours has an SVG beside its PNG too, and is no graphic: it is made again from its settings.)
+    if (!verifiedBarcode(doc, atom.raw, m.graphic).isEmpty()) return QByteArray();
     return graphicSvgOf(doc, m.graphic);
 }
 
 namespace {
+
+// The size, in points, of the frame the graphic at `position` is shown in.
+QSizeF graphicFrameAt(const WriteDoc &doc, int position)
+{
+    const QTextDocument *story = doc.story();
+    Inline atom;
+    Model m;
+    if (!story || !drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return QSizeF();
+    return QSizeF(double(m.cx) / kEmuPerPoint, double(m.cy) / kEmuPerPoint);
+}
 
 struct GraphicMedia {
     QString png, svg;
@@ -4811,10 +4828,15 @@ struct GraphicMedia {
 };
 
 // The graphic's two pictures put in the document's media (the PNG drawn from the SVG, and the SVG): false, with a note, where the document can't hold them or the SVG can't be drawn.
-bool addGraphicMedia(WriteDoc &doc, const QByteArray &svg, GraphicMedia *out)
+bool addGraphicMedia(WriteDoc &doc, const QByteArray &svg, const QSizeF &frame, GraphicMedia *out)
 {
     QByteArray png;
-    if (!graphicPng(svg, &png)) {
+    switch (graphicPng(svg, &png, frame)) {
+    case GraphicDrawn::Ok: break;
+    case GraphicDrawn::TooMuch:
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic has too much to draw, so it is left as it was.");
+        return false;
+    case GraphicDrawn::Cannot:
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic can't be drawn.");
         return false;
     }
@@ -4858,20 +4880,43 @@ bool replaceGraphicMedia(WriteDoc &doc, int position, const GraphicMedia &media,
 
 } // namespace
 
+QImage graphicSample(const WriteDoc &doc, int position)
+{
+    const QByteArray bytes = graphicSvgAt(doc, position);
+    if (bytes.isEmpty() || !graphicDrawable(bytes)) return QImage();
+    QSvgRenderer renderer(bytes);
+    const QSizeF frame = graphicFrameAt(doc, position);
+    if (!renderer.isValid() || !(frame.width() > 0 && frame.height() > 0)) return QImage();
+    const double k = 240.0 / std::max(frame.width(), frame.height());
+    QImage image(std::max(1, int(std::lround(frame.width() * k))), std::max(1, int(std::lround(frame.height() * k))), QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::transparent);
+    {
+        QPainter painter(&image);
+        painter.setRenderHint(QPainter::Antialiasing);
+        svg::paintFitted(renderer, bytes, &painter, QRectF(QPointF(), QSizeF(image.size())), svg::kMostClipRuns);
+    }
+    return image;
+}
+
 PictureResult changeGraphic(WriteDoc &doc, int position, const QByteArray &svg)
 {
     if (svg.isEmpty() || !looksLikeSvg(svg)) return PictureResult::Unreadable;
-    if (qint64(svg.size()) > kMostSvgBytes) {
+    switch (svg::vetGraphic(svg)) {
+    case svg::Vet::TooLarge:
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic is too large to put in a document.");
         return PictureResult::TooLarge;
-    }
-    if (svgReachesOutside(svg)) {
-        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic refers to files or addresses outside itself, which JeffWrite doesn't open.");
+    case svg::Vet::TooComplex:
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic has too much to draw, so it is not put in the document.");
+        return PictureResult::TooLarge;
+    case svg::Vet::Outside:
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn't open.");
         return PictureResult::External;
+    case svg::Vet::Unreadable: return PictureResult::Unreadable;
+    case svg::Vet::Ok: break;
     }
     if (graphicSvgAt(doc, position).isEmpty()) return PictureResult::Refused;
     GraphicMedia media;
-    if (!addGraphicMedia(doc, svg, &media)) return doc.pictureNotice.isEmpty() ? PictureResult::Unreadable : PictureResult::TooLarge;
+    if (!addGraphicMedia(doc, svg, graphicFrameAt(doc, position), &media)) return doc.pictureNotice.isEmpty() ? PictureResult::Unreadable : PictureResult::TooLarge;
     if (!replaceGraphicMedia(doc, position, media)) {
         letGoOfGraphicMedia(doc, &media);
         return PictureResult::Refused;
@@ -5034,7 +5079,7 @@ bool setGraphicColors(WriteDoc &doc, int position, const GraphicColors &colors)
     }
     if (colored == svg) return false;
     GraphicMedia media;
-    if (!addGraphicMedia(doc, colored, &media)) return false;
+    if (!addGraphicMedia(doc, colored, graphicFrameAt(doc, position), &media)) return false;
     if (!replaceGraphicMedia(doc, position, media)) {
         letGoOfGraphicMedia(doc, &media);
         return false;
@@ -5079,7 +5124,8 @@ GraphicConversion convertGraphicToShapes(WriteDoc &doc, int position)
     Inline atom;
     Model m;
     if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return out;
-    const QByteArray svgBytes = graphicSvgOf(doc, m.graphic);
+    // (A barcode of ours has an SVG too, and is no graphic.)
+    const QByteArray svgBytes = verifiedBarcode(doc, atom.raw, m.graphic).isEmpty() ? graphicSvgOf(doc, m.graphic) : QByteArray();
     if (svgBytes.isEmpty()) {
         out.result = GraphicConvert::NotGraphic;
         return out;
@@ -5089,19 +5135,20 @@ GraphicConversion convertGraphicToShapes(WriteDoc &doc, int position)
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic is too large or refers to files or addresses outside itself, so it isn't turned into shapes.");
         return out;
     }
-    const svg::Drawing drawing = svg::read(svgBytes);
+    // (The parts and the points of their outlines are counted as the drawing is read, <use> copies and cut strokes included: it stops at the most, before the rest is made.)
+    svg::ReadLimits limits;
+    limits.points = 20 * qint64(kMostGraphicShapes);
+    limits.elements = kMostGraphicShapes + 1;
+    const svg::Drawing drawing = svg::read(svgBytes, Qt::black, &limits);
     out.partial = drawing.skipped;
+    if (drawing.overLimit || drawing.elements.size() > kMostGraphicShapes) {
+        out.result = GraphicConvert::TooMany;
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has too many parts to turn into shapes (the most is %1).").arg(kMostGraphicShapes);
+        return out;
+    }
     if (!drawing.isValid() || drawing.elements.isEmpty()) {
         out.result = GraphicConvert::Nothing;
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has no lines or areas to turn into shapes.");
-        return out;
-    }
-    // (The parts, and the points of their outlines together, are counted before anything is made.)
-    qint64 points = 0;
-    for (const svg::Element &e : drawing.elements) points += e.path.elementCount();
-    if (drawing.elements.size() > kMostGraphicShapes || points > 20 * qint64(kMostGraphicShapes)) {
-        out.result = GraphicConvert::TooMany;
-        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This graphic has too many parts to turn into shapes (the most is %1).").arg(kMostGraphicShapes);
         return out;
     }
     const QRectF frame(0, 0, double(m.cx) / kEmuPerPoint, double(m.cy) / kEmuPerPoint);
