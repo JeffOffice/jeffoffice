@@ -6,6 +6,7 @@
 #include "app/settings.h"
 #include "core/advancedfilter.h"
 #include "core/appinfo.h"
+#include "calc/numfmt.h"
 #include "core/forecastsheet.h"
 #include "core/sheetobjects.h"
 #include "app/forecastdialog.h"
@@ -832,6 +833,227 @@ private Q_SLOTS:
         QCOMPARE(o->chartNow(0, 0).plots[0].series[2].valueRef, QStringLiteral("Forecast!$D$2:$D$31"));
     }
 
+    // A workbook whose FORECAST.ETS cells have the results a file stored (that are not what this program works out): D1 to G1 read the 24 points of A1:B24, and H1 reads D1.
+    static QByteArray forecastFileWithStoredResults()
+    {
+        const double pat[] = {3, -1, -3, 1};
+        QString rows;
+        const QString both = QStringLiteral("$B$1:$B$24,$A$1:$A$24");
+        for (int i = 1; i <= 24; ++i) {
+            rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c><c r=\"B%1\"><v>%2</v></c>").arg(i).arg(10 + i + pat[(i - 1) % 4] + (i > 12 ? (i % 3 - 1) * 0.5 : 0));
+            if (i == 1) {
+                rows += QStringLiteral("<c r=\"D1\"><f>_xlfn.FORECAST.ETS(30,%1)</f><v>123.5</v></c>").arg(both);
+                rows += QStringLiteral("<c r=\"E1\"><f>_xlfn.FORECAST.ETS.CONFINT(30,%1)</f><v>7.25</v></c>").arg(both);
+                rows += QStringLiteral("<c r=\"F1\"><f>_xlfn.FORECAST.ETS.SEASONALITY(%1)</f><v>9</v></c>").arg(both);
+                rows += QStringLiteral("<c r=\"G1\"><f>_xlfn.FORECAST.ETS.STAT(%1,7)</f><v>0.5</v></c>").arg(both);
+                rows += QStringLiteral("<c r=\"H1\"><f>D1*2</f><v>247</v></c>");
+            }
+            rows += QStringLiteral("</row>");
+        }
+        return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>")));
+    }
+
+    // The forecast cells of a file keep the results the file stored (this program fits another way, and a file that is only opened and saved is not to have its numbers changed) until a cell they
+    // read is changed; from then on they are worked out. A cell typed here is worked out from the start.
+    void forecastResultsOfAFileAreKeptUntilTheirDataChanges()
+    {
+        EditWindow e;
+        QVERIFY(e.open(forecastFileWithStoredResults()));
+        QVERIFY(e.settle());
+        const QStringList cells = {"D1", "E1", "F1", "G1", "H1"};
+        const QStringList stored = {"123.5", "7.25", "9", "0.5", "247"};
+        for (int i = 0; i < cells.size(); ++i) QCOMPARE(e.shownAt(cells[i]), stored[i]);
+        // a cell typed here is worked out at once (a number that is not the stored one), and a cell that is not read by them changes nothing
+        e.select(QStringLiteral("J1"));
+        e.enter(QStringLiteral("=FORECAST.ETS(30,$B$1:$B$24,$A$1:$A$24)"));
+        e.select(QStringLiteral("K1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        const QString typed = e.valueAt(QStringLiteral("J1"));
+        QVERIFY2(typed.startsWith(QLatin1String("n:")) && typed != QLatin1String("n:123.5"), qPrintable(typed));
+        for (int i = 0; i < cells.size(); ++i) QCOMPARE(e.shownAt(cells[i]), stored[i]);
+        // saved, the file has the stored results and the formulas as they were
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        for (int i = 0; i < cells.size(); ++i) QCOMPARE(savedCell(e.path, cells[i]), QStringLiteral("n:") + stored[i]);
+        QCOMPARE(savedFormula(e.path, QStringLiteral("D1")), QStringLiteral("_xlfn.FORECAST.ETS(30,$B$1:$B$24,$A$1:$A$24)"));
+        // a cell they read is changed: they are worked out, and what reads them follows
+        e.select(QStringLiteral("B5"));
+        e.enter(QStringLiteral("500"));
+        QVERIFY(e.settle());
+        for (const QString &c : {QStringLiteral("D1"), QStringLiteral("E1"), QStringLiteral("F1"), QStringLiteral("G1")}) {
+            const QString v = e.valueAt(c);
+            QVERIFY2(v.startsWith(QLatin1String("n:")), qPrintable(c + v));
+        }
+        QVERIFY(e.valueAt(QStringLiteral("D1")) != QLatin1String("n:123.5") && e.valueAt(QStringLiteral("E1")) != QLatin1String("n:7.25"));
+        QVERIFY(e.valueAt(QStringLiteral("G1")) != QLatin1String("n:0.5"));
+        QCOMPARE(e.valueAt(QStringLiteral("D1")), e.valueAt(QStringLiteral("J1")));   // (the same forecast of the same numbers, as a cell made here gives)
+        QCOMPARE(e.win.w.session()->valueAt(0, 0, 7).number(), 2 * e.win.w.session()->valueAt(0, 0, 3).number());
+    }
+
+    // A Forecast Sheet that is saved and opened again has the results it stored, and works them out when a value on it is changed.
+    void forecastSheetStaysLiveWhenItIsOpenedAgain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(seasonalCells())));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.forecastSheetIn(QStringLiteral("A1:A24"), QStringLiteral("B1:B24"), 30, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, true, true, 1, false));
+        QVERIFY(e.settle());
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY(saved.wait(20000) && saved.last().value(1).toBool());
+        EditWindow second;
+        QFile again(e.copyOfFile());
+        QVERIFY(again.open(QIODevice::ReadOnly));
+        QVERIFY(second.open(again.readAll()));
+        QVERIFY(second.settle());
+        const double stored = second.win.w.session()->valueAt(0, 25, 2).number();
+        QVERIFY(std::isfinite(stored));
+        QVERIFY(second.win.w.session()->type(0, 23, 1, QStringLiteral("500")).ok);
+        QVERIFY(second.settle());
+        QVERIFY(std::fabs(second.win.w.session()->valueAt(0, 25, 2).number() - stored) > 1);
+        QVERIFY(std::fabs(second.win.w.session()->valueAt(0, 25, 4).number() - second.win.w.session()->valueAt(0, 25, 3).number()) > 0.01);
+    }
+
+    // The cells of a Forecast Sheet share one fitted model: a sheet of rows and bounds that all read the same series is prepared, searched for a season, and fitted once, and so is the sheet again after
+    // a value it reads is changed (one more, not one for each cell).
+    void forecastSheetWorksItsSeriesOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(seasonalCells(36))));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        const jp::calc::ets::Counts start = jp::calc::ets::counts();
+        QVERIFY(w.forecastSheetIn(QStringLiteral("A1:A36"), QStringLiteral("B1:B36"), 60, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, true, true, 1, false));
+        QVERIFY(e.settle());
+        const jp::calc::ets::Counts made = jp::calc::ets::counts();
+        const int fs = w.activeSheet();
+        // (24 rows with a forecast and two bounds each, and the 7 statistics, read the same 36 points)
+        QVERIFY(std::isfinite(w.session()->valueAt(fs, 59, 4).number()));
+        QVERIFY2(made.fits - start.fits >= 1 && made.fits - start.fits <= 2, qPrintable(QString::number(made.fits - start.fits)));   // (the plan's own forecast is one, and the cells' the other)
+        QVERIFY2(made.detects - start.detects <= 2, qPrintable(QString::number(made.detects - start.detects)));
+        QVERIFY2(made.prepares - start.prepares <= 3, qPrintable(QString::number(made.prepares - start.prepares)));
+        QVERIFY(w.session()->type(fs, 35, 1, QStringLiteral("500")).ok);
+        QVERIFY(e.settle());
+        const jp::calc::ets::Counts changed = jp::calc::ets::counts();
+        QCOMPARE(changed.fits - made.fits, 1LL);
+        QCOMPARE(changed.prepares - made.prepares, 1LL);
+        QVERIFY(std::fabs(w.session()->valueAt(fs, 59, 2).number()) > 0);
+    }
+
+    // A Forecast Sheet of 20,000 points with the default end (10,000 rows of forecast and two bounds each) is worked out from one model: the count of models built is what is tested, not the time (which is
+    // printed: it was 17 minutes before the model was shared).
+    void forecastSheetOfTwentyThousandPointsBuildsOneModel()
+    {
+        const int n = 20000;
+        QStringList cells;
+        const double pat[] = {3, -1, -3, 1};
+        for (int i = 1; i <= n; ++i) cells << QStringLiteral("A%1=%1").arg(i) << QStringLiteral("B%1=%2").arg(i).arg(10 + 0.01 * i + pat[(i - 1) % 4] + (i * 7919 % 13) * 0.05, 0, 'g', 12);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QElapsedTimer timer;
+        timer.start();
+        const jp::calc::ets::Counts start = jp::calc::ets::counts();
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY2(w.forecastSheetIn(QStringLiteral("A1:A20000"), QStringLiteral("B1:B20000"), n + n / 2, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, false, true, 1, false), qPrintable(told.join(QLatin1Char('|'))));
+        const qint64 madeAt = timer.elapsed();
+        QVERIFY(e.settle());
+        qInfo("Forecast Sheet of %d points: made in %d ms, worked out %d ms later", n, int(madeAt), int(timer.elapsed() - madeAt));
+        const jp::calc::ets::Counts made = jp::calc::ets::counts();
+        const int fs = w.activeSheet();
+        qInfo("sheets: %d", liveSheetCount(w));
+        QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 10000, 4).number()));
+        QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 1, 3).number()));
+        // (one model for the plan's picture, and one for the cells that read the series)
+        QVERIFY2(made.fits - start.fits <= 2 && made.fits - start.fits >= 1, qPrintable(QString::number(made.fits - start.fits)));
+        timer.restart();
+        QVERIFY(w.session()->type(fs, n - 1, 1, QStringLiteral("500")).ok);
+        QVERIFY(e.settle());
+        qInfo("a value changed on it, worked out again: %d ms", int(timer.elapsed()));
+        const jp::calc::ets::Counts changed = jp::calc::ets::counts();
+        QCOMPARE(changed.fits - made.fits, 1LL);
+        QCOMPARE(changed.prepares - made.prepares, 1LL);
+        QCOMPARE(changed.detects - made.detects, 1LL);
+    }
+
+    // The sheet is made in any locale: a number with a point (0.95, a time of 12.5) and a formula in its English form are what go in, not what a person in Germany or France would type.
+    void forecastSheetIsMadeInAnyLocale()
+    {
+        const QLocale locales[] = {QLocale(QLocale::German, QLocale::Germany), QLocale(QLocale::French, QLocale::France)};
+        for (const QLocale &locale : locales) {
+            PinnedLocale pin(locale);
+            const QByteArray label = locale.name().toLatin1();
+            const double pat[] = {3, -1, -3, 1};
+            QStringList cells;
+            crunch::ForecastInput input;
+            for (int i = 1; i <= 24; ++i) {
+                const double t = 0.5 * i, y = 10 + i + pat[(i - 1) % 4] + (i > 12 ? (i % 3 - 1) * 0.5 : 0);
+                cells << QStringLiteral("A%1=%2").arg(i).arg(t, 0, 'g', 17) << QStringLiteral("B%1=%2").arg(i).arg(y, 0, 'g', 17);
+                input.pairs.push_back({t, y});
+            }
+            EditWindow e;
+            QVERIFY2(e.open(sheetOf(cells)), label.constData());
+            QVERIFY(e.settle());
+            CrunchWindow &w = e.win.w;
+            QVERIFY2(w.forecastSheetIn(QStringLiteral("A1:A24"), QStringLiteral("B1:B24"), 15, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, true, true, 1, false), label.constData());
+            QVERIFY(e.settle());
+            const int fs = w.activeSheet();
+            crunch::ForecastSettings settings;
+            settings.end = 15;
+            const crunch::ForecastResult result = crunch::computeForecast(input, settings, jp::calc::DateSystem::Date1900);
+            QVERIFY2(result.problem.isEmpty(), qPrintable(result.problem));
+            QCOMPARE(int(result.points.size()), 6);
+            // the times and the numbers are what was written (12.5, not 125), and the forecast is the function's
+            QCOMPARE(w.session()->valueAt(fs, 24, 0).number(), 12.0);
+            QCOMPARE(w.session()->valueAt(fs, 25, 0).number(), 12.5);
+            QCOMPARE(w.session()->valueAt(fs, 30, 0).number(), 15.0);
+            for (int i = 0; i < 6; ++i) {
+                const crunch::ForecastPoint &p = result.points[size_t(i)];
+                QVERIFY2(std::fabs(w.session()->valueAt(fs, quint32(25 + i), 2).number() - p.forecast) < 1e-9, label.constData());
+                QVERIFY2(std::fabs(w.session()->valueAt(fs, quint32(25 + i), 3).number() - p.lower) < 1e-9, label.constData());
+                QVERIFY2(std::fabs(w.session()->valueAt(fs, quint32(25 + i), 4).number() - p.upper) < 1e-9, label.constData());
+            }
+            // the formulas the file has are the English ones, with the confidence as 0.95
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved), "the save failed");
+            QCOMPARE(savedFormula(e.path, QStringLiteral("C26")), QStringLiteral("_xlfn.FORECAST.ETS(A26,$B$2:$B$25,$A$2:$A$25,1,1,1)"));
+            QCOMPARE(savedFormula(e.path, QStringLiteral("D26")), QStringLiteral("C26-_xlfn.FORECAST.ETS.CONFINT(A26,$B$2:$B$25,$A$2:$A$25,0.95,1,1,1)"));
+            QCOMPARE(savedCell(e.path, QStringLiteral("A26")), QStringLiteral("n:12.5"));
+        }
+    }
+
+    // Column A is wide enough for the times as the source's date format shows them (a long format is not a column of #####).
+    void forecastSheetTimeColumnFitsALongDateFormat()
+    {
+        const double pat[] = {3, -1, -3, 1};
+        QString rows;
+        for (int i = 1; i <= 24; ++i) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" s=\"1\"><v>%2</v></c><c r=\"B%1\"><v>%3</v></c></row>").arg(i).arg(45292 + i * 7).arg(10 + i + pat[(i - 1) % 4]);
+        const QByteArray book = buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(),
+                                          stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"dddd, mmmm d, yyyy\"/>"), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\" applyNumberFormat=\"1\"/>")));
+        EditWindow e;
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.forecastSheetIn(QStringLiteral("A1:A24"), QStringLiteral("B1:B24"), 45292 + 24 * 7 + 28, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, false, true, 1, false));
+        QVERIFY(e.settle());
+        const int fs = w.activeSheet();
+        // the longest text the format makes of the times the sheet shows
+        const jp::calc::NumberFormat format(QStringLiteral("dddd, mmmm d, yyyy"));
+        int longest = 0;
+        for (int i = 1; i <= 28; ++i) longest = std::max(longest, int(format.format(45292 + i * 7).text.size()));
+        QVERIFY(longest > 20);
+        const auto runs = w.session()->calculation()->columnRuns(fs, 0, 0);
+        QVERIFY(!runs.empty());
+        QVERIFY2(runs.front().width >= longest, qPrintable(QStringLiteral("column A is %1 wide for %2 characters").arg(runs.front().width).arg(longest)));
+        QVERIFY(shown(e, QStringLiteral("A26")).size() > 20 && !shown(e, QStringLiteral("A26")).contains(QLatin1Char('#')));
+    }
+
     void forecastSheetSaysWhatIsWrongWithTheData()
     {
         EditWindow e;
@@ -854,9 +1076,9 @@ private Q_SLOTS:
         QCOMPARE(told.size(), 5);
         QCOMPARE(w.undoStack()->count(), steps);   // (nothing was made)
         // the dialog says the same in its own words, and keeps Create from working
-        const jp::ForecastSourceReader reader = [&](const QString &t, const QString &v) {
+        const jp::ForecastSourceReader reader = [&](const QString &t, const QString &v, long long maxPoints) {
             jp::ForecastSourceInfo info;
-            if (!w.forecastSource(t, v, &info.input.pairs, &info.dates, &info.problem)) info.input.pairs.clear();
+            if (!w.forecastSource(t, v, &info.input.pairs, &info.dates, &info.problem, maxPoints, &info.sampled)) info.input.pairs.clear();
             return info;
         };
         jp::ForecastDialog dialog(reader, jp::calc::DateSystem::Date1900, QStringLiteral("A1:A4"), QStringLiteral("B1:B4"));
@@ -908,6 +1130,21 @@ private Q_SLOTS:
         QCOMPARE(int(months.first), int(ets::Problem::None));
         QVERIFY(months.second.timeline.months);
         QCOMPARE(months.second.timeline.timeAt(4), [&] { double d; jp::calc::dateToSerial(2024, 5, 31, jp::calc::DateSystem::Date1900, &d); return d; }());
+        // dates on one day of each month are a month apart even when two gaps are the same 31 days (Jul 1, Aug 1, Sep 1); gaps of 31 days that are not so are days
+        double jul, aug, sep, oct;
+        QVERIFY(jp::calc::dateToSerial(2024, 7, 1, jp::calc::DateSystem::Date1900, &jul) && jp::calc::dateToSerial(2024, 8, 1, jp::calc::DateSystem::Date1900, &aug));
+        QVERIFY(jp::calc::dateToSerial(2024, 9, 1, jp::calc::DateSystem::Date1900, &sep) && jp::calc::dateToSerial(2024, 10, 1, jp::calc::DateSystem::Date1900, &oct));
+        QCOMPARE(aug - jul, 31.0);
+        QCOMPARE(sep - aug, 31.0);
+        const auto firsts = prepared({{jul, 1}, {aug, 2}, {sep, 3}}, ets::Aggregation::Sum, true);
+        QCOMPARE(int(firsts.first), int(ets::Problem::None));
+        QVERIFY(firsts.second.timeline.months);
+        QCOMPARE(firsts.second.timeline.step, 1.0);
+        QCOMPARE(firsts.second.timeline.timeAt(3), oct);
+        const auto thirtyOnes = prepared({{aug, 1}, {aug + 31, 2}, {aug + 62, 3}}, ets::Aggregation::Sum, true);   // (Aug 1, Sep 1, and Oct 2: not one day of a month)
+        QCOMPARE(int(thirtyOnes.first), int(ets::Problem::None));
+        QVERIFY(!thirtyOnes.second.timeline.months);
+        QCOMPARE(thirtyOnes.second.timeline.step, 31.0);
         // the season: found at 4, none for a straight line, and each choice of the settings is used
         crunch::ForecastInput seasonal, straight;
         for (int i = 1; i <= 24; ++i) {
@@ -968,18 +1205,73 @@ private Q_SLOTS:
         const int n = 10000;
         for (int i = 1; i <= n; ++i) series.pairs.push_back({double(i), 100 + i * 0.5 + ((i % 12) - 6) * 3.0 + (i * 7919 % 13) * 0.2});
         crunch::ForecastSettings s;
+        // the work is a fixed number of passes over the series, however many rows the forecast has or how often it is asked for: one grid and one search for a season for each ask, and one fit
+        const jp::calc::ets::Counts before = jp::calc::ets::counts();
         s.end = n + 10001;
         QVERIFY(crunch::computeForecast(series, s, jp::calc::DateSystem::Date1900).problem.contains(QStringLiteral("10,000")));
+        // (a forecast that reaches past 100,000 steps says that limit, not the 10,000 rows)
+        s.end = n + 100002;
+        const QString far = crunch::computeForecast(series, s, jp::calc::DateSystem::Date1900).problem;
+        QVERIFY2(far.contains(QStringLiteral("100,000")) && !far.contains(QStringLiteral("10,000 ")), qPrintable(far));
         s.end = n + 10000;
-        QElapsedTimer timer;
-        timer.start();
         const crunch::ForecastResult r = crunch::computeForecast(series, s, jp::calc::DateSystem::Date1900);
-        qInfo("forecast of 10000 points: %d ms", int(timer.elapsed()));
+        const jp::calc::ets::Counts after = jp::calc::ets::counts();
         QVERIFY2(r.problem.isEmpty(), qPrintable(r.problem));
         QCOMPARE(int(r.points.size()), 10000);
         QCOMPARE(r.model->n, 10000LL);
         QCOMPARE(r.season, 12);
-        QVERIFY(timer.elapsed() < 20000);   // (a very loose sanity bound; the work itself is bounded by the search's budget)
+        QCOMPARE(after.prepares - before.prepares, 3LL);
+        QCOMPARE(after.detects - before.detects, 3LL);
+        QCOMPARE(after.fits - before.fits, 1LL);   // (the same series and season are fitted once for the three)
+    }
+
+    // The picture of the dialog is made from the last 50,000 points of a longer series, and says so: what is typed in the dialog's fields is not slowed by a million points (they are not read, nor
+    // fitted, for it); the sheet itself is made from all of them.
+    void forecastDialogPreviewIsBoundedForALongSeries()
+    {
+        const long long total = 1000000;
+        long long asked = -1, served = 0;
+        int reads = 0;
+        const jp::ForecastSourceReader reader = [&](const QString &, const QString &, long long maxPoints) {
+            ++reads;
+            asked = maxPoints;
+            jp::ForecastSourceInfo info;
+            const long long first = maxPoints > 0 && total > maxPoints ? total - maxPoints : 0;
+            for (long long i = first; i < total; ++i) info.input.pairs.push_back({double(i + 1), 100 + 0.001 * double(i) + ((i % 12) - 6) * 3.0});
+            info.sampled = first > 0;
+            served = qint64(info.input.pairs.size());
+            return info;
+        };
+        jp::ForecastDialog dialog(reader, jp::calc::DateSystem::Date1900, QStringLiteral("A1:A1000000"), QStringLiteral("B1:B1000000"));
+        QCOMPARE(asked, crunch::kPreviewPoints);
+        QVERIFY(served <= 50000);
+        QVERIFY2(dialog.ok(), qPrintable(dialog.problemText()));
+        QCOMPARE(dialog.result().prepared.timeline.n, 50000LL);
+        QVERIFY(dialog.noteText().contains(QStringLiteral("50,000")));
+        // typing in the other fields works the picture out again from the points it has, and does not read the cells again
+        const int readsBefore = reads;
+        dialog.findChild<QLineEdit *>(QStringLiteral("forecastEnd"))->setText(QStringLiteral("1000100"));
+        dialog.refreshNow();
+        QCOMPARE(reads, readsBefore);
+        QVERIFY(dialog.ok());
+        QCOMPARE(dialog.result().prepared.timeline.n, 50000LL);
+        // the rows from the sheet's own read are the whole series
+        std::vector<std::pair<double, double>> pairs;
+        bool dates = false, sampled = true;
+        QString problem;
+        EditWindow e;
+        QStringList cells;
+        for (int i = 1; i <= 300; ++i) cells << QStringLiteral("A%1=%1").arg(i) << QStringLiteral("B%1=%2").arg(i).arg(i * 2);
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.forecastSource(QStringLiteral("A1:A300"), QStringLiteral("B1:B300"), &pairs, &dates, &problem, 0, &sampled));
+        QCOMPARE(int(pairs.size()), 300);
+        QVERIFY(!sampled);
+        QVERIFY(e.win.w.forecastSource(QStringLiteral("A1:A300"), QStringLiteral("B1:B300"), &pairs, &dates, &problem, 100, &sampled));
+        QCOMPARE(int(pairs.size()), 100);
+        QVERIFY(sampled);
+        QCOMPARE(pairs.front().first, 201.0);
+        QCOMPARE(pairs.back().second, 600.0);
     }
 
     void forecastDialogStartsFromTheSelectionAndShowsAPreview()

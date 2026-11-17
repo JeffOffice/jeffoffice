@@ -2,6 +2,7 @@
 //   JO_SHOT_DIR=/some/folder QT_QPA_PLATFORM=offscreen ./jo_uigrab_crunch
 #include "../crunch/editwindow.h"
 #include "core/fonts.h"
+#include "core/sheetobjects.h"
 #include "app/theme.h"
 #include "../testrunner.h"
 #include "../withdialog.h"
@@ -92,7 +93,7 @@ private Q_SLOTS:
         QVERIFY(grabbed);
         QVERIFY(e.win.w.forecastSheetIn(QStringLiteral("A1:A36"), QStringLiteral("B1:B36"), 48, std::numeric_limits<double>::quiet_NaN(), 0.95, 1, true, true, 1, false));
         QVERIFY(e.settle());
-        QTest::qWait(300);
+        QTRY_VERIFY(e.win.w.objects() && e.win.w.objects()->shownSheet() == e.win.w.activeSheet() && e.win.w.objects()->layer()->count() == 1);   // (the chart is on the sheet)
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/forecast-sheet.png")));
     }
 
