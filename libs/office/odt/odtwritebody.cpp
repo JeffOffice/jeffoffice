@@ -924,9 +924,10 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QByteArray pathD;
     qint64 pathW = 0, pathH = 0;
     QByteArray pathStyle;
-    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty()) {
+    // (The same reading serves the parts of a group of freeform shapes: `root` is the drawing, or one part.)
+    auto freeform = [&](int root, QByteArray &pathD, qint64 &pathW, qint64 &pathH, QByteArray &pathStyle) -> bool {
         int geom = -1, shapeProps = -1;
-        QVector<int> stack{anchor};
+        QVector<int> stack{root};
         for (int guard = 0; !stack.isEmpty() && guard < 4000; ++guard) {
             const int n = stack.takeLast();
             if (t.localName(n) == "custGeom" && geom < 0) geom = n;
@@ -959,10 +960,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             for (int pt = t.firstChild(c); pt >= 0; pt = t.next(pt))
                 if (t.localName(pt) == "pt") pathD += " " + num(t.attr(pt, "x").toLongLong()) + " " + num(t.attr(pt, "y").toLongLong());
         }
-        if (!ok || pathD.isEmpty()) {
-            left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
-            return QByteArray();
-        }
+        if (!ok || pathD.isEmpty()) return false;
         QMap<QByteArray, QByteArray> pr{{"draw:fill", "none"}, {"draw:stroke", "none"}};
         auto colorOf = [&](int fill) {
             const int c = fill >= 0 ? t.firstChild(fill) : -1;
@@ -1007,8 +1005,37 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             }
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) pathStyle += " " + it.key() + "=\"" + it.value() + "\"";
+            return true;
+    };
+    // A group whose parts are each one freeform shape (a graphic turned into shapes) is kept as an ODF group of paths.
+    int pathGroup = -1;
+    if (blip < 0 && txbx < 0) {
+        QVector<int> stack{anchor};
+        for (int guard = 0; !stack.isEmpty() && guard < 4000 && pathGroup < 0; ++guard) {
+            const int n = stack.takeLast();
+            if (t.localName(n) == "wgp") pathGroup = n;
+            else if (n == anchor || t.localName(n) == "graphic" || t.localName(n) == "graphicData")
+                for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+        }
+        if (pathGroup >= 0) {
+            int parts = 0;
+            bool all = true;
+            for (int k = t.firstChild(pathGroup); k >= 0 && all; k = t.next(k)) {
+                if (t.localName(k) != "wsp") continue;
+                bool custom = false;
+                for (int g = t.firstChild(k); g >= 0; g = t.next(g))
+                    if (t.localName(g) == "spPr")
+                        for (int q = t.firstChild(g); q >= 0; q = t.next(q)) custom = custom || t.localName(q) == "custGeom";
+                all = custom && ++parts <= 20000;
+            }
+            if (!all || parts == 0) pathGroup = -1;
+        }
     }
-    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty() && pathD.isEmpty()) {
+    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty() && pathGroup < 0 && !freeform(anchor, pathD, pathW, pathH, pathStyle)) {
+        left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+        return QByteArray();
+    }
+    if (blip < 0 && txbx < 0 && chartNode < 0 && shapePrst.isEmpty() && pathD.isEmpty() && pathGroup < 0) {
         left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
         return QByteArray();
     }
@@ -1151,6 +1178,56 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) boxProps += " " + it.key() + "=\"" + it.value() + "\"";
     }
+    if (pathGroup >= 0) {
+        // A group of freeform parts: each part is a path of its own, set at its place in the group (the group's own place is added to each part's, as the format has no place of its own for a group).
+        double baseX = 0, baseY = 0;
+        QByteArray groupAttrs = frameAttrs;
+        static const QRegularExpression place(QStringLiteral(" svg:([xy])=\"(-?[0-9.]+)in\""));
+        const QString attrText = QString::fromLatin1(frameAttrs);
+        for (auto it = place.globalMatch(attrText); it.hasNext();) {
+            const QRegularExpressionMatch m = it.next();
+            (m.captured(1) == QLatin1String("x") ? baseX : baseY) = m.captured(2).toDouble();
+            groupAttrs.replace(m.captured(0).toLatin1(), QByteArray());
+        }
+        auto inches = [](double v) { return QString::number(v, 'f', 4).toLatin1() + "in"; };
+        QByteArray parts;
+        for (int k = t.firstChild(pathGroup); k >= 0; k = t.next(k)) {
+            if (t.localName(k) != "wsp") continue;
+            QByteArray d, style;
+            qint64 w = 0, h = 0;
+            if (!freeform(k, d, w, h, style)) {
+                left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+                return QByteArray();
+            }
+            qint64 offX = 0, offY = 0, extX = 0, extY = 0;
+            for (int g = t.firstChild(k); g >= 0; g = t.next(g)) {
+                if (t.localName(g) != "spPr") continue;
+                int xfrm = -1, off = -1, ext = -1;
+                for (int q = t.firstChild(g); q >= 0 && xfrm < 0; q = t.next(q))
+                    if (t.localName(q) == "xfrm") xfrm = q;
+                for (int q = xfrm >= 0 ? t.firstChild(xfrm) : -1; q >= 0; q = t.next(q)) {
+                    if (t.localName(q) == "off") off = q;
+                    else if (t.localName(q) == "ext") ext = q;
+                }
+                if (off >= 0) {
+                    offX = t.attr(off, "x").toLongLong();
+                    offY = t.attr(off, "y").toLongLong();
+                }
+                if (ext >= 0) {
+                    extX = std::max<qint64>(1, t.attr(ext, "cx").toLongLong());
+                    extY = std::max<qint64>(1, t.attr(ext, "cy").toLongLong());
+                }
+            }
+            if (extX <= 0 || extY <= 0) continue;
+            const QString partStyle = m_sink->make("fr", "graphic", QByteArray(), "<style:graphic-properties" + style + "/>");
+            parts += "<draw:path draw:style-name=\"" + esc(partStyle) + "\" svg:x=\"" + inches(baseX + double(offX) / 914400.0) + "\" svg:y=\"" + inches(baseY + double(offY) / 914400.0) +
+                     "\" svg:width=\"" + emuLength(extX) + "\" svg:height=\"" + emuLength(extY) + "\" svg:viewBox=\"0 0 " + QByteArray::number(w) + " " + QByteArray::number(h) + "\" svg:d=\"" + d + "\"/>";
+        }
+        const QString groupStyle = m_sink->make("fr", "graphic", QByteArray(), "<style:graphic-properties" + gp + "/>");
+        QByteArray group = "<draw:g draw:style-name=\"" + esc(groupStyle) + "\"" + groupAttrs + ">";
+        if (!descr.isEmpty()) group += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
+        return group + parts + "</draw:g>";
+    }
     if (!pathD.isEmpty()) {
         const QString pathStyleName = m_sink->make("fr", "graphic", QByteArray(), "<style:graphic-properties" + gp + pathStyle + "/>");
         QByteArray shape = "<draw:path draw:style-name=\"" + esc(pathStyleName) + "\"" + frameAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\" svg:viewBox=\"0 0 " +
@@ -1184,7 +1261,17 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     }
     if (blip >= 0) {
         QString href;
-        const QString rid = t.attr(blip, "embed", wml::NsR);
+        QString rid = t.attr(blip, "embed", wml::NsR);
+        // A graphic is kept as the SVG that is linked beside its PNG (the PNG is for the programs that can't draw one; this one keeps the picture itself).
+        {
+            QString svgRid;
+            for (int k = t.firstChild(blip); k >= 0 && svgRid.isEmpty(); k = t.next(k))
+                for (int ext = t.firstChild(k); ext >= 0 && svgRid.isEmpty(); ext = t.next(ext))
+                    for (int m = t.firstChild(ext); m >= 0; m = t.next(m))
+                        if (t.localName(m) == "svgBlip") svgRid = t.attr(m, "embed", wml::NsR);
+            QString svgHref;
+            if (!svgRid.isEmpty() && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
+        }
         if (imagePart(rid, &href).isEmpty()) {
             left(QCoreApplication::translate("odt", "pictures that can't be read"));
             return QByteArray();

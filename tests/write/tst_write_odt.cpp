@@ -1286,6 +1286,46 @@ private Q_SLOTS:
         }());
     }
 
+    // A graphic (an SVG picture) stays an SVG image in an .odt (the PNG beside it in the other format is left out), and a graphic turned into shapes is an ODF group of paths, one for each shape.
+    void aGraphicStaysAnSvgInAnOdtAndItsShapesAreDrawShapes()
+    {
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"48\" height=\"48\" viewBox=\"0 0 48 48\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" fill=\"#ff0000\"/>"
+                               "<circle cx=\"36\" cy=\"12\" r=\"8\" fill=\"#00ff00\"/><path d=\"M4 30 L22 30 L13 46 Z\" fill=\"#0000ff\"/></svg>";
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt("<text:p>Words</text:p>"), &err);
+        QVERIFY2(doc, qPrintable(err));
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QCOMPARE(insertPicture(*doc, c, svg, QStringLiteral("g"), PictureWrap::Square), PictureResult::Ok);
+        QVERIFY(pictureAt(*doc, doc->story(), 2).svg);
+        QByteArray odt = doc->toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(odt, parts));
+        QStringList images;
+        for (auto it = parts.constBegin(); it != parts.constEnd(); ++it)
+            if (it.key().startsWith(QLatin1String("Pictures/"))) images << it.key();
+        QCOMPARE(images.size(), 1);
+        QVERIFY(images[0].endsWith(QLatin1String(".svg")));
+        QVERIFY(parts.value(images[0]).contains("<svg"));
+        QVERIFY(odtPart(odt, QStringLiteral("content.xml")).contains("<draw:image xlink:href=\"" + images[0].toUtf8() + "\""));
+        QVERIFY(odtPart(odt, QStringLiteral("META-INF/manifest.xml")).contains("image/svg+xml"));
+        // Read again, the picture is the SVG still (and is a graphic).
+        auto again = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY(pictureAt(*again, again->story(), 2).svg);
+        QVERIFY(graphicSvgAt(*again, 2).contains("<svg"));
+        // Converted to shapes, it is a group of three paths in the .odt.
+        QCOMPARE(int(convertGraphicToShapes(*doc, 2).result), int(GraphicConvert::Done));
+        odt = doc->toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        const QByteArray content = odtPart(odt, QStringLiteral("content.xml"));
+        QCOMPARE(content.count("<draw:g "), 1);
+        QCOMPARE(content.count("<draw:path "), 3);
+        QVERIFY(!content.contains("<draw:image"));
+        QVERIFY(content.toLower().contains("draw:fill-color=\"#ff0000\"") && content.toLower().contains("draw:fill-color=\"#0000ff\""));
+    }
+
     // The file is the same bytes each time it is saved, in whatever process.
     void aSavedOdtIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesAnOdtForTheChecks"); }
 };

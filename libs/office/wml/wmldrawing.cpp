@@ -19,6 +19,8 @@ namespace {
 
 // The most objects of one element that are read (a group of more is cut there), and how deep groups go.
 constexpr int kMostShapes = 200;
+// The members of one drawing's group (a graphic turned into shapes holds a part for each part of its drawing).
+constexpr int kMostGroupMembers = 10000;
 constexpr int kMostGroupDepth = 8;
 // The most characters of text on a path that are read.
 constexpr int kMostPathText = 500;
@@ -535,7 +537,7 @@ GroupMap mapOfGroup(const XmlTree &t, int groupProps, const GroupMap &outer, boo
 
 void readGroupMembers(const XmlTree &t, int group, const Shape &frame, const GroupMap &map, int depth, QVector<Shape> *out)
 {
-    for (int c = t.firstChild(group); c >= 0 && out->size() < kMostShapes; c = t.next(c)) {
+    for (int c = t.firstChild(group); c >= 0 && out->size() < kMostGroupMembers; c = t.next(c)) {
         const QByteArray name = t.localName(c);
         if (name == "grpSp" || name == "wgp") {
             if (depth < kMostGroupDepth) readGroupMembers(t, c, frame, mapOfGroup(t, childNamed(t, c, "grpSpPr"), map, false), depth + 1, out);
