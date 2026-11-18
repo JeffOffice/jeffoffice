@@ -71,7 +71,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "0fd10c8b3c8a6c7e39ab67e23edec3776de4b80bdf5991245bedfe899d8a70c9"
+       "text": "f4142346e6da7bc65a210f477423c5417dda0af542fc564dbd1c6cb30b2e16c5"
       },
       {
        "hide_soon": true,
@@ -295,7 +295,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "b3f0d78256e18d18bc0c8c8ccc6c31181b0a5b3b7490e9adb8c0393fd81cf865"
+         "text": "6e0628ce0e1fdf45b0662d5f80800e0cb48b9851862fbfa5cbedea144daa4ca1"
         },
         {
          "hide_soon": true,
@@ -312,8 +312,9 @@
          "text": "8aee56e199d3df9f2e99b359fa8ffc95b3a1f00fd0c0b8195c4c7d66b5696ebe"
         },
         {
-         "status": "todo",
-         "text": "78a4a3cc4fcf2f23395e124bab580cb2045f468182ca77f2ad367883f724d328"
+         "hide_soon": true,
+         "status": "done",
+         "text": "afa0fbd25b5848cc2bcd8f77ed7da8f8c841bf1415eb2fd4e326f7f542615a7b"
         },
         {
          "hide_soon": true,
@@ -2596,12 +2597,17 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "0db33aadbdc7b10a9acdae26e545377fdf2fc9ba94e7a0622d9dd0e6e9f4a6b5"
+         "text": "f93cf7c5f3cf9136505cd148c5c343a255eaf2be259fa6c7ed19f129af8bd725"
         },
         {
          "hide_soon": true,
          "status": "done",
          "text": "ecad628805827790f8a23a98c6d06982e2b2dc989f2eea516b369d9d70b5ebf6"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "523dd53309561ad22060bce793b15fec745aef7f9d8031763d392ca2e70ae950"
         },
         {
          "hide_soon": true,
@@ -3246,8 +3252,9 @@
        "text": "c94816baa4fb5e204fa98870a15e4a6b2449428b8bda3dc7c726a0c7d3bc03ff"
       },
       {
-       "status": "todo",
-       "text": "fca563797210da3fd6725b3b1d13630a17d8745f6e5c0f578f76a1dd6ecea208"
+       "hide_soon": true,
+       "status": "done",
+       "text": "f45ee3b0ef6fa676486fa15b415829852b7bae5e58d94eb98e376f06b28c73ef"
       },
       {
        "status": "todo",
@@ -3374,8 +3381,8 @@
        "text": "a6cdbf0f8cc49e90e65dbefc0809d5c269b5a6e2db0449eb19e143ad55013432"
       },
       {
-       "status": "todo",
-       "text": "4bda5157da43d9edbdb1f1a527531c63a18a05a539a1ec3fbc9fdfa7f1699d7d"
+       "status": "partly",
+       "text": "6bcc64cc0c066c4f23b00753f53070943a9811622f16c1ed2936b71c042a69fd"
       }
      ]
     },
@@ -5526,7 +5533,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1d02fbca22cb471fff046de9e8a777e2ff2d6387e8af084b1cc6f407bf4fa317"
+         "text": "41fcf4347ac1cc18aa3a238bf353d935c888f6991e078d262a3d1ff8621f69a7"
         },
         {
          "hide_soon": true,
@@ -5876,7 +5883,7 @@
         },
         {
          "status": "partly",
-         "text": "7ff95bb0a0ecc207b95ca88e6f45abcb6925712ac7e3d26984818492a4fc71b9"
+         "text": "4c7bfef5acc2d47373d8b41c7481e7e5d6a328dee9f9284723592bad9dc41d75"
         },
         {
          "hide_soon": true,
@@ -5898,8 +5905,9 @@
          "text": "ae8afc8bc67a22e40dae8e62664e39c3d89a8f3550009d89ee26d940fcb10ee6"
         },
         {
-         "status": "todo",
-         "text": "abafa7e526ff01b3c44e18c235a6be592953ada52c08ae47fef2afbea72bc625"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d0e7fa0a248f3fd8d2ccf85067c484d179a9604b8b70263881cf23bc6f9c6d7d"
         }
        ]
       },
@@ -6694,7 +6702,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "9c10415e74925578c3ef08ab8a69282498a27c45d9ca138fd1de27ea46331724"
+         "text": "a2d68353d3e51d1937779783286eb2f4ab0c215e3e2b09bfb8c7f85f9a2c7401"
         }
        ]
       },
@@ -6985,8 +6993,8 @@
          "text": "f0f9da3549102c3c5b2f8ec14f232f8618fffe31c64f2b0354985043f03d3a31"
         },
         {
-         "status": "todo",
-         "text": "33b98e8aecf9c863691a8e0967d394d4ff20907a549dc348b1b66085729d22d1"
+         "status": "partly",
+         "text": "7160114905c42703524825445df461ddddfab7802d8b545373e4c32bfbf184dd"
         },
         {
          "status": "partly",
@@ -7200,8 +7208,8 @@
          "text": "e0c283b355f63d4a3d562af689e15be69bd9a7e463ee4331c7d00f9055f37260"
         },
         {
-         "status": "todo",
-         "text": "9d4bb3cbc30d460e1cc6ebef10cf722e7e9d1a3dfb92c4762887fb1645721b23"
+         "status": "partly",
+         "text": "f6b2441cf9e48bc31bdbfdd58337bb9193f81b7356f642e4e2c9ca2ea8e418cc"
         }
        ]
       },
@@ -8700,18 +8708,6 @@
     "fr": ""
    }
   },
-  "0db33aadbdc7b10a9acdae26e545377fdf2fc9ba94e7a0622d9dd0e6e9f4a6b5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "0de0572ff197c1801be799be11c76b0df03799c8f9f164be52ab14e0276f285a": {
    "drop": false,
    "en": "Drag selected text to move it, or hold `Ctrl` (`Option` on a Mac) to copy it, in one step. Text from another program is placed where it is dropped, and the window scrolls near its top and bottom edge.",
@@ -8794,18 +8790,6 @@
     "en": "More functions",
     "es": "Más funciones",
     "fr": "Davantage de fonctions"
-   }
-  },
-  "0fd10c8b3c8a6c7e39ab67e23edec3776de4b80bdf5991245bedfe899d8a70c9": {
-   "drop": false,
-   "en": "Export PDF with a bookmark for each sheet, optional tags for screen readers, and PDF/A-1b.",
-   "es": "Exporte PDF con un marcador por cada hoja, etiquetas opcionales para lectores de pantalla y PDF/A-1b.",
-   "fr": "Exportez des PDF avec un signet par feuille, des balises facultatives pour les lecteurs d’écran et le format PDF/A-1b.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811": {
@@ -9677,18 +9661,6 @@
    "en": "Hyperlinks in text are drawn in the theme’s link colors and kept readable on any background, including the bands and panels some layouts draw behind text. The words of a link stay inside the link when saved to an `.odp`.",
    "es": "Los hipervínculos en el texto se dibujan con los colores de vínculo del tema y se mantienen legibles sobre cualquier fondo, incluidas las bandas y los paneles que algunos diseños dibujan detrás del texto. Las palabras de un vínculo permanecen dentro del vínculo al guardar en un `.odp`.",
    "fr": "Les liens hypertexte dans le texte sont dessinés avec les couleurs de lien du thème et restent lisibles sur n’importe quel arrière-plan, y compris sur les bandeaux et panneaux que certaines dispositions dessinent derrière le texte. Les mots d’un lien restent dans le lien lors de l’enregistrement en `.odp`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "1d02fbca22cb471fff046de9e8a777e2ff2d6387e8af084b1cc6f407bf4fa317": {
-   "drop": false,
-   "en": "Export PDF/A (ISO 19005, PDF/A-1b) for archives, and PDF/X-1a:2001 or PDF/X-4 for printers, with a print check first.",
-   "es": "Exporte PDF/A (ISO 19005, PDF/A-1b) para archivo, y PDF/X-1a:2001 o PDF/X-4 para imprentas, con una verificación de impresión previa.",
-   "fr": "Exportez en PDF/A (ISO 19005, PDF/A-1b) pour l’archivage, et en PDF/X-1a:2001 ou PDF/X-4 pour les imprimeurs, avec une vérification d’impression au préalable.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11568,18 +11540,6 @@
     "fr": ""
    }
   },
-  "33b98e8aecf9c863691a8e0967d394d4ff20907a549dc348b1b66085729d22d1": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Professional and Linear equation forms with Unicode or LaTeX input, Normal Text, and equation options",
-    "es": "Formas profesional y lineal de ecuaciones con entrada Unicode o LaTeX, texto normal y opciones de ecuación",
-    "fr": "Formes professionnelle et linéaire des équations avec saisie Unicode ou LaTeX, texte normal et options d’équation"
-   }
-  },
   "341f21fb161bb64cafb25f95362749082a81e6ab998805cb8711b39c1fbcde0a": {
    "drop": false,
    "en": "Numbers are shown with the marks of the system’s language, and Format Cells lists ready-made dates, times, and currencies. The file keeps the neutral form.",
@@ -12624,6 +12584,18 @@
     "fr": ""
    }
   },
+  "41fcf4347ac1cc18aa3a238bf353d935c888f6991e078d262a3d1ff8621f69a7": {
+   "drop": false,
+   "en": "Export PDF/A-1b for archives and PDF/X-1a:2001 and PDF/X-4 for printers, with a print check first. In a PDF/A file, see-through objects are drawn as opaque pixels, and an export that still contains transparency is refused with the page named.",
+   "es": "Exporte PDF/A-1b para archivo y PDF/X-1a:2001 y PDF/X-4 para imprenta, con una comprobación de impresión previa. En un archivo PDF/A, los objetos transparentes se dibujan como píxeles opacos, y se rechaza una exportación que aún contenga transparencia, indicando la página.",
+   "fr": "Exportez en PDF/A-1b pour l’archivage et en PDF/X-1a:2001 et PDF/X-4 pour l’impression, avec une vérification d’impression préalable. Dans un fichier PDF/A, les objets transparents sont dessinés en pixels opaques, et une exportation qui contient encore de la transparence est refusée, avec la page indiquée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "424a8918f73e49a77861badf7dbc893afb9f9ada8633cd1c41f0f8d5bdcd50d8": {
    "drop": false,
    "en": "Use `AVERAGE`, `MAX`, `MIN`, `COUNT`, and `COUNTA`.",
@@ -13356,18 +13328,6 @@
     "fr": "Contrôles de formulaire, formes à main levée, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans les fichiers `.ods`"
    }
   },
-  "4bda5157da43d9edbdb1f1a527531c63a18a05a539a1ec3fbc9fdfa7f1699d7d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Compare: merge another version of the presentation and accept or reject each change, with a Reviewing Pane",
-    "es": "Comparar: combinar otra versión de la presentación y aceptar o rechazar cada cambio, con un panel de revisiones",
-    "fr": "Comparer : fusionner une autre version de la présentation et accepter ou refuser chaque modification, avec un volet de révision"
-   }
-  },
   "4c6e9f147aeb3f3e7bb9d4f808256a73bfadfc817b1c03f7fb019019fa52b36e": {
    "drop": false,
    "en": "Behind the scenes: the text and page engine",
@@ -13378,6 +13338,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "4c7bfef5acc2d47373d8b41c7481e7e5d6a328dee9f9284723592bad9dc41d75": {
+   "drop": false,
+   "en": "Export to PDF/A-1b with all fonts embedded and an sRGB output intent. See-through shapes and pictures are drawn as opaque pixels, and an export that still contains transparency is refused with the page named. Tagged PDF marks paragraphs, headings, lists, tables, pictures with alt text, and the document language, and treats headers, footers, page color, borders, and column lines as artifacts.",
+   "es": "Exporte a PDF/A-1b con todas las fuentes incrustadas y un perfil de salida sRGB. Las formas e imágenes transparentes se dibujan como píxeles opacos, y se rechaza una exportación que aún contenga transparencia, indicando la página. El PDF etiquetado marca párrafos, títulos, listas, tablas, imágenes con texto alternativo y el idioma del documento, y trata encabezados, pies de página, color de página, bordes y líneas de columna como artefactos.",
+   "fr": "Exportez en PDF/A-1b avec toutes les polices incorporées et un profil de sortie sRGB. Les formes et images transparentes sont dessinées en pixels opaques, et une exportation qui contient encore de la transparence est refusée, avec la page indiquée. Le PDF balisé repère les paragraphes, titres, listes, tableaux, images avec texte de remplacement et la langue du document, et traite les en-têtes, pieds de page, couleur de page, bordures et lignes de colonnes comme des artefacts.",
+   "soon": {
+    "drop": false,
+    "en": "PDF/X-1a and PDF/X-4 export for printers",
+    "es": "Exportación PDF/X-1a y PDF/X-4 para imprenta",
+    "fr": "Exportation PDF/X-1a et PDF/X-4 pour l’impression"
    }
   },
   "4d21c1ff74b215434c66edaa7af8224c6270542c41a514193d35b7dd1ad533e1": {
@@ -13793,6 +13765,18 @@
    "en": "Safety and limits",
    "es": "Seguridad y límites",
    "fr": "Sécurité et limites",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "523dd53309561ad22060bce793b15fec745aef7f9d8031763d392ca2e70ae950": {
+   "drop": false,
+   "en": "Package the presentation: copy it with its linked movies, sounds, and pictures and the fonts it uses to a folder or a single `.zip` file.",
+   "es": "Empaquete la presentación: cópiela con sus películas, sonidos e imágenes vinculados y las fuentes que utiliza en una carpeta o en un único archivo `.zip`.",
+   "fr": "Regroupez la présentation : copiez-la avec ses vidéos, sons et images liés et les polices qu’elle utilise dans un dossier ou dans un seul fichier `.zip`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15888,6 +15872,18 @@
     "fr": ""
    }
   },
+  "6bcc64cc0c066c4f23b00753f53070943a9811622f16c1ed2936b71c042a69fd": {
+   "drop": false,
+   "en": "Compare finds added, deleted, and moved slides; added, deleted, moved, and resized objects; changes to text, fill, line, and font; notes; and new comments. Accept or reject each change as one undo step, or accept or reject all.",
+   "es": "La comparación detecta diapositivas agregadas, eliminadas y movidas; objetos agregados, eliminados, movidos y redimensionados; cambios de texto, relleno, línea y fuente; notas y comentarios nuevos. Acepte o rechace cada cambio como un solo paso de deshacer, o acepte o rechace todos.",
+   "fr": "La comparaison repère les diapositives ajoutées, supprimées et déplacées ; les objets ajoutés, supprimés, déplacés et redimensionnés ; les modifications du texte, du remplissage, du trait et de la police ; les notes et les nouveaux commentaires. Acceptez ou rejetez chaque modification en une seule étape d’annulation, ou acceptez ou rejetez tout.",
+   "soon": {
+    "drop": false,
+    "en": "Reviewing Pane and Compare command, with word-level text differences and pending changes kept in the file",
+    "es": "Panel de revisiones y comando Comparar, con diferencias de texto por palabra y cambios pendientes guardados en el archivo",
+    "fr": "Volet de révision et commande Comparer, avec différences de texte au niveau des mots et modifications en attente conservées dans le fichier"
+   }
+  },
   "6bcfa3b05a9333f6c9ddfbd47c3d55766822df971eab35eb39db34bb09019e52": {
    "drop": false,
    "en": "Sheet Options",
@@ -16176,6 +16172,18 @@
     "fr": ""
    }
   },
+  "6e0628ce0e1fdf45b0662d5f80800e0cb48b9851862fbfa5cbedea144daa4ca1": {
+   "drop": false,
+   "en": "Export the whole workbook as PDF/A-1b or as tagged PDF, or both. In a PDF/A file, charts, shapes, and pictures with see-through areas are drawn as opaque pixels, and an export that still contains transparency is refused with the page named.",
+   "es": "Exporte todo el libro como PDF/A-1b o como PDF etiquetado, o ambos. En un archivo PDF/A, los gráficos, formas e imágenes con zonas transparentes se dibujan como píxeles opacos, y se rechaza una exportación que aún contenga transparencia, indicando la página.",
+   "fr": "Exportez tout le classeur en PDF/A-1b ou en PDF balisé, ou les deux. Dans un fichier PDF/A, les graphiques, formes et images comportant des zones transparentes sont dessinés en pixels opaques, et une exportation qui contient encore de la transparence est refusée, avec la page indiquée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6e2e7e41f2893a785171dc99621767e0e49e72ae2732402faba5c108ab16a4ec": {
    "drop": false,
    "en": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
@@ -16342,6 +16350,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "7160114905c42703524825445df461ddddfab7802d8b545373e4c32bfbf184dd": {
+   "drop": false,
+   "en": "The equation box offers a typing format (simple line, UnicodeMath, or LaTeX) and a Professional or Linear form. Equations with fractions, scripts, roots, large operators, brackets, matrices, accents, bars, function names, and normal text are read and printed in both syntaxes.",
+   "es": "El cuadro de ecuaciones ofrece un formato de escritura (línea simple, UnicodeMath o LaTeX) y una forma Profesional o Lineal. Las ecuaciones con fracciones, subíndices y superíndices, raíces, operadores grandes, paréntesis, matrices, acentos, barras, nombres de función y texto normal se leen e imprimen en ambas sintaxis.",
+   "fr": "La boîte d’équation propose un format de saisie (ligne simple, UnicodeMath ou LaTeX) et une forme Professionnelle ou Linéaire. Les équations avec fractions, indices et exposants, racines, grands opérateurs, parenthèses, matrices, accents, barres, noms de fonction et texte normal sont lues et imprimées dans les deux syntaxes.",
+   "soon": {
+    "drop": false,
+    "en": "Equation tab: structures, conversions, and equation options",
+    "es": "Pestaña Ecuación: estructuras, conversiones y opciones de ecuación",
+    "fr": "Onglet Équation : structures, conversions et options d’équation"
    }
   },
   "7174b0162c27f7059ec122c13a0e5ad07de305bf845a28e697fbcfe047ffa758": {
@@ -16762,18 +16782,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "78a4a3cc4fcf2f23395e124bab580cb2045f468182ca77f2ad367883f724d328": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Share without a cloud account: a package with the workbook and its pictures",
-    "es": "Compartir sin cuenta en la nube: un paquete con el libro y sus imágenes",
-    "fr": "Partage sans compte cloud : un paquet avec le classeur et ses images"
    }
   },
   "78b02c756cfe62d93a6846cc045c72aeeedfea4ec45b714fe1e8d8a654967267": {
@@ -17314,18 +17322,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7ff95bb0a0ecc207b95ca88e6f45abcb6925712ac7e3d26984818492a4fc71b9": {
-   "drop": false,
-   "en": "Export to PDF/A-1b with every font embedded, and to tagged PDF with paragraphs, headings, lists, tables, and pictures with alternative text.",
-   "es": "Exporte a PDF/A-1b con todas las fuentes incrustadas y a PDF etiquetado con párrafos, encabezados, listas, tablas e imágenes con texto alternativo.",
-   "fr": "Exportez en PDF/A-1b avec toutes les polices incorporées, et en PDF balisé avec paragraphes, titres, listes, tableaux et images avec texte alternatif.",
-   "soon": {
-    "drop": false,
-    "en": "PDF/X-1a and PDF/X-4 for printers",
-    "es": "PDF/X-1a y PDF/X-4 para imprentas",
-    "fr": "PDF/X-1a et PDF/X-4 pour les imprimeurs"
    }
   },
   "802d914fd246a1b8844e2fa017b9e924e129a297521ea3e5343370362f71f3dd": {
@@ -19068,18 +19064,6 @@
     "fr": ""
    }
   },
-  "9c10415e74925578c3ef08ab8a69282498a27c45d9ca138fd1de27ea46331724": {
-   "drop": false,
-   "en": "Compare checks the open document against a file you choose, word by word or letter by letter, optionally ignoring capitals or white space. The result opens in a new window as tracked changes signed with a name you give. Accepting all gives the revised text, and rejecting all gives the first version. It compares body text.",
-   "es": "Comparar contrasta el documento abierto con un archivo que usted elija, palabra por palabra o letra por letra, con la opción de ignorar mayúsculas o espacios en blanco. El resultado se abre en una ventana nueva como cambios con seguimiento firmados con el nombre que usted indique. Aceptar todo da el texto revisado y rechazar todo da la primera versión. Compara el texto del cuerpo.",
-   "fr": "Comparer confronte le document ouvert à un fichier de votre choix, mot à mot ou lettre à lettre, en ignorant éventuellement les majuscules ou les espaces. Le résultat s’ouvre dans une nouvelle fenêtre sous forme de modifications suivies signées du nom que vous indiquez. Tout accepter donne le texte révisé, et tout refuser redonne la première version. La comparaison porte sur le corps du texte.",
-   "soon": {
-    "drop": false,
-    "en": "Compare for tables, headers and footers, notes, text boxes, fields, moves, and text formatting; Combine; Show Source Documents",
-    "es": "Comparación de tablas, encabezados y pies de página, notas, cuadros de texto, campos, movimientos y formato de texto; Combinar; Mostrar documentos de origen",
-    "fr": "Comparaison des tableaux, en-têtes et pieds de page, notes, zones de texte, champs, déplacements et mise en forme du texte ; Combiner ; Afficher les documents sources"
-   }
-  },
   "9c1b9e7f0aac498fc161c3721ae8deacdc5bacf60dec657a926b574cd9efc8ba": {
    "drop": false,
    "en": "List slicers in a pane, click a button to filter the tables it names (Ctrl-click adds or removes an item), undo the filter in one step, and see which tables a slicer filters in Report Connections.",
@@ -19222,18 +19206,6 @@
     "en": "Connectors that stay joined, and shapes in headers and footers",
     "es": "Conectores que permanecen unidos, y formas en encabezados y pies de página",
     "fr": "Connecteurs qui restent reliés, et formes dans les en-têtes et pieds de page"
-   }
-  },
-  "9d4bb3cbc30d460e1cc6ebef10cf722e7e9d1a3dfb92c4762887fb1645721b23": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Number formats of other scripts and systems: Arabic-Indic, Hebrew, Thai, Chinese and Japanese counting, ordinal text, and chapter-style numbers",
-    "es": "Formatos de número de otras escrituras y sistemas: arábigo-índico, hebreo, tailandés, conteo chino y japonés, texto ordinal y números de estilo capítulo",
-    "fr": "Formats de numérotation d’autres écritures et systèmes : arabo-indien, hébreu, thaï, comptage chinois et japonais, texte ordinal et numéros de style chapitre"
    }
   },
   "9d67118b01bfcb650f5e40fbc3399bccfaf1e49f777c74403c1882de515143dc": {
@@ -19570,6 +19542,18 @@
     "en": "Align, Group, and Rotate or Flip, and arranging shapes and text boxes",
     "es": "Alinear, agrupar y girar o voltear, y ordenar formas y cuadros de texto",
     "fr": "Aligner, grouper, pivoter ou retourner, et organiser les formes et les zones de texte"
+   }
+  },
+  "a2d68353d3e51d1937779783286eb2f4ab0c215e3e2b09bfb8c7f85f9a2c7401": {
+   "drop": false,
+   "en": "Compare the open document with a file you choose, word by word or character by character, ignoring case or white space, and get a new window with the differences as tracked changes signed with a name you give. Accepting all gives the revised text and rejecting all gives the open document’s text. Moved paragraphs and changes to the look of text and paragraphs are found.",
+   "es": "Compare el documento abierto con un archivo que usted elija, palabra por palabra o carácter por carácter, ignorando mayúsculas o espacios en blanco, y obtenga una ventana nueva con las diferencias como cambios con seguimiento firmados con un nombre que usted indique. Al aceptar todo se obtiene el texto revisado y al rechazar todo, el texto del documento abierto. Se detectan los párrafos movidos y los cambios en el aspecto del texto y de los párrafos.",
+   "fr": "Comparez le document ouvert avec un fichier de votre choix, mot par mot ou caractère par caractère, en ignorant la casse ou les espaces, et obtenez une nouvelle fenêtre avec les différences sous forme de modifications suivies signées du nom que vous indiquez. Tout accepter donne le texte révisé et tout rejeter redonne le texte du document ouvert. Les paragraphes déplacés et les changements d’aspect du texte et des paragraphes sont détectés.",
+   "soon": {
+    "drop": false,
+    "en": "Compare: tables, headers and footers, notes, text boxes, and fields; Combine revisions from several authors; Show Source Documents",
+    "es": "Comparar: tablas, encabezados y pies de página, notas, cuadros de texto y campos; combinar revisiones de varios autores; mostrar documentos de origen",
+    "fr": "Comparaison : tableaux, en-têtes et pieds de page, notes, zones de texte et champs ; combinaison des révisions de plusieurs auteurs ; affichage des documents sources"
    }
   },
   "a30d636826ae517f66bbbe3948833ab2be91e5d0d727662d2c91e58d536e7b86": {
@@ -20124,18 +20108,6 @@
     "fr": ""
    }
   },
-  "abafa7e526ff01b3c44e18c235a6be592953ada52c08ae47fef2afbea72bc625": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Share without a cloud account: a package with the document, fonts, and pictures",
-    "es": "Compartir sin cuenta en la nube: un paquete con el documento, las fuentes y las imágenes",
-    "fr": "Partage sans compte cloud : un paquet avec le document, les polices et les images"
-   }
-  },
   "abb3e6c948699f8a4baf19bb2d6cab45fa25131896ed1b65e342df2a09d1c98d": {
    "drop": false,
    "en": "Insert > Pictures > Online Pictures searches Openverse and Wikimedia Commons and places the picture on the sheet with its title as alt text. If asked, a credit line goes in a text box under it. One step of Undo removes it.",
@@ -20388,6 +20360,18 @@
     "fr": "Options de langue : langues de modification, langue d’affichage, séparateur de liste et séparateur décimal"
    }
   },
+  "afa0fbd25b5848cc2bcd8f77ed7da8f8c841bf1415eb2fd4e326f7f542615a7b": {
+   "drop": false,
+   "en": "Share without a cloud account: pack the workbook with its fonts, linked pictures, and linked workbooks into one `.zip` file or a folder for another computer.",
+   "es": "Comparta sin una cuenta en la nube: empaquete el libro con sus fuentes, imágenes vinculadas y libros vinculados en un único archivo `.zip` o en una carpeta para otro equipo.",
+   "fr": "Partagez sans compte cloud : regroupez le classeur avec ses polices, ses images liées et ses classeurs liés dans un seul fichier `.zip` ou dans un dossier, pour un autre ordinateur.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "afb50d7a41962649121d37a72684c97c22a972a87c092805bbeac6d6497df19b": {
    "drop": true,
    "en": "",
@@ -20561,18 +20545,6 @@
    "en": "Links on printed slides are clickable in a PDF: web and email addresses open, and jumps to the next, previous, first, last, or a numbered slide go to that page.",
    "es": "Los enlaces de las diapositivas impresas se pueden pulsar en un PDF: las direcciones web y de correo electrónico se abren, y los saltos a la diapositiva siguiente, anterior, primera, última o numerada van a esa página.",
    "fr": "Les liens des diapositives imprimées sont cliquables dans un PDF : les adresses web et e-mail s’ouvrent, et les sauts vers la diapositive suivante, précédente, première, dernière ou numérotée mènent à cette page.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "b3f0d78256e18d18bc0c8c8ccc6c31181b0a5b3b7490e9adb8c0393fd81cf865": {
-   "drop": false,
-   "en": "Export the whole workbook as PDF/A-1b, or as a tagged PDF for screen readers.",
-   "es": "Exporte todo el libro como PDF/A-1b o como PDF etiquetado para lectores de pantalla.",
-   "fr": "Exportez tout le classeur en PDF/A-1b ou en PDF balisé pour les lecteurs d’écran.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22637,6 +22609,18 @@
    "en": "Picture color changes are drawn in the order a file lists them: brightness and contrast, gray, black and white from a threshold, a color made clear or changed, one color for all, a duotone, a turned hue, and a tint. They apply to pictures, picture fills, and backgrounds.",
    "es": "Los cambios de color de imagen se dibujan en el orden en que los enumera un archivo: brillo y contraste, gris, blanco y negro a partir de un umbral, un color transparente o cambiado, un solo color para todo, un dúo tono, un matiz girado y un tinte. Se aplican a imágenes, rellenos de imagen y fondos.",
    "fr": "Les changements de couleur d’image sont dessinés dans l’ordre où un fichier les liste : luminosité et contraste, gris, noir et blanc à partir d’un seuil, une couleur rendue transparente ou changée, une couleur unique, un duotone, une teinte décalée et une teinte de coloration. Ils s’appliquent aux images, aux remplissages image et aux arrière-plans.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d0e7fa0a248f3fd8d2ccf85067c484d179a9604b8b70263881cf23bc6f9c6d7d": {
+   "drop": false,
+   "en": "Share without a cloud account: pack the document with its fonts and linked pictures, and included files, into one `.zip` file or a folder for another computer or a printer.",
+   "es": "Comparta sin una cuenta en la nube: empaquete el documento con sus fuentes, imágenes vinculadas y archivos incluidos en un único archivo `.zip` o en una carpeta para otro equipo o una imprenta.",
+   "fr": "Partagez sans compte cloud : regroupez le document avec ses polices, ses images liées et ses fichiers inclus dans un seul fichier `.zip` ou dans un dossier, pour un autre ordinateur ou un imprimeur.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25212,11 +25196,35 @@
     "fr": ""
    }
   },
+  "f4142346e6da7bc65a210f477423c5417dda0af542fc564dbd1c6cb30b2e16c5": {
+   "drop": false,
+   "en": "Export PDF with a bookmark for each sheet, tags for screen readers, and PDF/A-1b. Cells are tagged as a table with header cells for print titles and spans for merged ranges.",
+   "es": "Exporte PDF con un marcador por cada hoja, etiquetas para lectores de pantalla y PDF/A-1b. Las celdas se etiquetan como una tabla, con celdas de encabezado para los títulos de impresión y intervalos para los rangos combinados.",
+   "fr": "Exportez en PDF avec un signet par feuille, des balises pour les lecteurs d’écran et PDF/A-1b. Les cellules sont balisées comme un tableau, avec des cellules d’en-tête pour les titres d’impression et des étendues pour les plages fusionnées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f435c763d878352807cc472c21dfc3de6bc7f6da2d308edd21637618c42114b5": {
    "drop": false,
    "en": "The Shape Format tab has a gallery of 24 styles drawn from the theme, kept in `.pptx` and `.odp` files.",
    "es": "La pestaña Formato de forma tiene una galería de 24 estilos basados en el tema, que se conservan en archivos `.pptx` y `.odp`.",
    "fr": "L’onglet Format de la forme comporte une galerie de 24 styles tirés du thème, conservés dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f45ee3b0ef6fa676486fa15b415829852b7bae5e58d94eb98e376f06b28c73ef": {
+   "drop": false,
+   "en": "Entrance and exit effects include Blinds, Box, Checkerboard, Shape, Diamond, Plus, Dissolve, Random Bars, Wheel, Peek, Stretch, Swivel, Expand, Spiral, and Bounce, plus Flash Once and Transparency emphasis, each with effect options.",
+   "es": "Los efectos de entrada y salida incluyen Persianas, Cuadro, Tablero de damas, Forma, Diamante, Más, Disolver, Barras aleatorias, Rueda, Mirar, Estirar, Pivotar, Expandir, Espiral y Rebote, además de Destello único y el énfasis de Transparencia, cada uno con sus opciones de efecto.",
+   "fr": "Les effets d’entrée et de sortie comprennent Stores, Boîte, Damier, Forme, Losange, Plus, Dissolution, Barres aléatoires, Roue, Aperçu, Étirement, Pivotement, Expansion, Spirale et Rebond, ainsi que Flash unique et l’accentuation Transparence, chacun avec ses options d’effet.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25342,6 +25350,18 @@
     "en": "Save as a single-file web page, and a selection or chart as an HTML table or picture",
     "es": "Guardar como página web de un solo archivo, y una selección o un gráfico como tabla HTML o imagen",
     "fr": "Enregistrement en page web à fichier unique, et d’une sélection ou d’un graphique en tableau HTML ou en image"
+   }
+  },
+  "f6b2441cf9e48bc31bdbfdd58337bb9193f81b7356f642e4e2c9ca2ea8e418cc": {
+   "drop": false,
+   "en": "Number lists, page numbers, footnotes, and endnotes in other scripts and systems, including Arabic-Indic, Hebrew, Thai, Chinese, Japanese, and Korean counting, ordinal text, and enclosed digits. A number a system cannot show appears as digits.",
+   "es": "Numere listas, números de página, notas al pie y notas finales en otras escrituras y sistemas, incluidos el árabe-índico, hebreo, tailandés y el conteo chino, japonés y coreano, el texto ordinal y los dígitos encerrados. Un número que un sistema no puede mostrar aparece como dígitos.",
+   "fr": "Numérotez les listes, numéros de page, notes de bas de page et notes de fin dans d’autres écritures et systèmes, dont l’arabo-indien, l’hébreu, le thaï et le comptage chinois, japonais et coréen, le texte ordinal et les chiffres encerclés. Un nombre qu’un système ne peut pas afficher apparaît en chiffres.",
+   "soon": {
+    "drop": false,
+    "en": "Vietnamese counting, baht text, dollar text, and custom number formats; field switches for Chinese, Japanese, and zodiac numbering",
+    "es": "Conteo vietnamita, texto de baht, texto de dólar y formatos de número personalizados; modificadores de campo para numeración china, japonesa y zodiacal",
+    "fr": "Comptage vietnamien, texte en baht, texte en dollars et formats de nombre personnalisés ; commutateurs de champ pour la numérotation chinoise, japonaise et zodiacale"
    }
   },
   "f70fba0d817fa209d8fd86b3452e58c91b917b7dcc40f4cb8e6e7e4d4cffb429": {
@@ -25529,6 +25549,18 @@
    "en": "Add, change, and remove custom properties, each with a name, a type, and a value.",
    "es": "Agregue, cambie y elimine propiedades personalizadas, cada una con nombre, tipo y valor.",
    "fr": "Ajoutez, modifiez et supprimez des propriétés personnalisées, chacune avec un nom, un type et une valeur.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f93cf7c5f3cf9136505cd148c5c343a255eaf2be259fa6c7ed19f129af8bd725": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -25834,18 +25866,6 @@
     "en": "Database sources: SQLite, ODBC, PostgreSQL, MySQL, and MariaDB, with saved connections and refresh",
     "es": "Orígenes de bases de datos: SQLite, ODBC, PostgreSQL, MySQL y MariaDB, con conexiones guardadas y actualización",
     "fr": "Sources de bases de données : SQLite, ODBC, PostgreSQL, MySQL et MariaDB, avec connexions enregistrées et actualisation"
-   }
-  },
-  "fca563797210da3fd6725b3b1d13630a17d8745f6e5c0f578f76a1dd6ecea208": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "More entrance, emphasis, and exit effects: Bounce, Swivel, Wheel, Random Bars, Shape, Checkerboard, Blinds, Box, Diamond, Plus, Peek In, Dissolve In, Flash Once, Stretch, Expand, Spiral In, Transparency, Darken, Lighten, Bold Flash, Flicker, Wave, Grow with Color, and Blast",
-    "es": "Más efectos de entrada, énfasis y salida: Rebote, Pivote, Rueda, Barras aleatorias, Forma, Tablero de ajedrez, Persianas, Cuadro, Rombo, Más, Entrada furtiva, Disolver, Destello único, Estirar, Expandir, Espiral, Transparencia, Oscurecer, Aclarar, Destello en negrita, Parpadeo, Onda, Crecer con color y Explosión",
-    "fr": "Autres effets d’entrée, d’accentuation et de sortie : Bounce, Swivel, Wheel, Random Bars, Shape, Checkerboard, Blinds, Box, Diamond, Plus, Peek In, Dissolve In, Flash Once, Stretch, Expand, Spiral In, Transparency, Darken, Lighten, Bold Flash, Flicker, Wave, Grow with Color et Blast"
    }
   },
   "fca61840feebe0aab54c92d18ca9d589ee3f74a6ce228376b605e61c5d79741d": {
