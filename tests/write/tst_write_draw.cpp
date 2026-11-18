@@ -47,6 +47,8 @@
 #include "core/fontops.h"
 #include "core/items.h"
 #include "core/pictureops.h"
+#include "core/wrapfit.h"
+#include "core/wrapoutline.h"
 #include "core/styleops.h"
 #include "io/zip.h"
 #include "core/picturestyles.h"
@@ -7618,7 +7620,214 @@ private Q_SLOTS:
         QVERIFY(view.pageImage(0, 1000).save(dir + QStringLiteral("/write-shapes-with-words.png")));
     }
 
+
+    // ---- Tight and Through wrap follow the real outline (libs/draw/core/wrapoutline.h, core/wrapfit.h) ----
+
+    static double outlineArea(const QPolygonF &p)
+    {
+        double a = 0;
+        for (int i = 0; i < p.size(); ++i) a += p[i].x() * p[(i + 1) % p.size()].y() - p[(i + 1) % p.size()].x() * p[i].y();
+        return std::abs(a) / 2;
+    }
+
+    static QByteArray partOfZip(const QByteArray &zip, const QString &name)
+    {
+        QMap<QString, QByteArray> parts;
+        return jp::readZip(zip, parts) ? parts.value(name) : QByteArray();
+    }
+
+    static QImage halfTransparent()
+    {
+        QImage image(120, 80, QImage::Format_ARGB32);
+        image.fill(Qt::transparent);
+        for (int y = 0; y < 80; ++y)
+            for (int x = 60; x < 120; ++x) image.setPixel(x, y, qRgba(200, 30, 30, 255));
+        return image;
+    }
+
+    void theOutlineOfAnEllipsePathHasFewPointsOnTheEllipse()
+    {
+        QPainterPath path;
+        path.addEllipse(QRectF(0, 0, 200, 100));
+        const QPolygonF outline = jp::wrapOutlineOfPath(path, QSizeF(200, 100));
+        QVERIFY2(outline.size() >= 12 && outline.size() <= 24, qPrintable(QString::number(outline.size())));
+        for (const QPointF &p : outline) {
+            const double r = std::hypot((p.x() - 0.5) / 0.5, (p.y() - 0.5) / 0.5);
+            QVERIFY2(std::abs(r - 1) < 0.03, qPrintable(QString::number(r)));
+        }
+        QVERIFY2(std::abs(outlineArea(outline) - M_PI / 4) < 0.04, qPrintable(QString::number(outlineArea(outline))));
+        QVERIFY(jp::wrapOutlineOfPath(QPainterPath(), QSizeF(200, 100)).isEmpty());
+        QVERIFY(jp::wrapOutlineOfPath(path, QSizeF(0, 100)).isEmpty());
+    }
+
+    void theOutlineOfAPathWithManyEdgesIsHeldToTwentyFourPoints()
+    {
+        QPainterPath star;
+        for (int i = 0; i < 3000; ++i) {
+            const double a = i * 0.0021, r = i % 2 ? 100 : 60;
+            const QPointF p(100 + r * std::cos(a), 100 + r * std::sin(a));
+            i ? star.lineTo(p) : star.moveTo(p);
+        }
+        const QPolygonF outline = jp::wrapOutlineOfPath(star, QSizeF(200, 200));
+        QVERIFY2(outline.size() >= 3 && outline.size() <= jp::kMostPathOutlinePoints, qPrintable(QString::number(outline.size())));
+        // A thousand points from a file are read as exactly kMostWrapPoints.
+        QVector<QPointF> thousand;
+        for (int i = 0; i < 1000; ++i) thousand << QPointF((i * 37 % 1000) / 1000.0, (i * 91 % 1000) / 1000.0);
+        QCOMPARE(jp::boundedWrapOutline(thousand).size(), 128);
+    }
+
+    void theOutlineOfAPictureWithATransparentLeftHalfStaysRightOfTheMiddle()
+    {
+        int scanned = 0;
+        const QPolygonF outline = jp::wrapOutlineOfAlpha(halfTransparent(), &scanned);
+        QVERIFY(outline.size() >= 3 && outline.size() <= jp::kMostAlphaOutlinePoints);
+        QVERIFY(scanned > 0);
+        for (const QPointF &p : outline) QVERIFY2(p.x() >= 0.49, qPrintable(QString::number(p.x())));
+        QVERIFY(std::abs(outlineArea(outline) - 0.5) < 0.05);
+        // A picture with no transparency, none of its own, or nothing in it keeps its rectangle.
+        QImage solid(50, 50, QImage::Format_ARGB32);
+        solid.fill(QColor(1, 2, 3));
+        QVERIFY(jp::wrapOutlineOfAlpha(solid).isEmpty());
+        QImage plain(50, 50, QImage::Format_RGB32);
+        plain.fill(Qt::red);
+        QVERIFY(jp::wrapOutlineOfAlpha(plain).isEmpty());
+        QImage empty(50, 50, QImage::Format_ARGB32);
+        empty.fill(Qt::transparent);
+        QVERIFY(jp::wrapOutlineOfAlpha(empty).isEmpty());
+        QVERIFY(jp::wrapOutlineOfAlpha(QImage()).isEmpty());
+    }
+
+    void aHugePictureIsScannedAtTwoHundredFiftySixPixels()
+    {
+        // (A bitmap of 20,000 x 20,000 pixels, one bit each: 50 MB, with a color table that has transparent and opaque.)
+        QImage big(20000, 20000, QImage::Format_Mono);
+        QVERIFY(!big.isNull());
+        big.setColorTable({qRgba(0, 0, 0, 0), qRgba(0, 0, 0, 255)});
+        big.fill(0);
+        for (int y = 5000; y < 15000; ++y)
+            for (int x = 8000; x < 8016; ++x) big.setPixel(x, y, 1);
+        int scanned = 0;
+        const QPolygonF outline = jp::wrapOutlineOfAlpha(big, &scanned);
+        QVERIFY2(scanned > 0 && scanned <= 256 * 256, qPrintable(QString::number(scanned)));
+        QVERIFY(outline.size() <= jp::kMostAlphaOutlinePoints);
+    }
+
+    void aTightEllipseStartsFromItsOwnOutlineAndKeepsItThroughDocx()
+    {
+        auto doc = textDoc({QStringLiteral("Some words")});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(200, 100)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY2(info.wrapOutline.size() >= 12 && info.wrapOutline.size() <= 24, qPrintable(QString::number(info.wrapOutline.size())));
+        QVERIFY(std::abs(outlineArea(info.wrapOutline) - M_PI / 4) < 0.04);
+        // Edit Wrap Points starts from it.
+        QCOMPARE(startingWrapOutline(*doc, 0, info), info.wrapOutline);
+        auto docx = open(doc->toDocx());
+        QVERIFY(docx);
+        const PictureInfo again = pictureAt(*docx, docx->story(), 0);
+        QVERIFY(again.wrap == PictureWrap::Tight);
+        QCOMPARE(again.wrapOutline.size(), info.wrapOutline.size());
+    }
+
+    void aTightEllipseLaysLinesWiderAtItsTopThanAtItsMiddle()
+    {
+        QString words;
+        for (int i = 0; i < 200; ++i) words += QStringLiteral("The text goes round the outline of the shape and not round its frame. ");
+        auto doc = textDoc({words});
+        QTextCursor c(doc->story());
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(200, 200)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Right));
+        const auto lines = doc->pager().lines(0);
+        QVERIFY(lines.size() > 8);
+        double full = 0;
+        for (const auto &l : lines) full = std::max(full, l.rect.width());
+        QVector<double> beside;
+        for (const auto &l : lines)
+            if (l.rect.width() < full - 20) beside << l.rect.width();
+        QVERIFY2(beside.size() >= 4, qPrintable(QString::number(beside.size())));
+        const double top = beside.first(), middle = *std::min_element(beside.begin(), beside.end());
+        QVERIFY2(top > middle + 30, qPrintable(QStringLiteral("top %1, middle %2").arg(top).arg(middle)));
+    }
+
+    void aPictureWithTransparencyOrACutShapeStartsFromItsOutlineAndAFilesOwnPolygonWins()
+    {
+        auto doc = textDoc({QStringLiteral("Some words")});
+        QTextCursor c(doc->story());
+        QByteArray png;
+        {
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            halfTransparent().save(&buffer, "PNG");
+        }
+        QCOMPARE(insertPicture(*doc, c, png), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        const PictureInfo info = pictureAt(*doc, doc->story(), 0);
+        QVERIFY(info.wrapOutline.size() >= 3);
+        for (const QPointF &p : info.wrapOutline) QVERIFY(p.x() >= 0.49);
+        // (The .odt keeps the seeded outline of a picture as its contour polygon; a shape's is not kept there.)
+        QString err;
+        const QByteArray odt = doc->toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QVERIFY(partOfZip(odt, QStringLiteral("content.xml")).contains("<draw:contour-polygon"));
+        auto back = WriteDoc::fromFile(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(pictureAt(*back, back->story(), 0).wrapOutline.size(), info.wrapOutline.size());
+        // The file's own polygon (here one set by hand) is kept, as the wrap's other settings change and through a save.
+        QPolygonF own;
+        own << QPointF(0, 0) << QPointF(1, 0) << QPointF(0.5, 1);
+        QVERIFY(setPictureWrapOutline(*doc, 0, own));
+        QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Left));
+        auto reopened = open(doc->toDocx());
+        QVERIFY(reopened);
+        QCOMPARE(pictureAt(*reopened, reopened->story(), 0).wrapOutline.size(), 3);
+        QVERIFY(std::abs(pictureAt(*reopened, reopened->story(), 0).wrapOutline[2].x() - 0.5) < 0.001);
+        // A picture without transparency keeps the rectangle; cut to a shape it follows the shape.
+        auto doc2 = textDoc({QStringLiteral("Some words")});
+        QTextCursor c2(doc2->story());
+        QCOMPARE(insertPicture(*doc2, c2, pngOf(160, 160)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc2, 0, PictureWrap::Tight));
+        QVERIFY(pictureAt(*doc2, doc2->story(), 0).wrapOutline.size() <= 5);
+        QVERIFY(setPictureWrap(*doc2, 0, PictureWrap::Square));
+        QVERIFY(setPictureCropShape(*doc2, 0, QStringLiteral("ellipse")));
+        QVERIFY(setPictureWrap(*doc2, 0, PictureWrap::Tight));
+        const QPolygonF cut = pictureAt(*doc2, doc2->story(), 0).wrapOutline;
+        QVERIFY2(cut.size() >= 12 && cut.size() <= 24, qPrintable(QString::number(cut.size())));
+    }
+
+    void thePicturesSeededAtOnceAreCapped()
+    {
+        QPainterPath path;
+        path.addEllipse(QRectF(0, 0, 100, 100));
+        int budget = 2;
+        QVERIFY(!seededWrapOutline(path, QString(), QImage(), QSizeF(100, 100), &budget).isEmpty());
+        QVERIFY(!seededWrapOutline(path, QString(), QImage(), QSizeF(100, 100), &budget).isEmpty());
+        QCOMPARE(budget, 0);
+        QVERIFY(seededWrapOutline(path, QString(), QImage(), QSizeF(100, 100), &budget).isEmpty());
+    }
+
+    // A picture of text round a Tight ellipse, for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).
+    void wrapOutlineScreenshot()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        QString words;
+        for (int i = 0; i < 60; ++i) words += QStringLiteral("The text goes round the outline of the ellipse and not round its frame. ");
+        Win win("<w:p><w:r><w:t xml:space=\"preserve\">" + words.toUtf8() + "</w:t></w:r></w:p>");
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(220, 220)), PictureResult::Ok);
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        win.w.view()->refresh();
+        win.w.refreshNow();
+        QDir().mkpath(dir);
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/tight-ellipse.png")));
+    }
 };
 
 QTEST_MAIN(DrawTests)
+
 #include "tst_write_draw.moc"

@@ -156,6 +156,8 @@ bool setPictureWrapOutline(WriteDoc &doc, int position, const QPolygonF &outline
 inline bool hasWrapPoints(DrawnKind kind) { return kind == DrawnKind::Picture || kind == DrawnKind::Shape || kind == DrawnKind::TextBox; }
 // The outline Edit Wrap Points starts from: the picture's own if it has one, else the frame's corners and the middles of its sides.
 QPolygonF startingWrapOutline(const PictureInfo &info);
+// The same where the picture's own outline is the frame: the outline of what it shows (core/wrapfit.h), so that Edit Wrap Points starts from what a Tight wrap follows.
+QPolygonF startingWrapOutline(const WriteDoc &doc, int position, const PictureInfo &info);
 // Moves the floating picture at `position` in the layers as `order` says, as one step that undoes (the pictures it passes are given heights to keep their order). False where it does
 // not move (an inline picture, or one already there); `canOrderPicture` says whether it would.
 bool setPictureOrder(WriteDoc &doc, int position, PictureOrder order);
