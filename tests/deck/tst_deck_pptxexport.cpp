@@ -1364,29 +1364,39 @@ private Q_SLOTS:
         triangle->rect = QRectF(20, 20, 400, 100);
         auto rect = std::make_shared<ShapeItem>();
         rect->rect = QRectF(600, 100, 100, 100);
-        LineItem made;
-        made.start = LineItem::Glue{triangle->id, 2};   // the bottom, as a side
-        made.end = LineItem::Glue{rect->id, 1};
-        QJsonObject json = made.toJson();
-        for (const char *key : {"startGlue", "endGlue"}) {
-            QJsonObject g = json[QLatin1String(key)].toObject();
-            g.remove(QStringLiteral("model"));   // (what an older save has: just the number)
-            json[QLatin1String(key)] = g;
-        }
         auto line = std::make_shared<LineItem>();
-        line->fromJson(json);
+        line->start = LineItem::Glue{triangle->id, 2};   // the bottom, as a side
+        line->end = LineItem::Glue{rect->id, 1};
         slide.items = {triangle, rect, line};
-        d->routeConnectors();
+        // (what an older save has: just the number, no "model"; the side is turned into a site when the file is read)
+        QJsonObject json = d->toJson();
+        QJsonArray pages = json[QLatin1String("pages")].toArray();
+        QJsonObject page = pages[at].toObject();
+        QJsonArray items = page[QLatin1String("items")].toArray();
+        QJsonObject l = items[2].toObject();
+        for (const char *key : {"startGlue", "endGlue"}) {
+            QJsonObject g = l[QLatin1String(key)].toObject();
+            QVERIFY(g.contains(QStringLiteral("model")));
+            g.remove(QStringLiteral("model"));
+            l[QLatin1String(key)] = g;
+        }
+        items[2] = l;
+        page[QLatin1String("items")] = items;
+        pages[at] = page;
+        json[QLatin1String("pages")] = pages;
+        Document opened;
+        opened.fromJson(json);
+        opened.routeConnectors();
+        const auto &read = static_cast<const LineItem &>(*opened.pages[at]->items[2]);
         // The triangle's bottom is its fourth site (the middle of its foot), not its third (a corner).
-        QCOMPARE(line->start.site, 3);
-        QVERIFY(std::abs(line->p1.x() - 220) < 1e-6 && std::abs(line->p1.y() - 120) < 1e-6);
-        QCOMPARE(line->end.site, 1);
+        QCOMPARE(read.start.site, 3);
+        QVERIFY(std::abs(read.p1.x() - 220) < 1e-6 && std::abs(read.p1.y() - 120) < 1e-6);
+        QCOMPARE(read.end.site, 1);
         // Saved again it is a number of the new kind, and stays.
-        auto again = std::make_shared<LineItem>();
-        again->fromJson(line->toJson());
-        slide.items = {triangle, rect, again};
-        d->routeConnectors();
-        QCOMPARE(again->start.site, 3);
+        Document again;
+        again.fromJson(opened.toJson());
+        again.routeConnectors();
+        QCOMPARE(static_cast<const LineItem &>(*again.pages[at]->items[2]).start.site, 3);
     }
 
     // Slide masters beyond the first keep their own themes, and every master and
