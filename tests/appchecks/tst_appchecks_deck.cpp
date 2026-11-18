@@ -371,7 +371,7 @@ private Q_SLOTS:
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
-        m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
+        m_app.neverRun = {{QStringLiteral("review.compare"), QStringLiteral("it has no command until the compare window makes one: a hidden command stands in for it, and its button is not shown")}, {QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
         // The Effect Options of the newer transitions are dimmed unless the current slide has a transition that has them (the checks use Push, Zoom, and Morph); DeckTransitionTests::effectOptionsOfTheCommonTransitions chooses each.
         for (const char *id : {"transition.dir.h", "transition.dir.v", "transition.dir.ru", "transition.dir.lu", "transition.dir.rd", "transition.dir.ld", "transition.by.1", "transition.by.2",
                                "transition.by.3", "transition.by.4", "transition.by.8", "transition.by.circle", "transition.by.diamond", "transition.by.plus"})

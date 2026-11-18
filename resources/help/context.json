@@ -14,6 +14,7 @@
   "tab:Table Layout": "tab-table",
   "tab:Text Art Format": "tab-text-art",
   "tab:Chart Format": "charts",
+  "tab:Equation": "equations",
   "pane:designchecker": "design-checker",
   "pane:extra": "change-template",
   "pane:mailmerge": "mail-merge",

@@ -14,6 +14,7 @@
   "file:export": "printing",
   "tab:Header and Footer": "page-layout",
   "tab:Chart": "charts",
+  "tab:Equation": "equations",
   "tab:Picture Format": "charts",
   "tab:Shape Format": "charts",
   "tab:Sparkline": "charts",
