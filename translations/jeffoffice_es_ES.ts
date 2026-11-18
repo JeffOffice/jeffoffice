@@ -287,10 +287,6 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">los diagramas se guardan como imágenes: sus partes no se pueden editar en este tipo de fichero.</translation>
     </message>
     <message>
-        <source>Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file.</source>
-        <translation type="unfinished">Los objetos incrustados se guardan como sus imágenes en este tipo de fichero. Para conservar su contenido, guarde el fichero como .pptx.</translation>
-    </message>
-    <message>
         <source>Charts are saved as pictures: their data can't be edited in this kind of file.</source>
         <translation type="unfinished">Los gráficos se guardan como imágenes: sus datos no se pueden modificar en este tipo de fichero.</translation>
     </message>
@@ -1847,6 +1843,13 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Changes the selected font to the font used instead, in the file itself</source>
         <translation type="unfinished">Cambia la fuente seleccionada por la fuente usada en su lugar, en el propio fichero</translation>
+    </message>
+</context>
+<context>
+    <name>jp::Objects</name>
+    <message>
+        <source>All Files (*)</source>
+        <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
 </context>
 <context>

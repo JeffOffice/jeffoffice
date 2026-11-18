@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+780"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+781"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -324,7 +324,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+248"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+249"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -413,7 +413,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+1975"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+2023"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>

@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: selection pane, hide object, rename object, object name, shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
+<!-- keywords: selection pane, hide object, rename object, object name, shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, text direction, vertical text, draw text box, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -14,13 +14,17 @@ A **line** is as long as a shape of its own and has no fill. The **Arrow** is a 
 
 ## Put a text box in
 
-Click **Insert > Text Box** and pick a design.
+To draw one, click **Insert > Text Box > Draw Text Box**, and drag on the page from one corner to the opposite corner. When you let go, the box appears in front of the text, selected, with the look of the Simple Text Box, and the caret is in it so that you can type at once. Click without dragging to put in a box of the usual size at the click. Hold Shift while you drag to keep the box square. Press Esc to stop without drawing. Drawing a box is one step to undo.
+
+Or click **Insert > Text Box** and pick a design.
 
 - **Simple Text Box** has a thin line round it. **Plain Text Box** has no line and no colour.
 - **Sidebar** is a tall, pale box for a note beside the text.
 - **Pull Quote** is large italic text with no frame, for a sentence you want people to notice.
 - **Banner** is a dark bar across the page with light words.
 - **Note** is a pale yellow box.
+
+To turn the words, select the text box and click **Shape Format > Text Direction**. **Horizontal** is the usual way. **Rotate all text 90°** runs the words down the box, and **Rotate all text 270°** runs them up. The box keeps its size, the words are set again, and the change is one step to undo. A box that is linked to another keeps its link. A document saved as an .odt file keeps the words of the box, but not the direction they run.
 
 To change the words, select the text box and click **Shape Format > Edit Text**. Type the words. Each line you type is a paragraph. The window can edit a text box that holds only words. If a box holds a table, a picture, or a list, the command is off, and the box is kept just as it was.
 
