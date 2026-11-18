@@ -8353,25 +8353,32 @@ private Q_SLOTS:
         win.w.view()->endShapeTextEdit(false);
     }
 
-    void aTextBoxKeepsItsWordsButNotItsDirectionInAnOdt()
+    void aTextBoxKeepsItsWordsAndItsDirectionInAnOdt()
     {
-        auto doc = textDoc({"Before after"});
-        QTextCursor c(doc->story());
-        c.setPosition(0);
-        QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
-        QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Boxed words")}));
-        QVERIFY(setTextBoxDirection(*doc, 0, TextDirection::Rotate90));
-        QString err;
-        const QByteArray odt = doc->toOdt(&err);
-        QVERIFY2(!odt.isEmpty(), qPrintable(err));
-        auto back = WriteDoc::fromFile(odt);
-        QVERIFY(back);
-        QVERIFY(pictureAt(*back, back->story(), 0).valid);
-        const auto words = textBoxText(*back, 0);
-        QVERIFY(words.has_value());
-        QCOMPARE(words->join(QLatin1Char('|')), QStringLiteral("Boxed words"));
-        // (The .odt writer does not write a box's direction: it comes back across. The help page says so.)
-        QCOMPARE(int(textBoxDirection(*back, 0)), int(TextDirection::Horizontal));
+        for (const TextDirection direction : {TextDirection::Rotate90, TextDirection::Rotate270, TextDirection::Horizontal}) {
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+            QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Boxed words")}));
+            if (direction != TextDirection::Horizontal) QVERIFY(setTextBoxDirection(*doc, 0, direction));
+            QString err;
+            const QByteArray odt = doc->toOdt(&err);
+            QVERIFY2(!odt.isEmpty(), qPrintable(err));
+            auto back = WriteDoc::fromFile(odt);
+            QVERIFY(back);
+            QVERIFY(pictureAt(*back, back->story(), 0).valid);
+            const auto words = textBoxText(*back, 0);
+            QVERIFY(words.has_value());
+            QCOMPARE(words->join(QLatin1Char('|')), QStringLiteral("Boxed words"));
+            // (The style says it: tb-rl of the standard for 90 degrees, bt-lr of the extension's namespace for 270.)
+            QCOMPARE(int(textBoxDirection(*back, 0)), int(direction));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(odt, parts));
+            const QByteArray content = parts.value(QStringLiteral("content.xml")) + parts.value(QStringLiteral("styles.xml"));
+            QCOMPARE(content.contains("style:writing-mode=\"tb-rl\""), direction != TextDirection::Horizontal);
+            QCOMPARE(content.contains("loext:writing-mode=\"bt-lr\""), direction == TextDirection::Rotate270);
+        }
     }
 
     void theDirectionOfAShapesWordsIsRead()

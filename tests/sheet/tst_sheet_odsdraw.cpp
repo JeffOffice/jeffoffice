@@ -263,6 +263,29 @@ private Q_SLOTS:
         QVERIFY(std::abs(square.anchor.cx - 914400) <= 2);
     }
 
+    // A text box whose words run turned (90 degrees: the writing mode tb-rl of the standard; 270: bt-lr of the extension's namespace) comes back turned; a direction this program does not know is across.
+    void aTurnedTextBoxKeepsItsDirectionInAnOds()
+    {
+        struct Case {
+            const char *vert, *written;
+        };
+        for (const Case c : {Case{"vert", "style:writing-mode=\"tb-rl\""}, Case{"vert270", "loext:writing-mode=\"bt-lr\""}, Case{"horz", nullptr}, Case{"junk", nullptr}}) {
+            QString box = textBoxXml(3, QStringLiteral("Note"), QStringLiteral("Check the totals"));
+            box.replace(QStringLiteral("<a:bodyPr wrap=\"square\" rtlCol=\"0\"/>"), QStringLiteral("<a:bodyPr vert=\"%1\" wrap=\"square\" rtlCol=\"0\"/>").arg(QLatin1String(c.vert)));
+            Saved s;
+            QString why;
+            QVERIFY2(saveAsOds(xlsxWith(oneCell(5, 5, 1828800, 457200, box, 20000, 10000)), &s, &why), qPrintable(why));
+            const QByteArray content = s.parts.value(QStringLiteral("content.xml"));
+            if (c.written) QVERIFY2(content.contains(c.written), c.vert);
+            else QVERIFY2(!content.contains("writing-mode=\"tb") && !content.contains("writing-mode=\"bt"), c.vert);
+            Read r;
+            QVERIFY2(readOds(s.ods, &r, &why), qPrintable(why));
+            QCOMPARE(r.drawing.objects.size(), 1);
+            const QString back = child(child(r.drawing.objects[0].element, "txBody"), "bodyPr").attribute(QStringLiteral("vert"));
+            QCOMPARE(back, QLatin1String(c.vert) == QLatin1String("vert") || QLatin1String(c.vert) == QLatin1String("vert270") ? QLatin1String(c.vert) : QString());
+        }
+    }
+
     // Text Art is a fontwork shape in the .ods: a custom shape with an enhanced geometry that says its words are set along a path. It comes back as Text Art with the same words, font, style, and warp.
     void textArtIsAFontworkShape()
     {

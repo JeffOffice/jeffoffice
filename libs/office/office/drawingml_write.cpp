@@ -6,6 +6,7 @@
 #include "core/items.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
+#include "core/textdirection.h"
 #include "office/barcodemarker.h"
 #include "core/barcodeitem.h"
 
@@ -672,6 +673,7 @@ struct Body {
     int columns = 1;
     double columnGap = 0;
     bool vertical = false, turnedBack = false;
+    QString keptVert;
     bool noWrap = false;
     bool centerBlock = false;
     TextItem::Autofit autofit = TextItem::NoAutofit;
@@ -683,7 +685,10 @@ void writeBody(QXmlStreamWriter &w, const Body &b, const QTextDocument *doc, boo
 {
     begin(w, "p:txBody");
     begin(w, "a:bodyPr");
-    if (b.vertical) attribute(w, "vert", b.turnedBack ? QStringLiteral("vert270") : QStringLiteral("vert"));
+    // (A value this program reads as another way, or not at all, is written as it was while the way is the one it read.)
+    const TextDirection direction = b.vertical ? (b.turnedBack ? TextDirection::Rotate270 : TextDirection::Rotate90) : TextDirection::Horizontal;
+    if (!b.keptVert.isEmpty() && textDirectionFromVert(b.keptVert).value_or(TextDirection::Horizontal) == direction) attribute(w, "vert", b.keptVert);
+    else if (b.vertical) attribute(w, "vert", QString::fromLatin1(textDirectionVert(direction)));
     attribute(w, "wrap", b.noWrap ? QStringLiteral("none") : QStringLiteral("square"));
     if (b.centerBlock) attribute(w, "anchorCtr", QStringLiteral("1"));
     attribute(w, "lIns", inset(b.insets.left()));
@@ -756,6 +761,7 @@ void writeTextBox(QXmlStreamWriter &w, const TextItem &t, DrawingWriteContext &c
     body.columnGap = t.columnGap;
     body.vertical = t.vertical;
     body.turnedBack = t.turnedBack;
+    body.keptVert = t.keptVert;
     body.noWrap = t.noWrap;
     body.centerBlock = t.centerBlock;
     body.autofit = t.autofit;

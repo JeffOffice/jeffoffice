@@ -1792,7 +1792,8 @@ QByteArray PubWriter::write(QStringList *skipped)
                 // Vertical text: text flow 1, top to bottom, after the insets (as
                 // Publisher writes a spine). Without it the words stack up letter
                 // by letter in the tall box.
-                if (t->vertical) opt.insert(5, Prop{0x0088, 1});
+                // (Turned 270 degrees, reading upward, is text flow 2.)
+                if (t->vertical) opt.insert(5, Prop{0x0088, t->turnedBack ? quint32(2) : quint32(1)});
                 fillProps(opt, t->fill);
                 strokeProps(opt, t->stroke);
                 shadowProps(opt, t->fx.shadow);

@@ -313,8 +313,10 @@ void Exporter::writeTextBox(X &x, Scope &sc, const TextItem &t)
         children = QStringLiteral("<style:columns fo:column-count=\"%1\" fo:column-gap=\"%2\"/>").arg(std::clamp(t.columns, 1, 16)).arg(cm(t.columnGap));
         extra += attrOf("jo:columns", QString::number(std::clamp(t.columns, 1, 16))) + attrOf("jo:column-gap", cm(t.columnGap));
     }
-    if (t.vertical && t.turnedBack) extra += attrOf("jo:turned-back", QStringLiteral("true"));
-    const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb"));
+    // (Turned 270 degrees is the writing mode "bt-lr" of the extension namespace, as well as the standard tb-rl: a reader that only knows the standard turns it 90.)
+    const bool back = t.vertical && t.turnedBack;
+    if (back) extra += attrOf("loext:writing-mode", QStringLiteral("bt-lr"));
+    const QString paragraph = attrOf("style:writing-mode", t.vertical ? QStringLiteral("tb-rl") : QStringLiteral("lr-tb")) + (back ? attrOf("loext:writing-mode", QStringLiteral("bt-lr")) : QString());
     const QString style = frameStyle(sc, t, cls, extra, children, paragraph);
 
     x.open("draw:frame");

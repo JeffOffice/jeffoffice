@@ -6,6 +6,7 @@
 #include "core/items.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
+#include "core/textdirection.h"
 #include "office/package.h"
 
 #include "core/barcodeitem.h"
@@ -183,6 +184,7 @@ struct BodyProperties {
     int columns = 1;
     double columnGap = 0;
     bool vertical = false, turnedBack = false;
+    QString keptVert;           // a vert value this program does not know (or turns another way): written back as it was
     bool noWrap = false;        // wrap="none"
     bool centerBlock = false;   // anchorCtr="1"
 };
@@ -208,8 +210,10 @@ BodyProperties readBodyProperties(const QVector<QDomElement> &bodyPrs)
     if (find("numCol", &v)) b.columns = int(std::clamp<qint64>(parseInt(v, 1), 1, 16));
     if (find("spcCol", &v)) b.columnGap = std::clamp(parseLength(v, 0), 0.0, 1000.0);
     if (find("vert", &v)) {
-        b.vertical = v != QLatin1String("horz");
-        b.turnedBack = v == QLatin1String("vert270");
+        const std::optional<TextDirection> direction = textDirectionFromVert(v);
+        b.vertical = direction && *direction != TextDirection::Horizontal;
+        b.turnedBack = direction && *direction == TextDirection::Rotate270;
+        if (v != QLatin1String(textDirectionVert(direction.value_or(TextDirection::Horizontal))) && v.size() <= 32) b.keptVert = v;   // (a value no longer than a name is)
     }
     if (find("wrap", &v)) b.noWrap = v == QLatin1String("none");
     if (find("anchorCtr", &v)) b.centerBlock = v == QLatin1String("1") || v == QLatin1String("true");
@@ -773,6 +777,7 @@ ItemPtr Reader::makeTextBox(const QDomElement &cNvPr, const Frame &frame, const 
     t->columnGap = props.columnGap;
     t->vertical = props.vertical;
     t->turnedBack = props.turnedBack;
+    t->keptVert = props.keptVert;
     t->noWrap = props.noWrap;
     t->centerBlock = props.centerBlock;
     if (m_ctx.newStory) {

@@ -396,11 +396,11 @@ public:
         if (p["fo:column-count"]) t->columns = std::max(1, p["fo:column-count"]->getInt());
         if (p["fo:column-gap"]) t->columnGap = toPt(p["fo:column-gap"]);
         // Text direction: 1 and 3 run top to bottom (turned 90 degrees clockwise),
-        // 2 bottom to top (the same, turned a further 180 about the center).
+        // 2 bottom to top (turned 270 degrees: the same as 90 turned a further 180 about the center).
         if (p["jp:text-flow"]) {
             const int flow = p["jp:text-flow"]->getInt();
             if (flow == 1 || flow == 3 || flow == 2) t->vertical = true;
-            if (flow == 2) t->rotation = std::fmod(t->rotation + 180.0, 360.0);
+            if (flow == 2) t->turnedBack = true;
         }
         t->wrap.mode = Wrap::None;
         applyWrap(*t, p);

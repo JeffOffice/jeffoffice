@@ -255,6 +255,7 @@ QJsonObject TextItem::toJson() const
     if (autofit) o["autofit"] = int(autofit);
     if (vertical) o["vertical"] = true;
     if (turnedBack) o["turnedBack"] = true;
+    if (!keptVert.isEmpty()) o["keptVert"] = keptVert;
     if (noWrap) o["noWrap"] = true;
     if (centerBlock) o["ctrBlock"] = true;
     if (continuedOn) o["contOn"] = true;
@@ -287,6 +288,7 @@ void TextItem::fromJson(const QJsonObject &o)
     autofit = Autofit(std::clamp(o["autofit"].toInt(), int(NoAutofit), int(GrowBox)));
     vertical = o["vertical"].toBool();
     turnedBack = o["turnedBack"].toBool();
+    keptVert = o["keptVert"].toString().left(32);
     noWrap = o["noWrap"].toBool();
     centerBlock = o["ctrBlock"].toBool();
     continuedOn = o["contOn"].toBool();

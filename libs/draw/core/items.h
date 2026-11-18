@@ -109,6 +109,7 @@ public:
     Autofit autofit = NoAutofit;
     bool vertical = false;       // text direction rotated 90°
     bool turnedBack = false;     // with `vertical`: rotated 270° (it reads upward) instead
+    QString keptVert;            // the file's body value for the direction when it is not one this program writes (kept, and written back, until the direction changes)
     // A point of the box (its own coordinates) in the coordinates the text is laid out in (turned text is laid out on its side).
     QPointF layoutPoint(QPointF local) const
     {

@@ -1,6 +1,7 @@
 // An OpenDocument spreadsheet's shapes into the drawing the XML form keeps (see odsdraw.h): each shape is read into the drawing code's own objects (core/items.h: a picture, a shape, a text
 // box, Text Art, a line, a group), and those are written by the shared writer (office/drawingml_write.h) as the elements of a drawing part, each in the anchor its place in the sheet says.
 
+#include "core/textdirection.h"
 #include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsdraw_p.h"
@@ -698,6 +699,9 @@ private:
         const QString v = props.value(QStringLiteral("graphic:draw:textarea-vertical-align"));
         item->valign = v == QLatin1String("middle") ? jp::VAlign::Middle : v == QLatin1String("bottom") ? jp::VAlign::Bottom : jp::VAlign::Top;
         item->noWrap = props.value(QStringLiteral("graphic:fo:wrap-option")) == QLatin1String("no-wrap");
+        const TextDirection direction = textDirectionFromOdf(props.value(QStringLiteral("graphic:style:writing-mode")), props.value(QStringLiteral("graphic:loext:writing-mode")));
+        item->vertical = direction != TextDirection::Horizontal;
+        item->turnedBack = direction == TextDirection::Rotate270;
         p->item = item;
         return true;
     }

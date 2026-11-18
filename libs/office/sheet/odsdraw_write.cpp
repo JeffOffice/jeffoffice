@@ -1,6 +1,7 @@
 // The drawing of a sheet (a part of the XML form, read by the shared drawing code into its own objects: core/items.h) as the elements of an OpenDocument spreadsheet's `table:shapes` (see
 // odsdraw.h): a picture is a frame with an image, a shape a custom shape, a text box a frame with a text box, Text Art a fontwork custom shape, a line a line, a group a group.
 
+#include "core/textdirection.h"
 #include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsdraw_p.h"
@@ -582,6 +583,7 @@ private:
             const auto &t = static_cast<const TextItem &>(item);
             QString props = lookProps(t, false) + insets(t.insets, t.valign);
             if (t.noWrap) props += QStringLiteral(" fo:wrap-option=\"no-wrap\"");
+            props += textDirectionOdfAttributes(!t.vertical ? TextDirection::Horizontal : t.turnedBack ? TextDirection::Rotate270 : TextDirection::Rotate90);
             const QString words = paragraphs(t.storyId.isEmpty() ? nullptr : m_stories[t.storyId].get());
             return QStringLiteral("<draw:frame draw:style-name=\"%1\"%2%3%4><draw:text-box>%5</draw:text-box>%6</draw:frame>")
                 .arg(graphicStyle(props), common, geometry(x, y, w, h, t.rotation), anchoring(anchor), words, titles(t));

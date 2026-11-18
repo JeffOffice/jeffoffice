@@ -5,6 +5,7 @@
 #include "wml/wmlwrap.h"
 #include "core/wrapoutline.h"
 #include "office/chart.h"
+#include "core/textdirection.h"
 #include "office/chart_write.h"
 #include "office/mathobject.h"
 #include "mathml/mathml.h"
@@ -832,7 +833,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         }
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
                                    num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" + fill + line +
-                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"horz\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
+                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"" + QByteArray(textDirectionVert(textDirectionFromOdf(g("style:writing-mode"), g("loext:writing-mode")))) + "\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
                                    "\" rIns=\"" + num(pad("right")) + "\" bIns=\"" + num(pad("bottom")) + "\" anchor=\"t\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);

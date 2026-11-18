@@ -4,6 +4,7 @@
 // the fill, outline, and effects their styles give them.
 
 #include "io/odpimport_p.h"
+#include "core/textdirection.h"
 #include "office/hyperlink.h"
 #include "office/mathobject.h"
 #include "mathml/mathml.h"
@@ -372,10 +373,14 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
     if (bag.get(Graphic, "style:shrink-to-fit") == QLatin1String("true") || bag.get(Graphic, "draw:fit-to-size") == QLatin1String("shrink")) t->autofit = TextItem::ShrinkOnOverflow;
     else if (bag.get(Graphic, "draw:auto-grow-height") == QLatin1String("true")) t->autofit = TextItem::GrowBox;
     const QString mode = bag.get(Para, "style:writing-mode");
-    t->vertical = mode.startsWith(QLatin1String("tb"));
+    QString extensionMode = bag.get(Para, "loext:writing-mode");
+    if (extensionMode.isEmpty()) extensionMode = bag.get(Graphic, "loext:writing-mode");
+    const bool turnedFlag = bag.get(Graphic, "jo:turned-back") == QLatin1String("true");
+    const TextDirection direction = textDirectionFromOdf(mode, extensionMode, turnedFlag);
+    t->vertical = direction != TextDirection::Horizontal;
     // Text turned a quarter by the file's own setting.
     if (double angle = 0; parseNumber(bag.get(Text, "style:rotation-angle"), &angle) && std::fmod(std::fabs(angle), 360) == 90) t->vertical = true;
-    t->turnedBack = t->vertical && bag.get(Graphic, "jo:turned-back") == QLatin1String("true");
+    t->turnedBack = direction == TextDirection::Rotate270 || (t->vertical && turnedFlag);
 
     t->storyId = m_doc.createStory();
     TextEnv env = textEnvFor(sc, a, bag, cls);

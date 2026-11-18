@@ -6,6 +6,7 @@
 
 #include "core/fonts.h"
 #include "core/svg.h"
+#include "core/textdirection.h"
 #include "office/barcodemarker.h"
 #include "office/chart.h"
 #include "office/theme.h"
@@ -1285,6 +1286,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             pr.insert("fo:padding-right", ins("rIns"));
             pr.insert("fo:padding-bottom", ins("bIns"));
         }
+        // (The way the words run: the style's writing mode.)
+        const TextDirection direction = body >= 0 ? textDirectionFromVert(t.attr(body, "vert")).value_or(TextDirection::Horizontal) : TextDirection::Horizontal;
         if (sp >= 0) {
             for (int k = t.firstChild(sp); k >= 0; k = t.next(k)) {
                 if (t.localName(k) == "solidFill") {
@@ -1305,6 +1308,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             }
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) boxProps += " " + it.key() + "=\"" + it.value() + "\"";
+        boxProps += textDirectionOdfAttributes(direction).toUtf8();
     }
     if (pathGroup >= 0) {
         // A group of freeform parts: each part is a path of its own, set at its place in the group (the group's own place is added to each part's, as the format has no place of its own for a group).
