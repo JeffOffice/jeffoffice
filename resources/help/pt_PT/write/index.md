@@ -1,7 +1,7 @@
-# Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
+# JeffWrite Ajuda
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do Ficheiro em que está.
 
 ## Primeiros passos
 
@@ -17,7 +17,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Verificar a ortografia](spelling)
 - [Contar palavras, definir o idioma, verificar a acessibilidade e procurar palavras](proofing-tools)
 - [Traduzir texto](translate)
-- [Controlar alterações e aceitá-las ou rejeitá-las](track-changes)
+- [Controlar alterações, e aceitá-las ou rejeitá-las](track-changes)
 - [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controlo de alterações](protect)
 
@@ -47,6 +47,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Quebras, colunas, hifenização e números de linha](breaks-columns)
 - [Inserir símbolos e carateres especiais](symbols-special-characters)
 - [Adicionar ligações e texto de outros ficheiros](links)
+- [Criar formulários com controlos de conteúdo](content-controls)
 - [Alterar a cor e os limites das páginas](page-look)
 - [Orientar-se com o painel de Navegação](navigation-pane)
 - [Utilizar a régua](ruler)
@@ -57,5 +58,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffWrite com o teclado](keyboard)
 - [Alterar as definições do JeffWrite](options)
-- [Segurança: a que um ficheiro pode aceder](security)
+- [Segurança: o que um ficheiro pode aceder na rede](security)
 - [Escolher um idioma](language)

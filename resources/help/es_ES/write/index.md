@@ -1,13 +1,13 @@
 # Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio, índice -->
+<!-- keywords: contenido, ayuda, temas, inicio, empezar -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
 - [Bienvenido a JeffWrite](start)
 - [Abrir, guardar, imprimir y exportar](open-save)
-- [Información: propiedades, contraseñas e Inspeccionar documento](info)
+- [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir y guardar ficheros OpenDocument](open-odt)
 - [Abrir ficheros RTF](open-rtf)
 - [Imprimir](print)
@@ -24,9 +24,9 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 ## Escribir y modificar el texto
 
 - [Cambiar el aspecto del texto](font)
-- [Cambiar mayúsculas, ordenar y pegar de otras formas](home-tools)
+- [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar un formato con Copiar formato](format-painter)
+- [Copiar un aspecto con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
 - [Crear y modificar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
@@ -39,7 +39,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Señalar otro lugar con referencias cruzadas](cross-references)
 - [Marcar lugares con marcadores](bookmarks)
 - [Combinación de correspondencia, sobres y etiquetas](mail-merge)
-- [Agregar y cambiar imágenes](pictures)
+- [Agregar y modificar imágenes](pictures)
 - [Formas y cuadros de texto](shapes-text-boxes)
 - [Gráficos](charts)
 - [Ecuaciones](equations)
@@ -47,6 +47,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Saltos, columnas, división de palabras y numeración de líneas](breaks-columns)
 - [Insertar símbolos y caracteres especiales](symbols-special-characters)
 - [Agregar vínculos y texto de otros ficheros](links)
+- [Crear formularios con controles de contenido](content-controls)
 - [Cambiar el color y los bordes de las páginas](page-look)
 - [Orientarse con el panel de navegación](navigation-pane)
 - [Usar la regla](ruler)
@@ -57,5 +58,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffWrite con el teclado](keyboard)
 - [Cambiar la configuración de JeffWrite](options)
-- [Seguridad: a qué puede conectarse un fichero](security)
+- [Seguridad: a qué puede acceder un fichero](security)
 - [Elegir un idioma](language)

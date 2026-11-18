@@ -1,12 +1,12 @@
-# JeffPub: Ayuda
-<!-- keywords: contenido, ayuda, temas, inicio -->
+# Ayuda de JeffPub
+<!-- keywords: contenido, ayuda, temas, start -->
 
-Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el cuadro de diálogo abierto o el objeto seleccionado.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el cuadro de diálogo abierto o el objeto seleccionado.
 
 ## Primeros pasos
 
 - [Bienvenido a JeffPub](start)
-- [Orientación en la ventana](window)
+- [Oriéntese en la ventana](window)
 - [Crear una publicación nueva](create)
 - [Abrir y guardar publicaciones](open-save)
 - [Trabajar con archivos .pub](pub-files)
@@ -22,7 +22,7 @@ Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un com
 - [Agregar texto artístico](text-art)
 - [Agregar una ecuación](equations)
 - [Crear y editar tablas](tables)
-- [Contenido, notas al pie y notas al final](references)
+- [Índice, notas al pie y notas al final](references)
 - [Ortografía, sinónimos, investigación y división de palabras](proofing)
 - [Traducir texto](translate)
 - [Buscar y reemplazar texto](find-replace)
@@ -40,7 +40,7 @@ Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un com
 ## Páginas
 
 - [Tamaño de página, márgenes y diseño](page-setup)
-- [Combinaciones de colores y fuentes](color-schemes)
+- [Combinaciones de colores y de fuentes](color-schemes)
 - [Cambiar la plantilla de una publicación](change-template)
 - [Páginas maestras, encabezados y números de página](master-pages)
 - [Agregar, mover y eliminar páginas](pages)
@@ -48,7 +48,7 @@ Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un com
 
 ## Correspondencia
 
-- [Combinación de correspondencia y combinación de catálogo](mail-merge)
+- [Combinación de correspondencia y de catálogo](mail-merge)
 
 ## Imprimir y compartir
 
@@ -60,7 +60,7 @@ Escriba en el cuadro de búsqueda situado arriba para encontrar un tema o un com
 
 - [Usar JeffPub con el teclado](keyboard)
 - [Lectores de pantalla, alto contraste y texto alternativo](accessibility)
-- [Comprobar el diseño](design-checker)
+- [Comprobar su diseño](design-checker)
 - [Comentarios](comments)
 - [Cambiar la configuración de JeffPub](options)
 - [Seguridad: a qué puede conectarse un archivo](security)

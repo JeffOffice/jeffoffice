@@ -109,8 +109,8 @@
 "out": "691575de3a0f04f1"
 },
 "crunch/functions-statistical": {
-"en": "0db8563961807dd8",
-"out": "b326b2cbbd7bf2ba"
+"en": "ec12361db03bc6b4",
+"out": "b20ee09debe81206"
 },
 "crunch/functions-text": {
 "en": "65872b082111e400",
@@ -161,8 +161,8 @@
 "out": "aabc71e824cb8fbe"
 },
 "crunch/options": {
-"en": "6df40c22ddc8294c",
-"out": "429b7b33417d0e69"
+"en": "7763e10f18fc6a72",
+"out": "6eaa77a5dfc591ef"
 },
 "crunch/page-layout": {
 "en": "f6f03cee78b4c7c7",
@@ -273,8 +273,8 @@
 "out": "fb4fec46bfdf2acf"
 },
 "deck/options": {
-"en": "5c22268af0650f4b",
-"out": "a39dd0efedf7a92b"
+"en": "93ef038fb0177316",
+"out": "ded07a96c3065fee"
 },
 "deck/printing": {
 "en": "3c8c7fe75a9c0ee4",
@@ -385,8 +385,8 @@
 "out": "c721cbaa9cab98e5"
 },
 "index": {
-"en": "3e7159ee6c6c8c90",
-"out": "8d9bf40861fc6e1b"
+"en": "c2ff86ea6854e3b6",
+"out": "b075a0645307e896"
 },
 "insert-objects": {
 "en": "1698c7a39008388a",
@@ -421,8 +421,8 @@
 "out": "e62ed117fd838b50"
 },
 "options": {
-"en": "793347f477ea63da",
-"out": "211f6d497edd0f82"
+"en": "56c15eb3f339400f",
+"out": "98ea19ac68fc04ad"
 },
 "page-setup": {
 "en": "36844cbc55d08973",
@@ -629,8 +629,8 @@
 "out": "47dc07a04f679cb1"
 },
 "write/index": {
-"en": "834f5794c007fc4c",
-"out": "d79c5d2064df4521"
+"en": "77a9c3282b716d11",
+"out": "70230f6e5b3c3890"
 },
 "write/info": {
 "en": "53ebed456d41e499",
@@ -649,8 +649,8 @@
 "out": "079ee1d32f6cf1ba"
 },
 "write/mail-merge": {
-"en": "0facbc59c238125e",
-"out": "f64135f24916df9e"
+"en": "3bacf4650263c437",
+"out": "fcf972b8a1a67c15"
 },
 "write/making-an-index": {
 "en": "b1cea351fa8e0d1c",
@@ -673,8 +673,8 @@
 "out": "37b009a9f623cdb3"
 },
 "write/options": {
-"en": "42f2b4644e6148cb",
-"out": "34d0ae208086a25f"
+"en": "5363a92f1504ee4d",
+"out": "b1c4675691bf24a8"
 },
 "write/page-look": {
 "en": "4a80e1c29b4716fd",

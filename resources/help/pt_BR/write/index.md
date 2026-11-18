@@ -1,32 +1,32 @@
 # Ajuda do JeffWrite
-<!-- keywords: sumário, ajuda, tópicos, início -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice, contents, help, topics, start -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
 
 ## Primeiros passos
 
 - [Boas-vindas ao JeffWrite](start)
 - [Abrir, salvar, imprimir e exportar](open-save)
-- [Informações: propriedades, senhas e Inspecionar Documento](info)
+- [Informações: propriedades, senhas e Inspecionar](info)
 - [Abrir e salvar arquivos OpenDocument](open-odt)
 - [Abrir arquivos RTF](open-rtf)
 - [Imprimir](print)
 
 ## Trabalhar no texto
 
-- [Verificar sua ortografia](spelling)
-- [Contar palavras, definir o idioma, verificar a acessibilidade e consultar palavras](proofing-tools)
+- [Verificar a ortografia](spelling)
+- [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Traduzir texto](translate)
-- [Controlar alterações, e aceitar ou rejeitar](track-changes)
-- [Adicionar e responder comentários](comments)
+- [Controlar alterações, e aceitar ou rejeitá-las](track-changes)
+- [Adicionar e responder a comentários](comments)
 - [Proteger um documento e bloquear o controle de alterações](protect)
 
-## Escrever e alterar o texto
+## Escrever e alterar texto
 
 - [Alterar a aparência do texto](font)
 - [Alterar maiúsculas e minúsculas, classificar e colar de outras formas](home-tools)
 - [Usar estilos](styles)
-- [Copiar uma aparência com Copiar Formatação](format-painter)
+- [Copiar uma aparência com Copiar formatação](format-painter)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
 - [Criar e alterar tabelas](tables)
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)
@@ -36,7 +36,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Criar um índice remissivo](making-an-index)
 - [Criar um índice de autoridades](table-of-authorities)
 - [Usar campos](fields)
-- [Apontar para outro local com referências cruzadas](cross-references)
+- [Apontar para outro lugar com referências cruzadas](cross-references)
 - [Marcar locais com indicadores](bookmarks)
 - [Mala direta, envelopes e etiquetas](mail-merge)
 - [Adicionar e alterar imagens](pictures)
@@ -47,8 +47,9 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Quebras, colunas, hifenização e numeração de linhas](breaks-columns)
 - [Inserir símbolos e caracteres especiais](symbols-special-characters)
 - [Adicionar links e texto de outros arquivos](links)
+- [Criar formulários com controles de conteúdo](content-controls)
 - [Alterar a cor e as bordas das páginas](page-look)
-- [Encontrar o caminho com o painel de Navegação](navigation-pane)
+- [Orientar-se com o painel de Navegação](navigation-pane)
 - [Usar a régua](ruler)
 - [Localizar e substituir palavras](find-replace)
 - [Ir para um local e mover texto](go-to-and-move-text)
@@ -57,5 +58,5 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Usar o JeffWrite com o teclado](keyboard)
 - [Alterar as configurações do JeffWrite](options)
-- [Segurança: a que um arquivo pode se conectar](security)
+- [Segurança: o que um arquivo pode acessar externamente](security)
 - [Escolher um idioma](language)

@@ -1,13 +1,13 @@
-# Ajuda do JeffPub
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+# JeffPub Ajuda
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, a caixa de diálogo aberta ou o objeto selecionado.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffPub](start)
 - [Conheça a janela](window)
-- [Iniciar uma nova publicação](create)
+- [Criar uma nova publicação](create)
 - [Abrir e salvar publicações](open-save)
 - [Trabalhar com arquivos .pub](pub-files)
 - [Recuperar trabalho não salvo](recover)
@@ -34,7 +34,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Desenhar formas e linhas](shapes)
 - [Adicionar gráficos](charts)
 - [Ícones, códigos de barras e outros objetos](insert-objects)
-- [Mover, alinhar, agrupar e sobrepor objetos](arrange)
+- [Mover, alinhar, agrupar e organizar objetos em camadas](arrange)
 - [Quebrar texto ao redor de objetos](wrap)
 
 ## Páginas
@@ -60,14 +60,14 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Usar o JeffPub com o teclado](keyboard)
 - [Leitores de tela, alto contraste e texto alternativo](accessibility)
-- [Verificar o design](design-checker)
+- [Verificar seu design](design-checker)
 - [Comentários](comments)
 - [Alterar as configurações do JeffPub](options)
-- [Segurança: a que um arquivo pode se conectar](security)
+- [Segurança: o que um arquivo pode acessar](security)
 - [Escolher um idioma](language)
 - [Obter ajuda e relatar problemas](support)
 
 ## Guias da faixa de opções
 
 - [Arquivo](tab-file), [Página Inicial](tab-home), [Inserir](tab-insert), [Design da Página](tab-page-design), [Correspondências](tab-mailings), [Revisão](tab-review), [Exibir](tab-view) e [Ajuda](tab-help)
-- Guias que aparecem ao selecionar algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Design da Tabela e Layout da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Mestra](tab-master-page)
+- Guias que aparecem quando você seleciona algo: [Caixa de Texto](tab-text-box), [Formato da Forma](tab-shape-format), [Formato da Imagem](tab-picture-format), [Design da Tabela e Layout da Tabela](tab-table), [Formato do Texto Artístico](tab-text-art) e [Página Mestra](tab-master-page)

@@ -1,5 +1,5 @@
 # JeffPub Guida
-<!-- keywords: contenuto, guida, argomenti, inizio -->
+<!-- keywords: contenuti, guida, argomenti, avvio -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva, la finestra di dialogo aperta o l'oggetto selezionato.
 
@@ -8,24 +8,24 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Benvenuto in JeffPub](start)
 - [Orientarsi nella finestra](window)
 - [Creare una nuova pubblicazione](create)
-- [Aprire e salvare pubblicazioni](open-save)
+- [Aprire e salvare le pubblicazioni](open-save)
 - [Lavorare con i file .pub](pub-files)
-- [Recuperare lavoro non salvato](recover)
+- [Recuperare il lavoro non salvato](recover)
 
 ## Testo
 
-- [Aggiungere e formattare caselle di testo](text-boxes)
-- [Far scorrere il testo tra caselle di testo](linked-text)
+- [Aggiungere e formattare le caselle di testo](text-boxes)
+- [Collegare il testo tra caselle di testo](linked-text)
 - [Formattare il testo](formatting-text)
 - [Elenchi puntati, numerazione e tabulazioni](lists-tabs)
 - [Usare gli stili](styles)
 - [Aggiungere testo artistico](text-art)
 - [Aggiungere un'equazione](equations)
-- [Creare e modificare tabelle](tables)
+- [Creare e modificare le tabelle](tables)
 - [Sommario, note a piè di pagina e note di chiusura](references)
 - [Controllo ortografia, thesaurus, ricerche e sillabazione](proofing)
 - [Tradurre il testo](translate)
-- [Trovare e sostituire testo](find-replace)
+- [Trovare e sostituire il testo](find-replace)
 
 ## Immagini e oggetti
 
@@ -39,8 +39,8 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Pagine
 
-- [Dimensioni pagina, margini e layout](page-setup)
-- [Combinazioni colori e tipi di carattere](color-schemes)
+- [Dimensioni della pagina, margini e layout](page-setup)
+- [Combinazioni di colori e di tipi di carattere](color-schemes)
 - [Cambiare il modello di una pubblicazione](change-template)
 - [Pagine master, intestazioni e numeri di pagina](master-pages)
 - [Aggiungere, spostare ed eliminare pagine](pages)
@@ -58,12 +58,12 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 ## Guida e impostazioni
 
-- [Usare JeffPub da tastiera](keyboard)
+- [Usare JeffPub con la tastiera](keyboard)
 - [Lettori di schermo, contrasto elevato e testo alternativo](accessibility)
 - [Verificare la struttura](design-checker)
 - [Commenti](comments)
 - [Modificare le impostazioni di JeffPub](options)
-- [Sicurezza: a cosa può accedere un file](security)
+- [Sicurezza: a cosa può collegarsi un file](security)
 - [Scegliere una lingua](language)
 - [Ottenere aiuto e segnalare problemi](support)
 

@@ -1,16 +1,16 @@
 # Fungsi statistik
-<!-- keywords: functions, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST, fungsi statistik, rata-rata, varians, simpangan baku, peluang, distribusi, regresi, korelasi, persentil, kuartil, rumus statistik -->
+<!-- keywords: fungsi, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.ETS, FORECAST.ETS.CONFINT, FORECAST.ETS.SEASONALITY, FORECAST.ETS.STAT, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST -->
 
-Ini adalah fungsi statistik yang dapat dihitung oleh JeffCrunch. Setiap fungsi menampilkan cara penulisannya, apa yang dilakukannya, dan fungsi setiap argumennya. Argumen dalam kurung siku bersifat opsional, dan "..." berarti Anda dapat menambahkan lagi sebanyak yang diperlukan pada argumen terakhir. Untuk mencobanya, lihat [Pilih Fungsi](insert-function). Saat Anda mengetik fungsi di sel, sebuah tip kecil di bawah sel menampilkan argumennya, dan klik pada nama fungsi di tip akan membuka entrinya di sini.
+Berikut adalah fungsi statistik yang dapat dihitung oleh JeffCrunch. Setiap fungsi menampilkan cara penulisannya, apa yang dilakukannya, dan arti setiap argumennya. Argumen yang diapit kurung siku bersifat opsional, dan "..." berarti Anda dapat menambahkan argumen terakhir sebanyak yang diperlukan. Untuk mencobanya, lihat [Pilih fungsi](insert-function). Saat Anda mengetik fungsi di sel, sebuah tips kecil di bawah sel menampilkan argumennya, dan klik pada nama fungsi di tips tersebut akan membuka entri fungsinya di sini.
 
 ## AVEDEV
 
 `AVEDEV(number1, ...)`
 
-Memberikan rata-rata jarak setiap angka dari rata-ratanya.
+Memberikan rata-rata jarak angka-angka dari rata-ratanya.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## AVERAGE
 
@@ -19,37 +19,37 @@ Memberikan rata-rata jarak setiap angka dari rata-ratanya.
 Memberikan rata-rata dari angka-angka.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## AVERAGEA
 
 `AVERAGEA(value1, ...)`
 
-Memberikan rata-rata dari nilai-nilai, dengan teks dihitung sebagai nol dan TRUE sebagai satu.
+Memberikan rata-rata dari nilai, dengan menganggap teks sebagai nol dan benar sebagai satu.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## AVERAGEIF
 
 `AVERAGEIF(range, criteria, [average_range])`
 
-Menghitung rata-rata sel-sel yang memenuhi suatu kondisi.
+Merata-ratakan sel-sel yang memenuhi suatu kondisi.
 
 - `range`: Blok sel yang akan diuji.
 - `criteria`: Yang dicari: angka, teks, atau uji seperti ">5".
-- `average_range` (opsional): Sel-sel yang akan dihitung rata-ratanya (sel yang diuji jika dihilangkan).
+- `average_range` (opsional): Sel yang akan dirata-ratakan (sel yang diuji jika dihilangkan).
 
 ## AVERAGEIFS
 
 `AVERAGEIFS(average_range, criteria_range1, criteria1, ...)`
 
-Menghitung rata-rata sel-sel yang memenuhi beberapa kondisi.
+Merata-ratakan sel-sel yang memenuhi beberapa kondisi.
 
-- `average_range`: Sel-sel yang akan dihitung rata-ratanya (sel yang diuji jika dihilangkan).
+- `average_range`: Sel yang akan dirata-ratakan (sel yang diuji jika dihilangkan).
 - `criteria_range1`: Blok sel pertama yang akan diuji.
 - `criteria1`: Yang dicari dalam blok sel pertama: angka, teks, atau uji seperti ">5".
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## BETA.DIST
 
@@ -60,7 +60,7 @@ Memberikan nilai atau proporsi kumulatif kurva beta pada x.
 - `x`: Nilai x yang akan diproses.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 - `A` (opsional): Batas bawah x (0 jika dihilangkan).
 - `B` (opsional): Batas atas x (1 jika dihilangkan).
 
@@ -68,9 +68,9 @@ Memberikan nilai atau proporsi kumulatif kurva beta pada x.
 
 `BETA.INV(probability, alpha, beta, [A], [B])`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva beta.
+Memberikan nilai x untuk suatu proporsi kurva beta.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
 - `A` (opsional): Batas bawah x (0 jika dihilangkan).
@@ -92,9 +92,9 @@ Memberikan proporsi kumulatif kurva beta pada x.
 
 `BETAINV(probability, alpha, beta, [A], [B])`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva beta.
+Memberikan nilai x untuk suatu proporsi kurva beta.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
 - `A` (opsional): Batas bawah x (0 jika dihilangkan).
@@ -109,7 +109,7 @@ Memberikan peluang sejumlah keberhasilan dalam sejumlah percobaan.
 - `number_s`: Jumlah keberhasilan.
 - `trials`: Jumlah percobaan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## BINOM.DIST.RANGE
 
@@ -120,13 +120,13 @@ Memberikan peluang bahwa jumlah keberhasilan berada dalam suatu rentang.
 - `trials`: Jumlah percobaan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
 - `number_s`: Jumlah keberhasilan.
-- `number_s2` (opsional): Jumlah keberhasilan terbanyak yang akan dihitung (sama dengan jumlah terkecil jika dihilangkan).
+- `number_s2` (opsional): Jumlah keberhasilan terbanyak yang dihitung (sama dengan yang terkecil jika dihilangkan).
 
 ## BINOM.INV
 
 `BINOM.INV(trials, probability_s, alpha)`
 
-Memberikan jumlah keberhasilan terkecil yang peluang kumulatifnya mencapai suatu nilai.
+Memberikan jumlah keberhasilan terkecil yang jumlah kumulatif peluangnya mencapai suatu nilai.
 
 - `trials`: Jumlah percobaan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
@@ -141,7 +141,7 @@ Memberikan peluang sejumlah keberhasilan dalam sejumlah percobaan.
 - `number_s`: Jumlah keberhasilan.
 - `trials`: Jumlah percobaan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## CHIDIST
 
@@ -156,9 +156,9 @@ Memberikan proporsi kurva chi-kuadrat di atas x.
 
 `CHIINV(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva chi-kuadrat, dihitung dari kanan.
+Memberikan nilai x untuk suatu proporsi kurva chi-kuadrat, dihitung dari kanan.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## CHISQ.DIST
@@ -169,7 +169,7 @@ Memberikan nilai atau proporsi kumulatif kurva chi-kuadrat pada x.
 
 - `x`: Nilai x yang akan diproses.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## CHISQ.DIST.RT
 
@@ -184,43 +184,43 @@ Memberikan proporsi kurva chi-kuadrat di atas x.
 
 `CHISQ.INV(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva chi-kuadrat, dihitung dari kiri.
+Memberikan nilai x untuk suatu proporsi kurva chi-kuadrat, dihitung dari kiri.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## CHISQ.INV.RT
 
 `CHISQ.INV.RT(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva chi-kuadrat, dihitung dari kanan.
+Memberikan nilai x untuk suatu proporsi kurva chi-kuadrat, dihitung dari kanan.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## CHISQ.TEST
 
 `CHISQ.TEST(actual_range, expected_range)`
 
-Memberikan peluang bahwa jumlah hitungan berbeda dari jumlah yang diharapkan hanya karena kebetulan.
+Memberikan peluang bahwa jumlah yang diperoleh berbeda dari jumlah yang diharapkan hanya karena kebetulan.
 
-- `actual_range`: Blok sel yang berisi jumlah hitungan yang Anda peroleh.
-- `expected_range`: Blok sel yang berisi jumlah hitungan yang Anda harapkan, dengan ukuran sama dengan jumlah hitungan yang Anda peroleh.
+- `actual_range`: Blok sel dengan jumlah yang Anda peroleh.
+- `expected_range`: Blok sel dengan jumlah yang Anda harapkan, dengan ukuran yang sama dengan jumlah yang Anda peroleh.
 
 ## CHITEST
 
 `CHITEST(actual_range, expected_range)`
 
-Memberikan peluang bahwa jumlah hitungan berbeda dari jumlah yang diharapkan hanya karena kebetulan.
+Memberikan peluang bahwa jumlah yang diperoleh berbeda dari jumlah yang diharapkan hanya karena kebetulan.
 
-- `actual_range`: Blok sel yang berisi jumlah hitungan yang Anda peroleh.
-- `expected_range`: Blok sel yang berisi jumlah hitungan yang Anda harapkan, dengan ukuran sama dengan jumlah hitungan yang Anda peroleh.
+- `actual_range`: Blok sel dengan jumlah yang Anda peroleh.
+- `expected_range`: Blok sel dengan jumlah yang Anda harapkan, dengan ukuran yang sama dengan jumlah yang Anda peroleh.
 
 ## CONFIDENCE
 
 `CONFIDENCE(alpha, standard_dev, size)`
 
-Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva normal.
+Memberikan batas kesalahan interval kepercayaan untuk rata-rata, dengan memakai kurva normal.
 
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `standard_dev`: Simpangan baku distribusi.
@@ -230,7 +230,7 @@ Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva
 
 `CONFIDENCE.NORM(alpha, standard_dev, size)`
 
-Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva normal.
+Memberikan batas kesalahan interval kepercayaan untuk rata-rata, dengan memakai kurva normal.
 
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `standard_dev`: Simpangan baku distribusi.
@@ -240,7 +240,7 @@ Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva
 
 `CONFIDENCE.T(alpha, standard_dev, size)`
 
-Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva t Student.
+Memberikan batas kesalahan interval kepercayaan untuk rata-rata, dengan memakai kurva t Student.
 
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `standard_dev`: Simpangan baku distribusi.
@@ -252,8 +252,8 @@ Memberikan margin interval kepercayaan untuk rata-rata, dengan menggunakan kurva
 
 Memberikan seberapa erat dua kumpulan angka bergerak bersama, dari -1 sampai 1.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## COUNT
 
@@ -262,7 +262,7 @@ Memberikan seberapa erat dua kumpulan angka bergerak bersama, dari -1 sampai 1.
 Menghitung angka dalam daftar atau blok sel.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## COUNTA
 
@@ -271,13 +271,13 @@ Menghitung angka dalam daftar atau blok sel.
 Menghitung sel yang tidak kosong.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## COUNTBLANK
 
 `COUNTBLANK(range)`
 
-Menghitung sel kosong dalam suatu blok.
+Menghitung sel kosong dalam sebuah blok.
 
 - `range`: Blok sel yang akan diuji.
 
@@ -298,7 +298,7 @@ Menghitung baris yang memenuhi beberapa kondisi sekaligus.
 
 - `criteria_range1`: Blok sel pertama yang akan diuji.
 - `criteria1`: Yang dicari dalam blok sel pertama: angka, teks, atau uji seperti ">5".
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## COVAR
 
@@ -306,8 +306,8 @@ Menghitung baris yang memenuhi beberapa kondisi sekaligus.
 
 Memberikan seberapa besar dua kumpulan angka bervariasi bersama.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## COVARIANCE.P
 
@@ -315,8 +315,8 @@ Memberikan seberapa besar dua kumpulan angka bervariasi bersama.
 
 Memberikan seberapa besar dua kumpulan angka bervariasi bersama, untuk populasi.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## COVARIANCE.S
 
@@ -324,14 +324,14 @@ Memberikan seberapa besar dua kumpulan angka bervariasi bersama, untuk populasi.
 
 Memberikan seberapa besar dua kumpulan angka bervariasi bersama, untuk sampel.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## CRITBINOM
 
 `CRITBINOM(trials, probability_s, alpha)`
 
-Memberikan jumlah keberhasilan terkecil yang peluang kumulatifnya mencapai suatu nilai.
+Memberikan jumlah keberhasilan terkecil yang jumlah kumulatif peluangnya mencapai suatu nilai.
 
 - `trials`: Jumlah percobaan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
@@ -341,10 +341,10 @@ Memberikan jumlah keberhasilan terkecil yang peluang kumulatifnya mencapai suatu
 
 `DEVSQ(number1, ...)`
 
-Memberikan jumlah kuadrat jarak setiap angka dari rata-ratanya.
+Memberikan jumlah kuadrat jarak angka-angka dari rata-ratanya.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## EXPON.DIST
 
@@ -354,7 +354,7 @@ Memberikan nilai atau proporsi kumulatif kurva eksponensial pada x.
 
 - `x`: Nilai x yang akan diproses.
 - `lambda`: Laju kurva, lebih dari 0.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## EXPONDIST
 
@@ -364,7 +364,7 @@ Memberikan nilai atau proporsi kumulatif kurva eksponensial pada x.
 
 - `x`: Nilai x yang akan diproses.
 - `lambda`: Laju kurva, lebih dari 0.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## F.DIST
 
@@ -375,7 +375,7 @@ Memberikan nilai atau proporsi kumulatif kurva F pada x.
 - `x`: Nilai x yang akan diproses.
 - `deg_freedom1`: Derajat kebebasan pembilang, bilangan bulat 1 atau lebih.
 - `deg_freedom2`: Derajat kebebasan penyebut, bilangan bulat 1 atau lebih.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## F.DIST.RT
 
@@ -391,9 +391,9 @@ Memberikan proporsi kurva F di atas x.
 
 `F.INV(probability, deg_freedom1, deg_freedom2)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva F, dihitung dari kiri.
+Memberikan nilai x untuk suatu proporsi kurva F, dihitung dari kiri.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom1`: Derajat kebebasan pembilang, bilangan bulat 1 atau lebih.
 - `deg_freedom2`: Derajat kebebasan penyebut, bilangan bulat 1 atau lebih.
 
@@ -401,9 +401,9 @@ Memberikan nilai x untuk proporsi tertentu pada kurva F, dihitung dari kiri.
 
 `F.INV.RT(probability, deg_freedom1, deg_freedom2)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva F, dihitung dari kanan.
+Memberikan nilai x untuk suatu proporsi kurva F, dihitung dari kanan.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom1`: Derajat kebebasan pembilang, bilangan bulat 1 atau lebih.
 - `deg_freedom2`: Derajat kebebasan penyebut, bilangan bulat 1 atau lebih.
 
@@ -413,8 +413,8 @@ Memberikan nilai x untuk proporsi tertentu pada kurva F, dihitung dari kanan.
 
 Memberikan peluang bahwa dua kumpulan angka memiliki varians yang sama.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## FDIST
 
@@ -430,9 +430,9 @@ Memberikan proporsi kurva F di atas x.
 
 `FINV(probability, deg_freedom1, deg_freedom2)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva F, dihitung dari kanan.
+Memberikan nilai x untuk suatu proporsi kurva F, dihitung dari kanan.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom1`: Derajat kebebasan pembilang, bilangan bulat 1 atau lebih.
 - `deg_freedom2`: Derajat kebebasan penyebut, bilangan bulat 1 atau lebih.
 
@@ -456,17 +456,52 @@ Memberikan invers dari transformasi Fisher.
 
 `FORECAST(x, known_y's, known_x's)`
 
-Memprediksi sebuah nilai pada garis lurus yang paling cocok.
+Memprediksi nilai pada garis lurus yang paling sesuai.
 
 - `x`: Nilai x yang akan diprediksi nilai y-nya.
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's`: Blok sel yang berisi nilai x yang sudah Anda miliki.
 
+## FORECAST.ETS
+
+`FORECAST.ETS(target_date, values, timeline, [seasonality], [data_completion], [aggregation])`
+
+Memprediksi nilai masa depan dari deret yang memiliki tren dan musim, dengan pemulusan eksponensial.
+
+- `target_date`: Waktu yang akan diprediksi nilainya.
+- `values`: Nilai yang sudah Anda miliki.
+- `timeline`: Tanggal atau angka dari nilai-nilai tersebut, dengan jarak yang sama.
+- `seasonality`: 1 untuk mencari musim dari nilai, 0 jika tidak ada, atau panjang musim.
+- `data_completion`: 1 untuk mengisi titik yang hilang dengan garis di antara tetangganya, 0 untuk mengisinya dengan nol.
+- `aggregation`: Cara nilai pada waktu yang sama digabungkan: 1 rata-rata, 2 hitung, 3 counta, 4 maks, 5 median, 6 min, 7 jumlah.
+
+## FORECAST.ETS.CONFINT
+
+`FORECAST.ETS.CONFINT(target_date, values, timeline, [confidence_level], [seasonality], [data_completion], [aggregation])`
+
+Memberikan seberapa jauh di atas dan di bawah prakiraan pemulusan nilai tersebut kemungkinan berada.
+
+- `confidence_level`: Angka di atas 0 dan di bawah 1, 0,95 jika dihilangkan.
+
+## FORECAST.ETS.SEASONALITY
+
+`FORECAST.ETS.SEASONALITY(values, timeline, [data_completion], [aggregation])`
+
+Memberikan panjang musim yang berulang dalam sebuah deret, atau 1 jika tidak ada.
+
+## FORECAST.ETS.STAT
+
+`FORECAST.ETS.STAT(values, timeline, statistic_type, [seasonality], [data_completion], [aggregation])`
+
+Memberikan salah satu konstanta pemulusan atau ukuran kesesuaian dari prakiraan pemulusan.
+
+- `statistic_type`: 1 Alfa, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 langkah dari garis waktu.
+
 ## FORECAST.LINEAR
 
 `FORECAST.LINEAR(x, known_y's, known_x's)`
 
-Memprediksi sebuah nilai pada garis lurus yang paling cocok.
+Memprediksi nilai pada garis lurus yang paling sesuai.
 
 - `x`: Nilai x yang akan diproses.
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
@@ -478,8 +513,8 @@ Memprediksi sebuah nilai pada garis lurus yang paling cocok.
 
 Menghitung berapa banyak nilai yang berada di setiap rentang, dan memberikan hitungannya sebagai kolom.
 
-- `data_array`: Blok sel yang berisi nilai yang akan dihitung.
-- `bins_array`: Blok sel yang berisi batas-batas rentang tempat menghitung.
+- `data_array`: Blok sel dengan nilai yang akan dihitung.
+- `bins_array`: Blok sel dengan batas-batas rentang tempat menghitung.
 
 ## FTEST
 
@@ -487,8 +522,8 @@ Menghitung berapa banyak nilai yang berada di setiap rentang, dan memberikan hit
 
 Memberikan peluang bahwa dua kumpulan angka memiliki varians yang sama.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## GAMMA
 
@@ -507,15 +542,15 @@ Memberikan nilai atau proporsi kumulatif kurva gamma pada x.
 - `x`: Nilai x yang akan diproses.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## GAMMA.INV
 
 `GAMMA.INV(probability, alpha, beta)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva gamma.
+Memberikan nilai x untuk suatu proporsi kurva gamma.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
 
@@ -528,15 +563,15 @@ Memberikan nilai atau proporsi kumulatif kurva gamma pada x.
 - `x`: Nilai x yang akan diproses.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## GAMMAINV
 
 `GAMMAINV(probability, alpha, beta)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva gamma.
+Memberikan nilai x untuk suatu proporsi kurva gamma.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
 
@@ -571,18 +606,18 @@ Memberikan proporsi kurva normal baku antara rata-rata dan z.
 Memberikan rata-rata geometrik dari angka-angka positif.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## GROWTH
 
 `GROWTH(known_y's, [known_x's], [new_x's], [const])`
 
-Memberikan nilai-nilai sepanjang kurva eksponensial yang paling cocok untuk nilai x baru.
+Memberikan nilai pada kurva eksponensial yang paling sesuai untuk nilai x baru.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's` (opsional): Blok sel yang berisi nilai x yang sudah Anda miliki.
-- `new_x's` (opsional): Nilai x yang akan diberikan nilai y-nya (nilai x yang diketahui jika dihilangkan).
-- `const` (opsional): TRUE atau dihilangkan untuk mencocokkan garis yang tidak harus melewati nol; FALSE untuk membuatnya melewati nol.
+- `new_x's` (opsional): Nilai x yang akan dicari nilai y-nya (nilai x yang sudah ada jika dihilangkan).
+- `const` (opsional): Benar atau dihilangkan untuk mencocokkan garis yang tidak harus melalui nol; salah untuk membuatnya melalui nol.
 
 ## HARMEAN
 
@@ -591,25 +626,25 @@ Memberikan nilai-nilai sepanjang kurva eksponensial yang paling cocok untuk nila
 Memberikan rata-rata harmonik dari angka-angka positif.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## HYPGEOM.DIST
 
 `HYPGEOM.DIST(sample_s, number_sample, population_s, number_pop, cumulative)`
 
-Memberikan peluang mengambil sejumlah keberhasilan tanpa mengembalikan item.
+Memberikan peluang memperoleh sejumlah keberhasilan saat mengambil item tanpa dikembalikan.
 
 - `sample_s`: Jumlah keberhasilan dalam sampel.
 - `number_sample`: Jumlah item yang diambil.
 - `population_s`: Jumlah keberhasilan dalam seluruh populasi.
 - `number_pop`: Jumlah item dalam seluruh populasi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## HYPGEOMDIST
 
 `HYPGEOMDIST(sample_s, number_sample, population_s, number_pop)`
 
-Memberikan peluang mengambil sejumlah keberhasilan tanpa mengembalikan item.
+Memberikan peluang memperoleh sejumlah keberhasilan saat mengambil item tanpa dikembalikan.
 
 - `sample_s`: Jumlah keberhasilan dalam sampel.
 - `number_sample`: Jumlah item yang diambil.
@@ -620,7 +655,7 @@ Memberikan peluang mengambil sejumlah keberhasilan tanpa mengembalikan item.
 
 `INTERCEPT(known_y's, known_x's)`
 
-Memberikan titik tempat garis lurus yang paling cocok memotong sumbu vertikal.
+Memberikan titik tempat garis lurus yang paling sesuai memotong sumbu vertikal.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's`: Blok sel yang berisi nilai x yang sudah Anda miliki.
@@ -632,27 +667,27 @@ Memberikan titik tempat garis lurus yang paling cocok memotong sumbu vertikal.
 Memberikan seberapa runcing atau datar kumpulan angka dibandingkan dengan kurva normal.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## LARGE
 
 `LARGE(array, k)`
 
-Memberikan angka ke-k terbesar dari suatu kumpulan.
+Memberikan angka terbesar ke-k dari suatu kumpulan.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `k`: Peringkat yang akan diberikan, dihitung dari yang terbesar: 1 adalah yang terbesar.
+- `k`: Urutan yang akan diberikan, dihitung dari yang terbesar: 1 adalah yang terbesar.
 
 ## LINEST
 
 `LINEST(known_y's, [known_x's], [const], [stats])`
 
-Mencocokkan garis lurus atau bidang dengan data menggunakan metode kuadrat terkecil, dan memberikan angkanya sebagai baris.
+Mencocokkan garis lurus atau bidang dengan data menggunakan kuadrat terkecil, dan memberikan angkanya sebagai baris.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's` (opsional): Blok sel yang berisi nilai x yang sudah Anda miliki.
-- `const` (opsional): TRUE atau dihilangkan untuk mencocokkan garis yang tidak harus melewati nol; FALSE untuk membuatnya melewati nol.
-- `stats` (opsional): TRUE untuk juga memberikan lebih banyak angka tentang kecocokan; FALSE atau dihilangkan untuk memberikan garisnya saja.
+- `const` (opsional): Benar atau dihilangkan untuk mencocokkan garis yang tidak harus melalui nol; salah untuk membuatnya melalui nol.
+- `stats` (opsional): Benar untuk memberikan juga angka tambahan tentang kecocokan; salah atau dihilangkan untuk memberikan garisnya saja.
 
 ## LOGEST
 
@@ -662,16 +697,16 @@ Mencocokkan kurva eksponensial dengan data, dan memberikan angkanya sebagai bari
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's` (opsional): Blok sel yang berisi nilai x yang sudah Anda miliki.
-- `const` (opsional): TRUE atau dihilangkan untuk mencocokkan garis yang tidak harus melewati nol; FALSE untuk membuatnya melewati nol.
-- `stats` (opsional): TRUE untuk juga memberikan lebih banyak angka tentang kecocokan; FALSE atau dihilangkan untuk memberikan garisnya saja.
+- `const` (opsional): Benar atau dihilangkan untuk mencocokkan garis yang tidak harus melalui nol; salah untuk membuatnya melalui nol.
+- `stats` (opsional): Benar untuk memberikan juga angka tambahan tentang kecocokan; salah atau dihilangkan untuk memberikan garisnya saja.
 
 ## LOGINV
 
 `LOGINV(probability, mean, standard_dev)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva log-normal.
+Memberikan nilai x untuk suatu proporsi kurva log-normal.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
 
@@ -684,15 +719,15 @@ Memberikan nilai atau proporsi kumulatif kurva log-normal pada x.
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## LOGNORM.INV
 
 `LOGNORM.INV(probability, mean, standard_dev)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva log-normal.
+Memberikan nilai x untuk suatu proporsi kurva log-normal.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
 
@@ -710,10 +745,10 @@ Memberikan proporsi kumulatif kurva log-normal pada x.
 
 `MAXA(value1, ...)`
 
-Memberikan nilai terbesar, dengan teks dihitung sebagai nol dan TRUE sebagai satu.
+Memberikan nilai terbesar, dengan menganggap teks sebagai nol dan benar sebagai satu.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MAXIFS
 
@@ -721,10 +756,10 @@ Memberikan nilai terbesar, dengan teks dihitung sebagai nol dan TRUE sebagai sat
 
 Memberikan angka terbesar di antara sel-sel yang memenuhi beberapa kondisi.
 
-- `max_range`: Sel-sel yang akan diambil nilai terbesarnya.
+- `max_range`: Sel tempat mengambil nilai terbesar.
 - `criteria_range1`: Blok sel pertama yang akan diuji.
 - `criteria1`: Yang dicari dalam blok sel pertama: angka, teks, atau uji seperti ">5".
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MEDIAN
 
@@ -733,16 +768,16 @@ Memberikan angka terbesar di antara sel-sel yang memenuhi beberapa kondisi.
 Memberikan angka tengah dari suatu kumpulan.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MINA
 
 `MINA(value1, ...)`
 
-Memberikan nilai terkecil, dengan teks dihitung sebagai nol dan TRUE sebagai satu.
+Memberikan nilai terkecil, dengan menganggap teks sebagai nol dan benar sebagai satu.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MINIFS
 
@@ -750,10 +785,10 @@ Memberikan nilai terkecil, dengan teks dihitung sebagai nol dan TRUE sebagai sat
 
 Memberikan angka terkecil di antara sel-sel yang memenuhi beberapa kondisi.
 
-- `min_range`: Sel-sel yang akan diambil nilai terkecilnya.
+- `min_range`: Sel tempat mengambil nilai terkecil.
 - `criteria_range1`: Blok sel pertama yang akan diuji.
 - `criteria1`: Yang dicari dalam blok sel pertama: angka, teks, atau uji seperti ">5".
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MODE
 
@@ -762,16 +797,16 @@ Memberikan angka terkecil di antara sel-sel yang memenuhi beberapa kondisi.
 Memberikan angka yang paling sering muncul.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MODE.MULT
 
 `MODE.MULT(number1, ...)`
 
-Memberikan kolom berisi angka-angka yang paling sering muncul dalam suatu kumpulan.
+Memberikan sebuah kolom berisi angka-angka yang paling sering muncul dalam suatu kumpulan.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## MODE.SNGL
 
@@ -780,24 +815,24 @@ Memberikan kolom berisi angka-angka yang paling sering muncul dalam suatu kumpul
 Memberikan angka yang paling sering muncul dalam suatu kumpulan.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## NEGBINOM.DIST
 
 `NEGBINOM.DIST(number_f, number_s, probability_s, cumulative)`
 
-Memberikan peluang sejumlah kegagalan sebelum sejumlah keberhasilan tercapai.
+Memberikan peluang sejumlah kegagalan sebelum sejumlah keberhasilan.
 
 - `number_f`: Jumlah kegagalan.
 - `number_s`: Jumlah keberhasilan.
 - `probability_s`: Peluang keberhasilan pada setiap percobaan, dari 0 sampai 1.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## NEGBINOMDIST
 
 `NEGBINOMDIST(number_f, number_s, probability_s)`
 
-Memberikan peluang sejumlah kegagalan sebelum sejumlah keberhasilan tercapai.
+Memberikan peluang sejumlah kegagalan sebelum sejumlah keberhasilan.
 
 - `number_f`: Jumlah kegagalan.
 - `number_s`: Jumlah keberhasilan.
@@ -812,15 +847,15 @@ Memberikan nilai atau proporsi kumulatif kurva normal pada x.
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## NORM.INV
 
 `NORM.INV(probability, mean, standard_dev)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva normal.
+Memberikan nilai x untuk suatu proporsi kurva normal.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
 
@@ -831,15 +866,15 @@ Memberikan nilai x untuk proporsi tertentu pada kurva normal.
 Memberikan nilai atau proporsi kumulatif kurva normal baku pada z.
 
 - `z`: Nilai z.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## NORM.S.INV
 
 `NORM.S.INV(probability)`
 
-Memberikan nilai z untuk proporsi tertentu pada kurva normal baku.
+Memberikan nilai z untuk suatu proporsi kurva normal baku.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 
 ## NORMDIST
 
@@ -850,15 +885,15 @@ Memberikan nilai atau proporsi kumulatif kurva normal pada x.
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## NORMINV
 
 `NORMINV(probability, mean, standard_dev)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva normal.
+Memberikan nilai x untuk suatu proporsi kurva normal.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `mean`: Rata-rata distribusi.
 - `standard_dev`: Simpangan baku distribusi.
 
@@ -874,9 +909,9 @@ Memberikan proporsi kumulatif kurva normal baku sampai z.
 
 `NORMSINV(probability)`
 
-Memberikan nilai z untuk proporsi tertentu pada kurva normal baku.
+Memberikan nilai z untuk suatu proporsi kurva normal baku.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 
 ## PEARSON
 
@@ -884,8 +919,8 @@ Memberikan nilai z untuk proporsi tertentu pada kurva normal baku.
 
 Memberikan seberapa erat dua kumpulan angka bergerak bersama, dari -1 sampai 1.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 
 ## PERCENTILE
 
@@ -894,7 +929,7 @@ Memberikan seberapa erat dua kumpulan angka bergerak bersama, dari -1 sampai 1.
 Memberikan nilai yang berada di bawah proporsi k dari angka-angka.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `k`: Proporsi nilai, dari 0 sampai 1, untuk memberikan nilainya.
+- `k`: Proporsi nilai, dari 0 sampai 1, untuk memberikan nilai tersebut.
 
 ## PERCENTILE.EXC
 
@@ -903,7 +938,7 @@ Memberikan nilai yang berada di bawah proporsi k dari angka-angka.
 Memberikan nilai yang berada di bawah proporsi k dari angka-angka, tanpa menyertakan 0 dan 1.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `k`: Posisi dalam urutan, dihitung dari 1.
+- `k`: Urutan dalam deret, dihitung dari 1.
 
 ## PERCENTILE.INC
 
@@ -912,7 +947,7 @@ Memberikan nilai yang berada di bawah proporsi k dari angka-angka, tanpa menyert
 Memberikan nilai yang berada di bawah proporsi k dari angka-angka, dari 0 sampai 1.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `k`: Posisi dalam urutan, dihitung dari 1.
+- `k`: Urutan dalam deret, dihitung dari 1.
 
 ## PERCENTRANK
 
@@ -948,7 +983,7 @@ Memberikan peringkat suatu nilai dalam kumpulan angka sebagai proporsi dari 0 sa
 
 `PERMUTATIONA(number, number_chosen)`
 
-Memberikan jumlah pilihan berurutan ketika sebuah item boleh dipilih lebih dari sekali.
+Memberikan jumlah pilihan berurutan saat sebuah item boleh dipilih lebih dari sekali.
 
 - `number`: Angka yang akan diproses.
 - `number_chosen`: Berapa item yang akan dipilih di setiap kelompok.
@@ -969,7 +1004,7 @@ Memberikan peluang sejumlah kejadian, dari berapa banyak yang diharapkan.
 
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## POISSON.DIST
 
@@ -979,16 +1014,16 @@ Memberikan peluang sejumlah kejadian, dari berapa banyak yang diharapkan.
 
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## PROB
 
 `PROB(x_range, prob_range, lower_limit, [upper_limit])`
 
-Memberikan peluang bahwa nilai-nilai berada di antara dua batas.
+Memberikan peluang bahwa nilai berada di antara dua batas.
 
-- `x_range`: Blok sel yang berisi nilai x.
-- `prob_range`: Peluang untuk setiap nilai x, masing-masing dari 0 sampai 1, dan jumlahnya 1.
+- `x_range`: Blok sel dengan nilai x.
+- `prob_range`: Peluang untuk setiap nilai x, masing-masing dari 0 sampai 1, dengan jumlah total 1.
 - `lower_limit`: Batas bawah rentang.
 - `upper_limit` (opsional): Batas atas rentang (hanya batas bawah jika dihilangkan).
 
@@ -996,38 +1031,38 @@ Memberikan peluang bahwa nilai-nilai berada di antara dua batas.
 
 `QUARTILE(array, quart)`
 
-Memberikan titik-titik kuartil dari suatu kumpulan angka.
+Memberikan titik kuartil dari suatu kumpulan angka.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `quart`: Kuartil yang dimaksud: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
+- `quart`: Kuartil yang mana: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
 
 ## QUARTILE.EXC
 
 `QUARTILE.EXC(array, quart)`
 
-Memberikan titik-titik kuartil dari suatu kumpulan angka, tanpa menyertakan ujung-ujungnya.
+Memberikan titik kuartil dari suatu kumpulan angka, tanpa menyertakan ujung-ujungnya.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `quart`: Kuartil yang dimaksud: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
+- `quart`: Kuartil yang mana: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
 
 ## QUARTILE.INC
 
 `QUARTILE.INC(array, quart)`
 
-Memberikan titik-titik kuartil dari suatu kumpulan angka, dari yang terendah sampai yang tertinggi.
+Memberikan titik kuartil dari suatu kumpulan angka, dari yang terendah sampai yang tertinggi.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `quart`: Kuartil yang dimaksud: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
+- `quart`: Kuartil yang mana: 0 terkecil, 1 kuartil pertama, 2 median, 3 kuartil ketiga, 4 terbesar.
 
 ## RANK
 
 `RANK(number, ref, [order])`
 
-Memberikan posisi suatu angka dalam daftar ketika daftar itu diurutkan.
+Memberikan urutan suatu angka dalam daftar saat daftar tersebut diurutkan.
 
 - `number`: Angka yang akan diproses.
 - `ref`: Sel atau blok sel.
-- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di urutan pertama; angka lain menempatkan yang terkecil di urutan pertama.
+- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di awal; angka lain menempatkan yang terkecil di awal.
 
 ## RANK.AVG
 
@@ -1037,7 +1072,7 @@ Memberikan peringkat suatu angka dalam daftar, dan peringkat rata-rata jika ada 
 
 - `number`: Angka yang akan diproses.
 - `ref`: Sel atau blok sel.
-- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di urutan pertama; angka lain menempatkan yang terkecil di urutan pertama.
+- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di awal; angka lain menempatkan yang terkecil di awal.
 
 ## RANK.EQ
 
@@ -1047,13 +1082,13 @@ Memberikan peringkat suatu angka dalam daftar, dan peringkat tertinggi jika ada 
 
 - `number`: Angka yang akan diproses.
 - `ref`: Sel atau blok sel.
-- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di urutan pertama; angka lain menempatkan yang terkecil di urutan pertama.
+- `order` (opsional): 0 atau dihilangkan menempatkan yang terbesar di awal; angka lain menempatkan yang terkecil di awal.
 
 ## RSQ
 
 `RSQ(known_y's, known_x's)`
 
-Memberikan seberapa baik garis lurus mencocokkan dua kumpulan angka.
+Memberikan seberapa baik garis lurus cocok dengan dua kumpulan angka.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's`: Blok sel yang berisi nilai x yang sudah Anda miliki.
@@ -1062,25 +1097,25 @@ Memberikan seberapa baik garis lurus mencocokkan dua kumpulan angka.
 
 `SKEW(number1, ...)`
 
-Memberikan seberapa miring suatu kumpulan angka di sekitar rata-ratanya, untuk sampel.
+Memberikan seberapa miring kumpulan angka di sekitar rata-ratanya, untuk sampel.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## SKEW.P
 
 `SKEW.P(number1, ...)`
 
-Memberikan seberapa miring suatu kumpulan angka di sekitar rata-ratanya, untuk seluruh populasi.
+Memberikan seberapa miring kumpulan angka di sekitar rata-ratanya, untuk seluruh populasi.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## SLOPE
 
 `SLOPE(known_y's, known_x's)`
 
-Memberikan kemiringan garis lurus yang paling cocok dengan dua kumpulan angka.
+Memberikan kemiringan garis lurus yang paling sesuai dengan dua kumpulan angka.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's`: Blok sel yang berisi nilai x yang sudah Anda miliki.
@@ -1089,16 +1124,16 @@ Memberikan kemiringan garis lurus yang paling cocok dengan dua kumpulan angka.
 
 `SMALL(array, k)`
 
-Memberikan angka ke-k terkecil dari suatu kumpulan.
+Memberikan angka terkecil ke-k dari suatu kumpulan.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `k`: Peringkat yang akan diberikan, dihitung dari yang terkecil: 1 adalah yang terkecil.
+- `k`: Urutan yang akan diberikan, dihitung dari yang terkecil: 1 adalah yang terkecil.
 
 ## STANDARDIZE
 
 `STANDARDIZE(x, mean, standard_dev)`
 
-Memberikan berapa simpangan baku suatu nilai dari rata-rata.
+Memberikan berapa simpangan baku nilai tersebut dari rata-rata.
 
 - `x`: Nilai x yang akan diproses.
 - `mean`: Rata-rata distribusi.
@@ -1108,10 +1143,10 @@ Memberikan berapa simpangan baku suatu nilai dari rata-rata.
 
 `STDEV(number1, ...)`
 
-Memperkirakan sebaran seluruh kelompok dari sampelnya.
+Memperkirakan sebaran seluruh kelompok dari sebuah sampel.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STDEV.P
 
@@ -1120,25 +1155,25 @@ Memperkirakan sebaran seluruh kelompok dari sampelnya.
 Memberikan sebaran seluruh kelompok.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STDEV.S
 
 `STDEV.S(number1, ...)`
 
-Memperkirakan sebaran seluruh kelompok dari sampelnya.
+Memperkirakan sebaran seluruh kelompok dari sebuah sampel.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STDEVA
 
 `STDEVA(value1, ...)`
 
-Memberikan simpangan baku sampel, dengan teks dihitung sebagai 0 dan TRUE sebagai 1.
+Memberikan simpangan baku sebuah sampel, dengan menganggap teks sebagai 0 dan benar sebagai 1.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STDEVP
 
@@ -1147,22 +1182,22 @@ Memberikan simpangan baku sampel, dengan teks dihitung sebagai 0 dan TRUE sebaga
 Memberikan sebaran seluruh kelompok.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STDEVPA
 
 `STDEVPA(value1, ...)`
 
-Memberikan simpangan baku populasi, dengan teks dihitung sebagai 0 dan TRUE sebagai 1.
+Memberikan simpangan baku sebuah populasi, dengan menganggap teks sebagai 0 dan benar sebagai 1.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## STEYX
 
 `STEYX(known_y's, known_x's)`
 
-Memberikan galat baku dari nilai y yang diprediksi oleh garis yang dicocokkan.
+Memberikan galat baku dari nilai y yang diprediksi pada garis yang dicocokkan.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's`: Blok sel yang berisi nilai x yang sudah Anda miliki.
@@ -1175,7 +1210,7 @@ Menjumlahkan sel-sel yang memenuhi suatu kondisi.
 
 - `range`: Blok sel yang akan diuji.
 - `criteria`: Yang dicari: angka, teks, atau uji seperti ">5".
-- `sum_range` (opsional): Sel-sel yang akan dijumlahkan (sel yang diuji jika dihilangkan).
+- `sum_range` (opsional): Sel yang akan dijumlahkan (sel yang diuji jika dihilangkan).
 
 ## SUMIFS
 
@@ -1183,10 +1218,10 @@ Menjumlahkan sel-sel yang memenuhi suatu kondisi.
 
 Menjumlahkan sel-sel yang memenuhi beberapa kondisi.
 
-- `sum_range`: Sel-sel yang akan dijumlahkan (sel yang diuji jika dihilangkan).
+- `sum_range`: Sel yang akan dijumlahkan (sel yang diuji jika dihilangkan).
 - `criteria_range1`: Blok sel pertama yang akan diuji.
 - `criteria1`: Yang dicari dalam blok sel pertama: angka, teks, atau uji seperti ">5".
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## T.DIST
 
@@ -1196,7 +1231,7 @@ Memberikan nilai atau proporsi kumulatif kurva t Student pada x.
 
 - `x`: Nilai x yang akan diproses.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## T.DIST.2T
 
@@ -1220,28 +1255,28 @@ Memberikan proporsi kurva t Student di atas x.
 
 `T.INV(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva t Student, dihitung dari kiri.
+Memberikan nilai x untuk suatu proporsi kurva t Student, dihitung dari kiri.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## T.INV.2T
 
 `T.INV.2T(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva t Student, yang dibagi di kedua ekor.
+Memberikan nilai x untuk suatu proporsi kurva t Student, dibagi di kedua ekor.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## T.TEST
 
 `T.TEST(array1, array2, tails, type)`
 
-Memberikan peluang bahwa rata-rata dari dua kumpulan angka sama.
+Memberikan peluang bahwa rata-rata dua kumpulan angka sama.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 - `tails`: 1 untuk satu ekor kurva, 2 untuk kedua ekor.
 - `type`: Kapan pembayaran dilakukan: 0 atau dihilangkan di akhir setiap periode, 1 di awal.
 
@@ -1249,7 +1284,7 @@ Memberikan peluang bahwa rata-rata dari dua kumpulan angka sama.
 
 `TDIST(x, deg_freedom, tails)`
 
-Memberikan proporsi kurva t Student pada satu ekor atau kedua ekor.
+Memberikan proporsi kurva t Student di satu ekor atau di kedua ekor.
 
 - `x`: Nilai x yang akan diproses.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
@@ -1259,39 +1294,39 @@ Memberikan proporsi kurva t Student pada satu ekor atau kedua ekor.
 
 `TINV(probability, deg_freedom)`
 
-Memberikan nilai x untuk proporsi tertentu pada kurva t Student, yang dibagi di kedua ekor.
+Memberikan nilai x untuk suatu proporsi kurva t Student, dibagi di kedua ekor.
 
-- `probability`: Probabilitas, dari 0 sampai 1.
+- `probability`: Peluang, dari 0 sampai 1.
 - `deg_freedom`: Derajat kebebasan, bilangan bulat 1 atau lebih.
 
 ## TREND
 
 `TREND(known_y's, [known_x's], [new_x's], [const])`
 
-Memberikan nilai-nilai sepanjang garis lurus yang paling cocok untuk nilai x baru.
+Memberikan nilai pada garis lurus yang paling sesuai untuk nilai x baru.
 
 - `known_y's`: Blok sel yang berisi nilai y yang sudah Anda miliki.
 - `known_x's` (opsional): Blok sel yang berisi nilai x yang sudah Anda miliki.
-- `new_x's` (opsional): Nilai x yang akan diberikan nilai y-nya (nilai x yang diketahui jika dihilangkan).
-- `const` (opsional): TRUE atau dihilangkan untuk mencocokkan garis yang tidak harus melewati nol; FALSE untuk membuatnya melewati nol.
+- `new_x's` (opsional): Nilai x yang akan dicari nilai y-nya (nilai x yang sudah ada jika dihilangkan).
+- `const` (opsional): Benar atau dihilangkan untuk mencocokkan garis yang tidak harus melalui nol; salah untuk membuatnya melalui nol.
 
 ## TRIMMEAN
 
 `TRIMMEAN(array, percent)`
 
-Memberikan rata-rata dari suatu kumpulan angka setelah memotong proporsi tertinggi dan terendah.
+Memberikan rata-rata dari sekumpulan angka setelah memotong proporsi nilai tertinggi dan terendah.
 
 - `array`: Blok sel, atau daftar nilai yang ditulis dalam kurung kurawal.
-- `percent`: Proporsi nilai, dari 0 hingga kurang dari 1, yang akan dihilangkan di kedua ujungnya.
+- `percent`: Proporsi nilai, dari 0 hingga kurang dari 1, yang dihilangkan di kedua ujung.
 
 ## TTEST
 
 `TTEST(array1, array2, tails, type)`
 
-Memberikan peluang bahwa rata-rata dari dua kumpulan angka sama.
+Memberikan peluang bahwa rata-rata dua kumpulan angka sama.
 
-- `array1`: Blok sel atau daftar nilai pertama.
-- `array2`: Blok sel atau daftar nilai kedua, dengan ukuran sama dengan yang pertama.
+- `array1`: Blok sel pertama atau daftar nilai.
+- `array2`: Blok sel kedua atau daftar nilai, dengan ukuran yang sama dengan yang pertama.
 - `tails`: 1 untuk satu ekor kurva, 2 untuk kedua ekor.
 - `type`: Kapan pembayaran dilakukan: 0 atau dihilangkan di akhir setiap periode, 1 di awal.
 
@@ -1299,10 +1334,10 @@ Memberikan peluang bahwa rata-rata dari dua kumpulan angka sama.
 
 `VAR(number1, ...)`
 
-Memperkirakan varians seluruh kelompok dari sampelnya.
+Memperkirakan varians seluruh kelompok dari sebuah sampel.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## VAR.P
 
@@ -1311,25 +1346,25 @@ Memperkirakan varians seluruh kelompok dari sampelnya.
 Memberikan varians seluruh kelompok.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## VAR.S
 
 `VAR.S(number1, ...)`
 
-Memperkirakan varians seluruh kelompok dari sampelnya.
+Memperkirakan varians seluruh kelompok dari sebuah sampel.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## VARA
 
 `VARA(value1, ...)`
 
-Memberikan varians sampel, dengan teks dihitung sebagai 0 dan TRUE sebagai 1.
+Memberikan varians sebuah sampel, dengan menganggap teks sebagai 0 dan benar sebagai 1.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## VARP
 
@@ -1338,16 +1373,16 @@ Memberikan varians sampel, dengan teks dihitung sebagai 0 dan TRUE sebagai 1.
 Memberikan varians seluruh kelompok.
 
 - `number1`: Angka pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## VARPA
 
 `VARPA(value1, ...)`
 
-Memberikan varians populasi, dengan teks dihitung sebagai 0 dan TRUE sebagai 1.
+Memberikan varians sebuah populasi, dengan menganggap teks sebagai 0 dan benar sebagai 1.
 
 - `value1`: Nilai pertama, atau blok sel.
-- `...`: Sebanyak yang Anda perlukan lagi, dengan jenis yang sama seperti argumen sebelumnya.
+- `...`: Sebanyak tambahan yang Anda perlukan, dengan jenis yang sama seperti argumen sebelumnya.
 
 ## WEIBULL
 
@@ -1358,7 +1393,7 @@ Memberikan nilai atau proporsi kumulatif kurva Weibull pada x.
 - `x`: Nilai x yang akan diproses.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## WEIBULL.DIST
 
@@ -1369,7 +1404,7 @@ Memberikan nilai atau proporsi kumulatif kurva Weibull pada x.
 - `x`: Nilai x yang akan diproses.
 - `alpha`: Peluang salah yang Anda terima, misalnya 0,05 untuk tingkat kepercayaan 95 persen.
 - `beta`: Angka yang membentuk kurva (skala kurva untuk kurva gamma dan Weibull).
-- `cumulative`: TRUE untuk memberikan jumlah kumulatif sampai titik ini; FALSE untuk memberikan nilai pada titik ini saja.
+- `cumulative`: Benar untuk memberikan jumlah kumulatif sampai titik ini; salah untuk memberikan nilai pada titik ini saja.
 
 ## Z.TEST
 

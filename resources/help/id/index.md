@@ -1,13 +1,13 @@
-# Bantuan JeffPub
+# JeffPub Bantuan
 <!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, kotak dialog yang terbuka, atau objek yang sedang Anda pilih.
+Ketik di kotak pencarian di atas untuk menemukan topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, kotak dialog yang terbuka, atau objek yang sedang Anda pilih.
 
 ## Memulai
 
 - [Selamat datang di JeffPub](start)
 - [Mengenal jendela](window)
-- [Membuat publikasi baru](create)
+- [Memulai publikasi baru](create)
 - [Membuka dan menyimpan publikasi](open-save)
 - [Bekerja dengan berkas .pub](pub-files)
 - [Memulihkan pekerjaan yang belum disimpan](recover)
@@ -34,14 +34,14 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 - [Menggambar bentuk dan garis](shapes)
 - [Menambahkan bagan](charts)
 - [Ikon, kode batang, dan objek lainnya](insert-objects)
-- [Memindahkan, merata-kan, mengelompokkan, dan mengatur lapisan objek](arrange)
+- [Memindahkan, meratakan, mengelompokkan, dan mengatur lapisan objek](arrange)
 - [Membungkus teks di sekitar objek](wrap)
 
 ## Halaman
 
 - [Ukuran halaman, margin, dan tata letak](page-setup)
 - [Skema warna dan font](color-schemes)
-- [Mengganti templat publikasi](change-template)
+- [Mengubah templat publikasi](change-template)
 - [Halaman master, header, dan nomor halaman](master-pages)
 - [Menambahkan, memindahkan, dan menghapus halaman](pages)
 - [Penggaris, panduan, dan tarik ke panduan](guides)
@@ -53,7 +53,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin d
 ## Cetak dan bagikan
 
 - [Mencetak publikasi](printing)
-- [Berkas PDF dan percetakan komersial](pdf)
+- [Berkas PDF dan percetakan](pdf)
 - [Simpan sebagai gambar, halaman web, atau e-book](export)
 
 ## Bantuan dan pengaturan
