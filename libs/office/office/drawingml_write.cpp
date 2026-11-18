@@ -1096,7 +1096,7 @@ int connectionPoints(const Item &target)
     if (target.type() != ItemType::Shape) return 0;
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return 0;
-    return int(connectionSites(s.shape, s.rect.size(), s.adj).size());
+    return int(connectionSites(s.shape, s.rect.size()).size());
 }
 
 // Which of an object's connection points is the one on each of its sides (top, left, bottom, right), by the standard's numbers.
@@ -1105,7 +1105,7 @@ QVector<int> connectionSideSites(const Item &target)
     QVector<int> out = {0, 1, 2, 3};
     if (target.type() != ItemType::Shape) return out;
     const auto &s = static_cast<const ShapeItem &>(target);
-    for (int side = 0; side < 4; ++side) out[side] = sideConnectionSite(s.shape, s.rect.size(), s.adj, side);
+    for (int side = 0; side < 4; ++side) out[side] = sideConnectionSite(s.shape, s.rect.size(), {}, side);
     return out;
 }
 

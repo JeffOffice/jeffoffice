@@ -254,7 +254,7 @@ int connectionSiteOf(const Item &target, qint64 index)
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return -1;
     for (int side = 0; side < 4; ++side)
-        if (index >= 0 && sideConnectionSite(s.shape, s.rect.size(), s.adj, side) == index) return side;
+        if (index >= 0 && sideConnectionSite(s.shape, s.rect.size(), {}, side) == index) return side;
     return -1;
 }
 

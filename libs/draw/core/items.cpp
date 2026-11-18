@@ -1064,19 +1064,16 @@ QPointF connectionSite(const Item &it, int site, bool *vertical)
     QPointF l(at[site].x() * sz.width(), at[site].y() * sz.height());
     // A shape with sites of its own is glued where the standard puts the one on that side.
     QString preset;
-    QVector<double> adjust;
     if (it.type() == ItemType::Shape && static_cast<const ShapeItem &>(it).customPath.isEmpty()) {
         preset = static_cast<const ShapeItem &>(it).shape;
-        adjust = static_cast<const ShapeItem &>(it).adj;
     } else if (it.type() == ItemType::Text && static_cast<const TextItem &>(it).customPath.isEmpty()) {
         preset = static_cast<const TextItem &>(it).shape;
-        adjust = static_cast<const TextItem &>(it).adj;
     }
     double angle = 0;
     bool real = false;
     if (!preset.isEmpty() && hasConnectionSites(preset)) {
-        const int index = sideConnectionSite(preset, sz, adjust, site);
-        const QVector<ConnectionSite> sites = connectionSites(preset, sz, adjust);
+        const int index = sideConnectionSite(preset, sz, {}, site);
+        const QVector<ConnectionSite> sites = connectionSites(preset, sz);
         if (index >= 0 && index < sites.size()) {
             l = sites[index].at;
             angle = sites[index].angle * M_PI / 180;

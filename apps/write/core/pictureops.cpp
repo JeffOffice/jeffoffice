@@ -3571,12 +3571,12 @@ namespace {
 
 // The connection sites of a shape in the order the drawing format counts them (libs/draw/core/connsites.h); a shape that has no list there has the four sides' middles, top, left,
 // bottom, and right.
-QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
+QVector<QPointF> connectionSites(const QRectF &r, const QString &preset, const QHash<QString, double> &adjust = {})
 {
     const QPointF c = r.center();
     if (hasConnectionSites(preset)) {
         QVector<QPointF> out;
-        for (const ConnectionSite &s : jp::connectionSites(preset, r.size())) out.push_back(r.topLeft() + s.at);
+        for (const ConnectionSite &s : jp::connectionSites(preset, r.size(), adjust)) out.push_back(r.topLeft() + s.at);
         return out;
     }
     // (Any other shape of the library: where a line from the middle meets its outline going up, left, down, and right, which for a rectangle, a diamond, and the arrows is the middle of
@@ -3607,12 +3607,28 @@ QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
 }
 
 // The place of a site, from the shape's list; a number the shape has no site for (a file from another program counts sites its own way) is none, and the connector stays where the file put it.
-bool connectionSite(const QRectF &r, const QString &preset, int index, QPointF *at)
+bool connectionSite(const QRectF &r, const QString &preset, const QHash<QString, double> &adjust, int index, QPointF *at)
 {
-    const QVector<QPointF> sites = connectionSites(r, preset);
+    const QVector<QPointF> sites = connectionSites(r, preset, adjust);
     if (index < 0 || index >= sites.size()) return false;
     *at = sites[index];
     return true;
+}
+
+// The adjustments a shape's geometry names, by the standard's names ("adj1"), in the standard's units.
+QHash<QString, double> adjustmentsOf(const QByteArray &graphic)
+{
+    QHash<QString, double> out;
+    const qsizetype start = graphic.indexOf("<a:prstGeom");
+    const qsizetype end = start < 0 ? -1 : graphic.indexOf("</a:prstGeom>", start);
+    if (end < 0) return out;
+    static const QRegularExpression gd(QStringLiteral("<a:gd\\s+name=\"([A-Za-z0-9]{1,16})\"\\s+fmla=\"val\\s+(-?[0-9]{1,15})\""));
+    const QString text = QString::fromUtf8(graphic.mid(start, end - start));
+    for (auto it = gd.globalMatch(text); it.hasNext() && out.size() < 16;) {
+        const auto m = it.next();
+        out.insert(m.captured(1), m.captured(2).toDouble());
+    }
+    return out;
 }
 
 // The ids (a drawing's wp:docPr id) of what a connector is glued to, and the sites; -1 for an end that is free.
@@ -3702,6 +3718,7 @@ PictureResult connectObjects(WriteDoc &doc, int from, const QRectF &fromRect, in
     if (!kinds.contains(preset) || from == to || !fromRect.isValid() || !toRect.isValid()) return PictureResult::Refused;
     int ids[2] = {0, 0};
     QString presets[2];
+    QHash<QString, double> adjusts[2];
     int at = 0;
     for (const int p : {from, to}) {
         Inline atom;
@@ -3711,11 +3728,12 @@ PictureResult connectObjects(WriteDoc &doc, int from, const QRectF &fromRect, in
         if (info.kind == DrawnKind::Line) return PictureResult::Refused;
         ids[at] = attributeValue(m.docPr, "id").toInt();
         presets[at] = info.preset;
+        adjusts[at] = adjustmentsOf(m.graphic);
         ++at;
     }
     if (ids[0] <= 0 || ids[1] <= 0 || ids[0] == ids[1]) return PictureResult::Refused;
     // The two sites that are nearest each other.
-    const QVector<QPointF> a = connectionSites(fromRect, presets[0]), b = connectionSites(toRect, presets[1]);
+    const QVector<QPointF> a = connectionSites(fromRect, presets[0], adjusts[0]), b = connectionSites(toRect, presets[1], adjusts[1]);
     int bestA = 0, bestB = 0;
     double best = -1;
     for (int i = 0; i < a.size(); ++i)
@@ -3796,6 +3814,7 @@ int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &move
             Inline atom;
             Model model;
             QString preset;
+            QHash<QString, double> adjust;
             QRectF shown = rect;
             if (drawingAtomOf(formatAfter(story, pos), &atom) && parseDrawing(atom.raw, &model)) {
                 QVector<GroupPart> parts;
@@ -3807,16 +3826,18 @@ int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &move
                             shown = QRectF(rect.left() + gp.x / kEmuPerPoint, rect.top() + gp.y / kEmuPerPoint, gp.cx / kEmuPerPoint, gp.cy / kEmuPerPoint);
                             const qsizetype p = gp.element.indexOf("prst=\"");
                             if (p >= 0) preset = QString::fromUtf8(gp.element.mid(p + 6, gp.element.indexOf('"', p + 6) - p - 6));
+                            adjust = adjustmentsOf(gp.element);
                             found = true;
                         }
                     if (!found) ok = false;
                 } else {
                     preset = pictureAt(doc, story, pos).preset;
+                    adjust = adjustmentsOf(model.graphic);
                 }
             } else {
                 ok = false;
             }
-            if (ok) ok = connectionSite(shown, preset, site, &ends[side]);
+            if (ok) ok = connectionSite(shown, preset, adjust, site, &ends[side]);
         }
         if (!ok) continue;
         if (changePicture(doc, cp, [&](Model &model) {

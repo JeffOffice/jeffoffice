@@ -3777,23 +3777,63 @@ private Q_SLOTS:
 
     void everyPresetHasTheStandardsSiteCountAndItsSitesLieInTheBox()
     {
-        const QHash<QString, int> counts = {{"rect", 4}, {"roundRect", 4}, {"diamond", 4}, {"ellipse", 8}, {"triangle", 6}, {"rtTriangle", 6}, {"trapezoid", 4}, {"hexagon", 6}, {"octagon", 8},
-                                            {"pentagon", 5}, {"heptagon", 7}, {"decagon", 10}, {"dodecagon", 12}, {"star5", 10}, {"star4", 4}, {"rightArrow", 4}, {"upArrow", 4},
-                                            {"flowChartConnector", 8}, {"flowChartProcess", 4}, {"donut", 8}, {"cloud", 4}, {"noSuchShape", 4}};
-        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it)
+        // Every preset that the standard gives sites to (174 of its 187) has as many as the standard lists, at any size.
+        const QStringList presets = jp::presetsWithConnectionSites();
+        QCOMPARE(int(presets.size()), 174);
+        for (const QString &name : presets)
             for (const QSizeF size : {QSizeF(100, 100), QSizeF(300, 40), QSizeF(30, 200)}) {
-                const QVector<jp::ConnectionSite> sites = jp::connectionSites(it.key(), size);
-                QVERIFY2(sites.size() == it.value(), qPrintable(it.key() + ": " + QString::number(sites.size())));
-                for (const jp::ConnectionSite &site : sites)
-                    QVERIFY2(site.at.x() >= -1e-6 && site.at.x() <= size.width() + 1e-6 && site.at.y() >= -1e-6 && site.at.y() <= size.height() + 1e-6, qPrintable(it.key()));
+                const int count = jp::standardConnectionSiteCount(name);
+                QVERIFY2(count > 0, qPrintable(name));
+                QVERIFY2(jp::connectionSites(name, size).size() == count, qPrintable(name));
+                QVERIFY(jp::hasConnectionSites(name));
             }
-        // The ellipse's order: top, then counterclockwise; a shape with no list of its own has the four sides.
+        // The counts the standard gives some well-known ones.
+        const QHash<QString, int> counts = {{"rect", 4}, {"roundRect", 4}, {"diamond", 4}, {"ellipse", 8}, {"triangle", 6}, {"octagon", 8}, {"hexagon", 6}, {"star5", 5}, {"star4", 4}};
+        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it) QCOMPARE(jp::standardConnectionSiteCount(it.key()), it.value());
+        // A shape's sites lie on or inside its box, within the standard's own rounding (the sites of a callout may lie outside it, so callouts are not asked).
+        for (const QString &name : {"rect", "roundRect", "diamond", "ellipse", "triangle", "rtTriangle", "trapezoid", "hexagon", "octagon", "pentagon", "heptagon", "decagon", "dodecagon", "star4", "star5",
+                                    "star6", "star8", "rightArrow", "upArrow", "flowChartConnector", "flowChartDecision", "donut", "plus", "heart", "cloud"})
+            for (const QSizeF size : {QSizeF(100, 100), QSizeF(300, 40), QSizeF(30, 200)})
+                for (const jp::ConnectionSite &site : jp::connectionSites(name, size))
+                    QVERIFY2(site.at.x() >= -0.01 && site.at.x() <= size.width() + 0.01 && site.at.y() >= -0.01 && site.at.y() <= size.height() + 0.01, qPrintable(name));
+        // A preset with no list (a line) has the four sides; so has a name the library does not know.
+        QVERIFY(!jp::hasConnectionSites(QStringLiteral("noSuchShape")));
+        QCOMPARE(jp::standardConnectionSiteCount(QStringLiteral("noSuchShape")), -1);
+        QCOMPARE(jp::connectionSites(QStringLiteral("noSuchShape"), QSizeF(100, 60))[3].at, QPointF(100, 30));
+    }
+
+    void connectionSitesAreWhereTheStandardsFormulasPutThem()
+    {
+        const auto near = [](const QPointF &a, const QPointF &b) { return std::abs(a.x() - b.x()) < 1e-6 && std::abs(a.y() - b.y()) < 1e-6; };
+        // A star has five: the top point first, then the others counterclockwise, on its outline.
+        const QVector<jp::ConnectionSite> star = jp::connectionSites(QStringLiteral("star5"), QSizeF(100, 100));
+        QCOMPARE(int(star.size()), 5);
+        QVERIFY(near(star[0].at, QPointF(50, 0)));
+        QVERIFY(star[0].angle == 270 && star[1].angle == 180 && star[4].angle == 0);
+        QVERIFY(star[1].at.x() < 50 && star[1].at.y() < 50 && star[4].at.x() > 50 && star[4].at.y() < 50);
+        QVERIFY(std::abs(star[2].at.y() - star[3].at.y()) < 1e-6 && star[2].at.y() > 90);
+        // The triangle's apex is half way across at the top, the others as the standard lists them.
+        const QVector<jp::ConnectionSite> tri = jp::connectionSites(QStringLiteral("triangle"), QSizeF(120, 80));
+        QCOMPARE(int(tri.size()), 6);
+        QVERIFY(near(tri[0].at, QPointF(60, 0)) && near(tri[1].at, QPointF(30, 40)) && near(tri[2].at, QPointF(0, 80)) && near(tri[3].at, QPointF(60, 80)) &&
+                near(tri[4].at, QPointF(120, 80)) && near(tri[5].at, QPointF(90, 40)));
+        // An adjustment moves them: with the apex at the left edge the others follow.
+        const QVector<jp::ConnectionSite> lean = jp::connectionSites(QStringLiteral("triangle"), QSizeF(120, 80), {{QStringLiteral("adj"), 0}});
+        QVERIFY(near(lean[0].at, QPointF(0, 0)) && near(lean[1].at, QPointF(0, 40)) && near(lean[5].at, QPointF(60, 40)));
+        // The octagon's first site is on its right side, a corner's depth down (29289 of the shorter side).
+        const QVector<jp::ConnectionSite> oct = jp::connectionSites(QStringLiteral("octagon"), QSizeF(200, 100));
+        QCOMPARE(int(oct.size()), 8);
+        QVERIFY(near(oct[0].at, QPointF(200, 29.289)) && oct[0].angle == 0);
+        QVERIFY(near(jp::connectionSites(QStringLiteral("octagon"), QSizeF(200, 100), {{QStringLiteral("adj"), 50000}})[0].at, QPointF(200, 50)));
+        // An ellipse's order: the top, then counterclockwise; its fourth is the bottom left.
         const QVector<jp::ConnectionSite> e = jp::connectionSites(QStringLiteral("ellipse"), QSizeF(100, 60));
-        QVERIFY(std::abs(e[0].at.x() - 50) < 1e-6 && std::abs(e[0].at.y()) < 1e-6);
-        QVERIFY(std::abs(e[2].at.x()) < 1e-6 && std::abs(e[2].at.y() - 30) < 1e-6);
-        QVERIFY(e[3].at.x() > 0 && e[3].at.x() < 50 && e[3].at.y() > 30 && e[3].at.y() < 60);
-        QVERIFY(!jp::hasConnectionSites(QStringLiteral("cloud")));
-        QCOMPARE(jp::connectionSites(QStringLiteral("cloud"), QSizeF(100, 60))[3].at, QPointF(100, 30));
+        QCOMPARE(int(e.size()), 8);
+        QVERIFY(near(e[0].at, QPointF(50, 0)) && near(e[2].at, QPointF(0, 30)) && near(e[4].at, QPointF(50, 60)) && near(e[6].at, QPointF(100, 30)));
+        QVERIFY(e[3].at.x() < 50 && e[3].at.x() > 0 && e[3].at.y() > 30 && e[3].at.y() < 60);
+        // The shape library's own names are understood.
+        QCOMPARE(int(jp::connectionSites(QStringLiteral("fcConnector"), QSizeF(100, 60)).size()), 8);
+        // A rounded rectangle keeps its four sides whatever its corners.
+        QVERIFY(near(jp::connectionSites(QStringLiteral("roundRect"), QSizeF(100, 60), {{QStringLiteral("adj"), 50000}})[1].at, QPointF(0, 30)));
     }
 
     void aConnectorGluedToANonSideSiteFollowsItsShapeAndAnIndexPastTheCountStaysPut()
@@ -3842,7 +3882,7 @@ private Q_SLOTS:
         };
         auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(120, 120, "ellipse"), 60, 20, 120, 120) + anchoredGraphic(2, kShapeUri, plainShape(120, 120, "star5"), 60, 200, 120, 120) +
                                  anchoredGraphic(3, kShapeUri, plainShape(60, 40, "rect"), 300, 20, 60, 40) + anchoredGraphic(4, kShapeUri, plainShape(60, 40, "rect"), 300, 240, 60, 40) +
-                                 connector(5, 1, 3, 3, 1) + connector(6, 1, 5, 4, 1) + connector(7, 2, 3, 3, 0) + connector(8, 2, 7, 4, 3) + "</w:p>"));
+                                 connector(5, 1, 3, 3, 1) + connector(6, 1, 5, 4, 1) + connector(7, 2, 3, 3, 0) + connector(8, 2, 1, 4, 3) + "</w:p>"));
         QVERIFY(doc);
         QVERIFY(rerouteConnectors(*doc, {{0, QRectF(60, 20, 120, 120)}, {1, QRectF(60, 200, 120, 120)}}, [](int p, QRectF *r) {
             *r = p == 2 ? QRectF(300, 20, 60, 40) : QRectF(300, 240, 60, 40);
