@@ -90,6 +90,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Monitors"),
     QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Notes Master"),
+    QT_TRANSLATE_NOOP("Ribbon", "Object"),
     QT_TRANSLATE_NOOP("Ribbon", "Operators"),
     QT_TRANSLATE_NOOP("Ribbon", "Page Setup"),
     QT_TRANSLATE_NOOP("Ribbon", "Paragraph"),

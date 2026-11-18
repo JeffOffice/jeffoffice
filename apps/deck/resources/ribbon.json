@@ -18,6 +18,7 @@
                 "edit.paste",
                 "edit.pasteText",
                 "edit.pasteCells",
+                "edit.pasteObject",
                 "edit.pasteSpecial"
               ]
             },
@@ -443,6 +444,19 @@
             {
               "large": "insert.icons",
               "keytip": "IC"
+            },
+            {
+              "large": {
+                "id": "ribbon.object",
+                "text": "Object",
+                "icon": "box"
+              },
+              "keytip": "OB",
+              "menu": [
+                "insert.object.range",
+                "insert.object.chart",
+                "insert.object.page"
+              ]
             },
             {
               "large": {

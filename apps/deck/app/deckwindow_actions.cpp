@@ -250,6 +250,7 @@ void DeckWindow::createInsertActions()
     }
     mk("insert.slideNumberSkipTitle", tr("Don't Show on Title Slide"), "", QKeySequence(), [this] { setSlideNumberSkipsTitle(act("insert.slideNumberSkipTitle")->isChecked()); }, true);
     createPictureActions();
+    createObjectActions();
     createEquationActions();
 }
 

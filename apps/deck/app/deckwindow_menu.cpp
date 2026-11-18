@@ -35,6 +35,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         options->menuAction()->setObjectName(QStringLiteral("edit.pasteOptions"));
         options->addAction(act("edit.pasteKeep"));
         options->addAction(act("edit.pasteText"));
+        options->addAction(act("edit.pasteObject"));
         options->addAction(act("edit.pasteSpecial"));
     };
     const QString kind = m_ed->selectionKind();

@@ -618,6 +618,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_info.cpp
   tests/deck/tst_deck_language.cpp
   tests/deck/tst_deck_master.cpp
+  tests/deck/tst_deck_objects.cpp
   tests/deck/tst_deck_media.cpp
   tests/deck/tst_deck_odp.cpp
   tests/deck/tst_deck_output.cpp

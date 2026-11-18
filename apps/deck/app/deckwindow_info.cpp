@@ -151,6 +151,10 @@ QWidget *DeckWindow::buildInfoPage(QWidget *parent)
         hideFileScreen();
         act(QStringLiteral("review.accessibility"))->trigger();
     };
+    h.extraCards.push_back({QStringLiteral("objectsCard"), QStringLiteral("boxes"), tr("Objects"), tr("The pieces of other programs in the presentation: what each is, and opening, turning into a picture, or deleting it."), [this] {
+        hideFileScreen();
+        showObjects();
+    }});
     h.thumbnail = [this] {
         const Document *d = m_ed->doc();
         return d && !d->pages.isEmpty() ? deck::slideImage(*d, &m_ed->cache(), 0, 480) : QImage();

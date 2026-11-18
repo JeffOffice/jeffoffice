@@ -19,6 +19,8 @@
 #include "office/packageprops.h"
 #include "office/themelib.h"
 #include "app/slideshow.h"
+#include "app/objects.h"
+#include "app/objectsdialog.h"
 
 #include <QHash>
 #include <QKeySequence>
@@ -275,6 +277,16 @@ public:
     // The Online Pictures pane on the right (Insert > Pictures > Online Pictures), once it has been opened: a
     // picture chosen in it is put on the slide, with its credit under it when asked.
     OnlinePicturesPane *onlinePictures() const { return m_online; }
+    // Objects of other apps (Insert > Object, Paste Special, the list in File > Info). The program that edits an object, and how it is opened, is the window's own EmbeddedEdit (tests give it an
+    // opener of their own); the box that asks where an object comes from is the shared one unless this stands in for it (tests).
+    EmbeddedEdit *objectEditor();
+    void setObjectSourceAsker(const std::function<bool(objects::Source, bool, objects::SourceChoice *)> &asker) { m_objectAsker = asker; }
+    bool insertObjectFrom(objects::Source source, const QString &path, const QString &detail);
+    bool insertObjectFromCopy();
+    void insertObjectFromAsk(objects::Source source);
+    // Opens the object that is the picture `itemId` in its own app; each save there comes back as one step.
+    bool editObject(const QString &itemId);
+    void showObjects();
     void showOnlinePictures();
     // A table of that size, centered on the slide, with its first cell ready to type in.
     void insertTable(int rows, int columns);
@@ -560,6 +572,9 @@ private:
     void addCropParts(struct RibbonParts &parts);
     void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
+    void createObjectActions();   // deckwindow_objects.cpp: objects of other apps
+    void refreshObjectUi();
+    void objectSaved(int editId, const QByteArray &part, const QByteArray &png, bool stale);
     void addInsertParts(struct RibbonParts &parts);
     void createEquationActions();  // deckwindow_equation.cpp: Equation and the built-in equations
     void addEquationParts(struct RibbonParts &parts);
@@ -594,6 +609,9 @@ private:
     QDockWidget *m_reuseDock = nullptr;
     OnlinePicturesPane *m_online = nullptr;
     QDockWidget *m_onlineDock = nullptr;
+    std::function<bool(objects::Source, bool, objects::SourceChoice *)> m_objectAsker;
+    EmbeddedEdit *m_objectEdit = nullptr;
+    QHash<int, QString> m_objectEdits;   // an edit's number, and the item that shows the object
     HelpView *m_help = nullptr;
     QDockWidget *m_helpDock = nullptr;
     FormatPane *m_formatPane = nullptr;
