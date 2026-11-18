@@ -18,6 +18,8 @@ namespace jp::deck {
 // reason in `error`, if it can't be read; otherwise the notes of what was
 // left out, as those readers give them.
 std::unique_ptr<Document> importAnyPresentationFile(const QString &path, QString *error = nullptr);
+// The same for a file already read (the bytes of the file).
+std::unique_ptr<Document> importAnyPresentationBytes(const QByteArray &bytes, QString *error = nullptr);
 
 // The two formats JeffDeck writes: the newer presentation files (.pptx, .potx,
 // .ppsx, and with macros kept as they were .pptm, .potm, .ppsm) and the open document ones (.odp, .otp). The ending of a file's name

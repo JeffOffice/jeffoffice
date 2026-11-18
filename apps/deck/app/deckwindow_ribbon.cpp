@@ -290,6 +290,10 @@ void DeckWindow::buildStatusBar()
     m_slideLabel->setObjectName(QStringLiteral("slideNumber"));
     m_slideLabel->setMinimumWidth(110);
     sb->addWidget(m_slideLabel);
+    // (refreshUi() hides the label while a message is up, so that a change of its text does not draw it over the message: it comes back with the message gone)
+    connect(sb, &QStatusBar::messageChanged, m_slideLabel, [label = m_slideLabel](const QString &message) {
+        if (message.isEmpty()) label->show();
+    });
 
     auto button = [&](const char *id, bool withText) {
         auto *b = new QToolButton();

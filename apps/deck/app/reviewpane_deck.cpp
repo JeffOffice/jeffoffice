@@ -89,6 +89,19 @@ void DeckReviewModel::reload()
     endResetModel();
 }
 
+void DeckReviewModel::changeDecided(int change)
+{
+    const int row = rowOfChange(change);
+    if (row < 0 || !m_list || change >= m_list->size()) return;
+    if (m_state >= 0 && int(m_list->changes[change].state) != m_state) {
+        beginRemoveRows(QModelIndex(), row, row);
+        m_rows.removeAt(row);
+        endRemoveRows();
+    } else {
+        Q_EMIT dataChanged(index(row), index(row));
+    }
+}
+
 QVariant DeckReviewModel::data(const QModelIndex &index, int role) const
 {
     if (!m_list || !index.isValid() || index.row() < 0 || index.row() >= m_rows.size()) return {};
@@ -267,6 +280,7 @@ void DeckReviewPane::rebuildFilters()
     const QString keepSlide = m_slide->currentData().toString(), keepAuthor = m_author->currentData().toString();
     m_slide->clear();
     m_author->clear();
+    if (m_src.beginLabels) m_src.beginLabels();
     m_slide->addItem(tr("All slides"), QString());
     m_author->addItem(tr("All authors"), QString());
     if (m_src.list) {
@@ -313,10 +327,31 @@ void DeckReviewPane::refresh()
         const QSignalBlocker block(m_list->selectionModel());
         m_list->setCurrentIndex(row >= 0 ? m_model->index(row) : QModelIndex());
     }
+    updateStatus();
+    showDetail();
+    updateButtons();
+}
+
+void DeckReviewPane::updateStatus()
+{
     const review::ChangeList *l = m_src.list;
     if (!l) m_status->setText(tr("No presentation is being compared."));
     else if (l->isEmpty()) m_status->setText(tr("The two presentations are the same."));
     else m_status->setText(tr("Changes pending: %1 of %2").arg(l->pending()).arg(l->size()) + (l->tooMany ? QLatin1Char(' ') + tr("There are more changes than are listed here.") : QString()));
+}
+
+void DeckReviewPane::refreshChange(int change)
+{
+    const int keep = currentChange();
+    const int oldRow = m_list->currentIndex().row();
+    {
+        const QSignalBlocker block(m_list->selectionModel());
+        m_model->changeDecided(change);
+        int row = m_model->rowOfChange(keep);
+        if (row < 0 && m_model->rowCount() > 0 && keep >= 0) row = std::clamp(oldRow, 0, m_model->rowCount() - 1);
+        m_list->setCurrentIndex(row >= 0 ? m_model->index(row) : QModelIndex());
+    }
+    updateStatus();
     showDetail();
     updateButtons();
 }

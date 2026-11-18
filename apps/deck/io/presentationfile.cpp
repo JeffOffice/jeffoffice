@@ -52,6 +52,28 @@ QStringList leftOutNotes(int pictures, int parts)
     return notes;
 }
 
+std::unique_ptr<Document> importAnyPresentationBytes(const QByteArray &bytes, QString *error)
+{
+    if (bytes.size() > office::kMaxOpenFileBytes) {
+        if (error) *error = QCoreApplication::translate("jp::office::doc", "The file is larger than this program can open.");
+        return nullptr;
+    }
+    const QByteArray head = bytes.left(128);
+    auto asOdp = [&] {
+        QStringList skipped;
+        QString why;
+        auto d = importOdp(bytes, &why, &skipped);
+        if (error) *error = d ? skipped.join(QLatin1Char('\n')) : why;
+        return d;
+    };
+    if (looksLikeOpenDocument(head)) return asOdp();
+    if (looksLikeCompoundFile(head)) return importBinaryPresentation(bytes, error);
+    if (auto d = importPresentation(bytes, error)) return d;
+    office::Package pkg;
+    if (!pkg.readOpenDocument(bytes) || !pkg.hasPart(QStringLiteral("/mimetype")) || !pkg.hasPart(QStringLiteral("/content.xml"))) return nullptr;
+    return asOdp();
+}
+
 std::unique_ptr<Document> importAnyPresentationFile(const QString &path, QString *error)
 {
     QFile f(path);

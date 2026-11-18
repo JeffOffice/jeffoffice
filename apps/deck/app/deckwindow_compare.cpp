@@ -21,7 +21,9 @@
 #include <QFileDialog>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QHash>
 #include <QSet>
+#include <QSignalBlocker>
 #include <QStatusBar>
 #include <QTemporaryFile>
 
@@ -129,14 +131,23 @@ void DeckWindow::showReviewPane(bool on)
         DeckReviewPane::Source src;
         if (m_cmp) {
             src.list = &m_cmp->changes;
-            src.slideLabel = [this](const QString &container) {
+            auto slideOf = std::make_shared<QHash<QString, int>>();   // the slides' places by id, made once for a rebuild of the filters (it was a scan of the slides for each label)
+            src.beginLabels = [slideOf] { slideOf->clear(); };
+            src.slideLabel = [this, slideOf](const QString &container) {
                 const Document *d = m_ed->doc();
-                if (d)
+                if (d && slideOf->isEmpty()) {   // (a place of this presentation's slide is 0 or more, one of the other presentation's is -1 less its place)
                     for (int i = 0; i < d->pages.size(); ++i)
-                        if (d->pages[i]->id == container) return tr("%1. %2").arg(i + 1).arg(deck::slideTitle(*d, i));
-                if (m_cmp && m_cmp->theirs)
-                    for (int i = 0; i < m_cmp->theirs->pages.size(); ++i)
-                        if (m_cmp->theirs->pages[i]->id == container) return tr("New: %1").arg(deck::slideTitle(*m_cmp->theirs, i));
+                        if (!slideOf->contains(d->pages[i]->id)) slideOf->insert(d->pages[i]->id, i);
+                    if (m_cmp && m_cmp->theirs)
+                        for (int i = 0; i < m_cmp->theirs->pages.size(); ++i)
+                            if (!slideOf->contains(m_cmp->theirs->pages[i]->id)) slideOf->insert(m_cmp->theirs->pages[i]->id, -1 - i);
+                }
+                const auto at = slideOf->constFind(container);
+                if (d && at != slideOf->constEnd()) {
+                    if (*at >= 0 && *at < d->pages.size()) return tr("%1. %2").arg(*at + 1).arg(deck::slideTitle(*d, *at));
+                    const int t = -1 - *at;
+                    if (m_cmp && m_cmp->theirs && t >= 0 && t < m_cmp->theirs->pages.size()) return tr("New: %1").arg(deck::slideTitle(*m_cmp->theirs, t));
+                }
                 return container;
             };
             src.texts = [this](int change, QString *before, QString *after) { return m_cmp && deck::textChangeOf(*m_cmp, change, before, after); };
@@ -171,6 +182,7 @@ void DeckWindow::recordComparison()
     o[QStringLiteral("theirs")] = m_cmpKey;
     o[QStringLiteral("states")] = states;
     o[QStringLiteral("rejected")] = rejected;
+    o[QStringLiteral("pending")] = m_cmp->changes.pending();   // (the file keeps the comparison only while something is not decided)
     d->appData[kCompare] = o;
 }
 
@@ -178,10 +190,23 @@ void DeckWindow::syncComparison(bool fresh)
 {
     if (m_syncingReview) return;
     Document *d = m_ed->doc();
-    const QJsonObject c = d ? d->appData.value(kCompare).toObject() : QJsonObject();
+    QJsonObject c = d ? d->appData.value(kCompare).toObject() : QJsonObject();
     if (c.isEmpty()) {
         if (m_cmp) dropComparison();
         return;
+    }
+    // A comparison that cannot be made is let go of once, with one quiet word: nothing is tried again with every edit.
+    auto giveUp = [&] {
+        d->appData.remove(kCompare);
+        if (m_cmp) dropComparison();
+        statusBar()->showMessage(tr("The changes kept in this file can't be read, so they were left out."), 8000);
+    };
+    if (c.contains(QStringLiteral("raw"))) {   // (a part read with the file: made into the comparison now that the window needs it)
+        if (!deck::decodeReviewPart(*d)) {
+            giveUp();
+            return;
+        }
+        c = d->appData.value(kCompare).toObject();
     }
     const QString key = c.value(QStringLiteral("theirs")).toString();
     if (fresh || !m_cmp || key != m_cmpKey) {
@@ -190,16 +215,14 @@ void DeckWindow::syncComparison(bool fresh)
         const QByteArray bytes = deck::storedReviewTheirs(key);
         std::unique_ptr<Document> theirs;
         if (!bytes.isEmpty()) {
-            QTemporaryFile tmp;
-            if (tmp.open() && tmp.write(bytes) == bytes.size()) {
-                tmp.flush();
-                theirs = deck::importAnyPresentationFile(tmp.fileName());
-            }
+            ++deck::reviewCounters().imports;
+            theirs = deck::importAnyPresentationBytes(bytes);
         }
         if (!theirs) {
-            if (m_cmp) dropComparison();
+            giveUp();
             return;
         }
+        deck::retainReviewTheirs(key, this);
         auto cmp = std::make_shared<deck::DeckComparison>(deck::compareDecks(*d, *theirs));
         QSet<QString> rejected;
         for (const QJsonValue &v : c.value(QStringLiteral("rejected")).toArray()) rejected.insert(v.toString());
@@ -210,7 +233,10 @@ void DeckWindow::syncComparison(bool fresh)
         m_cmpKey = key;
         recordComparison();   // (the ids are new ones: written straight, not a step of the history)
         showReviewPane(true);
-        if (m_reviewPane) m_reviewPane->step(true);
+        if (m_reviewPane) {
+            QSignalBlocker stay(fresh ? m_reviewPane : nullptr);   // (a file that opens keeps the slide it opens on: the first change is chosen, not gone to)
+            m_reviewPane->step(true);
+        }
         m_marksTimer.start();
         updateReviewActions();
         return;
@@ -229,7 +255,7 @@ void DeckWindow::syncComparison(bool fresh)
         if (m_reviewPane) m_reviewPane->refresh();
         updateReviewActions();
     }
-    if (differs || m_cmp->changes.pending() > 0) m_marksTimer.start();
+    if (differs) m_marksTimer.start();   // (an edit that decides nothing leaves the marks as they are; a change of slide makes them again)
 }
 
 bool DeckWindow::compareWith(const QString &path, QString *error)
@@ -248,10 +274,11 @@ bool DeckWindow::compareWith(const QString &path, QString *error)
     QString why;
     if (!office::readWholeFile(path, &bytes, &why)) return fail(why.isEmpty() ? tr("The file can't be read.") : why);
     QString err;
-    std::unique_ptr<Document> theirs = deck::importAnyPresentationFile(path, &err);
+    std::unique_ptr<Document> theirs = deck::importAnyPresentationBytes(bytes, &err);
     if (!theirs) return fail(err.isEmpty() ? tr("The file can't be read as a presentation.") : err);
     auto cmp = std::make_shared<deck::DeckComparison>(deck::compareDecks(*d, *theirs));
     const QString key = deck::storeReviewTheirs(bytes);
+    deck::retainReviewTheirs(key, this);
     // One step: undoing it takes the comparison away, and redoing it brings it back.
     if (m_reviewPane) m_reviewPane->setSource({});   // (it holds the old list until it is given the new one)
     const std::shared_ptr<deck::DeckComparison> older = m_cmp;
@@ -284,6 +311,7 @@ void DeckWindow::followChange(int index)
 void DeckWindow::updateReviewMarks()
 {
     Document *d = m_ed->doc();
+    ++deck::reviewCounters().markRebuilds;
     if (!m_cmp || !d) {
         m_canvas->setReviewMarks({}, 0);
         return;
@@ -328,7 +356,7 @@ bool DeckWindow::acceptChange(int index)
         return false;
     }
     if (m_reviewPane) {
-        m_reviewPane->refresh();
+        m_reviewPane->refreshChange(index);
         followChange(m_reviewPane->currentChange());
     }
     updateReviewActions();
@@ -354,7 +382,7 @@ bool DeckWindow::rejectChange(int index)
         return false;
     }
     if (m_reviewPane) {
-        m_reviewPane->refresh();
+        m_reviewPane->refreshChange(index);
         followChange(m_reviewPane->currentChange());
     }
     updateReviewActions();

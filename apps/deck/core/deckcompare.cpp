@@ -829,6 +829,8 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         c.data = data;
         out.changes.changes << c;
     };
+    // What the changed content is, for changeKey: a short hash, never words of the interface.
+    auto ck = [](const QByteArray &content) { return QString::fromLatin1(QCryptographicHash::hash(content, QCryptographicHash::Sha1).toHex().left(16)); };
     auto slideName = [&](const Document &d, int i) {
         const QString t = shortText(slideTitle(d, i));
         return t.isEmpty() ? QCoreApplication::translate("DeckCompare", "Slide %1").arg(i + 1) : t;
@@ -863,6 +865,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             QJsonObject data;
             data[QStringLiteral("ts")] = t;
             data[QStringLiteral("ms")] = -1;
+            data[QStringLiteral("ck")] = ck(slideTitle(theirs, t).toUtf8());
             emit(Kind::Added, tid, QString(), QStringLiteral("slide"), QCoreApplication::translate("DeckCompare", "Slide added: %1").arg(slideName(theirs, t)), positionOf(key, 0), data);
         } else if (!keeps[t]) {
             QJsonObject data;
@@ -882,6 +885,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         QJsonObject data;
         data[QStringLiteral("ts")] = -1;
         data[QStringLiteral("ms")] = m;
+        data[QStringLiteral("ck")] = ck(slideTitle(mine, m).toUtf8() + '|' + QByteArray::number(int(mine.pages[m]->items.size())));
         emit(Kind::Deleted, mine.pages[m]->id, QString(), QStringLiteral("slide"), QCoreApplication::translate("DeckCompare", "Slide deleted: %1").arg(slideName(mine, m)), positionOf(2 * lastT + 3, 0), data);
     }
 
@@ -902,8 +906,11 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             return sd ? sd->toPlainText() : QString();
         };
         const QString notesM = notes(mine, pm), notesT = notes(theirs, pt);
-        if (notesM != notesT)
-            emit(Kind::Edited, container, QString(), QStringLiteral("notes"), QCoreApplication::translate("DeckCompare", "Notes changed on %1").arg(slideName(theirs, t)), positionOf(key, 1), slideData);
+        if (notesM != notesT) {
+            QJsonObject nd = slideData;
+            nd[QStringLiteral("ck")] = ck(notesT.toUtf8());
+            emit(Kind::Edited, container, QString(), QStringLiteral("notes"), QCoreApplication::translate("DeckCompare", "Notes changed on %1").arg(slideName(theirs, t)), positionOf(key, 1), nd);
+        }
 
         const QVector<comments::Comment> cm = comments::commentsOf(pm), ct = comments::commentsOf(pt);
         if (!ct.isEmpty()) {
@@ -941,6 +948,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             QJsonObject data = slideData;
             data[QStringLiteral("ti")] = rt.path;
             if (itemMine[i] < 0) {
+                data[QStringLiteral("ck")] = ck(rt.text.toUtf8());
                 // The group it is in, in the working presentation: the matched object of mine.
                 if (rt.parent >= 0) data[QStringLiteral("pid")] = snapId(m, fm.recs[itemMine[rt.parent]].path);
                 emit(Kind::Added, container, rt.item->id, QStringLiteral("object"), QCoreApplication::translate("DeckCompare", "Object added: %1").arg(describe(*rt.item, rt.text)), pos, data);
@@ -955,23 +963,34 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             out.state.theirsWork.insert(QString::number(t) + QLatin1Char('/') + rt.path, mid);
             out.state.hint.insert(mid, rm.index);
             const QString what = describe(b, rt.text);
+            auto withCk = [&](const QByteArray &content) {
+                QJsonObject d = data;
+                d[QStringLiteral("ck")] = ck(content);
+                return d;
+            };
             if (!sameGeometry(a, b)) {
                 const bool sized = std::abs(a.rect.width() - b.rect.width()) >= 0.01 || std::abs(a.rect.height() - b.rect.height()) >= 0.01;
                 const bool moved = std::abs(a.rect.x() - b.rect.x()) >= 0.01 || std::abs(a.rect.y() - b.rect.y()) >= 0.01 || std::abs(a.rotation - b.rotation) >= 0.01 || a.flipH != b.flipH || a.flipV != b.flipV;
                 const QString text = sized && moved ? QCoreApplication::translate("DeckCompare", "Moved and resized: %1").arg(what)
                                      : sized        ? QCoreApplication::translate("DeckCompare", "Resized: %1").arg(what)
                                                     : QCoreApplication::translate("DeckCompare", "Moved: %1").arg(what);
-                emit(Kind::Moved, container, a.id, QStringLiteral("rect"), text, pos, data);
+                emit(Kind::Moved, container, a.id, QStringLiteral("rect"), text, pos,
+                     withCk(QByteArray::number(b.rect.x(), 'f', 2) + ',' + QByteArray::number(b.rect.y(), 'f', 2) + ',' + QByteArray::number(b.rect.width(), 'f', 2) + ',' +
+                            QByteArray::number(b.rect.height(), 'f', 2) + ',' + QByteArray::number(b.rotation, 'f', 2) + (b.flipH ? 'h' : '-') + (b.flipV ? 'v' : '-')));
             }
             if (full) break;
             if (rm.text != rt.text)
-                emit(Kind::Edited, container, a.id, QStringLiteral("text"), QCoreApplication::translate("DeckCompare", "Text changed from \"%1\" to \"%2\"").arg(shortText(rm.text), shortText(rt.text)), pos, data);
+                emit(Kind::Edited, container, a.id, QStringLiteral("text"), QCoreApplication::translate("DeckCompare", "Text changed from \"%1\" to \"%2\"").arg(shortText(rm.text), shortText(rt.text)), pos, withCk(rt.text.toUtf8()));
             else if (!storyIdsOf(b).isEmpty() && formatDiffers(a, b))
-                emit(Kind::Reformatted, container, a.id, QStringLiteral("font"), QCoreApplication::translate("DeckCompare", "Text formatting changed: %1").arg(what), pos, data);
+                emit(Kind::Reformatted, container, a.id, QStringLiteral("font"), QCoreApplication::translate("DeckCompare", "Text formatting changed: %1").arg(what), pos, withCk(rt.text.toUtf8()));
             if (full) break;
-            if (!sameFill(a.fill, imagesMine, b.fill, imagesTheirs)) emit(Kind::Reformatted, container, a.id, QStringLiteral("fill"), QCoreApplication::translate("DeckCompare", "Fill changed: %1").arg(what), pos, data);
+            if (!sameFill(a.fill, imagesMine, b.fill, imagesTheirs)) emit(Kind::Reformatted, container, a.id, QStringLiteral("fill"), QCoreApplication::translate("DeckCompare", "Fill changed: %1").arg(what), pos, withCk([&] {
+                    Fill f = b.fill;
+                    f.imageId = imagesTheirs.of(b.fill.imageId);
+                    return QJsonDocument(f.toJson()).toJson(QJsonDocument::Compact);
+                }()));
             if (full) break;
-            if (!(a.stroke == b.stroke)) emit(Kind::Reformatted, container, a.id, QStringLiteral("line"), QCoreApplication::translate("DeckCompare", "Line changed: %1").arg(what), pos, data);
+            if (!(a.stroke == b.stroke)) emit(Kind::Reformatted, container, a.id, QStringLiteral("line"), QCoreApplication::translate("DeckCompare", "Line changed: %1").arg(what), pos, withCk(QJsonDocument(b.stroke.toJson()).toJson(QJsonDocument::Compact)));
         }
         // Objects of mine that no object of theirs matched.
         for (int i = 0; i < int(fm.recs.size()) && !full; ++i) {
@@ -983,6 +1002,8 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             data[QStringLiteral("mi")] = rm.path;
             data[QStringLiteral("mid")] = mid;
             if (rm.parent >= 0) data[QStringLiteral("pid")] = snapId(m, fm.recs[rm.parent].path);
+            data[QStringLiteral("ck")] = ck(rm.text.toUtf8() + '|' + QByteArray::number(int(rm.item->type())) + '|' + QByteArray::number(rm.item->rect.x(), 'f', 2) + ',' +
+                                            QByteArray::number(rm.item->rect.y(), 'f', 2));
             emit(Kind::Deleted, container, rm.item->id, QStringLiteral("object"), QCoreApplication::translate("DeckCompare", "Object deleted: %1").arg(describe(*rm.item, rm.text)), positionOf(key, 3 + i), data);
         }
     }
@@ -1285,6 +1306,13 @@ bool textChangeOf(const DeckComparison &cmp, int index, QString *oldText, QStrin
     return true;
 }
 
-QString changeKey(const Change &c) { return kindKey(c.kind) + QLatin1Char('|') + c.target.path + QLatin1Char('|') + c.summary; }
+QString changeKey(const Change &c)
+{
+    // The ids of a presentation read from a file are made again with each reading, so a change is told by where it is in the other presentation (that is kept
+    // whole, and read the same way each time: its slide's and object's places) and by a hash of what changed. A slide taken out has no place there: its hash tells it.
+    const QChar bar = QLatin1Char('|');
+    return kindKey(c.kind) + bar + c.target.path + bar + QString::number(dataInt(c, "ts")) + bar + dataString(c, "ti") + bar + c.data.value(QStringLiteral("ck")).toString() + bar +
+           QString::fromLatin1(QCryptographicHash::hash(c.data.value(QStringLiteral("ckey")).toString().toUtf8(), QCryptographicHash::Sha1).toHex().left(16));
+}
 
 }   // namespace jp::deck

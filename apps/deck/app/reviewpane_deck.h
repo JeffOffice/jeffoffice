@@ -33,6 +33,8 @@ public:
     void setFilter(const QString &container, const QString &author, int state);
     // After states or the list changed: the rows are made again and the view is told.
     void reload();
+    // After one change's state changed: its row is drawn again, or taken out when the state filter no longer lets it through; no other row is made again.
+    void changeDecided(int change);
     int rowCount(const QModelIndex &parent = QModelIndex()) const override { return parent.isValid() ? 0 : int(m_rows.size()); }
     QVariant data(const QModelIndex &index, int role) const override;
     int rowOfChange(int change) const;
@@ -53,6 +55,7 @@ public:
     struct Source {
         const review::ChangeList *list = nullptr;
         std::function<QString(const QString &container)> slideLabel;   // the words for a slide's id in the filter
+        std::function<void()> beginLabels;   // called before the labels of a rebuild are asked for (a lookup kept for them is made again)
         std::function<bool(int change, QString *before, QString *after)> texts;   // the whole text before and after a text change
     };
     void setSource(const Source &source);
@@ -65,6 +68,8 @@ public:
     void setComments(const QVector<CommentRow> &rows);
     // Draws again what the list holds (states changed, or the list).
     void refresh();
+    // The same for one change that was just accepted or rejected: its row and the counts, in place (the filters and the other rows stay as they are).
+    void refreshChange(int change);
 
     // The change chosen (an index into the list), or -1; choosing one is what the window follows to its slide.
     int currentChange() const;
@@ -92,6 +97,7 @@ private:
     void showDetail();
     void updateButtons();
     void rebuildFilters();
+    void updateStatus();
 
     Source m_src;
     DeckReviewModel *m_model = nullptr;

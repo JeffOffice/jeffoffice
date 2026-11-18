@@ -108,7 +108,7 @@ struct ChangeMark {
 ChangeMark markOf(const Document &working, DeckComparison &cmp, int index);
 // The whole text of an object before (mine) and after (theirs) a text change, for the word-level view; false for a change that is not one.
 bool textChangeOf(const DeckComparison &cmp, int index, QString *oldText, QString *newText);
-// What tells a change apart from the others across a new comparison (ids are ordinals and are made again): kind, what changed, and the words.
+// What tells a change apart across a new comparison and a new reading of the file (ids are made again each time): kind, what changed, where its slide and object are in the other presentation (kept whole), and a hash of the changed content; no words of the interface.
 QString changeKey(const review::Change &c);
 
 } // namespace jp::deck

@@ -1,5 +1,6 @@
 // Opening presentation files in JeffDeck's window.
 
+#include "io/pptxreview.h"
 #include "app/deckcanvas.h"
 #include "app/deckwindow.h"
 
@@ -91,7 +92,10 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                 }
             } else {
                 const QByteArray fixed = office::repairPackage(bytes, &notes, &repair);
-                if (!fixed.isEmpty()) doc = deck::importPresentation(fixed, &notes);
+                if (!fixed.isEmpty()) {
+                    deck::ReviewOpenScope own;
+                    doc = deck::importPresentation(fixed, &notes);
+                }
             }
         }
     } else {
@@ -123,7 +127,10 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                 if (wasProtected) {
                     QStringList skipped;
                     QString why;
-                    doc = deck::importOdp(bytes, &why, &skipped);
+                    {
+                        deck::ReviewOpenScope own;
+                        doc = deck::importOdp(bytes, &why, &skipped);
+                    }
                     notes = doc ? skipped.join(QLatin1Char('\n')) : why;
                     handled = true;
                 }
@@ -133,12 +140,16 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
                 handled = true;
             } else if (bytes.startsWith("PK")) {
                 // (a package: one with the password every program knows opens without a question, and is not one that asks for a password)
-                doc = deck::importPresentation(bytes, &notes);
+                {
+                    deck::ReviewOpenScope own;
+                    doc = deck::importPresentation(bytes, &notes);
+                }
                 handled = true;
             }
         }
         if (!handled) {
             notes.clear();
+            deck::ReviewOpenScope own;
             doc = deck::importAnyPresentationFile(path, &notes);
         }
     }
