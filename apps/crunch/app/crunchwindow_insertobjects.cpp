@@ -934,6 +934,7 @@ void CrunchWindow::createEquationTabActions()
     };
     jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable, true); }, h);
     showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, equationLinearSetting(), equationSyntaxSetting());
+    onEquationChoicesChanged(this, [this] { showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, equationLinearSetting(), equationSyntaxSetting()); });
 }
 
 } // namespace jp

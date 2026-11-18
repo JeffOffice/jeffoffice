@@ -697,6 +697,7 @@ void WriteWindow::createEquationTabActions()
         refreshShapeUi();
     };
     jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable); }, h);
+    onEquationChoicesChanged(this, [this] { refreshShapeUi(); });
 }
 
 void WriteWindow::createPictureAdjustActions()

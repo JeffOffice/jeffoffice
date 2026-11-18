@@ -11,6 +11,7 @@
 #include <functional>
 
 class QLineEdit;
+class QObject;
 class QMenu;
 class QWidget;
 
@@ -52,13 +53,17 @@ QString equationPickText(const QString &pick, EquationSyntax syntax);
 QString equationUnmarked(const QString &marked);
 // Puts `marked` (an equationPickText) into the line at its caret, in place of what is selected (which becomes the first place to fill), and selects the first place to fill. Counts nothing
 // past the line's own limits: the text is cut at kMostEquationInput characters.
-void insertIntoEquationLine(QLineEdit *line, const QString &marked);
+// False, with the line as it was, when there is no room for it.
+bool insertIntoEquationLine(QLineEdit *line, const QString &marked);
 
 // What the programs that keep no form of an equation remember between times: how it is typed (Settings "equation/syntax") and whether it starts shown Linear ("equation/linear").
 EquationSyntax equationSyntaxSetting();
 void setEquationSyntaxSetting(EquationSyntax syntax);
 bool equationLinearSetting();
 void setEquationLinearSetting(bool linear);
+
+// Calls `fn` (while `context` lives) whenever either choice is changed, from any window: every open window's Equation tab shows the same two settings.
+void onEquationChoicesChanged(QObject *context, const std::function<void()> &fn);
 
 // What a program does for the tab. `edit` opens the equation's dialog (the selected equation's, or a new one) with `pick` put in at the end of its line (empty for none); `setLinear` shows or
 // puts the selected equation Linear (true) or Professional (false); `setSyntax` makes a typing format the one the dialogs open in.

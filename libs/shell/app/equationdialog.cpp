@@ -177,7 +177,11 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
         drawn->setPixmap(img.isNull() ? QPixmap() : QPixmap::fromImage(img));
     };
     QObject::connect(input, &QLineEdit::textChanged, &dlg, update);
-    auto put = [&](const QString &pick) { insertIntoEquationLine(input, equationPickText(pick, EquationSyntax(shown))); };
+    auto put = [&](const QString &pick) {
+        // (A line that is full says so, quietly, in the preview's place until the next change.)
+        if (!insertIntoEquationLine(input, equationPickText(pick, EquationSyntax(shown))) && !pick.isEmpty())
+            preview->setText(QCoreApplication::translate("EquationDialog", "There is no room in the line for that."));
+    };
     for (const EquationCategory &c : equationCategories()) {
         auto *button = new QToolButton(&dlg);
         button->setObjectName(QStringLiteral("equationStructure_") + c.id);

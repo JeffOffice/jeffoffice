@@ -40,10 +40,10 @@ An equation that a file brought opens in UnicodeMath, or in LaTeX when UnicodeMa
 
 Select an equation, and a tab named **Equation** appears at the end of the ribbon. It goes away when you select something else.
 
-- **Tools:** **Edit Equation** opens the box. **Professional** and **Linear** change how the selected equation is shown on the page: Professional draws it built up, and Linear shows the line it is typed in. The choice is saved with the equation, so it is the same when you open the file again. **Normal Text** opens the box with a pair of quotes added, for words that are not math.
+- **Tools:** **Edit Equation** opens the box. **Professional** and **Linear** change how the selected equation is shown on the page: Professional draws it built up, and Linear shows the line it is typed in. The choice is kept with the equation in the `.jpub` file, so it is the same when you open the file again. A `.pub` file gets the picture of the equation as it is shown on the page. **Normal Text** opens the box with a pair of quotes added, for words that are not math.
 - **Convert:** pick the format the box opens in: **Simple Line**, **UnicodeMath**, or **LaTeX**. The next time you edit an equation, it is written in the format you picked. An equation that no line of the simple kind can write, such as a sum with its limits above and below, opens in UnicodeMath instead.
 - **Symbols:** Greek letters, operators, relations, arrows, and sets and logic. Pick a symbol, and the box opens with it added to the line.
-- **Structures:** fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, and matrix. Click a button for its usual form, or the arrow beside it for more forms, such as a derivative, a root with a degree, or a 3 by 3 matrix.
+- **Structures:** fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, and matrix. Click a button for its usual form, or the arrow beside it for more forms, such as a derivative, a root with a degree, or an identity matrix.
 
 A structure goes in at the end of the line, with sample letters in it, and the first one is selected so you can type over it. The box has the same structures in a row of small buttons above the line. There a structure goes in at the cursor, and if part of the line is selected, that part goes into the first place of the structure.
 

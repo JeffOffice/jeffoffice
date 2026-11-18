@@ -1,4 +1,5 @@
 #include "app/equationtab.h"
+#include <QPointer>
 
 #include "app/icons.h"
 #include "app/plaintext.h"
@@ -152,9 +153,9 @@ QString equationPickText(const QString &pick, EquationSyntax syntax)
 
 QString equationUnmarked(const QString &marked) { return cleaned(marked); }
 
-void insertIntoEquationLine(QLineEdit *line, const QString &marked)
+bool insertIntoEquationLine(QLineEdit *line, const QString &marked)
 {
-    if (!line || marked.isEmpty()) return;
+    if (!line || marked.isEmpty()) return false;
     const QString selected = line->selectedText();
     const int from = line->hasSelectedText() ? line->selectionStart() : line->cursorPosition();
     const int to = from + selected.size();
@@ -167,11 +168,12 @@ void insertIntoEquationLine(QLineEdit *line, const QString &marked)
     put = cleaned(put);
     QString text = line->text();
     text.replace(from, to - from, put);
-    if (text.size() > office::wml::kMostEquationInput) return;
+    if (text.size() > office::wml::kMostEquationInput) return false;
     line->setText(text);
     if (firstFrom >= 0) line->setSelection(from + firstFrom, firstLength);
     else line->setCursorPosition(from + put.size());
     line->setFocus();
+    return true;
 }
 
 EquationSyntax equationSyntaxSetting()
@@ -180,11 +182,37 @@ EquationSyntax equationSyntaxSetting()
     return v == 1 ? EquationSyntax::UnicodeMath : v == 2 ? EquationSyntax::Latex : EquationSyntax::Line;
 }
 
-void setEquationSyntaxSetting(EquationSyntax syntax) { Settings::get().setValue(QStringLiteral("equation/syntax"), int(syntax)); }
+namespace {
+QList<std::pair<QPointer<QObject>, std::function<void()>>> &choiceListeners()
+{
+    static QList<std::pair<QPointer<QObject>, std::function<void()>>> listeners;
+    return listeners;
+}
+void choicesChanged()
+{
+    auto &all = choiceListeners();
+    all.removeIf([](const auto &l) { return l.first.isNull(); });
+    const auto copy = all;
+    for (const auto &l : copy)
+        if (l.first) l.second();
+}
+} // namespace
+
+void onEquationChoicesChanged(QObject *context, const std::function<void()> &fn) { choiceListeners().append({QPointer<QObject>(context), fn}); }
+
+void setEquationSyntaxSetting(EquationSyntax syntax)
+{
+    Settings::get().setValue(QStringLiteral("equation/syntax"), int(syntax));
+    choicesChanged();
+}
 
 bool equationLinearSetting() { return Settings::get().value(QStringLiteral("equation/linear"), false).toBool(); }
 
-void setEquationLinearSetting(bool linear) { Settings::get().setValue(QStringLiteral("equation/linear"), linear); }
+void setEquationLinearSetting(bool linear)
+{
+    Settings::get().setValue(QStringLiteral("equation/linear"), linear);
+    choicesChanged();
+}
 
 void createEquationTabActions(const EquationActionMaker &make, const EquationTabHandlers &h)
 {
