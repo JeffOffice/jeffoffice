@@ -3884,9 +3884,11 @@ void CrunchPrintTests::aRefusedPdfAFileIsNotMadeAndNamesThePage()
     QString why;
     QVERIFY(!e.win.w.exportPdfTo(path, options, QString(), &why));
     QVERIFY2(why.contains(QLatin1String("page 2")) && !why.contains(QLatin1String("PDF page")) && why.contains(QLatin1String("PDF/A")) && why.contains(QLatin1String("see-through")), qPrintable(why));
-    QFile f(path);
-    QVERIFY(f.open(QIODevice::ReadOnly));
-    QCOMPARE(f.readAll(), QByteArray("the earlier file"));
+    {
+        QFile f(path);   // (closed before the next export: Windows refuses to replace a file that is still open)
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(f.readAll(), QByteArray("the earlier file"));
+    }
     // a PDF that is not PDF/A is not looked at
     options.archival = false;
     QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
