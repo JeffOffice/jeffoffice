@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1675"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1681"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -413,7 +413,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+1959"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+1975"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
