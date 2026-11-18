@@ -467,7 +467,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [ ] **later** Compress Media
 
 ### Equation, Ink, and Zoom tools
-- [ ] **later** Equation tab: structures (fractions, scripts, radicals, integrals, large operators, brackets, functions, accents, limits, and matrices), symbols, and conversions between linear and professional forms *(shared: the equation editor)*
+- [~] **later** Equation tab: structures (fractions, scripts, radicals, integrals, large operators, brackets, functions, accents, limits, and matrices), symbols, and conversions between linear and professional forms *(shared: the equation editor)* *(done November 18, 2026: an Equation tab shows while an equation is selected, with Edit Equation, Professional and Linear (drawn as the line it is typed in when Linear; kept while the presentation is open, and a saved `.pptx` has the equation built up), Normal Text, the typing format, five symbol menus, and the eleven structures with their forms; a button opens the equation's box with the structure put in, and the box has the same structures in a row of buttons; an equation a file brought is changed in the box in UnicodeMath; Review > Compare has its button, hidden until the compare window makes its command; not done: the form in a `.pptx`, symbol galleries beyond the five groups, and ink)*
 - [ ] **later** Ink Tools (Pens) while a stroke is selected, and Ink to Math
 - [ ] **later** 3-D Model tools: Reset, Views, Pan and Zoom, and 3-D Model Views
 - [ ] **later** Zoom tools: choose the Zoom image and Return to Zoom

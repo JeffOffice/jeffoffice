@@ -2,6 +2,7 @@
 // properties and the context menu of an object, and Copy, Cut, and Paste of a chart. Each change is one step of Undo (core/objectstate.h); the chart model it changes is
 // libs/office/sheet/chartedit.h's, and what it writes is libs/office/office/chart_write.h's.
 
+#include "app/equationtab.h"
 #include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
@@ -927,6 +928,9 @@ void CrunchWindow::updateChartState()
         enableShapeStyles(shape);
         if (m_ribbon) {
             m_ribbon->setContextVisible(QStringLiteral("Picture Format"), picture);
+            const bool equation = picked && !picture && m_objects->equationOf(m_sheet, id, nullptr, nullptr);
+            m_ribbon->setContextVisible(QString::fromLatin1(kEquationContext), equation);
+            showEquationTabChoices([this](const QString &name) { return m_actions.value(name); }, equationLinearSetting(), equationSyntaxSetting());
             // (the shapes tab also stays for a group, and for several objects picked together: it has Group and Align)
             const std::vector<int> several = pickedObjects();
             m_ribbon->setContextVisible(QStringLiteral("Shape Format"), shape || line || kind == ObjectKind::Group || several.size() >= 2);

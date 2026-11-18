@@ -8,6 +8,9 @@
 #include "editwindow.h"
 #include "savedok.h"
 
+#include "app/equationtab.h"
+#include "app/theme.h"
+#include "app/ribbon.h"
 #include "core/fonts.h"
 #include "core/printjob.h"
 #include "core/sheetobjects.h"
@@ -24,6 +27,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QRegularExpression>
+#include <QScopeGuard>
 
 using namespace crunchtest;
 using namespace drawtest;
@@ -299,6 +303,101 @@ private Q_SLOTS:
         QVERIFY(content.contains(QStringLiteral("<draw:frame")) && content.contains(QStringLiteral("<draw:image")));
         QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("META-INF/manifest.xml"))).contains(QStringLiteral("Pictures/")));
     }
+
+    static bool tabShown(EditWindow &e)
+    {
+        jp::Ribbon *r = e.win.w.ribbon();
+        for (int i = 0; i < r->tabCount(); ++i)
+            if (r->tabName(i) == QLatin1String("Equation")) return r->tabVisible(i);
+        return false;
+    }
+
+    // The Equation tab shows exactly while an equation is picked, and a structure button opens the equation's dialog with its text in the line.
+    void theEquationTabShowsWhileAnEquationIsPickedAndItsButtonsEdit()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(!tabShown(e));
+        QVERIFY(e.win.w.insertEquation(QStringLiteral("x")));
+        QVERIFY(e.settle());
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int id = there(e)[0];
+        o->layer()->select(id);
+        QTRY_VERIFY(tabShown(e));
+        withDialog([&] { e.win.w.act(QStringLiteral("equation.structure.fraction"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Equation"));
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QCOMPARE(input->text(), QStringLiteral("xa/b"));
+            input->setText(QStringLiteral("x/y"));
+        });
+        QVERIFY(e.settle());
+        QByteArray markup;
+        QVERIFY(o->equationOf(0, there(e)[0], nullptr, &markup));
+        QCOMPARE(jp::office::wml::equationLine(markup), QStringLiteral("x/y"));
+        QCOMPARE(e.win.w.session()->undoStack()->undoText(), QStringLiteral("Edit Equation"));
+        // Nothing picked, or another object picked: no tab.
+        o->layer()->select(-1);
+        QTRY_VERIFY(!tabShown(e));
+        QVERIFY(e.win.w.insertTextBox());
+        QVERIFY(e.settle());
+        QCOMPARE(int(there(e).size()), 2);
+        for (const int other : there(e))
+            if (!o->equationOf(0, other, nullptr, nullptr)) o->layer()->select(other);
+        QTRY_VERIFY(!tabShown(e));
+    }
+
+    // An equation a file brought (math no line of ours makes) is changed in the dialog, in UnicodeMath, and kept as markup.
+    void anEquationNoLineMakesIsChangedInUnicodeMath()
+    {
+        const jp::EquationSyntax before = jp::equationSyntaxSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationSyntaxSetting(before); });
+        jp::setEquationSyntaxSetting(jp::EquationSyntax::Line);
+        const QString omml = QStringLiteral("<m:oMath><m:r><m:t>E</m:t></m:r><m:r><m:t>=</m:t></m:r><m:r><m:t>m</m:t></m:r><m:sSup><m:e><m:r><m:t>c</m:t></m:r></m:e><m:sup><m:r><m:t>2</m:t></m:r></m:sup></m:sSup>"
+                                            "<m:groupChr><m:e><m:r><m:t>q</m:t></m:r></m:e></m:groupChr></m:oMath>");
+        EditWindow e;
+        QVERIFY(e.open(equationBook(omml)));
+        QTRY_VERIFY(shown(e, 1));
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int id = o->idsOf(0).front();
+        QString linear;
+        QByteArray before0;
+        QVERIFY(o->equationOf(0, id, &linear, &before0));
+        QVERIFY(linear.isEmpty());
+        o->layer()->select(id);
+        QTRY_VERIFY(tabShown(e));
+        // (a file's equation the dialog can't write in any format is left as it is: here the group character has no text form, so only the text of what can be)
+        withDialog([&] { e.win.w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Equation"));
+            d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->setText(QStringLiteral("a/b"));
+        });
+        QVERIFY(e.settle());
+        QByteArray after;
+        QVERIFY(o->equationOf(0, there(e)[0], &linear, &after));
+        QVERIFY(after != before0);
+        QCOMPARE(jp::office::wml::equationLine(after), QStringLiteral("a/b"));
+        QCOMPARE(e.win.w.session()->undoStack()->undoText(), QStringLiteral("Edit Equation"));
+    }
+
+
+    // The window with the Equation tab shown, when JO_SHOT_DIR names a folder.
+    void theEquationTabPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.resize(1440, 900);
+        e.win.w.show();
+        QVERIFY(e.win.w.insertEquation(QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)")));
+        QVERIFY(e.settle());
+        e.win.w.objects()->layer()->select(there(e)[0]);
+        QTRY_VERIFY(tabShown(e));
+        e.win.w.ribbon()->showTab(e.win.w.ribbon()->tab(QStringLiteral("Equation")));
+        QTest::qWait(200);
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        e.win.w.grab().save(dir + QStringLiteral("/equation-tab-crunch.png"));
+    }
+
 
     // For a picture of the window with an equation in it (JP_SCREENSHOT_DIR names the folder; the test does nothing without it).
     void aWindowPictureOfAnEquation()

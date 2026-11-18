@@ -1,6 +1,7 @@
 // The formatting commands of JeffCrunch's Home tab and the Format Cells dialog: the font, its size and color, bold, italic, and the underlines, the fill, the borders, the alignment
 // (horizontal, vertical, wrap, indent, orientation), merging, the number format and its buttons, the cell styles, the Copy Formatting, and Clear. Each is one step of Undo (the edit
 // session makes them; this part says what the buttons mean and keeps the buttons in step with the cell with the cursor).
+#include "app/equationtab.h"
 #include "app/shapetextedit.h"
 #include "app/crunchwindow.h"
 #include "core/richadjust.h"
@@ -1063,6 +1064,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
         for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equationDesign%1").arg(i)));
         return m;
     };
+    addEquationTabMenus(parts, [this](const QString &id) { return act(id); }, [this](const QString &pick) { equationDialog(pick); });
     parts.menus[QStringLiteral("borders")] = [this](QWidget *owner) { return buildBordersMenu(owner); };
     parts.menus[QStringLiteral("orientation")] = [this](QWidget *owner) { return buildOrientationMenu(owner); };
     parts.menus[QStringLiteral("cellStyles")] = [this](QWidget *owner) { return buildStylesMenu(owner); };

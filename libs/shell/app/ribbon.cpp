@@ -216,6 +216,14 @@ QToolButton *ribbonButton(QAction *a, bool large, QWidget *parent)
     auto *b = large ? new LargeButton(parent) : !large && a && a->isCheckable() ? new SmallToggle(parent) : new QToolButton(parent);
     if (large) b->setAttribute(Qt::WA_Hover);
     b->setDefaultAction(a);
+    // A hidden command is no button (and the button comes back with the command).
+    if (a) {
+        if (!a->isVisible()) b->hide();
+        QObject::connect(a, &QAction::visibleChanged, b, [b, a] {
+            b->setVisible(a->isVisible());
+            if (auto *g = qobject_cast<RibbonGroup *>(b->parentWidget())) g->syncVisibleCommands();
+        });
+    }
     b->setAutoRaise(true);
     // The keyboard reaches it (Tab, the arrow keys, KeyTips); a click
     // leaves the focus where it was, in the text being edited.
@@ -312,6 +320,7 @@ QToolButton *RibbonGroup::addLarge(QAction *a, QMenu *menu, bool split)
         b->setPopupMode(split ? QToolButton::MenuButtonPopup : QToolButton::InstantPopup);
     }
     m_cols->addWidget(b);
+    syncVisibleCommands();
     return b;
 }
 
@@ -338,6 +347,7 @@ QToolButton *RibbonGroup::addSmall(QAction *a, QMenu *menu, bool split, bool ico
     }
     m_col->insertWidget(m_col->count() - 1, b, 0, Qt::AlignLeft);
     ++m_rows;
+    syncVisibleCommands();
     // The toggles of a column are one width (the longest), so their highlights line up.
     if (isRibbonToggle(b) && !menu && !iconOnly) {
         m_colToggles << b;
@@ -572,6 +582,20 @@ void RibbonTab::removeGroup(RibbonGroup *g)
     delete b;
     delete g;
     relayout();
+}
+
+void RibbonGroup::syncVisibleCommands()
+{
+    bool any = false, shown = false;
+    for (const QWidget *w : controls()) {
+        any = true;
+        if (!(qobject_cast<const QToolButton *>(w) && w->isHidden())) shown = true;
+    }
+    const bool none = any && !shown;
+    if (none == m_noCommands) return;
+    m_noCommands = none;
+    if (none) setVisible(false);
+    if (auto *tab = qobject_cast<RibbonTab *>(parentWidget())) tab->groupChanged();
 }
 
 void RibbonGroup::setUserHidden(bool hidden)

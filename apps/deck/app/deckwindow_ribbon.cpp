@@ -54,6 +54,9 @@ void DeckWindow::buildRibbon()
     addNotesMasterParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
+    // Review > Compare: the button is on the ribbon, and the command is the compare window's to make (before this runs, as every command is). Until it is made, a hidden command stands
+    // in, so that the button has none to show (a ribbon item that names no command is left off, and the build says so).
+    if (!m_actions.contains(QStringLiteral("review.compare"))) mk("review.compare", tr("Compare…"), "file-diff", QKeySequence(), [] {})->setVisible(false);
     jp::buildRibbon(m_ribbon, json, parts, this, &m_ribbonErrors);
     // A tab is made when first shown: what shows the presentation's state in its controls (the font box, the shape sizes) is brought up to date then.
     connect(m_ribbon, &Ribbon::tabBuilt, this, [this](RibbonTab *page) {

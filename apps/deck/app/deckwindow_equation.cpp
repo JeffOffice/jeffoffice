@@ -8,6 +8,8 @@
 #include "app/editor.h"
 #include "app/equationdialog.h"
 #include "app/equationedit.h"
+#include "app/equationtab.h"
+#include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
 #include "canvas/canvas.h"
@@ -33,6 +35,9 @@ namespace jp {
 namespace {
 // The height of the letters of a new equation on a slide, in points (a slide is 540 points tall or so; Pub's page uses 24).
 constexpr double kSlideLetters = 40;
+
+// What a button of the Equation tab puts in the line of the dialog the next time one is opened ("" for none).
+QString g_pick;
 
 // What the presentation holds of equations (objects of ItemType::Equation, on slides, masters, and layouts, groups' too, and the bytes of their math): a new one is
 // made only within Document::kMaxEquations and kMaxEquationMarkupBytes, the limits a file is read with.
@@ -102,6 +107,37 @@ void DeckWindow::createEquationActions()
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
     for (int i = 0; i < office::wml::equationGallery().size(); ++i)
         mk(QStringLiteral("insert.equationDesign%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] { insertEquation(office::wml::equationGallery().at(i).linear); });
+    // The Equation tab (equationtab.h): shown while an equation is selected. Its buttons open the equation's dialog with the structure or symbol put in; Professional and Linear change
+    // how the selected equation is shown, and the typing formats the dialogs open in.
+    auto selectedEquation = [this]() -> Item * {
+        Item *one = m_ed->single();
+        return one && (one->type() == ItemType::Equation || !keptEquation(*m_ed->doc(), one->id, nullptr).isEmpty()) ? one : nullptr;
+    };
+    auto refreshTab = [this, selectedEquation] {
+        if (!m_ribbon) return;
+        Item *one = selectedEquation();
+        m_ribbon->setContextVisible(QString::fromLatin1(kEquationContext), one != nullptr);
+        const auto *eq = one && one->type() == ItemType::Equation ? static_cast<const EquationItem *>(one) : nullptr;
+        showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, eq ? eq->linearForm : equationLinearSetting(), equationSyntaxSetting());
+    };
+    EquationTabHandlers handlers;
+    handlers.edit = [this](const QString &pick) {
+        g_pick = pick;
+        insertEquationDialog();
+        g_pick.clear();
+    };
+    handlers.setLinear = [this, refreshTab](bool linear) {
+        setEquationLinearSetting(linear);
+        if (Item *one = m_ed->single(); one && one->type() == ItemType::Equation) setEquationLinearForm(m_ed, one->id, linear);
+        refreshTab();
+    };
+    handlers.setSyntax = [refreshTab](EquationSyntax s) {
+        setEquationSyntaxSetting(s);
+        refreshTab();
+    };
+    jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable); }, handlers);
+    connect(m_ed, &Editor::selectionChanged, this, refreshTab);
+    connect(m_ed, &Editor::changed, this, refreshTab);
     // A double click on an equation opens the editor on it, and so does one on the picture that stands for an equation a file brought.
     connect(m_canvas, &Canvas::editEquationWanted, this, [this](const QString &id) { editEquation(id); });
     connect(m_canvas, &Canvas::pictureTabWanted, this, [this] {
@@ -111,6 +147,11 @@ void DeckWindow::createEquationActions()
 
 void DeckWindow::addEquationParts(RibbonParts &parts)
 {
+    addEquationTabMenus(parts, [this](const QString &id) { return act(id); }, [this](const QString &pick) {
+        g_pick = pick;
+        insertEquationDialog();
+        g_pick.clear();
+    });
     parts.menus[QStringLiteral("equationGallery")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (int i = 0; i < office::wml::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equationDesign%1").arg(i)));
@@ -118,16 +159,19 @@ void DeckWindow::addEquationParts(RibbonParts &parts)
     };
 }
 
-bool DeckWindow::insertEquation(const QString &linear)
+namespace {
+
+// Puts a made equation in the middle of the slide, selected, one step that undoes; false, with a note in the status bar, for one that can't go there.
+bool placeEquation(DeckWindow &w, const std::shared_ptr<EquationItem> &eq)
 {
-    const QSizeF ps = m_ed->doc()->pageSize();
-    auto eq = makeEquation(linear, QPointF(ps.width() / 2, ps.height() / 2), kSlideLetters);
-    if (eq && !equationRoom(*m_ed->doc(), eq->markup.size())) {
-        statusBar()->showMessage(tr("This presentation has as many equations as it can hold."), 6000);
+    Editor *ed = w.editor();
+    const QSizeF ps = ed->doc()->pageSize();
+    if (eq && !equationRoom(*ed->doc(), eq->markup.size())) {
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This presentation has as many equations as it can hold."), 6000);
         return false;
     }
     if (!eq) {
-        statusBar()->showMessage(tr("An equation can't be put here."), 6000);
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "An equation can't be put here."), 6000);
         return false;
     }
     // One that is wider or taller than most of the slide is made smaller to fit, keeping its proportions.
@@ -136,36 +180,39 @@ bool DeckWindow::insertEquation(const QString &linear)
         eq->rect = QRectF(QPointF(), eq->rect.size() * k);
         eq->rect.moveCenter(QPointF(ps.width() / 2, ps.height() / 2));
     }
-    m_ed->endTextEdit();
-    m_ed->addItem(eq);
+    ed->endTextEdit();
+    ed->addItem(eq);
     return true;
 }
 
-bool DeckWindow::editEquation(QString id)
+// Edits the equation `id` in the dialog, from its markup (one a file brought is written in UnicodeMath or LaTeX there), with `pick` put in the line; the form chosen is kept with it.
+bool editEquationIn(DeckWindow &w, QString id, const QString &pick)
 {
+    Editor *ed = w.editor();
     // The picture that stands for an equation a file brought is drawn and saved as the file has it until the equation is changed here: then it is made an equation,
-    // from the line it reads as and the line typed, in the same place, as one step that undoes.
+    // from the markup it reads as and the one typed, in the same place, as one step that undoes.
     int slide = -1;
-    if (const QJsonObject kept = keptEquation(*m_ed->doc(), id, &slide); !kept.isEmpty()) {
+    if (const QJsonObject kept = keptEquation(*ed->doc(), id, &slide); !kept.isEmpty()) {
         QByteArray markup;
         QString linear;
         QColor color;
         if (!mathOfKeptPair(kept, &markup, &linear, &color)) {
-            statusBar()->showMessage(tr("This equation can't be changed here."), 6000);
+            w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This equation can't be changed here."), 6000);
             return false;
         }
-        const QString start = linear.isEmpty() ? office::wml::equationLine(markup) : linear;
-        QString line = start;
-        if (!askEquation(this, tr("Edit Equation"), &line) || line.trimmed() == start.trimmed()) return false;
-        const Document::Loc at = m_ed->doc()->find(id);
-        if (!at.item || !at.list || !equationRoom(*m_ed->doc(), 0)) {
-            statusBar()->showMessage(tr("This presentation has as many equations as it can hold."), 6000);
+        const QByteArray startMarkup = markup;
+        QString line = linear;
+        EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
+        if (!askEquationMarkup(&w, QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), &line, &markup, &form, pick) || markup == startMarkup) return false;
+        const Document::Loc at = ed->doc()->find(id);
+        if (!at.item || !at.list || !equationRoom(*ed->doc(), 0)) {
+            w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This presentation has as many equations as it can hold."), 6000);
             return false;
         }
         const Item &old = *at.item;
-        auto made = makeEquation(line, old.rect.center(), kSlideLetters);
-        if (!made || !equationRoom(*m_ed->doc(), made->markup.size())) {
-            statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+        auto made = makeEquationFromMarkup(markup, line, form == EquationForm::Linear, old.rect.center(), kSlideLetters);
+        if (!made || !equationRoom(*ed->doc(), made->markup.size())) {
+            w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This equation can't be changed."), 6000);
             return false;
         }
         // (the new equation fits the frame the old one had, as large as it goes, keeping its proportions)
@@ -188,47 +235,78 @@ bool DeckWindow::editEquation(QString id)
         if (color.isValid()) made->fill = Fill::solid(ColorRef::rgb(color));
         const int index = at.index;
         ItemList *list = at.list;
-        m_ed->endTextEdit();
-        m_ed->change(tr("Edit Equation"), [&] {
+        ed->endTextEdit();
+        ed->change(QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), [&] {
             (*list)[size_t(index)] = made;
-            QJsonObject props = m_ed->doc()->pages[size_t(slide)]->props;
+            QJsonObject props = ed->doc()->pages[size_t(slide)]->props;
             QJsonArray rest;
             for (const QJsonValue &v : props.value(QStringLiteral("charts")).toArray())
                 if (v.toObject().value(QStringLiteral("item")).toString() != id) rest.append(v);
             props[QStringLiteral("charts")] = rest;
-            m_ed->doc()->pages[size_t(slide)]->props = props;
+            ed->doc()->pages[size_t(slide)]->props = props;
         });
-        m_ed->select(id);
+        ed->select(id);
         return true;
     }
-    auto *w = dynamic_cast<EquationItem *>(m_ed->doc()->item(id));
-    if (!w) return false;
-    // An equation a file brought, which no typed line makes, starts from the line it reads as.
-    const QString start = w->linear.isEmpty() ? office::wml::equationLine(w->markup) : w->linear;
-    QString line = start;
-    if (!askEquation(this, tr("Edit Equation"), &line) || line.trimmed() == start.trimmed()) return false;
+    auto *eq = dynamic_cast<EquationItem *>(ed->doc()->item(id));
+    if (!eq) return false;
+    const QString startLine = eq->linear;
+    const QByteArray startMarkup = eq->markup;
+    const bool startLinear = eq->linearForm;
+    QString line = startLine;
+    QByteArray markup = startMarkup;
+    EquationForm form = startLinear ? EquationForm::Linear : EquationForm::Professional;
+    if (!askEquationMarkup(&w, QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), &line, &markup, &form, pick)) return false;
+    const bool linearForm = form == EquationForm::Linear;
+    if (markup == startMarkup && linearForm == startLinear && line.trimmed() == startLine.trimmed()) return false;
     // (The new math counts toward the presentation's total of math, as a new equation's does, less what the old held.)
-    if (const auto made = makeEquation(line, QPointF(), w->size); made && !equationRoom(*m_ed->doc(), qint64(made->markup.size()) - w->markup.size())) {
-        statusBar()->showMessage(tr("This presentation has as many equations as it can hold."), 6000);
+    if (!equationRoom(*ed->doc(), qint64(markup.size()) - startMarkup.size())) {
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This presentation has as many equations as it can hold."), 6000);
         return false;
     }
-    if (!changeEquation(m_ed, id, line)) {
-        statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+    if (!changeEquationMarkup(ed, id, markup, line, linearForm)) {
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This equation can't be changed."), 6000);
         return false;
     }
     return true;
 }
 
-void DeckWindow::insertEquationDialog()
+// Insert > Equation, or Edit Equation for one that is selected by itself.
+void equationDialogIn(DeckWindow &w, const QString &pick)
 {
+    Editor *ed = w.editor();
     // (an equation that is selected by itself is changed)
-    if (Item *one = m_ed->single(); one && (one->type() == ItemType::Equation || !keptEquation(*m_ed->doc(), one->id, nullptr).isEmpty())) {
-        editEquation(one->id);
+    if (Item *one = ed->single(); one && (one->type() == ItemType::Equation || !keptEquation(*ed->doc(), one->id, nullptr).isEmpty())) {
+        editEquationIn(w, one->id, pick);
         return;
     }
     QString line;
-    if (!askEquation(this, tr("Insert Equation"), &line)) return;
-    insertEquation(line);
+    QByteArray markup;
+    EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
+    if (!askEquationMarkup(&w, QCoreApplication::translate("jp::DeckWindow", "Insert Equation"), &line, &markup, &form, pick)) return;
+    placeEquation(w, makeEquationFromMarkup(markup, line, form == EquationForm::Linear, QPointF(ed->doc()->pageSize().width() / 2, ed->doc()->pageSize().height() / 2), kSlideLetters));
+}
+
+} // namespace
+
+bool DeckWindow::insertEquation(const QString &linear)
+{
+    const QSizeF ps = m_ed->doc()->pageSize();
+    return placeEquation(*this, makeEquation(linear, QPointF(ps.width() / 2, ps.height() / 2), kSlideLetters));
+}
+
+bool DeckWindow::editEquation(QString id)
+{
+    const QString pick = g_pick;
+    g_pick.clear();
+    return editEquationIn(*this, id, pick);
+}
+
+void DeckWindow::insertEquationDialog()
+{
+    const QString pick = g_pick;
+    g_pick.clear();
+    equationDialogIn(*this, pick);
 }
 
 } // namespace jp

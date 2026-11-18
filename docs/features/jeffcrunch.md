@@ -500,7 +500,7 @@ A pivot table is a report that groups and totals a list for you: put a list of s
 
 ### Equation, Diagram, 3-D Model, and Ink tabs
 
-- [ ] **1.0** Equation tab: structures (fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, matrix), symbols, professional and linear forms, and ink equations *(shared: the equation engine to build for JeffWrite and JeffDeck)*
+- [~] **1.0** Equation tab: structures (fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, matrix), symbols, professional and linear forms, and ink equations *(shared: the equation engine to build for JeffWrite and JeffDeck)* *(done November 18, 2026: an Equation tab shows while an equation is picked, with Edit Equation, Professional and Linear (only how the box starts: the sheet keeps the math as the file has it), Normal Text, the typing format, five symbol menus, and the eleven structures with their forms; a button opens the equation's box with the structure put in, and the box has the same structures in a row of buttons; an equation a file brought is changed in the box in UnicodeMath; not done: symbol galleries beyond the five groups, and ink)*
 - [~] **later** Diagram Design and Format: choose a layout, change colors and styles, add and demote shapes, and edit text in the text pane *(shared: JeffDeck's diagrams)*
 - [ ] **later** 3-D Model Format: views, rotate, and scene; a model is kept as saved and drawn as its stored picture
 - [ ] **later** Ink Tools and Background Removal tabs (see Draw and Picture Format)

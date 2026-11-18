@@ -47,7 +47,9 @@ public:
     QString id() const { return m_id; }
     // A group the person turned off (Options > Customize): it takes no room and shows nothing, and its commands still exist.
     void setUserHidden(bool hidden);
-    bool userHidden() const { return m_userHidden; }
+    // A group none of whose buttons shows takes no room either, like one the person turned off (a button follows its command: a hidden command is no button).
+    bool userHidden() const { return m_userHidden || m_noCommands; }
+    void syncVisibleCommands();
     // Every control the group lays out, in order (rows and columns
     // flattened; the launcher sits outside the layout and isn't one).
     QList<QWidget *> controls() const;
@@ -70,6 +72,7 @@ private:
     QList<QLabel *> m_rowLabels;   // the labels that start the rows of the current column
     QString m_title, m_id;
     bool m_userHidden = false;
+    bool m_noCommands = false;
     QToolButton *m_launcher = nullptr;
     QMetaObject::Connection m_launcherClicked;
 };
@@ -102,6 +105,7 @@ public:
     QToolButton *collapsedButton(int i) const { return m_buttons.value(i); }
     bool isCollapsed(int i) const { return m_collapsed.value(i); }
     void popUp(int i);   // a collapsed group in a dropdown
+    void groupChanged() { relayout(); }   // a group shows or hides as a whole
 
 Q_SIGNALS:
     void built();        // the groups of a tab made with setBuilder are there

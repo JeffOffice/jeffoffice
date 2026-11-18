@@ -3,6 +3,9 @@
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "app/equationedit.h"
+#include "app/equationtab.h"
+#include "app/theme.h"
+#include "app/ribbon.h"
 #include "office/drawingml_write.h"
 #include "office/xml.h"
 #include <QXmlStreamWriter>
@@ -12,6 +15,9 @@
 #include <QBuffer>
 #include <QTemporaryDir>
 #include <QLineEdit>
+#include <QRadioButton>
+#include <QToolButton>
+#include <QScopeGuard>
 
 namespace {
 
@@ -669,6 +675,121 @@ private Q_SLOTS:
         int pictures = 0;
         for (const ItemPtr &it : back->pages[0]->items) pictures += it->type() == ItemType::Picture && it->rect.width() >= 120 && it->rect.width() <= 130;
         QCOMPARE(pictures, 1);
+    }
+
+    static bool tabShown(DeckWindow &w)
+    {
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+            if (w.ribbon()->tabName(i) == QLatin1String("Equation")) return w.ribbon()->tabVisible(i);
+        return false;
+    }
+
+    // The Equation tab shows exactly while an equation is selected, and the structure buttons put their text in the dialog's line.
+    void theEquationTabShowsWhileAnEquationIsSelectedAndItsButtonsEdit()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QVERIFY(!tabShown(w));
+        insertLine(w, QStringLiteral("x"));
+        const QString id = firstEquation(*ed->doc())->id;
+        QTRY_VERIFY(tabShown(w));
+        ed->select(QString());
+        QTRY_VERIFY(!tabShown(w));
+        ed->select(id);
+        QTRY_VERIFY(tabShown(w));
+        withDialog([&] { w.act(QStringLiteral("equation.structure.radical"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Equation"));
+            auto *line = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QCOMPARE(line->text(), QStringLiteral("xsqrt(x)"));
+            line->setText(QStringLiteral("sqrt(x)"));
+        });
+        QCOMPARE(firstEquation(*ed->doc())->linear, QStringLiteral("sqrt(x)"));
+        QCOMPARE(firstEquation(*ed->doc())->markup, jp::office::wml::equationMarkup(QStringLiteral("sqrt(x)")));
+        ed->deleteSelection();
+        QTRY_VERIFY(!tabShown(w));
+    }
+
+    // Professional and Linear are kept with the equation (with the markup, whichever it is shown as) and undo; the dialog gives back the form it was left in.
+    void anEquationKeepsItsFormAndItsMarkup()
+    {
+        const bool linearBefore = jp::equationLinearSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationLinearSetting(linearBefore); });
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertLine(w, QStringLiteral("(a+b)/c"));
+        const QString id = firstEquation(*ed->doc())->id;
+        const QByteArray markup = firstEquation(*ed->doc())->markup;
+        const QSizeF pro = firstEquation(*ed->doc())->rect.size();
+        ed->select(id);
+        w.act(QStringLiteral("equation.linear"))->trigger();
+        QVERIFY(firstEquation(*ed->doc())->linearForm);
+        QCOMPARE(firstEquation(*ed->doc())->markup, markup);
+        QCOMPARE(firstEquation(*ed->doc())->linear, QStringLiteral("(a+b)/c"));
+        QVERIFY(firstEquation(*ed->doc())->rect.height() < pro.height());   // (shown as a line)
+        // The form is in the item's own record and in a copy of it.
+        const QJsonObject json = firstEquation(*ed->doc())->toJson();
+        QVERIFY(json.value("linearForm").toBool());
+        QVERIFY(static_cast<EquationItem *>(firstEquation(*ed->doc())->clone().get())->linearForm);
+        QTRY_VERIFY(w.act(QStringLiteral("equation.linear"))->isChecked());
+        w.act(QStringLiteral("equation.professional"))->trigger();
+        QVERIFY(!firstEquation(*ed->doc())->linearForm);
+        QCOMPARE(firstEquation(*ed->doc())->markup, markup);
+        QVERIFY(std::abs(firstEquation(*ed->doc())->rect.height() - pro.height()) < 0.01);
+        ed->undoStack()->undo();
+        QVERIFY(firstEquation(*ed->doc())->linearForm);
+        // The dialog starts in the form the equation is in and the form chosen there is kept.
+        withDialog([&] { w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("equationLinear"))->isChecked());
+            d->findChild<QRadioButton *>(QStringLiteral("equationProfessional"))->setChecked(true);
+        });
+        QVERIFY(!firstEquation(*ed->doc())->linearForm);
+        QCOMPARE(firstEquation(*ed->doc())->markup, markup);
+    }
+
+    // Review > Compare has its button on the ribbon, and it is hidden while the command has not been made (the compare window makes it): a hidden command stands in, and the button follows it.
+    void theCompareButtonIsOnTheReviewTabAndHiddenWhileItHasNoCommand()
+    {
+        DeckWindow w;
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QAction *compare = w.act(QStringLiteral("review.compare"));
+        QVERIFY(compare);
+        auto button = [&]() -> QToolButton * {
+            for (QToolButton *b : w.ribbon()->tab(QStringLiteral("Review"))->findChildren<QToolButton *>())
+                if (b->defaultAction() == compare) return b;
+            return nullptr;
+        };
+        QToolButton *b = button();
+        QVERIFY(b);
+        QVERIFY(!compare->isVisible());
+        QVERIFY(b->isHidden());
+        // (the group that holds only it shows nothing either: no empty box on the tab)
+        RibbonGroup *group = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Review"))->groups())
+            if (g->title() == QLatin1String("Compare")) group = g;
+        QVERIFY(group);
+        QVERIFY(group->userHidden());
+        compare->setVisible(true);
+        QVERIFY(!b->isHidden());
+        QVERIFY(!group->userHidden());
+        compare->setVisible(false);
+        QVERIFY(b->isHidden());
+        QVERIFY(group->userHidden());
+    }
+
+    // The window with the Equation tab shown, when JO_SHOT_DIR names a folder.
+    void theEquationTabPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        w.editor()->doc()->pages[0]->items.clear();
+        insertLine(w, QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)"));
+        QTRY_VERIFY(tabShown(w));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Equation")));
+        QTest::qWait(200);
+        shotOf(&w, QStringLiteral("equation-tab-deck"));
     }
 
     // A picture of the window with an equation on the slide, and of the editor open, for the docs, when JO_SHOT_DIR names a folder.

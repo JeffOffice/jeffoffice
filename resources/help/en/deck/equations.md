@@ -1,5 +1,5 @@
 # Equations
-<!-- keywords: equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, accent, matrix, brackets, built-in equations, gallery, change an equation, edit an equation, pptx, odp, picture, pdf, slide show, print -->
+<!-- keywords: equation tab, structures, symbols, convert, equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, accent, matrix, brackets, built-in equations, gallery, change an equation, edit an equation, pptx, odp, picture, pdf, slide show, print -->
 
 An **equation** is a line of math, such as a fraction or a square root. On a slide an equation is an object, like a picture or a text box. You can move it, resize it, turn it, copy it, and delete it.
 
@@ -33,6 +33,17 @@ The two buttons **Professional** and **Linear** change how the box shows your eq
 Double-click the equation, or select it and click **Insert > Symbols > Equation**, to open the box with its line. Change it and click **OK**. It stays where it is and keeps its size, and the change is one step to undo. Drag the equation to move it. Drag a handle to size it; the equation keeps its proportions inside its box.
 
 An equation that came from a file can be changed too. Until you change it, JeffDeck shows the picture the file keeps and saves it back exactly as it was. Double-click it (or select it and click **Equation**). The box starts with a line that says what the equation is. If you change the line, the picture becomes an equation, in the same place, and JeffDeck sets the math again from what you typed, so any special fonts in the old math are gone. If you click **OK** without changing the line, nothing changes.
+
+## The Equation tab
+
+Select an equation, and a tab named **Equation** appears at the end of the ribbon. It goes away when you select something else.
+
+- **Tools:** **Edit Equation** opens the box. **Professional** and **Linear** change how the selected equation is shown on the slide: Professional draws it built up, and Linear shows the line it is typed in. The choice stays with the equation while the presentation is open, and a saved `.pptx` always has the equation built up. **Normal Text** opens the box with a pair of quotes added, for words that are not math.
+- **Convert:** pick the format the box opens in: **Simple Line**, **UnicodeMath**, or **LaTeX**. The next time you edit an equation, it is written in the format you picked. An equation that no line of the simple kind can write, such as a sum with its limits above and below, opens in UnicodeMath instead.
+- **Symbols:** Greek letters, operators, relations, arrows, and sets and logic. Pick a symbol, and the box opens with it added to the line.
+- **Structures:** fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, and matrix. Click a button for its usual form, or the arrow beside it for more forms, such as a derivative, a root with a degree, or a 3 by 3 matrix.
+
+A structure goes in at the end of the line, with sample letters in it, and the first one is selected so you can type over it. The box has the same structures in a row of small buttons above the line. There a structure goes in at the cursor, and if part of the line is selected, that part goes into the first place of the structure.
 
 ## Slide show, printing, and PDF
 

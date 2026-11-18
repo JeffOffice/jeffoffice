@@ -14,6 +14,7 @@
 #include "app/textdialogs.h"
 #include "render/metafile.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
@@ -115,6 +116,7 @@ void CrunchWindow::createInsertObjectActions()
     m_opsActions << QStringLiteral("insert.textBox");
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(), [this] { insertEquationDialog(); });
     m_opsActions << QStringLiteral("insert.equation");
+    createEquationTabActions();
     for (int i = 0; i < office::wml::equationGallery().size(); ++i) {
         const QString id = QStringLiteral("insert.equationDesign%1").arg(i);
         mk(id, office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] { insertEquation(office::wml::equationGallery().at(i).linear); });
@@ -810,10 +812,20 @@ bool CrunchWindow::insertTextBox()
 bool CrunchWindow::insertEquation(const QString &linear)
 {
     if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return false;
-    const QString title = tr("Insert Equation");
     bool ok = false;
     const QByteArray markup = office::wml::equationMarkup(linear, &ok);
-    const auto laid = ok ? office::wml::equationShapeCached(markup) : nullptr;
+    if (!ok) {
+        notice(tr("Insert Equation"), tr("An equation can't be made from that."));
+        return false;
+    }
+    return insertEquationMarkup(markup);
+}
+
+bool CrunchWindow::insertEquationMarkup(const QByteArray &markup)
+{
+    if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return false;
+    const QString title = tr("Insert Equation");
+    const auto laid = markup.isEmpty() ? nullptr : office::wml::equationShapeCached(markup);
     // (the size the sheet gives it is that of letters 20 points tall)
     const office::wml::EquationShape shape = laid ? *laid : office::wml::EquationShape();
     const double toSheet = 20.0 / office::wml::kEquationLayoutSize;
@@ -841,7 +853,21 @@ bool CrunchWindow::editEquation(int id, const QString &linear)
     if (!m_objects->equationOf(m_sheet, id, &now, nullptr)) return false;
     bool ok = false;
     const QByteArray markup = office::wml::equationMarkup(linear, &ok);
-    const auto laid = ok ? office::wml::equationShapeCached(markup) : nullptr;
+    if (!ok || !office::wml::equationShapeCached(markup)) {
+        notice(tr("Edit Equation"), tr("An equation can't be made from that."));
+        return false;
+    }
+    if (now == linear.trimmed()) return false;
+    return editEquationMarkup(id, markup);
+}
+
+// (the markup itself: what the dialog makes in any typing format)
+bool CrunchWindow::editEquationMarkup(int id, const QByteArray &markup)
+{
+    if (!m_session || !m_objects || m_chartSheetShown) return false;
+    QByteArray nowMarkup;
+    if (!m_objects->equationOf(m_sheet, id, nullptr, &nowMarkup)) return false;
+    const auto laid = markup.isEmpty() ? nullptr : office::wml::equationShapeCached(markup);
     // (the size the sheet gives it is that of letters 20 points tall)
     const office::wml::EquationShape shape = laid ? *laid : office::wml::EquationShape();
     const double toSheet = 20.0 / office::wml::kEquationLayoutSize;
@@ -849,7 +875,7 @@ bool CrunchWindow::editEquation(int id, const QString &linear)
         notice(tr("Edit Equation"), tr("An equation can't be made from that."));
         return false;
     }
-    if (now == linear.trimmed()) return false;
+    if (nowMarkup == markup) return false;
     m_objects->layer()->select(id);
     return restyleObject(tr("Edit Equation"), [&](QDomElement &el, grid::ObjectBox *box) {
         const QByteArray fresh = equationXml(markup, 1, 1, QString());
@@ -876,19 +902,38 @@ bool CrunchWindow::editEquation(int id, const QString &linear)
 }
 
 // Insert > Equation: the editor the other programs have, with the picked equation's line when one is picked (changing it), else with none (putting a new one in).
-void CrunchWindow::insertEquationDialog()
+void CrunchWindow::insertEquationDialog() { equationDialog(QString()); }
+
+// `pick` is what a button of the Equation tab puts in the line ("" for none). An equation of a file, which no line says, is changed in UnicodeMath or LaTeX.
+void CrunchWindow::equationDialog(const QString &pick)
 {
     if (!m_session || !m_objects || m_chartSheetShown || !editingAllowed()) return;
     const int id = pickedObject();
     QString line;
-    const bool editing = id >= 0 && m_objects->equationOf(m_sheet, id, &line, nullptr);
-    if (editing && line.isEmpty()) {
-        notice(tr("Edit Equation"), tr("This equation can't be changed here."));
-        return;
-    }
-    if (!askEquation(this, editing ? tr("Edit Equation") : tr("Insert Equation"), &line)) return;
-    if (editing) editEquation(id, line);
-    else insertEquation(line);
+    QByteArray markup;
+    const bool editing = id >= 0 && m_objects->equationOf(m_sheet, id, &line, &markup);
+    // (This program keeps an equation as the file has it, with no form of its own: Professional and Linear are only what the dialog starts in.)
+    EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
+    if (!askEquationMarkup(this, editing ? tr("Edit Equation") : tr("Insert Equation"), &line, &markup, &form, pick)) return;
+    if (editing) editEquationMarkup(id, markup);
+    else insertEquationMarkup(markup);
+}
+
+// The Equation tab (equationtab.h): shown while an equation is picked. Its buttons open the equation's dialog with the structure or symbol put in.
+void CrunchWindow::createEquationTabActions()
+{
+    EquationTabHandlers h;
+    h.edit = [this](const QString &pick) { equationDialog(pick); };
+    h.setLinear = [this](bool linear) {
+        setEquationLinearSetting(linear);
+        showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, linear, equationSyntaxSetting());
+    };
+    h.setSyntax = [this](EquationSyntax s) {
+        setEquationSyntaxSetting(s);
+        showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, equationLinearSetting(), s);
+    };
+    jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable, true); }, h);
+    showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, equationLinearSetting(), equationSyntaxSetting());
 }
 
 } // namespace jp

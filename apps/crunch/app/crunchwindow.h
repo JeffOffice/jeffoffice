@@ -1540,6 +1540,9 @@ public:
     // another line (also one step).
     bool insertEquation(const QString &linear);
     bool editEquation(int id, const QString &linear);
+    // The same for an equation that is markup already (typed in any format, as the dialog makes it).
+    bool insertEquationMarkup(const QByteArray &markup);
+    bool editEquationMarkup(int id, const QByteArray &markup);
     // Format of the picked picture, shape, or text box (each is one step: the object is made again with the change). The words in a shape: the box that asks stands in for the dialog (tests).
     struct ShapeTextChoices {
         QString text;
@@ -1647,6 +1650,8 @@ private:
     void reflectShapeEditor();
     void compressPicturesDialog();
     void insertEquationDialog();
+    void equationDialog(const QString &pick);   // Insert or Edit Equation, with what a button of the Equation tab puts in the line
+    void createEquationTabActions();
     void showSelectionPane();
     QPointer<SelectionPane> m_selectionPane;
     void createObjectFormatActions();
