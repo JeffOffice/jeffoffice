@@ -3045,6 +3045,42 @@ private Q_SLOTS:
         QVERIFY(binary.value(QStringLiteral("progId")).toString().isEmpty() && folder.value(QStringLiteral("progId")).toString().isEmpty());
     }
 
+    // An object kept from an .odp is not written as an OOXML object part when the deck is saved as a .pptx: it is its picture, with the note said once.
+    void anOdfObjectOfASlideIsItsPictureInAPptx()
+    {
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        twoObjectParts(&parts, &types);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString odp = dir.filePath(QStringLiteral("in.odp")), pptx = dir.filePath(QStringLiteral("out.pptx"));
+        QFile f(odp);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(objectDeck(objectFrame(QStringLiteral("Object 1"), true, 0) + objectFrame(QStringLiteral("Object 2"), false, 1), parts, types));
+        f.close();
+        DeckWindow w;
+        QVERIFY(w.openFile(odp));
+        QVERIFY(w.saveTo(pptx, true));
+        QMap<QString, QByteArray> zip;
+        QString err;
+        QVERIFY2(jp::readZip(fileBytes(pptx), zip, &err), qPrintable(err));
+        for (const QString &n : zip.keys()) QVERIFY2(!n.contains(QLatin1String("embeddings")), qPrintable(n));
+        for (const QByteArray &body : zip)
+            QVERIFY(!body.contains("<p:oleObj") && !body.contains("jo:odf"));
+        auto back = deck::importAnyPresentationFile(pptx, &err);
+        QVERIFY2(back, qPrintable(err));
+        int pictures = 0;
+        walkItems(back->pages[0]->items, [&](const auto &it) { pictures += it->type() == ItemType::Picture; });
+        QCOMPARE(pictures, 2);
+        // (the note a save gathers is said once, however many objects there are)
+        QStringList skipped;
+        QVERIFY2(deck::saveAnyPresentationFile(*w.editor()->doc(), dir.filePath(QStringLiteral("again.pptx")), &err, &skipped), qPrintable(err));
+        int notes = 0;
+        for (const QString &t : skipped) notes += t.contains(QStringLiteral("saved as pictures"));
+        QCOMPARE(notes, 1);
+        QCOMPARE(skipped.size(), 1);
+    }
+
     // A deck with no objects saves no part of an object.
     void aDeckWithoutObjectsSavesNoObjectParts()
     {

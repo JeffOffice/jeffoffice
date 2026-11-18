@@ -603,6 +603,7 @@ private:
     QHash<QString, QByteArray> m_equationPictures;   // the pictures equations are written with, by "equation:" and a fingerprint of the math, color, and pixel size (what imageBytes gives for them)
     office::ole::ObjectBudget m_objects;             // the embedded objects written so far, against what a file may hold; past it an object is written as its picture
     bool m_objectsPastCap = false;
+    bool m_odfObjectsNoted = false;
     qint64 m_equationPixels = 0;                     // the pixels of all of them so far, held to kMostEquationPixels
     std::deque<MasterPage> m_synthesized;
     std::vector<MasterOut> m_masters;
@@ -1385,6 +1386,14 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         if (!topLevel.contains(it->id) && !kind.isEmpty()) return;
         // (An object's frame is written after the shapes are numbered, as it takes a number of its own and one for its picture.)
         if (kind == QLatin1String("object")) {
+            // (an object an OpenDocument file held that is not one of ours has no form here: it is written as its picture, and the person is told once)
+            if (!kept.value(QStringLiteral("odf")).toString().isEmpty()) {
+                if (!m_odfObjectsNoted) {
+                    m_odfObjectsNoted = true;
+                    note(QCoreApplication::translate("PptxExport", "Some objects are saved as pictures: a .pptx file can't hold them. Save as an .odp file to keep them."));
+                }
+                return;
+            }
             if (it->type() == ItemType::Picture && topLevel.contains(it->id) && !kept.value(QStringLiteral("data")).toString().isEmpty() && !office::dmlwrite::relatePicture(ctx, static_cast<const PictureItem &>(*it).imageId).isEmpty()) {
                 const auto image = m_doc.images.constFind(static_cast<const PictureItem &>(*it).imageId);
                 if (m_objects.admit(kept.value(QStringLiteral("data")).toString().size() / 4 * 3, image == m_doc.images.cend() ? 0 : image->bytes.size())) {
