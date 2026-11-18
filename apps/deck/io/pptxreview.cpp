@@ -114,6 +114,8 @@ void retainReviewTheirs(const QString &key, const QObject *owner)
     if (added) QObject::connect(owner, &QObject::destroyed, owner, [key, owner] { release(key, owner); }, Qt::DirectConnection);
 }
 
+void releaseReviewTheirs(const QString &key, const QObject *owner) { release(key, owner); }
+
 QByteArray storedReviewTheirs(const QString &key)
 {
     Store &s = store();

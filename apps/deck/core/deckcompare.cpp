@@ -831,6 +831,13 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
     };
     // What the changed content is, for changeKey: a short hash, never words of the interface.
     auto ck = [](const QByteArray &content) { return QString::fromLatin1(QCryptographicHash::hash(content, QCryptographicHash::Sha1).toHex().left(16)); };
+    // What a slide holds, for the hash of a change about the whole slide: its title and each object's kind, text, and place.
+    auto slideContent = [](const Document &d, const Flat &f, int i) {
+        QByteArray out = slideTitle(d, i).toUtf8();
+        for (const Rec &r : f.recs)
+            out += '|' + QByteArray::number(int(r.item->type())) + ':' + r.text.toUtf8() + '@' + QByteArray::number(r.item->rect.x(), 'f', 2) + ',' + QByteArray::number(r.item->rect.y(), 'f', 2);
+        return out;
+    };
     auto slideName = [&](const Document &d, int i) {
         const QString t = shortText(slideTitle(d, i));
         return t.isEmpty() ? QCoreApplication::translate("DeckCompare", "Slide %1").arg(i + 1) : t;
@@ -865,12 +872,13 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             QJsonObject data;
             data[QStringLiteral("ts")] = t;
             data[QStringLiteral("ms")] = -1;
-            data[QStringLiteral("ck")] = ck(slideTitle(theirs, t).toUtf8());
+            data[QStringLiteral("ck")] = ck(slideContent(theirs, st.flats[t], t));
             emit(Kind::Added, tid, QString(), QStringLiteral("slide"), QCoreApplication::translate("DeckCompare", "Slide added: %1").arg(slideName(theirs, t)), positionOf(key, 0), data);
         } else if (!keeps[t]) {
             QJsonObject data;
             data[QStringLiteral("ts")] = t;
             data[QStringLiteral("ms")] = mineOf[t];
+            data[QStringLiteral("ck")] = ck(slideContent(theirs, st.flats[t], t));
             emit(Kind::Moved, mine.pages[mineOf[t]]->id, QString(), QStringLiteral("order"),
                  QCoreApplication::translate("DeckCompare", "Slide moved from %1 to %2: %3").arg(mineOf[t] + 1).arg(t + 1).arg(slideName(theirs, t)), positionOf(key, 0), data);
         }
@@ -885,7 +893,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         QJsonObject data;
         data[QStringLiteral("ts")] = -1;
         data[QStringLiteral("ms")] = m;
-        data[QStringLiteral("ck")] = ck(slideTitle(mine, m).toUtf8() + '|' + QByteArray::number(int(mine.pages[m]->items.size())));
+        data[QStringLiteral("ck")] = ck(slideContent(mine, sm.flats[m], m));
         emit(Kind::Deleted, mine.pages[m]->id, QString(), QStringLiteral("slide"), QCoreApplication::translate("DeckCompare", "Slide deleted: %1").arg(slideName(mine, m)), positionOf(2 * lastT + 3, 0), data);
     }
 
@@ -920,6 +928,7 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
                 if (have.contains(commentKey(c))) continue;
                 QJsonObject data = slideData;
                 data[QStringLiteral("ckey")] = commentKey(c);
+                data[QStringLiteral("ck")] = ck(commentKey(c).toUtf8());
                 data[QStringLiteral("cid")] = c.id;
                 emit(Kind::Commented, container, c.id, QStringLiteral("comment"), QCoreApplication::translate("DeckCompare", "Comment by %1: %2").arg(c.author, shortText(c.text)), positionOf(key, 2), data, c.author, c.date);
             }
@@ -1311,8 +1320,7 @@ QString changeKey(const Change &c)
     // The ids of a presentation read from a file are made again with each reading, so a change is told by where it is in the other presentation (that is kept
     // whole, and read the same way each time: its slide's and object's places) and by a hash of what changed. A slide taken out has no place there: its hash tells it.
     const QChar bar = QLatin1Char('|');
-    return kindKey(c.kind) + bar + c.target.path + bar + QString::number(dataInt(c, "ts")) + bar + dataString(c, "ti") + bar + c.data.value(QStringLiteral("ck")).toString() + bar +
-           QString::fromLatin1(QCryptographicHash::hash(c.data.value(QStringLiteral("ckey")).toString().toUtf8(), QCryptographicHash::Sha1).toHex().left(16));
+    return kindKey(c.kind) + bar + c.target.path + bar + QString::number(dataInt(c, "ts")) + bar + dataString(c, "ti") + bar + c.data.value(QStringLiteral("ck")).toString();
 }
 
 }   // namespace jp::deck

@@ -2053,6 +2053,13 @@ private Q_SLOTS:
         if (!(path.endsWith(QLatin1String(".odp")) ? pkg.readOpenDocument(zip) : pkg.read(zip))) return false;
         return !pkg.partNames().filter(QStringLiteral("review.json")).isEmpty();
     }
+    // Waits until a zero timer made now has run: the zero timers made before it (the window's marks) have run by then.
+    static void drainTimers()
+    {
+        bool done = false;
+        QTimer::singleShot(0, [&done] { done = true; });
+        QTRY_VERIFY(done);
+    }
     static void editSomething(DeckWindow &w, int i) { w.editor()->change(QStringLiteral("Edit"), [&] { w.editor()->doc()->props.author = QStringLiteral("author %1").arg(i); }); }
     // A file of the base deck that keeps `part`'s appData "compare".
     static QString fileKeeping(const QString &folder, const QString &name, const QJsonObject &compare)
@@ -2099,13 +2106,11 @@ private Q_SLOTS:
         startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
         DeckWindow &w = *run.w;
         QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
-        QCoreApplication::processEvents();
-        QTest::qWait(20);   // (only lets the timers of the compare finish; what is asserted is a count that stays)
-        QCoreApplication::processEvents();
+        QTRY_VERIFY(deck::reviewCounters().markRebuilds > 0);
+        drainTimers();
         const int before = deck::reviewCounters().markRebuilds;
         for (int i = 0; i < 20; ++i) editSomething(w, i);
-        QTest::qWait(20);
-        QCoreApplication::processEvents();
+        drainTimers();
         QCOMPARE(deck::reviewCounters().markRebuilds, before);
         // A change decided, and a change of slide, make them again.
         QVERIFY(w.rejectChange(0));
@@ -2302,6 +2307,88 @@ private Q_SLOTS:
         second.editor()->markSaved();
     }
 
+    // Two slides taken out that are alike in title and number of objects are told apart by what they hold; any change's key follows its content.
+    void compareKeysFollowTheContentOfEveryChange()
+    {
+        QTemporaryDir dir;
+        auto mine = lettered(3);
+        for (int i = 0; i < 3; ++i) mine->pages[i]->title = i == 0 ? QStringLiteral("Keep") : QStringLiteral("Dup");
+        addBox(*mine, *mine->pages[0], QStringLiteral("kept"), 50, 50);
+        addBox(*mine, *mine->pages[1], QStringLiteral("alpha"), 50, 50);
+        addBox(*mine, *mine->pages[2], QStringLiteral("beta"), 50, 50);
+        auto theirs = copyOf(*mine);
+        theirs->pages.removeAt(2);
+        theirs->pages.removeAt(1);
+        QString err;
+        const QString minePath = dir.filePath(QStringLiteral("mine.pptx")), theirsPath = dir.filePath(QStringLiteral("theirs.pptx"));
+        QVERIFY2(deck::savePresentationFile(*mine, minePath, &err), qPrintable(err));
+        QVERIFY2(deck::savePresentationFile(*theirs, theirsPath, &err), qPrintable(err));
+        DeckWindow w;
+        QVERIFY(w.openFile(minePath));
+        w.compareFileChooser = [theirsPath] { return theirsPath; };
+        w.act(QStringLiteral("review.compare"))->trigger();
+        QVERIFY(w.comparison());
+        QCOMPARE(w.comparison()->changes.size(), 2);
+        const review::ChangeList &list = w.comparison()->changes;
+        QVERIFY(deck::changeKey(list.changes[0]) != deck::changeKey(list.changes[1]));
+        // Reject the one that held "beta" (the last slide), save, and read again: that one only.
+        int beta = -1;
+        for (int i = 0; i < list.size(); ++i)
+            if (deck::markOf(*w.editor()->doc(), *const_cast<DeckComparison *>(w.comparison()), i).slide == 2) beta = i;
+        QVERIFY(beta >= 0);
+        const QString rejectedKey = deck::changeKey(list.changes[beta]);
+        QVERIFY(w.rejectChange(beta));
+        const QString kept = dir.filePath(QStringLiteral("kept.pptx"));
+        QVERIFY2(deck::savePresentationFile(*w.editor()->doc(), kept, &err), qPrintable(err));
+        w.editor()->markSaved();
+        DeckWindow second;
+        QVERIFY(second.openFile(kept));
+        QTRY_VERIFY(second.comparison());
+        const review::ChangeList &again = second.comparison()->changes;
+        QCOMPARE(again.count(review::State::Rejected), 1);
+        QCOMPARE(again.count(review::State::Pending), 1);
+        for (const review::Change &c : again.changes)
+            if (c.state == review::State::Rejected) QCOMPARE(deck::changeKey(c), rejectedKey);
+        second.editor()->markSaved();
+        // A change that is not a comment: its key differs when what it changed to differs.
+        auto base = compareBase();
+        auto red = copyOf(*base), blue = copyOf(*base);
+        boxOf(*red, 0)->fill = Fill::solid(ColorRef::rgb(QColor(Qt::red)));
+        boxOf(*blue, 0)->fill = Fill::solid(ColorRef::rgb(QColor(Qt::blue)));
+        DeckComparison cr = compareDecks(*base, *red), cb = compareDecks(*base, *blue);
+        QCOMPARE(cr.changes.size(), 1);
+        QCOMPARE(cb.changes.size(), 1);
+        QVERIFY(deck::changeKey(cr.changes.changes[0]) != deck::changeKey(cb.changes.changes[0]));
+        // ... and the same change twice has the same key.
+        DeckComparison cr2 = compareDecks(*base, *red);
+        QCOMPARE(deck::changeKey(cr2.changes.changes[0]), deck::changeKey(cr.changes.changes[0]));
+    }
+
+    // A window that compares again lets go of the copy it kept for the comparison before.
+    void compareAgainLetsGoOfTheEarlierCopy()
+    {
+        QTemporaryDir dir;
+        deck::clearReviewStore();
+        DeckWindow w;
+        auto base = compareBase();
+        w.editor()->setDocument(copyOf(*base));
+        QStringList paths;
+        for (int i = 0; i < 3; ++i) {
+            auto theirs = changedBase(*base);
+            addBox(*theirs, *theirs->pages[0], QStringLiteral("extra %1").arg(i), 60, 60);
+            QString err;
+            paths << dir.filePath(QStringLiteral("theirs%1.pptx").arg(i));
+            QVERIFY2(deck::savePresentationFile(*theirs, paths.last(), &err), qPrintable(err));
+        }
+        for (int i = 0; i < 3; ++i) {
+            w.compareFileChooser = [p = paths[i]] { return p; };
+            w.act(QStringLiteral("review.compare"))->trigger();
+            QVERIFY(w.comparison());
+            QCOMPARE(deck::storedReviewCount(), 1);
+        }
+        w.editor()->markSaved();
+    }
+
     // The status bar says what Compare found without the slide number drawn over it.
     void compareFoundMessageIsNotDrawnOverBySlideNumber()
     {
@@ -2312,11 +2399,13 @@ private Q_SLOTS:
         w.show();
         QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
         QTRY_VERIFY(!w.statusBar()->currentMessage().isEmpty());
-        QCoreApplication::processEvents();
-        QTest::qWait(100);   // (the window's own refresh of its labels runs on a timer)
-        QCoreApplication::processEvents();
-        QWidget *label = w.findChild<QLabel *>(QStringLiteral("slideNumber"));
+        QLabel *label = w.findChild<QLabel *>(QStringLiteral("slideNumber"));
         QVERIFY(label);
+        // (the window's own refresh of its labels runs on a timer: waited for by what it writes)
+        // (the page moves, as it does when Compare goes to a change: the label is written again while the message is up)
+        w.editor()->setCurrentPage(2);
+        QTRY_VERIFY(label->text().contains(QStringLiteral("3")));
+        QVERIFY(!w.statusBar()->currentMessage().isEmpty());
         QVERIFY2(!label->isVisible(), "the slide number is drawn while the status bar shows a message");
         w.statusBar()->clearMessage();
         QTRY_VERIFY(label->isVisible());   // (and it is back when the message is gone)

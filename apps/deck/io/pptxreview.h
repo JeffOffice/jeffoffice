@@ -54,6 +54,8 @@ QString storeReviewTheirs(const QByteArray &bytes);
 QByteArray storedReviewTheirs(const QString &key);
 // `owner` (a window) uses the entry until it is destroyed; then the entry goes if no other owner has it.
 void retainReviewTheirs(const QString &key, const QObject *owner);
+// `owner` stops using the entry now (a window that starts another comparison lets go of its earlier copy); the entry goes if no other owner has it.
+void releaseReviewTheirs(const QString &key, const QObject *owner);
 int storedReviewCount();   // for tests
 void clearReviewStore();   // for tests
 

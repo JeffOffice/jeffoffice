@@ -279,6 +279,8 @@ bool DeckWindow::compareWith(const QString &path, QString *error)
     auto cmp = std::make_shared<deck::DeckComparison>(deck::compareDecks(*d, *theirs));
     const QString key = deck::storeReviewTheirs(bytes);
     deck::retainReviewTheirs(key, this);
+    // (the copy of the comparison before this one is let go of: a window keeps the one it shows, not every one it ever made)
+    if (!m_cmpKey.isEmpty() && m_cmpKey != key) deck::releaseReviewTheirs(m_cmpKey, this);
     // One step: undoing it takes the comparison away, and redoing it brings it back.
     if (m_reviewPane) m_reviewPane->setSource({});   // (it holds the old list until it is given the new one)
     const std::shared_ptr<deck::DeckComparison> older = m_cmp;
