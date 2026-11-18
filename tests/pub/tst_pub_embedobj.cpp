@@ -87,7 +87,9 @@ QByteArray pngOfSize(int w, int h)
     QByteArray out;
     QBuffer buf(&out);
     buf.open(QIODevice::WriteOnly);
-    QImage(w, h, QImage::Format_RGB32).save(&buf, "PNG");
+    QImage im(w, h, QImage::Format_RGB32);
+    im.fill(Qt::white);   // a new image holds whatever the memory held, and two encodings of it would differ in size
+    im.save(&buf, "PNG");
     return out;
 }
 
@@ -203,7 +205,9 @@ private Q_SLOTS:
         QByteArray jpeg;
         QBuffer buf(&jpeg);
         buf.open(QIODevice::WriteOnly);
-        if (QImage(4, 4, QImage::Format_RGB32).save(&buf, "JPEG")) QVERIFY(keep(jpeg)->previewPng.isEmpty());
+        QImage small(4, 4, QImage::Format_RGB32);
+        small.fill(Qt::white);
+        if (small.save(&buf, "JPEG")) QVERIFY(keep(jpeg)->previewPng.isEmpty());
         Limits l;
         l.pictureBytes = good.size();
         setLimits(l);
