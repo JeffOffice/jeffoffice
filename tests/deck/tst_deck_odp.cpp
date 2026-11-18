@@ -377,6 +377,32 @@ private Q_SLOTS:
         }
     }
 
+    // An arc, a bracket, and a brace (shapes with no fill of their own) are written with their preset and come back as themselves, with the adjustments they had, not as boxes.
+    void odpKeepsAnOpenShapeAsItself()
+    {
+        for (const QString &id : {QStringLiteral("arc"), QStringLiteral("leftBracket"), QStringLiteral("rightBrace"), QStringLiteral("chord")}) {
+            auto d = deck::newPresentation();
+            auto shape = std::make_shared<ShapeItem>();
+            shape->rect = QRectF(50, 100, 200, 60);
+            shape->shape = id;
+            shape->adj = {0.25, 0.5};
+            d->pages[0]->items.push_back(shape);
+            QString err;
+            const QByteArray bytes = deck::exportOdp(*d, false, &err);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            auto back = deck::importOdp(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            const ShapeItem *found = nullptr;
+            for (const auto &it : back->pages[0]->items)
+                if (it->type() == ItemType::Shape) found = static_cast<const ShapeItem *>(it.get());
+            QVERIFY2(found, qPrintable(id));
+            QCOMPARE(found->shape, id);
+            const QVector<double> want = shapeAdj(id, shape->adj), got = shapeAdj(id, found->adj);
+            QCOMPARE(got.size(), want.size());
+            for (int i = 0; i < want.size(); ++i) QVERIFY2(std::abs(got[i] - want[i]) < 0.02, qPrintable(id + QStringLiteral(" adjustment %1: %2 for %3").arg(i).arg(got[i]).arg(want[i])));
+        }
+    }
+
     // Text takes what its styles give it: the placeholder's presentation style, the automatic styles of
     // paragraphs and spans, the sizes in percent, and the bullets and numbers of the list styles.
     void odpReadsTextAndLists()

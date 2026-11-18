@@ -997,7 +997,8 @@ ItemPtr Reader::readCustomShape(const QDomElement &e, Scope &sc, const QTransfor
     }
     if (geometry.isEmpty() && !libraryShape.isEmpty()) {
         const ShapeDef *def = shapeDef(libraryShape);
-        if (def && !def->open) {
+        // (An arc, a bracket, or a brace has no fill of its own but is the library's shape all the same.)
+        if (def) {
             base.shape = libraryShape;
             if (ooxml) base.adj = office::libraryAdjustments(prst, adjust, frame);
         }
