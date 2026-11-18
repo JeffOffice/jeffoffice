@@ -124,6 +124,7 @@ int EmbeddedEdit::start(QObject *owner, const QString &key, const EmbeddedObject
     s.widthEmu = object.widthEmu;
     s.heightEmu = object.heightEmu;
     if (!m_open || !m_open(s.path, kind)) {
+        s.lock->unlock();   // an open file cannot be deleted on every system
         removeFolder(s.dir);
         return 0;
     }
