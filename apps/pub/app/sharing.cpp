@@ -7,6 +7,7 @@
 #include "app/appfuncs.h"
 #include "app/editor.h"
 #include "app/mainwindow.h"
+#include "app/packandgo.h"
 #include "app/privacy.h"
 #include "io/jpubfile.h"
 #include "io/zip.h"
@@ -122,7 +123,7 @@ bool packForPrinter(MainWindow *win, const QString &dir, QString *error)
     return true;
 }
 
-bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *error)
+bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *error, QStringList *fontsLeftOut)
 {
     Editor *ed = win->editor();
     ZipWriter z;
@@ -134,7 +135,7 @@ bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *er
         return false;
     }
     z.add(ed->displayName() + ".jpub", jpub);
-    // Include the font files the publication uses, when they are bundled or installed as files.
+    // Include the font files the publication uses, when they are bundled or installed as files (the shared Pack and Go leaves out any whose license forbids it).
     QSet<QString> families;
     for (auto it = ed->doc()->stories.cbegin(); it != ed->doc()->stories.cend(); ++it)
         for (QTextBlock b = (*it)->doc->begin(); b.isValid(); b = b.next())
@@ -142,24 +143,15 @@ bool packToZip(MainWindow *win, const QString &path, int *fontCount, QString *er
                 for (const QString &fam : f.fragment().charFormat().fontFamilies().toStringList()) families.insert(fam);
     families.insert(ed->doc()->fonts.heading);
     families.insert(ed->doc()->fonts.body);
-    const QStringList fontDirs = bundledFontDirs();
-    int fonts = 0;
-    for (const QString &d : fontDirs) {
-        for (const QFileInfo &fi : QDir(d).entryInfoList({"*.ttf", "*.otf"}, QDir::Files)) {
-            const QString stem = fi.completeBaseName().section('-', 0, 0);
-            for (const QString &fam : families)
-                if (QString(fam).remove(' ').compare(stem, Qt::CaseInsensitive) == 0) {
-                    QFile f(fi.absoluteFilePath());
-                    if (f.open(QIODevice::ReadOnly)) { z.add("fonts/" + fi.fileName(), f.readAll()); ++fonts; }
-                }
-        }
-        if (fonts) break;
-    }
+    const PackedFonts packed = packFonts(families.values());
+    for (const PackFontFile &f : packed.files) z.add("fonts/" + f.name, f.data);
+    const int fonts = int(packed.files.size());
+    if (fontsLeftOut) *fontsLeftOut = packed.leftOut;
     if (fontCount) *fontCount = fonts;
     const QByteArray bytes = z.finish();
-    QSaveFile out(path);
-    if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
-        if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save %1.\n%2").arg(QDir::toNativeSeparators(path), out.errorString());
+    QString detail;
+    if (!writeZipFile(path, bytes, &detail)) {
+        if (error) *error = QCoreApplication::translate("Sharing", "JeffPub couldn't save %1.\n%2").arg(QDir::toNativeSeparators(path), detail);
         return false;
     }
     return true;
@@ -183,11 +175,12 @@ void packAndGo(QWidget *parent, MainWindow *win, bool forPrinter)
     if (path.isEmpty()) return;
     int fonts = 0;
     QString err;
-    if (!packToZip(win, path, &fonts, &err)) {
+    QStringList leftOut;
+    if (!packToZip(win, path, &fonts, &err, &leftOut)) {
         jp::plainWarning(parent, QCoreApplication::translate("Sharing", "Pack and Go"), err);
         return;
     }
-    jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %n font file(s).", nullptr, fonts).arg(QFileInfo(path).fileName()));
+    jp::plainInformation(parent, QCoreApplication::translate("Sharing", "Pack and Go"), QCoreApplication::translate("Sharing", "Saved %1 with the publication and %n font file(s).", nullptr, fonts).arg(QFileInfo(path).fileName()) + (leftOut.isEmpty() ? QString() : QLatin1Char('\n') + fontsLeftOutText(leftOut)));
 }
 
 void saveForPhotoPrinter(QWidget *parent, MainWindow *win)

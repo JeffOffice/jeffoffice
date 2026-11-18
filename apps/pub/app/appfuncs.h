@@ -36,8 +36,9 @@ QString userBlocksDir();
 // False, with `error` saying what, when any of them could not be saved.
 bool packForPrinter(MainWindow *win, const QString &dir, QString *error = nullptr);
 // Pack and Go's ZIP for another computer: the publication with its pictures whole, and the
-// font files it uses. `fonts` gets how many; false, with `error`, when it could not be saved.
-bool packToZip(MainWindow *win, const QString &path, int *fonts, QString *error);
+// font files it uses (the shared Pack and Go, libs/shell/app/packandgo.h, finds them). `fonts` gets how many, `fontsLeftOut` the families whose license forbids packing the file; false, with
+// `error`, when it could not be saved.
+bool packToZip(MainWindow *win, const QString &path, int *fonts, QString *error, QStringList *fontsLeftOut = nullptr);
 void saveForPhotoPrinter(QWidget *parent, MainWindow *win);
 void saveAsTemplate(QWidget *parent, MainWindow *win);
 Stroke currentBorderStroke();
