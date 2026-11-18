@@ -1,4 +1,6 @@
 // The checks every app's window must pass, for JeffDeck (see appchecks.h): its first five minutes, its standard commands, and every command it has.
+#include "app/objects.h"
+#include <QMimeData>
 #include "core/captions.h"
 #include "appchecks.h"
 
@@ -360,6 +362,13 @@ private Q_SLOTS:
         m_app.prepare = [](AppWindow *w, const QString &id, bool) {
             asDeck(w)->showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
             if (id == QLatin1String("edit.paste") || id == QLatin1String("edit.pasteText") || id == QLatin1String("edit.pasteKeep") || id == QLatin1String("edit.pasteSpecial")) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
+            if (id == QLatin1String("edit.pasteObject")) {
+                objects::Grid grid;
+                objects::CellValue v;
+                v.text = QStringLiteral("a");
+                grid.push_back({v});
+                QGuiApplication::clipboard()->setMimeData(objects::withObject(new QMimeData, [grid] { return objects::rangeObject(grid); }));
+            }
             if (id == QLatin1String("edit.pasteCells")) QGuiApplication::clipboard()->setText(QStringLiteral("a\tb\nc\td\n"));
         };
         m_app.skipped = {};

@@ -1103,7 +1103,7 @@ private Q_SLOTS:
         QVERIFY(options);
         QStringList choices;
         for (QAction *a : options->actions()) choices << a->objectName();
-        QCOMPARE(choices, (QStringList{"edit.pasteKeep", "edit.pasteText", "edit.pasteSpecial"}));
+        QCOMPARE(choices, (QStringList{"edit.pasteKeep", "edit.pasteText", "edit.pasteObject", "edit.pasteSpecial"}));
         // Size and Position opens the Format pane at the size and position boxes; Alt Text, at the alt text.
         w.act(QStringLiteral("shape.sizePos"))->trigger();
         QVERIFY(!w.formatDock()->isHidden());

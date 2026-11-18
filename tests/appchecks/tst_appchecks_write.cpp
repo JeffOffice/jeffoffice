@@ -1,4 +1,6 @@
 // The checks every app's window must pass, for JeffWrite (see appchecks.h): its first five minutes, its standard commands, and every command it has.
+#include "app/objects.h"
+#include <QMimeData>
 #include "appchecks.h"
 #include "withdialog.h"
 #include <QPushButton>
@@ -186,6 +188,13 @@ private Q_SLOTS:
                 mime->setText(QStringLiteral("Pasted words"));
                 mime->setHtml(QStringLiteral("<p><b>Pasted</b> words</p>"));
                 QGuiApplication::clipboard()->setMimeData(mime);
+            }
+            if (id == QLatin1String("edit.pasteObject")) {
+                objects::Grid grid;
+                objects::CellValue v;
+                v.text = QStringLiteral("a");
+                grid.push_back({v});
+                QGuiApplication::clipboard()->setMimeData(objects::withObject(new QMimeData, [grid] { return objects::rangeObject(grid); }));
             }
             if (id.startsWith(QLatin1String("edit.pasteList"))) QGuiApplication::clipboard()->setText(QStringLiteral("Pasted words"));
             if (id.startsWith(QLatin1String("edit.pasteTable")) || id == QLatin1String("edit.pasteTable")) {
