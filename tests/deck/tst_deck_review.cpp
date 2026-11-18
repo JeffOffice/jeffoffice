@@ -17,6 +17,7 @@
 #include "../withdialog.h"
 
 #include <QStatusBar>
+#include <QMouseEvent>
 #include <QToolTip>
 
 using jp::deck::DeckComparison;
@@ -1107,7 +1108,10 @@ private Q_SLOTS:
             });
             g.resize(g.sizeHint());
             g.show();
-            QTest::mouseMove(&g, g.tileRect(0).center());
+            // (the move is sent to the grid itself: a mouse moved through the desktop does not always reach a window on a test machine's screen, Nov 18 Windows CI)
+            const QPointF at = g.tileRect(0).center();
+            QMouseEvent move(QEvent::MouseMove, at, g.mapToGlobal(at), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(&g, &move);
             QTRY_VERIFY(QToolTip::text().contains(QStringLiteral("probe.invalid")));
             QVERIFY2(!readsAPicture(QToolTip::text()), qPrintable(QToolTip::text()));
             QToolTip::hideText();
