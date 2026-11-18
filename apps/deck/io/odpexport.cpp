@@ -891,7 +891,7 @@ void Exporter::writeSlide(X &x, int index)
         const QString kind = v.toObject().value(QStringLiteral("kind")).toString();
         if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), QCoreApplication::translate("OdpExport", "diagrams are saved as pictures: their parts can't be edited in this kind of file."));
         else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
-        else if (kind == QLatin1String("object")) sayOnce(QStringLiteral("object"), QCoreApplication::translate("OdpExport", "Embedded objects are saved as their pictures in this kind of file: their contents stay in the .pptx and .jdeck files."));
+        else if (kind == QLatin1String("object")) sayOnce(QStringLiteral("object"), QCoreApplication::translate("OdpExport", "Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file."));
         else sayOnce(QStringLiteral("chart"), QCoreApplication::translate("OdpExport", "Charts are saved as pictures: their data can't be edited in this kind of file."));
     }
     // A chart made or opened as a chart here is a picture in this kind of file too.
