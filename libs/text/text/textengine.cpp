@@ -712,7 +712,7 @@ QTextCharFormat fineFormat(QTextCharFormat cf)
         pen.setWidthF(pen.widthF() * kFine);
         cf.setTextOutline(pen);
     }
-    // Underlines Qt can't draw (double, words only, thick) are drawn here (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style. So is the
+    // Underlines Qt can't draw (double, words only, thick, long dashes) are drawn here (drawUnderline): Qt is told of none, and kOwnUnderline keeps the style. So is the
     // plain single one: Qt 6.8 put its line, in the layout's units, at the baseline plus the ceiling of the font's underline position, plus a half; Qt 6.11 puts
     // it half its thickness lower, which moves the one-pixel lines of the pages half a pixel and blurs them over two rows. The wave, dotted, dashed, and
     // spelling underlines are Qt's.
@@ -752,7 +752,7 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
         // Qt drew its line under the spaces that end a line too, and under those that hang past its width: the cursor stops short of them (at the line's
         // width), and the line's natural extent, which counts them, says where they end: its right end for a line that reads left to right, its left end for
         // one that reads right to left.
-        if (kind == 0 && to == line.textStart() + line.textLength()) {
+        if ((kind & ~8) == 0 && to == line.textStart() + line.textLength()) {
             const QRectF natural = line.naturalTextRect();
             // (From the line's start the whole line is under it: the cursor's two ends are not its two sides where a line mixes directions. A tab that ends the line
             // is wider than the natural extent says: the cursor stops where the tab does, so the line is under the wider of the two.)

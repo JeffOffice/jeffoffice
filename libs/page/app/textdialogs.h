@@ -18,7 +18,8 @@ namespace jp {
 class Editor;
 class TextArtItem;
 
-void fontDialog(QWidget *p, Editor *ed);
+// longDash: whether the Underline list has Long dash (a file kind with no such underline leaves it out).
+void fontDialog(QWidget *p, Editor *ed, bool longDash = true);
 void paragraphDialog(QWidget *p, Editor *ed, int tab = 0);
 void bulletsDialog(QWidget *p, Editor *ed, bool numbering);
 void characterSpacingDialog(QWidget *p, Editor *ed);

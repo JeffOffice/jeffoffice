@@ -106,10 +106,11 @@ ColorButton *colorPick(Editor *ed, const ColorRef &c, bool allowNone, QWidget *p
 } // namespace
 
 // ---------------- Font ----------------
-void fontDialog(QWidget *p, Editor *ed)
+void fontDialog(QWidget *p, Editor *ed, bool longDash)
 {
     const QTextCharFormat cur = ed->currentCharFormat();
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Font"));
+    dlg.d.setObjectName(QStringLiteral("fontDialog"));
     auto *grid = new QGridLayout();
     auto *font = new FontCombo(&dlg.d);
     font->setSchemeFonts(ed->doc()->fonts.heading, ed->doc()->fonts.body);
@@ -125,6 +126,7 @@ void fontDialog(QWidget *p, Editor *ed)
     size->setValue(cur.hasProperty(QTextFormat::FontPointSize) ? cur.fontPointSize() : 11);
     auto *color = colorPick(ed, cur.stringProperty(tp::ColorRefP).isEmpty() ? ColorRef::scheme(Main) : ColorRef::fromString(cur.stringProperty(tp::ColorRefP)), false, &dlg.d);
     auto *underline = new QComboBox(&dlg.d);
+    underline->setObjectName(QStringLiteral("underlineStyle"));
     // Each choice: Qt's line style and the tp::UnderlineKind flags beside it.
     struct UnderlineChoice { const char *name; QTextCharFormat::UnderlineStyle style; int kind; };
     static const UnderlineChoice underlines[] = {
@@ -141,15 +143,22 @@ void fontDialog(QWidget *p, Editor *ed)
         {QT_TRANSLATE_NOOP("Dialogs", "Wave"), QTextCharFormat::WaveUnderline, 0},
         {QT_TRANSLATE_NOOP("Dialogs", "Double wave"), QTextCharFormat::WaveUnderline, 1},
     };
-    for (const auto &u : underlines) underline->addItem(QCoreApplication::translate("Dialogs", u.name));
-    // The text's own choice; else the first with its line style.
-    int pick = -1;
-    for (int i = int(std::size(underlines)) - 1; i >= 0; --i)
-        if (underlines[i].style == cur.underlineStyle()) {
-            if (underlines[i].kind == cur.intProperty(tp::UnderlineKind) || cur.underlineStyle() == QTextCharFormat::NoUnderline) { pick = i; break; }
-            pick = i;
+    // The choices shown (Long dash only where the file kind has it).
+    QVector<const UnderlineChoice *> shown;
+    for (const auto &u : underlines)
+        if (longDash || u.kind != 8) {
+            shown.append(&u);
+            underline->addItem(QCoreApplication::translate("Dialogs", u.name));
         }
+    // The text's own choice; else the one of its line style with its kind less the heavy flag (a heavy dash is shown as the plain one, and kept as it is if that is left alone);
+    // else the first with its line style.
+    const int curKind = cur.intProperty(tp::UnderlineKind);
+    int pick = -1;
+    for (int pass = 0; pass < 3 && pick < 0; ++pass)
+        for (int i = 0; i < int(shown.size()) && pick < 0; ++i)
+            if (shown[i]->style == cur.underlineStyle() && (pass == 2 || shown[i]->kind == (pass == 0 ? curKind : (curKind & ~4)) || cur.underlineStyle() == QTextCharFormat::NoUnderline)) pick = i;
     underline->setCurrentIndex(std::max(0, pick));
+    const int firstPick = underline->currentIndex();
     grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font")), 0, 0);
     grid->addWidget(font, 1, 0);
     grid->addWidget(new QLabel(QCoreApplication::translate("Dialogs", "Font style")), 0, 1);
@@ -224,8 +233,10 @@ void fontDialog(QWidget *p, Editor *ed)
     cf.setFontPointSize(size->value());
     cf.setFontWeight(style->currentIndex() >= 2 ? QFont::Bold : QFont::Normal);
     cf.setFontItalic(style->currentIndex() % 2);
-    cf.setUnderlineStyle(underlines[underline->currentIndex()].style);
-    cf.setProperty(tp::UnderlineKind, underlines[underline->currentIndex()].kind);
+    // (Left as it was, the text's own underline stays, a heavy dash too.)
+    const bool kept = underline->currentIndex() == firstPick;
+    cf.setUnderlineStyle(kept ? cur.underlineStyle() : shown[underline->currentIndex()]->style);
+    cf.setProperty(tp::UnderlineKind, kept ? curKind : shown[underline->currentIndex()]->kind);
     cf.setFontStrikeOut(strike->isChecked());
     cf.setVerticalAlignment(sup->isChecked() ? QTextCharFormat::AlignSuperScript : sub->isChecked() ? QTextCharFormat::AlignSubScript : QTextCharFormat::AlignNormal);
     cf.setFontCapitalization(smallcaps->isChecked() ? QFont::SmallCaps : allcaps->isChecked() ? QFont::AllUppercase : QFont::MixedCase);

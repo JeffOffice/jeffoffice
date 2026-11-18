@@ -675,7 +675,7 @@ private:
     // style's defaults, then its level, lowest priority first.
     void stack(int level);
     QTextCharFormat linkFormat(QTextCharFormat cf, const QDomElement &rPr) const;
-    void addToList(const ParaProps &para, int level, const QString &key, const QString &look, double firstSize);
+    void addToList(const ParaProps &para, int level, const QString &key, double firstSize);
 
     const DrawingContext &m_ctx;
     DrawingBudget *m_budget = nullptr;
@@ -689,8 +689,7 @@ private:
     RunProps m_run[kLevels];     // and a run in it
     struct ListRun {
         QTextList *list = nullptr;
-        QString key;            // the kind, text, and start of the numbering: what a count goes on through
-        QString look;            // the bullet's color, font, and size: another look goes on in a list of its own
+        QString key;
         int count = 0;           // the blocks in the list
         int start = 1;           // the number the list starts at, for numbering
     };
@@ -757,16 +756,16 @@ bool Reader::room()
     return m_budget->take(DrawingBudget::Paragraphs);
 }
 
-void Reader::addToList(const ParaProps &para, int level, const QString &key, const QString &look, double firstSize)
+void Reader::addToList(const ParaProps &para, int level, const QString &key, double firstSize)
 {
     ListRun &run = m_lists[level];
-    if (run.list && run.key == key && run.look == look && run.count < kMaxListRun) {
+    if (run.list && run.key == key && run.count < kMaxListRun) {
         run.list->add(m_cursor.block());
         ++run.count;
         return;
     }
     const Bullet &b = para.bullet;
-    // A run of one numbering past the length of a list, or of another look, goes on in another, from the number after the last.
+    // A run of one numbering past the length of a list goes on in another, from the number after the last.
     const int start = run.list && run.key == key ? std::min(run.start + run.count, 1000000) : b.startAt;
     QTextListFormat lf;
     lf.setIndent(0);
@@ -790,7 +789,6 @@ void Reader::addToList(const ParaProps &para, int level, const QString &key, con
     }
     run.list = m_cursor.createList(lf);
     run.key = key;
-    run.look = look;
     run.count = 1;
     run.start = start;
 }
@@ -952,10 +950,11 @@ void Reader::paragraph(const QDomElement &p)
         return;
     }
     const double points = b.size == Bullet::Own ? (b.sizeValue.kind == Spacing::Percent ? b.sizeValue.value * firstSize : b.sizeValue.value) : 0;
-    // The numbers go on through paragraphs of the same kind and start; those whose bullets are the same in every way share a list.
-    const QString key = QStringLiteral("%1|%2|%3").arg(int(b.kind)).arg(b.text).arg(b.kind == Bullet::AutoNum ? b.startAt : 0);
-    const QString look = QStringLiteral("%1|%2|%3").arg(b.color == Bullet::Own ? colorRefOf(b.colorValue) : QString()).arg(b.font == Bullet::Own ? b.fontValue : QString()).arg(points);
-    addToList(para, level, key, look, firstSize);
+    // Paragraphs whose bullets are the same in every way share a list.
+    const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6")
+                            .arg(int(b.kind)).arg(b.text).arg(b.kind == Bullet::AutoNum ? b.startAt : 0).arg(b.color == Bullet::Own ? colorRefOf(b.colorValue) : QString())
+                            .arg(b.font == Bullet::Own ? b.fontValue : QString()).arg(points);
+    addToList(para, level, key, firstSize);
 }
 
 } // namespace

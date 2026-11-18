@@ -305,29 +305,23 @@ private Q_SLOTS:
         }
     }
 
-    // The count goes on while the kind and the start stay: a paragraph whose bullet is another color (or font, or size) goes on at the next number, in its own color, and so does
-    // one whose numbering comes from the list style.
-    void textAutonumbersContinueThroughAnotherBulletColor()
+    // A numbering that repeats the same kind and start goes on, whether the paragraphs name it or take it from the list style. A paragraph whose bullet looks different (color, font,
+    // or size) starts its own count, as before: no file seen has a number go on through such a change.
+    void textAutonumbersContinueWhenTheSameStartIsRepeated()
     {
         const QString own = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\" startAt=\"2\"/>");
         const QString red = QStringLiteral("<a:buClr><a:srgbClr val=\"FF0000\"/></a:buClr>");
-        const QString big = QStringLiteral("<a:buSzPct val=\"150000\"/><a:buFont typeface=\"Arial\"/>");
         auto p = [](const QString &text, const QString &pPr) { return para(run(text), QStringLiteral("<a:pPr>%1</a:pPr>").arg(pPr)); };
         const QString lst = QStringLiteral("<a:lvl1pPr>%1</a:lvl1pPr>").arg(own);
-        for (const bool third : {false, true}) {   // (the third names its numbering itself, or takes it from the list style)
-            Body b(p(QStringLiteral("a"), own) + p(QStringLiteral("b"), own) + p(QStringLiteral("c"), red + (third ? own : QString())) + p(QStringLiteral("d"), own)
-                       + p(QStringLiteral("e"), QString()) + p(QStringLiteral("f"), big + own) + p(QStringLiteral("g"), own),
-                   {}, lst);
-            const QStringList want = {QStringLiteral("2."), QStringLiteral("3."), QStringLiteral("4."), QStringLiteral("5."), QStringLiteral("6."), QStringLiteral("7."), QStringLiteral("8.")};
-            QCOMPARE(b.doc.blockCount(), int(want.size()));
-            for (int i = 0; i < want.size(); ++i) {
-                QTextList *l = b.block(i).textList();
-                QVERIFY2(l, qPrintable(QString::number(i)));
-                QCOMPARE(l->itemText(b.block(i)), want[i]);
-            }
-            QCOMPARE(b.block(2).textList()->format().stringProperty(jp::tp::BulletColor).isEmpty(), false);
-            QVERIFY(b.block(3).textList()->format().stringProperty(jp::tp::BulletColor).isEmpty());
-        }
+        auto numbers = [](Body &b) {
+            QStringList out;
+            for (int i = 0; i < b.doc.blockCount(); ++i) out << (b.block(i).textList() ? b.block(i).textList()->itemText(b.block(i)) : QString());
+            return out;
+        };
+        Body same(p(QStringLiteral("a"), own) + p(QStringLiteral("b"), own) + p(QStringLiteral("c"), own) + p(QStringLiteral("d"), own) + p(QStringLiteral("e"), QString()), {}, lst);
+        QCOMPARE(numbers(same), (QStringList{"2.", "3.", "4.", "5.", "6."}));
+        Body colored(p(QStringLiteral("a"), own) + p(QStringLiteral("b"), own) + p(QStringLiteral("c"), red + own) + p(QStringLiteral("d"), own) + p(QStringLiteral("e"), QString()), {}, lst);
+        QCOMPARE(numbers(colored), (QStringList{"2.", "3.", "2.", "2.", "3."}));
     }
 
     void textEmptyParagraphsHaveNoBulletAndKeepTheNumbering()

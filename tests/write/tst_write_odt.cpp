@@ -285,6 +285,40 @@ private Q_SLOTS:
         QCOMPARE(tabStopsOf(fromDocx->story()->begin().blockFormat()), tabStopsOf(fromOdt->story()->begin().blockFormat()));
     }
 
+    // Heavy dashed underlines of an .odt (bold width) are the engine's heavy kinds (4, 12) in the text, and stay so through an .rtf.
+    void heavyDashedUnderlinesOfAnOdtAreHeavyKindsAndSurviveRtf()
+    {
+        struct Row { const char *style, *word; QTextCharFormat::UnderlineStyle line; int kind; };
+        const Row rows[] = {{"dash", "aaa", QTextCharFormat::DashUnderline, 4}, {"long-dash", "bbb", QTextCharFormat::DashUnderline, 12}, {"dot-dash", "ccc", QTextCharFormat::DashDotLine, 4},
+                            {"dot-dot-dash", "ddd", QTextCharFormat::DashDotDotLine, 4}};
+        QByteArray body, styles;
+        for (int i = 0; i < 4; ++i) {
+            body += QByteArray("<text:p><text:span text:style-name=\"T") + QByteArray::number(i) + "\">" + rows[i].word + "</text:span></text:p>";
+            styles += QByteArray("<style:style style:name=\"T") + QByteArray::number(i) + "\" style:family=\"text\"><style:text-properties style:text-underline-style=\"" + rows[i].style +
+                      "\" style:text-underline-type=\"single\" style:text-underline-width=\"bold\"/></style:style>";
+        }
+        QString err;
+        auto doc = WriteDoc::fromFile(makeOdt(body, styles), &err);
+        QVERIFY2(doc, qPrintable(err));
+        auto check = [&](WriteDoc *d, const char *what) {
+            for (const Row &r : rows) {
+                bool seen = false;
+                for (auto b = d->story()->begin(); b.isValid(); b = b.next())
+                    for (auto it = b.begin(); !it.atEnd(); ++it)
+                        if (it.fragment().text().contains(QLatin1String(r.word))) {
+                            seen = true;
+                            QVERIFY2(it.fragment().charFormat().underlineStyle() == r.line, what);
+                            QVERIFY2(it.fragment().charFormat().intProperty(tp::UnderlineKind) == r.kind, qPrintable(QStringLiteral("%1 %2").arg(QLatin1String(what), QLatin1String(r.word))));
+                        }
+                QVERIFY2(seen, r.word);
+            }
+        };
+        check(doc.get(), "odt");
+        auto back = WriteDoc::fromFile(doc->toRtf(&err), &err);
+        QVERIFY2(back, qPrintable(err));
+        check(back.get(), "rtf");
+    }
+
     // Character scaling goes into an .rtf (\charscalex) and comes back from it.
     void aScaledRunIsKeptInAnRtf()
     {

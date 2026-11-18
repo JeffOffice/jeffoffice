@@ -1742,6 +1742,10 @@ void Reader::charWord(State &g, uint32_t h, bool has, int param, bool *handled)
     case H("ulthdash"): c.ul = 11; break;
     case H("ululdbwave"): c.ul = 12; break;
     case H("ulldash"): c.ul = 13; break;
+    case H("ulhwave"): c.ul = 14; break;
+    case H("ulthdashd"): c.ul = 15; break;
+    case H("ulthdashdd"): c.ul = 16; break;
+    case H("ulthldash"): c.ul = 17; break;
     case H("ulc"): c.ulColor = param; break;
     case H("super"): c.vert = on ? 1 : 0; break;
     case H("sub"): c.vert = on ? 2 : 0; break;

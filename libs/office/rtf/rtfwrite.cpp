@@ -193,7 +193,9 @@ struct Writer {
         if (p.dstrike) o += *p.dstrike ? "\\striked1" : "\\striked0";
         if (p.underline) {
             static const QHash<QString, QByteArray> kinds = {{"single", "\\ul"}, {"double", "\\uldb"}, {"thick", "\\ulth"}, {"dotted", "\\uld"}, {"dash", "\\uldash"}, {"dotDash", "\\uldashd"},
-                                                             {"dotDotDash", "\\uldashdd"}, {"wave", "\\ulwave"}, {"words", "\\ulw"}, {"none", "\\ulnone"}};
+                                                             {"dotDotDash", "\\uldashdd"}, {"wave", "\\ulwave"}, {"words", "\\ulw"}, {"none", "\\ulnone"},
+                                                             {"dottedHeavy", "\\ulthd"}, {"dashedHeavy", "\\ulthdash"}, {"dashLong", "\\ulldash"}, {"dashLongHeavy", "\\ulthldash"},
+                                                             {"dashDotHeavy", "\\ulthdashd"}, {"dashDotDotHeavy", "\\ulthdashdd"}, {"wavyHeavy", "\\ulhwave"}, {"wavyDouble", "\\ululdbwave"}};
             o += kinds.value(p.underline->val, QByteArray("\\ul"));
             if (!p.underline->color.isEmpty() && p.underline->color != QLatin1String("auto")) o += "\\ulc" + QByteArray::number(color(p.underline->color));
         }

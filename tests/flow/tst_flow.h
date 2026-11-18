@@ -1412,6 +1412,7 @@ private Q_SLOTS:
     void underlinedSpacesPastTheLineEndAreUnderlinedToo();
     void anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes();
     void longDashUnderlinesHaveLongerDashesThanDashedOnes();
+    void aLongDashUnderlineRunsUnderTrailingSpaces();
     void underlinesTakeTheTextsColorFromThePenWhenItSetsNone();
     void onlyPlainSingleUnderlinesAreDrawnHere();
     void underlinesCostInProportionToTheirRunsAndLines();

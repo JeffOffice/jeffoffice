@@ -117,7 +117,7 @@ void MainWindow::buildRibbon()
     ribbonMenuParts(parts);
     addChartParts(parts);
 
-    parts.launchers[QStringLiteral("font")] = [this] { fontDialog(this, m_ed); };
+    parts.launchers[QStringLiteral("font")] = [this] { fontDialog(this, m_ed, false); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { paragraphDialog(this, m_ed, 0); };
     parts.launchers[QStringLiteral("pageSetup")] = [this] { pageSetupDialog(this, m_ed); };
     parts.launchers[QStringLiteral("formatShape")] = [this] { formatObjectDialog(this, m_ed, 0); };

@@ -354,7 +354,7 @@ public:
     void setTextShadow(bool on, const QString &label);
     void toggleBold();
     void toggleItalic();
-    // kind: tp::UnderlineKind flags (double, words only, thick).
+    // kind: tp::UnderlineKind flags (double, words only, thick, long dashes).
     void toggleUnderline(QTextCharFormat::UnderlineStyle style = QTextCharFormat::SingleUnderline, int kind = 0);
     void toggleStrike();
     void toggleScript(bool super);

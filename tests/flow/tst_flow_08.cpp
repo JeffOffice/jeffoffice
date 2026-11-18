@@ -534,10 +534,10 @@ void FlowTests::anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes()
     }
 }
 
-// A long-dash underline (tp::UnderlineKind's 8) is drawn with longer dashes than a dashed one: fewer, longer pieces along the same line.
+// A long-dash underline (tp::UnderlineKind's 8) is drawn with longer dashes than a dashed one: the median dash is longer along the same line.
 void FlowTests::longDashUnderlinesHaveLongerDashesThanDashedOnes()
 {
-    auto pieces = [&](int kind) {
+    auto median = [&](int kind) {
         QTextDocument doc;
         QTextCursor c(&doc);
         QTextCharFormat f;
@@ -546,22 +546,45 @@ void FlowTests::longDashUnderlinesHaveLongerDashesThanDashedOnes()
         if (kind) f.setProperty(tp::UnderlineKind, kind);
         c.insertText(QString(60, QLatin1Char(' ')) + QLatin1Char('x'), f);
         const QImage img = paintedStory(doc, 1000);
-        int most = 0;
+        // The row with the most ink is the line (a thin one may be spread over two rows, so ink is anything under 200).
+        int best = 0, bestInk = -1;
         for (int y = 0; y < img.height(); ++y) {
-            int n = 0;
-            bool on = false;
-            for (int x = 0; x < img.width(); ++x) {
-                const bool ink = qGray(img.pixel(x, y)) < 128;
-                if (ink && !on) ++n;
-                on = ink;
-            }
-            most = std::max(most, n);
+            int ink = 0;
+            for (int x = 0; x < img.width(); ++x) ink += qGray(img.pixel(x, y)) < 200;
+            if (ink > bestInk) { bestInk = ink; best = y; }
         }
-        return most;
+        QVector<int> lengths;
+        int run = 0;
+        for (int x = 0; x <= img.width(); ++x) {
+            if (x < img.width() && qGray(img.pixel(x, best)) < 200) ++run;
+            else if (run) { lengths.append(run); run = 0; }
+        }
+        std::sort(lengths.begin(), lengths.end());
+        return lengths.isEmpty() ? 0.0 : double(lengths[lengths.size() / 2]);
     };
-    const int dashed = pieces(0), longer = pieces(8);
-    QVERIFY2(longer > 1 && dashed > 1, qPrintable(QStringLiteral("dashed %1, long %2").arg(dashed).arg(longer)));
-    QVERIFY2(longer * 3 < dashed * 2, qPrintable(QStringLiteral("dashed %1 pieces, long dashes %2").arg(dashed).arg(longer)));
+    const double dashed = median(0), longer = median(8);
+    QVERIFY2(dashed > 0 && longer > 0, qPrintable(QStringLiteral("dashed %1, long %2").arg(dashed).arg(longer)));
+    QVERIFY2(longer / dashed > 1.4, qPrintable(QStringLiteral("median dash %1 px, long dash %2 px").arg(dashed).arg(longer)));
+}
+
+// A long-dash underline runs under the spaces that end a line, as a dashed one does: the same line is as long in a frame too narrow for its spaces as in a wide one.
+void FlowTests::aLongDashUnderlineRunsUnderTrailingSpaces()
+{
+    QTextDocument doc;
+    QTextCursor c(&doc);
+    QTextCharFormat f;
+    f.setFontPointSize(12);
+    f.setUnderlineStyle(QTextCharFormat::DashUnderline);
+    f.setProperty(tp::UnderlineKind, 8);
+    c.insertText(QStringLiteral("hello world") + QString(40, QLatin1Char(' ')), f);
+    QTextDocument bareDoc;
+    QTextCursor bc(&bareDoc);
+    bc.insertText(QStringLiteral("hello world"), f);
+    const QRect bare = inkBox(paintedStory(bareDoc, 1000));
+    const QRect wide = inkBox(paintedStory(doc, 1000)), narrow = inkBox(paintedStory(doc, 100));
+    const QString what = QStringLiteral("%1 wide in a wide frame, %2 in a narrow one, %3 without the spaces").arg(wide.width()).arg(narrow.width()).arg(bare.width());
+    QVERIFY2(wide.width() > bare.width() + 40, qPrintable(what));
+    QVERIFY2(std::abs(wide.width() - narrow.width()) <= 12, qPrintable(what));   // (the last dash may stop short of the end, by at most a dash)
 }
 
 // The underline is in the color of the letters: black where a run sets none (the engine draws such letters black whatever the painter's pen is), the run's own where it sets one.

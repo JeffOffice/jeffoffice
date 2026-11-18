@@ -939,6 +939,35 @@ private Q_SLOTS:
         QCOMPARE(cf.intProperty(tp::UnderlineKind), 8);
     }
 
+    // A heavy dash is shown as the plain one in the Underline list and, with that left alone, kept heavy by OK (it is not rewritten to the plain dash); picking another changes it.
+    void fontWindowKeepsHeavyDashes()
+    {
+        for (const int kind : {4, 12}) {
+            DeckWindow w;
+            QTextDocument *story = editTitle(w, QStringLiteral("Hello"), 0, 5);
+            Q_UNUSED(story);
+            QTextCharFormat f;
+            f.setUnderlineStyle(QTextCharFormat::DashUnderline);
+            f.setProperty(tp::UnderlineKind, kind);
+            w.editor()->mergeCharFormat(f, QStringLiteral("test"));
+            QString shown;
+            QTimer::singleShot(0, [&shown] {
+                untilDone([&shown] {
+                    auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                    if (!dlg) return false;
+                    auto *box = dlg->findChild<QComboBox *>(QStringLiteral("underlineStyle"));
+                    if (box) shown = box->currentText();
+                    dlg->accept();
+                    return true;
+                });
+            });
+            fontDialog(&w, w.editor());
+            QCOMPARE(shown, kind == 12 ? QStringLiteral("Long dash") : QStringLiteral("Dashed"));
+            QCOMPARE(w.editor()->currentCharFormat().intProperty(tp::UnderlineKind), kind);
+            QVERIFY(w.editor()->currentCharFormat().underlineStyle() == QTextCharFormat::DashUnderline);
+        }
+    }
+
     // The Font window's Advanced page has the OpenType choices, and they go to the words as the Font window sets them: a choice left alone is not touched, and one set
     // back to the font's own is taken away.
     void fontWindowAdvancedPageSetsOpenTypeChoices()

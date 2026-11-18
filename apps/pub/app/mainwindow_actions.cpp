@@ -244,7 +244,7 @@ void MainWindow::createActions()
         });
     }
     mk("fmt.spacingDialog", tr("More Spacing…"), "", QKeySequence(), [this] { characterSpacingDialog(this, m_ed); });
-    mk("fmt.fontDialog", tr("Font…"), "type", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F), [this] { fontDialog(this, m_ed); });
+    mk("fmt.fontDialog", tr("Font…"), "type", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_F), [this] { fontDialog(this, m_ed, false); });
 
     // ---------------- Paragraph ----------------
     mk("para.bullets", tr("Bullets"), "list", QKeySequence(), [ed] {

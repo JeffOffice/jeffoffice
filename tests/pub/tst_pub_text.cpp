@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QRawFont>
 #include "core/fontfiles.h"
+#include <QComboBox>
 #include <QMessageBox>
 #include <QStandardItemModel>
 #include <QToolButton>
@@ -31,6 +32,21 @@ class PubTextTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
+
+    // JeffPub's Font window leaves Long dash out (a .pub file has no such underline), and the other underlines stay.
+    void pubFontWindowHasNoLongDash()
+    {
+        jp::MainWindow w;
+        QVERIFY(w.act(QStringLiteral("fmt.fontDialog")));
+        QStringList items;
+        withDialog([&] { w.act(QStringLiteral("fmt.fontDialog"))->trigger(); }, QStringLiteral("fontDialog"), [&](QDialog *d) {
+            auto *box = d->findChild<QComboBox *>(QStringLiteral("underlineStyle"));
+            QVERIFY(box);
+            for (int i = 0; i < box->count(); ++i) items << box->itemText(i);
+        }, false);
+        QVERIFY(items.contains(QStringLiteral("Dashed")));
+        QVERIFY(!items.contains(QStringLiteral("Long dash")));
+    }
 
     // Underlines keep their kind: Double Underline (Ctrl+Shift+D) made a
     // single one, and the Font dialog's Words only and Double did too; .pub

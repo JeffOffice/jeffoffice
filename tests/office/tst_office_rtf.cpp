@@ -3,6 +3,7 @@
 #include "rtf/rtf.h"
 #include "office/package.h"
 #include "rtf/rtfmodel.h"
+#include "rtf/rtfwrite.h"
 #include "wml/wml.h"
 
 #include <QRandomGenerator>
@@ -95,6 +96,33 @@ QByteArray doc(const QByteArray &body) { return QByteArray(kHeader) + body + "}"
 class RtfTest : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // Every underline name of a .docx goes through an .rtf file (written and read) as the same name.
+    void everyUnderlineNameSurvivesDocxToRtfToDocx()
+    {
+        const QStringList names = {"single", "double", "thick", "dotted", "dottedHeavy", "dash", "dashedHeavy", "dashLong", "dashLongHeavy", "dotDash", "dashDotHeavy", "dotDotDash",
+                                   "dashDotDotHeavy", "wave", "wavyHeavy", "wavyDouble", "words"};
+        QByteArray body;
+        for (const QString &n : names) body += "<w:p><w:r><w:rPr><w:u w:val=\"" + n.toUtf8() + "\"/></w:rPr><w:t>" + n.toUtf8() + "</w:t></w:r></w:p>";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"),
+                  "<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:body>" + body + "</w:body></w:document>", QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+        Document d;
+        QVERIFY(wml::readDocx(w.finish(), &d));
+        QString error;
+        const QByteArray file = rtf::writeRtf(d, nullptr, &error);
+        QVERIFY2(!file.isEmpty(), qPrintable(error));
+        Package back;
+        QVERIFY(back.read(rtf::toDocxPackage(file)));
+        const QString xml = QString::fromUtf8(back.part(QStringLiteral("/word/document.xml")));
+        for (const QString &n : names) {
+            const int at = xml.indexOf(QLatin1String(">") + n + QLatin1String("</w:t>"));
+            QVERIFY2(at > 0, qPrintable(n));
+            const int u = xml.lastIndexOf(QLatin1String("<w:u "), at);
+            QVERIFY2(xml.mid(u, 40).startsWith(QLatin1String("<w:u w:val=\"") + n + QLatin1Char('"')), qPrintable(n + QLatin1String(": ") + xml.mid(u, 40)));
+        }
+    }
+
     void detection()
     {
         QVERIFY(rtf::looksLikeRtf("{\\rtf1 hello}"));

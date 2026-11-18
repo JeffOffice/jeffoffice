@@ -8,7 +8,7 @@
 namespace jp::office::rtf {
 
 const char *const kBorderNames[] = {"nil", "single", "thick", "double", "dotted", "dashed", "wave", "triple", "dotDash", "dotDotDash", "inset", "outset"};
-const char *const kUnderlineNames[] = {"none", "single", "double", "dotted", "words", "thick", "wave", "dash", "dotDash", "dotDotDash", "dottedHeavy", "dashedHeavy", "wavyDouble", "dashLong"};
+const char *const kUnderlineNames[] = {"none", "single", "double", "dotted", "words", "thick", "wave", "dash", "dotDash", "dotDotDash", "dottedHeavy", "dashedHeavy", "wavyDouble", "dashLong", "wavyHeavy", "dashDotHeavy", "dashDotDotHeavy", "dashLongHeavy"};
 
 namespace {
 
@@ -129,7 +129,7 @@ QByteArray runPropertiesXml(const Chr &c, const Tables &t)
         }
     }
     if (c.ul != kUnset) {
-        const int u = std::clamp(c.ul, 0, 13);
+        const int u = std::clamp(c.ul, 0, 17);
         x += QByteArray("<w:u w:val=\"") + kUnderlineNames[u] + "\"" + (c.ulColor != kUnset && u != 0 ? " w:color=\"" + colorHex(t, c.ulColor).toLatin1() + "\"" : QByteArray()) + "/>";
     }
     if (!shaded && c.shd != kUnset && c.shd > 0) x += "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + colorHex(t, c.shd).toLatin1() + "\"/>";
