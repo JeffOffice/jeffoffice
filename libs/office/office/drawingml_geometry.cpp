@@ -541,7 +541,10 @@ const AdjustSpec kAdjustments[] = {
     {"mathMultiply", 1, {23520}, SIDE_FRACTION(51965)},
     {"mathDivide", 3, {23520, 5882, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], 100000) / 100000, pin(0, a[2], 100000) / 100000}; }},
     {"mathEqual", 2, {23520, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 36745) / 100000, pin(0, a[1], 100000 - 2 * pin(0, a[0], 36745)) / 100000}; }},
-    {"mathNotEqual", 3, {23520, 6600000, 11760}, SIDE_FRACTION(50000)},
+    {"mathNotEqual", 3, {23520, 6600000, 11760}, [](const double *a, double, double) {
+         const double a1 = pin(0, a[0], 50000);
+         return QVector<double>{a1 / 100000, pin(4200000, a[1], 6600000) / 100000, pin(0, a[2], 100000 - 2 * a1) / 100000};
+     }},
     // Stars: the inner points' distance from the center, over the outer's, in half of 100,000ths.
     {"star4", 1, {12500}, SIDE_FRACTION(50000)},
     {"star5", 1, {19098}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 50000) / 50000}; }},

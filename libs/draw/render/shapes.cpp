@@ -564,10 +564,20 @@ static QVector<ShapeDef> build()
         const double t = A(a, 0, 0.2352) * h, g = A(a, 1, 0.1176) * h; QPainterPath p;
         p.addRect(w * 0.13255, h / 2 - g / 2 - t, w * 0.7349, t); p.addRect(w * 0.13255, h / 2 + g / 2, w * 0.7349, t); return p; }, {0.2352, 0.1176}, {}, 0.3, nullptr);
     add("mathNotEqual", QT_TRANSLATE_NOOP("Render", "Not Equal"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * h * 0.8, g = t * 0.6; QPainterPath p;
-        p.addRect(w * 0.12, h / 2 - g / 2 - t, w * 0.76, t); p.addRect(w * 0.12, h / 2 + g / 2, w * 0.76, t);
-        QPainterPath s; s.addRect(-t / 2, -h * 0.42, t, h * 0.84); QTransform r; r.translate(w / 2, h / 2); r.rotate(20);
-        return p.united(r.map(s)); }, {0.235}, {}, 0.3);
+        // (The standard's drawing: two bars and a slash across them. The bars' thickness and the gap between them are fractions of the height; the slash's angle is the second value, in
+        // 100,000ths of 60,000ths of a degree, as the standard has it, which is 66 for its 110 degrees.)
+        const double a1 = std::clamp(A(a, 0, 0.2352), 0.0, 0.5), crAng = std::clamp(A(a, 1, 66.0), 42.0, 66.0) * 100000 / 60000 * M_PI / 180;
+        const double a3 = std::clamp(A(a, 2, 0.1176), 0.0, 1 - 2 * a1);
+        const double hc = w / 2, vc = h / 2, hd2 = h / 2, dy1 = h * a1, dy2 = h * a3 / 2, dx1 = w * 0.7349 / 2;
+        const double x1 = hc - dx1, x8 = hc + dx1, y2 = vc - dy2, y3 = vc + dy2, y1 = y2 - dy1, y4 = y3 + dy1;
+        const double cadj2 = crAng - M_PI / 2, xadj2 = hd2 * std::tan(cadj2), len = std::hypot(xadj2, hd2), bhw = len * dy1 / hd2;
+        const double x7 = hc + xadj2 - bhw / 2, x6 = x7 - xadj2 * y1 / hd2, x5 = x7 - xadj2 * y2 / hd2, x4 = x7 - xadj2 * y3 / hd2, x3 = x7 - xadj2 * y4 / hd2;
+        const double rx7 = x7 + bhw, rx6 = x6 + bhw, rx5 = x5 + bhw, rx4 = x4 + bhw, rx3 = x3 + bhw;
+        const double dx7 = dy1 * hd2 / len, dy3 = dy1 * xadj2 / len;
+        const double rx = cadj2 > 0 ? x7 + dx7 : rx7, lx = cadj2 > 0 ? x7 : rx7 - dx7, ry = cadj2 > 0 ? dy3 : 0, ly = cadj2 > 0 ? 0 : -dy3;
+        const double dlx = w - rx, drx = w - lx, dly = h - ry, dry = h - ly;
+        return poly({{x1, y1}, {x6, y1}, {lx, ly}, {rx, ry}, {rx6, y1}, {x8, y1}, {x8, y2}, {rx5, y2}, {rx4, y3}, {x8, y3}, {x8, y4}, {rx3, y4}, {drx, dry}, {dlx, dly},
+                     {x3, y4}, {x1, y4}, {x1, y3}, {x4, y3}, {x5, y2}, {x1, y2}}); }, {0.2352, 66.0, 0.1176}, {}, 0.3, nullptr);
 
     // ---------------- Flowchart ----------------
     add("fcProcess", QT_TRANSLATE_NOOP("Render", "Flowchart: Process"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { QPainterPath p; p.addRect(0, 0, w, h); return p; }, {}, {}, 0.05);
@@ -794,7 +804,7 @@ QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const Q
         {"parallelogram", {0.25}}, {"trapezoid", {0.25}}, {"hexagon", {0.25}}, {"halfFrame", {0.333}}, {"leftUpArrow", {0.18, 0.22}},
         {"mathEqual", {0.235}}, {"mathDivide", {0.235}}, {"star4", {0.19}}, {"star5", {0.38}}, {"star6", {0.58}}, {"star7", {0.6}}, {"star8", {0.72}},
         {"star10", {0.76}}, {"star12", {0.78}}, {"star16", {0.82}}, {"star24", {0.86}}, {"star32", {0.88}}, {"mathPlus", {0.235}}, {"mathMinus", {0.235}},
-        {"mathMultiply", {0.235}}, {"wedgeRectCallout", {0.2, 1.0}}, {"wedgeRoundRectCallout", {0.2, 1.0}}, {"wedgeEllipseCallout", {0.18, 1.0}}};
+        {"mathMultiply", {0.235}}, {"mathNotEqual", {0.235}}, {"wedgeRectCallout", {0.2, 1.0}}, {"wedgeRoundRectCallout", {0.2, 1.0}}, {"wedgeEllipseCallout", {0.18, 1.0}}};
     const auto at = old.constFind(id);
     if (at == old.cend()) return adj;
     QVector<double> a = at.value();
@@ -809,6 +819,8 @@ QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const Q
         a = {a[0], a[0]};
     } else if (id == QLatin1String("mathEqual")) {
         a = {a[0] * 0.8, a[0] * 0.48};
+    } else if (id == QLatin1String("mathNotEqual")) {
+        a = {a[0] * 0.8, 66.0, a[0] * 0.48};   // (the slash was turned 20 degrees: the standard's 110)
     } else if (id == QLatin1String("mathDivide")) {
         a = {a[0] * 0.6, a[0] * 0.396, a[0] * 0.33};
     } else if (id.startsWith(QLatin1String("wedge"))) {

@@ -3877,12 +3877,12 @@ private Q_SLOTS:
         };
         // The presets whose drawing is not the standard's yet, with the worst distance measured (a limit: it may not grow, and a shape that comes within 1 pt must leave the list).
         // The standard puts a site at the middle of an arc's, a chord's, and a block arc's sector, and at the top and bottom of a bracket or brace pair where only the fill covers the box;
-        // the library draws no fill there. The rest are shapes the library draws its own way: the curved, circular, and U-turn arrows, the ribbons, the clouds, and the not-equal sign.
+        // the library draws no fill there. The rest are shapes the library draws its own way: the curved, circular, and U-turn arrows, the ribbons, and the clouds.
         // (The file reader draws arc, chord, and block arc from the standard's own paths already.) The multi-document's site is off its curve in the standard's own numbers.
         const QHash<QString, double> exceptions = {
             {"curvedUpArrow", 87.3}, {"curvedRightArrow", 87.3}, {"curvedLeftArrow", 87.3}, {"curvedDownArrow", 87.3}, {"bracketPair", 83.4}, {"bracePair", 66.7},
             {"arc", 50.0}, {"chord", 45.7}, {"ellipseRibbon2", 38.0}, {"ellipseRibbon", 38.0}, {"uturnArrow", 37.5}, {"circularArrow", 37.3}, {"cloudCallout", 35.2},
-            {"ribbon2", 26.7}, {"ribbon", 26.7}, {"blockArc", 25.0}, {"cloud", 17.2}, {"mathNotEqual", 13.9}, {"fcMultidocument", 2.6}};
+            {"ribbon2", 26.7}, {"ribbon", 26.7}, {"blockArc", 25.0}, {"cloud", 17.2}, {"fcMultidocument", 2.6}};
         QVector<std::pair<double, QString>> bad, all;
         for (const jp::ShapeDef &def : jp::shapeLibrary()) {
             if (!jp::hasConnectionSites(def.id)) continue;
@@ -4005,6 +4005,16 @@ private Q_SLOTS:
         QVERIFY(std::abs(outline("mathEqual", QSizeF(200, h), {0.3}, false, true).boundingRect().height() - (2 * 0.8 * 0.3 + 0.48 * 0.3) * h) < 1e-6);
         QVERIFY(std::abs(outline("mathEqual", QSizeF(200, h), {}, false, true).boundingRect().height() - (2 * 0.8 * 0.235 + 0.48 * 0.235) * h) < 1e-6);
         QVERIFY(std::abs(outline("mathDivide", QSizeF(200, h), {0.3}, false, true).boundingRect().height() - (0.6 * 0.3 + 3.2 * 0.66 * 0.3) * h) < 1e-6);
+        // The not-equal sign: the bars (0.8 of the number tall, 0.48 apart) keep their places on the box's left edge, with or without a number.
+        for (const bool given : {true, false}) {
+            const double n = given ? 0.3 : 0.235, w = 200, x1 = w / 2 - 0.36745 * w;
+            const QPainterPath p = outline("mathNotEqual", QSizeF(w, h), given ? QVector<double>{n} : QVector<double>(), false, true);
+            const double top = h / 2 - 0.48 * n * h / 2 - 0.8 * n * h;
+            bool found = false;
+            for (int i = 0; i < p.elementCount(); ++i)
+                if (std::abs(p.elementAt(i).x - x1) < 1e-6 && std::abs(p.elementAt(i).y - top) < 1e-6) found = true;
+            QVERIFY(found);
+        }
     }
 
     void aConnectorGluedToANonSideSiteFollowsItsShapeAndAnIndexPastTheCountStaysPut()
