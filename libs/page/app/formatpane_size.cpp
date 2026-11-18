@@ -1,5 +1,6 @@
 // The Size & Properties page of the Format pane: size, place, turn, and what a text box or shape does with its text; and the alt text of
 // every object.
+#include "core/textdirection.h"
 #include "app/formatpane_p.h"
 #include "app/paneframe.h"
 
@@ -228,8 +229,7 @@ void buildSizePage(FormatPane *pane, PanePage *page)
             return t.vertical ? (t.turnedBack ? 2 : 1) : 0;
         }, [](Item &it, int i) {
             auto &t = static_cast<TextItem &>(it);
-            t.vertical = i >= 1;
-            t.turnedBack = i == 2;
+            t.setDirection(textDirectionFromQuarterTurns(i == 0 ? 0 : i == 1 ? 1 : 3));
         });
         // Shrinking text to fit and growing the box to fit, for a text box and for a shape.
         bindChoice(pane, autofit, label, [](const Item &it) -> std::optional<int> {

@@ -1472,7 +1472,10 @@ void Editor::autoGrowText(TextItem *t)
     LayoutEnv env = Renderer::layoutEnv(*m_doc);
     lay.build(s->doc.get(), {spec}, env);
     const double need = std::max(18.0, lay.usedHeight(0));
-    if (std::abs(need - t->rect.height()) > 0.5) t->rect.setHeight(need);
+    // (Turned words are laid out on their side: what they need is the box's width.)
+    if (t->vertical) {
+        if (std::abs(need - t->rect.width()) > 0.5) t->rect.setWidth(need);
+    } else if (std::abs(need - t->rect.height()) > 0.5) t->rect.setHeight(need);
 }
 
 int Editor::textFitOf(const Item &it)

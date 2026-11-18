@@ -2,6 +2,7 @@
 // Frames that sit on a page. All geometry is in points (1/72 inch), in page
 // coordinates. `rect` is the unrotated frame; rotation turns it about its center.
 
+#include "core/textdirection.h"
 #include "core/itemsfwd.h"
 #include "core/style.h"
 #include "core/valign.h"
@@ -110,6 +111,13 @@ public:
     bool vertical = false;       // text direction rotated 90°
     bool turnedBack = false;     // with `vertical`: rotated 270° (it reads upward) instead
     QString keptVert;            // the file's body value for the direction when it is not one this program writes (kept, and written back, until the direction changes)
+    // Picking a direction: the words run that way, and a value the file had that this program does not know is let go.
+    void setDirection(TextDirection direction)
+    {
+        vertical = direction != TextDirection::Horizontal;
+        turnedBack = direction == TextDirection::Rotate270;
+        keptVert.clear();
+    }
     // A point of the box (its own coordinates) in the coordinates the text is laid out in (turned text is laid out on its side).
     QPointF layoutPoint(QPointF local) const
     {

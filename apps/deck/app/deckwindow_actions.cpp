@@ -150,11 +150,7 @@ void DeckWindow::createFormatActions()
                 const QVector<Item *> boxes = textTargets(ed);
                 ed->change(tr("Text Direction"), [&] {
                     for (Item *it : boxes)
-                        if (it->type() == ItemType::Text) {
-                            auto *t = static_cast<TextItem *>(it);
-                            t->vertical = direction != TextDirection::Horizontal;
-                            t->turnedBack = direction == TextDirection::Rotate270;
-                        }
+                        if (it->type() == ItemType::Text) static_cast<TextItem *>(it)->setDirection(direction);
                 });
             }, true);
         }

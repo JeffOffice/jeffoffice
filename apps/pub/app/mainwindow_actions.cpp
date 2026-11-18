@@ -1048,7 +1048,7 @@ void MainWindow::createActions()
     mk("tb.textFit", tr("Text Fit"), "fold-vertical", QKeySequence(), [] {});
     mk("tb.direction", tr("Text Direction"), "arrow-down-wide-narrow", QKeySequence(), [ed] {
         Item *it = ed->isEditingText() ? ed->doc()->item(ed->textTarget().itemId) : ed->single();
-        if (auto *t = dynamic_cast<TextItem *>(it)) ed->change(tr("Text Direction"), [t] { t->vertical = !t->vertical; });
+        if (auto *t = dynamic_cast<TextItem *>(it)) ed->change(tr("Text Direction"), [t] { t->vertical = !t->vertical; t->keptVert.clear(); });
         else if (dynamic_cast<TableItem *>(it)) toggleTableTextDirection(ed);
     }, true);
     {
@@ -1059,10 +1059,7 @@ void MainWindow::createActions()
             mk(QLatin1String(d.first), textDirectionName(direction), direction == TextDirection::Horizontal ? "text" : "arrow-down-wide-narrow", QKeySequence(), [ed, direction] {
                 Item *it = ed->isEditingText() ? ed->doc()->item(ed->textTarget().itemId) : ed->single();
                 if (auto *t = dynamic_cast<TextItem *>(it))
-                    ed->change(tr("Text Direction"), [t, direction] {
-                        t->vertical = direction != TextDirection::Horizontal;
-                        t->turnedBack = direction == TextDirection::Rotate270;
-                    });
+                    ed->change(tr("Text Direction"), [t, direction] { t->setDirection(direction); });
             }, true);
         }
     }

@@ -164,6 +164,63 @@ private Q_SLOTS:
         QVERIFY(!now()->vertical);
     }
 
+    void pickingADirectionDropsAVertValueThisProgramDoesNotKnow()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(oneSlide());
+        Editor *ed = w.editor();
+        ed->addItem(ed->newTextBox(QRectF(100, 100, 200, 120), QStringLiteral("Hello turned")));
+        const QString id = textBoxOf(ed)->id;
+        ed->change(QStringLiteral("Test"), [&] { textBoxOf(ed)->keptVert = QStringLiteral("wordArtVert"); });
+        ed->select(id);
+        QTRY_VERIFY(w.act(QStringLiteral("tb.dirVertical"))->isEnabled());
+        w.act(QStringLiteral("tb.dirVertical"))->trigger();
+        w.act(QStringLiteral("tb.dirHorizontal"))->trigger();
+        QVERIFY(!static_cast<TextItem *>(ed->doc()->item(id))->vertical);
+        const QString file = dir.filePath(QStringLiteral("a.pptx"));
+        QString err;
+        QVERIFY2(deck::saveAnyPresentationFile(*ed->doc(), file, &err), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(bytesOf(file), parts));
+        const QByteArray slide = parts.value(QStringLiteral("ppt/slides/slide1.xml"));
+        QVERIFY(!slide.contains("wordArtVert"));
+        QVERIFY(!slide.contains("vert=\"vert"));
+    }
+
+    void aTurnedGrowToFitBoxGrowsInWidthAndKeepsItsHeight()
+    {
+        DeckWindow w;
+        w.editor()->setDocument(oneSlide());
+        Editor *ed = w.editor();
+        const QString words = QStringLiteral("One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty");
+        QStringList ids;
+        for (const QString &text : {QStringLiteral("One"), words}) {
+            ed->addItem(ed->newTextBox(QRectF(100, 100, 60, 300), text));
+            ids << ed->surfaceItems().back()->id;
+        }
+        for (const bool back : {false, true}) {
+            double widths[2] = {0, 0};
+            for (int k = 0; k < 2; ++k) {
+                ed->change(QStringLiteral("Test"), [&] {
+                    auto *t = static_cast<TextItem *>(ed->doc()->item(ids[k]));
+                    t->vertical = true;
+                    t->turnedBack = back;
+                    t->rect = QRectF(100, 100, 60, 300);
+                    ed->setTextFit(*t, 2);
+                });
+                const TextItem *t = static_cast<TextItem *>(ed->doc()->item(ids[k]));
+                widths[k] = t->rect.width();
+                QCOMPARE(t->rect.height(), 300.0);
+            }
+            QVERIFY2(widths[1] > widths[0] + 5, qPrintable(QString::number(widths[0]) + " " + QString::number(widths[1])));
+        }
+    }
+
     void aTurnedBoxIsSavedAndOpenedTurnedInPptxAndOdp()
     {
         QTemporaryDir dir;
