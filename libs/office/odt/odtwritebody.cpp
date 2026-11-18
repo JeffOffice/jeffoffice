@@ -804,7 +804,7 @@ QString Writer::chartObject(const QString &rid, qint64 widthEmu, qint64 heightEm
     const QByteArray content = sheet::odschart::chartToOdf(chart, widthEmu, heightEmu, &notes);
     for (const QString &n : std::as_const(notes)) left(n);
     if (content.isEmpty()) return QString();
-    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + 1);
+    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + m_objectDirs + 1);
     m_chartObjects.push_back({dir, content});
     m_chartDone.insert(r.target, dir);
     return dir;
@@ -860,13 +860,79 @@ QByteArray Writer::formulaFrame(const T &t, int math)
     const QByteArray png = wml::equationPng(markup, std::max(1, int(std::lround(w * px))), std::max(1, int(std::lround(h * px))), color);
     if (png.isEmpty()) return QByteArray();
     m_formulaBytes += content.size();
-    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + 1);
+    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + m_objectDirs + 1);
     m_formulas.push_back({dir, content, png});
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",
                                        "<style:graphic-properties style:vertical-pos=\"middle\" style:vertical-rel=\"text\" fo:padding=\"0in\" fo:border=\"none\" style:wrap=\"none\" draw:stroke=\"none\" draw:fill=\"none\"/>");
     const QByteArray width = QString::number(w / 72.0, 'f', 4).toUtf8() + "in", height = QString::number(h / 72.0, 'f', 4).toUtf8() + "in";
     return "<draw:frame draw:style-name=\"" + esc(style) + "\" text:anchor-type=\"as-char\" svg:width=\"" + width + "\" svg:height=\"" + height + "\"><draw:object xlink:href=\"./" + esc(dir) +
            "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/><draw:image xlink:href=\"ObjectReplacements/" + esc(dir) + ".png\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/></draw:frame>";
+}
+
+QByteArray Writer::objectFrame(const T &t, int object)
+{
+    int ole = -1, image = -1, shape = -1;
+    QVector<int> stack{object};
+    for (int guard = 0; !stack.isEmpty() && guard < 2000; ++guard) {
+        const int n = stack.takeLast();
+        const QByteArray name = t.localName(n);
+        if (name == "OLEObject" && ole < 0) ole = n;
+        else if (name == "imagedata" && image < 0) image = n;
+        else if (name == "shape" && shape < 0) shape = n;
+        for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+    }
+    if (ole < 0) return QByteArray();
+    const Relationship r = m_pkg.relationship(m_source, t.attr(ole, "id", wml::NsR));
+    if (r.id.isEmpty() || r.external || !m_pkg.hasPart(r.target)) return QByteArray();
+    // The size: the shape's style says it (width:...pt;height:...pt).
+    qint64 cx = 914400, cy = 914400;
+    if (shape >= 0) {
+        const QString st = t.attrAny(shape, "style");
+        static const QRegularExpression w(QStringLiteral("width:([0-9.]+)(pt|in|cm|mm)")), h(QStringLiteral("height:([0-9.]+)(pt|in|cm|mm)"));
+        auto toEmu = [](const QRegularExpressionMatch &m) {
+            const double v = m.captured(1).toDouble();
+            const QString u = m.captured(2);
+            return qint64(v * (u == QLatin1String("pt") ? 12700 : u == QLatin1String("in") ? 914400 : u == QLatin1String("cm") ? 360000 : 36000));
+        };
+        if (const auto m = w.match(st); m.hasMatch()) cx = std::clamp<qint64>(toEmu(m), 9525, qint64(12700) * 3000);
+        if (const auto m = h.match(st); m.hasMatch()) cy = std::clamp<qint64>(toEmu(m), 9525, qint64(12700) * 3000);
+    }
+    const QString key = m_source + QLatin1Char('|') + r.target;
+    auto done = m_objectDone.find(key);
+    if (done == m_objectDone.end()) {
+        // (the count and the bytes are looked at before the part is inflated, and what is found is kept for the frames that name the part again)
+        const qint64 size = m_pkg.partSize(r.target);
+        QString dir;
+        if (size <= 0 || size > ole::limits().objectBytes || !m_objectBudget.fits(size)) {
+            if (size > 0 && !m_objectsPastLimit)
+                left(QCoreApplication::translate("odt", "embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)").arg(ole::limits().objects));
+            if (size > 0) m_objectsPastLimit = true;
+        } else {
+            ++ole::odfObjectTestHooks().objectReads;
+            const std::optional<ole::EmbeddedObject> kept = ole::keepObject(t.attrAny(ole, "ProgID"), m_pkg.part(r.target), QByteArray(), cx, cy, m_objectBudget, r.target);
+            if (kept) {
+                const QString candidate = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + m_objectDirs + 1);
+                const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, candidate);
+                if (!parts.isEmpty()) {
+                    dir = candidate;
+                    ++m_objectDirs;
+                    m_objectParts += parts;
+                }
+            }
+        }
+        done = m_objectDone.insert(key, dir);
+    }
+    if (done.value().isEmpty()) return QByteArray();
+    const QString dir = done.value();
+    const bool folder = !m_objectParts.isEmpty() && std::any_of(m_objectParts.cbegin(), m_objectParts.cend(), [&](const ole::OdfOutPart &p) { return p.path == dir + QLatin1Char('/'); });
+    QString href;
+    if (image >= 0) imagePart(t.attr(image, "id", wml::NsR), &href);
+    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",
+                                       "<style:graphic-properties style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" style:wrap=\"none\"/>");
+    QByteArray frame = "<draw:frame draw:style-name=\"" + esc(style) + "\" draw:name=\"Object" + num(++m_frameCount) + "\" text:anchor-type=\"as-char\" svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
+                       "\"><draw:" + (folder ? "object" : "object-ole") + " xlink:href=\"./" + esc(dir) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
+    if (!href.isEmpty()) frame += "<draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
+    return frame + "</draw:frame>";
 }
 
 QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
@@ -1582,7 +1648,14 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                     pc->hasContent = true;
                 }
             } else left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
-        } else if (name == "object") left(QCoreApplication::translate("odt", "embedded objects"));
+        } else if (name == "object") {
+            const QByteArray frame = objectFrame(t, c);
+            if (!frame.isEmpty()) {
+                pc->xml += frame;
+                pc->hasContent = true;
+                pc->lastSpace = false;
+            } else if (!m_objectsPastLimit) left(QCoreApplication::translate("odt", "embedded objects"));
+        }
     }
     // The span round the run's content.
     const QByteArray content = pc->xml.mid(start);

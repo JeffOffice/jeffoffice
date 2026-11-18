@@ -1198,6 +1198,10 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
         zip.add(f.dir + QStringLiteral("/content.xml"), f.content, true);
         zip.add(QStringLiteral("ObjectReplacements/") + f.dir + QStringLiteral(".png"), f.picture, false);
     }
+    for (const ole::OdfOutPart &p : std::as_const(m_objectParts)) {
+        manifest += "<manifest:file-entry manifest:full-path=\"" + esc(p.path) + "\" manifest:media-type=\"" + esc(p.mediaType) + "\"/>";
+        if (!p.path.endsWith(QLatin1Char('/'))) zip.add(p.path, p.bytes, p.compress);
+    }
     manifest += "</manifest:manifest>";
     zip.add(QStringLiteral("META-INF/manifest.xml"), manifest, true);
     *out = zip.finish();

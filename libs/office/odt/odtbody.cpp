@@ -574,6 +574,50 @@ bool Reader::isFormulaPart(const QString &part)
     return math;
 }
 
+QByteArray Reader::objectRun(const Odf &o, int frame, qint64 cx, qint64 cy, int image)
+{
+    if (m_flat) return QByteArray();
+    const wml::XmlTree &t = o.tree();
+    int object = -1;
+    for (int c = t.firstChild(frame); c >= 0 && object < 0; c = t.next(c))
+        if (o.is(c, "draw:object") || o.is(c, "draw:object-ole")) object = c;
+    if (object < 0) return QByteArray();
+    const bool binary = o.is(object, "draw:object-ole");
+    const QString href = o.at(object, "xlink:href");
+    if (href.isEmpty()) return QByteArray();
+    if (!m_objects) m_objects = std::make_unique<ole::OdfObjectReader>(ole::odfSourceOfPackage(m_pkg));
+    ole::EmbeddedObject kept;
+    // (the count and the bytes are looked at before any part is inflated, and a part many frames name is read once)
+    const ole::OdfObjectReader::Result result = m_objects->read(href, binary, cx, cy, QByteArray(), m_objectBudget, &kept);
+    if (result == ole::OdfObjectReader::Result::PastLimit) {
+        if (!m_objectsPastLimit) left(QCoreApplication::translate("odt", "embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)").arg(ole::limits().objects));
+        m_objectsPastLimit = true;
+        return QByteArray();
+    }
+    if (result != ole::OdfObjectReader::Result::Kept) return QByteArray();
+    const QString key = m_owner + QLatin1Char('|') + (binary ? QStringLiteral("b|") : QStringLiteral("f|")) + ole::OdfObjectReader::pathOf(href).toLower();
+    QString rid = m_objectRel.value(key);
+    if (rid.isEmpty()) {
+        if (m_objectCount >= kMaxMadeParts) return QByteArray();
+        const QString name = QStringLiteral("/word/embeddings/oleObject%1.bin").arg(++m_objectCount);
+        m_out.addDefault(QStringLiteral("bin"), QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
+        m_out.addPart(name, kept.partBytes, QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
+        rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("oleObject"), name);
+        m_objectRel.insert(key, rid);
+    }
+    const QString pictureRid = image >= 0 ? imageRelationship(o, image) : QString();
+    const double w = double(cx) / 12700.0, h = double(cy) / 12700.0;
+    const int id = nextDocPrId();
+    QByteArray xml = "<w:object xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                     "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" w:dxaOrig=\"" + num(qint64(std::llround(w * 20))) + "\" w:dyaOrig=\"" +
+                     num(qint64(std::llround(h * 20))) + "\"><v:shape id=\"_x0000_i" + num(1024 + id) + "\" type=\"#_x0000_t75\" style=\"width:" + QByteArray::number(w, 'f', 2) + "pt;height:" +
+                     QByteArray::number(h, 'f', 2) + "pt\" stroked=\"f\" o:ole=\"\">";
+    if (!pictureRid.isEmpty()) xml += "<v:imagedata r:id=\"" + esc(pictureRid) + "\" o:title=\"\"/>";
+    xml += "</v:shape><o:OLEObject Type=\"Embed\" ProgID=\"" + esc(kept.progId) + "\" ShapeID=\"_x0000_i" + num(1024 + id) + "\" DrawAspect=\"Content\" ObjectID=\"_" + num(1000000000 + id) +
+           "\" r:id=\"" + esc(rid) + "\"/></w:object>";
+    return xml;
+}
+
 QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
 {
     *ok = false;
@@ -599,6 +643,11 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
             if (preview >= 0) image = preview;
         }
     }
+    if (box < 0 && o.is(frame, "draw:frame"))
+        if (const QByteArray object = objectRun(o, frame, cx, cy, image); !object.isEmpty()) {
+            *ok = true;
+            return object;
+        }
     if (image < 0 && box < 0 && !o.is(frame, "draw:frame") && !o.is(frame, "draw:path")) {
         // A shape that holds text is a text box of its own shape.
         for (int c = t.firstChild(frame); c >= 0; c = t.next(c))

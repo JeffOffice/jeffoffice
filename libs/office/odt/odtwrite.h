@@ -4,6 +4,7 @@
 #include "odt/odt.h"
 #include "odt/odtcommon.h"
 #include "office/package.h"
+#include "ole/odfobject.h"
 #include "wml/xmltree.h"
 
 #include <QHash>
@@ -103,6 +104,8 @@ private:
     QString chartObject(const QString &rid, qint64 widthEmu, qint64 heightEmu);
     // An equation (an m:oMath or m:oMathPara) as a formula object of the new file inside a frame; empty when it can't be made (past the limits, or markup that has no MathML).
     QByteArray formulaFrame(const T &t, int math);
+    // An embedded object (a w:object: its package and its picture) as an object of the new file inside a frame; empty when it can't be kept (past the caps, or not a package to keep).
+    QByteArray objectFrame(const T &t, int object);
     QByteArray noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark = QString());
     QByteArray commentStart(int id);
     // sections
@@ -174,6 +177,11 @@ private:
     };
     QVector<Formula> m_formulas;                          // the equations: the directory of each formula object, its MathML, and its picture
     qint64 m_formulaBytes = 0;
+    ole::ObjectBudget m_objectBudget;                     // the embedded objects written so far, against the object core's caps
+    QHash<QString, QString> m_objectDone;                 // an object's part in the package -> its directory in the new file (empty for one that is refused), so that a part many frames name is read once
+    QVector<ole::OdfOutPart> m_objectParts;               // the parts the objects are written as
+    int m_objectDirs = 0;                                 // the directories made for objects
+    bool m_objectsPastLimit = false;
     int m_imageCount = 0, m_frameCount = 0, m_noteCount = 0, m_endnoteCount = 0, m_tableCount = 0, m_sectionCount = 0, m_commentCounter = 0, m_bookmarkSeq = 0, m_galleryMarks = 0;
     QSet<QString> m_sequences;
     QMap<QString, QString> m_fontFaces;                // name -> generic

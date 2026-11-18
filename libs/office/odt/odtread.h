@@ -4,6 +4,7 @@
 #include "odt/odt.h"
 #include "odt/odtcommon.h"
 #include "office/package.h"
+#include "ole/odfobject.h"
 #include "wml/xmltree.h"
 
 #include <QHash>
@@ -172,6 +173,8 @@ private:
     QByteArray formulaMarkup(const Odf &o, int frame);
     // Whether the object's document (a part of the package) is a formula, seen once from its first bytes.
     bool isFormulaPart(const QString &part);
+    // The run content of a frame that holds an embedded object of a kind other than a formula or a chart, its package kept as a part of the document and its fallback picture shown; empty for any other frame.
+    QByteArray objectRun(const Odf &o, int frame, qint64 cx, qint64 cy, int image);
     QByteArray anchorXml(const Odf &o, int frame, const QString &styleName, qint64 cx, qint64 cy, const QByteArray &graphic, int docPrId);
     QByteArray noteReference(const Odf &o, int note, ParaCtx *pc, const RunFmt &fmt);
     QByteArray commentXml(const Odf &o, int annotation, ParaCtx *pc);
@@ -231,6 +234,11 @@ private:
     int m_formulaCount = 0;
     QHash<QString, bool> m_formulaPart;               // the objects found to be formulas or not
     QHash<QString, QByteArray> m_formulaOfPart;       // the markup of each formula object read (empty for one that is refused), so that frames that name it again do not read it again
+    std::unique_ptr<ole::OdfObjectReader> m_objects;  // the embedded objects of other kinds (their sub-documents and binary parts), read once each
+    ole::ObjectBudget m_objectBudget;                 // what they come to, against the object core's caps
+    QHash<QString, QString> m_objectRel;              // an object's part in the package -> the relationship Id of the part made for it
+    int m_objectCount = 0;                            // the parts made for objects
+    bool m_objectsPastLimit = false;
     int m_imageCount = 0, m_docPrId = 0, m_bookmarkId = 0, m_footnoteCount = 0, m_endnoteCount = 0, m_commentCount = 0;
     QByteArray m_footnotesBody, m_endnotesBody, m_commentsBody;
     QHash<QString, QString> m_headerParts;            // "tree:node" -> relationship Id
