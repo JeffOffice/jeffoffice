@@ -11,6 +11,13 @@
 #include <QTemporaryDir>
 #include <QtTest>
 
+#ifdef Q_OS_WIN
+#include <io.h>
+#include <windows.h>
+#include <winioctl.h>
+#undef MessageBox
+#endif
+
 using namespace jp;
 
 namespace {
@@ -27,6 +34,18 @@ QString makeFile(const QString &path, const QByteArray &data = QByteArray("data"
     QFile f(path);
     if (f.open(QIODevice::WriteOnly)) f.write(data);
     return path;
+}
+
+// A file of `size` bytes that holds none of them on disk: Windows fills a file that is only resized with zeros (1.2 GB of them took minutes on CI), unless it is marked sparse first.
+bool makeSparseFile(const QString &path, qint64 size)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) return false;
+#ifdef Q_OS_WIN
+    DWORD returned = 0;
+    DeviceIoControl(HANDLE(_get_osfhandle(f.handle())), FSCTL_SET_SPARSE, nullptr, 0, nullptr, 0, &returned, nullptr);
+#endif
+    return f.resize(size);
 }
 
 QString xmlText(const QString &s) { return QString(s).replace(QLatin1Char('&'), QLatin1String("&amp;")); }
@@ -724,9 +743,9 @@ private Q_SLOTS:
         // two files of 600 MB (sparse, never read: the person is asked and says no): the second would pass 1 GB
         QStringList big;
         for (const char *name : {"big1.png", "big2.png"}) {
-            QFile f(dir.filePath(QString::fromLatin1(name)));
-            if (!f.open(QIODevice::WriteOnly) || !f.resize(qint64(600) << 20)) QSKIP("this folder cannot hold a large sparse file");
-            big << f.fileName();
+            const QString path = dir.filePath(QString::fromLatin1(name));
+            if (!makeSparseFile(path, qint64(600) << 20)) QSKIP("this folder cannot hold a large sparse file");
+            big << path;
         }
         QString question;
         Source two(makePackage(big));

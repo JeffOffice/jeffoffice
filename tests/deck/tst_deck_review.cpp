@@ -3343,15 +3343,16 @@ private Q_SLOTS:
         QCOMPARE(fits.textMine, deck::kMaxTotalText);
         QCOMPARE(fits.textTheirs, deck::kMaxTotalText);
         QVERIFY(!fits.changes.tooMany);
-        auto more = make(201);
-        DeckComparison over = compareDecks(*more, *copyOf(*more));
+        auto &more = mine;   // (the 201st box is added to the 200 that are there: the same presentation as 201 made at once)
+        addBox(*more, *more->pages[0], big, 10, 10 + 200);
+        DeckComparison over = compareDecks(*more, *more);
         QCOMPARE(over.textMine, deck::kMaxTotalText);
         QVERIFY(over.changes.tooMany);
         // One object's text is read to 100,000 characters and no further.
         auto one = deck::newPresentation();
         one->pages[0]->items.clear();
         addBox(*one, *one->pages[0], QString(150000, QLatin1Char('b')), 10, 10);
-        DeckComparison cut = compareDecks(*one, *copyOf(*one));
+        DeckComparison cut = compareDecks(*one, *one);
         QCOMPARE(cut.textMine, qint64(100000));
         QVERIFY(!cut.changes.tooMany);
     }
@@ -3360,15 +3361,28 @@ private Q_SLOTS:
     void compareComparesFormattingOfTheFirstRunsOnly()
     {
         // A story of `fragments` runs of one letter, bold and plain in turn, and the one at `odd` in another look.
-        auto story = [](int fragments, int odd) {
-            QJsonArray runs;
-            for (int i = 0; i < fragments; ++i) {
+        // (each look is turned into JSON once, and each story is made once: the same ones are asked for again and again)
+        QHash<int, QJsonObject> looks;
+        auto look = [&](bool bold, bool italic) {
+            const int key = int(bold) + 2 * int(italic);
+            if (!looks.contains(key)) {
                 QTextCharFormat f;
-                if (i % 2) f.setFontWeight(QFont::Bold);
-                if (i == odd) f.setFontItalic(true);
-                runs.append(QJsonObject{{"t", QStringLiteral("a")}, {"f", formatToJson(f)}});
+                if (bold) f.setFontWeight(QFont::Bold);
+                if (italic) f.setFontItalic(true);
+                looks.insert(key, QJsonObject{{"t", QStringLiteral("a")}, {"f", formatToJson(f)}});
             }
-            return QJsonObject{{"blocks", QJsonArray{QJsonObject{{"r", runs}}}}};
+            return looks.value(key);
+        };
+        QHash<QPair<int, int>, QJsonObject> stories;
+        auto story = [&](int fragments, int odd) {
+            const QPair<int, int> key(fragments, odd);
+            const auto known = stories.constFind(key);
+            if (known != stories.constEnd()) return known.value();
+            QJsonArray runs;
+            for (int i = 0; i < fragments; ++i) runs.append(look(i % 2, i == odd));
+            const QJsonObject made{{"blocks", QJsonArray{QJsonObject{{"r", runs}}}}};
+            stories.insert(key, made);
+            return made;
         };
         auto make = [&](int boxes, int fragments, int odd) {
             auto d = deck::newPresentation();
@@ -3391,12 +3405,14 @@ private Q_SLOTS:
         QCOMPARE(unseen.sigRunsMine, qint64(deck::kMaxSigRuns));
         // Ten such objects are 200,000: all compared; an eleventh is not, and the list says so.
         auto ten = make(10, 19999, -1);
-        DeckComparison all = compareDecks(*ten, *copyOf(*ten));
+        DeckComparison all = compareDecks(*ten, *ten);
         QCOMPARE(all.sigRunsMine, deck::kMaxTotalSigRuns);
         QCOMPARE(all.sigRunsTheirs, deck::kMaxTotalSigRuns);
         QVERIFY(!all.changes.tooMany);
-        auto eleven = make(11, 19999, -1);
-        DeckComparison past = compareDecks(*eleven, *copyOf(*eleven));
+        auto &eleven = ten;   // (the eleventh object is added to the ten: the same presentation as eleven made at once)
+        ShapeItem *last = addBox(*eleven, *eleven->pages[0], QStringLiteral("x"), 10, 10 + 5 * 10);
+        storyFromJson(eleven->storyDoc(last->storyId), story(19999, -1));
+        DeckComparison past = compareDecks(*eleven, *eleven);
         QCOMPARE(past.sigRunsMine, deck::kMaxTotalSigRuns);
         QVERIFY(past.changes.tooMany);
     }
