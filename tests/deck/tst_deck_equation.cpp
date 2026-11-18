@@ -753,14 +753,17 @@ private Q_SLOTS:
         QVERIFY2(!odp.isEmpty(), qPrintable(err));
         auto backOdp = deck::importOdp(odp, &err);
         QVERIFY2(backOdp, qPrintable(err));
-        int pictures = 0;
+        // (an .odp keeps it as a formula object: it opens again as an equation, built up, not as its linear text)
+        int equations = 0;
         for (const ItemPtr &it : backOdp->pages[0]->items) {
-            if (it->type() != ItemType::Picture) continue;
-            ++pictures;
-            const double ratio = (it->rect.width() - 8) / (it->rect.height() - 8);
-            QVERIFY(qAbs(ratio - pro.width() / pro.height()) < 0.03 * pro.width() / pro.height());
+            QVERIFY(it->type() != ItemType::Picture);
+            if (it->type() != ItemType::Equation) continue;
+            ++equations;
+            const auto *q = static_cast<const EquationItem *>(it.get());
+            QVERIFY(q->markup.contains("<m:f>"));
+            QVERIFY(!q->linearForm);
         }
-        QCOMPARE(pictures, 1);
+        QCOMPARE(equations, 1);
         QCOMPARE(firstEquation(*ed->doc())->markup, markup);   // (the item itself is as it was)
         QVERIFY(firstEquation(*ed->doc())->linearForm);
     }
