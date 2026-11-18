@@ -4,7 +4,7 @@
 <context>
     <name>Canvas</name>
     <message numerus="yes">
-        <location filename="../libs/page/canvas/canvasaccessible.cpp" line="+100"/>
+        <location filename="../libs/page/canvas/canvasaccessible.cpp" line="+101"/>
         <source>Group of %n object(s)</source>
         <translation>
             <numerusform>Group of %n object</numerusform>
@@ -143,7 +143,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+473"/>
+        <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+475"/>
         <source>%n icon(s) inserted</source>
         <translation>
             <numerusform>%n icon inserted</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1674"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1675"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>

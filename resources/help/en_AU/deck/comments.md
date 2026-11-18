@@ -33,5 +33,6 @@ Comments are saved in the .pptx file with their replies, so the people you share
 ## Related
 
 - [Review tab](tab-review)
+- [Compare presentations](compare)
 - [Change JeffDeck's settings](options)
 - [Open and save presentations](open-save)
