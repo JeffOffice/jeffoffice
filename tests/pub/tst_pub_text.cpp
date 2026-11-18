@@ -1,6 +1,10 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
 #include "app/listmenus.h"
+#include <QDir>
+#include <QFileInfo>
+#include <QRawFont>
+#include "core/fontfiles.h"
 #include <QMessageBox>
 #include <QStandardItemModel>
 #include <QToolButton>
@@ -3826,6 +3830,76 @@ private Q_SLOTS:
             QVERIFY(two.lines.size() >= 2);
             QCOMPARE(QString(two.lines[0].text).remove(QChar(0x00AD)).trimmed(), QStringLiteral("go"));
         }
+    }
+
+    // A nonbreaking hyphen is drawn in every bundled font: one that has no glyph for it shows its plain hyphen (and not a hyphen from some other font), the document keeps U+2011, and the
+    // line still never breaks at it.
+    void aNonbreakingHyphenIsDrawnInEveryBundledFont()
+    {
+        jp::initCore();
+        struct Laid { QVector<jp::StoryLayout::LineInfo> lines; QImage img; QString kept; };
+        auto lay = [](const QString &family, bool bold, bool italic, const QString &text, double width) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{family});
+            cf.setFontWeight(bold ? QFont::Bold : QFont::Normal);
+            cf.setFontItalic(italic);
+            cf.setFontPointSize(24);
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(width, 120);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            Laid out;
+            out.lines = l.lineInfo(0);
+            out.img = QImage(int(std::ceil(width)), 240, QImage::Format_RGB32);
+            out.img.fill(Qt::white);
+            QPainter p(&out.img);
+            p.scale(2, 2);
+            l.paint(&p, 0, jp::PaintOptions());
+            out.kept = doc.toPlainText();
+            return out;
+        };
+        const QString nb = QString(QChar(0x2011)), plain = QStringLiteral("-");
+        int checked = 0, lacking = 0;
+        for (const QString &dir : jp::bundledFontDirs())
+            for (const QFileInfo &fi : QDir(dir).entryInfoList({QStringLiteral("*.ttf"), QStringLiteral("*.otf")}, QDir::Files, QDir::Name)) {
+                const QRawFont file(fi.absoluteFilePath(), 20);
+                if (!file.isValid()) continue;
+                const bool italic = file.style() != QFont::StyleNormal, bold = file.weight() >= QFont::Bold;
+                // (one file for each style of a family that the font database can ask for)
+                if (QFileInfo(jp::bundledFontFile(file.familyName(), bold, italic).path).canonicalFilePath() != fi.canonicalFilePath()) continue;
+                const QString family = file.familyName();
+                QFont f(family);
+                f.setBold(bold);
+                f.setItalic(italic);
+                f.setPointSizeF(24);
+                const QString what = fi.fileName();
+                ++checked;
+                const Laid nonbreaking = lay(family, bold, italic, QStringLiteral("a") + nb + QStringLiteral("b"), 300);
+                QVERIFY2(nonbreaking.kept == QStringLiteral("a") + nb + QStringLiteral("b"), qPrintable(what + ": the document changed"));
+                QCOMPARE(nonbreaking.lines.size(), 1);
+                if (QRawFont::fromFont(f).supportsCharacter(0x2011)) continue;
+                ++lacking;
+                // no glyph in this font: what is drawn is what its plain hyphen draws (with the word joiner that keeps a line from breaking after it)
+                const Laid hyphen = lay(family, bold, italic, QStringLiteral("a") + plain + QChar(0x2060) + QStringLiteral("b"), 300);
+                QVERIFY2(nonbreaking.img == hyphen.img, qPrintable(what + ": a nonbreaking hyphen is not drawn as the font's own hyphen"));
+                // and a line still does not break at it: the words go down together
+                const Laid whole = lay(family, bold, italic, QStringLiteral("go a") + nb + QStringLiteral("b"), 600);
+                int right = 0;                                                      // (the text's right edge in points: its last column of ink, the image being drawn at twice the size)
+                for (int y = 0; y < whole.img.height(); ++y)
+                    for (int x = whole.img.width() - 1; x > right; --x)
+                        if (qGray(whole.img.pixel(x, y)) < 160) { right = x; break; }
+                QVERIFY2(right > 10, qPrintable(what));
+                const Laid two = lay(family, bold, italic, QStringLiteral("go a") + nb + QStringLiteral("b"), right / 2.0 - 0.5);
+                QVERIFY2(two.lines.size() >= 2, qPrintable(what));
+                QVERIFY2(two.lines[0].docEnd <= 3, qPrintable(what + ": the line broke at a nonbreaking hyphen"));
+            }
+        QVERIFY2(checked > 20, qPrintable(QString::number(checked)));
+        qInfo() << "bundled font styles checked:" << checked << "without U+2011:" << lacking;
     }
 
     // The optional hyphen, nonbreaking hyphen, and nonbreaking space keep their places through a .pub file.

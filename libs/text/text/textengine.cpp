@@ -3767,6 +3767,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (int pt : hyphenationPoints(w, language)) cuts.append({int(m.capturedStart()) + pt, QChar(0x00AD)});
                     }
                 }
+                // A nonbreaking hyphen (U+2011) that the run's font has no glyph for is drawn as that font's plain hyphen (one for one, so positions still map; the document keeps U+2011),
+                // and a word joiner after it keeps the plain hyphen from being a place a line may break.
+                const bool plainNonbreaking = raw.contains(QChar(0x2011)) && !QRawFont::fromFont(rf.font()).supportsCharacter(0x2011);
+                if (plainNonbreaking)
+                    for (int i = 0; i < int(raw.size()); ++i)
+                        if (raw[i] == QChar(0x2011)) cuts.append({i + 1, QChar(0x2060)});
                 // After a hyphen before a digit ("012-3456", "pages 4-12"):
                 // Publisher breaks there, Qt's rules keep the number whole.
                 for (int i = 1; i + 1 < int(raw.size()); ++i)
@@ -3867,6 +3873,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         for (QChar &ch : shown)
                             if (const QChar picture = pictures->of(ch.unicode()); !picture.isNull()) ch = picture;
                 }
+                if (plainNonbreaking) shown.replace(QChar(0x2011), QLatin1Char('-'));
                 // East Asian characters that the run's families lack are set in a face of the machine that has them: its families are tried after the run's own.
                 if (env.wordLines) rf = withEastAsianFaces(rf, shown);
                 const int len = int(shown.size());
