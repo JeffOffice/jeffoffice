@@ -217,14 +217,16 @@ private Q_SLOTS:
         const QString pic = makeFile(dir.filePath(QStringLiteral("p/pic.png")), "PIC");
         const QString secret = makeFile(dir.filePath(QStringLiteral("p/secret.txt")), "SECRET");
         const QString viaLink = dir.filePath(QStringLiteral("p/looks.png"));
-        QVERIFY(makeSymlink(secret, viaLink));
-        Source source(makePackage({pic, viaLink}));
+        const bool linked = makeSymlink(secret, viaLink);   // (Windows makes none without extra rights; the link half is then not tested there)
+        Source source(makePackage(linked ? QStringList{pic, viaLink} : QStringList{pic}));
         const PackReport r = packAndGo(source, dir.filePath(QStringLiteral("out.zip")), PackMode::Zip);
         QVERIFY(r.ok);
         QCOMPARE(r.packed(), 1);
         QCOMPARE(r.items[0].status, PackItem::Packed);
-        QCOMPARE(r.items[1].status, PackItem::Refused);
-        QVERIFY(!entriesOf(dir.filePath(QStringLiteral("out.zip"))).contains(QStringLiteral("linked/looks.png")));
+        if (linked) {
+            QCOMPARE(r.items[1].status, PackItem::Refused);
+            QVERIFY(!entriesOf(dir.filePath(QStringLiteral("out.zip"))).contains(QStringLiteral("linked/looks.png")));
+        }
         // (a movie and a sound by their whole paths travel as pictures do)
         const QString movie = makeFile(dir.filePath(QStringLiteral("p/clip.mp4")), "MOVIE"), sound = makeFile(dir.filePath(QStringLiteral("p/tune.wav")), "SOUND");
         Source media(makePackage({}, {}, {{QStringLiteral("video"), movie}, {QStringLiteral("audio"), sound}}));
