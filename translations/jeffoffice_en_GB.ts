@@ -291,6 +291,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>PackAndGo</name>
+    <message>
+        <source>These fonts were not packed, because their licenses do not allow it: %1.</source>
+        <translation>These fonts were not packed, because their licences do not allow it: %1.</translation>
+    </message>
+</context>
+<context>
     <name>PdfProtectionDialog</name>
     <message>
         <source>These limits are a request. Most PDF readers honor them, but they do not stop anyone who wants to get around them. Only the password that opens the PDF really protects it.</source>

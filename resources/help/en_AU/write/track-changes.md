@@ -72,9 +72,15 @@ Compare finds the differences between two versions of a document and shows them 
 1. Open the older version. It is the **original**.
 2. Click **Compare** in the **Compare** group on the **Review** tab.
 3. Click **Browse** and choose the newer version. It is the **revised** version.
-4. Type the name to sign the changes with. Pick any choices you want, such as ignoring capital letters.
+4. Type the name to sign the changes with. Pick any choices you want, such as ignoring capital letters. **Find text that was moved** and **Find changes of formatting** are on unless you turn them off.
 5. Click **OK**.
 
 A new window opens with the original text and the changes that turn it into the revised text. Your two files are not changed. Use **Accept** and **Reject** as you do for any tracked change. If you accept every change, you get the revised text. If you reject every change, you get the original text.
 
-Compare looks at the text of the body of the document. It does not look at tables, headers, footers, footnotes, or how the text looks. A change of look alone is not found.
+Compare looks at the text of the body of the document. It does not look at tables, headers, footers, or footnotes.
+
+A paragraph of 12 words or more that was cut from one place and put in another is shown as a **move**: one record where the text left, and one where it arrived. Accepting or rejecting one of them takes both. The paragraph has to be the same, or at least 9 words in 10 the same and mostly in the same order, or it is shown as a deletion and an insertion instead. Words that differ inside a moved paragraph are shown as insertions and deletions inside the move.
+
+Text that is the same in both versions but looks different is shown as a **formatting change**. Compare checks bold, italic, underline, size, font, colour, highlight, and a paragraph's style, alignment, indents, and spacing. Rejecting the change gives the old look back.
+
+If the two documents have too many changes, Compare says so. It then shows some paragraphs as replaced whole, and may not look for moves or formatting changes in all of them.

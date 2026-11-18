@@ -83,7 +83,7 @@
 <context>
     <name>Sharing</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/sharing.cpp" line="+190"/>
+        <location filename="../apps/pub/app/sharing.cpp" line="+183"/>
         <source>Saved %1 with the publication and %n font file(s).</source>
         <translation>
             <numerusform>Saved %1 with the publication and %n font file.</numerusform>
@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1633"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1674"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -494,7 +494,7 @@
 <context>
     <name>jp::write::HomeDialogs</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/homedialogs.cpp" line="+526"/>
+        <location filename="../apps/write/app/homedialogs.cpp" line="+536"/>
         <source>%n problem(s) found. Click one to go to it.</source>
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>

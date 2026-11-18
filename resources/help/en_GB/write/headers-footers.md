@@ -24,7 +24,7 @@ Press **Esc**, double-click in the text of the page, or click **Close Header and
 
 ## Change how page numbers look
 
-Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, or a, b, c, or A, B, C, or i, ii, iii, or I, II, III. You can put the **chapter number** first, such as 2-5 for page 5 of chapter 2; choose the heading style that starts a chapter and the mark between the numbers. Then choose to **continue from the previous section** or to **start at** a number you pick. A **section** is a part of the document with its own page setup. Choose whether the change is for this section or the whole document.
+Click **Header & Footer > Insert > Page Number Format**. Pick a look: 1, 2, 3, or a, b, c, or A, B, C, or i, ii, iii, or I, II, III, or one from another writing system, such as Arabic-Indic digits, Hebrew letters, Thai digits, or Chinese and Japanese counting, or in words, such as first, second, third. You can put the **chapter number** first, such as 2-5 for page 5 of chapter 2; choose the heading style that starts a chapter and the mark between the numbers. Then choose to **continue from the previous section** or to **start at** a number you pick. A **section** is a part of the document with its own page setup. Choose whether the change is for this section or the whole document.
 
 ## Start from a design, add information, or take one away
 

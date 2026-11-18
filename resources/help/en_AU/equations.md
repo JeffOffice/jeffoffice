@@ -21,6 +21,15 @@ The equation goes in the middle of the page, selected. To start from a well-know
 - **Brackets that grow:** type `\left( ... \right)`, and the brackets grow to the height of what is between them.
 - **Matrices:** a **matrix** is a grid of numbers. Type `\pmatrix{a & b \\ c & d}`. Put an `&` between the cells of a row, and two backslashes between the rows.
 
+## Type it in UnicodeMath or LaTeX
+
+Next to the box is a list of typing formats: **Simple line** (the one above), **UnicodeMath**, and **LaTeX**. These are two ways of writing math as plain text that many people already know. When you pick another format, what you typed is written again in it.
+
+- **UnicodeMath:** `a/b` is a fraction, `x^2_i` has a power and a subscript, `√(x)` is a root, and `∑_(i=1)^n i` is a sum. Put words in quotes, such as `"if x"`, and they stay as plain text instead of math letters. `(a|b)` makes brackets with two parts, and `\matrix(a&b@c&d)` makes a matrix (`&` between cells, `@` between rows).
+- **LaTeX:** `\frac{a}{b}` is a fraction, `\sqrt[3]{x}` is a cube root, `\sum_{i=1}^n i` is a sum, `\text{if x}` is plain text, and `\begin{pmatrix} a & b \\ c & d \end{pmatrix}` is a matrix.
+
+The two buttons **Professional** and **Linear** change how the box shows your equation. Professional draws it built up, as it will look. Linear shows only the line you typed. If an equation can't be written in the format you pick, the box tells you and keeps what you typed.
+
 ## Change an equation
 
 Select the equation and press Enter, or double-click it, or click **Insert > Text > Equation**. The box opens with the equation written out in one line. Change it and click **OK**. It is one step to undo.

@@ -97,7 +97,7 @@
     </message>
     <message>
         <location line="+169"/>
-        <location line="+13"/>
+        <location line="+14"/>
         <location line="+11"/>
         <source>Effect Options</source>
         <translation type="unfinished">Effektoptionen</translation>
@@ -125,29 +125,37 @@
     <message>
         <location filename="../apps/deck/core/animation_edit.cpp" line="+51"/>
         <location line="+6"/>
+        <location line="+19"/>
+        <location line="+11"/>
         <source>From Bottom</source>
         <translation type="unfinished">Von unten</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-36"/>
         <location line="+6"/>
+        <location line="+19"/>
+        <location line="+10"/>
         <source>From Left</source>
         <translation type="unfinished">Von links</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-35"/>
         <location line="+6"/>
+        <location line="+19"/>
+        <location line="+11"/>
         <source>From Top</source>
         <translation type="unfinished">Von oben</translation>
     </message>
     <message>
-        <location line="-5"/>
+        <location line="-35"/>
         <location line="+5"/>
+        <location line="+20"/>
+        <location line="+9"/>
         <source>From Right</source>
         <translation type="unfinished">Von rechts</translation>
     </message>
     <message>
-        <location line="-5"/>
+        <location line="-34"/>
         <source>From Bottom-Left</source>
         <translation type="unfinished">Von unten links</translation>
     </message>
@@ -197,7 +205,7 @@
         <translation type="unfinished">Nach unten schweben</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+48"/>
         <location line="+0"/>
         <source>Appear</source>
         <translation type="unfinished">Erscheinen</translation>
@@ -205,13 +213,13 @@
     <message>
         <location line="+1"/>
         <location line="+0"/>
-        <location line="+15"/>
+        <location line="+32"/>
         <location line="+0"/>
         <source>Fade</source>
         <translation type="unfinished">Verblassen</translation>
     </message>
     <message>
-        <location line="-14"/>
+        <location line="-31"/>
         <source>Fly In</source>
         <translation type="unfinished">Hineinfliegen</translation>
     </message>
@@ -222,41 +230,41 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+15"/>
+        <location line="+32"/>
         <source>Split</source>
         <translation type="unfinished">Teilen</translation>
     </message>
     <message>
-        <location line="-14"/>
-        <location line="+15"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Wipe</source>
         <translation type="unfinished">Wischen</translation>
     </message>
     <message>
-        <location line="-14"/>
+        <location line="-31"/>
         <location line="+0"/>
         <source>Grow &amp; Turn</source>
         <translation type="unfinished">Vergrößern und drehen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+15"/>
+        <location line="+32"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location line="-15"/>
-        <location line="+15"/>
+        <location line="-32"/>
+        <location line="+32"/>
         <source>Object Center</source>
         <translation type="unfinished">Objektmitte</translation>
     </message>
     <message>
-        <location line="-15"/>
+        <location line="-32"/>
         <source>Slide Center</source>
         <translation type="unfinished">Folienmitte</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+18"/>
         <location line="+0"/>
         <source>Pulse</source>
         <translation type="unfinished">Impuls</translation>
@@ -293,17 +301,19 @@
         <translation type="unfinished">Beide</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-73"/>
+        <location line="+73"/>
         <source>Horizontal</source>
         <translation type="unfinished">Horizontal</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-73"/>
+        <location line="+73"/>
         <source>Vertical</source>
         <translation type="unfinished">Vertikal</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <location line="+0"/>
         <source>Disappear</source>
         <translation type="unfinished">Verschwinden</translation>
@@ -325,12 +335,13 @@
         <translation type="unfinished">Verkleinern und drehen</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+18"/>
         <source>Lines</source>
         <translation>Linien</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-77"/>
+        <location line="+78"/>
         <location line="+1"/>
         <source>Down</source>
         <translation type="unfinished">Nach unten</translation>
@@ -404,12 +415,201 @@
         <translation type="unfinished">Kreis</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="-50"/>
+        <location line="+32"/>
+        <location line="+18"/>
         <source>Diamond</source>
         <translation type="unfinished">Raute</translation>
     </message>
     <message>
+        <location line="-93"/>
+        <source>1 Spoke</source>
+        <translation type="unfinished">1 Speiche</translation>
+    </message>
+    <message>
         <location line="+0"/>
+        <source>2 Spokes</source>
+        <translation type="unfinished">2 Speichen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>3 Spokes</source>
+        <translation type="unfinished">3 Speichen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>4 Spokes</source>
+        <translation type="unfinished">4 Speichen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>8 Spokes</source>
+        <translation type="unfinished">8 Speichen</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+5"/>
+        <source>Across</source>
+        <translation type="unfinished">Horizontal</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <location line="+32"/>
+        <source>Blinds</source>
+        <translation type="unfinished">Jalousie</translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+32"/>
+        <source>Box</source>
+        <translation type="unfinished">Kasten</translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+28"/>
+        <location line="+3"/>
+        <location line="+1"/>
+        <source>In</source>
+        <translation type="unfinished">Hinein</translation>
+    </message>
+    <message>
+        <location line="-36"/>
+        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+28"/>
+        <location line="+3"/>
+        <location line="+1"/>
+        <source>Out</source>
+        <translation type="unfinished">Heraus</translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <location line="+32"/>
+        <source>Checkerboard</source>
+        <translation type="unfinished">Schachbrett</translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+32"/>
+        <source>Shape</source>
+        <translation type="unfinished">Form</translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <location line="+32"/>
+        <source>Circle In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-32"/>
+        <location line="+32"/>
+        <source>Circle Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-30"/>
+        <location line="+32"/>
+        <source>Plus</source>
+        <translation type="unfinished">Plus</translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+0"/>
+        <source>Dissolve In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+32"/>
+        <source>Random Bars</source>
+        <translation type="unfinished">Zufallsstreifen</translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <location line="+32"/>
+        <source>Wheel</source>
+        <translation type="unfinished">Rad</translation>
+    </message>
+    <message>
+        <location line="-31"/>
+        <source>Peek In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <source>Flash Once</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stretch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+31"/>
+        <source>Swivel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-30"/>
+        <location line="+0"/>
+        <source>Expand</source>
+        <translation type="unfinished">Erweitern</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <source>Spiral In</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <location line="+31"/>
+        <location line="+0"/>
+        <source>Bounce</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-24"/>
+        <location line="+0"/>
+        <source>Transparency</source>
+        <translation type="unfinished">Transparenz</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <location line="+0"/>
+        <source>Dissolve Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Peek Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Contract</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+0"/>
+        <source>Collapse</source>
+        <translation type="unfinished">Reduzieren</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <source>Spiral Out</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Hexagon</source>
         <translation type="unfinished">Sechseck</translation>
     </message>
@@ -2259,6 +2459,84 @@ Artikel auf der Rückseite	4</translation>
     </message>
 </context>
 <context>
+    <name>DeckCompare</name>
+    <message>
+        <location filename="../apps/deck/core/deckcompare.cpp" line="+834"/>
+        <source>Slide %1</source>
+        <translation type="unfinished">Folie %1</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>Slide added: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Slide moved from %1 to %2: %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Slide deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Notes changed on %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Comment by %1: %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Object added: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Moved and resized: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resized: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Moved: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Text changed from &quot;%1&quot; to &quot;%2&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Text formatting changed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Fill changed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Line changed: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Object deleted: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>DeckDialogs</name>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="+31"/>
@@ -2274,18 +2552,23 @@ Artikel auf der Rückseite	4</translation>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+583"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+584"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Es sind keine Folien zum Drucken vorhanden.</translation>
     </message>
     <message>
-        <location line="+46"/>
-        <location line="+9"/>
+        <location line="+47"/>
+        <location line="+21"/>
         <source>The PDF can&apos;t be started.</source>
         <translation type="unfinished">Die PDF-Datei kann nicht gestartet werden.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="-10"/>
+        <source>slide %1</source>
+        <translation type="unfinished">Folie %1</translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <source>Slide %1</source>
         <translation type="unfinished">Folie %1</translation>
     </message>
@@ -2347,7 +2630,7 @@ Artikel auf der Rückseite	4</translation>
         <translation>Beschriftungen</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+389"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+401"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+3"/>
         <source>Custom</source>
         <translation type="unfinished">Benutzerdefiniert</translation>
@@ -2527,11 +2810,11 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Gemessen vom linken Seitenrand</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-215"/>
-        <location line="+40"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-227"/>
+        <location line="+50"/>
         <location line="+15"/>
         <location line="+53"/>
-        <location line="+18"/>
+        <location line="+20"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -2542,31 +2825,31 @@ Artikel auf der Rückseite	4</translation>
         <translation>Schriftart</translation>
     </message>
     <message>
-        <location line="-1161"/>
+        <location line="-1172"/>
         <source>Regular</source>
         <translation type="unfinished">Standard</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1159"/>
+        <location line="+1170"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+702"/>
         <source>Italic</source>
         <translation type="unfinished">Kursiv</translation>
     </message>
     <message>
-        <location line="-1159"/>
-        <location line="+1157"/>
+        <location line="-1170"/>
+        <location line="+1168"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Fett</translation>
     </message>
     <message>
-        <location line="-1157"/>
+        <location line="-1168"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Fett Kursiv</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+11"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-19"/>
         <location line="+10"/>
         <source>(none)</source>
@@ -2574,13 +2857,13 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+129"/>
+        <location line="+139"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-610"/>
         <source>Single</source>
         <translation type="unfinished">Einfach</translation>
     </message>
     <message>
-        <location line="-128"/>
+        <location line="-138"/>
         <source>Words only</source>
         <translation type="unfinished">Nur Wörter</translation>
     </message>
@@ -2601,7 +2884,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Gestrichelt</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Wave</source>
         <translation type="unfinished">Wellenlinie</translation>
     </message>
@@ -2621,7 +2904,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Farbe:</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+31"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+38"/>
         <source>Effects</source>
         <translation type="unfinished">Effekte</translation>
     </message>
@@ -2679,7 +2962,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">JeffPub-Beispieltext</translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+55"/>
         <location line="+145"/>
         <location line="+5"/>
         <source>Paragraph</source>
@@ -2817,7 +3100,12 @@ Artikel auf der Rückseite	4</translation>
         <translation>Ausrichtung</translation>
     </message>
     <message>
-        <location line="-154"/>
+        <location line="-180"/>
+        <source>Long dash</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>Font style</source>
         <translation>Schriftschnitt</translation>
     </message>
@@ -2836,7 +3124,7 @@ Artikel auf der Rückseite	4</translation>
         <translation>Farbe</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+118"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1074"/>
         <source>Direction</source>
         <translation>Richtung</translation>
@@ -2947,12 +3235,12 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Aufzählungszeichen</translation>
     </message>
     <message>
-        <location line="-309"/>
+        <location line="-319"/>
         <source>Thick</source>
         <translation type="unfinished">Dick</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Dot dash</source>
         <translation type="unfinished">Strich-Punkt</translation>
     </message>
@@ -2967,7 +3255,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Doppelte Welle</translation>
     </message>
     <message>
-        <location line="+203"/>
+        <location line="+212"/>
         <location line="+2"/>
         <source>Default tab stops</source>
         <translation>Standardtabstopps</translation>
@@ -3143,8 +3431,8 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Seitenverhältnis sperren</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-380"/>
-        <location line="+1128"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-382"/>
+        <location line="+1130"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+11"/>
         <source>Size</source>
         <translation>Größe</translation>
@@ -4977,7 +5265,7 @@ Artikel auf der Rückseite	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+457"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+459"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+804"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
@@ -5029,7 +5317,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Automatische Silbentrennung in neuen Textfeldern</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1062"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1064"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -5216,7 +5504,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Textskalierung</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+1071"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1073"/>
         <source>Tints</source>
         <translation type="unfinished">Farbtöne</translation>
     </message>
@@ -5682,12 +5970,32 @@ Artikel auf der Rückseite	4</translation>
 <context>
     <name>EquationDialog</name>
     <message>
-        <location filename="../libs/shell/app/equationdialog.cpp" line="+44"/>
+        <location filename="../libs/shell/app/equationdialog.cpp" line="+83"/>
         <source>Type the equation in a line. Use a/b for a fraction, x^2 for a power, x_i for a subscript, sqrt(x) for a root, and a backslash and a name for a symbol, such as \alpha, \pi, \infty, \leq, or \times. Write \sum_(i=1)^n, \int_0^1, or \prod for a sum, an integral, or a product with limits. Use \hat{x}, \vec{v}, or \bar{x} for an accent, \overline{x} for a bar, \left( ... \right) for brackets that grow, and \pmatrix{a &amp; b \\ c &amp; d} for a matrix.</source>
         <translation type="unfinished">Geben Sie die Formel in einer Zeile ein. Verwenden Sie a/b für einen Bruch, x^2 für eine Potenz, x_i für einen tiefgestellten Index, sqrt(x) für eine Wurzel sowie einen Backslash und einen Namen für ein Symbol, etwa \alpha, \pi, \infty, \leq oder \times. Schreiben Sie \sum_(i=1)^n, \int_0^1 oder \prod für eine Summe, ein Integral oder ein Produkt mit Grenzen. Verwenden Sie \hat{x}, \vec{v} oder \bar{x} für eine Akzentuierung, \overline{x} für einen Strich, \left( ... \right) für Klammern, die mitwachsen, und \pmatrix{a &amp; b \\ c &amp; d} für eine Matrix.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
+        <source>Professional</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Linear</source>
+        <translation type="unfinished">Linear</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Typing format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Simple line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <location line="+1"/>
         <source>Built-In Equations</source>
         <translation type="unfinished">Integrierte Gleichungen</translation>
@@ -5701,6 +6009,26 @@ Artikel auf der Rückseite	4</translation>
         <location line="+7"/>
         <source>Equation preview</source>
         <translation type="unfinished">Gleichungsvorschau</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Type the equation as UnicodeMath. Use a/b for a fraction, x^2_i for scripts, √(x) for a root, ∑_(i=1)^n for a sum, &quot;words&quot; for text that is not math, (a|b) for brackets, and \matrix(a&amp;b@c&amp;d) for a matrix. A name with a backslash, such as \alpha, is a symbol.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Type the equation as LaTeX. Use \frac{a}{b} for a fraction, x^2_i for scripts, \sqrt{x} for a root, \sum_{i=1}^n for a sum, \text{words} for text that is not math, \left( ... \right) for brackets, and \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} for a matrix.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This equation can&apos;t be put in here yet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>This equation can&apos;t be written in that format.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -7820,7 +8148,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">der Download wurde nicht abgeschlossen (%1)</translation>
     </message>
     <message>
-        <location line="+605"/>
+        <location line="+644"/>
         <source>All Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</source>
         <translation type="unfinished">Alle Bilder (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.webp *.svg *.wmf *.emf *.ico *.pdf)</translation>
     </message>
@@ -8064,7 +8392,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Objekte, die mitten im Text platziert sind, werden ausgelassen.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+544"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+607"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Effekte, die beim Klicken auf ein Objekt starten, können in diesem Dateityp nicht gespeichert werden, außer solchen, die einen Film oder Sound abspielen.</translation>
     </message>
@@ -8377,6 +8705,221 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <location line="+1"/>
         <source>%1 by %2</source>
         <translation type="unfinished">%1 von %2</translation>
+    </message>
+</context>
+<context>
+    <name>PackAndGo</name>
+    <message>
+        <location filename="../libs/shell/app/packandgo.cpp" line="+418"/>
+        <source>Pack and Go could not read the part &quot;%1&quot; of the file (%2), so nothing was saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>damaged</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>The file is too large or is not a package Pack and Go can read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+100"/>
+        <location line="+289"/>
+        <source>The copy couldn&apos;t be made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-237"/>
+        <source>The copy couldn&apos;t be locked with its password.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>These fonts were not packed, because their licenses do not allow it: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The link is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The link is too long.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The link is not a file name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The link is not a file on this computer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The link is a web address.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The file is on another computer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+17"/>
+        <source>The link is not a file Pack and Go takes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>The link leaves the document&apos;s folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The document has not been saved, so there is no folder to find the file in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+6"/>
+        <source>The file was not found.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>The link is not a file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The link is to the document itself.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+8"/>
+        <source>This is not a kind of file Pack and Go takes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>Saved %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Linked files packed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Font files packed: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Links that could not be packed, left as they were (%1):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>And %1 more.</source>
+        <translation type="unfinished">Und %1 weitere.</translation>
+    </message>
+    <message>
+        <location line="+61"/>
+        <source>Pack and Go does not take more than this many files or this much in all.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>This will pack %1 linked files, %2 MB in all. Pack them all?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Nothing was saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>Pack and Go stopped, because %1 changed while it was being copied. Nothing was saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+42"/>
+        <source>The file could not be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-28"/>
+        <location line="+9"/>
+        <source>Pack and Go couldn&apos;t save %1.
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <location line="+31"/>
+        <source>The folder couldn&apos;t be made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-25"/>
+        <location line="+2"/>
+        <location line="+8"/>
+        <location line="+4"/>
+        <source>The file couldn&apos;t be written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Pack and Go: Save for Another Computer</source>
+        <translation type="unfinished">Pack and Go: Für einen anderen Computer speichern</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file, with the pictures, movies, sounds, and other files it links to and the fonts it uses that come with the program, in one ZIP file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Pack and Go: Save to a Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The same, in a new folder you can copy to a drive.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Save to a Folder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Save for Another Computer</source>
+        <translation type="unfinished">Für einen anderen Computer speichern</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>ZIP (*.zip)</source>
+        <translation type="unfinished">ZIP (*.zip)</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+5"/>
+        <source>Pack and Go</source>
+        <translation type="unfinished">Packen und Mitnehmen</translation>
     </message>
 </context>
 <context>
@@ -8976,12 +9519,12 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+177"/>
+        <location line="+184"/>
         <source>the PDF has no catalog</source>
         <translation type="unfinished">Die PDF-Datei hat keinen Katalog</translation>
     </message>
     <message>
-        <location line="-173"/>
+        <location line="-180"/>
         <source>the PDF has no pages</source>
         <translation type="unfinished">Die PDF-Datei hat keine Seiten</translation>
     </message>
@@ -9016,6 +9559,34 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <location line="+0"/>
         <source>there was nothing to tag</source>
         <translation type="unfinished">Es gab nichts zu taggen</translation>
+    </message>
+</context>
+<context>
+    <name>PdfTransparency</name>
+    <message>
+        <location filename="../libs/base/io/pdftransparency.cpp" line="+293"/>
+        <source>The PDF could not be checked for see-through parts, so it can&apos;t be a %1 file. Turn %1 off to export it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>PDF page %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>A %1 file can&apos;t have see-through parts, and some could not be made solid. Turn %1 off to export it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>more</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A %1 file can&apos;t have see-through parts, and some could not be made solid (%2). Turn %1 off to export it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -13562,7 +14133,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>Sharing</name>
     <message>
-        <location filename="../apps/pub/app/sharing.cpp" line="+35"/>
+        <location filename="../apps/pub/app/sharing.cpp" line="+36"/>
         <source>Save Email</source>
         <translation type="unfinished">E-Mail speichern</translation>
     </message>
@@ -13612,7 +14183,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Publikation konnte nicht mit ihrem Kennwort geschützt werden.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+20"/>
         <source>JeffPub couldn&apos;t save %1.
 %2</source>
         <translation type="unfinished">JeffPub konnte %1 nicht speichern.
@@ -13626,13 +14197,13 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+4"/>
         <location line="+3"/>
-        <location line="+8"/>
+        <location line="+9"/>
         <location line="+3"/>
         <source>Pack and Go</source>
         <translation type="unfinished">Packen und Mitnehmen</translation>
     </message>
     <message>
-        <location line="-11"/>
+        <location line="-12"/>
         <source>Saved the PDF and publication for your printer in %1.</source>
         <translation type="unfinished">Die PDF-Datei und die Publikation für Ihre Druckerei wurden in %1 gespeichert.</translation>
     </message>
@@ -13647,7 +14218,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">ZIP (*.zip)</translation>
     </message>
     <message numerus="yes">
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Saved %1 with the publication and %n font file(s).</source>
         <translation type="unfinished">
             <numerusform>%1 wurde mit der Publikation und %n Schriftartdatei gespeichert.</numerusform>
@@ -17498,7 +18069,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Ukrainisch</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+163"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+166"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Grußzeile»</translation>
     </message>
@@ -17528,7 +18099,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+6639"/>
+        <location line="+6691"/>
         <source>Notes</source>
         <translation>Notizen</translation>
     </message>
@@ -18001,7 +18572,18 @@ Desktop-Publishing</translation>
         <translation>Pfad</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+0"/>
+        <source>Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+1"/>
+        <source>Transparency</source>
+        <translation type="unfinished">Transparenz</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Smooth start</source>
         <translation type="unfinished">Sanfter Beginn</translation>
     </message>
@@ -18135,7 +18717,7 @@ Desktop-Publishing</translation>
 <context>
     <name>jp::AnimationPane</name>
     <message>
-        <location filename="../apps/deck/app/animationpane.cpp" line="+86"/>
+        <location filename="../apps/deck/app/animationpane.cpp" line="+87"/>
         <source>Animation Pane</source>
         <translation type="unfinished">Animationsbereich</translation>
     </message>
@@ -19121,7 +19703,7 @@ Desktop-Publishing</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+683"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+687"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Übersetzen (wird im Browser geöffnet)</translation>
     </message>
@@ -21504,7 +22086,7 @@ Quelle: %3</translation>
     <message>
         <location line="+19"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
-        <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+115"/>
+        <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+116"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+182"/>
         <location line="+123"/>
         <location line="+5"/>
@@ -23947,7 +24529,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Meldung für diese Zelle</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+92"/>
         <location filename="../apps/crunch/app/crunchwindow_controls.cpp" line="+84"/>
         <source>(nothing to choose from)</source>
         <translation type="unfinished">(keine Auswahl verfügbar)</translation>
@@ -25155,7 +25737,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 gespeichert. Vor diesem Speichern gelöschte Zeilen, Spalten und Zellen sowie alle vorherigen Aktionen können jetzt nicht mehr rückgängig gemacht werden.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+26"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+27"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann gedruckt werden, sobald sie geöffnet ist.</translation>
     </message>
@@ -25171,12 +25753,12 @@ Die Datei ist nicht vorhanden.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
-        <location line="+62"/>
+        <location line="+65"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Diese Seitenzahlen gehören nicht zu diesem Auftrag. Der Auftrag hat %1 Seiten.</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-61"/>
         <location line="+14"/>
         <location line="+10"/>
         <location line="+10"/>
@@ -25185,23 +25767,23 @@ Die Datei ist nicht vorhanden.</translation>
     </message>
     <message>
         <location line="-34"/>
-        <location line="+69"/>
+        <location line="+72"/>
         <source>Making the pages...</source>
         <translation type="unfinished">Seiten werden erstellt...</translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-58"/>
         <source>The workbook is still being opened. It can be exported when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann exportiert werden, sobald sie geöffnet ist.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+40"/>
+        <location line="+43"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-33"/>
+        <location line="-36"/>
         <source>Export was cancelled</source>
         <translation type="unfinished">Der Export wurde abgebrochen</translation>
     </message>
@@ -25218,7 +25800,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 exportiert</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <location line="+5"/>
         <location line="+5"/>
         <source>Save as PDF</source>
@@ -28991,20 +29573,20 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation>Rot</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_email.cpp" line="+38"/>
-        <location line="+34"/>
+        <location filename="../apps/crunch/app/crunchwindow_email.cpp" line="+39"/>
+        <location line="+35"/>
         <location line="+2"/>
         <location line="+24"/>
         <source>Email</source>
         <translation type="unfinished">E-Mail</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-61"/>
         <source>The workbook is still being read. Make the message when the status bar says Ready.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch gelesen. Erstellen Sie die Nachricht, wenn die Statusleiste Bereit anzeigt.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+37"/>
         <source>%1 couldn&apos;t make the message.
 %2</source>
         <translation type="unfinished">%1 konnte die Nachricht nicht erstellen.
@@ -29972,6 +30554,16 @@ Die Datei kann nicht gelesen werden.</translation>
         <source>Forecast %1</source>
         <translation type="unfinished">Prognose %1</translation>
     </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_packandgo.cpp" line="+19"/>
+        <source>There is no workbook to pack.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The workbook is still being read. Pack it when the status bar says Ready.</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>jp::CsvSaveDialog</name>
@@ -30820,12 +31412,12 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Jede Folie als PNG- oder JPEG-Bild in einem Ordner, benannt Folie 1, Folie 2 usw. Sie legen die Breite fest und ob ausgeblendete Folien ebenfalls gespeichert werden.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+25"/>
         <source>Saved as the author of a presentation that has none, as who last changed it, and as the name on your comments.</source>
         <translation type="unfinished">Wird als Autor einer Präsentation ohne Autor, als letzter Bearbeiter und als Name in Ihren Kommentaren gespeichert.</translation>
     </message>
     <message>
-        <location line="-247"/>
+        <location line="-251"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Vorschau der gedruckten Seite</translation>
     </message>
@@ -30905,7 +31497,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Eine Nachrichtendatei mit der Präsentation oder einer PDF-Version davon. Öffnen Sie sie in Ihrem E-Mail-Programm, fügen Sie den Empfänger hinzu und senden Sie sie.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+18"/>
         <source>Free, open-source presentations for Windows, macOS, and Linux.</source>
         <translation type="unfinished">Kostenlose Open-Source-Präsentationen für Windows, macOS und Linux.</translation>
     </message>
@@ -30985,7 +31577,7 @@ Die Datei kann nicht gelesen werden.</translation>
 <context>
     <name>jp::DeckWindow</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-333"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-337"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+70"/>
         <source>Print what</source>
         <translation>Drucken</translation>
@@ -31475,7 +32067,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation>Nummerierung</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-419"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-420"/>
         <location line="+256"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-385"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
@@ -33906,12 +34498,37 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation>Richtung</translation>
     </message>
     <message>
+        <location line="+0"/>
+        <source>Spokes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+10"/>
         <source>Amount</source>
         <translation>Betrag</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>25% Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>50% Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>75% Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>100% Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Tiny</source>
         <translation type="unfinished">Winzig</translation>
     </message>
@@ -35250,6 +35867,16 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+14"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Formel einfügen</translation>
+    </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_packandgo.cpp" line="+21"/>
+        <source>There is no presentation to pack.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>The macros in this presentation aren&apos;t saved, because a .pptx file can&apos;t hold them.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -41098,7 +41725,7 @@ Es gibt kein Hilfethema namens &quot;%1&quot;.</translation>
 <context>
     <name>jp::ListDialogs</name>
     <message>
-        <location filename="../libs/shell/app/listdialogs.cpp" line="+40"/>
+        <location filename="../libs/shell/app/listdialogs.cpp" line="+42"/>
         <source>Left</source>
         <translation>Links</translation>
     </message>
@@ -41113,7 +41740,7 @@ Es gibt kein Hilfethema namens &quot;%1&quot;.</translation>
         <translation>Rechts</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+33"/>
         <source>Define New Bullet</source>
         <translation type="unfinished">Neues Aufzählungszeichen definieren</translation>
     </message>
@@ -41466,7 +42093,7 @@ Quelle: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1623"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1662"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+605"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -41539,12 +42166,12 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+27"/>
-        <location line="+1050"/>
+        <location line="+1089"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 gespeichert</translation>
     </message>
     <message>
-        <location line="-1039"/>
+        <location line="-1078"/>
         <location line="+18"/>
         <source>JeffPub Publication (*.jpub)</source>
         <translation type="unfinished">JeffPub-Publikation (*.jpub)</translation>
@@ -41764,17 +42391,19 @@ Quelle: %3</translation>
         <location line="+67"/>
         <location line="+13"/>
         <location line="+166"/>
-        <location line="+48"/>
-        <location line="+100"/>
+        <location line="+53"/>
+        <location line="+104"/>
         <location line="+4"/>
-        <location line="+16"/>
-        <location line="+51"/>
+        <location line="+9"/>
+        <location line="+21"/>
+        <location line="+52"/>
+        <location line="+15"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-546"/>
         <source>Create PDF</source>
         <translation type="unfinished">PDF erstellen</translation>
     </message>
     <message>
-        <location line="-520"/>
+        <location line="-559"/>
         <source>Minimum size (online viewing, pictures at 96 dpi)</source>
         <translation type="unfinished">Minimale Größe (Onlineanzeige, Bilder mit 96 dpi)</translation>
     </message>
@@ -41794,7 +42423,17 @@ Quelle: %3</translation>
         <translation type="unfinished">Professioneller Druck (Bilder in voller Auflösung, Druckmarken und Anschnitt)</translation>
     </message>
     <message>
-        <location line="+616"/>
+        <location line="+472"/>
+        <source>page %1</source>
+        <translation type="unfinished">Seite %1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>pages %1 and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+183"/>
         <source>Title</source>
         <translation>Titel</translation>
     </message>
@@ -41804,7 +42443,7 @@ Quelle: %3</translation>
         <translation>Autor</translation>
     </message>
     <message>
-        <location line="-613"/>
+        <location line="-652"/>
         <source>All pages</source>
         <translation type="unfinished">Alle Seiten</translation>
     </message>
@@ -41957,24 +42596,24 @@ Quelle: %3</translation>
         <translation type="unfinished">JeffPub konnte die PDF/X-4-Datei nicht erstellen: %1.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+53"/>
         <source>JeffPub couldn&apos;t write &quot;%1&quot;.%2</source>
         <translation type="unfinished">JeffPub konnte „%1“ nicht schreiben.%2</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+37"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+695"/>
         <source>Page %1</source>
         <translation type="unfinished">Seite %1</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+67"/>
         <location line="+4"/>
         <source>The PDF was made, but its spot colors are process colors: %1</source>
         <translation type="unfinished">Die PDF-Datei wurde erstellt, aber ihre Volltonfarben sind Prozessfarben: %1</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+30"/>
         <source>The PDF was made, but it isn&apos;t PDF/X: %1.</source>
         <translation type="unfinished">Die PDF-Datei wurde erstellt, entspricht aber nicht PDF/X: %1.</translation>
     </message>
@@ -41984,12 +42623,13 @@ Quelle: %3</translation>
         <translation type="unfinished">%1 exportiert (nicht für Screenreader gekennzeichnet: %2)</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+40"/>
         <source>The PDF can&apos;t be protected.</source>
         <translation type="unfinished">Das PDF kann nicht geschützt werden.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-12"/>
+        <location line="+15"/>
         <source>JeffPub couldn&apos;t write &quot;%1&quot;.
 %2%3</source>
         <translation type="unfinished">JeffPub konnte „%1“ nicht schreiben.
@@ -42073,12 +42713,12 @@ Quelle: %3</translation>
         <translation type="unfinished">Die Zeichnung konnte nicht gespeichert werden: %1</translation>
     </message>
     <message>
-        <location line="-465"/>
+        <location line="-504"/>
         <source>Printing condition</source>
         <translation>Druckbedingung</translation>
     </message>
     <message>
-        <location line="+469"/>
+        <location line="+508"/>
         <source>Resolution (dots per inch):</source>
         <translation type="unfinished">Auflösung (dpi):</translation>
     </message>
@@ -42226,7 +42866,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Neue leere Publikation</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1611"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1650"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+179"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publikationen (*.jpub *.pub)</translation>
@@ -46250,6 +46890,214 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <location line="+3"/>
         <source>Ignore All</source>
         <translation type="unfinished">Alle ignorieren</translation>
+    </message>
+</context>
+<context>
+    <name>jp::NumberSystems</name>
+    <message>
+        <location filename="../libs/base/text/numbersystems.cpp" line="+272"/>
+        <source>Ordinal numbers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ordinal words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Full-width digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Arabic-Indic digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Arabic letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Arabic abjad letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hebrew numerals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hebrew letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Devanagari digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hindi vowels</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Hindi consonants</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Thai digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Thai letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Thai number words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Russian lowercase letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Russian uppercase letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Chinese counting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Chinese formal numerals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Traditional Chinese counting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Traditional Chinese formal numerals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Chinese digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Heavenly stems</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Earthly branches</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Circled Chinese numerals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Japanese counting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Japanese formal numerals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Japanese digits with ten thousands</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Katakana, half width</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Katakana</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Iroha, half width</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Iroha</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Circled digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Parenthesized digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Digits with a full stop</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean counting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean native numbers</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean digits</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean digits in Chinese characters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean ganada letters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Korean chosung letters</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -52646,7 +53494,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-574"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-578"/>
         <source>Back to document</source>
         <translation type="unfinished">Zurück zum Dokument</translation>
     </message>
@@ -52851,12 +53699,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Ein Buch für E-Reader und Shops, mit einem Kapitel pro Überschrift 1, dem Inhaltsverzeichnis und den Endnoten am Ende jedes Kapitels.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+26"/>
         <source>Saved as the name on your comments and tracked changes, and as who last changed a document.</source>
         <translation type="unfinished">Wird als Name in Kommentaren und Änderungsnachverfolgung gespeichert sowie als Name der zuletzt bearbeitenden Person eines Dokuments.</translation>
     </message>
     <message>
-        <location line="-344"/>
+        <location line="-348"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Jedes Exemplar des gesamten Dokuments nacheinander drucken (1, 2, 3, 1, 2, 3), nicht die Exemplare jeder Seite zusammen (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -53092,7 +53940,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Eine Nachrichtendatei mit dem Dokument, einer PDF-Datei oder den darin enthaltenen Seiten. Öffnen Sie sie in Ihrem E-Mail-Programm, fügen Sie die Empfänger hinzu und senden Sie sie.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+18"/>
         <source>Free, open-source documents for Windows, macOS, and Linux. This is a Preview.</source>
         <translation type="unfinished">Kostenlose Open-Source-Dokumente für Windows, macOS und Linux. Dies ist eine Vorschauversion.</translation>
     </message>
@@ -55739,7 +56587,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="-186"/>
         <location line="+116"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+526"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+543"/>
         <location line="+415"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
@@ -55913,12 +56761,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-679"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-694"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+107"/>
         <location line="+61"/>
         <location line="+13"/>
         <location line="+21"/>
@@ -55926,9 +56774,9 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Als PDF exportieren</translation>
     </message>
     <message>
-        <location line="-170"/>
+        <location line="-185"/>
         <location line="+36"/>
-        <location line="+190"/>
+        <location line="+205"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">Die Seiten können nicht erstellt werden.</translation>
     </message>
@@ -56110,7 +56958,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">E-Mail</translation>
     </message>
     <message>
-        <location line="-150"/>
+        <location line="-211"/>
+        <source>page %1</source>
+        <translation type="unfinished">Seite %1</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>pages %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+61"/>
         <source>Standard (for publishing online and printing)</source>
         <translation type="unfinished">Standard (für Online-Veröffentlichung und Druck)</translation>
     </message>
@@ -58284,12 +59142,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-45"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
-        <location line="+55"/>
+        <location line="+56"/>
         <source>Cancel</source>
         <translation type="unfinished">Abbrechen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_protect.cpp" line="-34"/>
+        <location filename="../apps/write/app/writewindow_protect.cpp" line="-35"/>
         <source>Change Tracking Options…</source>
         <translation type="unfinished">Optionen für Änderungsnachverfolgung…</translation>
     </message>
@@ -58309,7 +59167,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Bearbeitung einschränken…</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Comparing…</source>
         <translation type="unfinished">Vergleich läuft…</translation>
     </message>
@@ -58346,7 +59204,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 Änderungen gefunden.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+14"/>
         <source>Protection is on.</source>
         <translation type="unfinished">Schutz ist aktiviert.</translation>
     </message>
@@ -58979,6 +59837,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+1"/>
         <source>Properties…</source>
         <translation type="unfinished">Eigenschaften…</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+17"/>
+        <source>The document couldn&apos;t be saved for Pack and Go.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -66412,7 +67275,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+197"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+198"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Zelle %1: </translation>
     </message>
@@ -66453,29 +67316,39 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Auftrag wird nach %1 Seiten abgebrochen.</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location line="+135"/>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation type="unfinished">Es war nicht genug Platz, um die Seiten grau zu machen, daher sind einige in Farbe.</translation>
     </message>
     <message>
-        <location line="+410"/>
+        <location line="+498"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Es gibt keine Seiten für die Datei.</translation>
     </message>
     <message>
-        <location line="+92"/>
-        <location line="+19"/>
+        <location line="+97"/>
+        <location line="+34"/>
         <source>It was cancelled, and no file was made.</source>
         <translation type="unfinished">Der Vorgang wurde abgebrochen, und es wurde keine Datei erstellt.</translation>
     </message>
     <message>
-        <location line="-18"/>
-        <location line="+24"/>
+        <location line="-33"/>
+        <location line="+39"/>
         <source>The pages could not be put in the file.</source>
         <translation type="unfinished">Die Seiten konnten nicht in die Datei geschrieben werden.</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-25"/>
+        <source>page %1</source>
+        <translation type="unfinished">Seite %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>pages %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>This PDF is too large to tag for screen readers, so it was saved without tags.</source>
         <translation type="unfinished">Diese PDF-Datei ist zu groß, um sie für Screenreader zu taggen, daher wurde sie ohne Tags gespeichert.</translation>
     </message>
@@ -67892,7 +68765,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Einige Notizen wurden ausgelassen.</translation>
     </message>
     <message>
-        <location line="+685"/>
+        <location line="+689"/>
         <location line="+48"/>
         <source>The file is not a Rich Text Format document.</source>
         <translation type="unfinished">Die Datei ist kein Rich Text Format-Dokument.</translation>
@@ -69499,9 +70372,24 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Compare</name>
     <message>
-        <location filename="../apps/write/core/compareops.cpp" line="+277"/>
+        <location filename="../apps/write/core/compareops.cpp" line="+631"/>
         <source>A document with that many paragraphs can&apos;t be compared.</source>
         <translation type="unfinished">Ein Dokument mit so vielen Absätzen kann nicht verglichen werden.</translation>
+    </message>
+    <message>
+        <location line="+70"/>
+        <source>Too many changes to look for all the moved text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Too many changes of formatting to show them all.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -69661,7 +70549,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Dialogs</name>
     <message>
-        <location filename="../apps/write/app/writedialogs.cpp" line="+762"/>
+        <location filename="../apps/write/app/writedialogs.cpp" line="+763"/>
         <source>Paragraph</source>
         <translation type="unfinished">Absatz</translation>
     </message>
@@ -69692,8 +70580,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Blocksatz</translation>
     </message>
     <message>
-        <location line="-645"/>
-        <location line="+658"/>
+        <location line="-646"/>
+        <location line="+659"/>
         <source>(none)</source>
         <translation type="unfinished">(ohne)</translation>
     </message>
@@ -69750,8 +70638,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Hängend</translation>
     </message>
     <message>
-        <location line="-657"/>
-        <location line="+677"/>
+        <location line="-658"/>
+        <location line="+678"/>
         <source>Single</source>
         <translation type="unfinished">Einfach</translation>
     </message>
@@ -69761,13 +70649,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">1,5 Zeilen</translation>
     </message>
     <message>
-        <location line="-675"/>
-        <location line="+675"/>
+        <location line="-676"/>
+        <location line="+676"/>
         <source>Double</source>
         <translation type="unfinished">Doppelt</translation>
     </message>
     <message>
-        <location line="-676"/>
+        <location line="-677"/>
         <source>Words only</source>
         <translation type="unfinished">Nur Wörter</translation>
     </message>
@@ -69785,6 +70673,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+1"/>
         <source>Dashed</source>
         <translation type="unfinished">Gestrichelt</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Long dash</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70621,7 +71514,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Equations</name>
     <message>
-        <location filename="../libs/office/wml/wmlmathedit.cpp" line="+509"/>
+        <location filename="../libs/office/wml/wmlmathedit.cpp" line="+539"/>
         <source>Quadratic Formula</source>
         <translation type="unfinished">Quadratische Formel</translation>
     </message>
@@ -70989,7 +71882,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Fields</name>
     <message>
-        <location filename="../apps/write/core/fieldcode.cpp" line="+1023"/>
+        <location filename="../apps/write/core/fieldcode.cpp" line="+1000"/>
         <location line="+10"/>
         <location filename="../apps/write/core/fieldops.cpp" line="+494"/>
         <source>above</source>
@@ -72038,7 +72931,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Unterschiede bei Leerzeichen ignorieren</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+7"/>
+        <source>Find text that was moved</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Find changes of formatting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
         <source>Check Again</source>
         <translation type="unfinished">Erneut prüfen</translation>
     </message>
@@ -72076,7 +72979,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Formatierung anzeigen</translation>
     </message>
     <message>
-        <location line="-411"/>
+        <location line="-421"/>
         <source>Word Count</source>
         <translation type="unfinished">Wortanzahl</translation>
     </message>
@@ -73054,7 +73957,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::MultilevelDialog</name>
     <message>
-        <location filename="../apps/write/app/multileveldialog.cpp" line="+45"/>
+        <location filename="../apps/write/app/multileveldialog.cpp" line="+46"/>
         <source>Define New Multilevel List</source>
         <translation type="unfinished">Neue mehrstufige Liste definieren</translation>
     </message>
@@ -73208,7 +74111,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Vorschau</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+71"/>
         <location line="+4"/>
         <source>Level %1</source>
         <translation type="unfinished">Ebene %1</translation>
@@ -73276,7 +74179,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::PageNumbering</name>
     <message>
-        <location filename="../apps/write/core/pagenumbering.cpp" line="+37"/>
+        <location filename="../apps/write/core/pagenumbering.cpp" line="+39"/>
         <source>1, 2, 3, …</source>
         <translation type="unfinished">1, 2, 3, …</translation>
     </message>
@@ -74504,7 +75407,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eine Tabelle mit mehr wiederholten Zeilen als beibehalten werden</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+86"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+87"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Dies ist keine OpenDocument-Datei.</translation>
     </message>
@@ -74550,12 +75453,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">styles.xml kann nicht gelesen werden: %1</translation>
     </message>
     <message>
-        <location line="+643"/>
+        <location line="+649"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Die Datei enthält keinen Text.</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+84"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">Das Dokument hat keinen Hauptteil.</translation>
     </message>
@@ -74565,7 +75468,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Text des Dokuments kann nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="+715"/>
+        <location line="+722"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">Spalten unterschiedlicher Breite (werden als gleich breite gespeichert)</translation>
     </message>
@@ -74580,7 +75483,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeilennummern</translation>
     </message>
     <message>
-        <location line="+297"/>
+        <location line="+307"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">nachverfolgte Änderungen an Tabellen, Spalten und Seiteneinrichtung (im aktuellen Zustand gespeichert)</translation>
     </message>

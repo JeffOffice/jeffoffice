@@ -11,9 +11,9 @@ An **animation** moves or changes an object on a slide while the slide show play
 
 Each effect is one of four kinds:
 
-- **Entrance** effects bring an object onto the slide: **Appear**, **Fade**, **Fly In**, **Float In**, **Split**, **Wipe**, **Grow & Turn**, and **Zoom**. The object is hidden until its effect plays.
-- **Emphasis** effects change an object that is already there: **Pulse**, **Teeter**, **Spin**, and **Grow/Shrink**.
-- **Exit** effects take an object off the slide: **Disappear**, **Fade**, **Fly Out**, **Float Out**, **Split**, **Wipe**, **Shrink & Turn**, and **Zoom**.
+- **Entrance** effects bring an object onto the slide: **Appear**, **Fade**, **Fly In**, **Float In**, **Split**, **Wipe**, **Grow & Turn**, **Zoom**, **Blinds**, **Box**, **Checkerboard**, **Shape**, **Diamond**, **Plus**, **Dissolve In**, **Random Bars**, **Wheel**, **Peek In**, **Flash Once**, **Stretch**, **Swivel**, **Expand**, **Spiral In**, and **Bounce**. The object is hidden until its effect plays. The ones that uncover the object in pieces (**Blinds**, **Checkerboard**, **Random Bars**, **Dissolve In**, and the forms) show it through a mask, so a picture, a chart, or text is cut the same way.
+- **Emphasis** effects change an object that is already there: **Pulse**, **Teeter**, **Spin**, **Grow/Shrink**, and **Transparency**. Effect Options sets how clear a Transparency makes the object.
+- **Exit** effects take an object off the slide: **Disappear**, **Fade**, **Fly Out**, **Float Out**, **Split**, **Wipe**, **Shrink & Turn**, **Zoom**, and the same effects as the entrances, going the other way (**Dissolve Out**, **Peek Out**, **Contract**, **Collapse**, and **Spiral Out** are named for it).
 - **Motion Paths** move an object along a path: **Lines**, **Arcs**, **Turns**, **Shapes**, **Loops**, and **Curves**. A small picture of the path is shown for each one you choose.
 
 **None** takes the animation off the shape. If the shape already has an effect, the gallery changes that effect to the one you click. To give a shape a second effect, click **Add Animation** and choose from its gallery. The second effect starts on a click.
