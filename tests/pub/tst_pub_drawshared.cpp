@@ -282,6 +282,56 @@ private Q_SLOTS:
         QVERIFY(Renderer::effectLayersMadeForTest() - before <= 12);
     }
 
+
+    // A text box that is a shape with words in it saves its shape only when it has one: a box saved before the fields existed loads as the plain box it was and paints the same, and
+    // one with a shape comes back with its name, adjustments, and points, and is painted in its outline.
+    void aTextBoxWithAShapeSavesItAndAPlainOneIsPaintedAsBefore()
+    {
+        auto paintedBox = [](const TextItem &t) {
+            Document doc;
+            QImage out(120, 80, QImage::Format_ARGB32_Premultiplied);
+            out.fill(Qt::white);
+            QPainter p(&out);
+            PaintContext ctx;
+            ctx.doc = &doc;
+            LayoutCache cache;
+            ctx.cache = &cache;
+            Renderer::paintItem(&p, ctx, t);
+            p.end();
+            return out;
+        };
+        TextItem plain;
+        plain.rect = QRectF(10, 10, 100, 60);
+        plain.fill = Fill::solid(ColorRef::rgb(QColor(200, 0, 0)));
+        const QJsonObject json = plain.toJson();
+        QVERIFY(!json.contains("shape") && !json.contains("adj") && !json.contains("path"));
+        TextItem again;
+        again.fromJson(json);
+        QVERIFY(again.shape.isEmpty() && again.adj.isEmpty() && again.customPath.isEmpty());
+        const QImage before = paintedBox(plain);
+        QCOMPARE(paintedBox(again), before);
+        QCOMPARE(before.pixelColor(12, 12), QColor(200, 0, 0));
+        TextItem oval;
+        oval.rect = plain.rect;
+        oval.fill = plain.fill;
+        oval.shape = QStringLiteral("ellipse");
+        TextItem ovalAgain;
+        ovalAgain.fromJson(oval.toJson());
+        QCOMPARE(ovalAgain.shape, QStringLiteral("ellipse"));
+        const QImage shaped = paintedBox(ovalAgain);
+        QCOMPARE(shaped.pixelColor(60, 40), QColor(200, 0, 0));
+        QCOMPARE(shaped.pixelColor(12, 12), QColor(Qt::white));   // (the corner of the frame is outside the ellipse)
+        TextItem freeform;
+        freeform.rect = plain.rect;
+        freeform.customPath.moveTo(0, 0);
+        freeform.customPath.lineTo(100, 0);
+        freeform.customPath.lineTo(0, 60);
+        freeform.customPath.closeSubpath();
+        TextItem freeformAgain;
+        freeformAgain.fromJson(freeform.toJson());
+        QCOMPARE(freeformAgain.customPath.elementCount(), freeform.customPath.elementCount());
+    }
+
 };
 
 JP_TEST_CLASS(DrawSharedTests)

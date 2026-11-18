@@ -259,6 +259,51 @@ ItemPtr wspItem(const Shape &s, const office::Theme *theme)
     return item;
 }
 
+// What the shape's body says of the direction of its text: 0 across, 1 turned a quarter, 2 turned back a quarter.
+static int bodyDirection(const Shape &s)
+{
+    QDomDocument doc;
+    if (s.wsp.isEmpty() || !office::parseXml(s.wsp, &doc)) return 0;
+    const QDomElement shape = doc.documentElement().firstChildElement();
+    for (QDomElement e = shape.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
+        if (e.localName() != QLatin1String("bodyPr")) continue;
+        const QString v = e.attribute(QStringLiteral("vert"));
+        return v == QLatin1String("vert270") ? 2 : v == QLatin1String("vert") || v == QLatin1String("eaVert") ? 1 : 0;
+    }
+    return 0;
+}
+
+void applyDrawnLook(TextItem &box, const Item &ref, const Shape &s)
+{
+    box.fill = ref.fill;
+    box.stroke = ref.stroke;
+    box.fx = ref.fx;
+    box.rotation = ref.rotation;
+    box.flipH = ref.flipH;
+    box.flipV = ref.flipV;
+    if (ref.type() == ItemType::Shape) {
+        const auto &from = static_cast<const ShapeItem &>(ref);
+        // (A plain rectangle stays the plain box.)
+        if (from.shape != QLatin1String("rect") || !from.customPath.isEmpty()) {
+            box.shape = from.shape;
+            box.adj = from.adj;
+            box.customPath = from.customPath;
+        }
+        // (A file's own outline names its text area: the shared reader added it to the insets it read, which are the body's own beside it.)
+        box.textArea = QMarginsF(std::max(0.0, from.insets.left() - s.inset[0]), std::max(0.0, from.insets.top() - s.inset[1]), std::max(0.0, from.insets.right() - s.inset[2]),
+                                 std::max(0.0, from.insets.bottom() - s.inset[3]));
+        box.valign = from.valign;
+        box.noWrap = from.noWrap;
+    } else if (ref.type() == ItemType::Text) {
+        const auto &from = static_cast<const TextItem &>(ref);
+        box.valign = from.valign;
+        box.noWrap = from.noWrap;
+    }
+    const int direction = bodyDirection(s);
+    box.vertical = direction != 0;
+    box.turnedBack = direction == 2;
+}
+
 ItemPtr textArtItem(const Shape &s)
 {
     if (s.kind != Shape::TextBox || s.wsp.isEmpty() || s.textBox.isEmpty()) return nullptr;

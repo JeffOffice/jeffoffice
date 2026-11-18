@@ -61,6 +61,7 @@
 #include "office/drawingml_write.h"
 #include "render/textart.h"
 #include "render/renderer.h"
+#include "render/shapes.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "render/diagramdrawing.h"
@@ -7480,6 +7481,130 @@ private Q_SLOTS:
         QTest::mouseClick(win.w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, second.center().toPoint());
         QVERIFY(!isLinkedTextBox(*doc, 0));
     }
+    // ---------------------------------------------------------------- shapes with words in them
+    // A shape of the drawing format's own that holds words (red, 20 points, one paragraph), its body saying `body` (the attributes of wps:bodyPr), set on the page at (x, y).
+    static QByteArray wordShape(int id, const QByteArray &prst, const QByteArray &words, const QByteArray &body, double x, double y, double w, double h)
+    {
+        auto n = [](double v) { return QByteArray::number(qint64(v * 12700)); };
+        const QByteArray shape = "<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(w) + "\" cy=\"" + n(h) + "\"/></a:xfrm><a:prstGeom prst=\"" + prst +
+                                 "\"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:rPr><w:color w:val=\"FF0000\"/>"
+                                 "<w:sz w:val=\"40\"/></w:rPr><w:t>" + words + "</w:t></w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr " + body + "/></wps:wsp>";
+        return anchoredGraphic(id, kShapeUri, shape, x, y, w, h);
+    }
+
+    static QByteArray wspOf(const QByteArray &xml)
+    {
+        const qsizetype from = xml.indexOf("<wps:wsp>"), to = xml.indexOf("</wps:wsp>");
+        return from < 0 || to < from ? QByteArray() : xml.mid(from, to + 10 - from);
+    }
+
+    void aShapeWithWordsKeepsItsShapeAndSetsItsWordsInTheTextArea()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "ellipse", "Hi", "lIns=\"254000\" rIns=\"254000\" tIns=\"0\" bIns=\"0\"", 100, 100, 200, 150)
+                                + wordShape(6, "wedgeEllipseCallout", "Hi", "", 100, 400, 200, 150) + "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const ItemList items = objectsOfPage(*doc);
+        QCOMPARE(items.size(), 2);
+        const QStringList names = {QStringLiteral("ellipse"), QStringLiteral("wedgeEllipseCallout")};
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        const QImage page = view.pageImage(0, 816);
+        const double scale = page.width() / doc->pager().materialize(0)->doc->setup.size.width();
+        for (int i = 0; i < 2; ++i) {
+            QCOMPARE(items[i]->type(), ItemType::Text);
+            const auto &box = static_cast<const TextItem &>(*items[i]);
+            QVERIFY2(i == 1 ? !box.shape.isEmpty() || !box.customPath.isEmpty() : box.shape == names[i], qPrintable(box.shape));
+            // The words are in the outline's text area, inside the insets: the red of the letters on the page is within it.
+            const QRectF area = box.customPath.isEmpty() || box.textArea.isNull() ? shapeTextRect(box.shape, box.rect.size(), box.adj) : QRectF(QPointF(0, 0), box.rect.size()).marginsRemoved(box.textArea);
+            QVERIFY2(area.width() < box.rect.width() - 10, qPrintable(QStringLiteral("shape %1 has no smaller text area").arg(i)));
+            const QRectF inside = area.marginsRemoved(box.insets).translated(box.rect.topLeft());
+            const QRect band(0, int((box.rect.top() - 5) * scale), page.width(), int((box.rect.height() + 10) * scale));
+            QRect ink = colorBoundsOf(page.copy(band), QColor(255, 0, 0));
+            QVERIFY(!ink.isNull());
+            ink.translate(band.topLeft());
+            QVERIFY2(ink.left() >= inside.left() * scale - 2 && ink.top() >= inside.top() * scale - 2, qPrintable(QStringLiteral("%1 starts left of the text area").arg(i)));
+            QVERIFY2(ink.right() <= inside.right() * scale + 2 && ink.bottom() <= inside.bottom() * scale + 2, qPrintable(QStringLiteral("%1 runs past the text area").arg(i)));
+        }
+        // The ellipse's insets were the file's own (20 points at the sides); they are in the box.
+        const auto &oval = static_cast<const TextItem &>(*items[0]);
+        QCOMPARE(oval.shape, QStringLiteral("ellipse"));
+        QCOMPARE(oval.insets.left(), 20.0);
+        QCOMPARE(oval.insets.top(), 0.0);
+        // The box is painted in its outline: the corner of its frame is the page's.
+        const QPoint corner(int((oval.rect.left() + 2) * scale), int((oval.rect.top() + 2) * scale));
+        QCOMPARE(page.pixelColor(corner), QColor(Qt::white));
+        QCOMPARE(page.pixelColor(QPoint(int((oval.rect.center().x()) * scale), int((oval.rect.bottom() - 6) * scale))), QColor(0x33, 0x66, 0x99));
+    }
+
+    void theDirectionOfAShapesWordsIsRead()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "rect", "A", "vert=\"vert270\"", 100, 100, 150, 100) + wordShape(6, "ellipse", "B", "vert=\"vert\"", 100, 250, 150, 100)
+                                + wordShape(7, "rect", "C", "vert=\"eaVert\"", 100, 400, 150, 100) + wordShape(8, "rect", "D", "vert=\"horz\"", 100, 550, 150, 100) + "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const ItemList items = objectsOfPage(*doc);
+        QCOMPARE(items.size(), 4);
+        const auto at = [&](int i) { return static_cast<const TextItem *>(items[i].get()); };
+        QVERIFY(at(0)->vertical && at(0)->turnedBack);
+        QVERIFY(at(1)->vertical && !at(1)->turnedBack);
+        QVERIFY(at(2)->vertical && !at(2)->turnedBack);
+        QVERIFY(!at(3)->vertical && !at(3)->turnedBack);
+        // (Turned text is laid out on its side: the frame is as tall as the box is wide.)
+        auto page = doc->pager().materialize(0);
+        QVERIFY(page);
+        const FrameSpec spec = Renderer::frameSpec(*page->doc, *at(0), 1, RenderOptions());
+        QCOMPARE(spec.size, QSizeF(at(0)->rect.height(), at(0)->rect.width()));
+    }
+
+    void aShapeWithWordsIsSavedAsItWasAndKeepsItsShapeWhenItsWordsAreEdited()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "ellipse", "Hi", "vert=\"vert270\"", 100, 100, 200, 150) + "</w:p>";
+        const QByteArray zip = makeDocx(body);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        const QByteArray original = wspOf(documentXml(zip));
+        QVERIFY(!original.isEmpty());
+        QCOMPARE(wspOf(documentXml(doc->toDocx())), original);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) at = i;
+        QVERIFY(at >= 0);
+        QVERIFY(setTextBoxText(*doc, at, {QStringLiteral("Changed")}));
+        const QByteArray saved = doc->toDocx();
+        QVERIFY(documentXml(saved).contains("prst=\"ellipse\""));
+        QVERIFY(documentXml(saved).contains("vert=\"vert270\""));
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        const ItemList items = objectsOfPage(*reopened);
+        QCOMPARE(items.size(), 1);
+        const auto &box = static_cast<const TextItem &>(*items[0]);
+        QCOMPARE(box.shape, QStringLiteral("ellipse"));
+        QVERIFY(box.vertical && box.turnedBack);
+    }
+
+    // A page of shapes with words in them, for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).
+    void shapesWithWordsPictureForAPersonToLookAt()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        QByteArray body = "<w:p><w:r><w:t>Shapes with words</w:t></w:r>";
+        const char *presets[] = {"ellipse", "roundRect", "wedgeEllipseCallout", "wedgeRoundRectCallout", "diamond", "hexagon", "rightArrow", "star5"};
+        for (int i = 0; i < 8; ++i)
+            body += wordShape(10 + i, presets[i], QByteArray(presets[i]).left(9), i == 7 ? "vert=\"vert270\"" : "", 60 + (i % 2) * 260, 90 + (i / 2) * 170, 220, 140);
+        body += "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        QDir().mkpath(dir);
+        QVERIFY(view.pageImage(0, 1000).save(dir + QStringLiteral("/write-shapes-with-words.png")));
+    }
+
 };
 
 QTEST_MAIN(DrawTests)

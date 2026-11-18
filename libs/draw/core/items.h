@@ -91,6 +91,15 @@ public:
     ItemPtr clone() const override;
     bool hasText() const override { return true; }
 
+    // A box that is a shape with words in it (an ellipse with a caption, a callout): the shape's name in the shape library, its adjustment values, or edited points
+    // (frame-local, which override the name). Empty for a plain box. The box is painted in this outline and its text is set in the outline's text area, inside the insets.
+    QString shape;
+    QVector<double> adj;
+    QPainterPath customPath;
+    // With edited points or a file's own outline: how far the outline's text area is inside the frame, on each side (a file's outline names its text area; points have none).
+    QMarginsF textArea;
+    void scaleInto(const QRectF &from, const QRectF &to) override;
+
     QString storyId;
     QString nextId;              // next frame in the linked chain
     QMarginsF insets{2.88, 2.88, 2.88, 2.88};

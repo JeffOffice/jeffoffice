@@ -270,11 +270,40 @@ LayoutEnv Renderer::layoutEnv(const Document &doc)
     return env;
 }
 
+// The outline of a box that is a shape with words in it (none for a plain box): its edited points up to a cap (past it the frame), else the library's shape.
+static const int kMostBoxShapePoints = 2000;
+static bool boxIsShape(const TextItem &t) { return !t.shape.isEmpty() || !t.customPath.isEmpty(); }
+static QPainterPath boxOutline(const TextItem &t)
+{
+    const QSizeF size = t.rect.size();
+    if (!t.customPath.isEmpty()) {
+        QPainterPath frame;
+        frame.addRect(QRectF(QPointF(0, 0), size));
+        return t.customPath.elementCount() > kMostBoxShapePoints ? frame : t.customPath;
+    }
+    return shapePath(t.shape, size, t.adj);
+}
+
+// How far the outline's text area is inside the box's frame, on each side as the text is laid out (a box whose text is turned is laid out on its side).
+static QMarginsF boxTextArea(const TextItem &t)
+{
+    const QSizeF size = t.rect.size();
+    double l = t.textArea.left(), top = t.textArea.top(), r = t.textArea.right(), b = t.textArea.bottom();
+    if (t.customPath.isEmpty() || t.textArea.isNull()) {
+        if (t.shape.isEmpty() || !shapeDef(t.shape)) return QMarginsF();
+        const QRectF tr = shapeTextRect(t.shape, size, t.adj);
+        l = tr.left(); top = tr.top(); r = size.width() - tr.right(); b = size.height() - tr.bottom();
+    }
+    if (!t.vertical) return QMarginsF(l, top, r, b);
+    return t.turnedBack ? QMarginsF(b, l, top, r) : QMarginsF(top, r, b, l);
+}
+
 FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt)
 {
     FrameSpec s;
     s.size = t.vertical ? QSizeF(t.rect.height(), t.rect.width()) : t.rect.size();
     s.insets = t.insets;
+    s.insets += boxTextArea(t);
     // (A word processor's box has its text inside its insets alone: its line is drawn over the edge and takes no room from the text.)
     if (const double d = t.stroke.textShift(); d > 0 && !doc.wordText) s.insets += QMarginsF(d, d, d, d);
     s.columns = std::max(1, t.columns);
@@ -689,6 +718,10 @@ QPainterPath Renderer::silhouette(const Document &doc, const Item &it)
         break;
     }
     case ItemType::TextArt: p = textArtOutline(static_cast<const TextArtItem &>(it)); break;
+    case ItemType::Text:
+        if (boxIsShape(static_cast<const TextItem &>(it))) p = boxOutline(static_cast<const TextItem &>(it));
+        else p.addRect(QRectF(QPointF(0, 0), sz));
+        break;
     case ItemType::Line: {
         const auto &l = static_cast<const LineItem &>(it);
         const QPainterPath lp = l.path().translated(-l.rect.topLeft());
@@ -921,7 +954,12 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
 {
     const QRectF r(QPointF(0, 0), t.rect.size());
     const ColorScheme &cs = ctx.doc->colors;
-    if (!t.fill.isNone()) p->fillRect(r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
+    const bool shaped = boxIsShape(t);
+    const QPainterPath outline = shaped ? boxOutline(t) : QPainterPath();
+    if (!t.fill.isNone()) {
+        if (!shaped) p->fillRect(r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
+        else if (const ShapeDef *def = shapeDef(t.shape); !(def && def->open && t.customPath.isEmpty())) p->fillPath(outline, t.fill.brush(outline.boundingRect(), cs, lookupFor(*ctx.doc)));
+    }
     const LayoutCache::FrameLayout fl = ctx.cache->textFrame(*ctx.doc, t, ctx.pageNumber, ctx.opt);
     if (fl.layout && fl.frame >= 0) {
         PaintOptions po;
@@ -975,7 +1013,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         p->drawLine(QPointF(mark.center().x(), mark.top() + 3), QPointF(mark.center().x(), mark.bottom() - 3));
         p->restore();
     }
-    Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs);
+    Renderer::strokePath(p, shaped ? outline : [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs);
 }
 
 // A picture field's picture for one record of the mail merge list: the file

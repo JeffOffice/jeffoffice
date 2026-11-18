@@ -2083,6 +2083,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             item->hidden = s.hidden;
             // A shape of the drawing format's own has its look from the shared reader: its geometry, fill, line, effects, and turn.
             if (const ItemPtr ref = wspItem(s, theme())) {
+                if (item->type() == ItemType::Text) applyDrawnLook(static_cast<TextItem &>(*item), *ref, s);
                 item->fill = ref->fill;
                 item->stroke = ref->stroke;
                 item->fx = ref->fx;

@@ -222,9 +222,29 @@ ItemPtr TextItem::clone() const
     return c;   // caller assigns a copied story
 }
 
+static QJsonArray pathJson(const QPainterPath &p);
+static QPainterPath pathFrom(const QJsonArray &a);
+
+void TextItem::scaleInto(const QRectF &from, const QRectF &to)
+{
+    const QSizeF before = rect.size();
+    Item::scaleInto(from, to);
+    if (customPath.isEmpty() || before.width() <= 0 || before.height() <= 0) return;
+    const double kx = rect.width() / before.width(), ky = rect.height() / before.height();
+    if (kx != 1 || ky != 1) customPath = QTransform::fromScale(kx, ky).map(customPath);
+}
+
 QJsonObject TextItem::toJson() const
 {
     QJsonObject o = Item::toJson();
+    if (!shape.isEmpty()) o["shape"] = shape;
+    if (!adj.isEmpty()) {
+        QJsonArray a;
+        for (double v : adj) a.append(v);
+        o["adj"] = a;
+    }
+    if (!customPath.isEmpty()) o["path"] = pathJson(customPath);
+    if (!textArea.isNull()) o["textArea"] = marginsJson(textArea);
     o["story"] = storyId;
     if (!nextId.isEmpty()) o["next"] = nextId;
     o["insets"] = marginsJson(insets);
@@ -249,6 +269,11 @@ QJsonObject TextItem::toJson() const
 void TextItem::fromJson(const QJsonObject &o)
 {
     Item::fromJson(o);
+    shape = o["shape"].toString();
+    adj.clear();
+    for (const auto &v : o["adj"].toArray()) adj.append(v.toDouble());
+    customPath = pathFrom(o["path"].toArray());
+    textArea = o.contains("textArea") ? marginsFrom(o["textArea"], QMarginsF()) : QMarginsF();
     storyId = o["story"].toString();
     nextId = o["next"].toString();
     insets = marginsFrom(o["insets"], insets);
