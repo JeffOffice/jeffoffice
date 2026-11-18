@@ -598,11 +598,11 @@ private Q_SLOTS:
         QTest::newRow("triangle default") << "triangle" << "" << 100.0 << 50.0 << L{0.5};
         QTest::newRow("triangle apex at the left") << "triangle" << "adj=0" << 100.0 << 50.0 << L{0.0};
         QTest::newRow("triangle apex at the right") << "triangle" << "adj=100000" << 100.0 << 50.0 << L{1.0};
-        QTest::newRow("parallelogram wide") << "parallelogram" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("parallelogram wide") << "parallelogram" << "" << 100.0 << 50.0 << L{0.25};   // (a fraction of the shorter side)
         QTest::newRow("parallelogram tall") << "parallelogram" << "" << 50.0 << 100.0 << L{0.25};
-        QTest::newRow("trapezoid") << "trapezoid" << "" << 100.0 << 50.0 << L{0.125};
-        QTest::newRow("trapezoid set") << "trapezoid" << "adj=50000" << 200.0 << 100.0 << L{0.25};
-        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.125};
+        QTest::newRow("trapezoid") << "trapezoid" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("trapezoid set") << "trapezoid" << "adj=50000" << 200.0 << 100.0 << L{0.5};
+        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.25};
         QTest::newRow("octagon") << "octagon" << "" << 100.0 << 50.0 << L{0.29289};
         QTest::newRow("plus") << "plus" << "" << 100.0 << 50.0 << L{0.25};
         QTest::newRow("can") << "can" << "adj=40000" << 100.0 << 50.0 << L{0.4};

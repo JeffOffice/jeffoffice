@@ -806,15 +806,15 @@ private Q_SLOTS:
         QCOMPARE(l->start.id, result.first[0]->id);
         QCOMPARE(l->start.site, 3);          // the right side of the rectangle
         QCOMPARE(l->end.id, result.first[1]->id);
-        QCOMPARE(l->end.site, 1);            // the ellipse's third point is its left
+        QCOMPARE(l->end.site, 2);            // the ellipse's third point is its left, and the site is that number
         result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"0\"/><a:endCxn id=\"4\" idx=\"6\"/>"));
         QCOMPARE(result.second->start.site, 0);
-        QCOMPARE(result.second->end.site, 3);
+        QCOMPARE(result.second->end.site, 6);
         result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"2\"/>"));
         QCOMPARE(result.second->start.site, 2);
         QVERIFY(result.second->end.id.isEmpty());
-        // A point that the library's shape has no place for, a shape that isn't there, and a place that is not one: not joined.
-        result = joined(QStringLiteral("<a:stCxn id=\"4\" idx=\"3\"/><a:endCxn id=\"77\" idx=\"0\"/>"));
+        // A point past the shape's list (an ellipse has eight), a shape that isn't there, and a place that is not one: not joined.
+        result = joined(QStringLiteral("<a:stCxn id=\"4\" idx=\"8\"/><a:endCxn id=\"77\" idx=\"0\"/>"));
         QVERIFY(result.second->start.id.isEmpty() && result.second->end.id.isEmpty());
         result = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"9\"/><a:endCxn id=\"3\" idx=\"-1\"/>"));
         QVERIFY(result.second->start.id.isEmpty() && result.second->end.id.isEmpty());
@@ -826,7 +826,7 @@ private Q_SLOTS:
         QCOMPARE(dmlAs<LineItem>(list[0])->start.id, dmlAs<GroupItem>(list[1])->children[0]->id);
     }
 
-    void dmlConnectorsToAShapeWithSitesOfItsOwnFindTheSideSite()
+    void dmlConnectorsToAShapeWithSitesOfItsOwnKeepTheStandardsNumber()
     {
         DmlEnv env;
         const QString shapes = dmlSp(dmlXfrm(10, 10, 100, 100) + QStringLiteral("<a:prstGeom prst=\"triangle\"/>"), QString(), QString(), QString(), QString(), QString(), QStringLiteral("3"));
@@ -837,13 +837,14 @@ private Q_SLOTS:
         // The triangle's sites: the apex, the middle of the left slope, its three foot points, and the middle of the right slope.
         auto l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"1\"/><a:endCxn id=\"3\" idx=\"5\"/>"));
         QCOMPARE(l->start.site, 1);
-        QCOMPARE(l->end.site, 3);
+        QCOMPARE(l->end.site, 5);
         l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"3\"/><a:endCxn id=\"3\" idx=\"0\"/>"));
-        QCOMPARE(l->start.site, 2);
+        QCOMPARE(l->start.site, 3);
         QCOMPARE(l->end.site, 0);
-        // The foot's corner is on no side; and six is past the list.
+        // The foot's corner is a site like the others; six is past the list.
         l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"2\"/><a:endCxn id=\"3\" idx=\"6\"/>"));
-        QVERIFY(l->start.id.isEmpty() && l->end.id.isEmpty());
+        QCOMPARE(l->start.site, 2);
+        QVERIFY(!l->start.id.isEmpty() && l->end.id.isEmpty());
     }
 
     void dmlHyperlinksAreTheirExternalTargets()

@@ -1306,9 +1306,18 @@ void PubFileTests::pubWriterShapes()
                 QPainterPath p = x->customPath.isEmpty() ? jp::shapePath(x->shape, x->rect.size()) : x->customPath;
                 return x->transform().map(p);
             };
-            const jp::ShapeItem *match = nullptr;
-            for (const jp::ShapeItem *g : got)
-                if (QLineF(outline(g).boundingRect().center(), outline(sh.get()).boundingRect().center()).length() < 10) match = g;
+            // (The last one within 10 points; a callout's outline now reaches past its box, to its pointer or its line, so its middle is not the box's: the nearest within 40 for those.)
+            const jp::ShapeItem *match = nullptr, *nearestOne = nullptr;
+            double nearest = 1e9;
+            for (const jp::ShapeItem *g : got) {
+                const double d = QLineF(outline(g).boundingRect().center(), outline(sh.get()).boundingRect().center()).length();
+                if (d < 10) match = g;
+                if (d < nearest) {
+                    nearest = d;
+                    nearestOne = g;
+                }
+            }
+            if (!match && nearest < 40) match = nearestOne;
             QVERIFY2(match, qPrintable(sh->shape));
             const bool open = jp::shapeDef(sh->shape)->open;
             QPainterPath gp = match->customPath;

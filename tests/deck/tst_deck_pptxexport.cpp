@@ -1180,7 +1180,7 @@ private Q_SLOTS:
         line->p1 = QPointF(350, 180);
         line->p2 = QPointF(400, 190);
         line->start = LineItem::Glue{box->id, 3};
-        line->end = LineItem::Glue{circle->id, 2};
+        line->end = LineItem::Glue{circle->id, 4};   // (the bottom of an ellipse is its fifth site)
         line->stroke.endArrow = Arrow::Triangle;
         line->syncRect();
         auto group = std::make_shared<GroupItem>();

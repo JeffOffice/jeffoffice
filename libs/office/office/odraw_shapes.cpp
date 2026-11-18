@@ -536,7 +536,11 @@ private:
         auto share = [&](int i, double fallback) { return std::clamp(p.integer(quint16(0x0147 + i), int(fallback)) / 21600.0, 0.0, 1.0); };
         const double m = std::max(1e-6, std::min(size.width(), size.height()));
         switch (type) {
-        case 2: case 5: case 7: case 9: case 10: case 11:
+        case 7: case 8: case 9:
+            // The numbered parallelogram, trapezoid, and hexagon set their slant as a share of the width (5400 of 21600 unless it says, and the trapezoid always); JeffOffice's, as the
+            // standard has it, is a share of the shorter side.
+            return {std::clamp((type == 8 ? 0.25 : share(0, 5400)) * size.width() / m, 0.0, size.width() / m)};
+        case 2: case 5: case 10: case 11:
             return p.has(0x0147) ? QVector<double>{share(0, 0)} : QVector<double>();
         case 13: case 66: case 67: case 68: {
             // An arrow's shaft (a share of its width) and head (a share of the shorter side).

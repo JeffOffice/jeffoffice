@@ -493,7 +493,7 @@ const AdjustSpec kAdjustments[] = {
     {"donut", 1, {25000}, SIDE_FRACTION(50000)},
     {"noSmoking", 1, {18750}, SIDE_FRACTION(50000)},
     {"frame", 1, {12500}, SIDE_FRACTION(50000)},
-    {"halfFrame", 2, {33333, 33333}, [](const double *a, double, double) { return QVector<double>{a[0] / 100000, a[1] / 100000}; }},
+    {"halfFrame", 2, {33333, 33333}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(100000 * h, side(w, h))) / 100000, pin(0, a[1], over(100000 * w, side(w, h))) / 100000}; }},
     {"corner", 2, {50000, 50000}, SIDE_FRACTION(100000)},
     {"diagStripe", 1, {50000}, SIDE_FRACTION(100000)},
     {"plus", 1, {25000}, SIDE_FRACTION(50000)},
@@ -539,7 +539,7 @@ const AdjustSpec kAdjustments[] = {
     {"mathPlus", 1, {23520}, SIDE_FRACTION(73490)},
     {"mathMinus", 1, {23520}, SIDE_FRACTION(100000)},
     {"mathMultiply", 1, {23520}, SIDE_FRACTION(51965)},
-    {"mathDivide", 3, {23520, 5882, 11760}, [](const double *a, double, double) { return QVector<double>{a[0] / 100000, a[1] / 100000, a[2] / 100000}; }},
+    {"mathDivide", 3, {23520, 5882, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 100000) / 100000, pin(0, a[1], 100000) / 100000, pin(0, a[2], 100000) / 100000}; }},
     {"mathEqual", 2, {23520, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 36745) / 100000, pin(0, a[1], 100000 - 2 * pin(0, a[0], 36745)) / 100000}; }},
     {"mathNotEqual", 3, {23520, 6600000, 11760}, SIDE_FRACTION(50000)},
     // Stars: the inner points' distance from the center, over the outer's, in half of 100,000ths.
