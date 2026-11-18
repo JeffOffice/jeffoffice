@@ -47,6 +47,7 @@
 #include "core/fontops.h"
 #include "core/items.h"
 #include "core/pictureops.h"
+#include "core/styleops.h"
 #include "io/zip.h"
 #include "core/picturestyles.h"
 #include "app/formatpresets.h"
@@ -6066,9 +6067,58 @@ private Q_SLOTS:
         setTextColor(*doc, c, QColor(255, 0, 0));
         const SetEquation red = first();
         QVERIFY(red.pic && doc->flow().images[red.pic->imageId.mid(9).toInt()].bytes.contains("#ff0000"));
-        // One step each: undoing the color brings the picture back with the run.
+        // One step: undoing the color takes the run's color and its picture back together (a picture made again in a step of its own would leave the run red with a black picture).
         QVERIFY(doc->undo());
-        QVERIFY(!doc->flow().images[first().pic->imageId.mid(9).toInt()].bytes.contains("#ff0000"));
+        const SetEquation undone = first();
+        QVERIFY(undone.pic);
+        QVERIFY(doc->story()->characterAt(7) == QChar::ObjectReplacementCharacter);
+        QTextCursor at(doc->story());
+        at.setPosition(8);
+        QVERIFY(at.charFormat().foreground().color() != QColor(255, 0, 0));
+        QCOMPARE(doc->flow().images[undone.pic->imageId.mid(9).toInt()].bytes, doc->flow().images[big.pic->imageId.mid(9).toInt()].bytes);
+        QCOMPARE(undone.pic->rect.height(), big.pic->rect.height());
+    }
+
+    void anEquationPictureFollowsAChangeOfItsStyleInOneStep()
+    {
+        auto doc = open(equationDocx(1, false));
+        QVERIFY(doc);
+        const SetEquation was = setEquations(*doc).value(0);
+        QVERIFY(was.pic && was.points > 0);
+        const QString id = doc->defaultParagraphStyle();
+        auto style = styleOfDocument(*doc, id);
+        QVERIFY(style);
+        style->rPr.size = int(was.points * 4);   // (twice the size the equation has, in half points)
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QVERIFY(modifyStyle(*doc, c, id, *style));
+        const SetEquation big = setEquations(*doc).value(0);
+        QVERIFY(big.pic);
+        QCOMPARE(big.points, was.points * 2);
+        QVERIFY(std::abs(big.pic->rect.height() - was.pic->rect.height() * 2) < 0.05);
+        // One step takes both back: the size of the run and the picture.
+        QVERIFY(doc->undo());
+        const SetEquation back = setEquations(*doc).value(0);
+        QVERIFY(back.pic);
+        QCOMPARE(back.points, was.points);
+        QVERIFY(std::abs(back.pic->rect.height() - was.pic->rect.height()) < 0.05);
+    }
+
+    void manyEditsOfOneEquationLeaveItsPictureWithinTheLimits()
+    {
+        auto doc = textDoc({"Before after"});
+        doc->setEquationLimits(10, qint64(1) << 30, 1000000000);
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QVERIFY(insertEquation(*doc, c, QStringLiteral("x/y")));
+        for (int i = 0; i < 50; ++i) {
+            QTextCursor sel(doc->story());
+            sel.setPosition(7);
+            sel.setPosition(8, QTextCursor::KeepAnchor);
+            setFontSize(*doc, sel, 12 + i);
+            QCOMPARE(setEquations(*doc).size(), 1);
+        }
+        QCOMPARE(setEquations(*doc)[0].points, 61.0);
     }
 
     void anEquationCopiedToAnotherDocumentShowsItselfAndNotThatDocumentsPicture()

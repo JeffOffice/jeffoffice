@@ -1,3 +1,4 @@
+#include "core/equationops.h"
 #include "core/writedoc.h"
 #include "app/settings.h"
 #include "wml/wmlhtmlread.h"
@@ -530,6 +531,12 @@ void WriteDoc::storyChanged(int position, int removed, int added)
 {
     m_footnoteRefsValid = false;
     m_endnoteRefIndexValid = false;
+    // An equation's picture is the size and color of its run, whatever changed them (a style, the theme, a format painted, cleared formatting): made again, in the step that changed it.
+    if (!m_refreshingEquations && !m_syncing && !m_refreshingCopies && !m_buildingEndnotes && added > 0) {
+        m_refreshingEquations = true;
+        refreshEquationPictures(*this, story(), position, std::min(position + added, story()->characterCount()), true);
+        m_refreshingEquations = false;
+    }
     if (m_endnotesPart == NotesPart::Readable) followEndnoteReferences(position, removed, added);
     if (m_endnotesPart == NotesPart::Readable && !m_buildingEndnotes && !m_syncing) touchEndnotes(position, removed, added);
     if (m_syncing || m_refreshingCopies) return;   // (a copy of a note set again alone moves no section's break)

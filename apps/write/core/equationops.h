@@ -31,6 +31,6 @@ bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear);
 
 // The pictures of the equations with one between `from` and `to` of the story made again from the look their runs have now (after a change of size or color, or a paste: a copy from another
 // document names a picture of that document's): the one that cannot be made loses its picture and shows its line.
-void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to);
+void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to, bool joinPrevious = false);   // (joinPrevious: as part of the step that was just made)
 
 } // namespace jp::write

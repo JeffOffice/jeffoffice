@@ -1043,8 +1043,11 @@ private:
     QSet<QString> m_diagramsSeen;                             // the drawings drawn since the story was built (at most kMostDiagramsDrawn)
     QHash<QString, std::shared_ptr<office::Package>> m_diagramPackages;   // the pictures of each drawing, as the shapes' reader wants them
     QSet<QString> m_diagramImages;                            // the picture parts that went into those, each counted once
-    int otherImages() const { return int(m_flow->images.size()) - m_equationCount; }   // the pictures that are not equations' (kMostImages is theirs)
-    int m_equationCount = 0, m_mostEquationImages = 2000;
+    int otherImages() const { return int(m_flow->images.size()) - m_equationPushed; }   // the pictures that are not equations' (kMostImages is theirs)
+    int m_equationCount = 0, m_equationPushed = 0, m_recountAt = -1, m_mostEquationImages = 2000;   // (in use; ever made; made when last counted again)
+    QHash<int, int> m_equationElementsOf;                     // the layout elements of each equation picture made, by its place in the flow's pictures
+    bool m_refreshingEquations = false;
+    void recountEquations();
     qint64 m_equationBytes = 0, m_equationElements = 0, m_mostEquationBytes = qint64(64) << 20, m_mostEquationElements = 2000000;
     QHash<QByteArray, int> m_equationImages;                  // the pictures of equations set in the text, by the hash of the picture (their places in the flow's pictures)
     int m_barcodePictures = 0;   // the pictures of barcodes drawn from their markers so far (no more than kMostBarcodesHonored)

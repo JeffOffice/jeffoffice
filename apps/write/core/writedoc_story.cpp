@@ -27,6 +27,7 @@
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
+#include <QSet>
 #include <QFontDatabase>
 #include <QRegularExpression>
 #include <QTextBlock>
@@ -1654,7 +1655,15 @@ void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
     const QByteArray key = QCryptographicHash::hash(eq.svg, QCryptographicHash::Sha1);
     int image = m_equationImages.value(key, -1);
     if (image < 0 || image >= f.images.size() || f.images[image].bytes != eq.svg) {
-        if (m_equationCount >= m_mostEquationImages || m_equationBytes + eq.svg.size() > m_mostEquationBytes || m_equationElements + eq.elements > m_mostEquationElements) return;
+        // (What counts against the limits is the pictures the text still uses: the ones an edit left behind are let go from the count, when a limit would be passed. They stay in the
+        // document's pictures for its history, so the pictures ever made have a limit of their own.)
+        auto over = [&]() { return m_equationCount >= m_mostEquationImages || m_equationBytes + eq.svg.size() > m_mostEquationBytes || m_equationElements + eq.elements > m_mostEquationElements; };
+        if (m_equationPushed >= 10 * m_mostEquationImages) return;
+        if (over() && m_recountAt != m_equationPushed) {
+            m_recountAt = m_equationPushed;
+            recountEquations();
+        }
+        if (over()) return;
         flow::FlowImage made;
         made.bytes = eq.svg;
         made.format = QStringLiteral("svg");
@@ -1663,8 +1672,10 @@ void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
         image = int(f.images.size()) - 1;
         m_equationImages.insert(key, image);
         ++m_equationCount;
+        ++m_equationPushed;
         m_equationBytes += eq.svg.size();
         m_equationElements += eq.elements;
+        m_equationElementsOf.insert(image, int(eq.elements));
     }
     auto pic = std::make_shared<PictureItem>();
     pic->rect = QRectF(0, 0, eq.size.width(), eq.size.height());
@@ -1674,6 +1685,33 @@ void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
     pic->altText = atom.display;
     format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(pic->toJson()).toJson(QJsonDocument::Compact)));
     format->setProperty(tp::InlineHangBelow, std::clamp(eq.size.height() - eq.ascent, 0.0, 1000.0));
+}
+
+// The pictures of equations the text uses, counted again: the count, bytes, and layout elements of the distinct ones its runs name.
+void WriteDoc::recountEquations()
+{
+    QSet<int> live;
+    const QString prefix = QStringLiteral("flow-img:");
+    for (QTextBlock b = story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(tp::InlineObject) || !cf.hasProperty(prop::Atom)) continue;
+            const QString json = cf.stringProperty(tp::InlineObject);
+            const int at = json.indexOf(prefix);
+            if (at < 0) continue;
+            int end = at + prefix.size();
+            while (end < json.size() && json[end].isDigit()) ++end;
+            const int image = json.mid(at + prefix.size(), end - at - prefix.size()).toInt();
+            if (m_equationElementsOf.contains(image)) live.insert(image);
+        }
+    m_equationCount = 0;
+    m_equationBytes = m_equationElements = 0;
+    for (int image : std::as_const(live)) {
+        if (image >= m_flow->images.size()) continue;
+        ++m_equationCount;
+        m_equationBytes += m_flow->images[image].bytes.size();
+        m_equationElements += m_equationElementsOf.value(image);
+    }
 }
 
 void WriteDoc::setEquationLimits(int images, qint64 bytes, qint64 elements)

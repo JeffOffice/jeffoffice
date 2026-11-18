@@ -929,7 +929,9 @@ QTextDocument *WriteDoc::undoOne(QTextCursor *cursor)
     const Step step = m_undoLog.takeLast();
     m_endnoteSeqValid = false;   // (what an undo changes is looked through once more by the next settling)
     QTextCursor at(step.story);
+    m_refreshingEquations = true;   // (what an undo restores is as it was: no picture is made again, which would be a new step)
     step.story->undo(&at);
+    m_refreshingEquations = false;
     if (cursor) *cursor = at;
     m_redoLog.push_back(step);
     applyStyleChanges(step.serial, true);
@@ -952,7 +954,9 @@ QTextDocument *WriteDoc::redo(QTextCursor *cursor)
     auto redoStep = [&](const Step &step, QTextCursor *c) {
         m_endnoteSeqValid = false;
         QTextCursor at(step.story);
+        m_refreshingEquations = true;
         step.story->redo(&at);
+        m_refreshingEquations = false;
         if (c) *c = at;
         m_undoLog.push_back(step);
         applyStyleChanges(step.serial, false);

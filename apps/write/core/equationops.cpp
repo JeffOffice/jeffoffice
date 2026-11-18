@@ -158,7 +158,7 @@ bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)
     return insertMarkup(doc, c, markup);
 }
 
-void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to)
+void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to, bool joinPrevious)
 {
     struct Fix { int from, to; QTextCharFormat format; };
     QVector<Fix> fixes;
@@ -173,12 +173,17 @@ void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int 
             doc.equationPicture(atom, &nf);
             if (nf != cf) fixes.push_back({f.position(), f.position() + f.length(), nf});
         }
+    if (fixes.isEmpty()) return;
+    QTextCursor edit(story);
+    if (joinPrevious) edit.joinPreviousEditBlock();
+    else edit.beginEditBlock();
     for (const Fix &x : std::as_const(fixes)) {
         QTextCursor t(story);
         t.setPosition(x.from);
         t.setPosition(x.to, QTextCursor::KeepAnchor);
         t.setCharFormat(x.format);
     }
+    edit.endEditBlock();
 }
 
 } // namespace jp::write
