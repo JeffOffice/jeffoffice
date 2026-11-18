@@ -1,7 +1,7 @@
 # JeffDeck-Hilfe
-<!-- keywords: Inhalt, Hilfe, Themen, Start -->
+<!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfeinhalt, Themenübersicht -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, der ausgeführt werden kann. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum Bereich, in dem Sie arbeiten, oder zum ausgewählten Objekt.
+Geben Sie oben in das Suchfeld ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, zum Bereich, in dem Sie arbeiten, oder zum ausgewählten Objekt.
 
 ## Erste Schritte
 
@@ -21,32 +21,34 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden, de
 
 - [Text eingeben und formatieren](text)
 - [Formen, Bilder, Tabellen und Textkunst](objects)
-- [Gleichungen](equations)
+- [Formeln](equations)
 - [Diagramme](charts)
-- [Der Bereich Form formatieren und die Registerkarte Formformat](format-shape)
+- [Der Aufgabenbereich „Form formatieren“ und die Registerkarte „Formformat“](format-shape)
 - [Sprechernotizen](notes)
 - [Kommentare](comments)
+- [Präsentationen vergleichen](compare)
 
 ## Bewegung
 
 - [Übergänge zwischen Folien](transitions)
 - [Animationen](animations)
 
-## Vorführen
+## Präsentation
 
 - [Bildschirmpräsentation abspielen und die Referentenansicht verwenden](show)
 
-## Drucken und teilen
+## Drucken und Weitergeben
 
 - [Drucken, PDF und Folienbilder](printing)
+- [Pack and Go: Präsentation mitnehmen](pack-and-go)
 
 ## Hilfe und Einstellungen
 
 - [JeffDeck mit der Tastatur verwenden](keyboard)
-- [JeffDeck-Einstellungen ändern](options)
+- [JeffDecks Einstellungen ändern](options)
 - [Sicherheit: worauf eine Datei zugreifen darf](security)
-- [Sprache auswählen](language)
-- [Der Bereich Datei](file-screen)
+- [Eine Sprache auswählen](language)
+- [Die Datei-Ansicht](file-screen)
 
 ## Die Registerkarten des Menübands
 

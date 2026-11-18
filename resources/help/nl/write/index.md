@@ -1,21 +1,22 @@
 # JeffWrite Help
-<!-- keywords: inhoud, help, onderwerpen, start, overzicht, handleiding -->
+<!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit te voeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp of een opdracht te zoeken die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u bent.
 
 ## Aan de slag
 
 - [Welkom bij JeffWrite](start)
 - [Openen, opslaan, afdrukken en exporteren](open-save)
-- [Info: eigenschappen, wachtwoorden en Controleren](info)
+- [Pack and Go: een document verzenden met wat het nodig heeft](pack-and-go)
+- [Info: eigenschappen, wachtwoorden en Document controleren](info)
 - [OpenDocument-bestanden openen en opslaan](open-odt)
 - [RTF-bestanden openen](open-rtf)
 - [Afdrukken](print)
 
-## Met tekst werken
+## Aan de tekst werken
 
 - [Spelling controleren](spelling)
-- [Woorden tellen, taal instellen, toegankelijkheid controleren en woorden opzoeken](proofing-tools)
+- [Woorden tellen, de taal instellen, toegankelijkheid controleren en woorden opzoeken](proofing-tools)
 - [Tekst vertalen](translate)
 - [Wijzigingen bijhouden, en wijzigingen accepteren of weigeren](track-changes)
 - [Opmerkingen toevoegen en beantwoorden](comments)
@@ -23,11 +24,11 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 
 ## Tekst schrijven en wijzigen
 
-- [Wijzigen hoe tekst eruitziet](font)
+- [De opmaak van tekst wijzigen](font)
 - [Hoofdlettergebruik wijzigen, sorteren en op andere manieren plakken](home-tools)
 - [Stijlen gebruiken](styles)
 - [Een opmaak kopiëren met Opmaak kopiëren](format-painter)
-- [Koptek沒ten, voetteksten en paginanummers toevoegen](headers-footers)
+- [Koptekst, voettekst en paginanummers toevoegen](headers-footers)
 - [Tabellen maken en wijzigen](tables)
 - [Voetnoten en eindnoten toevoegen](footnotes-endnotes)
 - [Een inhoudsopgave maken](table-of-contents)
@@ -44,7 +45,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Grafieken](charts)
 - [Vergelijkingen](equations)
 - [De pagina instellen](page-setup)
-- [Eindemarkeringen, kolommen, woordafbreking en regelnummers](breaks-columns)
+- [Einden, kolommen, woordafbreking en regelnummers](breaks-columns)
 - [Symbolen en speciale tekens invoegen](symbols-special-characters)
 - [Koppelingen en tekst uit andere bestanden toevoegen](links)
 - [Formulieren maken met inhoudsbeheer](content-controls)
@@ -52,11 +53,11 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht om uit 
 - [Uw weg vinden met het navigatievenster](navigation-pane)
 - [De liniaal gebruiken](ruler)
 - [Woorden zoeken en vervangen](find-replace)
-- [Naar een plek gaan en tekst verplaatsen](go-to-and-move-text)
+- [Naar een plaats gaan en tekst verplaatsen](go-to-and-move-text)
 
 ## Sneller werken
 
 - [JeffWrite met het toetsenbord gebruiken](keyboard)
-- [JeffWrite-instellingen wijzigen](options)
-- [Beveiliging: met welke externe bronnen een bestand verbinding mag maken](security)
+- [De instellingen van JeffWrite wijzigen](options)
+- [Beveiliging: waarmee een bestand verbinding mag maken](security)
 - [Een taal kiezen](language)

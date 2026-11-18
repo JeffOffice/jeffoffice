@@ -1,13 +1,14 @@
 # JeffCrunch-Hilfe
 <!-- keywords: Inhalt, Hilfe, Themen, Start, Hilfethemen, Übersicht -->
 
-Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands, auf der Sie sich befinden, oder zur Seite des Menüs „Datei“, auf der Sie sich befinden.
+Geben Sie oben im Suchfeld einen Begriff ein, um ein Thema oder einen auszuführenden Befehl zu finden. Drücken Sie jederzeit **F1**, um Hilfe zu dem zu erhalten, was Sie gerade tun: zur Registerkarte des Menübands oder zur Seite der Backstage-Ansicht „Datei“, auf der Sie sich befinden.
 
 ## Erste Schritte
 
 - [Willkommen bei JeffCrunch](start)
 - [Arbeitsmappen öffnen und speichern](open-save)
-- [Info: Eigenschaften, Kennwörter und Dokumentprüfung](info)
+- [Pack and Go: Eine Arbeitsmappe mit allem versenden, was sie benötigt](pack-and-go)
+- [Info: Eigenschaften, Kennwörter und Dokumente prüfen](info)
 - [Kennwortgeschützte Arbeitsmappen öffnen](open-password)
 - [In Zellen eingeben](edit-cells)
 - [Regeln für den Inhalt einer Zelle](rules)
@@ -36,19 +37,19 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden. Dr
 - [Tabellen](tables)
 - [Pivot-Tabellen](pivot-tables)
 - [Funktion einfügen](insert-function)
-- [Funktion im Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
+- [Funktion über das Dialogfeld „Funktionsargumente“ eingeben](function-arguments)
 - [Diagramme, Bilder und Formen](charts)
 - [Gleichungen](equations)
-- [Notizen und Verknüpfungen](notes-links)
+- [Notizen und Links](notes-links)
 - [Blatt oder Arbeitsmappe schützen](protect)
 
 ## Alle Funktionen
 
 - [Finanzmathematische Funktionen](functions-financial)
 - [Datums- und Zeitfunktionen](functions-date-time)
-- [Mathematik- und Trigonometriefunktionen](functions-math-trig)
+- [Mathematische und trigonometrische Funktionen](functions-math-trig)
 - [Statistische Funktionen](functions-statistical)
-- [Suchen- und Verweisfunktionen](functions-lookup-reference)
+- [Nachschlage- und Verweisfunktionen](functions-lookup-reference)
 - [Textfunktionen](functions-text)
 - [Logische Funktionen](functions-logical)
 - [Informationsfunktionen](functions-information)
@@ -64,6 +65,6 @@ Geben Sie oben in das Suchfeld ein, um ein Thema oder einen Befehl zu finden. Dr
 ## Schneller arbeiten
 
 - [JeffCrunch mit der Tastatur verwenden](keyboard)
-- [JeffCrunch-Einstellungen ändern](options)
+- [Einstellungen von JeffCrunch ändern](options)
 - [Sicherheit: worauf eine Datei zugreifen darf](security)
 - [Sprache auswählen](language)

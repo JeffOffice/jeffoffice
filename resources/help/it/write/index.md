@@ -1,62 +1,63 @@
-# Guida di JeffWrite
-<!-- keywords: sommario, guida, argomenti, inizio, start -->
+# JeffWrite Guida
+<!-- keywords: sommario, guida, argomenti, inizio, indice, aiuto -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione attiva o la pagina della schermata File su cui ti trovi.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ricevere aiuto su ciò che stai facendo: la scheda della barra multifunzione in cui ti trovi, oppure la pagina della schermata File in cui ti trovi.
 
 ## Per iniziare
 
 - [Benvenuto in JeffWrite](start)
-- [Apri, salva, stampa ed esporta](open-save)
-- [Informazioni: proprietà, password e Ispeziona documento](info)
-- [Apri e salva file OpenDocument](open-odt)
-- [Apri file RTF](open-rtf)
+- [Apertura, salvataggio, stampa ed esportazione](open-save)
+- [Pack and Go: invia un documento con tutto ciò che gli serve](pack-and-go)
+- [Info: proprietà, password e verifica documento](info)
+- [Apertura e salvataggio di file OpenDocument](open-odt)
+- [Apertura di file RTF](open-rtf)
 - [Stampa](print)
 
 ## Lavorare sul testo
 
-- [Controllare l'ortografia](spelling)
-- [Contare le parole, impostare la lingua, verificare l'accessibilità e cercare parole](proofing-tools)
-- [Tradurre il testo](translate)
-- [Revisioni: accettare o rifiutare le modifiche](track-changes)
-- [Aggiungere e rispondere ai commenti](comments)
-- [Proteggere un documento e bloccare le revisioni](protect)
+- [Controllo ortografia](spelling)
+- [Conteggio parole, impostazione della lingua, verifica dell'accessibilità e ricerca di parole](proofing-tools)
+- [Traduzione del testo](translate)
+- [Revisioni, con accettazione o rifiuto delle modifiche](track-changes)
+- [Aggiunta e risposta ai commenti](comments)
+- [Protezione di un documento e blocco delle revisioni](protect)
 
 ## Scrivere e modificare il testo
 
-- [Cambiare l'aspetto del testo](font)
-- [Modificare le maiuscole, ordinare e incollare in altri modi](home-tools)
-- [Usare gli stili](styles)
-- [Copiare un aspetto con Copia formato](format-painter)
-- [Aggiungere intestazioni, piè di pagina e numeri di pagina](headers-footers)
-- [Creare e modificare tabelle](tables)
-- [Aggiungere note a piè di pagina e note di chiusura](footnotes-endnotes)
-- [Creare un sommario](table-of-contents)
-- [Aggiungere didascalie e un indice delle figure](captions)
-- [Citare fonti e creare una bibliografia](citations)
-- [Creare un indice analitico](making-an-index)
-- [Creare un indice delle fonti giuridiche](table-of-authorities)
-- [Usare i campi](fields)
-- [Puntare a un altro punto con riferimenti incrociati](cross-references)
-- [Contrassegnare i punti con segnalibri](bookmarks)
+- [Modifica dell'aspetto del testo](font)
+- [Maiuscole/minuscole, ordinamento e altri modi di incollare](home-tools)
+- [Uso degli stili](styles)
+- [Copia del formato con Copia formato](format-painter)
+- [Aggiunta di intestazioni, piè di pagina e numeri di pagina](headers-footers)
+- [Creazione e modifica delle tabelle](tables)
+- [Aggiunta di note a piè di pagina e note di chiusura](footnotes-endnotes)
+- [Creazione di un sommario](table-of-contents)
+- [Aggiunta di didascalie e di un indice delle figure](captions)
+- [Citazione delle fonti e creazione di una bibliografia](citations)
+- [Creazione di un indice analitico](making-an-index)
+- [Creazione di un indice delle fonti giuridiche](table-of-authorities)
+- [Uso dei campi](fields)
+- [Collegamenti a un'altra posizione con riferimenti incrociati](cross-references)
+- [Segnalibri per contrassegnare le posizioni](bookmarks)
 - [Stampa unione, buste ed etichette](mail-merge)
-- [Aggiungere e modificare le immagini](pictures)
+- [Aggiunta e modifica di immagini](pictures)
 - [Forme e caselle di testo](shapes-text-boxes)
 - [Grafici](charts)
 - [Equazioni](equations)
-- [Impostare la pagina](page-setup)
+- [Impostazione della pagina](page-setup)
 - [Interruzioni, colonne, sillabazione e numerazione di riga](breaks-columns)
-- [Inserire simboli e caratteri speciali](symbols-special-characters)
-- [Aggiungere collegamenti e testo da altri file](links)
-- [Creare moduli con controlli del contenuto](content-controls)
-- [Cambiare il colore e i bordi delle pagine](page-look)
+- [Inserimento di simboli e caratteri speciali](symbols-special-characters)
+- [Collegamenti e testo da altri file](links)
+- [Moduli con controlli del contenuto](content-controls)
+- [Modifica del colore e dei bordi delle pagine](page-look)
 - [Orientarsi con il riquadro di navigazione](navigation-pane)
-- [Usare il righello](ruler)
-- [Trovare e sostituire parole](find-replace)
-- [Andare a un punto e spostare il testo](go-to-and-move-text)
+- [Uso del righello](ruler)
+- [Trova e sostituisci parole](find-replace)
+- [Vai a una posizione e sposta il testo](go-to-and-move-text)
 
 ## Lavorare più velocemente
 
-- [Usare JeffWrite con la tastiera](keyboard)
-- [Modificare le impostazioni di JeffWrite](options)
+- [Uso di JeffWrite con la tastiera](keyboard)
+- [Modifica delle impostazioni di JeffWrite](options)
 - [Sicurezza: a cosa può collegarsi un file](security)
-- [Scegliere una lingua](language)
+- [Scelta della lingua](language)

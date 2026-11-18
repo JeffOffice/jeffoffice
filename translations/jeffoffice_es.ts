@@ -472,7 +472,7 @@
         <location line="+3"/>
         <location line="+1"/>
         <source>In</source>
-        <translation type="unfinished">Hacia dentro</translation>
+        <translation type="unfinished">Entrada</translation>
     </message>
     <message>
         <location line="-36"/>
@@ -482,7 +482,7 @@
         <location line="+3"/>
         <location line="+1"/>
         <source>Out</source>
-        <translation type="unfinished">Hacia fuera</translation>
+        <translation type="unfinished">Salida</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -500,13 +500,13 @@
         <location line="-32"/>
         <location line="+32"/>
         <source>Circle In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Círculo de entrada</translation>
     </message>
     <message>
         <location line="-32"/>
         <location line="+32"/>
         <source>Circle Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Círculo de salida</translation>
     </message>
     <message>
         <location line="-30"/>
@@ -518,7 +518,7 @@
         <location line="-31"/>
         <location line="+0"/>
         <source>Dissolve In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disolver al entrar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -535,24 +535,24 @@
     <message>
         <location line="-31"/>
         <source>Peek In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Asomar al entrar</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>Flash Once</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Destello único</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stretch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estirar</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+31"/>
         <source>Swivel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Giratorio</translation>
     </message>
     <message>
         <location line="-30"/>
@@ -564,7 +564,7 @@
         <location line="+1"/>
         <location line="+0"/>
         <source>Spiral In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Espiral de entrada</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -572,7 +572,7 @@
         <location line="+31"/>
         <location line="+0"/>
         <source>Bounce</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rebote</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -584,29 +584,29 @@
         <location line="+16"/>
         <location line="+0"/>
         <source>Dissolve Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disolver al salir</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Peek Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Asomar al salir</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Contract</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contraer</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+0"/>
         <source>Collapse</source>
-        <translation type="unfinished">Contraer</translation>
+        <translation type="unfinished">Colapsar</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>Spiral Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Espiral de salida</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -2463,7 +2463,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location filename="../apps/deck/app/deckcanvas.cpp" line="+211"/>
         <source>Changes on this slide: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cambios en esta diapositiva: %1</translation>
     </message>
 </context>
 <context>
@@ -2476,72 +2476,72 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+33"/>
         <source>Slide added: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositiva agregada: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Slide moved from %1 to %2: %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositiva movida de %1 a %2: %3</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Slide deleted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositiva eliminada: %1</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Notes changed on %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notas modificadas en %1</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Comment by %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Comentario de %1: %2</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>Object added: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objeto agregado: %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Moved and resized: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Movido y redimensionado: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resized: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Redimensionado: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Movido: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Text changed from &quot;%1&quot; to &quot;%2&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto cambiado de &quot;%1&quot; a &quot;%2&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Text formatting changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato de texto modificado: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Fill changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relleno modificado: %1</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Line changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Línea modificada: %1</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Object deleted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objeto eliminado: %1</translation>
     </message>
 </context>
 <context>
@@ -2586,17 +2586,17 @@ Artículo de contraportada	4</translation>
     <message>
         <location filename="../apps/deck/app/reviewpane_deck.cpp" line="+28"/>
         <source>Accepted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aceptado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rejected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechazado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pendiente</translation>
     </message>
     <message>
         <location line="+83"/>
@@ -3133,7 +3133,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="-180"/>
         <source>Long dash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raya larga</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -6008,7 +6008,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+10"/>
         <source>Professional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Profesional</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6018,12 +6018,12 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+10"/>
         <source>Typing format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato de escritura</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Simple line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Línea simple</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6044,22 +6044,22 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+16"/>
         <source>Type the equation as UnicodeMath. Use a/b for a fraction, x^2_i for scripts, √(x) for a root, ∑_(i=1)^n for a sum, &quot;words&quot; for text that is not math, (a|b) for brackets, and \matrix(a&amp;b@c&amp;d) for a matrix. A name with a backslash, such as \alpha, is a symbol.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escriba la ecuación en UnicodeMath. Use a/b para una fracción, x^2_i para subíndices y superíndices, √(x) para una raíz, ∑_(i=1)^n para una suma, &quot;palabras&quot; para texto que no es matemático, (a|b) para paréntesis y \matrix(a&amp;b@c&amp;d) para una matriz. Un nombre con barra invertida, como \alpha, es un símbolo.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Type the equation as LaTeX. Use \frac{a}{b} for a fraction, x^2_i for scripts, \sqrt{x} for a root, \sum_{i=1}^n for a sum, \text{words} for text that is not math, \left( ... \right) for brackets, and \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} for a matrix.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escriba la ecuación en LaTeX. Use \frac{a}{b} para una fracción, x^2_i para subíndices y superíndices, \sqrt{x} para una raíz, \sum_{i=1}^n para una suma, \text{palabras} para texto que no es matemático, \left( ... \right) para paréntesis y \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} para una matriz.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This equation can&apos;t be put in here yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Todavía no se puede insertar esta ecuación aquí.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>There is no room in the line for that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay espacio en la línea para eso.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -6071,12 +6071,12 @@ Artículo de contraportada	4</translation>
         <location line="+10"/>
         <location line="+1"/>
         <source>Normal Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto normal</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>This equation can&apos;t be written in that format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta ecuación no se puede escribir en ese formato.</translation>
     </message>
 </context>
 <context>
@@ -6089,22 +6089,22 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Stacked Fraction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fracción apilada</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Derivative</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Derivada</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Reciprocal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Recíproco</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Script</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Subíndice o superíndice</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6119,38 +6119,38 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Subscript and Superscript</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Subíndice y superíndice</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Radical</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Radical</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Square Root</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raíz cuadrada</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Root with Degree</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raíz con índice</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+3"/>
         <source>Integral</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Integral</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Integral with Limits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Integral con límites</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Large Operator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operador grande</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6165,27 +6165,27 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+2"/>
         <source>Sum without Limits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Suma sin límites</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bracket</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Corchete</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Parentheses</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Paréntesis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Square Brackets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Corchetes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Braces</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Llaves</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6195,37 +6195,37 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Sine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cosine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Coseno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tangent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tangente</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Logarithm</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Logaritmo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Natural Logarithm</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Logaritmo natural</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Accent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Acento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hat</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Circunflejo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6235,23 +6235,23 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Vector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vector</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tilde</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tilde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Overbar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra superior</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>Limit</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Límite</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6266,27 +6266,27 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+5"/>
         <source>Operator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operador</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Por</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Plus or Minus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Más o menos</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Not Equal</source>
-        <translation type="unfinished">No es igual</translation>
+        <translation type="unfinished">No igual</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Approximately Equal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aproximadamente igual</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -6301,7 +6301,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>2 by 2 Matrix</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Matriz de 2 por 2</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6311,22 +6311,22 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+3"/>
         <source>Column of Two</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Columna de dos</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Greek Letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras griegas</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Operators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operadores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Relations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relaciones</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6336,7 +6336,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Sets and Logic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conjuntos y lógica</translation>
     </message>
     <message>
         <location line="+91"/>
@@ -6346,7 +6346,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Professional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Profesional</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6356,12 +6356,12 @@ Artículo de contraportada	4</translation>
     <message>
         <location line="+1"/>
         <source>Normal Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto normal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Simple Line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Línea simple</translation>
     </message>
 </context>
 <context>
@@ -8690,7 +8690,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos incrustados se guardan como sus imágenes en este tipo de archivo. Para conservar su contenido, guarde el archivo como .pptx.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8756,7 +8756,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/io/odpexport_shape.cpp" line="+213"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las ecuaciones que no se pueden guardar como fórmulas se guardan como imágenes.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -8963,7 +8963,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+83"/>
         <source>Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las ecuaciones que superan el %1 que puede tener un archivo, o el tamaño que alcanzan en conjunto, se muestran como sus imágenes.</translation>
     </message>
     <message>
         <location line="+65"/>
@@ -9059,121 +9059,121 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/shell/app/packandgo.cpp" line="+418"/>
         <source>Pack and Go could not read the part &quot;%1&quot; of the file (%2), so nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Empaquetar no pudo leer la parte &quot;%1&quot; del archivo (%2), así que no se guardó nada.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>damaged</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">dañado</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>The file is too large or is not a package Pack and Go can read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo es demasiado grande o no es un paquete que Empaquetar pueda leer.</translation>
     </message>
     <message>
         <location line="+100"/>
         <location line="+289"/>
         <source>The copy couldn&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo crear la copia.</translation>
     </message>
     <message>
         <location line="-237"/>
         <source>The copy couldn&apos;t be locked with its password.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo proteger la copia con su contraseña.</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>These fonts were not packed, because their licenses do not allow it: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estas fuentes no se incluyeron porque sus licencias no lo permiten: %1.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The link is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo está vacío.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is too long.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo es demasiado largo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is not a file name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo no es un nombre de archivo.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The link is not a file on this computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo no es un archivo de este equipo.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The link is a web address.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo es una dirección web.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The file is on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo está en otro equipo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+17"/>
         <source>The link is not a file Pack and Go takes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo no es un archivo que Empaquetar pueda incluir.</translation>
     </message>
     <message>
         <location line="-10"/>
         <source>The link leaves the document&apos;s folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo sale de la carpeta del documento.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The document has not been saved, so there is no folder to find the file in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El documento no se ha guardado, así que no hay carpeta en la que buscar el archivo.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+6"/>
         <source>The file was not found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se encontró el archivo.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>The link is not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo no es un archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is to the document itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El vínculo apunta al propio documento.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>This is not a kind of file Pack and Go takes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No es un tipo de archivo que admita Empaquetar y llevar.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Saved %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se ha guardado %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Linked files packed: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Archivos vinculados empaquetados: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Font files packed: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Archivos de fuentes empaquetados: %1.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Links that could not be packed, left as they were (%1):</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vínculos que no se pudieron empaquetar y que se dejaron como estaban (%1):</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -9183,41 +9183,42 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+61"/>
         <source>Pack and Go does not take more than this many files or this much in all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Empaquetar y llevar no admite más de esta cantidad de archivos ni de este tamaño total.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>This will pack %1 linked files, %2 MB in all. Pack them all?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esto empaquetará %1 archivos vinculados, %2 MB en total. ¿Empaquetar todos?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se guardó nada.</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>Pack and Go stopped, because %1 changed while it was being copied. Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Empaquetar y llevar se detuvo porque %1 cambió mientras se copiaba. No se guardó nada.</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+42"/>
         <source>The file could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo leer el archivo.</translation>
     </message>
     <message>
         <location line="-28"/>
         <location line="+9"/>
         <source>Pack and Go couldn&apos;t save %1.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Empaquetar y llevar no pudo guardar %1.
+%2</translation>
     </message>
     <message>
         <location line="+7"/>
         <location line="+31"/>
         <source>The folder couldn&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo crear la carpeta.</translation>
     </message>
     <message>
         <location line="-25"/>
@@ -9225,32 +9226,32 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+8"/>
         <location line="+4"/>
         <source>The file couldn&apos;t be written.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo escribir el archivo.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Pack and Go: Save for Another Computer</source>
-        <translation type="unfinished">Empaquetar: guardar para otro equipo</translation>
+        <translation type="unfinished">Empaquetar y llevar: guardar para otro equipo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file, with the pictures, movies, sounds, and other files it links to and the fonts it uses that come with the program, in one ZIP file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo, con las imágenes, películas, sonidos y otros archivos a los que enlaza, y las fuentes que usa y que vienen con el programa, en un solo archivo ZIP.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Pack and Go: Save to a Folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Empaquetar y llevar: guardar en una carpeta</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The same, in a new folder you can copy to a drive.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo mismo, en una carpeta nueva que puede copiar a una unidad.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Save to a Folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guardar en una carpeta</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9266,7 +9267,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+5"/>
         <location line="+5"/>
         <source>Pack and Go</source>
-        <translation type="unfinished">Empaquetar</translation>
+        <translation type="unfinished">Empaquetar y llevar</translation>
     </message>
 </context>
 <context>
@@ -9913,27 +9914,27 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/base/io/pdftransparency.cpp" line="+293"/>
         <source>The PDF could not be checked for see-through parts, so it can&apos;t be a %1 file. Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo comprobar si el PDF tiene partes transparentes, así que no puede ser un archivo %1. Desactive %1 para exportarlo.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>PDF page %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Página %1 del PDF</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A %1 file can&apos;t have see-through parts, and some could not be made solid. Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un archivo %1 no puede tener partes transparentes, y algunas no se pudieron volver opacas. Desactive %1 para exportarlo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>more</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">más</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A %1 file can&apos;t have see-through parts, and some could not be made solid (%2). Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un archivo %1 no puede tener partes transparentes, y algunas no se pudieron volver opacas (%2). Desactive %1 para exportarlo.</translation>
     </message>
 </context>
 <context>
@@ -10187,7 +10188,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+71"/>
         <source>%1: an embedded object&apos;s package can&apos;t be written, so it was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: no se puede escribir el paquete de un objeto incrustado, así que se omitió.</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -10213,7 +10214,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+179"/>
         <source>%1: the presentation holds more embedded objects than a file can keep, so the rest are saved as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: la presentación contiene más objetos incrustados de los que puede guardar un archivo, así que el resto se guarda como imágenes.</translation>
     </message>
     <message>
         <location line="+94"/>
@@ -10415,7 +10416,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Some embedded objects are kept as pictures only (%1 in all): the file holds more objects than can be kept, or they are too large.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algunos objetos incrustados se conservan solo como imágenes (%1 en total): el archivo contiene más objetos de los que se pueden conservar, o son demasiado grandes.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10585,7 +10586,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+16"/>
         <source>This file has more comments than %1 keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este archivo tiene más comentarios de los que %1 conserva (%2 hilos en total y %3 respuestas a cada uno), así que se omitieron los %4 restantes.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -12481,7 +12482,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
         <source>Convert</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Convertir</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12554,7 +12555,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Equation Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Herramientas de ecuación</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12610,7 +12611,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Greek Letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras griegas</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12774,7 +12775,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+9"/>
         <source>Operators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operadores</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12888,7 +12889,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+6"/>
         <source>Relations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relaciones</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12937,7 +12938,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Sets and Logic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conjuntos y lógica</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13022,7 +13023,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Structures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estructuras</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19007,7 +19008,7 @@ Autoedición</translation>
     <message>
         <location line="+0"/>
         <source>Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Radios</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -30989,12 +30990,12 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_packandgo.cpp" line="+19"/>
         <source>There is no workbook to pack.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay ningún libro de trabajo que empaquetar.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The workbook is still being read. Pack it when the status bar says Ready.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El libro de trabajo todavía se está leyendo. Empaquételo cuando la barra de estado muestre Listo.</translation>
     </message>
 </context>
 <context>
@@ -32011,7 +32012,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/deck/app/reviewpane_deck.cpp" line="+18"/>
         <source>Reviewing Pane</source>
-        <translation type="unfinished">Panel de revisiones</translation>
+        <translation type="unfinished">Panel de revisión</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -32028,22 +32029,22 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="-68"/>
         <source>Show changes on slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar cambios en la diapositiva</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show changes by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar cambios de</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show changes that are</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar cambios que sean</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pendientes</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32053,17 +32054,17 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+1"/>
         <source>Accepted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aceptados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rejected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechazados</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El cambio</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -32073,7 +32074,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Take this change into the presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incorporar este cambio a la presentación</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32083,7 +32084,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Keep this presentation as it is here</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mantener esta presentación tal como está aquí</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32093,7 +32094,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Go to the change before this one</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ir al cambio anterior</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32103,7 +32104,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Go to the change after this one</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ir al cambio siguiente</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32113,7 +32114,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Take every change that is still pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aceptar todos los cambios que aún estén pendientes</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32123,12 +32124,12 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Keep this presentation as it is everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mantener esta presentación tal como está en todas partes</translation>
     </message>
     <message>
         <location line="+65"/>
         <source>Slide %1, %2: %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositiva %1, %2: %3</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -32138,27 +32139,27 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+1"/>
         <source>All authors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Todos los autores</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>No presentation is being compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se está comparando ninguna presentación.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The two presentations are the same.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las dos presentaciones son iguales.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Changes pending: %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cambios pendientes: %1 de %2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>There are more changes than are listed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay más cambios de los que se muestran aquí.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -33300,7 +33301,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+3"/>
         <source>The presentation can&apos;t be compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La presentación no se puede comparar.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -33315,88 +33316,88 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+3"/>
         <source>Accept All</source>
-        <translation type="unfinished">Aceptar todo</translation>
+        <translation type="unfinished">Aceptar todos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reject All</source>
-        <translation type="unfinished">Rechazar todo</translation>
+        <translation type="unfinished">Rechazar todos</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+32"/>
         <source>Reviewing Pane</source>
-        <translation type="unfinished">Panel de revisiones</translation>
+        <translation type="unfinished">Panel de revisión</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>%1. %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1. %2</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>New: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nuevo: %1</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>The changes kept in this file can&apos;t be read, so they were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los cambios guardados en este archivo no se pueden leer, así que se omitieron.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>There is no presentation to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay ninguna presentación para comparar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This presentation is open for reading only, so changes can&apos;t be taken into it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta presentación está abierta solo para lectura, así que no se pueden aceptar cambios en ella.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>The file can&apos;t be read as a presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo no se puede leer como presentación.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Compare Presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Comparar presentaciones</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other presentation is too large to be kept in this file, so the changes not decided will not be kept when you save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La otra presentación es demasiado grande para guardarse en este archivo, así que los cambios no decididos no se guardarán al guardar.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The two presentations are the same.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las dos presentaciones son iguales.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Changes found: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cambios encontrados: %1</translation>
     </message>
     <message>
         <location line="+50"/>
         <source>Accept Change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aceptar cambio</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This change can&apos;t be taken into the presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este cambio no se puede aplicar a la presentación.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Reject Change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechazar cambio</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This change can&apos;t be taken back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este cambio no se puede revertir.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -35220,7 +35221,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Radios</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -35230,22 +35231,22 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+2"/>
         <source>25% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">25 % despejado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>50% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">50 % despejado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>75% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">75 % despejado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>100% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">100 % despejado</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36592,12 +36593,12 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_packandgo.cpp" line="+21"/>
         <source>There is no presentation to pack.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay ninguna presentación para empaquetar.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The macros in this presentation aren&apos;t saved, because a .pptx file can&apos;t hold them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las macros de esta presentación no se guardarán, porque un archivo .pptx no puede contenerlas.</translation>
     </message>
 </context>
 <context>
@@ -42968,7 +42969,7 @@ Origen: %3</translation>
     <message>
         <location line="+5"/>
         <source>&quot;%1&quot; has more comments than JeffPub keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; tiene más comentarios de los que JeffPub conserva (%2 hilos en total y %3 respuestas a cada uno), así que se omitieron %4 de ellos.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -43158,7 +43159,7 @@ Origen: %3</translation>
     <message>
         <location line="+0"/>
         <source>pages %1 and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">páginas %1 y %2</translation>
     </message>
     <message>
         <location line="+183"/>
@@ -47620,207 +47621,207 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location filename="../libs/base/text/numbersystems.cpp" line="+272"/>
         <source>Ordinal numbers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Números ordinales</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Number words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Palabras numéricas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ordinal words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Palabras ordinales</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Full-width digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos de ancho completo</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Arabic-Indic digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos arábigo-indios</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Arabic letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras árabes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Arabic abjad letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras abjad árabes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hebrew numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerales hebreos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hebrew letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras hebreas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Devanagari digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos devanagari</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hindi vowels</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vocales hindi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hindi consonants</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Consonantes hindi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos tailandeses</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras tailandesas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai number words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Palabras numéricas tailandesas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Russian lowercase letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras rusas minúsculas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Russian uppercase letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras rusas mayúsculas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Chinese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numeración china</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Chinese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerales formales chinos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Traditional Chinese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numeración china tradicional</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Traditional Chinese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerales formales chinos tradicionales</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Chinese digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos chinos</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Heavenly stems</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Troncos celestiales</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Earthly branches</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ramas terrestres</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Circled Chinese numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerales chinos encerrados en círculos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numeración japonesa</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerales formales japoneses</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese digits with ten thousands</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos japoneses con diez mil</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Katakana, half width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Katakana, ancho medio</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Katakana</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Katakana</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Iroha, half width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Iroha, ancho medio</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Iroha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Iroha</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Circled digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos encerrados en círculos</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Parenthesized digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos entre paréntesis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Digits with a full stop</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos con punto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conteo coreano</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean native numbers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Números nativos coreanos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos coreanos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean digits in Chinese characters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dígitos coreanos en caracteres chinos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean ganada letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras ganada coreanas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean chosung letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Letras chosung coreanas</translation>
     </message>
 </context>
 <context>
@@ -50805,7 +50806,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+52"/>
         <source>The reply can&apos;t be added here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede agregar la respuesta aquí.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -50820,7 +50821,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+4"/>
         <source>The comment can&apos;t be changed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede modificar el comentario aquí.</translation>
     </message>
 </context>
 <context>
@@ -57698,7 +57699,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+0"/>
         <source>pages %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">páginas %1</translation>
     </message>
     <message>
         <location line="+61"/>
@@ -60574,7 +60575,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+17"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo guardar el documento para Pack and Go.</translation>
     </message>
 </context>
 <context>
@@ -61558,7 +61559,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+311"/>
         <source>%1 The threads that are left were not pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 Los hilos restantes no se pegaron.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editlinks.cpp" line="+324"/>
@@ -61705,12 +61706,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+32"/>
         <source>%1 The notes that are left stay notes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 Las notas restantes siguen siendo notas.</translation>
     </message>
     <message>
         <location line="+69"/>
         <source>A workbook can have up to %1 comments in threads.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un libro puede tener hasta %1 comentarios en hilos.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-83"/>
@@ -68080,7 +68081,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>pages %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">páginas %1</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -70134,12 +70135,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+112"/>
         <location line="+10"/>
         <source>formula objects (equations) past the %1 a workbook may have, or the size they may come to together (shown as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos de fórmula (ecuaciones) por encima del %1 que puede tener un libro, o del tamaño que pueden alcanzar en conjunto (se muestran como sus imágenes)</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>formula objects (equations) that could not be read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos de fórmula (ecuaciones) que no se pudieron leer</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -70349,17 +70350,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+47"/>
         <source>The embedded objects of the workbook come to more than a file can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos incrustados del libro ocupan más de lo que puede contener un archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Embedded objects were put on a sheet this program can&apos;t put them on, or one that is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se colocaron objetos incrustados en una hoja en la que este programa no puede colocarlos, o en una que no existe.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A sheet has more than %1 MB after its cells, which is too much to change its embedded objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una hoja tiene más de %1 MB después de sus celdas, lo cual es demasiado para cambiar sus objetos incrustados.</translation>
     </message>
     <message>
         <location line="+201"/>
@@ -70418,7 +70419,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+49"/>
         <source>An embedded object could not be put in the file&apos;s list of parts.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo agregar un objeto incrustado a la lista de partes del archivo.</translation>
     </message>
     <message>
         <location line="+44"/>
@@ -70470,7 +70471,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+172"/>
         <source>A drawing of the file that holds shapes of objects is not in the form this program changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un dibujo del archivo que contiene las formas de los objetos no está en un formato que este programa pueda cambiar.</translation>
     </message>
     <message>
         <location line="+91"/>
@@ -70835,12 +70836,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>A document can have up to %1 comment threads.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un documento puede tener hasta %1 hilos de comentarios.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A thread can have up to %1 replies.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un hilo puede tener hasta %1 respuestas.</translation>
     </message>
 </context>
 <context>
@@ -71171,17 +71172,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+70"/>
         <source>Too many changes to look for all the moved text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiados cambios para buscar todo el texto movido.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiados cambios para comparar cada párrafo palabra por palabra, así que algunos se muestran como reemplazados completos.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Too many changes of formatting to show them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hay demasiados cambios de formato para mostrarlos todos.</translation>
     </message>
 </context>
 <context>
@@ -71470,7 +71471,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>Long dash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raya larga</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73734,12 +73735,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+7"/>
         <source>Find text that was moved</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buscar texto que se movió</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Find changes of formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buscar cambios de formato</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -75536,7 +75537,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+0"/>
         <source>Inserted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insertado: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -75551,17 +75552,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+2"/>
         <source>Moved</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Movido</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Moved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Movido: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Formatted</source>
-        <translation type="unfinished">Con formato</translation>
+        <translation type="unfinished">Formateado</translation>
     </message>
 </context>
 <context>
@@ -76213,7 +76214,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+313"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ecuaciones por encima del %1 que puede tener un documento, o del tamaño que pueden alcanzar en conjunto (se conservan como sus imágenes)</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -76406,7 +76407,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-86"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ecuaciones que no se pueden conservar como fórmulas (se conservan como texto sin formato)</translation>
     </message>
     <message>
         <location line="+404"/>

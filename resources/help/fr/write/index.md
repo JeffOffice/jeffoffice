@@ -1,12 +1,13 @@
 # Aide de JeffWrite
-<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, liste -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu -->
 
-Saisissez dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier sur laquelle vous êtes.
+Saisissez dans la zone de recherche ci-dessus un sujet ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier sur laquelle vous êtes.
 
-## Premiers pas
+## Pour bien démarrer
 
 - [Bienvenue dans JeffWrite](start)
 - [Ouvrir, enregistrer, imprimer et exporter](open-save)
+- [Pack and Go : envoyer un document avec ce dont il a besoin](pack-and-go)
 - [Infos : propriétés, mots de passe et Inspecter](info)
 - [Ouvrir et enregistrer des fichiers OpenDocument](open-odt)
 - [Ouvrir des fichiers RTF](open-rtf)
@@ -17,16 +18,16 @@ Saisissez dans la zone de recherche ci-dessus pour trouver une rubrique ou une c
 - [Vérifier l'orthographe](spelling)
 - [Compter les mots, définir la langue, vérifier l'accessibilité et rechercher des mots](proofing-tools)
 - [Traduire un texte](translate)
-- [Suivre les modifications, et les accepter ou les refuser](track-changes)
-- [Ajouter des commentaires et y répondre](comments)
+- [Suivre les modifications, puis les accepter ou les refuser](track-changes)
+- [Ajouter et répondre à des commentaires](comments)
 - [Protéger un document et verrouiller le suivi](protect)
 
 ## Rédiger et modifier le texte
 
 - [Modifier l'apparence du texte](font)
 - [Changer la casse, trier et coller autrement](home-tools)
-- [Utiliser des styles](styles)
-- [Copier une mise en forme avec Copier la mise en forme](format-painter)
+- [Utiliser les styles](styles)
+- [Reproduire une mise en forme avec Copier la mise en forme](format-painter)
 - [Ajouter des en-têtes, des pieds de page et des numéros de page](headers-footers)
 - [Créer et modifier des tableaux](tables)
 - [Ajouter des notes de bas de page et des notes de fin](footnotes-endnotes)
@@ -44,12 +45,12 @@ Saisissez dans la zone de recherche ci-dessus pour trouver une rubrique ou une c
 - [Graphiques](charts)
 - [Équations](equations)
 - [Mettre en page](page-setup)
-- [Sauts, colonnes, coupure de mots et numérotation des lignes](breaks-columns)
+- [Sauts, colonnes, coupure de mots et numéros de ligne](breaks-columns)
 - [Insérer des symboles et des caractères spéciaux](symbols-special-characters)
 - [Ajouter des liens et du texte provenant d'autres fichiers](links)
 - [Créer des formulaires avec des contrôles de contenu](content-controls)
 - [Modifier la couleur et les bordures des pages](page-look)
-- [Se repérer avec le volet de navigation](navigation-pane)
+- [Vous orienter avec le volet de navigation](navigation-pane)
 - [Utiliser la règle](ruler)
 - [Rechercher et remplacer des mots](find-replace)
 - [Atteindre un emplacement et déplacer du texte](go-to-and-move-text)
@@ -58,5 +59,5 @@ Saisissez dans la zone de recherche ci-dessus pour trouver une rubrique ou une c
 
 - [Utiliser JeffWrite au clavier](keyboard)
 - [Modifier les paramètres de JeffWrite](options)
-- [Sécurité : ce qu'un fichier peut atteindre](security)
+- [Sécurité : ce à quoi un fichier peut accéder](security)
 - [Choisir une langue](language)

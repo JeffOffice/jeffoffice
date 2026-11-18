@@ -424,33 +424,33 @@
     <message>
         <location line="-93"/>
         <source>1 Spoke</source>
-        <translation type="unfinished">1 Jari-Jari</translation>
+        <translation type="unfinished">1 Jari-jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>2 Spokes</source>
-        <translation type="unfinished">2 Jari-Jari</translation>
+        <translation type="unfinished">2 Jari-jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>3 Spokes</source>
-        <translation type="unfinished">3 Jari-Jari</translation>
+        <translation type="unfinished">3 Jari-jari</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Spokes</source>
-        <translation type="unfinished">4 Jari-Jari</translation>
+        <translation type="unfinished">4 Jari-jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>8 Spokes</source>
-        <translation type="unfinished">8 Jari-Jari</translation>
+        <translation type="unfinished">8 Jari-jari</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+5"/>
         <source>Across</source>
-        <translation type="unfinished">Mendatar</translation>
+        <translation type="unfinished">Melintang</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -500,13 +500,13 @@
         <location line="-32"/>
         <location line="+32"/>
         <source>Circle In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lingkaran Masuk</translation>
     </message>
     <message>
         <location line="-32"/>
         <location line="+32"/>
         <source>Circle Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lingkaran Keluar</translation>
     </message>
     <message>
         <location line="-30"/>
@@ -518,7 +518,7 @@
         <location line="-31"/>
         <location line="+0"/>
         <source>Dissolve In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Larut Masuk</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -535,24 +535,24 @@
     <message>
         <location line="-31"/>
         <source>Peek In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intip Masuk</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>Flash Once</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kilat Sekali</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stretch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regang</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+31"/>
         <source>Swivel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Putar</translation>
     </message>
     <message>
         <location line="-30"/>
@@ -564,7 +564,7 @@
         <location line="+1"/>
         <location line="+0"/>
         <source>Spiral In</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spiral Masuk</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -572,7 +572,7 @@
         <location line="+31"/>
         <location line="+0"/>
         <source>Bounce</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memantul</translation>
     </message>
     <message>
         <location line="-24"/>
@@ -584,29 +584,29 @@
         <location line="+16"/>
         <location line="+0"/>
         <source>Dissolve Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Larut Keluar</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Peek Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intip Keluar</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Contract</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mengecil</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+0"/>
         <source>Collapse</source>
-        <translation type="unfinished">Ciutkan</translation>
+        <translation type="unfinished">Runtuh</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>Spiral Out</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spiral Keluar</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -2462,7 +2462,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../apps/deck/app/deckcanvas.cpp" line="+211"/>
         <source>Changes on this slide: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan pada slaid ini: %1</translation>
     </message>
 </context>
 <context>
@@ -2475,72 +2475,72 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+33"/>
         <source>Slide added: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid ditambahkan: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Slide moved from %1 to %2: %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid dipindahkan dari %1 ke %2: %3</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Slide deleted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid dihapus: %1</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Notes changed on %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Catatan diubah pada %1</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Comment by %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar oleh %1: %2</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>Object added: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek ditambahkan: %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Moved and resized: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dipindahkan dan diubah ukurannya: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resized: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diubah ukurannya: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dipindahkan: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Text changed from &quot;%1&quot; to &quot;%2&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks diubah dari &quot;%1&quot; ke &quot;%2&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Text formatting changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format teks diubah: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Fill changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isian diubah: %1</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Line changed: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis diubah: %1</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Object deleted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek dihapus: %1</translation>
     </message>
 </context>
 <context>
@@ -2585,17 +2585,17 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../apps/deck/app/reviewpane_deck.cpp" line="+28"/>
         <source>Accepted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diterima</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rejected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ditolak</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menunggu</translation>
     </message>
     <message>
         <location line="+83"/>
@@ -3132,7 +3132,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="-180"/>
         <source>Long dash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda Pisah Panjang</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -6006,7 +6006,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+10"/>
         <source>Professional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Profesional</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6016,12 +6016,12 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+10"/>
         <source>Typing format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Pengetikan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Simple line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Sederhana</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -6042,22 +6042,22 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+16"/>
         <source>Type the equation as UnicodeMath. Use a/b for a fraction, x^2_i for scripts, √(x) for a root, ∑_(i=1)^n for a sum, &quot;words&quot; for text that is not math, (a|b) for brackets, and \matrix(a&amp;b@c&amp;d) for a matrix. A name with a backslash, such as \alpha, is a symbol.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ketik persamaan sebagai UnicodeMath. Gunakan a/b untuk pecahan, x^2_i untuk indeks, √(x) untuk akar, ∑_(i=1)^n untuk penjumlahan, &quot;kata&quot; untuk teks yang bukan matematika, (a|b) untuk kurung, dan \matrix(a&amp;b@c&amp;d) untuk matriks. Nama dengan garis miring terbalik, seperti \alpha, adalah simbol.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Type the equation as LaTeX. Use \frac{a}{b} for a fraction, x^2_i for scripts, \sqrt{x} for a root, \sum_{i=1}^n for a sum, \text{words} for text that is not math, \left( ... \right) for brackets, and \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} for a matrix.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ketik persamaan sebagai LaTeX. Gunakan \frac{a}{b} untuk pecahan, x^2_i untuk indeks, \sqrt{x} untuk akar, \sum_{i=1}^n untuk penjumlahan, \text{kata} untuk teks yang bukan matematika, \left( ... \right) untuk kurung, dan \begin{pmatrix} a &amp; b \\ c &amp; d \end{pmatrix} untuk matriks.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This equation can&apos;t be put in here yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persamaan ini belum dapat dimasukkan di sini.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>There is no room in the line for that.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada ruang di baris untuk itu.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -6069,12 +6069,12 @@ Berita halaman belakang	4</translation>
         <location line="+10"/>
         <location line="+1"/>
         <source>Normal Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks Normal</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>This equation can&apos;t be written in that format.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persamaan ini tidak dapat ditulis dalam format tersebut.</translation>
     </message>
 </context>
 <context>
@@ -6087,22 +6087,22 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Stacked Fraction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pecahan Bertumpuk</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Derivative</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Turunan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Reciprocal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kebalikan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Script</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indeks</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6117,38 +6117,38 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Subscript and Superscript</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Subskrip dan Superskrip</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Radical</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Radikal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Square Root</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Akar Kuadrat</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Root with Degree</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Akar dengan Pangkat</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+3"/>
         <source>Integral</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Integral</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Integral with Limits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Integral dengan Batas</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Large Operator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operator Besar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6163,27 +6163,27 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+2"/>
         <source>Sum without Limits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jumlah tanpa Batas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bracket</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kurung</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Parentheses</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda Kurung</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Square Brackets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kurung Siku</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Braces</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kurung Kurawal</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6193,37 +6193,37 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Sine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sinus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cosine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kosinus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tangent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tangen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Logarithm</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Logaritma</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Natural Logarithm</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Logaritma Natural</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Accent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aksen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hat</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Topi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6233,23 +6233,23 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Vector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vektor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tilde</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tilde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Overbar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Atas</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>Limit</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limit</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -6264,17 +6264,17 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+5"/>
         <source>Operator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operator</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kali</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Plus or Minus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plus atau Minus</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -6284,7 +6284,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+0"/>
         <source>Approximately Equal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kurang Lebih Sama Dengan</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -6299,7 +6299,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>2 by 2 Matrix</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Matriks 2 x 2</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6309,22 +6309,22 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+3"/>
         <source>Column of Two</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolom dari Dua</translation>
     </message>
     <message>
         <location line="+33"/>
         <source>Greek Letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf Yunani</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Operators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operator</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Relations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relasi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6334,7 +6334,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Sets and Logic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Himpunan dan Logika</translation>
     </message>
     <message>
         <location line="+91"/>
@@ -6344,7 +6344,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Professional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Profesional</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6354,12 +6354,12 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+1"/>
         <source>Normal Text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks Normal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Simple Line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Sederhana</translation>
     </message>
 </context>
 <context>
@@ -8683,7 +8683,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tersemat disimpan sebagai gambarnya dalam jenis berkas ini. Untuk mempertahankan isinya, simpan sebagai berkas .pptx.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8744,7 +8744,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/deck/io/odpexport_shape.cpp" line="+213"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persamaan yang tidak dapat disimpan sebagai rumus disimpan sebagai gambar.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -8956,7 +8956,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+83"/>
         <source>Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persamaan yang melebihi %1 yang boleh dimiliki sebuah berkas, atau ukuran gabungannya, ditampilkan sebagai gambarnya.</translation>
     </message>
     <message>
         <location line="+65"/>
@@ -9052,121 +9052,121 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../libs/shell/app/packandgo.cpp" line="+418"/>
         <source>Pack and Go could not read the part &quot;%1&quot; of the file (%2), so nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pack and Go tidak dapat membaca bagian &quot;%1&quot; dari berkas (%2), sehingga tidak ada yang disimpan.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>damaged</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">rusak</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>The file is too large or is not a package Pack and Go can read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas terlalu besar atau bukan paket yang dapat dibaca Pack and Go.</translation>
     </message>
     <message>
         <location line="+100"/>
         <location line="+289"/>
         <source>The copy couldn&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salinan tidak dapat dibuat.</translation>
     </message>
     <message>
         <location line="-237"/>
         <source>The copy couldn&apos;t be locked with its password.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salinan tidak dapat dikunci dengan kata sandinya.</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>These fonts were not packed, because their licenses do not allow it: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Font berikut tidak dikemas karena lisensinya tidak mengizinkannya: %1.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The link is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan kosong.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is too long.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan terlalu panjang.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is not a file name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan bukan nama berkas.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The link is not a file on this computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan bukan berkas di komputer ini.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The link is a web address.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan merupakan alamat web.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The file is on another computer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas berada di komputer lain.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+17"/>
         <source>The link is not a file Pack and Go takes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan bukan berkas yang dapat diproses Pack and Go.</translation>
     </message>
     <message>
         <location line="-10"/>
         <source>The link leaves the document&apos;s folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan keluar dari folder dokumen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The document has not been saved, so there is no folder to find the file in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen belum disimpan, sehingga tidak ada folder untuk mencari berkas.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+6"/>
         <source>The file was not found.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas tidak ditemukan.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>The link is not a file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan bukan berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link is to the document itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan mengarah ke dokumen itu sendiri.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>This is not a kind of file Pack and Go takes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini bukan jenis berkas yang dapat diproses Pack and Go.</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>Saved %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tersimpan %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Linked files packed: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File tertaut yang dikemas: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Font files packed: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File font yang dikemas: %1.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Links that could not be packed, left as they were (%1):</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan yang tidak dapat dikemas, dibiarkan seperti semula (%1):</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -9176,41 +9176,42 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+61"/>
         <source>Pack and Go does not take more than this many files or this much in all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kemas dan Bawa tidak dapat menangani lebih banyak file dari jumlah ini atau total ukuran sebesar ini.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>This will pack %1 linked files, %2 MB in all. Pack them all?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini akan mengemas %1 file tertaut, total %2 MB. Kemas semuanya?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada yang disimpan.</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>Pack and Go stopped, because %1 changed while it was being copied. Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kemas dan Bawa dihentikan karena %1 berubah saat sedang disalin. Tidak ada yang disimpan.</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+42"/>
         <source>The file could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="-28"/>
         <location line="+9"/>
         <source>Pack and Go couldn&apos;t save %1.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kemas dan Bawa tidak dapat menyimpan %1.
+%2</translation>
     </message>
     <message>
         <location line="+7"/>
         <location line="+31"/>
         <source>The folder couldn&apos;t be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Folder tidak dapat dibuat.</translation>
     </message>
     <message>
         <location line="-25"/>
@@ -9218,32 +9219,32 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+8"/>
         <location line="+4"/>
         <source>The file couldn&apos;t be written.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File tidak dapat ditulis.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Pack and Go: Save for Another Computer</source>
-        <translation type="unfinished">Pack and Go: Simpan untuk Komputer Lain</translation>
+        <translation type="unfinished">Kemas dan Bawa: Simpan untuk Komputer Lain</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file, with the pictures, movies, sounds, and other files it links to and the fonts it uses that come with the program, in one ZIP file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File beserta gambar, film, suara, dan file lain yang ditautkannya serta font yang digunakannya dan disertakan dengan program, dalam satu file ZIP.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Pack and Go: Save to a Folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kemas dan Bawa: Simpan ke Folder</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The same, in a new folder you can copy to a drive.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sama seperti di atas, dalam folder baru yang dapat Anda salin ke drive.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Save to a Folder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Simpan ke Folder</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9259,7 +9260,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+5"/>
         <location line="+5"/>
         <source>Pack and Go</source>
-        <translation type="unfinished">Kemas dan Kirim</translation>
+        <translation type="unfinished">Kemas dan Bawa</translation>
     </message>
 </context>
 <context>
@@ -9906,27 +9907,27 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../libs/base/io/pdftransparency.cpp" line="+293"/>
         <source>The PDF could not be checked for see-through parts, so it can&apos;t be a %1 file. Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF tidak dapat diperiksa untuk bagian transparan, sehingga tidak dapat berupa file %1. Nonaktifkan %1 untuk mengekspornya.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>PDF page %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman PDF %1</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>A %1 file can&apos;t have see-through parts, and some could not be made solid. Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File %1 tidak boleh memiliki bagian transparan, dan sebagian tidak dapat dibuat padat. Nonaktifkan %1 untuk mengekspornya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>more</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">lainnya</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A %1 file can&apos;t have see-through parts, and some could not be made solid (%2). Turn %1 off to export it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File %1 tidak boleh memiliki bagian transparan, dan sebagian tidak dapat dibuat padat (%2). Nonaktifkan %1 untuk mengekspornya.</translation>
     </message>
 </context>
 <context>
@@ -10180,7 +10181,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+71"/>
         <source>%1: an embedded object&apos;s package can&apos;t be written, so it was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: paket objek tersemat tidak dapat ditulis, sehingga dilewati.</translation>
     </message>
     <message>
         <location line="+66"/>
@@ -10206,7 +10207,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+179"/>
         <source>%1: the presentation holds more embedded objects than a file can keep, so the rest are saved as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: presentasi memuat lebih banyak objek tersemat daripada yang dapat disimpan sebuah file, sehingga sisanya disimpan sebagai gambar.</translation>
     </message>
     <message>
         <location line="+94"/>
@@ -10407,7 +10408,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+2"/>
         <source>Some embedded objects are kept as pictures only (%1 in all): the file holds more objects than can be kept, or they are too large.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa objek tersemat disimpan sebagai gambar saja (%1 seluruhnya): file memuat lebih banyak objek daripada yang dapat disimpan, atau objek terlalu besar.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -10577,7 +10578,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+16"/>
         <source>This file has more comments than %1 keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">File ini memiliki lebih banyak komentar daripada yang disimpan %1 (%2 utas seluruhnya, dan %3 balasan untuk setiap utas), sehingga %4 setelah itu dilewati.</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -12473,7 +12474,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
         <source>Convert</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12546,7 +12547,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Equation Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alat Persamaan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12602,7 +12603,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Greek Letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf Yunani</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -12766,7 +12767,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+9"/>
         <source>Operators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Operator</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12880,7 +12881,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+6"/>
         <source>Relations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relasi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12929,7 +12930,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Sets and Logic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Himpunan dan Logika</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13014,7 +13015,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Structures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Struktur</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18997,7 +18998,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+0"/>
         <source>Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jari-jari</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -30966,12 +30967,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_packandgo.cpp" line="+19"/>
         <source>There is no workbook to pack.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada buku kerja untuk dikemas.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The workbook is still being read. Pack it when the status bar says Ready.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja masih dibaca. Kemas setelah bilah status menampilkan Siap.</translation>
     </message>
 </context>
 <context>
@@ -32005,22 +32006,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="-68"/>
         <source>Show changes on slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan perubahan pada slaid</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show changes by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan perubahan oleh</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show changes that are</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan perubahan yang</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tertunda</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32030,17 +32031,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Accepted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diterima</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rejected</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ditolak</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -32050,7 +32051,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Take this change into the presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terima perubahan ini ke dalam presentasi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32060,7 +32061,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Keep this presentation as it is here</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pertahankan presentasi ini seperti apa adanya di sini</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32070,7 +32071,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Go to the change before this one</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka perubahan sebelum ini</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32080,7 +32081,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Go to the change after this one</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka perubahan setelah ini</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32090,7 +32091,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Take every change that is still pending</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terima setiap perubahan yang masih tertunda</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32100,12 +32101,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Keep this presentation as it is everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pertahankan presentasi ini seperti apa adanya di mana pun</translation>
     </message>
     <message>
         <location line="+65"/>
         <source>Slide %1, %2: %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid %1, %2: %3</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -32115,27 +32116,27 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>All authors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Semua penulis</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>No presentation is being compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada presentasi yang sedang dibandingkan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The two presentations are the same.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kedua presentasi sama.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Changes pending: %1 of %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan tertunda: %1 dari %2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>There are more changes than are listed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ada lebih banyak perubahan daripada yang tercantum di sini.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -33277,7 +33278,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+3"/>
         <source>The presentation can&apos;t be compared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentasi tidak dapat dibandingkan.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -33303,77 +33304,77 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+3"/>
         <location line="+32"/>
         <source>Reviewing Pane</source>
-        <translation type="unfinished">Panel Tinjauan</translation>
+        <translation type="unfinished">Panel Peninjauan</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>%1. %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1. %2</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>New: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baru: %1</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>The changes kept in this file can&apos;t be read, so they were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan yang disimpan dalam berkas ini tidak dapat dibaca, sehingga dilewati.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>There is no presentation to compare.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada presentasi untuk dibandingkan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This presentation is open for reading only, so changes can&apos;t be taken into it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentasi ini hanya dibuka untuk dibaca, sehingga perubahan tidak dapat diterapkan ke dalamnya.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>The file can&apos;t be read as a presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas tidak dapat dibaca sebagai presentasi.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Compare Presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandingkan Presentasi</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The other presentation is too large to be kept in this file, so the changes not decided will not be kept when you save.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentasi lain terlalu besar untuk disimpan dalam berkas ini, sehingga perubahan yang belum diputuskan tidak akan disimpan saat Anda menyimpan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The two presentations are the same.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kedua presentasi sama.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Changes found: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ditemukan: %1</translation>
     </message>
     <message>
         <location line="+50"/>
         <source>Accept Change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terima Perubahan</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This change can&apos;t be taken into the presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini tidak dapat diterapkan ke presentasi.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Reject Change</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tolak Perubahan</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This change can&apos;t be taken back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini tidak dapat dibatalkan.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -35202,7 +35203,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jari-jari</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -35212,22 +35213,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>25% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bersih 25%</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>50% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bersih 50%</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>75% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bersih 75%</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>100% Clear</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bersih 100%</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36567,12 +36568,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_packandgo.cpp" line="+21"/>
         <source>There is no presentation to pack.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada presentasi untuk dikemas.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The macros in this presentation aren&apos;t saved, because a .pptx file can&apos;t hold them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Makro dalam presentasi ini tidak disimpan, karena berkas .pptx tidak dapat menyimpannya.</translation>
     </message>
 </context>
 <context>
@@ -43264,7 +43265,7 @@ Sumber: %3</translation>
     <message>
         <location line="+17"/>
         <source>&quot;%1&quot; has more comments than JeffPub keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; memiliki lebih banyak komentar daripada yang disimpan JeffPub (%2 utas seluruhnya, dan %3 balasan untuk masing-masing), sehingga %4 setelahnya dilewati.</translation>
     </message>
     <message>
         <location line="+43"/>
@@ -43356,7 +43357,7 @@ Sumber: %3</translation>
     <message>
         <location line="+0"/>
         <source>pages %1 and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">halaman %1 dan %2</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -47588,207 +47589,207 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../libs/base/text/numbersystems.cpp" line="+272"/>
         <source>Ordinal numbers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka ordinal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Number words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka dalam kata</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ordinal words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata ordinal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Full-width digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit lebar penuh</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Arabic-Indic digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit Arab-India</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Arabic letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf Arab</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Arabic abjad letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf abjad Arab</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hebrew numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka Ibrani</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hebrew letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf Ibrani</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Devanagari digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit Devanagari</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hindi vowels</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vokal Hindi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hindi consonants</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konsonan Hindi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit Thai</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf Thai</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thai number words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata angka Thai</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Russian lowercase letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf kecil Rusia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Russian uppercase letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf besar Rusia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Chinese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penghitungan Tionghoa</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Chinese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka formal Tionghoa</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Traditional Chinese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penghitungan Tionghoa Tradisional</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Traditional Chinese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka formal Tionghoa Tradisional</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Chinese digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit Tionghoa</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Heavenly stems</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Batang langit</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Earthly branches</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cabang bumi</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Circled Chinese numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka Tionghoa berlingkar</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penghitungan Jepang</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese formal numerals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka formal Jepang</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Japanese digits with ten thousands</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit Jepang dengan sepuluh ribuan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Katakana, half width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Katakana, lebar setengah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Katakana</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Katakana</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Iroha, half width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Iroha, lebar setengah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Iroha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Iroha</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Circled digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digit berlingkar</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Parenthesized digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka dalam tanda kurung</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Digits with a full stop</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka dengan titik</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean counting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penomoran Korea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean native numbers</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka asli Korea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean digits</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka Korea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean digits in Chinese characters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka Korea dalam aksara Tionghoa</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean ganada letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf ganada Korea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Korean chosung letters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huruf chosung Korea</translation>
     </message>
 </context>
 <context>
@@ -50772,7 +50773,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+52"/>
         <source>The reply can&apos;t be added here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Balasan tidak dapat ditambahkan di sini.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -50787,7 +50788,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+4"/>
         <source>The comment can&apos;t be changed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar tidak dapat diubah di sini.</translation>
     </message>
 </context>
 <context>
@@ -57671,7 +57672,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+0"/>
         <source>pages %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">halaman %1</translation>
     </message>
     <message>
         <location line="+61"/>
@@ -60535,7 +60536,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+17"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen tidak dapat disimpan untuk Pack and Go.</translation>
     </message>
 </context>
 <context>
@@ -61787,12 +61788,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+32"/>
         <source>%1 The notes that are left stay notes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 Catatan yang tersisa tetap menjadi catatan.</translation>
     </message>
     <message>
         <location line="+69"/>
         <source>A workbook can have up to %1 comments in threads.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja dapat memiliki hingga %1 komentar dalam utas.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-83"/>
@@ -62047,7 +62048,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+311"/>
         <source>%1 The threads that are left were not pasted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 Utas yang tersisa tidak ditempel.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editlinks.cpp" line="+324"/>
@@ -68039,7 +68040,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>pages %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">halaman %1</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -70084,12 +70085,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+112"/>
         <location line="+10"/>
         <source>formula objects (equations) past the %1 a workbook may have, or the size they may come to together (shown as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek rumus (persamaan) melebihi %1 yang dapat dimiliki buku kerja, atau ukuran gabungannya (ditampilkan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>formula objects (equations) that could not be read</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek rumus (persamaan) yang tidak dapat dibaca</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -70316,17 +70317,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+47"/>
         <source>The embedded objects of the workbook come to more than a file can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tersemat dalam buku kerja melebihi kapasitas berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Embedded objects were put on a sheet this program can&apos;t put them on, or one that is not there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tersemat ditempatkan pada lembar yang tidak dapat diletakkan program ini, atau lembar yang tidak ada.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A sheet has more than %1 MB after its cells, which is too much to change its embedded objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar memiliki lebih dari %1 MB setelah selnya, terlalu besar untuk mengubah objek tersematnya.</translation>
     </message>
     <message>
         <location line="+201"/>
@@ -70404,7 +70405,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+49"/>
         <source>An embedded object could not be put in the file&apos;s list of parts.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tersemat tidak dapat ditambahkan ke daftar bagian berkas.</translation>
     </message>
     <message>
         <location line="+44"/>
@@ -70456,7 +70457,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+172"/>
         <source>A drawing of the file that holds shapes of objects is not in the form this program changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar berkas yang memuat bentuk objek tidak dalam format yang dapat diubah program ini.</translation>
     </message>
     <message>
         <location line="+65"/>
@@ -70777,17 +70778,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>A comment can have up to %1 characters. Shorten it, and try again.</source>
-        <translation type="unfinished">Komentar dapat terdiri atas paling banyak %1 karakter. Persingkat, lalu coba lagi.</translation>
+        <translation type="unfinished">Komentar dapat memiliki hingga %1 karakter. Persingkat, lalu coba lagi.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A document can have up to %1 comment threads.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen dapat memiliki hingga %1 utas komentar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A thread can have up to %1 replies.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Utas dapat memiliki hingga %1 balasan.</translation>
     </message>
 </context>
 <context>
@@ -71118,17 +71119,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+70"/>
         <source>Too many changes to look for all the moved text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak perubahan untuk mencari semua teks yang dipindahkan.</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Too many changes to compare every paragraph word by word, so some are shown as replaced whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak perubahan untuk membandingkan setiap paragraf kata demi kata, jadi sebagian ditampilkan sebagai diganti seluruhnya.</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>Too many changes of formatting to show them all.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlalu banyak perubahan format untuk ditampilkan semuanya.</translation>
     </message>
 </context>
 <context>
@@ -71575,7 +71576,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Long dash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda pisah panjang</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73686,12 +73687,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+7"/>
         <source>Find text that was moved</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Temukan teks yang dipindahkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Find changes of formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Temukan perubahan format</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -75482,7 +75483,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+0"/>
         <source>Inserted: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disisipkan: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -75497,12 +75498,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+2"/>
         <source>Moved</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dipindahkan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Moved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dipindahkan: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -76159,7 +76160,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+313"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">persamaan melebihi %1 yang dapat dimiliki dokumen, atau ukuran gabungannya (dipertahankan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -76352,7 +76353,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-86"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">persamaan yang tidak dapat dipertahankan sebagai rumus (dipertahankan sebagai teks biasa)</translation>
     </message>
     <message>
         <location line="+404"/>

@@ -1,27 +1,28 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice, contents, help, topics, start -->
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está ou a página da tela Arquivo em que você está.
 
 ## Primeiros passos
 
-- [Boas-vindas ao JeffWrite](start)
+- [Bem-vindo ao JeffWrite](start)
 - [Abrir, salvar, imprimir e exportar](open-save)
+- [Pack and Go: envie um documento com o que ele precisa](pack-and-go)
 - [Informações: propriedades, senhas e Inspecionar](info)
 - [Abrir e salvar arquivos OpenDocument](open-odt)
 - [Abrir arquivos RTF](open-rtf)
 - [Imprimir](print)
 
-## Trabalhar no texto
+## Trabalhe no seu texto
 
-- [Verificar a ortografia](spelling)
+- [Verificar sua ortografia](spelling)
 - [Contar palavras, definir o idioma, verificar a acessibilidade e pesquisar palavras](proofing-tools)
 - [Traduzir texto](translate)
 - [Controlar alterações, e aceitar ou rejeitá-las](track-changes)
-- [Adicionar e responder a comentários](comments)
+- [Adicionar e responder comentários](comments)
 - [Proteger um documento e bloquear o controle de alterações](protect)
 
-## Escrever e alterar texto
+## Escreva e altere o texto
 
 - [Alterar a aparência do texto](font)
 - [Alterar maiúsculas e minúsculas, classificar e colar de outras formas](home-tools)
@@ -37,7 +38,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para e
 - [Criar um índice de autoridades](table-of-authorities)
 - [Usar campos](fields)
 - [Apontar para outro lugar com referências cruzadas](cross-references)
-- [Marcar locais com indicadores](bookmarks)
+- [Marcar lugares com indicadores](bookmarks)
 - [Mala direta, envelopes e etiquetas](mail-merge)
 - [Adicionar e alterar imagens](pictures)
 - [Formas e caixas de texto](shapes-text-boxes)
@@ -46,17 +47,17 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para e
 - [Configurar a página](page-setup)
 - [Quebras, colunas, hifenização e numeração de linhas](breaks-columns)
 - [Inserir símbolos e caracteres especiais](symbols-special-characters)
-- [Adicionar links e texto de outros arquivos](links)
+- [Adicionar vínculos e texto de outros arquivos](links)
 - [Criar formulários com controles de conteúdo](content-controls)
 - [Alterar a cor e as bordas das páginas](page-look)
 - [Orientar-se com o painel de Navegação](navigation-pane)
 - [Usar a régua](ruler)
 - [Localizar e substituir palavras](find-replace)
-- [Ir para um local e mover texto](go-to-and-move-text)
+- [Ir para um lugar e mover texto](go-to-and-move-text)
 
-## Trabalhar mais rápido
+## Trabalhe mais rápido
 
 - [Usar o JeffWrite com o teclado](keyboard)
 - [Alterar as configurações do JeffWrite](options)
-- [Segurança: o que um arquivo pode acessar externamente](security)
+- [Segurança: o que um arquivo pode acessar fora de si](security)
 - [Escolher um idioma](language)

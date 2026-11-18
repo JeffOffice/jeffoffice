@@ -1,15 +1,16 @@
 # Ajuda do JeffCrunch
 <!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do Ficheiro em que está.
 
-## Para começar
+## Como começar
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e guardar livros](open-save)
+- [Pack and Go: enviar um livro com o que ele precisa](pack-and-go)
 - [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir livros protegidos por palavra-passe](open-password)
-- [Escrever em células](edit-cells)
+- [Escrever nas células](edit-cells)
 - [Regras para o conteúdo de uma célula](rules)
 
 ## Ver um livro
@@ -32,7 +33,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Preencher células e somá-las](fill-sum)
 - [Localizar, substituir e ir para](find-replace)
 - [Ordenar e filtrar](sort-filter)
-- [Ferramentas de dados](data-tools)
+- [Ferramentas de Dados](data-tools)
 - [Tabelas](tables)
 - [Tabelas dinâmicas](pivot-tables)
 - [Inserir uma função](insert-function)
@@ -46,7 +47,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Funções financeiras](functions-financial)
 - [Funções de data e hora](functions-date-time)
-- [Funções matemáticas e trigonométricas](functions-math-trig)
+- [Funções de matemática e trigonometria](functions-math-trig)
 - [Funções estatísticas](functions-statistical)
 - [Funções de pesquisa e referência](functions-lookup-reference)
 - [Funções de texto](functions-text)
@@ -65,5 +66,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffCrunch com o teclado](keyboard)
 - [Alterar as definições do JeffCrunch](options)
-- [Segurança: o que um ficheiro pode aceder](security)
+- [Segurança: a que um ficheiro pode aceder](security)
 - [Escolher um idioma](language)

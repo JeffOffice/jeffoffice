@@ -1,21 +1,22 @@
 # Aide de JeffCrunch
-<!-- keywords: sommaire, aide, rubriques, démarrer, début, contenu -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, liste, débuter -->
 
-Saisissez dans la zone de recherche ci-dessus une rubrique, ou une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, ou la page de l'écran Fichier où vous vous trouvez.
+Saisissez dans la zone de recherche ci-dessus le nom d'une rubrique ou d'une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban ou la page de l'écran Fichier où vous vous trouvez.
 
 ## Premiers pas
 
 - [Bienvenue dans JeffCrunch](start)
 - [Ouvrir et enregistrer des classeurs](open-save)
-- [Infos : propriétés, mots de passe et Inspecter le classeur](info)
+- [Pack and Go : envoyer un classeur avec ce dont il a besoin](pack-and-go)
+- [Infos : propriétés, mots de passe et Inspecter](info)
 - [Ouvrir des classeurs protégés par un mot de passe](open-password)
 - [Saisir du texte dans les cellules](edit-cells)
-- [Règles relatives au contenu d'une cellule](rules)
+- [Règles sur le contenu d'une cellule](rules)
 
 ## Consulter un classeur
 
 - [Sélectionner des cellules et se déplacer](select-and-move)
-- [Changer l'affichage](view)
+- [Modifier l'affichage](view)
 - [Affichage et calcul des formules](formulas)
 - [Noms pour les cellules et les valeurs](names)
 - [Mises en forme conditionnelles](conditional-formats)
@@ -57,7 +58,7 @@ Saisissez dans la zone de recherche ci-dessus une rubrique, ou une commande à e
 
 ## Imprimer
 
-- [Mettre en page les feuilles](page-layout)
+- [Mettre en page les pages](page-layout)
 - [La boîte de dialogue Mise en page](page-setup)
 - [Imprimer et créer un PDF](printing)
 
@@ -65,5 +66,5 @@ Saisissez dans la zone de recherche ci-dessus une rubrique, ou une commande à e
 
 - [Utiliser JeffCrunch au clavier](keyboard)
 - [Modifier les paramètres de JeffCrunch](options)
-- [Sécurité : vers quoi un fichier peut se connecter](security)
+- [Sécurité : ce à quoi un fichier peut accéder](security)
 - [Choisir une langue](language)

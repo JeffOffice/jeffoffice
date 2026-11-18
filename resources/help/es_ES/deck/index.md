@@ -1,5 +1,5 @@
 # Ayuda de JeffDeck
-<!-- keywords: contenido, ayuda, temas, inicio, empezar -->
+<!-- keywords: contenido, ayuda, temas, empezar -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
 
@@ -14,8 +14,8 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
-- [Vista Esquema, Clasificador de diapositivas y vista Patrón de diapositivas](views)
-- [Tamaño de diapositiva, fondo y pies de página](design)
+- [Vista Esquema, Clasificador de diapositivas y Vista Patrón de diapositivas](views)
+- [Tamaño, fondo y pies de página de las diapositivas](design)
 
 ## En una diapositiva
 
@@ -26,29 +26,31 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [El panel Formato de forma y la pestaña Formato de forma](format-shape)
 - [Notas del orador](notes)
 - [Comentarios](comments)
+- [Comparar presentaciones](compare)
 
-## Animación
+## Movimiento
 
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
-## Presentarla
+## Presentar
 
 - [Iniciar la presentación con diapositivas y usar la Vista Moderador](show)
 
 ## Imprimir y compartir
 
 - [Imprimir, PDF e imágenes de diapositivas](printing)
+- [Empaquetar y llevar: llevar una presentación consigo](pack-and-go)
 
 ## Ayuda y configuración
 
 - [Usar JeffDeck con el teclado](keyboard)
 - [Cambiar la configuración de JeffDeck](options)
-- [Seguridad: a qué puede conectarse un fichero](security)
+- [Seguridad: a qué puede acceder un fichero](security)
 - [Elegir un idioma](language)
 - [La pantalla Archivo](file-screen)
 
 ## Pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
-- [Reproducción](tab-playback) aparece mientras se selecciona un vídeo o un sonido
+- [Reproducción](tab-playback) aparece mientras hay seleccionado un vídeo o un sonido

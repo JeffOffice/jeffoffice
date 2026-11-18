@@ -1,12 +1,12 @@
 # Aide de JeffDeck
-<!-- keywords: sommaire, aide, rubriques, contenu -->
+<!-- keywords: sommaire, aide, rubriques, démarrer, contenu, mode d'emploi -->
 
-Saisissez dans la zone de recherche ci-dessus le nom d'une rubrique ou d'une commande à exécuter. Appuyez sur **F1** à tout moment pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban actif, le volet ouvert ou l'objet sélectionné.
+Saisissez un terme dans la zone de recherche ci-dessus pour trouver une rubrique ou une commande à exécuter. Appuyez à tout moment sur **F1** pour obtenir de l'aide sur ce que vous faites : l'onglet du ruban où vous vous trouvez, le volet ouvert ou l'objet sélectionné.
 
 ## Premiers pas
 
 - [Bienvenue dans JeffDeck](start)
-- [Repérer les éléments de la fenêtre](window)
+- [Se repérer dans la fenêtre](window)
 - [Ouvrir et enregistrer des présentations](open-save)
 - [Récupérer un travail non enregistré](recover)
 
@@ -26,19 +26,21 @@ Saisissez dans la zone de recherche ci-dessus le nom d'une rubrique ou d'une com
 - [Le volet Format de la forme et l'onglet Format de la forme](format-shape)
 - [Commentaires du présentateur](notes)
 - [Commentaires](comments)
+- [Comparer des présentations](compare)
 
 ## Animations
 
 - [Transitions entre les diapositives](transitions)
 - [Animations](animations)
 
-## Diffusion
+## Diaporama
 
 - [Lancer le diaporama et utiliser le mode Présentateur](show)
 
 ## Impression et partage
 
 - [Impression, PDF et images des diapositives](printing)
+- [Pack and Go : emporter une présentation](pack-and-go)
 
 ## Aide et paramètres
 

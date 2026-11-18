@@ -1,29 +1,30 @@
 # Ayuda de JeffCrunch
 <!-- keywords: contenido, ayuda, temas, inicio -->
 
-Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, o la página de la pantalla Archivo en la que está.
+Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
 - [Bienvenido a JeffCrunch](start)
 - [Abrir y guardar libros](open-save)
+- [Empaquetar y llevar: enviar un libro con lo que necesita](pack-and-go)
 - [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir libros protegidos con contraseña](open-password)
 - [Escribir en las celdas](edit-cells)
-- [Reglas para el contenido de una celda](rules)
+- [Reglas sobre lo que puede contener una celda](rules)
 
-## Consultar un libro
+## Ver un libro
 
 - [Seleccionar celdas y desplazarse](select-and-move)
 - [Cambiar la vista](view)
-- [Cómo se muestran y calculan las fórmulas](formulas)
+- [Cómo se muestran y se calculan las fórmulas](formulas)
 - [Nombres para celdas y valores](names)
 - [Formatos condicionales](conditional-formats)
 
-## Modificar un libro
+## Cambiar un libro
 
 - [Dar formato a las celdas](format-cells)
-- [Formatos de número y su idioma](number-formats)
+- [Formatos de número e idioma](number-formats)
 - [Estilos de celda](cell-styles)
 - [Trabajar con hojas](sheets)
 - [Insertar y eliminar filas, columnas y celdas](insert-delete)
@@ -36,7 +37,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Tablas](tables)
 - [Tablas dinámicas](pivot-tables)
 - [Insertar una función](insert-function)
-- [Introducir una función con el cuadro de diálogo Argumentos de función](function-arguments)
+- [Escribir una función con el cuadro de diálogo Argumentos de función](function-arguments)
 - [Gráficos, imágenes y formas](charts)
 - [Ecuaciones](equations)
 - [Notas y vínculos](notes-links)
@@ -65,5 +66,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffCrunch con el teclado](keyboard)
 - [Cambiar la configuración de JeffCrunch](options)
-- [Seguridad: a qué recursos externos puede conectarse un fichero](security)
+- [Seguridad: a qué puede acceder un fichero](security)
 - [Elegir un idioma](language)

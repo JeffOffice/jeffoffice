@@ -287,6 +287,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">los diagramas se guardan como imágenes: sus partes no se pueden editar en este tipo de fichero.</translation>
     </message>
     <message>
+        <source>Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file.</source>
+        <translation type="unfinished">Los objetos incrustados se guardan como sus imágenes en este tipo de fichero. Para conservar su contenido, guarde el fichero como .pptx.</translation>
+    </message>
+    <message>
         <source>Charts are saved as pictures: their data can't be edited in this kind of file.</source>
         <translation type="unfinished">Los gráficos se guardan como imágenes: sus datos no se pueden modificar en este tipo de fichero.</translation>
     </message>
@@ -362,6 +366,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitieron los objetos incrustados que no tienen imagen en el fichero.</translation>
     </message>
     <message>
+        <source>Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
+        <translation type="unfinished">Las ecuaciones que superan el %1 que puede tener un fichero, o el tamaño que alcanzan en conjunto, se muestran como sus imágenes.</translation>
+    </message>
+    <message>
         <source>Embedded objects that are not charts were left out: the file keeps no picture of them that JeffDeck can show.</source>
         <translation type="unfinished">Se omitieron los objetos incrustados que no son gráficos: el fichero no guarda ninguna imagen de ellos que JeffDeck pueda mostrar.</translation>
     </message>
@@ -372,6 +380,77 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The rows of a table with a great deal of text keep the heights the file gives them.</source>
         <translation type="unfinished">Las filas de una tabla con mucho texto conservan el alto que les asigna el fichero.</translation>
+    </message>
+</context>
+<context>
+    <name>PackAndGo</name>
+    <message>
+        <source>Pack and Go could not read the part "%1" of the file (%2), so nothing was saved.</source>
+        <translation type="unfinished">Empaquetar no pudo leer la parte "%1" del fichero (%2), así que no se guardó nada.</translation>
+    </message>
+    <message>
+        <source>The file is too large or is not a package Pack and Go can read.</source>
+        <translation type="unfinished">El fichero es demasiado grande o no es un paquete que Empaquetar pueda leer.</translation>
+    </message>
+    <message>
+        <source>The link is not a file name.</source>
+        <translation type="unfinished">El vínculo no es un nombre de fichero.</translation>
+    </message>
+    <message>
+        <source>The link is not a file on this computer.</source>
+        <translation type="unfinished">El vínculo no es un fichero de este equipo.</translation>
+    </message>
+    <message>
+        <source>The file is on another computer.</source>
+        <translation type="unfinished">El fichero está en otro equipo.</translation>
+    </message>
+    <message>
+        <source>The link is not a file Pack and Go takes.</source>
+        <translation type="unfinished">El vínculo no es un fichero que Empaquetar pueda incluir.</translation>
+    </message>
+    <message>
+        <source>The document has not been saved, so there is no folder to find the file in.</source>
+        <translation type="unfinished">El documento no se ha guardado, así que no hay carpeta en la que buscar el fichero.</translation>
+    </message>
+    <message>
+        <source>The file was not found.</source>
+        <translation type="unfinished">No se encontró el fichero.</translation>
+    </message>
+    <message>
+        <source>The link is not a file.</source>
+        <translation type="unfinished">El vínculo no es un fichero.</translation>
+    </message>
+    <message>
+        <source>This is not a kind of file Pack and Go takes.</source>
+        <translation type="unfinished">No es un tipo de fichero que admita Empaquetar y llevar.</translation>
+    </message>
+    <message>
+        <source>Linked files packed: %1.</source>
+        <translation type="unfinished">Ficheros vinculados empaquetados: %1.</translation>
+    </message>
+    <message>
+        <source>Font files packed: %1.</source>
+        <translation type="unfinished">Ficheros de fuentes empaquetados: %1.</translation>
+    </message>
+    <message>
+        <source>Pack and Go does not take more than this many files or this much in all.</source>
+        <translation type="unfinished">Empaquetar y llevar no admite más de esta cantidad de ficheros ni de este tamaño total.</translation>
+    </message>
+    <message>
+        <source>This will pack %1 linked files, %2 MB in all. Pack them all?</source>
+        <translation type="unfinished">Esto empaquetará %1 ficheros vinculados, %2 MB en total. ¿Empaquetar todos?</translation>
+    </message>
+    <message>
+        <source>The file could not be read.</source>
+        <translation type="unfinished">No se pudo leer el fichero.</translation>
+    </message>
+    <message>
+        <source>The file couldn't be written.</source>
+        <translation type="unfinished">No se pudo escribir el fichero.</translation>
+    </message>
+    <message>
+        <source>The file, with the pictures, movies, sounds, and other files it links to and the fonts it uses that come with the program, in one ZIP file.</source>
+        <translation type="unfinished">El fichero, con las imágenes, películas, sonidos y otros ficheros a los que enlaza, y las fuentes que usa y que vienen con el programa, en un solo fichero ZIP.</translation>
     </message>
 </context>
 <context>
@@ -413,6 +492,21 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>PdfTransparency</name>
+    <message>
+        <source>The PDF could not be checked for see-through parts, so it can't be a %1 file. Turn %1 off to export it.</source>
+        <translation type="unfinished">No se pudo comprobar si el PDF tiene partes transparentes, así que no puede ser un fichero %1. Desactive %1 para exportarlo.</translation>
+    </message>
+    <message>
+        <source>A %1 file can't have see-through parts, and some could not be made solid. Turn %1 off to export it.</source>
+        <translation type="unfinished">Un fichero %1 no puede tener partes transparentes, y algunas no se pudieron volver opacas. Desactive %1 para exportarlo.</translation>
+    </message>
+    <message>
+        <source>A %1 file can't have see-through parts, and some could not be made solid (%2). Turn %1 off to export it.</source>
+        <translation type="unfinished">Un fichero %1 no puede tener partes transparentes, y algunas no se pudieron volver opacas (%2). Desactive %1 para exportarlo.</translation>
+    </message>
+</context>
+<context>
     <name>PptImport</name>
     <message>
         <source>This file holds no presentation.</source>
@@ -444,6 +538,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>%1: the %2 aims at shapes by their numbers in the old file, and was left out.</source>
         <translation type="unfinished">%1: se omitió un elemento (%2) que apunta a formas por su número en el fichero antiguo.</translation>
+    </message>
+    <message>
+        <source>%1: the presentation holds more embedded objects than a file can keep, so the rest are saved as their pictures.</source>
+        <translation type="unfinished">%1: la presentación contiene más objetos incrustados de los que puede guardar un fichero, así que el resto se guarda como imágenes.</translation>
     </message>
     <message>
         <source>The presentation has more slide masters and layouts than a file can number.</source>
@@ -523,6 +621,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">El fichero contiene más de %1 MB de configuración de animación, transición y otros ajustes en total; lo que supere ese límite se omite.</translation>
     </message>
     <message>
+        <source>Some embedded objects are kept as pictures only (%1 in all): the file holds more objects than can be kept, or they are too large.</source>
+        <translation type="unfinished">Algunos objetos incrustados se conservan solo como imágenes (%1 en total): el fichero contiene más objetos de los que se pueden conservar, o son demasiado grandes.</translation>
+    </message>
+    <message>
         <source>The file holds more charts than can be changed in one file (%1, or %2 MB of them), so the charts past them (%3 in all) are kept as pictures only.</source>
         <translation type="unfinished">El fichero contiene más gráficos de los que se pueden modificar en un solo fichero (%1, o %2 MB de ellos), así que los gráficos que superan ese límite (%3 en total) se conservan solo como imágenes.</translation>
     </message>
@@ -549,6 +651,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The macros in this file are too large to keep, and were left out.</source>
         <translation type="unfinished">Las macros de este fichero son demasiado grandes para conservarlas, así que se omitieron.</translation>
+    </message>
+    <message>
+        <source>This file has more comments than %1 keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.</source>
+        <translation type="unfinished">Este fichero tiene más comentarios de los que %1 conserva (%2 hilos en total y %3 respuestas a cada uno), así que se omitieron los %4 restantes.</translation>
     </message>
     <message>
         <source>This file is in an older format, which %1 can't open yet.</source>
@@ -1300,6 +1406,18 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Guarda en el fichero las fuentes que incluye el programa y que usan las diapositivas, para que se vean igual en un equipo que no las tenga. El fichero será más grande. Las fuentes que tienen todos los equipos, como Calibri y Arial, nunca se insertan.</translation>
     </message>
     <message>
+        <source>The changes kept in this file can't be read, so they were left out.</source>
+        <translation type="unfinished">Los cambios guardados en este fichero no se pueden leer, así que se omitieron.</translation>
+    </message>
+    <message>
+        <source>The file can't be read as a presentation.</source>
+        <translation type="unfinished">El fichero no se puede leer como presentación.</translation>
+    </message>
+    <message>
+        <source>The other presentation is too large to be kept in this file, so the changes not decided will not be kept when you save.</source>
+        <translation type="unfinished">La otra presentación es demasiado grande para guardarse en este fichero, así que los cambios no decididos no se guardarán al guardar.</translation>
+    </message>
+    <message>
         <source>Makes a PDF/A-1b file: every font is in the file, so it looks the same in years.</source>
         <translation type="unfinished">Crea un fichero PDF/A-1b: todas las fuentes se incluyen en el fichero, para que se vea igual con los años.</translation>
     </message>
@@ -1421,6 +1539,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>Data that other programs added to the file. It is not kept when you save.</source>
         <translation type="unfinished">Datos que otros programas agregaron al fichero. No se conservan al guardar.</translation>
+    </message>
+    <message>
+        <source>The macros in this presentation aren't saved, because a .pptx file can't hold them.</source>
+        <translation type="unfinished">Las macros de esta presentación no se guardarán, porque un fichero .pptx no puede contenerlas.</translation>
     </message>
 </context>
 <context>
@@ -2600,6 +2722,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">No se pudo leer una hoja del fichero para guardarla.</translation>
     </message>
     <message>
+        <source>The embedded objects of the workbook come to more than a file can hold.</source>
+        <translation type="unfinished">Los objetos incrustados del libro ocupan más de lo que puede contener un fichero.</translation>
+    </message>
+    <message>
         <source>A table was made that this program can't put in the file.</source>
         <translation type="unfinished">Se creó una tabla que este programa no puede incluir en el fichero.</translation>
     </message>
@@ -2614,6 +2740,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The picture behind a sheet could not be put in the file's list of parts.</source>
         <translation type="unfinished">La imagen de fondo de una hoja no se pudo agregar a la lista de partes del fichero.</translation>
+    </message>
+    <message>
+        <source>An embedded object could not be put in the file's list of parts.</source>
+        <translation type="unfinished">No se pudo agregar un objeto incrustado a la lista de partes del fichero.</translation>
     </message>
     <message>
         <source>A table could not be put in the file's list of parts.</source>
@@ -2638,6 +2768,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>A part of the file that holds notes is not in the form this program changes.</source>
         <translation type="unfinished">Una parte del fichero que contiene notas no tiene el formato que este programa modifica.</translation>
+    </message>
+    <message>
+        <source>A drawing of the file that holds shapes of objects is not in the form this program changes.</source>
+        <translation type="unfinished">Un dibujo del fichero que contiene las formas de los objetos no está en un formato que este programa pueda cambiar.</translation>
     </message>
     <message>
         <source>A chart that changed has no part in the file.</source>

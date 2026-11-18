@@ -7,6 +7,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Bem-vindo ao JeffCrunch](start)
 - [Abrir e salvar pastas de trabalho](open-save)
+- [Empacotar e enviar: enviar uma pasta de trabalho com o que ela precisa](pack-and-go)
 - [Informações: propriedades, senhas e Inspecionar](info)
 - [Abrir pastas de trabalho protegidas por senha](open-password)
 - [Digitar em células](edit-cells)
@@ -16,7 +17,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Selecionar células e navegar](select-and-move)
 - [Alterar o modo de exibição](view)
-- [Como as fórmulas são mostradas e calculadas](formulas)
+- [Como as fórmulas são exibidas e calculadas](formulas)
 - [Nomes para células e valores](names)
 - [Formatação condicional](conditional-formats)
 
@@ -65,5 +66,5 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Usar o JeffCrunch com o teclado](keyboard)
 - [Alterar as configurações do JeffCrunch](options)
-- [Segurança: o que um arquivo pode acessar](security)
+- [Segurança: a que um arquivo pode se conectar](security)
 - [Escolher um idioma](language)

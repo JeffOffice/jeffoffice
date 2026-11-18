@@ -1,12 +1,13 @@
-# Ayuda de JeffWrite
-<!-- keywords: contenido, ayuda, temas, inicio, empezar -->
+# JeffWrite: ayuda
+<!-- keywords: contenido, ayuda, temas, inicio -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
-- [Bienvenido a JeffWrite](start)
+- [Bienvenida a JeffWrite](start)
 - [Abrir, guardar, imprimir y exportar](open-save)
+- [Empaquetar y llevar: enviar un documento con lo que necesita](pack-and-go)
 - [Información: propiedades, contraseñas e Inspeccionar](info)
 - [Abrir y guardar ficheros OpenDocument](open-odt)
 - [Abrir ficheros RTF](open-rtf)
@@ -21,7 +22,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Agregar y responder comentarios](comments)
 - [Proteger un documento y bloquear el control de cambios](protect)
 
-## Escribir y modificar el texto
+## Escribir y cambiar el texto
 
 - [Cambiar el aspecto del texto](font)
 - [Cambiar mayúsculas y minúsculas, ordenar y pegar de otras formas](home-tools)
@@ -39,7 +40,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Señalar otro lugar con referencias cruzadas](cross-references)
 - [Marcar lugares con marcadores](bookmarks)
 - [Combinación de correspondencia, sobres y etiquetas](mail-merge)
-- [Agregar y modificar imágenes](pictures)
+- [Agregar y cambiar imágenes](pictures)
 - [Formas y cuadros de texto](shapes-text-boxes)
 - [Gráficos](charts)
 - [Ecuaciones](equations)
@@ -58,5 +59,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffWrite con el teclado](keyboard)
 - [Cambiar la configuración de JeffWrite](options)
-- [Seguridad: a qué puede acceder un fichero](security)
+- [Seguridad: a qué puede conectarse un fichero](security)
 - [Elegir un idioma](language)

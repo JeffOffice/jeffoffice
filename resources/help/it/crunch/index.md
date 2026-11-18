@@ -1,5 +1,5 @@
-# Guida di JeffCrunch
-<!-- keywords: contenuto, guida, argomenti, avvio, inizio, sommario -->
+# JeffCrunch: guida
+<!-- keywords: contenuto, guida, argomenti, inizio -->
 
 Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
@@ -7,12 +7,13 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 
 - [Benvenuto in JeffCrunch](start)
 - [Apri e salva cartelle di lavoro](open-save)
+- [Crea pacchetto: invia una cartella di lavoro con tutto ciò che le serve](pack-and-go)
 - [Informazioni: proprietà, password e Ispeziona](info)
 - [Apri cartelle di lavoro protette da password](open-password)
 - [Digita nelle celle](edit-cells)
 - [Regole per il contenuto di una cella](rules)
 
-## Visualizzare una cartella di lavoro
+## Esaminare una cartella di lavoro
 
 - [Seleziona celle e spostati](select-and-move)
 - [Cambia la visualizzazione](view)
@@ -23,7 +24,7 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 ## Modificare una cartella di lavoro
 
 - [Formatta celle](format-cells)
-- [Formati numero e lingua](number-formats)
+- [Formati dei numeri e lingua](number-formats)
 - [Stili di cella](cell-styles)
 - [Lavora con i fogli](sheets)
 - [Inserisci ed elimina righe, colonne e celle](insert-delete)
@@ -36,13 +37,13 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Tabelle](tables)
 - [Tabelle pivot](pivot-tables)
 - [Inserisci una funzione](insert-function)
-- [Inserisci una funzione con la finestra Argomenti funzione](function-arguments)
+- [Inserisci una funzione con la finestra di dialogo Argomenti funzione](function-arguments)
 - [Grafici, immagini e forme](charts)
 - [Equazioni](equations)
 - [Note e collegamenti](notes-links)
 - [Proteggi un foglio o la cartella di lavoro](protect)
 
-## Tutte le funzioni
+## Ogni funzione
 
 - [Funzioni finanziarie](functions-financial)
 - [Funzioni di data e ora](functions-date-time)
@@ -53,9 +54,9 @@ Digita nella casella di ricerca qui sopra per trovare un argomento o un comando 
 - [Funzioni logiche](functions-logical)
 - [Funzioni informative](functions-information)
 - [Funzioni di database](functions-database)
-- [Funzioni ingegneristiche](functions-engineering)
+- [Funzioni di ingegneria](functions-engineering)
 
-## Stampare
+## Stampa
 
 - [Imposta le pagine](page-layout)
 - [La finestra di dialogo Imposta pagina](page-setup)

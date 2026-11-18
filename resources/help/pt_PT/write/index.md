@@ -1,12 +1,13 @@
-# JeffWrite Ajuda
+# Ajuda do JeffWrite
 <!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffWrite](start)
 - [Abrir, guardar, imprimir e exportar](open-save)
+- [Pack and Go: enviar um documento com o que precisa](pack-and-go)
 - [Informações: propriedades, palavras-passe e Inspecionar](info)
 - [Abrir e guardar ficheiros OpenDocument](open-odt)
 - [Abrir ficheiros RTF](open-rtf)
@@ -24,7 +25,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Escrever e alterar texto
 
 - [Alterar o aspeto do texto](font)
-- [Alterar maiúsculas/minúsculas, ordenar e colar de outras formas](home-tools)
+- [Alterar maiúsculas e minúsculas, ordenar e colar de outras formas](home-tools)
 - [Utilizar estilos](styles)
 - [Copiar um aspeto com Copiar formatação](format-painter)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
@@ -58,5 +59,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffWrite com o teclado](keyboard)
 - [Alterar as definições do JeffWrite](options)
-- [Segurança: o que um ficheiro pode aceder na rede](security)
+- [Segurança: o que um ficheiro pode aceder](security)
 - [Escolher um idioma](language)

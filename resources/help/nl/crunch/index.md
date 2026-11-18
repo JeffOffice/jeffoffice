@@ -1,20 +1,21 @@
 # JeffCrunch Help
 <!-- keywords: inhoud, help, onderwerpen, start -->
 
-Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** om op elk moment hulp te krijgen bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
+Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u wilt uitvoeren. Druk op **F1** wanneer u maar wilt voor hulp bij wat u doet: het linttabblad waarop u staat, of de pagina van het scherm Bestand waarop u staat.
 
 ## Aan de slag
 
 - [Welkom bij JeffCrunch](start)
 - [Werkmappen openen en opslaan](open-save)
-- [Info: eigenschappen, wachtwoorden en Werkmap controleren](info)
+- [Pack and Go: een werkmap verzenden met wat erbij nodig is](pack-and-go)
+- [Info: eigenschappen, wachtwoorden en Controleren](info)
 - [Werkmappen met wachtwoord openen](open-password)
 - [Typen in cellen](edit-cells)
 - [Regels voor wat een cel mag bevatten](rules)
 
 ## Een werkmap bekijken
 
-- [Cellen selecteren en zich verplaatsen](select-and-move)
+- [Cellen selecteren en navigeren](select-and-move)
 - [De weergave wijzigen](view)
 - [Hoe formules worden weergegeven en berekend](formulas)
 - [Namen voor cellen en waarden](names)
@@ -29,8 +30,8 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 - [Rijen, kolommen en cellen invoegen en verwijderen](insert-delete)
 - [De breedte van kolommen en de hoogte van rijen wijzigen](sizes)
 - [Knippen, kopiëren en plakken](clipboard)
-- [Cellen opvullen en optellen](fill-sum)
-- [Zoeken, vervangen en naar een locatie gaan](find-replace)
+- [Cellen doorvoeren en optellen](fill-sum)
+- [Zoeken, vervangen en naar een cel gaan](find-replace)
 - [Sorteren en filteren](sort-filter)
 - [Gegevenshulpmiddelen](data-tools)
 - [Tabellen](tables)
@@ -46,7 +47,7 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 
 - [Financiële functies](functions-financial)
 - [Datum- en tijdfuncties](functions-date-time)
-- [Wiskunde- en goniometriefuncties](functions-math-trig)
+- [Wiskundige en trigonometrische functies](functions-math-trig)
 - [Statistische functies](functions-statistical)
 - [Zoek- en verwijzingsfuncties](functions-lookup-reference)
 - [Tekstfuncties](functions-text)
@@ -65,5 +66,5 @@ Typ in het zoekvak hierboven om een onderwerp te zoeken, of een opdracht die u w
 
 - [JeffCrunch met het toetsenbord gebruiken](keyboard)
 - [De instellingen van JeffCrunch wijzigen](options)
-- [Beveiliging: waar een bestand verbinding mee mag maken](security)
+- [Beveiliging: waar een bestand contact mee mag leggen](security)
 - [Een taal kiezen](language)

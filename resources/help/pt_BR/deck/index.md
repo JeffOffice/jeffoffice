@@ -1,7 +1,7 @@
 # Ajuda do JeffDeck
-<!-- keywords: conteúdo, ajuda, tópicos, começo -->
+<!-- keywords: conteúdo, ajuda, tópicos, começar -->
 
-Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você está ou o objeto selecionado.
+Digite na caixa de pesquisa acima para encontrar um tópico ou um comando para executar. Pressione **F1** a qualquer momento para obter ajuda sobre o que você está fazendo: a guia da faixa de opções em que você está, o painel em que você está ou o objeto selecionado.
 
 ## Primeiros passos
 
@@ -14,8 +14,8 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 
 - [Adicionar, alterar e excluir slides](slides)
 - [Reutilizar slides de outra apresentação](reuse)
-- [Modo de Exibição de Estrutura de Tópicos, Classificação de Slides e Modo de Exibição Mestre de Slides](views)
-- [Tamanho, plano de fundo e rodapés do slide](design)
+- [Modo de Exibição de Estrutura de Tópicos, Classificação de Slides e modo de Exibição Mestre](views)
+- [Tamanho do slide, plano de fundo e rodapés](design)
 
 ## No slide
 
@@ -26,19 +26,21 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [O painel Formatar Forma e a guia Formato da Forma](format-shape)
 - [Anotações do orador](notes)
 - [Comentários](comments)
+- [Comparar apresentações](compare)
 
-## Animação
+## Movimento
 
 - [Transições entre slides](transitions)
 - [Animações](animations)
 
-## Exibir
+## Apresentação
 
 - [Iniciar a apresentação de slides e usar o Modo de Exibição do Apresentador](show)
 
 ## Imprimir e compartilhar
 
 - [Imprimir, PDF e imagens de slides](printing)
+- [Empacotar: leve uma apresentação com você](pack-and-go)
 
 ## Ajuda e configurações
 
@@ -48,7 +50,7 @@ Digite na caixa de pesquisa acima para encontrar um tópico ou um comando a exec
 - [Escolher um idioma](language)
 - [A tela Arquivo](file-screen)
 
-## As guias da faixa de opções
+## Guias da faixa de opções
 
 - [Página Inicial](tab-home), [Inserir](tab-insert), [Design](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Slides](tab-slide-show), [Revisão](tab-review) e [Exibir](tab-view)
-- [Reprodução](tab-playback) aparece enquanto um filme ou um som está selecionado
+- [Reprodução](tab-playback) aparece enquanto um vídeo ou um som está selecionado
