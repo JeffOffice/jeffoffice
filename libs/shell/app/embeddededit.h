@@ -16,6 +16,9 @@
 
 #include <functional>
 #include <map>
+#include <memory>
+
+class QLockFile;
 
 namespace jp {
 
@@ -53,7 +56,7 @@ public:
 
     // Looks at every watched file now, as the timer does (what a test calls, with a long interval, to run the looks one at a time).
     void pollNow() { poll(); }
-    // Removes the jo-embed-* folders in `root` that this user owns and that were last changed before `olderThan` (default: a day ago). Returns how many.
+    // Removes the jo-embed-* folders in `root` that this user owns, that were last changed before `olderThan` (default: a day ago), and whose lock no running copy holds. Returns how many.
     static int sweepStale(const QString &root, const QDateTime &olderThan = QDateTime());
 
 Q_SIGNALS:
@@ -67,6 +70,7 @@ Q_SIGNALS:
 private:
     struct Session {
         QString dir, path, key;
+        std::shared_ptr<QLockFile> lock;                  // held in the folder while the edit lives, so another copy of the program does not sweep it
         QObject *owner = nullptr;
         office::ole::Kind kind = office::ole::Kind::Other;
         qint64 widthEmu = 0, heightEmu = 0;

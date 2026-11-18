@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLockFile>
 #include <QPointer>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -254,11 +255,15 @@ private Q_SLOTS:
         Limits l;
         l.objects = 1;
         setLimits(l);
+        int draws = 0;
+        PictureFn counting = [&](const QByteArray &b, qint64 w, qint64 h, int s) { ++draws; return stubPicture(b, w, h, s); };
         ObjectBudget budget;
-        QVERIFY(makeObject(Kind::Sheet, pkg, 1000, 1000, stubPicture, budget).has_value());
+        QVERIFY(makeObject(Kind::Sheet, pkg, 1000, 1000, counting, budget).has_value());
         QCOMPARE(budget.count(), 1);
+        QCOMPARE(draws, 1);
         const qint64 before = budget.total();
-        QVERIFY(!makeObject(Kind::Sheet, pkg, 1000, 1000, stubPicture, budget));
+        QVERIFY(!makeObject(Kind::Sheet, pkg, 1000, 1000, counting, budget));
+        QCOMPARE(draws, 1);   // a refused object is not drawn
         QVERIFY(!keepObject(QStringLiteral("X.1"), pkg, png, 1, 1, budget));
         QCOMPARE(budget.count(), 1);
         QCOMPARE(budget.total(), before);
@@ -749,6 +754,24 @@ private Q_SLOTS:
         QCOMPARE(EmbeddedEdit::sweepStale(root.path(), QDateTime::currentDateTime().addDays(1)), 1);   // two days later it is old
         QVERIFY(!r.exists(QStringLiteral("jo-embed-AAAAAA")));
         QVERIFY(r.exists(QStringLiteral("other-folder")));
+    }
+
+    // An old folder whose lock another running copy holds is not swept; an old unlocked one is.
+    void aFolderWithAHeldLockSurvivesTheSweep()
+    {
+        QTemporaryDir root;
+        QDir r(root.path());
+        QVERIFY(r.mkpath(QStringLiteral("jo-embed-LIVE00")));
+        QVERIFY(r.mkpath(QStringLiteral("jo-embed-DEAD00")));
+        QLockFile held(r.filePath(QStringLiteral("jo-embed-LIVE00/lock")));
+        QVERIFY(held.tryLock(0));
+        const QDateTime later = QDateTime::currentDateTime().addDays(2);
+        QCOMPARE(EmbeddedEdit::sweepStale(root.path(), later), 1);
+        QVERIFY(r.exists(QStringLiteral("jo-embed-LIVE00")));
+        QVERIFY(!r.exists(QStringLiteral("jo-embed-DEAD00")));
+        held.unlock();
+        QCOMPARE(EmbeddedEdit::sweepStale(root.path(), later), 1);
+        QVERIFY(!r.exists(QStringLiteral("jo-embed-LIVE00")));
     }
 
     // The first start in a folder sweeps it: a folder of this user's, made two days old on disk, is gone after start.

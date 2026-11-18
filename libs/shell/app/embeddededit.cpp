@@ -5,6 +5,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLockFile>
 #include <QTemporaryDir>
 #include <QUrl>
 
@@ -58,6 +59,9 @@ int EmbeddedEdit::sweepStale(const QString &root, const QDateTime &olderThan)
         if (d.ownerId() != geteuid()) continue;
 #endif
         if (d.lastModified() >= cutoff) continue;
+        QLockFile lock(QDir(d.absoluteFilePath()).filePath(QStringLiteral("lock")));   // held by the copy of the program that is editing in it
+        if (!lock.tryLock(0)) continue;
+        lock.unlock();
         if (QDir(d.absoluteFilePath()).removeRecursively()) ++removed;
     }
     return removed;
@@ -105,6 +109,11 @@ int EmbeddedEdit::start(QObject *owner, const QString &key, const EmbeddedObject
             return 0;
         }
     }
+    s.lock = std::make_shared<QLockFile>(QDir(s.dir).filePath(QStringLiteral("lock")));
+    if (!s.lock->tryLock(0)) {
+        removeFolder(s.dir);
+        return 0;
+    }
     QFileInfo fi(s.path);
     s.deliveredSize = fi.size();
     s.deliveredTime = fi.lastModified().toMSecsSinceEpoch();
@@ -127,6 +136,7 @@ int EmbeddedEdit::start(QObject *owner, const QString &key, const EmbeddedObject
 void EmbeddedEdit::erase(std::map<int, Session>::iterator it)
 {
     QString dir = it->second.dir;
+    it->second.lock->unlock();
     m_sessions.erase(it);
     removeFolder(dir);
     if (m_sessions.empty()) m_timer.stop();

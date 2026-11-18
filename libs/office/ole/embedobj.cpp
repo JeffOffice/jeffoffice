@@ -54,11 +54,16 @@ Kind kindOfProgId(const QString &progId)
 
 Kind EmbeddedObject::kindOfProgIdImpl(const QString &progId) { return kindOfProgId(progId); }
 
-bool ObjectBudget::admit(qint64 partBytes, qint64 pictureBytes)
+bool ObjectBudget::fits(qint64 partBytes, qint64 pictureBytes) const
 {
     const Limits &l = limits();
     if (partBytes < 0 || pictureBytes < 0 || partBytes > l.objectBytes || pictureBytes > l.pictureBytes) return false;
-    if (m_count >= l.objects || m_total + partBytes + pictureBytes > l.totalBytes) return false;
+    return m_count < l.objects && m_total + partBytes + pictureBytes <= l.totalBytes;
+}
+
+bool ObjectBudget::admit(qint64 partBytes, qint64 pictureBytes)
+{
+    if (!fits(partBytes, pictureBytes)) return false;
     ++m_count;
     m_total += partBytes + pictureBytes;
     return true;
@@ -127,6 +132,7 @@ bool pictureIsAcceptable(const QByteArray &png)
 std::optional<EmbeddedObject> makeObject(Kind kind, const QByteArray &partBytes, qint64 widthEmu, qint64 heightEmu, const PictureFn &draw, ObjectBudget &budget, const QString &origin)
 {
     if (kind == Kind::Other || !draw || partBytes.size() > limits().objectBytes || !packageWithinLimits(partBytes) || !pictureSizeIsSane(widthEmu, heightEmu)) return std::nullopt;
+    if (!budget.fits(partBytes.size())) return std::nullopt;   // ask before drawing: a refused object is not drawn
     QByteArray png = pngOf(draw(partBytes, widthEmu, heightEmu, kPictureScale));
     if (png.isEmpty() || !budget.admit(partBytes.size(), png.size())) return std::nullopt;
     EmbeddedObject o;

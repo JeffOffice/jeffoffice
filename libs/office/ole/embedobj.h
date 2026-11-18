@@ -55,6 +55,7 @@ Kind kindOfProgId(const QString &progId);
 // Counts what a file holds as its objects are read; each admit() says whether the next one fits, and a refusal counts nothing.
 class ObjectBudget {
 public:
+    bool fits(qint64 partBytes, qint64 pictureBytes = 0) const;   // whether admit would say yes; counts nothing
     bool admit(qint64 partBytes, qint64 pictureBytes = 0);
     int count() const { return m_count; }
     qint64 total() const { return m_total; }
