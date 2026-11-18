@@ -28,4 +28,13 @@ const QVector<EquationDesign> &equationGallery();
 // typing a new equation, never half undone).
 QString equationLinear(const QByteArray &markup);
 
+// Equations typed as text in the two syntaxes people know, and the text for any math markup (not only markup a typed line made), as wmlmathuni.h and wmlmathlatex.h say. The
+// functions that read return the markup (an m:oMath element), or an empty array, with `ok` (if given) false, for text that is empty, past kMostEquationInput characters, nested past
+// kMostEquationDepth, or past the limits of one equation (4,000 pieces, 1,024 cells in a matrix); the functions that print return an empty string for markup that holds
+// something the syntax can't say, or whose text would pass kMostEquationInput characters.
+QByteArray equationFromUnicodeMath(const QString &text, bool *ok = nullptr);
+QByteArray equationFromLatex(const QString &text, bool *ok = nullptr);
+QString equationToUnicodeMath(const QByteArray &markup);
+QString equationToLatex(const QByteArray &markup);
+
 } // namespace jp::office::wml

@@ -285,7 +285,7 @@ private:
             } else if (isLetter(ch)) {
                 italic = !normal && style != "p" && style != "b";
             }
-            const bool relation = isRelation(ch), binary = isBinary(ch);
+            const bool relation = !normal && isRelation(ch), binary = !normal && isBinary(ch);   // (Normal Text is as it was typed)
             if (!tight && (relation || (binary && m_operand))) {
                 gap(relation ? 0.28 : 0.22);
                 piece = shown;

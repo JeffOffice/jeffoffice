@@ -381,6 +381,18 @@ private:
         const QChar ch = peek();
         if (ch == QLatin1Char('(')) return group(QLatin1Char(')'), true, depth);
         if (ch == QLatin1Char('{')) return group(QLatin1Char('}'), false, depth);
+        if (ch == QLatin1Char('"')) {
+            // Normal Text: the words in quotes, set upright as they are typed (a backslash and a character in them is that character).
+            ++m_at;
+            QString words;
+            while (more() && peek() != QLatin1Char('"')) {
+                if (peek() == QLatin1Char('\\') && m_at + 1 < m_text.size()) ++m_at;
+                words += m_text[m_at++];
+            }
+            if (peek() == QLatin1Char('"')) ++m_at;
+            const QByteArray x = words.isEmpty() ? QByteArray() : "<m:r><m:rPr><m:nor/></m:rPr><m:t xml:space=\"preserve\">" + escaped(words) + "</m:t></m:r>";
+            return Item{x, QByteArray(), true};
+        }
         if (ch == QLatin1Char('\\')) {
             ++m_at;
             const QString name = commandName();
@@ -542,7 +554,7 @@ private:
     {
         QString out;
         for (const QChar ch : text) {
-            if (QString::fromLatin1("\\(){}^_/[]&").contains(ch)) out += QLatin1Char('\\');
+            if (QString::fromLatin1("\\(){}^_/[]&\"").contains(ch)) out += QLatin1Char('\\');
             out += ch;
         }
         return out;
@@ -550,7 +562,7 @@ private:
     int kid(int node, const char *name) const
     {
         for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c))
-            if (m_t.localName(c) == name) return c;
+            if (m_t.ns(c) != NsW && m_t.localName(c) == name) return c;
         return -1;
     }
     QString valueOf(int node, const char *name, const QString &fallback) const
@@ -583,6 +595,12 @@ private:
             const QString t = text(node);
             const int pr = kid(node, "rPr");
             const bool styled = pr >= 0;
+            if (styled && kid(pr, "nor") >= 0 && valueOf(pr, "nor", QStringLiteral("1")) != QLatin1String("0")) {
+                // (Normal Text is the words in quotes.)
+                QString words = t;
+                words.replace(QLatin1Char('\\'), QLatin1String("\\\\")).replace(QLatin1Char('"'), QLatin1String("\\\""));
+                return t.isEmpty() ? QString() : QLatin1Char('"') + words + QLatin1Char('"');
+            }
             if (styled) {
                 // (Only an upright run of a function's name is one the reader makes.)
                 if (valueOf(pr, "sty", QString()) != QLatin1String("p") || t.isEmpty()) {
@@ -594,6 +612,14 @@ private:
                 return t;
             }
             return plain(t);
+        }
+        if (name == "f") {
+            // (Only a fraction with a bar is one the reader makes.)
+            const QString type = valueOf(kid(node, "fPr"), "type", QStringLiteral("bar"));
+            if (!type.isEmpty() && type != QLatin1String("bar")) {
+                m_ok = false;
+                return QString();
+            }
         }
         if (name == "f") return braces(of(kid(node, "num"), depth)) + QLatin1Char('/') + braces(of(kid(node, "den"), depth));
         if (name == "sSup") return braces(of(kid(node, "e"), depth)) + QLatin1String("^") + braces(of(kid(node, "sup"), depth));

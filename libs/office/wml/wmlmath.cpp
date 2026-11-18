@@ -230,7 +230,7 @@ public:
             space();
             return;
         }
-        const bool relation = isRelation(ch), binary = isBinary(ch);
+        const bool relation = !runNormal && isRelation(ch), binary = !runNormal && isBinary(ch);   // (Normal Text is as it was typed)
         if (tight == 0 && (relation || (binary && operand))) {
             space();
             add(ch);
