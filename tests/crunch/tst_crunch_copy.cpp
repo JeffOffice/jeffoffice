@@ -4,9 +4,14 @@
 #include "../sheet/odshelpers.h"
 #include "app/crunchwindow.h"
 #include "app/otherformats.h"
+#include "app/recovery.h"
+#include "io/zip.h"
+#include "sheet/oldsave.h"
 #include "grid/gridview.h"
 
+#include <QBuffer>
 #include <QFile>
+#include <QImage>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QTest>
@@ -80,6 +85,47 @@ QByteArray odsBook()
     return buildOds(contentXml(table(QStringLiteral("S"), columns(2) + r1 + r2 + r3) + table(QStringLiteral("Other"), row(floatCell(7)))));
 }
 
+// An .ods with a binary object and a folder object of another program in its shapes, each with a picture.
+QByteArray odsWithObjects()
+{
+    const QString styles = QStringLiteral("<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"1in\"/></style:style>"
+                                          "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"0.5in\"/></style:style>");
+    const QString frames = QStringLiteral("<draw:frame draw:name=\"O1\" svg:width=\"1.5in\" svg:height=\"0.5in\" svg:x=\"1in\" svg:y=\"0.1in\"><draw:object-ole xlink:href=\"./Object 1\"/><draw:image xlink:href=\"ObjectReplacements/Object 1\"/></draw:frame>"
+                                           "<draw:frame draw:name=\"O2\" svg:width=\"1.5in\" svg:height=\"0.5in\" svg:x=\"1in\" svg:y=\"0.8in\"><draw:object xlink:href=\"./Object 2\"/><draw:image xlink:href=\"ObjectReplacements/Object 2\"/></draw:frame>");
+    const QString body = QStringLiteral("<table:table table:name=\"S\"><table:shapes>%1</table:shapes><table:table-column table:style-name=\"co1\" table:number-columns-repeated=\"10\"/>"
+                                        "<table:table-row table:style-name=\"ro1\" table:number-rows-repeated=\"10\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row></table:table>").arg(frames);
+    QByteArray blob;
+    for (int i = 0; i < 2000; ++i) blob.append(char((i * 31 + 7) & 0xFF));
+    QImage img(4, 4, QImage::Format_ARGB32);
+    img.fill(Qt::red);
+    QByteArray png;
+    QBuffer buf(&png);
+    buf.open(QIODevice::WriteOnly);
+    img.save(&buf, "PNG");
+    const QMap<QString, QByteArray> parts{{QStringLiteral("Object 1"), blob},
+                                          {QStringLiteral("Object 2/content.xml"), "<?xml version=\"1.0\"?><office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\"><office:body><office:drawing/></office:body></office:document-content>"},
+                                          {QStringLiteral("ObjectReplacements/Object 1"), png},
+                                          {QStringLiteral("ObjectReplacements/Object 2"), png}};
+    QByteArray manifest = "<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/>"
+                          "<manifest:file-entry manifest:full-path=\"Object 1\" manifest:media-type=\"application/vnd.sun.star.oleobject\"/>"
+                          "<manifest:file-entry manifest:full-path=\"Object 2/\" manifest:media-type=\"application/vnd.oasis.opendocument.graphics\"/>"
+                          "<manifest:file-entry manifest:full-path=\"Object 2/content.xml\" manifest:media-type=\"text/xml\"/>"
+                          "<manifest:file-entry manifest:full-path=\"ObjectReplacements/Object 1\" manifest:media-type=\"image/png\"/>"
+                          "<manifest:file-entry manifest:full-path=\"ObjectReplacements/Object 2\" manifest:media-type=\"image/png\"/></manifest:manifest>";
+    return buildOds(contentXml(body, styles), QString(), QByteArray(), parts, QStringLiteral("application/vnd.oasis.opendocument.spreadsheet"), manifest);
+}
+
+// Whether the .ods bytes still hold both objects, byte for byte.
+bool holdsTheObjects(const QByteArray &ods)
+{
+    const QByteArray original = odsWithObjects();
+    QMap<QString, QByteArray> was, now;
+    if (!jp::readZip(original, was) || !jp::readZip(ods, now)) return false;
+    for (const QString &name : {QStringLiteral("Object 1"), QStringLiteral("Object 2/content.xml")})
+        if (now.value(name).isEmpty() || now.value(name) != was.value(name)) return false;
+    return true;
+}
+
 // An .xlsx with a conditional format and a validation, which a copy in the older forms does not write.
 QByteArray xlsxWithRules()
 {
@@ -141,6 +187,62 @@ private Q_SLOTS:
         QCOMPARE(shownCell(wb, s, QStringLiteral("A2")), QStringLiteral("n:8"));
         QCOMPARE(shownCell(wb, s, QStringLiteral("A3")), QStringLiteral("n:10"));
         QVERIFY(o.originalIsUntouched());
+    }
+
+    // Every way the window writes an .ods keeps the embedded objects of other kinds the file held: Save (which asks for the name), Save As, and a copy.
+    void anOdsSavedFromTheWindowKeepsItsObjects()
+    {
+        {
+            Win o;
+            QVERIFY(o.open(odsWithObjects(), QStringLiteral("book.ods")));
+            o.answer = o.dir.filePath(QStringLiteral("viaSave.ods"));
+            QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+            o.w.save();
+            QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+            QVERIFY(copied.first().at(1).toBool());
+            QFile f(o.answer);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY2(holdsTheObjects(f.readAll()), "Save");
+        }
+        for (const bool asCopy : {false, true}) {
+            Win o;
+            QVERIFY(o.open(odsWithObjects(), QStringLiteral("book.ods")));
+            const QString out = o.dir.filePath(asCopy ? QStringLiteral("copy.ods") : QStringLiteral("viaSaveAs.ods"));
+            QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+            o.w.saveAs(out, asCopy);
+            QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+            QVERIFY(copied.first().at(1).toBool());
+            QFile f(out);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QVERIFY2(holdsTheObjects(f.readAll()), asCopy ? "Save As (copy)" : "Save As");
+        }
+    }
+
+    // The copy of unsaved work kept for recovery holds the objects too, so work recovered after a crash and saved as an .ods has them.
+    void theRecoveryCopyOfAnOdsKeepsItsObjects()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            Win o;
+            QVERIFY(o.open(odsWithObjects(), QStringLiteral("book.ods")));
+            o.enter(0, 0, QStringLiteral("5"));
+            QSignalSpy written(&o.w, &CrunchWindow::recoveryWritten);
+            o.w.autoRecover();
+            QVERIFY(written.count() > 0 || written.wait(20000));
+            const QString copy = o.w.recoveryCopy();
+            QVERIFY(QFileInfo::exists(copy));
+            Workbook wb;
+            QString why;
+            QVERIFY2(wb.openFile(copy, &why), qPrintable(why));
+            QByteArray ods;
+            office::sheet::CopyReport report;
+            QVERIFY2(office::sheet::saveOds(wb, &ods, &report, &why), qPrintable(why));
+            QVERIFY2(holdsTheObjects(ods), "recovery copy");
+        }
+        recovery::setRoot(QString());
     }
 
     // Precision as displayed is kept in the copy: on it is written, and when a copy is opened and turned off it is not.
