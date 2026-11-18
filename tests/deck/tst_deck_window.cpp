@@ -2955,6 +2955,112 @@ private Q_SLOTS:
         QCOMPARE(connectionSiteCount(*box), 4);
     }
 
+    // A save from before the sites were counted the standard's way names a side of the shape (0 top, 1 left, 2 bottom, 3 right); it is made a site when the file is opened, so that saving
+    // again, copying, and undoing never see the side as a site.
+    void anOldSaveNamingASideIsGluedToTheRightSiteWhateverHappensNext()
+    {
+        auto source = Document::blank(QSizeF(960, 540));
+        auto hex = std::make_shared<ShapeItem>(), box = std::make_shared<ShapeItem>();
+        hex->shape = QStringLiteral("hexagon");
+        hex->rect = QRectF(100, 100, 200, 100);
+        box->rect = QRectF(500, 100, 100, 60);
+        auto line = std::make_shared<LineItem>();
+        line->start = LineItem::Glue{hex->id, 3};   // (the right side)
+        line->end = LineItem::Glue{box->id, 1};
+        for (const auto &it : {ItemPtr(hex), ItemPtr(box), ItemPtr(line)}) source->pages[0]->items.push_back(it);
+        // (What 0.42 wrote: the same, with no "model" in the glue.)
+        std::function<QJsonValue(const QJsonValue &)> strip = [&](const QJsonValue &v) -> QJsonValue {
+            if (v.isArray()) {
+                QJsonArray a;
+                for (const auto &e : v.toArray()) a.append(strip(e));
+                return a;
+            }
+            if (!v.isObject()) return v;
+            QJsonObject o = v.toObject();
+            for (auto it = o.begin(); it != o.end(); ++it) {
+                if ((it.key() == QLatin1String("startGlue") || it.key() == QLatin1String("endGlue")) && it.value().isObject()) {
+                    QJsonObject g = it.value().toObject();
+                    g.remove(QStringLiteral("model"));
+                    it.value() = g;
+                } else {
+                    it.value() = strip(it.value());
+                }
+            }
+            return o;
+        };
+        const QJsonObject old = strip(source->toJson()).toObject();
+        const auto open = [&]() {
+            auto d = std::make_unique<Document>();
+            d->fromJson(old);
+            return d;
+        };
+        const auto glueOf = [](const Document &d, bool start) {
+            LineItem::Glue g;
+            walkItems(d.pages[0]->items, [&](const ItemPtr &it) {
+                if (it->type() == ItemType::Line) g = start ? static_cast<const LineItem &>(*it).start : static_cast<const LineItem &>(*it).end;
+            });
+            return g;
+        };
+        const auto hexOf = [](const Document &d) {
+            const Item *found = nullptr;
+            walkItems(d.pages[0]->items, [&](const ItemPtr &it) {
+                if (it->type() == ItemType::Shape && static_cast<const ShapeItem &>(*it).shape == QLatin1String("hexagon")) found = it.get();
+            });
+            return found;
+        };
+        auto first = open();
+        const int right = connectionSiteOnSide(*hexOf(*first), 3);
+        QVERIFY(right >= 0 && right != 3);
+        // Opened and saved with no edit: the site, not the side.
+        QCOMPARE(glueOf(*first, true).site, right);
+        QJsonObject saved = first->toJson();
+        auto again = std::make_unique<Document>();
+        again->fromJson(saved);
+        QCOMPARE(glueOf(*again, true).site, right);
+        QCOMPARE(glueOf(*again, true).id, hexOf(*again)->id);
+        QVERIFY(!glueOf(*first, true).sideNumber);
+        // Copied and pasted (here duplicated: the same cloning): the copy's glue is on the copy's hexagon, at the same site.
+        Editor ed;
+        ed.setDocument(open());
+        QStringList all;
+        walkItems(ed.surfaceItems(), [&](const ItemPtr &it) { all << it->id; });
+        ed.select(all);
+        ed.duplicateSelection();
+        int lines = 0, glued = 0;
+        const Item *copiedHex = nullptr;
+        walkItems(ed.surfaceItems(), [&](const ItemPtr &it) {
+            if (it->type() == ItemType::Shape && static_cast<const ShapeItem &>(*it).shape == QLatin1String("hexagon") && it.get() != hexOf(*ed.doc())) copiedHex = it.get();
+        });
+        walkItems(ed.surfaceItems(), [&](const ItemPtr &it) {
+            if (it->type() != ItemType::Line) return;
+            ++lines;
+            const auto &l = static_cast<const LineItem &>(*it);
+            if (copiedHex && l.start.id == copiedHex->id && l.start.site == right && !l.start.sideNumber) ++glued;
+        });
+        QCOMPARE(lines, 2);
+        QVERIFY(copiedHex);
+        QCOMPARE(glued, 1);
+        // The first edit, undone: back to the right site.
+        Editor ed2;
+        ed2.setDocument(open());
+        ed2.beginChange(QStringLiteral("Move"));
+        const_cast<Item *>(hexOf(*ed2.doc()))->moveBy(30, 0);
+        ed2.endChange();
+        QCOMPARE(glueOf(*ed2.doc(), true).site, right);
+        ed2.undo();
+        QCOMPARE(glueOf(*ed2.doc(), true).site, right);
+        QVERIFY(!glueOf(*ed2.doc(), true).sideNumber);
+        ed2.redo();
+        QCOMPARE(glueOf(*ed2.doc(), true).site, right);
+        // An end still holding a side (made by hand: opening a document never leaves one) keeps that through a copy.
+        LineItem held;
+        held.start = LineItem::Glue{QStringLiteral("a"), 3, true};
+        ItemList list{std::make_shared<LineItem>(held)};
+        remapGlue(list, QHash<QString, QString>{{QStringLiteral("a"), QStringLiteral("b")}});
+        QVERIFY(static_cast<LineItem &>(*list[0]).start.sideNumber);
+        QCOMPARE(static_cast<LineItem &>(*list[0]).start.id, QStringLiteral("b"));
+    }
+
     // An object dragged on a grid lands on it (its edge on a multiple of the spacing, worked out from the grid, not from pixels); Alt leaves snapping off.
     void aDraggedObjectSnapsToTheGrid()
     {

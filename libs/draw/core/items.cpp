@@ -685,7 +685,12 @@ QJsonObject LineItem::toJson() const
     if (startVertical) o["startVertical"] = true;
     if (endVertical) o["endVertical"] = true;
     auto glue = [&](const char *key, const Glue &g) {
-        if (!g.id.isEmpty()) o[QLatin1String(key)] = QJsonObject{{"id", g.id}, {"site", g.site}, {"model", 2}};
+        // (An end whose number is still a side, one not read as part of a document, is written as it was read.)
+        if (!g.id.isEmpty()) {
+            QJsonObject e{{"id", g.id}, {"site", g.site}};
+            if (!g.sideNumber) e["model"] = 2;
+            o[QLatin1String(key)] = e;
+        }
     };
     glue("startGlue", start);
     glue("endGlue", end);
@@ -1066,7 +1071,7 @@ void remapGlue(const ItemList &items, const QHash<QString, QString> &ids)
         if (it->type() != ItemType::Line) return;
         auto *l = static_cast<LineItem *>(it.get());
         for (LineItem::Glue *g : {&l->start, &l->end})
-            if (!g->id.isEmpty()) *g = ids.contains(g->id) ? LineItem::Glue{ids.value(g->id), g->site} : LineItem::Glue();
+            if (!g->id.isEmpty()) *g = ids.contains(g->id) ? LineItem::Glue{ids.value(g->id), g->site, g->sideNumber} : LineItem::Glue();
     });
 }
 

@@ -1646,12 +1646,6 @@ bool Document::routeConnectors()
         auto follow = [&](LineItem::Glue &g, QPointF &pt, bool &vertical) {
             if (g.id.isEmpty()) return;
             const Item *o = byId.value(g.id);
-            // (An older save names a side: it is the site on that side of this object.)
-            if (o && g.sideNumber) {
-                g.site = connectionSiteOnSide(*o, g.site);
-                g.sideNumber = false;
-                moved = true;
-            }
             if (!o || o == l || o->type() == ItemType::Line || g.site < 0 || g.site >= connectionSiteCount(*o)) {
                 g = LineItem::Glue();
                 moved = true;
@@ -2536,6 +2530,23 @@ void Document::fromJson(const QJsonObject &o)
     }
     // A publication always has a page.
     if (pages.isEmpty()) addPage();
+    // A connector from an older save names a side of what it is attached to: it is the site on that side of the object, once the objects are all here.
+    {
+        QHash<QString, Item *> byId;
+        QVector<LineItem *> sided;
+        forEachItem([&](Item *it, int, const QString &) {
+            byId.insert(it->id, it);
+            if (it->type() != ItemType::Line) return;
+            auto *l = static_cast<LineItem *>(it);
+            if (l->start.sideNumber || l->end.sideNumber) sided << l;
+        });
+        for (LineItem *l : sided)
+            for (LineItem::Glue *g : {&l->start, &l->end}) {
+                if (!g->sideNumber) continue;
+                if (const Item *o = byId.value(g->id)) g->site = connectionSiteOnSide(*o, g->site);
+                g->sideNumber = false;
+            }
+    }
     // Only so many charts, of so many bytes, stay charts; the rest are the pictures they are drawn as.
     chartsKeptAsPictures = limitChartsRead(*this);
     equationsLeftOut = g_equations.leftOut;
