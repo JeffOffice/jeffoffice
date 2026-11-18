@@ -2621,9 +2621,13 @@ private Q_SLOTS:
         f.close();
         const QByteArray before = fileBytes(path);
         DeckWindow w;
-        QTimer::singleShot(0, [&] {
+        // (a timer of this test's own: when no box comes up, a free-standing one would stay due and close the next test's box)
+        QTimer closeBox;
+        closeBox.setSingleShot(true);
+        connect(&closeBox, &QTimer::timeout, [&] {
             if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) box->close();
         });
+        closeBox.start(0);
         QVERIFY(w.openFile(path));
         w.newSlide();
         QStringList asked;
