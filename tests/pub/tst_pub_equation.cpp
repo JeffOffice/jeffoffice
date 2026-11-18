@@ -811,7 +811,6 @@ private Q_SLOTS:
         const QByteArray nothing = "<m:oMath " + ns + "><m:rad></m:rad><m:sSup></m:sSup><m:f/></m:oMath>";
         const QString none = equationLinear(nothing);
         QVERIFY(none.contains(QStringLiteral("\\sqrt{}")));
-        QCOMPARE(equationLine(bare), equationLine(bare));
     }
 
     // All the matrices of one equation together hold at most 16,384 cells (empty ones too), read from markup.
@@ -876,7 +875,6 @@ private Q_SLOTS:
     {
         bool ok = true;
         QVERIFY(tex(QStringLiteral("a\\\\b")).isEmpty());
-        tex(QStringLiteral("a\\\\b")).isEmpty();
         QVERIFY(jp::office::wml::equationFromLatex(QStringLiteral("a \\\\ b"), &ok).isEmpty());
         QVERIFY(!ok);
         QVERIFY(tex(QStringLiteral("\\frac{a\\\\b}{c}")).isEmpty());
