@@ -4716,6 +4716,146 @@ PictureResult insertChart(WriteDoc &doc, QTextCursor &c, ChartForm form, const C
     return PictureResult::Ok;
 }
 
+namespace {
+
+constexpr char kObjectRelationship[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/package";
+
+QString objectContentType(office::ole::Kind kind)
+{
+    return kind == office::ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+}
+
+bool isObjectRelationship(const office::Relationship &r) { return !r.external && (r.type.endsWith(QLatin1String("/package")) || r.type.endsWith(QLatin1String("/oleObject"))); }
+
+// What the document's objects come to (their packages and their pictures, each counted once), taken in as a budget; the object named by `leave` (a relationship Id) is not counted: the one a
+// new package takes the place of. False if they are over it already.
+bool objectBudgetOf(const WriteDoc &doc, const QString &leave, office::ole::ObjectBudget *budget)
+{
+    QSet<QString> seen;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("OLEObject")) continue;
+            const std::optional<ObjectRefs> refs = objectRefsOf(unpackAtom(bytes).raw);
+            if (!refs || refs->objectId == leave) continue;
+            const qint64 part = seen.contains(refs->objectId) ? 0 : doc.relatedPartData(refs->objectId).size();
+            const qint64 picture = refs->pictureId.isEmpty() || seen.contains(refs->pictureId) ? 0 : doc.relatedPartData(refs->pictureId).size();
+            seen.insert(refs->objectId);
+            seen.insert(refs->pictureId);
+            if (!budget->admit(part, picture)) return false;
+        }
+    return true;
+}
+
+// The package and the picture of an object put in the document, and the Ids of their relationships.
+bool putObjectParts(WriteDoc &doc, const office::ole::EmbeddedObject &object, QString *objectId, QString *pictureId, bool *pictureAdded)
+{
+    const QString extension = office::ole::extensionOf(object.kind());
+    *objectId = doc.addRelatedPart(QStringLiteral("/word/embeddings"), QStringLiteral("object"), extension, object.partBytes, objectContentType(object.kind()), QString::fromLatin1(kObjectRelationship));
+    *pictureId = doc.addMedia(object.previewPng, QStringLiteral("png"), QStringLiteral("image/png"), pictureAdded);
+    if (!pictureId->isEmpty()) return true;
+    doc.removeMedia(*objectId);
+    return false;
+}
+
+QSizeF objectSize(const office::ole::EmbeddedObject &object, const QSizeF &size)
+{
+    const QSizeF own(double(object.widthEmu) / office::ole::kEmuPerPoint, double(object.heightEmu) / office::ole::kEmuPerPoint);
+    const QSizeF made = size.isEmpty() ? own : size;
+    return QSizeF(std::clamp(made.width(), kLeastPictureSize, kMostPictureSize), std::clamp(made.height(), kLeastPictureSize, kMostPictureSize));
+}
+
+bool objectAtomOf(const QTextDocument *story, int position, Inline *atom)
+{
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1) return false;
+    const QTextCharFormat cf = formatAfter(story, position);
+    if (!cf.hasProperty(prop::Atom) || cf.hasProperty(prop::TrackedDeleted)) return false;
+    *atom = unpackAtom(storedBytes(cf, prop::Atom));
+    return atom->kind == Inline::RunAtom && atom->tag == QLatin1String("object");
+}
+
+} // namespace
+
+PictureResult insertObject(WriteDoc &doc, QTextCursor &c, const office::ole::EmbeddedObject &object, const QSizeF &size)
+{
+    if (c.document() != doc.story()) {
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put in a header, a footer, or a note yet.");
+        return PictureResult::Refused;
+    }
+    if (!object.isOurs || object.previewPng.isEmpty() || object.partBytes.isEmpty()) return PictureResult::Refused;
+    office::ole::ObjectBudget budget;
+    if (!objectBudgetOf(doc, QString(), &budget) || !budget.admit(object.partBytes.size(), object.previewPng.size())) return PictureResult::Refused;
+    const QSizeF made = objectSize(object, size);
+    QString objectId, pictureId;
+    bool pictureAdded = false;
+    if (!putObjectParts(doc, object, &objectId, &pictureId, &pictureAdded)) return PictureResult::Refused;
+    Inline atom;
+    atom.kind = Inline::RunAtom;
+    atom.tag = QStringLiteral("object");
+    atom.raw = objectXml(object.progId, objectId, pictureId, doc.nextDrawingId(doc.story()), made.width(), made.height());
+    if (!insertDrawnAtom(doc, c, atom)) {
+        doc.removeMedia(objectId);
+        if (pictureAdded) doc.removeMedia(pictureId);
+        doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
+        return PictureResult::Refused;
+    }
+    return PictureResult::Ok;
+}
+
+std::optional<office::ole::EmbeddedObject> objectAt(const WriteDoc &doc, int position)
+{
+    Inline atom;
+    if (!objectAtomOf(doc.story(), position, &atom)) return std::nullopt;
+    office::ole::ObjectBudget budget;
+    auto related = [&doc](const QString &id) { return doc.relatedPartData(id); };
+    std::optional<office::ole::EmbeddedObject> object = readObject(atom.raw, related, budget);
+    if (!object) return std::nullopt;
+    if (const auto refs = objectRefsOf(atom.raw))
+        for (const office::Relationship &r : doc.mainRelationships())
+            if (r.id == refs->objectId) object->origin = r.target;
+    return object;
+}
+
+bool setObjectAt(WriteDoc &doc, int position, const office::ole::EmbeddedObject &object)
+{
+    QTextDocument *story = doc.story();
+    Inline atom;
+    if (!objectAtomOf(story, position, &atom) || isLocked(story->findBlock(position))) return false;
+    // (Only an object of ours is changed: another program's is kept as it is.)
+    if (const auto now = objectAt(doc, position); !now || !now->isOurs) return false;
+    if (!object.isOurs || object.previewPng.isEmpty() || object.partBytes.isEmpty()) return false;
+    const std::optional<ObjectRefs> refs = objectRefsOf(atom.raw);
+    if (!refs) return false;
+    office::ole::ObjectBudget budget;
+    if (!objectBudgetOf(doc, refs->objectId, &budget) || !budget.admit(object.partBytes.size(), object.previewPng.size())) return false;
+    QString objectId, pictureId;
+    bool pictureAdded = false;
+    if (!putObjectParts(doc, object, &objectId, &pictureId, &pictureAdded)) return false;
+    QTextCharFormat cf = formatAfter(story, position);
+    atom.raw = objectXmlWith(atom.raw, objectId, pictureId);
+    cf.clearProperty(flow::fp::AnchorId);
+    cf.clearProperty(tp::InlineObject);
+    setStored(cf, prop::Atom, packAtom(atom));
+    if (!doc.makeDrawnFormat(atom, &cf)) {
+        doc.removeMedia(objectId);
+        if (pictureAdded) doc.removeMedia(pictureId);
+        return false;
+    }
+    QTextCursor edit(story);
+    edit.setPosition(position);
+    edit.setPosition(position + 1, QTextCursor::KeepAnchor);
+    const QTextCharFormat was = formatAfter(story, position);
+    edit.setCharFormat(cf);
+    doc.retireDrawnForm(was);
+    doc.keepObjectsForTheHistory();
+    // The old package and picture are let go of (left out of the file when nothing names them any more, kept for the steps of the history that bring them back).
+    doc.releaseRelatedPart(refs->objectId, QString());
+    if (!refs->pictureId.isEmpty() && refs->pictureId != pictureId) doc.letGoOfMediaIfUnused(refs->pictureId);
+    return true;
+}
+
 bool setChartForm(WriteDoc &doc, int position, ChartForm form)
 {
     return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetForm(chart, form, chartTheme(doc)); });

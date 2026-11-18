@@ -9,6 +9,7 @@
 #include "core/style.h"
 #include "core/wrapoutline.h"
 #include "core/writedoc.h"
+#include "ole/embedobj.h"
 #include "sheet/chartops.h"
 
 #include <QColor>
@@ -494,5 +495,16 @@ bool setChartStyle(WriteDoc &doc, int position, int style);
 bool readChartAt(const WriteDoc &doc, int position, office::Chart *chart);
 office::Theme chartThemeOf(const WriteDoc &doc);
 bool changeChartAt(WriteDoc &doc, int position, const std::function<void(office::Chart *)> &edit);
+
+// An object of another app (office::ole): put at the cursor in line with the text, in place of a selection, one step that undoes. Its package goes in /word/embeddings and its picture
+// among the pictures; Refused when the object is not ours, the document holds as many objects as a file keeps (ole::limits()), or they come to the most bytes. `size` is in points (empty:
+// the object's own).
+PictureResult insertObject(WriteDoc &doc, QTextCursor &c, const office::ole::EmbeddedObject &object, const QSizeF &size = QSizeF());
+// The object the character after `position` is, ours or another program's (kept as it is); nothing for any other character, or an object whose package is missing, outside the file, or
+// over a cap.
+std::optional<office::ole::EmbeddedObject> objectAt(const WriteDoc &doc, int position);
+// Puts the object's new bytes and picture in the object at `position` (its size and place stay), one step that undoes: the new package and picture are put in, and the old ones go from
+// the file when nothing else names them. False when there is no such object or it is refused as above.
+bool setObjectAt(WriteDoc &doc, int position, const office::ole::EmbeddedObject &object);
 
 } // namespace jp::write

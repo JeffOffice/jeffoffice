@@ -907,6 +907,71 @@ QVector<Shape> readShapes(const QByteArray &xml)
     return result;
 }
 
+// ---- embedded objects (w:object)
+
+QByteArray objectXml(const QString &progId, const QString &objectId, const QString &pictureId, int shapeNumber, double widthPt, double heightPt)
+{
+    auto escaped = [](const QString &s) { return s.toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")); };
+    const qint64 twipsW = std::llround(std::clamp(widthPt, 0.0, 100000.0) * 20), twipsH = std::llround(std::clamp(heightPt, 0.0, 100000.0) * 20);
+    const QString shape = QStringLiteral("_x0000_i%1").arg(1024 + std::max(shapeNumber, 0));
+    const QString text = QStringLiteral("<w:object xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                                        "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" w:dxaOrig=\"%1\" w:dyaOrig=\"%2\">"
+                                        "<v:shape id=\"%3\" type=\"#_x0000_t75\" style=\"width:%4pt;height:%5pt\" o:ole=\"\"><v:imagedata r:id=\"%6\" o:title=\"\"/></v:shape>"
+                                        "<o:OLEObject Type=\"Embed\" ProgID=\"%7\" ShapeID=\"%3\" DrawAspect=\"Content\" ObjectID=\"_%8\" r:id=\"%9\"/></w:object>")
+                             .arg(twipsW).arg(twipsH).arg(shape).arg(QString::number(widthPt, 'f', 2), QString::number(heightPt, 'f', 2), escaped(pictureId), escaped(progId))
+                             .arg(1000000000LL + shapeNumber).arg(escaped(objectId));
+    return text.toUtf8();
+}
+
+std::optional<ObjectRefs> objectRefsOf(const QByteArray &raw)
+{
+    if (raw.size() > (1 << 20) || !raw.contains("OLEObject")) return std::nullopt;
+    static const QRegularExpression ole(QStringLiteral("<(?:[\\w.-]+:)?OLEObject\\b([^>]*)>")), progId(QStringLiteral("\\bProgID=\"([^\"]*)\"")), linkId(QStringLiteral("\\s[\\w.-]+:id=\"([^\"]*)\"")),
+        image(QStringLiteral("<(?:[\\w.-]+:)?imagedata\\b[^>]*?\\s[\\w.-]+:id=\"([^\"]*)\"")), shape(QStringLiteral("<(?:[\\w.-]+:)?shape\\b[^>]*?\\bstyle=\"([^\"]*)\"")),
+        width(QStringLiteral("(?:^|;)\\s*width:([^;]*)")), height(QStringLiteral("(?:^|;)\\s*height:([^;]*)"));
+    const QString text = QString::fromUtf8(raw);
+    const QRegularExpressionMatch o = ole.match(text);
+    if (!o.hasMatch()) return std::nullopt;
+    ObjectRefs refs;
+    refs.progId = progId.match(o.captured(1)).captured(1);
+    refs.objectId = linkId.match(o.captured(1)).captured(1);
+    refs.pictureId = image.match(text).captured(1);
+    if (const QRegularExpressionMatch s = shape.match(text); s.hasMatch()) {
+        refs.widthPt = lengthOf(width.match(s.captured(1)).captured(1), 0);
+        refs.heightPt = lengthOf(height.match(s.captured(1)).captured(1), 0);
+    }
+    if (refs.progId.isEmpty() || refs.objectId.isEmpty()) return std::nullopt;
+    return refs;
+}
+
+std::optional<ole::EmbeddedObject> readObject(const QByteArray &raw, const std::function<QByteArray(const QString &)> &related, ole::ObjectBudget &budget)
+{
+    const std::optional<ObjectRefs> refs = objectRefsOf(raw);
+    if (!refs) return std::nullopt;
+    const qint64 widthEmu = std::llround(refs->widthPt * ole::kEmuPerPoint), heightEmu = std::llround(refs->heightPt * ole::kEmuPerPoint);
+    if (!ole::pictureSizeIsSane(widthEmu, heightEmu)) return std::nullopt;
+    const QByteArray bytes = related(refs->objectId);
+    if (bytes.isEmpty() || bytes.size() > ole::limits().objectBytes) return std::nullopt;
+    QByteArray picture = refs->pictureId.isEmpty() ? QByteArray() : related(refs->pictureId);
+    if (!picture.startsWith("\x89PNG")) picture.clear();
+    return ole::keepObject(refs->progId, bytes, picture, widthEmu, heightEmu, budget);
+}
+
+QByteArray objectXmlWith(const QByteArray &raw, const QString &objectId, const QString &pictureId)
+{
+    if (!objectRefsOf(raw)) return raw;
+    QString text = QString::fromUtf8(raw);
+    // (Each Id is put where the element names it: the object's in the OLEObject, the picture's in the imagedata.)
+    static const QRegularExpression ole(QStringLiteral("(<(?:[\\w.-]+:)?OLEObject\\b[^>]*?\\s[\\w.-]+:id=\")[^\"]*(\")")), image(QStringLiteral("(<(?:[\\w.-]+:)?imagedata\\b[^>]*?\\s[\\w.-]+:id=\")[^\"]*(\")"));
+    auto put = [&text](const QRegularExpression &where, const QString &id) {
+        const QRegularExpressionMatch m = where.match(text);
+        if (m.hasMatch()) text.replace(m.capturedStart(), m.capturedLength(), m.captured(1) + id.toHtmlEscaped() + m.captured(2));
+    };
+    put(ole, objectId);
+    if (!pictureId.isEmpty()) put(image, pictureId);
+    return text.toUtf8();
+}
+
 QByteArray keptElementDeclarations() { return declarations(); }
 
 } // namespace jp::office::wml

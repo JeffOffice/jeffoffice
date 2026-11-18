@@ -24,6 +24,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_table.h"
 #include "office/package.h"
+#include "ole/embedobj.h"
 #include "office/packageprops.h"
 #include "office/theme.h"
 #include "office/xml.h"
@@ -682,6 +683,7 @@ private:
     void readAlternate(const QDomElement &alternate, Scope &sc);
     ItemPtr readOne(const QDomElement &shape, Scope &sc);
     bool readFramePicture(const QDomElement &frame, Scope &sc);
+    bool readFrameObject(const QDomElement &frame, Scope &sc);
     bool readFrameTable(const QDomElement &frame, Scope &sc);
     bool readFrameChart(const QDomElement &frame, Scope &sc);
     bool readFrameDiagram(const QDomElement &frame, Scope &sc);
@@ -726,6 +728,8 @@ private:
     bool m_keptRanOut = false;
     bool keepXml(const QDomElement &e, QString *out);
     QHash<QString, std::optional<QJsonObject>> m_chartParts;
+    office::ole::ObjectBudget m_objectBudget;     // the embedded objects kept so far (their packages), against what a file may keep
+    int m_objectsPastLimit = 0;                   // objects kept as their pictures only: over a cap, or with a package that is missing or outside the file
     qint64 m_diagramBytes = 0;                    // what the diagrams' kept parts come to, in all
     int m_diagramsDrawn = 0;                      // the diagrams drawn so far, and what their drawings come to
     qint64 m_diagramSvgBytes = 0;
@@ -795,6 +799,8 @@ void Importer::sayWhatRanOut()
     if (m_budget.longBody) note(QCoreApplication::translate("PptxImport", "Some text is longer than a text box is read to, so the rest of it is left out."));
     if (m_keptRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.").arg(kMaxKeptXmlBytes >> 20));
+    if (m_objectsPastLimit > 0)
+        note(QCoreApplication::translate("PptxImport", "%n embedded object(s) kept as picture only: the file holds more objects than can be kept, or this one is too large.", nullptr, m_objectsPastLimit));
     if (m_chartsPastLimit > 0)
         note(QCoreApplication::translate("PptxImport", "The file holds more charts than can be changed in one file (%1, or %2 MB of them), so the charts past them (%3 in all) are kept as pictures only.").arg(office::sheet::kMostChartsInFile).arg(office::sheet::kMostChartBytesInFile >> 20).arg(m_chartsPastLimit));
     if (m_chartsRanOut)
@@ -1334,7 +1340,7 @@ void Importer::readChild(const QDomElement &c, Scope &sc)
         readAlternate(c, sc);
     } else if (name == QLatin1String("graphicFrame") || name == QLatin1String("contentPart")) {
         if (!m_budget.take(office::DrawingBudget::Objects)) return;
-        if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFrameDiagram(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
+        if (!readFrameTable(c, sc) && !readFrameChart(c, sc) && !readFrameDiagram(c, sc) && !readFrameObject(c, sc) && !readFramePicture(c, sc)) keepUnread(c, c, sc);
     } else if (isOneOf(name, {"sp", "pic", "grpSp", "cxnSp"})) {
         if (ItemPtr it = readOne(c, sc)) sc.page->items.push_back(it);
     }
@@ -1356,7 +1362,7 @@ void Importer::readAlternate(const QDomElement &alternate, Scope &sc)
         if (!office::isElement(alt, kMc, QStringLiteral("Choice"))) continue;
         for (QDomElement e = alt.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
             if (isOneOf(e.localName(), {"graphicFrame", "contentPart"})) {
-                if (readFrameTable(e, sc) || readFrameChart(e, sc) || readFrameDiagram(e, sc) || readFramePicture(e, sc)) read = true;
+                if (readFrameTable(e, sc) || readFrameChart(e, sc) || readFrameDiagram(e, sc) || readFrameObject(e, sc) || readFramePicture(e, sc)) read = true;
                 else if (frame.isNull()) frame = e;
             } else if (isOneOf(e.localName(), {"sp", "pic", "grpSp", "cxnSp"})) {
                 read = true;
@@ -1760,6 +1766,47 @@ bool Importer::readFramePicture(const QDomElement &frame, Scope &sc)
     ItemPtr it = readOne(pic, sc);
     if (!it) return false;
     sc.page->items.push_back(it);
+    return true;
+}
+
+// The object a frame holds (an oleObj with a package embedded): its package kept, with the picture the frame shows for it, in the page's "charts" with the picture's id, so saving writes
+// the object again, its package as it was read. An object over a cap, or whose package is missing, outside the file, or a link, is not kept: only its picture is read.
+bool Importer::readFrameObject(const QDomElement &frame, Scope &sc)
+{
+    QDomElement object;
+    QVector<QDomElement> stack{aChild(frame, "graphic")};
+    for (int visited = 0; !stack.isEmpty() && visited < 64 && object.isNull(); ++visited) {
+        const QDomElement e = stack.takeLast();
+        if (e.isNull()) continue;
+        if (office::isElement(e, office::ns::P, QStringLiteral("oleObj")) && !pChild(e, "embed").isNull()) object = e;
+        else
+            for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+    }
+    if (object.isNull()) return false;
+    const QDomElement pic = previewPicture(aChild(frame, "graphic"));
+    if (pic.isNull()) return false;
+    const QDomElement xfrm = pChild(frame, "xfrm");
+    auto emuOf = [](const QDomElement &e, const char *name) { return office::parseInt(office::attr(e, QLatin1String(name))); };
+    const QDomElement ext = aChild(xfrm, "ext");
+    const office::Relationship rel = m_pkg.relationship(sc.ctx.part, office::attrNs(object, office::ns::R, QStringLiteral("id")));
+    // (A link that goes outside the package is resolved to nothing by the package, and a part it names that the file does not hold is no part.)
+    const bool usable = !rel.id.isEmpty() && !rel.external && !rel.target.isEmpty() && m_pkg.hasPart(rel.target);
+    std::optional<office::ole::EmbeddedObject> kept;
+    if (usable) {
+        const QByteArray bytes = m_pkg.part(rel.target);
+        kept = office::ole::keepObject(office::attr(object, QStringLiteral("progId")), bytes, QByteArray(), std::clamp<qint64>(emuOf(ext, "cx"), 0, office::ole::kMaxEmu), std::clamp<qint64>(emuOf(ext, "cy"), 0, office::ole::kMaxEmu), m_objectBudget, rel.target);
+    }
+    if (!kept) {
+        // (A package that is missing or outside the file is no object to keep, and the picture is read as it always was; one over a cap is told of.)
+        if (usable) ++m_objectsPastLimit;
+        return false;
+    }
+    ItemPtr it = readOne(pic, sc);
+    if (!it) return false;
+    if (const int number = frameNumber(frame); number > 0) it->sourceId = number;
+    sc.page->items.push_back(it);
+    sc.charts.append(QJsonObject{{"item", it->id}, {"kind", "object"}, {"progId", kept->progId}, {"name", office::attr(object, QStringLiteral("name"))}, {"part", rel.target},
+                                 {"type", m_pkg.contentType(rel.target)}, {"relType", rel.type}, {"data", QString::fromLatin1(kept->partBytes.toBase64())}});
     return true;
 }
 

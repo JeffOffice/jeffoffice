@@ -18,9 +18,11 @@
 
 #include "core/document.h"
 #include "core/embeddedfonts.h"
+#include "ole/embedobj.h"
 #include "office/macroparts.h"
 
 #include <QByteArray>
+#include <optional>
 #include <QString>
 #include <QStringList>
 
@@ -65,5 +67,13 @@ QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullp
 // can't be written, or a path that isn't one leave it as it was.
 // With a `password` the package is protected by it (office/officecrypt.h), as a presentation program does.
 bool savePresentationFile(const Document &doc, const QString &path, QString *error = nullptr, QStringList *skipped = nullptr, bool embedFonts = false, const QString &password = QString(), bool removePersonal = false, QStringList *personalProblems = nullptr);
+
+// Embedded objects on a slide (office::ole): a picture item (the object's picture) with the object kept beside it in the page's "charts" (kind "object"), which is how a file's own objects are
+// read (pptximport) and are written back, their packages byte for byte. addPageObject puts an object of ours at `rect`; null when it is not ours, has no picture, or the presentation holds as
+// many objects as a file keeps (ole::limits(), over every slide). pageObjectOf reads the object of the picture `itemId` (the package and the picture the item shows); setPageObject gives it
+// new bytes and a new picture, its place and size staying. A package the new bytes replace is no longer written.
+ItemPtr addPageObject(Document &doc, PageBase &page, const office::ole::EmbeddedObject &object, const QRectF &rect);
+std::optional<office::ole::EmbeddedObject> pageObjectOf(const Document &doc, const PageBase &page, const QString &itemId);
+bool setPageObject(Document &doc, PageBase &page, const QString &itemId, const office::ole::EmbeddedObject &object);
 
 } // namespace jp::deck

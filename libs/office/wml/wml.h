@@ -13,6 +13,7 @@
 // document's defaults give the rest (StyleSheet::paragraph, StyleSheet::run).
 
 #include "office/relationship.h"
+#include "ole/embedobj.h"
 #include "office/theme.h"
 
 #include <QByteArray>
@@ -26,6 +27,7 @@
 #include <QVector>
 #include <memory>
 #include <atomic>
+#include <functional>
 #include <optional>
 #include <vector>
 
@@ -873,6 +875,19 @@ QByteArray sectionPropsXml(const SectionProps &s);
 
 // The namespace declarations an element kept as written is read under (a slice of a part is not given the prefixes the part declares on its root).
 QByteArray keptElementDeclarations();
+
+// Embedded objects (a run's w:object: a VML shape holding the picture and an o:OLEObject naming the package). objectXml writes the element for an object of ours (the Ids are the
+// relationships' of the package and of the picture; the size in points). readObject reads one back through `related`, which gives the bytes a relationship Id names (empty for a
+// link that is missing, goes outside the package, or is not internal): nothing if the element names no program, no package, or the object is over a cap or the budget's.
+QByteArray objectXml(const QString &progId, const QString &objectId, const QString &pictureId, int shapeNumber, double widthPt, double heightPt);
+struct ObjectRefs {
+    QString progId, objectId, pictureId;
+    double widthPt = 0, heightPt = 0;
+};
+std::optional<ObjectRefs> objectRefsOf(const QByteArray &raw);
+std::optional<ole::EmbeddedObject> readObject(const QByteArray &raw, const std::function<QByteArray(const QString &)> &related, ole::ObjectBudget &budget);
+// The element with its two Ids set again (what is kept of it stays as written).
+QByteArray objectXmlWith(const QByteArray &raw, const QString &objectId, const QString &pictureId);
 
 } // namespace jp::office::wml
 
