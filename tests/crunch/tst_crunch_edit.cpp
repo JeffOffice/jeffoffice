@@ -779,7 +779,8 @@ void CrunchEditTests::theCellMenusBarIsMadeOnceAndShowsTheSizeOfTheCell()
     delete first;
     QVERIFY(bar);   // (the bar is the window's: it is not taken down with the menu)
     QMenu *second = open();
-    QVERIFY(second && second != first);
+    QVERIFY(second);   // (not compared with first: that menu is deleted, and macOS hands its memory to the next one, Nov 18)
+    QCOMPARE(w.findChildren<QMenu *>(QStringLiteral("cellMenu")).size(), 1);
     QCOMPARE(w.miniCellBarsBuilt(), 1);
     QFrame *again = second->findChild<QFrame *>(QStringLiteral("miniToolbar"));
     QCOMPARE(again, bar);
