@@ -361,6 +361,7 @@ private:
             t->centerBlock = ctx.presentation && centeredBlock(p);
             const quint32 flow = p.value(0x0088, 0);
             t->vertical = flow == 1 || flow == 2 || flow == 3 || flow == 5;
+            t->turnedBack = flow == 2;   // (reading upward: 270 degrees, as in a .pub file)
             if (p.flag(0x00BF, 0x01, false)) t->autofit = TextItem::GrowBox;
             item = t;
         } else if (ctx.presentation && type >= 189 && type <= 200) {

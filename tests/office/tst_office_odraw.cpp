@@ -1145,6 +1145,22 @@ private Q_SLOTS:
         QCOMPARE(int(readOdrawShapes(odDrawing(odShape(202, 0xA00, {}, at, text)), OdrawContext()).size()), 1);
     }
 
+    void odrawReadsTextFlowTwoAsTurnedBackAndTheOtherFlowsAsNinety()
+    {
+        OdrawContext ctx = odContext();
+        const QByteArray at = odClientAnchor(0, 0, 100, 50);
+        const QByteArray text = odRecord(0, 0, 0xF00D, QByteArray("hello"));
+        for (const quint32 flow : {0u, 1u, 2u, 3u, 5u}) {
+            const ItemList items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0088, flow}}, at, text)), ctx);
+            QCOMPARE(int(items.size()), 1);
+            QVERIFY(items[0]->type() == ItemType::Text);
+            const auto *t = static_cast<const TextItem *>(items[0].get());
+            QCOMPARE(t->vertical, flow != 0);
+            QCOMPARE(t->turnedBack, flow == 2);   // (reading upward: 270 degrees, as in a .pub file)
+            QCOMPARE(t->rotation, 0.0);           // (the box itself is not turned half round)
+        }
+    }
+
     void odrawReadsPicturesWithTheirCrop()
     {
         QVector<int> asked;
