@@ -8,14 +8,22 @@
 #include "app/settings.h"
 #include "app/equationedit.h"
 #include "app/equationdialog.h"
+#include "app/theme.h"
 #include "io/pubimport.h"
 #include "wml/wmlmathedit.h"
+#include "wml/wmlmathast.h"
 #include "wml/wmlmathpath.h"
+#include "wml/xmltree.h"
+#include <QCryptographicHash>
 #include <QFile>
 #include <QDir>
 #include <QFileInfo>
+#include <QComboBox>
+#include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QPushButton>
+#include <QRadioButton>
 #include <QTemporaryDir>
 
 class PubEquationTests : public QObject {
@@ -375,6 +383,483 @@ private Q_SLOTS:
         QVERIFY2(content.contains(QRegularExpression(QStringLiteral("(?m)^(f\\*?|B\\*?|S)$"))), "no painted path");
         QVERIFY(!content.contains(QRegularExpression(QStringLiteral("(?m) Do$"))));
         QVERIFY(!pdf.contains("/Subtype /Image"));
+    }
+
+    // ---- Plain-text equations: UnicodeMath and LaTeX (the precedence table is in libs/office/wml/wmlmathuni.h) ----
+
+    static QByteArray um(const QString &text) { return jp::office::wml::equationFromUnicodeMath(text); }
+    static QByteArray tex(const QString &text) { return jp::office::wml::equationFromLatex(text); }
+    // (A function's name and the limit under it have a blank between them as a function, and none as the script of a letter run: the same characters in order.)
+    static QString noBlanks(QString s) { return s.remove(QLatin1Char(' ')); }
+    static QByteArray md5(const QByteArray &m) { return QCryptographicHash::hash(m, QCryptographicHash::Md5).toHex(); }
+    static QString xmlRoot(const QByteArray &body) { return QString::fromLatin1("<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\">") + QString::fromUtf8(body) + QStringLiteral("</m:oMath>"); }
+    static QByteArray xmlMath(const QByteArray &body) { return xmlRoot(body).toUtf8(); }
+
+    // Each of 13 structures, typed in both syntaxes: the same markup from both, the text it prints as reads back as the same markup, and the markup has the element the structure is.
+    void thirteenStructuresRoundTripInBothSyntaxes()
+    {
+        using namespace jp::office::wml;
+        struct Case {
+            const char *name;
+            QString uni, latex;
+            const char *element;
+        };
+        const QVector<Case> cases = {
+            {"fraction", QStringLiteral("a/b"), QStringLiteral("\\frac{a}{b}"), "<m:f>"},
+            {"scripts", QStringLiteral("x^2_i"), QStringLiteral("x^2_i"), "<m:sSubSup>"},
+            {"root", QStringLiteral("√(x)"), QStringLiteral("\\sqrt{x}"), "<m:rad>"},
+            {"nth root", QStringLiteral("√(3&x)"), QStringLiteral("\\sqrt[3]{x}"), "<m:deg><m:r><m:t>3</m:t>"},
+            {"sum", QStringLiteral("∑_(i=1)^n i"), QStringLiteral("\\sum_{i=1}^n i"), "<m:chr m:val=\"\u2211\"/><m:limLoc m:val=\"undOvr\"/>"},
+            {"integral", QStringLiteral("∫_0^1 x"), QStringLiteral("\\int_0^1 x"), "<m:limLoc m:val=\"subSup\"/>"},
+            {"brackets", QStringLiteral("(a|b)"), QStringLiteral("\\left( a \\middle| b \\right)"), "<m:sepChr m:val=\"|\"/>"},
+            {"matrix", QStringLiteral("\\matrix(a&b@c&d)"), QStringLiteral("\\begin{matrix} a & b \\\\ c & d \\end{matrix}"), "<m:mr>"},
+            {"matrix in brackets", QStringLiteral("(\\matrix(1&0@0&1))"), QStringLiteral("\\begin{pmatrix} 1 & 0 \\\\ 0 & 1 \\end{pmatrix}"), "<m:d><m:dPr><m:begChr m:val=\"(\"/><m:endChr m:val=\")\"/></m:dPr><m:e><m:m>"},
+            {"normal text", QStringLiteral("\"if\""), QStringLiteral("\\text{if}"), "<m:nor/>"},
+            {"accent", QString::fromUtf8("x\u0302"), QStringLiteral("\\hat{x}"), "<m:acc>"},
+            {"function", QStringLiteral("sin x"), QStringLiteral("\\sin x"), "<m:func>"},
+            {"limit", QString::fromUtf8("lim_(x→0) f"), QStringLiteral("\\lim_{x\\to 0} f"), "<m:limLow>"},
+            {"bar", QStringLiteral("\\overline(x)"), QStringLiteral("\\overline{x}"), "<m:bar>"},
+        };
+        for (const Case &c : cases) {
+            const QByteArray fromUni = um(c.uni), fromLatex = tex(c.latex);
+            QVERIFY2(!fromUni.isEmpty(), c.name);
+            QVERIFY2(!fromLatex.isEmpty(), c.name);
+            QVERIFY2(fromUni.contains(c.element), c.name);
+            QVERIFY2(fromLatex.contains(c.element), c.name);
+            QCOMPARE(fromLatex, fromUni);
+            const QString uniOut = equationToUnicodeMath(fromUni), latexOut = equationToLatex(fromUni);
+            QVERIFY2(!uniOut.isEmpty() && !latexOut.isEmpty(), c.name);
+            QVERIFY2(um(uniOut) == fromUni, c.name);
+            QVERIFY2(tex(latexOut) == fromUni, c.name);
+            QVERIFY2(!equationLine(fromUni).isEmpty(), c.name);
+        }
+    }
+
+    // The precedence table: what binds to what, as two ways of writing the same equation that make the same markup.
+    void theUnicodeMathPrecedenceTable()
+    {
+        const QVector<std::pair<QString, QString>> same = {
+            {QStringLiteral("a/b/c"), QStringLiteral("(a/b)/c")},                  // a fraction is left to right
+            {QStringLiteral("1+x/2"), QString::fromUtf8("1+〖x/2〗")},                  // only the atom before the slash is the numerator
+            {QStringLiteral("ab/c"), QString::fromUtf8("a〖b/c〗")},
+            {QStringLiteral("x^a^b"), QStringLiteral("x^(a^b)")},                  // a second script of one kind goes on the first's operand
+            {QStringLiteral("x^a_b^c"), QStringLiteral("x_b^(a^c)")},
+            {QStringLiteral("x^2_i"), QStringLiteral("x_i^2")},                    // one of each, in either order
+            {QStringLiteral("a^2/b"), QStringLiteral("(a^2)/b")},                  // scripts bind tighter than the slash
+            {QStringLiteral("a/b^2"), QStringLiteral("a/(b^2)")},
+            {QStringLiteral("sin x/2"), QString::fromUtf8("sin〖x/2〗")},           // a function takes a term: an element and the fractions after it
+            {QStringLiteral("sin x cos y"), QStringLiteral("sin x cos y")},
+            {QString::fromUtf8("√x^2"), QString::fromUtf8("〖√x〗^2")},               // a root takes an atom, then scripts go on the root
+            {QString::fromUtf8("x\u0302^2"), QString::fromUtf8("〖x\u0302〗^2")},    // an accent binds tighter than scripts
+            {QStringLiteral("(a+b)/c"), QString::fromUtf8("〖a+b〗/c")},            // brackets on either side of a slash are not shown
+            {QStringLiteral("x_(i+1)"), QString::fromUtf8("x_〖i+1〗")},
+            {QString::fromUtf8("∑_i x_i/2"), QString::fromUtf8("∑_i 〖x_i/2〗")},   // a large operator takes a term
+        };
+        for (const auto &p : same) {
+            const QByteArray a = um(p.first), b = um(p.second);
+            QVERIFY2(!a.isEmpty() && !b.isEmpty(), qPrintable(p.first));
+            QVERIFY2(a == b, qPrintable(p.first + QStringLiteral(" vs ") + p.second));
+        }
+        // ... and where they differ from the other reading.
+        QVERIFY(um(QStringLiteral("a/b/c")) != um(QStringLiteral("a/(b/c)")));
+        QVERIFY(um(QStringLiteral("1+x/2")) != um(QStringLiteral("(1+x)/2")));
+        QVERIFY(um(QStringLiteral("x^a^b")) != um(QStringLiteral("(x^a)^b")));
+        // Brackets are kept as the base of a script, as the argument of a function, and as the operand of a large operator.
+        QVERIFY(um(QStringLiteral("(a+b)^2")).contains("<m:sSup><m:e><m:d>"));
+        QVERIFY(um(QStringLiteral("sin(x)")).contains("<m:e><m:d>"));
+        QVERIFY(um(QString::fromUtf8("∑_i (x+1)")).contains("<m:e><m:d>"));
+        QVERIFY(!um(QStringLiteral("(a+b)/c")).contains("<m:d>"));
+        // A sign after a function name or a large operator is not its operand.
+        QVERIFY(!um(QStringLiteral("sin+x")).contains("<m:func>"));
+        // The same table in LaTeX: an element is an atom with its scripts, and a digit is one operand.
+        QCOMPARE(tex(QStringLiteral("\\frac12")), um(QStringLiteral("1/2")));
+        QCOMPARE(tex(QStringLiteral("x^10")), tex(QStringLiteral("x^{1}0")));
+        QCOMPARE(tex(QStringLiteral("x^a^b")), tex(QStringLiteral("x^{a^b}")));
+        QVERIFY(tex(QStringLiteral("\\sum_{i=1}^n i^2")).contains("<m:e><m:sSup>"));
+        QVERIFY(tex(QStringLiteral("\\sin^2 x")).contains("<m:fName><m:sSup>"));
+        QVERIFY(tex(QStringLiteral("\\sum\\limits_a b")).contains("undOvr"));
+        QVERIFY(tex(QStringLiteral("\\int\\limits_a b")).contains("<m:limLoc m:val=\"undOvr\"/>"));
+        QVERIFY(tex(QStringLiteral("\\sum\\nolimits_a b")).contains("<m:limLoc m:val=\"subSup\"/>"));
+    }
+
+    // 12 from the gallery and 188 made from its pieces, as lines of our own syntax: the markup prints in both syntaxes, reads back, prints the same, and says the same letters.
+    void twoHundredEquationsGoThroughBothSyntaxesAndBack()
+    {
+        using namespace jp::office::wml;
+        quint32 seed = 20261117;
+        auto next = [&](int n) {
+            seed = seed * 1664525u + 1013904223u;
+            return int((seed >> 16) % quint32(n));
+        };
+        const QStringList atoms = {QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("x"), QStringLiteral("y"), QStringLiteral("k"), QStringLiteral("2"), QStringLiteral("12"),
+                                   QStringLiteral("\\alpha"), QStringLiteral("\\pi"), QStringLiteral("n")};
+        std::function<QString(int)> gen = [&](int depth) -> QString {
+            if (depth <= 0) return atoms[next(int(atoms.size()))];
+            switch (next(16)) {
+            case 0: return QLatin1Char('(') + gen(depth - 1) + QStringLiteral(")/(") + gen(depth - 1) + QLatin1Char(')');
+            case 1: return atoms[next(int(atoms.size()))] + QStringLiteral("^(") + gen(depth - 1) + QLatin1Char(')');
+            case 2: return atoms[next(int(atoms.size()))] + QStringLiteral("_(") + gen(depth - 1) + QLatin1Char(')');
+            case 3: return QStringLiteral("\\sqrt(") + gen(depth - 1) + QLatin1Char(')');
+            case 4: return QStringLiteral("\\sum_(i=1)^n ") + atoms[next(int(atoms.size()))];
+            case 5: return QStringLiteral("\\int_0^1 ") + atoms[next(int(atoms.size()))];
+            case 6: return QStringLiteral("\\hat{") + gen(depth - 1) + QLatin1Char('}');
+            case 7: return QStringLiteral("\\bar{") + atoms[next(int(atoms.size()))] + QLatin1Char('}');
+            case 8: return QStringLiteral("\\left( ") + gen(depth - 1) + QStringLiteral(" \\right)");
+            case 9: return QStringLiteral("\\pmatrix{") + gen(depth - 1) + QStringLiteral(" & ") + gen(depth - 1) + QStringLiteral(" \\\\ ") + gen(depth - 1) + QStringLiteral(" & ") + gen(depth - 1) + QLatin1Char('}');
+            case 10: return gen(depth - 1) + QLatin1Char('+') + gen(depth - 1);
+            case 11: return gen(depth - 1) + QLatin1Char('=') + gen(depth - 1);
+            case 12: return QLatin1Char('(') + gen(depth - 1) + QLatin1Char(')');
+            case 13: return QStringLiteral("\\sqrt[3](") + gen(depth - 1) + QLatin1Char(')');
+            case 14: return QStringLiteral("\"if\" ") + gen(depth - 1);
+            default: return atoms[next(int(atoms.size()))] + QLatin1Char(' ') + atoms[next(int(atoms.size()))];
+            }
+        };
+        QStringList lines;
+        for (const EquationDesign &d : equationGallery()) lines << d.linear;
+        while (lines.size() < 200) lines << gen(3);
+        int viaUni = 0, viaLatex = 0;
+        for (const QString &line : lines) {
+            bool ok = false;
+            const QByteArray m0 = equationMarkup(line, &ok);
+            QVERIFY2(ok, qPrintable(line));
+            for (int syntax = 0; syntax < 2; ++syntax) {
+                const QString text = syntax == 0 ? equationToUnicodeMath(m0) : equationToLatex(m0);
+                QVERIFY2(!text.isEmpty(), qPrintable(line));
+                const QByteArray m1 = syntax == 0 ? um(text) : tex(text);
+                QVERIFY2(!m1.isEmpty(), qPrintable(line + QStringLiteral(" -> ") + text));
+                QCOMPARE(syntax == 0 ? equationToUnicodeMath(m1) : equationToLatex(m1), text);
+                QVERIFY2(noBlanks(equationLine(m1)) == noBlanks(equationLine(m0)), qPrintable(line + QStringLiteral(" -> ") + text + QStringLiteral(": ") + equationLine(m1) + QStringLiteral(" vs ") + equationLine(m0)));
+                (syntax == 0 ? viaUni : viaLatex)++;
+            }
+        }
+        QCOMPARE(viaUni, 200);
+        QCOMPARE(viaLatex, 200);
+    }
+
+    // Our own lines make exactly the markup they made before (a hash of each), and a line with words in quotes makes Normal Text.
+    void ourLinesAreUnchangedAndQuotedWordsAreNormalText()
+    {
+        using namespace jp::office::wml;
+        const QVector<std::pair<QString, const char *>> kept = {
+            {QStringLiteral("\\alpha+\\beta"), "1a4eb2e96853ec5314aa4dafe2b01f2d"},
+            {QStringLiteral("(a+b)^2"), "d7246b0a61bb9510a19f144c25aed8d3"},
+            {QStringLiteral("a/b+x_i^2"), "feb16f7997aed9cbc3671d346aeab950"},
+            {QStringLiteral("\\sqrt[3](x)"), "66494a390970f1e83e4f6b3815bf30a4"},
+            {QStringLiteral("sin(x)+lim_(h\\to 0) h"), "7c636d942182528a7e77ee1d6485fbbc"},
+        };
+        for (const auto &k : kept) QCOMPARE(md5(equationMarkup(k.first)).constData(), k.second);
+        const char *gallery[] = {"4e0a7b76a6dbb7b6476728baf26c0830", "5399e0ef0a40c201fd60c4eb75ec23e7", "08ccec7d5e75364b65acce6a869c8ff4", "285b7cd8083e89db2db80b1ffcd304cb",
+                                 "79dd970fcf7375738246f9d67d2418f7", "796fa7da5906f5142f7d3da9c8734e65", "3df9a82db9c79c874603c893f652d19a", "14a604f93e13006fdc814a10c0d3f6f4",
+                                 "973300445e18ae6ae636500154db24cb", "4b9c3475dee53386a36e08e19de77ae7", "769227181069896ef8337bb552d3885f", "55f1234502f5ef8b7dd3f05f4bdee463"};
+        QCOMPARE(equationGallery().size(), 12);
+        for (int i = 0; i < 12; ++i) QCOMPARE(md5(equationMarkup(equationGallery().at(i).linear)).constData(), gallery[i]);
+        // Words in quotes: a run of Normal Text, kept as typed, and the line it is shown as comes back.
+        const QByteArray m = equationMarkup(QStringLiteral("x=2 \"if x>0\""));
+        QVERIFY(m.contains("<m:rPr><m:nor/></m:rPr><m:t xml:space=\"preserve\">if x&gt;0</m:t>"));
+        QVERIFY(equationLine(m).endsWith(QStringLiteral("if x>0")));
+        QCOMPARE(equationLinear(m), QStringLiteral("x=2 \"if x>0\""));
+        QCOMPARE(equationMarkup(equationLinear(m)), m);
+        QCOMPARE(equationMarkup(QStringLiteral("\"a \\\"quote\\\"\"")).count("<m:nor/>"), 1);
+        QCOMPARE(equationLinear(equationMarkup(QStringLiteral("\"a \\\"quote\\\" and \\\\\""))), QStringLiteral("\"a \\\"quote\\\" and \\\\\""));
+    }
+
+    // Markup another program wrote has properties our lines never make (a font on every run): today's equationLinear says nothing for it. The two syntaxes print any markup they can say.
+    void markupFromAnotherProgramPrintsInEverySyntax()
+    {
+        using namespace jp::office::wml;
+        const QString run = QStringLiteral("<m:r><w:rPr><w:rFonts w:ascii=\"Serif\" w:hAnsi=\"Serif\"/></w:rPr><m:t>%1</m:t></m:r>");
+        const QByteArray frac = xmlMath("<m:f><m:fPr><m:ctrlPr><w:rPr><w:rFonts w:ascii=\"Serif\"/></w:rPr></m:ctrlPr></m:fPr><m:num>" + run.arg(QStringLiteral("a")).toUtf8() + "</m:num><m:den>" + run.arg(QStringLiteral("b")).toUtf8() + "</m:den></m:f>");
+        QCOMPARE(equationLinear(frac), QStringLiteral("{a}/{b}"));
+        QCOMPARE(equationToUnicodeMath(frac), QStringLiteral("a/b"));
+        QCOMPARE(equationToLatex(frac), QStringLiteral("\\frac{a}{b}"));
+        QCOMPARE(equationMarkup(equationLinear(frac)).count("<m:f>"), 1);
+        // A function, a root with a hidden degree, and a paragraph of one equation.
+        const QByteArray func = xmlMath("<m:func><m:fName><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr><m:t>sin</m:t></m:r></m:fName><m:e><m:r><m:t>x</m:t></m:r></m:e></m:func>");
+        QCOMPARE(equationToUnicodeMath(func), QStringLiteral("sin x"));
+        QCOMPARE(equationToLatex(func), QStringLiteral("\\sin x"));
+        const QByteArray para = "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"center\"/></m:oMathParaPr>" + xmlMath("<m:r><m:t>y</m:t></m:r>") + "</m:oMathPara>";
+        QCOMPARE(equationToUnicodeMath(para), QStringLiteral("y"));
+        // What the syntaxes can't say is refused as a whole: a fraction without a bar, a group of characters, an equation array, a bold-italic run, and brackets that do not grow.
+        const char *refused[] = {"<m:f><m:fPr><m:type m:val=\"noBar\"/></m:fPr><m:num><m:r><m:t>n</m:t></m:r></m:num><m:den><m:r><m:t>k</m:t></m:r></m:den></m:f>",
+                                 "<m:groupChr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:groupChr>", "<m:eqArr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:eqArr>",
+                                 "<m:r><m:rPr><m:sty m:val=\"bi\"/></m:rPr><m:t>x</m:t></m:r>", "<m:d><m:dPr><m:grow m:val=\"0\"/></m:dPr><m:e><m:r><m:t>x</m:t></m:r></m:e></m:d>"};
+        for (const char *body : refused) {
+            const QByteArray m = xmlMath(body);
+            QVERIFY2(equationToUnicodeMath(m).isEmpty(), body);
+            QVERIFY2(equationToLatex(m).isEmpty(), body);
+            QVERIFY2(equationLinear(m).isEmpty(), body);
+        }
+        QVERIFY(equationToUnicodeMath(QByteArray("not xml")).isEmpty());
+        QVERIFY(equationToLatex(QByteArray()).isEmpty());
+    }
+
+    // Normal Text is drawn upright, as typed (no spacing round a sign), where math letters lean and signs have room.
+    void normalTextIsDrawnUprightAsTyped()
+    {
+        using namespace jp::office::wml;
+        const double em = 40;
+        auto width = [&](const QByteArray &m) {
+            const EquationShape shape = equationShape(m, em);
+            return shape.path.boundingRect().width();
+        };
+        const QByteArray normalL = um(QStringLiteral("\"lll\"")), italicL = um(QStringLiteral("lll"));
+        QVERIFY(normalL.contains("<m:nor/>") && !italicL.contains("<m:nor/>"));
+        const EquationShape n = equationShape(normalL, em), i = equationShape(italicL, em);
+        QVERIFY(n.valid() && i.valid());
+        QVERIFY(n.path != i.path);
+        // (an upright stem is as wide as one stem; a leaning one is wider by the lean over its height)
+        QVERIFY2(n.path.boundingRect().width() < i.path.boundingRect().width() - 0.05 * em, qPrintable(QString::number(n.path.boundingRect().width()) + " vs " + QString::number(i.path.boundingRect().width())));
+        // A sign in Normal Text has no room round it: "1+1" is narrower than math 1+1 by about the two gaps.
+        QVERIFY2(width(um(QStringLiteral("\"1+1\""))) < width(um(QStringLiteral("1+1"))) - 0.3 * em, "no room round a sign in Normal Text");
+        QVERIFY(equationLine(um(QStringLiteral("\"1+1\""))) == QStringLiteral("1+1"));
+        QVERIFY(equationLine(um(QStringLiteral("1+1"))) == QStringLiteral("1 + 1"));
+        QCOMPARE(equationLine(um(QStringLiteral("\"if x\""))), QStringLiteral("if x"));
+    }
+
+    // Every limit of the parsers and the printers, at the cap exactly: the cap's worth is built, one more is refused.
+    void theLimitsOfTheParsersAndPrintersHoldAtTheCapExactly()
+    {
+        using namespace jp::office::wml;
+        using jp::office::wml::mathtree::kMostNodes;
+        auto count = [](const QByteArray &m, const char *what) { return m.isEmpty() ? -1 : int(m.count(what)); };
+        // The most characters (kMostEquationInput): 2,000 letters make 2,000 runs, 2,001 make none.
+        for (int syntax = 0; syntax < 2; ++syntax) {
+            auto parse = [&](const QString &t, bool *ok) { return syntax == 0 ? equationFromUnicodeMath(t, ok) : equationFromLatex(t, ok); };
+            bool ok = false;
+            QCOMPARE(count(parse(QString(kMostEquationInput, QLatin1Char('x')), &ok), "<m:r>"), kMostEquationInput);
+            QVERIFY(ok);
+            QVERIFY(parse(QString(kMostEquationInput + 1, QLatin1Char('x')), &ok).isEmpty());
+            QVERIFY(!ok);
+            // ... and the most nested: 24 brackets build, 25 do not.
+            const QString open = syntax == 0 ? QStringLiteral("(") : QStringLiteral("\\left("), close = syntax == 0 ? QStringLiteral(")") : QStringLiteral("\\right)");
+            QCOMPARE(count(parse(open.repeated(kMostEquationDepth) + QLatin1Char('x') + close.repeated(kMostEquationDepth), &ok), "<m:d>"), kMostEquationDepth);
+            QVERIFY(parse(open.repeated(kMostEquationDepth + 1) + QLatin1Char('x') + close.repeated(kMostEquationDepth + 1), &ok).isEmpty());
+            // A matrix of 1,024 cells (16 rows of 64), not one of 1,025 (25 rows of 41), not 65 columns, not 65 rows.
+            auto matrix = [&](int rows, int cols) {
+                QStringList r;
+                for (int i = 0; i < rows; ++i) r << QString(cols - 1, QLatin1Char('&'));
+                return syntax == 0 ? QStringLiteral("\\matrix(") + r.join(QLatin1Char('@')) + QLatin1Char(')') : QStringLiteral("\\begin{matrix}") + r.join(QStringLiteral("\\\\")) + QStringLiteral("\\end{matrix}");
+            };
+            QCOMPARE(count(parse(matrix(16, 64), &ok), "<m:e>"), 1024);
+            QCOMPARE(count(parse(matrix(16, 64), &ok), "<m:mr>"), 16);
+            QVERIFY(parse(matrix(25, 41), &ok).isEmpty());
+            QVERIFY(parse(matrix(1, 65), &ok).isEmpty());
+            QCOMPARE(count(parse(matrix(1, 64), &ok), "<m:e>"), 64);
+            // (rows that hold something, so that the last is not the empty one a trailing separator leaves)
+            auto tall = [&](int rows) {
+                QStringList r;
+                for (int i = 0; i < rows; ++i) r << QStringLiteral("a");
+                return syntax == 0 ? QStringLiteral("\\matrix(") + r.join(QLatin1Char('@')) + QLatin1Char(')') : QStringLiteral("\\begin{matrix}") + r.join(QStringLiteral("\\\\")) + QStringLiteral("\\end{matrix}");
+            };
+            QCOMPARE(count(parse(tall(64), &ok), "<m:mr>"), 64);
+            QVERIFY(parse(tall(65), &ok).isEmpty());
+            // A command that nests deeper than the depth cap (24 fractions in a chain) is refused too, though no bracket is in it.
+            QString chain = syntax == 0 ? QStringLiteral("1") : QString();
+            QString latex = QStringLiteral("1");
+            for (int i = 0; i < kMostEquationDepth; ++i) {
+                chain += QStringLiteral("/1");
+                latex = QStringLiteral("\\frac{") + latex + QStringLiteral("}{1}");
+            }
+            QCOMPARE(count(parse(syntax == 0 ? chain : latex, &ok), "<m:f>"), kMostEquationDepth);
+            QVERIFY(parse(syntax == 0 ? chain + QStringLiteral("/1") : QStringLiteral("\\frac{") + latex + QStringLiteral("}{1}"), &ok).isEmpty());
+        }
+        // Printing: 2,000 characters of text print, 2,001 do not (either syntax).
+        auto letters = [](int n) {
+            QByteArray body;
+            for (int i = 0; i < n; ++i) body += "<m:r><m:t>x</m:t></m:r>";
+            return xmlMath(body);
+        };
+        QCOMPARE(equationToUnicodeMath(letters(kMostEquationInput)).size(), kMostEquationInput);
+        QVERIFY(equationToUnicodeMath(letters(kMostEquationInput + 1)).isEmpty());
+        QCOMPARE(equationToLatex(letters(kMostEquationInput)).size(), kMostEquationInput);
+        QVERIFY(equationToLatex(letters(kMostEquationInput + 1)).isEmpty());
+        // Reading: 4,000 pieces are read, 4,001 are not (empty runs print nothing, so the text stays short).
+        auto pieces = [](int n) {
+            QByteArray body;
+            for (int i = 0; i < n - 1; ++i) body += "<m:r><m:t></m:t></m:r>";
+            return xmlMath(body + "<m:r><m:t>z</m:t></m:r>");
+        };
+        QCOMPARE(equationToUnicodeMath(pieces(kMostNodes)), QStringLiteral("z"));
+        QVERIFY(equationToUnicodeMath(pieces(kMostNodes + 1)).isEmpty());
+        QCOMPARE(equationToLatex(pieces(kMostNodes)), QStringLiteral("z"));
+        QVERIFY(equationToLatex(pieces(kMostNodes + 1)).isEmpty());
+        // Reading: 24 brackets in brackets print, 25 do not.
+        auto nested = [](int n) {
+            QByteArray body = "<m:r><m:t>x</m:t></m:r>";
+            for (int i = 0; i < n; ++i) body = "<m:d><m:e>" + body + "</m:e></m:d>";
+            return xmlMath(body);
+        };
+        QCOMPARE(equationToUnicodeMath(nested(kMostEquationDepth)).size(), 2 * kMostEquationDepth + 1);
+        QVERIFY(equationToUnicodeMath(nested(kMostEquationDepth + 1)).isEmpty());
+        QVERIFY(equationToLatex(nested(kMostEquationDepth + 1)).isEmpty());
+        QVERIFY(!equationToLatex(nested(kMostEquationDepth)).isEmpty());
+        // Reading a matrix: 1,024 cells print, 1,025 do not.
+        auto cells = [](int rows, int cols) {
+            QByteArray body = "<m:m>";
+            for (int r = 0; r < rows; ++r) {
+                body += "<m:mr>";
+                for (int c = 0; c < cols; ++c) body += "<m:e><m:r><m:t></m:t></m:r></m:e>";
+                body += "</m:mr>";
+            }
+            return xmlMath(body + "</m:m>");
+        };
+        QVERIFY(!equationToUnicodeMath(cells(16, 64)).isEmpty());
+        QVERIFY(equationToUnicodeMath(cells(25, 41)).isEmpty());
+        QVERIFY(equationToLatex(cells(25, 41)).isEmpty());
+    }
+
+    // Text made of the characters the syntaxes use, in no sense at all: the parsers never break, the markup is well formed, and whatever prints reads back to the same print.
+    void randomTextNeverBreaksTheParsersAndPrintsStably()
+    {
+        using namespace jp::office::wml;
+        quint32 seed = 7;
+        auto next = [&](int n) {
+            seed = seed * 1664525u + 1013904223u;
+            return int((seed >> 16) % quint32(n));
+        };
+        const QStringList uniPieces = {QStringLiteral("a"), QStringLiteral("x"), QStringLiteral("2"), QStringLiteral("1.5"), QStringLiteral("+"), QStringLiteral("="), QStringLiteral("/"), QStringLiteral("^"),
+                                       QStringLiteral("_"), QStringLiteral("("), QStringLiteral(")"), QStringLiteral("["), QStringLiteral("]"), QStringLiteral("{"), QStringLiteral("}"), QStringLiteral("|"),
+                                       QStringLiteral("&"), QStringLiteral("@"), QStringLiteral("#"), QStringLiteral(" "), QStringLiteral("\""), QStringLiteral("\\"), QStringLiteral("\\ "), QStringLiteral("\\alpha"),
+                                       QStringLiteral("\\matrix("), QStringLiteral("\\hat"), QStringLiteral("\\overline"), QStringLiteral("\\sqrt"), QStringLiteral("sin"), QStringLiteral("lim"),
+                                       QString::fromUtf8("√"), QString::fromUtf8("∛"), QString::fromUtf8("∑"), QString::fromUtf8("∫"), QString::fromUtf8("├"), QString::fromUtf8("┤"), QString::fromUtf8("〖"),
+                                       QString::fromUtf8("〗"), QString::fromUtf8("■"), QString::fromUtf8("̂"), QString::fromUtf8("π"), QStringLiteral("\\limits"), QStringLiteral("\\nolimits")};
+        const QStringList texPieces = {QStringLiteral("a"), QStringLiteral("x"), QStringLiteral("2"), QStringLiteral("+"), QStringLiteral("{"), QStringLiteral("}"), QStringLiteral("^"), QStringLiteral("_"),
+                                       QStringLiteral("&"), QStringLiteral(" "), QStringLiteral("\\\\"), QStringLiteral("\\frac"), QStringLiteral("\\sqrt"), QStringLiteral("["), QStringLiteral("]"),
+                                       QStringLiteral("\\left"), QStringLiteral("\\right"), QStringLiteral("\\middle"), QStringLiteral("("), QStringLiteral(")"), QStringLiteral("|"), QStringLiteral("."),
+                                       QStringLiteral("\\sum"), QStringLiteral("\\int"), QStringLiteral("\\limits"), QStringLiteral("\\sin"), QStringLiteral("\\lim"), QStringLiteral("\\hat"),
+                                       QStringLiteral("\\text{"), QStringLiteral("\\mathrm{"), QStringLiteral("\\begin{matrix}"), QStringLiteral("\\end{matrix}"), QStringLiteral("\\alpha"),
+                                       QStringLiteral("\\overline"), QStringLiteral("\\operatorname{"), QStringLiteral("\\{"), QStringLiteral("\\,"), QStringLiteral("~")};
+        int built = 0, printed = 0;
+        for (int round = 0; round < 6000; ++round) {
+            const bool uni = round % 2 == 0;
+            const QStringList &pieces = uni ? uniPieces : texPieces;
+            QString text;
+            for (int n = 1 + next(14); n > 0; --n) text += pieces[next(int(pieces.size()))];
+            const QByteArray m = uni ? um(text) : tex(text);
+            if (m.isEmpty()) continue;
+            ++built;
+            XmlTree t;
+            QVERIFY2(t.parse(m), qPrintable(text));
+            for (int syntax = 0; syntax < 2; ++syntax) {
+                const QString u1 = syntax == 0 ? equationToUnicodeMath(m) : equationToLatex(m);
+                if (u1.isEmpty()) continue;
+                ++printed;
+                const QByteArray m2 = syntax == 0 ? um(u1) : tex(u1);
+                QVERIFY2(!m2.isEmpty(), qPrintable(text + QStringLiteral(" -> ") + u1));
+                QVERIFY2((syntax == 0 ? equationToUnicodeMath(m2) : equationToLatex(m2)) == u1, qPrintable(QString::number(syntax) + QStringLiteral(" [") + text + QStringLiteral("] -> [") + u1 + QStringLiteral("] -> [") + (syntax == 0 ? equationToUnicodeMath(m2) : equationToLatex(m2)) + QLatin1Char(']')));
+            }
+        }
+        QVERIFY2(built > 1500 && printed > 1500, qPrintable(QString::number(built) + QLatin1Char(' ') + QString::number(printed)));
+    }
+    // The dialog's choices: the equation typed in our line (the first), UnicodeMath, or LaTeX, shown built up (Professional) or only as typed (Linear). A new format writes what is
+    // typed again in it, an equation the line has no way to say is not taken by a program that only keeps lines, and the markup is what a program that keeps it is given.
+    void theEquationDialogHasProfessionalAndLinearAndTheThreeFormats()
+    {
+        QString line = QStringLiteral("x_i");
+        QByteArray markup;
+        withDialog([&] { QVERIFY(jp::askEquationMarkup(nullptr, QStringLiteral("x"), &line, &markup)); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            auto *syntax = d->findChild<QComboBox *>(QStringLiteral("equationSyntax"));
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            auto *preview = d->findChild<QLabel *>(QStringLiteral("equationPreview"));
+            auto *drawn = d->findChild<QLabel *>(QStringLiteral("equationDrawn"));
+            auto *professional = d->findChild<QRadioButton *>(QStringLiteral("equationProfessional"));
+            auto *linearForm = d->findChild<QRadioButton *>(QStringLiteral("equationLinear"));
+            QVERIFY(syntax && input && preview && drawn && professional && linearForm);
+            QCOMPARE(syntax->currentIndex(), 0);   // (our line is what it was)
+            QCOMPARE(syntax->count(), 3);
+            QVERIFY(professional->isChecked() && !drawn->isHidden());
+            input->setText(QStringLiteral("a/b"));
+            QCOMPARE(preview->text(), QStringLiteral("a/b"));
+            // UnicodeMath: the line is written again, and an equation the line can't say is taken (the markup is what is kept).
+            syntax->setCurrentIndex(1);
+            Q_EMIT syntax->activated(1);
+            QCOMPARE(input->text(), QStringLiteral("a/b"));
+            input->setText(QStringLiteral("sin x"));
+            QVERIFY(d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok)->isEnabled());
+            syntax->setCurrentIndex(2);
+            Q_EMIT syntax->activated(2);
+            QCOMPARE(input->text(), QStringLiteral("\\sin x"));
+            // Linear shows no drawing, Professional shows it again.
+            linearForm->setChecked(true);
+            QVERIFY(drawn->isHidden());
+            professional->setChecked(true);
+            QVERIFY(!drawn->isHidden());
+            // A format the typed equation can't be written in leaves the text and the format as they were.
+            input->setText(QStringLiteral("\\text{if}"));
+            syntax->setCurrentIndex(0);
+            Q_EMIT syntax->activated(0);
+            QCOMPARE(input->text(), QStringLiteral("\"if\""));
+            syntax->setCurrentIndex(1);
+            Q_EMIT syntax->activated(1);
+            input->setText(QStringLiteral("sin x"));
+            syntax->setCurrentIndex(0);
+            Q_EMIT syntax->activated(0);
+            QCOMPARE(syntax->currentIndex(), 1);
+            QCOMPARE(input->text(), QStringLiteral("sin x"));
+            QVERIFY(preview->text().contains(QStringLiteral("can't be written")));
+            input->setText(QStringLiteral("a/b"));
+            syntax->setCurrentIndex(0);
+            Q_EMIT syntax->activated(0);
+            QCOMPARE(input->text(), QStringLiteral("{a}/{b}"));
+        });
+        QVERIFY(markup.contains("<m:f>"));
+        QCOMPARE(line, QStringLiteral("{a}/{b}"));
+        // A program that keeps only lines can't take an equation with none (a function): its OK is off until the equation has one.
+        QString onlyLine;
+        withDialog([&] { jp::askEquation(nullptr, QStringLiteral("x"), &onlyLine); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            auto *syntax = d->findChild<QComboBox *>(QStringLiteral("equationSyntax"));
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            auto *ok = d->findChild<QDialogButtonBox *>()->button(QDialogButtonBox::Ok);
+            syntax->setCurrentIndex(1);
+            Q_EMIT syntax->activated(1);
+            input->setText(QStringLiteral("sin x"));
+            QVERIFY(!ok->isEnabled());
+            input->setText(QStringLiteral("x^2"));
+            QVERIFY(ok->isEnabled());
+        });
+        QCOMPARE(onlyLine, QStringLiteral("{x}^{2}"));
+    }
+
+    // For the pictures of the dialog (JO_SHOT_DIR names the folder; the test does nothing without it).
+    void theEquationDialogPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        QString line = QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)");
+        QByteArray markup;
+        withDialog([&] { jp::askEquationMarkup(nullptr, QStringLiteral("Insert Equation"), &line, &markup); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            d->resize(560, d->sizeHint().height());
+            QTest::qWait(50);
+            shotOf(d, QStringLiteral("equation-dialog-professional"));
+            d->findChild<QRadioButton *>(QStringLiteral("equationLinear"))->setChecked(true);
+            auto *syntax = d->findChild<QComboBox *>(QStringLiteral("equationSyntax"));
+            syntax->setCurrentIndex(1);
+            Q_EMIT syntax->activated(1);
+            QTest::qWait(50);
+            shotOf(d, QStringLiteral("equation-dialog-linear-unicodemath"));
+        });
+    }
+
+    // Text with control characters makes markup that is well formed, and a lone surrogate or a noncharacter is left out.
+    void hostileTextMakesWellFormedMarkup()
+    {
+        using namespace jp::office::wml;
+        const QString nasty = QStringLiteral("a\x01 b\x1f ") + QChar(0xD800) + QChar(0xFFFF) + QStringLiteral("\"c\x02\"");
+        for (const QByteArray &m : {um(nasty), tex(QStringLiteral("a\x01 b \\text{c\x02}"))}) {
+            QVERIFY(!m.isEmpty());
+            for (const char c : m) QVERIFY(uchar(c) >= 0x20 || c == '\n' || c == '\t');
+            jp::office::wml::XmlTree t;
+            QVERIFY(t.parse(m));
+        }
+        QVERIFY(um(QStringLiteral("\"never closed")).contains("never closed"));
+        QVERIFY(tex(QStringLiteral("\\frac{a}{b")).isEmpty());          // a brace that does not close
+        QVERIFY(tex(QStringLiteral("a}")).isEmpty());                   // ... or does not open
+        QVERIFY(tex(QStringLiteral("\\left( x")).isEmpty());            // brackets with no \right
+        QVERIFY(tex(QStringLiteral("\\begin{matrix} a")).isEmpty());   // an environment with no \end
+        QVERIFY(tex(QStringLiteral("\\begin{array}{c} a \\end{array}")).isEmpty());   // an environment there is no form for
+        QVERIFY(tex(QStringLiteral("\\begin{matrix} a \\end{pmatrix}")).isEmpty());
+        QVERIFY(um(QStringLiteral("\\matrix a")).isEmpty());
+        QVERIFY(um(QStringLiteral("   ")).isEmpty());
     }
 };
 
