@@ -3875,14 +3875,9 @@ private Q_SLOTS:
                 }
             return best;
         };
-        // The presets whose drawing is not the standard's yet, with the worst distance measured (a limit: it may not grow, and a shape that comes within 1 pt must leave the list).
-        // The standard puts a site at the middle of an arc's, a chord's, and a block arc's sector, and at the top and bottom of a bracket or brace pair where only the fill covers the box;
-        // the library draws no fill there. The rest are shapes the library draws its own way: the curved, circular, and U-turn arrows, the ribbons, and the clouds.
-        // (The file reader draws arc, chord, and block arc from the standard's own paths already.) The multi-document's site is off its curve in the standard's own numbers.
-        const QHash<QString, double> exceptions = {
-            {"curvedUpArrow", 87.3}, {"curvedRightArrow", 87.3}, {"curvedLeftArrow", 87.3}, {"curvedDownArrow", 87.3}, {"bracketPair", 83.4}, {"bracePair", 66.7},
-            {"arc", 50.0}, {"chord", 45.7}, {"ellipseRibbon2", 38.0}, {"ellipseRibbon", 38.0}, {"uturnArrow", 37.5}, {"circularArrow", 37.3}, {"cloudCallout", 35.2},
-            {"ribbon2", 26.7}, {"ribbon", 26.7}, {"blockArc", 25.0}, {"cloud", 17.2}, {"fcMultidocument", 2.6}};
+        // The standard's own numbers put a few sites off its own drawing: a block arc's third site is the frame's center, which its band does not reach, and the circular arrow, the cloud
+        // callout, and the multi-document each have one a few points off their curve in a frame that is not square. The limits are what the standard's numbers give.
+        const QHash<QString, double> exceptions = {{"blockArc", 25.0}, {"circularArrow", 8.9}, {"cloudCallout", 2.7}, {"fcMultidocument", 2.6}};
         QVector<std::pair<double, QString>> bad, all;
         for (const jp::ShapeDef &def : jp::shapeLibrary()) {
             if (!jp::hasConnectionSites(def.id)) continue;
@@ -3890,13 +3885,16 @@ private Q_SLOTS:
             QString where;
             for (const QSizeF size : {QSizeF(200, 100), QSizeF(100, 200), QSizeF(100, 100)}) {
                 QTransform flat;
-                const QVector<QPolygonF> polys = jp::shapePath(def.id, size).toSubpathPolygons(flat);
+                QVector<QPolygonF> polys;
+                for (const jp::GeometryPath &part : jp::shapeParts(def.id, size)) polys += part.path.toSubpathPolygons(flat);
+                int number = 0;
                 for (const jp::ConnectionSite &site : jp::connectionSites(def.id, size)) {
                     const double d = distance(polys, site.at);
                     if (d > worst) {
                         worst = d;
-                        where = QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+                        where = QStringLiteral("%1x%2 site %3 at %4,%5").arg(size.width()).arg(size.height()).arg(number).arg(site.at.x(), 0, 'f', 1).arg(site.at.y(), 0, 'f', 1);
                     }
+                    ++number;
                 }
             }
             all.push_back({worst, def.id});
@@ -3911,6 +3909,331 @@ private Q_SLOTS:
         for (const auto &b : bad) lines << QStringLiteral("%1 %2").arg(b.second).arg(b.first, 0, 'f', 1);
         QVERIFY2(bad.isEmpty(), qPrintable(QString::number(bad.size()) + QStringLiteral(" presets off the outline, worst first: ") + lines.join(QStringLiteral("; "))));
         QVERIFY(all.size() > 100);
+    }
+
+    // Every preset of the library is drawn from the standard's table: its paths (every one, or an open shape's outlines) and its text rectangle, which is worked out here by hand from
+    // the table's guides.
+    void everyPresetIsDrawnFromTheGeneratedTable()
+    {
+        int checked = 0;
+        for (const jp::ShapeDef &def : jp::shapeLibrary()) {
+            if (def.preset.isEmpty()) continue;
+            const jp::GeomSpec *spec = jp::presetSpec(def.preset);
+            QVERIFY2(spec, qPrintable(def.id));
+            const QSizeF size(200, 100);
+            const jp::Geometry g = jp::buildGeometry(*spec, {}, size);
+            QPainterPath want;
+            for (const jp::GeometryPath &part : g.paths)
+                if (part.stroke || !def.open) want.addPath(part.path);
+            const QPainterPath got = jp::shapePath(def.id, size);
+            QVERIFY2(!got.isEmpty(), qPrintable(def.id));
+            QCOMPARE(got.elementCount(), want.elementCount());
+            for (int i = 0; i < got.elementCount(); ++i)
+                QVERIFY2(std::abs(got.elementAt(i).x - want.elementAt(i).x) <= 0.01 && std::abs(got.elementAt(i).y - want.elementAt(i).y) <= 0.01, qPrintable(def.id + QStringLiteral(" element %1").arg(i)));
+            // The text rectangle: l, t, r, b of the table's rect, from the guides' own values (in EMU).
+            jp::GuideEvaluator ev(size.width() * 12700, size.height() * 12700);
+            for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+            const QRectF rect = QRectF(QPointF(ev.value(spec->textRect[0]) / 12700, ev.value(spec->textRect[1]) / 12700), QPointF(ev.value(spec->textRect[2]) / 12700, ev.value(spec->textRect[3]) / 12700)).normalized();
+            const QRectF text = jp::shapeTextRect(def.id, size);
+            QVERIFY2(std::abs(text.left() - rect.left()) <= 0.01 && std::abs(text.top() - rect.top()) <= 0.01 && std::abs(text.right() - rect.right()) <= 0.01 && std::abs(text.bottom() - rect.bottom()) <= 0.01,
+                     qPrintable(def.id + QStringLiteral(" text rectangle")));
+            // The defaults are the table's, in the library's units.
+            const QVector<double> defaults = jp::presetAdjustmentDefaults(def.preset);
+            QCOMPARE(int(def.defaults.size()), int(defaults.size()));
+            for (int i = 0; i < defaults.size(); ++i) QVERIFY(std::abs(def.defaults[i] * jp::presetAdjustmentScale(def.preset, i) - defaults[i]) < 1e-6);
+            ++checked;
+        }
+        // Every shape but the two that are no preset of the standard's (the tab and the flow arrow).
+        QCOMPARE(checked, int(jp::shapeLibrary().size()) - 2);
+    }
+
+    // A handle is where the standard's definition puts it (a point handle on both axes, a polar one by angle and radius), and a drag to a place gives the adjustments that put it there.
+    void handlesAreWhereTheStandardPutsThemAndADragGivesTheAdjustmentsBack()
+    {
+        for (const char *name : {"curvedRightArrow", "circularArrow", "roundRect", "wedgeRectCallout", "blockArc", "mathNotEqual", "wedgeEllipseCallout"})
+            for (const QSizeF size : {QSizeF(200, 100), QSizeF(100, 200)}) {
+                const jp::ShapeDef *def = jp::shapeDef(QString::fromLatin1(name));
+                QVERIFY2(def && !def->handles.isEmpty(), name);
+                const jp::GeomSpec *spec = jp::presetSpec(def->preset);
+                QVERIFY(spec);
+                const QStringList names = jp::presetAdjustmentList(def->preset);
+                QCOMPARE(int(def->handles.size()), int(spec->handles.size()));
+                QSet<int> primary;
+                for (const jp::AdjHandle &h : def->handles) {
+                    QVERIFY2(!primary.contains(h.index), name);   // (a handle is told from the others by its first adjustment)
+                    primary.insert(h.index);
+                    const QString where = QStringLiteral("%1 handle %2 at %3x%4").arg(QLatin1String(name)).arg(h.standard).arg(size.width()).arg(size.height());
+                    // Its place: the table's position, worked out here by hand from the guides.
+                    jp::GuideEvaluator ev(size.width() * 12700, size.height() * 12700);
+                    for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
+                    for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+                    const jp::GeomHandle &gh = spec->handles[h.standard];
+                    QCOMPARE(h.polar, gh.polar);
+                    const QPointF want(ev.value(gh.posX) / 12700, ev.value(gh.posY) / 12700);
+                    const QPointF at = jp::adjHandlePos(h, size, def->defaults);
+                    QVERIFY2(std::abs(at.x() - want.x()) <= 0.01 && std::abs(at.y() - want.y()) <= 0.01, qPrintable(where + QStringLiteral(": at %1,%2 not %3,%4").arg(at.x()).arg(at.y()).arg(want.x()).arg(want.y())));
+                    // A drag: put the adjustments it moves at two other places in their range, and drag the handle from the defaults to where each puts it.
+                    QHash<QString, double> given;
+                    for (int i = 0; i < names.size(); ++i) given.insert(names[i], def->defaults[i] * jp::presetAdjustmentScale(def->preset, i));
+                    jp::HandleGeometry range;
+                    QVERIFY(jp::evaluateHandle(*spec, h.standard, given, size, &range));
+                    for (const double fraction : {0.2, 0.7}) {
+                        QVector<double> moved = def->defaults;
+                        const int index[2] = {h.indexX, h.indexY};
+                        for (int axis = 0; axis < 2; ++axis) {
+                            if (index[axis] < 0) continue;
+                            const double lo = std::max(range.min[axis], -1e6), hi = std::min(range.max[axis], 1e6);
+                            moved[index[axis]] = (lo + fraction * (hi - lo)) / jp::presetAdjustmentScale(def->preset, index[axis]);
+                        }
+                        const QPointF target = jp::adjHandlePos(h, size, moved);
+                        QVector<double> dragged = def->defaults;
+                        jp::adjDrag(h, size, dragged, target);
+                        const QPointF got = jp::adjHandlePos(h, size, dragged);
+                        QVERIFY2(std::abs(got.x() - target.x()) <= 0.05 && std::abs(got.y() - target.y()) <= 0.05,
+                                 qPrintable(where + QStringLiteral(": a drag to %1,%2 puts it at %3,%4").arg(target.x()).arg(target.y()).arg(got.x()).arg(got.y())));
+                        // The one adjustment a single-axis handle moves comes back as it was.
+                        if (!h.polar && (index[0] < 0 || index[1] < 0)) {
+                            const int i = index[0] >= 0 ? index[0] : index[1];
+                            QVERIFY2(std::abs(dragged[i] - moved[i]) <= 1e-4 * std::max(1.0, std::abs(moved[i])), qPrintable(where + QStringLiteral(": adjustment %1 is %2, not %3").arg(i).arg(dragged[i]).arg(moved[i])));
+                        }
+                        // The same call that the single-adjustment form gives.
+                        QVERIFY(std::abs(jp::adjFromPoint(h, size, target, def->defaults) - dragged[h.index]) <= 1e-9);
+                    }
+                }
+            }
+        // A drag far outside holds the handle to its range: a round rectangle's corner is at most half the shorter side.
+        const jp::ShapeDef *round = jp::shapeDef(QStringLiteral("roundRect"));
+        QVector<double> adj = round->defaults;
+        jp::adjDrag(round->handles[0], QSizeF(200, 100), adj, QPointF(1e9, -1e9));
+        QCOMPARE(adj[0], 0.5);
+    }
+
+    // Words in a ribbon, a cloud, and an oval callout begin in the standard's text rectangle and fit its width.
+    void wordsInAShapeSitWhereTheStandardsTextRectangleIs()
+    {
+        for (const char *name : {"ribbon", "cloud", "wedgeEllipseCallout", "ellipseRibbon2"}) {
+            const jp::ShapeDef *def = jp::shapeDef(QString::fromLatin1(name));
+            QVERIFY(def);
+            auto d = Document::blank(QSizeF(612, 792), QString(), 1);
+            auto shape = std::make_shared<ShapeItem>();
+            shape->shape = def->id;
+            shape->rect = QRectF(100, 100, 240, 120);
+            shape->insets = QMarginsF(0, 0, 0, 0);
+            shape->storyId = d->createStory();
+            d->storyDoc(shape->storyId)->setPlainText(QStringLiteral("alpha beta gamma delta epsilon zeta"));
+            d->pages[0]->items.push_back(shape);
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = d.get();
+            ctx.cache = &cache;
+            // The standard's rectangle by hand: from the table's guides, for this frame.
+            const jp::GeomSpec *spec = jp::presetSpec(def->preset);
+            QVERIFY(spec);
+            jp::GuideEvaluator ev(240 * 12700, 120 * 12700);
+            for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+            const QRectF want = QRectF(QPointF(ev.value(spec->textRect[0]) / 12700, ev.value(spec->textRect[1]) / 12700), QPointF(ev.value(spec->textRect[2]) / 12700, ev.value(spec->textRect[3]) / 12700)).normalized();
+            QVERIFY2(want.width() < 240 - 5 && want.height() < 120 - 5, name);   // (each is smaller than its frame)
+            QPointF origin;
+            const StoryLayout *lay = Renderer::shapeTextLayout(ctx, *shape, &origin);
+            QVERIFY2(lay, name);
+            QVERIFY2(std::abs(origin.x() - want.left()) < 0.01 && std::abs(origin.y() - want.top()) < 0.01, qPrintable(QStringLiteral("%1 begins at %2,%3, not %4,%5").arg(QLatin1String(name)).arg(origin.x()).arg(origin.y()).arg(want.left()).arg(want.top())));
+            const auto lines = lay->lineInfo(0);
+            QVERIFY2(!lines.isEmpty(), name);
+            for (const auto &line : lines) QVERIFY2(line.rect.left() >= -0.01 && line.rect.right() <= want.width() + 0.5, qPrintable(QStringLiteral("%1: a line of %2 to %3 in %4").arg(QLatin1String(name)).arg(line.rect.left()).arg(line.rect.right()).arg(want.width())));
+        }
+    }
+
+    // A save of the old library (0.42 and before) of each shape that is drawn differently now opens with adjustments that give the shape it had: the arcs and the like were drawn their own way.
+    void anOldSaveOfEachChangedShapeOpensWithSensibleAdjustments()
+    {
+        const auto load = [](const QString &shape, const QVector<double> &adj, bool model2) {
+            jp::ShapeItem s;
+            s.shape = shape;
+            s.rect = QRectF(10, 20, 100, 100);
+            s.adj = adj;
+            QJsonObject o = s.toJson();
+            if (model2) o[QStringLiteral("adjModel")] = 2; else o.remove(QStringLiteral("adjModel"));
+            QJsonArray a;
+            for (double v : adj) a.append(v);
+            o[QStringLiteral("adj")] = a;
+            jp::ShapeItem got;
+            got.fromJson(o);
+            return got.adj;
+        };
+        // Arc: the old one began at the top and went round `a` of a turn: the standard's start and end angles.
+        for (const bool model2 : {false, true}) {
+            QVector<double> arc = load(QStringLiteral("arc"), {0.25}, model2);
+            QCOMPARE(arc.size(), 2);
+            QVERIFY(std::abs(arc[0] - 0.75) < 1e-9 && std::abs(arc[1] - 0.0) < 1e-9);
+            const QPainterPath p = jp::shapePath(QStringLiteral("arc"), QSizeF(100, 100), arc);
+            QVERIFY(std::abs(p.pointAtPercent(0).x() - 50) < 0.01 && std::abs(p.pointAtPercent(0).y()) < 0.01);   // the top
+            QVERIFY(std::abs(p.pointAtPercent(1).x() - 100) < 0.01 && std::abs(p.pointAtPercent(1).y() - 50) < 0.01);   // then the right
+            arc = load(QStringLiteral("arc"), {0.5}, model2);   // half a turn from the top ends at the bottom
+            QVERIFY(std::abs(arc[1] - 0.25) < 1e-9);
+            // Partial circle: from the right, anticlockwise, three quarters of a turn: the lower right is missing.
+            const QVector<double> pie = load(QStringLiteral("pie"), {0.75}, model2);
+            const QPainterPath pp = jp::shapePath(QStringLiteral("pie"), QSizeF(100, 100), pie);
+            QVERIFY(pp.contains(QPointF(25, 25)) && pp.contains(QPointF(75, 25)) && pp.contains(QPointF(25, 75)) && !pp.contains(QPointF(75, 75)));
+            // Chord: three quarters of a turn from the upper right, anticlockwise: the arc lies to the left, the chord on the right.
+            const QVector<double> chord = load(QStringLiteral("chord"), {0.75}, model2);
+            const QPainterPath cp = jp::shapePath(QStringLiteral("chord"), QSizeF(100, 100), chord);
+            QVERIFY(cp.contains(QPointF(25, 50)) && !cp.contains(QPointF(95, 50)));
+            // Block arc: the top half, with the old thickness.
+            const QVector<double> block = load(QStringLiteral("blockArc"), {0.3}, model2);
+            QCOMPARE(block.size(), 3);
+            QVERIFY(std::abs(block[0] - 0.5) < 1e-9 && std::abs(block[1]) < 1e-9 && std::abs(block[2] - 0.3) < 1e-9);
+            // The snipped and the corner shapes: one value for the old single size.
+            const QVector<double> diag = load(QStringLiteral("snip2diag"), {0.2}, model2);
+            QVERIFY(diag.size() == 2 && diag[0] == 0.0 && diag[1] == 0.2);
+            const QVector<double> round = load(QStringLiteral("snipRound"), {0.2}, model2);
+            QVERIFY(round.size() == 2 && round[0] == 0.2 && round[1] == 0.2);
+            const QVector<double> corner = load(QStringLiteral("corner"), {0.3}, model2);
+            QVERIFY(corner.size() == 2 && corner[0] == 0.3 && corner[1] == 0.3);
+            // The U-turn arrow: the old two were the thickness and the head's length: the standard's first and third.
+            const QVector<double> turn = load(QStringLiteral("uturnArrow"), {0.2, 0.3}, model2);
+            QVERIFY(turn.size() == 5 && turn[0] == 0.2 && turn[1] == 0.25 && turn[2] == 0.3 && turn[3] == 0.4375 && turn[4] == 0.75);
+            // No adjustments at all (what is written for the defaults): the old defaults, in the standard's meanings.
+            QVERIFY(load(QStringLiteral("arc"), {}, model2) == (QVector<double>{0.75, 0.0}));
+            // Every changed shape, with its old values or none, draws something finite, inside a frame a little larger than its own, with handles inside it too.
+            for (const char *name : {"curvedRightArrow", "curvedLeftArrow", "curvedUpArrow", "curvedDownArrow", "bracketPair", "bracePair", "arc", "chord", "pie", "ellipseRibbon", "ellipseRibbon2",
+                                     "uturnArrow", "circularArrow", "cloudCallout", "ribbon", "ribbon2", "blockArc", "cloud", "flowChartMultidocument", "fcMultidocument"}) {
+                const QString id = QString::fromLatin1(name);
+                if (!jp::shapeDef(id)) continue;
+                for (const QVector<double> &old : {QVector<double>{}, QVector<double>{0.1}, QVector<double>{0.4, 0.2}}) {
+                    const QVector<double> adj = jp::shapeAdj(id, load(id, old, model2));
+                    for (double v : adj) QVERIFY2(std::isfinite(v), name);
+                    const QPainterPath path = jp::shapePath(id, QSizeF(100, 100), adj);
+                    QVERIFY2(!path.isEmpty(), name);
+                    QVERIFY2(QRectF(-50, -50, 200, 200).contains(path.boundingRect()), name);
+                    for (const jp::AdjHandle &h : jp::shapeDef(id)->handles) {
+                        const QPointF at = jp::adjHandlePos(h, QSizeF(100, 100), adj);
+                        QVERIFY2(QRectF(-50, -50, 200, 200).contains(at), name);
+                    }
+                }
+            }
+        }
+    }
+
+    // Each shape that is drawn differently now, with adjustments that are not the defaults, in a .docx: saved again it keeps its preset and its adjustments (the file's numbers), and the
+    // shape opens as the library's.
+    void theChangedShapesKeepTheirPresetsAndAdjustmentsThroughADocx()
+    {
+        struct Case {
+            const char *prst, *shape, *gds;
+        };
+        const Case cases[] = {
+            {"curvedRightArrow", "curvedRightArrow", "adj1=20000 adj2=40000 adj3=30000"}, {"curvedLeftArrow", "curvedLeftArrow", "adj1=20000 adj2=40000 adj3=30000"},
+            {"curvedUpArrow", "curvedUpArrow", "adj1=20000 adj2=40000 adj3=30000"}, {"curvedDownArrow", "curvedDownArrow", "adj1=20000 adj2=40000 adj3=30000"},
+            {"bracketPair", "bracketPair", "adj=12000"}, {"bracePair", "bracePair", "adj=6000"}, {"arc", "arc", "adj1=5400000 adj2=10800000"}, {"chord", "chord", "adj1=2000000 adj2=12000000"},
+            {"ellipseRibbon", "ellipseRibbon", "adj1=20000 adj2=60000 adj3=10000"}, {"ellipseRibbon2", "ellipseRibbon2", "adj1=20000 adj2=60000 adj3=10000"},
+            {"uturnArrow", "uturnArrow", "adj1=20000 adj2=20000 adj3=22000 adj4=40000 adj5=70000"}, {"circularArrow", "circularArrow", "adj1=10000 adj2=1200000 adj3=20000000 adj4=10000000 adj5=11000"},
+            {"cloudCallout", "cloudCallout", "adj1=-30000 adj2=50000"}, {"ribbon", "ribbon", "adj1=20000 adj2=60000"}, {"ribbon2", "ribbon2", "adj1=20000 adj2=60000"},
+            {"blockArc", "blockArc", "adj1=10000000 adj2=1000000 adj3=20000"}, {"cloud", "cloud", ""}, {"flowChartMultidocument", "fcMultidocument", ""}};
+        QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>";
+        int n = 0;
+        for (const Case &c : cases) {
+            QByteArray av;
+            for (const QString &g : QString::fromLatin1(c.gds).split(QLatin1Char(' '), Qt::SkipEmptyParts)) av += "<a:gd name=\"" + g.section(QLatin1Char('='), 0, 0).toLatin1() + "\" fmla=\"val " + g.section(QLatin1Char('='), 1).toLatin1() + "\"/>";
+            QByteArray one = wordShape(10 + n, c.prst, "Hi", "", 60 + (n % 3) * 150, 100 + (n / 3) * 90, 120, 70);
+            one.replace("<a:avLst/>", "<a:avLst>" + av + "</a:avLst>");
+            body += one;
+            ++n;
+        }
+        body += "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        // Changed and saved: each has its preset and its numbers.
+        int changed = 0;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (isDrawnObjectAt(doc->story(), i)) {
+                QVERIFY(setTextBoxText(*doc, i, {QStringLiteral("Changed")}));
+                ++changed;
+            }
+        QCOMPARE(changed, int(sizeof(cases) / sizeof(cases[0])));
+        const QByteArray saved = doc->toDocx();
+        for (int pass = 0; pass < 2; ++pass) {
+            const QByteArray xml = pass ? documentXml(open(saved)->toDocx()) : documentXml(saved);
+            for (const Case &c : cases) {
+                QVERIFY2(xml.contains(QByteArray("prst=\"") + c.prst + "\""), c.prst);
+                for (const QString &g : QString::fromLatin1(c.gds).split(QLatin1Char(' '), Qt::SkipEmptyParts))
+                    QVERIFY2(xml.contains("name=\"" + g.section(QLatin1Char('='), 0, 0).toLatin1() + "\" fmla=\"val " + g.section(QLatin1Char('='), 1).toLatin1() + "\""), qPrintable(QLatin1String(c.prst) + QLatin1Char(' ') + g));
+            }
+        }
+        // Reopened, each is the library's shape with the adjustments of its numbers.
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        const ItemList items = objectsOfPage(*reopened);
+        QCOMPARE(int(items.size()), int(sizeof(cases) / sizeof(cases[0])));
+        for (int i = 0; i < items.size(); ++i) {
+            QVERIFY2(items[i]->type() == ItemType::Text, cases[i].prst);
+            const auto &box = static_cast<const TextItem &>(*items[i]);
+            QCOMPARE(box.shape, QString::fromLatin1(cases[i].shape));
+            QHash<QString, double> given;
+            for (const QString &g : QString::fromLatin1(cases[i].gds).split(QLatin1Char(' '), Qt::SkipEmptyParts)) given.insert(g.section(QLatin1Char('='), 0, 0), g.section(QLatin1Char('='), 1).toDouble());
+            const QVector<double> want = office::libraryAdjustments(QString::fromLatin1(cases[i].prst), given, box.rect.size());
+            QCOMPARE(int(box.adj.size()), int(want.size()));
+            for (int k = 0; k < want.size(); ++k) QVERIFY2(std::abs(box.adj[k] - want[k]) < 1e-6, qPrintable(QLatin1String(cases[i].prst) + QStringLiteral(" adjustment %1").arg(k)));
+        }
+    }
+
+    // The cost of drawing every shape 100 times over (JW_SHAPE_TIME=1 prints it): an unchanged shape's outline is worked out once.
+    void everyShapeIsDrawnQuicklyAgain()
+    {
+        if (!qEnvironmentVariableIsSet("JW_SHAPE_TIME")) QSKIP("JW_SHAPE_TIME=1 prints the time");
+        const auto &lib = jp::shapeLibrary();
+        QElapsedTimer t;
+        t.start();
+        int elements = 0;
+        for (int round = 0; round < 100; ++round)
+            for (const jp::ShapeDef &def : lib) elements += jp::shapePath(def.id, QSizeF(200, 100)).elementCount();
+        qInfo("SHAPETIME %d shapes x 100: %lld ms (%d elements)", int(lib.size()), qint64(t.elapsed()), elements);
+        QVERIFY(elements > 0);
+    }
+
+    // A sheet of every shape the library draws, at 120 x 80 with its default adjustments (JW_SHAPE_SHOTS=<folder>, file name in JW_SHAPE_SHOT_NAME).
+    void aSheetOfEveryShape()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHAPE_SHOTS");
+        if (dir.isEmpty()) QSKIP("JW_SHAPE_SHOTS names the folder for the sheet");
+        const auto &lib = jp::shapeLibrary();
+        const int cols = 10, cw = 132, ch = 104, rows = (lib.size() + cols - 1) / cols;
+        QImage img(cols * cw, rows * ch, QImage::Format_ARGB32);
+        img.fill(Qt::white);
+        QPainter p(&img);
+        p.setRenderHint(QPainter::Antialiasing);
+        QFont f = p.font();
+        f.setPixelSize(9);
+        p.setFont(f);
+        for (int i = 0; i < lib.size(); ++i) {
+            const jp::ShapeDef &def = lib[i];
+            const QPointF at((i % cols) * cw + 6, (i / cols) * ch + 6);
+            p.save();
+            p.translate(at);
+            for (const jp::GeometryPath &part : jp::shapeParts(def.id, QSizeF(120, 80))) {
+                if (!def.open && part.fill != jp::GeometryPath::None) {
+                    p.setPen(Qt::NoPen);
+                    p.setBrush(QColor(170, 195, 235));
+                    p.drawPath(part.path);
+                    const bool dark = part.fill == jp::GeometryPath::Darken || part.fill == jp::GeometryPath::DarkenLess;
+                    if (part.fill != jp::GeometryPath::Normal) {
+                        p.setBrush(dark ? QColor(0, 0, 0, part.fill == jp::GeometryPath::Darken ? 90 : 45) : QColor(255, 255, 255, part.fill == jp::GeometryPath::Lighten ? 130 : 70));
+                        p.drawPath(part.path);
+                    }
+                }
+                if (part.stroke) {
+                    p.setPen(QPen(QColor(30, 50, 110), 1.2));
+                    p.setBrush(Qt::NoBrush);
+                    p.drawPath(part.path);
+                }
+            }
+            p.restore();
+            p.setPen(QColor(120, 120, 120));
+            p.drawText(QPointF(at.x(), at.y() + 96), def.id.left(22));
+        }
+        p.end();
+        QVERIFY(img.save(dir + QLatin1Char('/') + qEnvironmentVariable("JW_SHAPE_SHOT_NAME", QStringLiteral("shapes.png"))));
     }
 
     // A file saved before the library drew the standard's shapes holds adjustments in the old meanings (a slant as a fraction of the width, a callout's tip from the top left); it must look as it did.
@@ -3950,11 +4273,28 @@ private Q_SLOTS:
             }
             return jp::shapePath(shape, size, got);
         };
+        // The same outline, though the standard's definition may begin elsewhere and have more points: the two cover the same area (to a fiftieth of a percent of 600 x 600 pixels' worth).
         const auto same = [](const QPainterPath &a, const QPainterPath &b) {
-            if (a.elementCount() != b.elementCount()) return false;
-            for (int i = 0; i < a.elementCount(); ++i)
-                if (std::abs(a.elementAt(i).x - b.elementAt(i).x) > 1e-6 || std::abs(a.elementAt(i).y - b.elementAt(i).y) > 1e-6) return false;
-            return true;
+            QImage ia(240, 240, QImage::Format_Grayscale8), ib(240, 240, QImage::Format_Grayscale8);
+            int differing = 0, covered = 0;
+            const QRectF box = a.boundingRect().united(b.boundingRect());
+            const double k = 220.0 / std::max(1.0, std::max(box.width(), box.height()));
+            for (QImage *img : {&ia, &ib}) {
+                img->fill(Qt::white);
+                QPainter p(img);
+                p.translate(10, 10);
+                p.scale(k, k);
+                p.translate(-box.topLeft());
+                p.setPen(Qt::NoPen);
+                p.setBrush(Qt::black);
+                p.drawPath(img == &ia ? a : b);
+            }
+            for (int y = 0; y < 240; ++y)
+                for (int x = 0; x < 240; ++x) {
+                    differing += ia.pixelColor(x, y) != ib.pixelColor(x, y);
+                    covered += ia.pixelColor(x, y) != QColor(Qt::white);
+                }
+            return differing <= std::max(8, covered / 100);
         };
         const auto poly = [](const Poly &pts) {
             QPainterPath p;

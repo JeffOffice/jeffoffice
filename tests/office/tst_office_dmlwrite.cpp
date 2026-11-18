@@ -607,7 +607,7 @@ private Q_SLOTS:
         QTest::newRow("trapezoid") << "trapezoid" << "trapezoid" << QSizeF(120, 200) << QVector<double>{0.2};
         QTest::newRow("star") << "star5" << "star5" << QSizeF(100, 100) << QVector<double>{0.3};
         QTest::newRow("quad arrow") << "quadArrow" << "quadArrow" << QSizeF(100, 100) << QVector<double>{0.1, 0.2, 0.25};
-        QTest::newRow("u-turn arrow") << "uturnArrow" << "uturnArrow" << QSizeF(100, 100) << QVector<double>{0.2, 0.3};
+        QTest::newRow("u-turn arrow") << "uturnArrow" << "uturnArrow" << QSizeF(100, 100) << QVector<double>{0.2, 0.2, 0.3};
         QTest::newRow("diagonal snip") << "snip2diag" << "snip2DiagRect" << QSizeF(100, 60) << QVector<double>{0.25};
         QTest::newRow("double wave") << "doubleWave" << "doubleWave" << QSizeF(100, 60) << QVector<double>{0.05};
         QTest::newRow("bent arrow") << "bentArrow" << "bentArrow" << QSizeF(100, 100) << QVector<double>{0.1, 0.2, 0.3};
@@ -643,7 +643,8 @@ private Q_SLOTS:
         QVERIFY(near(b->stroke.width, 1.5));
         QCOMPARE(elementsNamed(r.spTree, "prstGeom").value(0).attribute(QStringLiteral("prst")), preset);
         // The adjustments come back as they were, whether or not they were written (the standard's own are not).
-        const QVector<double> want = adj.isEmpty() ? libraryAdjustments(preset, {}, size) : adj;
+        QVector<double> want = libraryAdjustments(preset, {}, size);
+        for (int i = 0; i < adj.size() && i < want.size(); ++i) want[i] = adj[i];
         QCOMPARE(int(b->adj.size()), int(want.size()));
         for (int i = 0; i < want.size(); ++i) QVERIFY2(near(b->adj[i], want[i], 1e-4), qPrintable(QStringLiteral("adjustment %1: %2 for %3").arg(i).arg(b->adj[i]).arg(want[i])));
     }

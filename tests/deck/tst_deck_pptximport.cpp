@@ -981,6 +981,71 @@ private Q_SLOTS:
         }
     }
 
+    // Each shape that the library draws as the standard defines now (the curved arrows, brackets, arcs, ribbons, clouds, and the rest), with adjustments that are not the standard's own, in a
+    // .pptx built here: opened, saved, and opened again it has the same preset and the same adjustments, and its file says them.
+    void changedShapesKeepTheirPresetsAndAdjustmentsThroughAPptx()
+    {
+        struct Case {
+            const char *prst, *gds;
+        };
+        const Case cases[] = {
+            {"curvedRightArrow", "adj1=20000 adj2=40000 adj3=30000"}, {"curvedLeftArrow", "adj1=20000 adj2=40000 adj3=30000"}, {"curvedUpArrow", "adj1=20000 adj2=40000 adj3=30000"},
+            {"curvedDownArrow", "adj1=20000 adj2=40000 adj3=30000"}, {"bracketPair", "adj=12000"}, {"bracePair", "adj=6000"}, {"arc", "adj1=5400000 adj2=10800000"},
+            {"chord", "adj1=2000000 adj2=12000000"}, {"ellipseRibbon", "adj1=20000 adj2=60000 adj3=10000"}, {"ellipseRibbon2", "adj1=20000 adj2=60000 adj3=10000"},
+            {"uturnArrow", "adj1=20000 adj2=20000 adj3=22000 adj4=40000 adj5=70000"}, {"circularArrow", "adj1=10000 adj2=1200000 adj3=20000000 adj4=10000000 adj5=11000"},
+            {"cloudCallout", "adj1=-30000 adj2=50000"}, {"ribbon", "adj1=20000 adj2=60000"}, {"ribbon2", "adj1=20000 adj2=60000"},
+            {"blockArc", "adj1=10000000 adj2=1000000 adj3=20000"}, {"cloud", ""}, {"flowChartMultidocument", ""}};
+        QString shapes;
+        int id = 10;
+        for (const Case &c : cases) {
+            QString av;
+            for (const QString &g : QString::fromLatin1(c.gds).split(QLatin1Char(' '), Qt::SkipEmptyParts)) av += QStringLiteral("<a:gd name=\"%1\" fmla=\"val %2\"/>").arg(g.section(QLatin1Char('='), 0, 0), g.section(QLatin1Char('='), 1));
+            shapes += QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>").arg(id).arg(QLatin1String(c.prst))
+                      + QStringLiteral("<a:xfrm><a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"2000000\" cy=\"900000\"/></a:xfrm>").arg(400000 + (id % 4) * 2500000).arg(300000 + (id / 4) * 1100000)
+                      + QStringLiteral("<a:prstGeom prst=\"%1\"><a:avLst>%2</a:avLst></a:prstGeom><a:solidFill><a:srgbClr val=\"336699\"/></a:solidFill></p:spPr></p:sp>").arg(QLatin1String(c.prst), av);
+            ++id;
+        }
+        Parts p = samplePptx();
+        p.data["/ppt/slides/slide1.xml"] = {QStringLiteral("application/vnd.openxmlformats-officedocument.presentationml.slide+xml"), slideXml(QString(), QString(), shapes).toUtf8()};
+        QString err;
+        auto first = deck::importPresentation(pack(p), &err);
+        QVERIFY2(first, qPrintable(err));
+        const auto adjustmentsOf = [&](const Document &d, QStringList *shapesFound) {
+            QMap<QString, QVector<double>> out;
+            for (const ItemPtr &it : d.pages[0]->items)
+                if (it->type() == ItemType::Shape && !static_cast<const ShapeItem &>(*it).shape.isEmpty() && static_cast<const ShapeItem &>(*it).customPath.isEmpty()) {
+                    out.insert(it->name, static_cast<const ShapeItem &>(*it).adj);
+                    shapesFound->append(static_cast<const ShapeItem &>(*it).shape);
+                }
+            return out;
+        };
+        QStringList names1, names2;
+        const QMap<QString, QVector<double>> before = adjustmentsOf(*first, &names1);
+        QVERIFY2(int(before.size()) == int(sizeof(cases) / sizeof(cases[0])), qPrintable(names1.join(QLatin1Char(','))));   // (each is the library's shape, none a drawn path)
+        QVERIFY2(!names1.contains(QStringLiteral("rect")), qPrintable(names1.join(QLatin1Char(','))));
+        const QByteArray saved = deck::exportPresentation(*first, &err);
+        QVERIFY2(!saved.isEmpty(), qPrintable(err));
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(saved, &e, &why), qPrintable(why));
+        const QString xml = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        for (const Case &c : cases) {
+            QVERIFY2(xml.contains(QStringLiteral("prst=\"%1\"").arg(QLatin1String(c.prst))), c.prst);
+            for (const QString &g : QString::fromLatin1(c.gds).split(QLatin1Char(' '), Qt::SkipEmptyParts))
+                QVERIFY2(xml.contains(QStringLiteral("name=\"%1\" fmla=\"val %2\"").arg(g.section(QLatin1Char('='), 0, 0), g.section(QLatin1Char('='), 1))), qPrintable(QLatin1String(c.prst) + QLatin1Char(' ') + g));
+        }
+        auto second = deck::importPresentation(saved, &err);
+        QVERIFY2(second, qPrintable(err));
+        const QMap<QString, QVector<double>> after = adjustmentsOf(*second, &names2);
+        QCOMPARE(after.size(), before.size());
+        for (auto it = before.constBegin(); it != before.constEnd(); ++it) {
+            QVERIFY2(after.contains(it.key()), qPrintable(it.key()));
+            QCOMPARE(after.value(it.key()).size(), it.value().size());
+            for (int i = 0; i < it.value().size(); ++i) QVERIFY2(std::abs(after.value(it.key())[i] - it.value()[i]) < 1e-6, qPrintable(it.key() + QStringLiteral(" adjustment %1").arg(i)));
+        }
+        QCOMPARE(names1, names2);
+    }
+
 private:
     static QImage grayImage(int w, int h, int shade)
     {

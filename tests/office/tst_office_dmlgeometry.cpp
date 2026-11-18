@@ -602,7 +602,7 @@ private Q_SLOTS:
         QTest::newRow("parallelogram tall") << "parallelogram" << "" << 50.0 << 100.0 << L{0.25};
         QTest::newRow("trapezoid") << "trapezoid" << "" << 100.0 << 50.0 << L{0.25};
         QTest::newRow("trapezoid set") << "trapezoid" << "adj=50000" << 200.0 << 100.0 << L{0.5};
-        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.25};
+        QTest::newRow("hexagon") << "hexagon" << "" << 100.0 << 50.0 << L{0.25, 1.1547};
         QTest::newRow("octagon") << "octagon" << "" << 100.0 << 50.0 << L{0.29289};
         QTest::newRow("plus") << "plus" << "" << 100.0 << 50.0 << L{0.25};
         QTest::newRow("can") << "can" << "adj=40000" << 100.0 << 50.0 << L{0.4};
@@ -620,19 +620,19 @@ private Q_SLOTS:
         QTest::newRow("leftRightArrow") << "leftRightArrow" << "" << 100.0 << 50.0 << L{0.5, 0.5};
         QTest::newRow("quadArrow") << "quadArrow" << "" << 100.0 << 100.0 << L{0.1125, 0.225, 0.225};
         QTest::newRow("star4") << "star4" << "" << 100.0 << 100.0 << L{0.125};
-        QTest::newRow("star5") << "star5" << "" << 100.0 << 100.0 << L{0.38196};
-        QTest::newRow("star5 set") << "star5" << "adj=25000" << 100.0 << 100.0 << L{0.5};
-        QTest::newRow("star6") << "star6" << "" << 100.0 << 100.0 << L{0.57736};
+        QTest::newRow("star5") << "star5" << "" << 100.0 << 100.0 << L{0.38196, 1.05146, 1.10557};
+        QTest::newRow("star5 set") << "star5" << "adj=25000" << 100.0 << 100.0 << L{0.5, 1.05146, 1.10557};
+        QTest::newRow("star6") << "star6" << "" << 100.0 << 100.0 << L{0.57736, 1.1547};
         QTest::newRow("star24") << "star24" << "" << 100.0 << 100.0 << L{0.75};
         QTest::newRow("mathPlus") << "mathPlus" << "" << 100.0 << 100.0 << L{0.2352};
-        QTest::newRow("wave") << "wave" << "" << 100.0 << 100.0 << L{0.125};
-        QTest::newRow("doubleWave") << "doubleWave" << "" << 100.0 << 100.0 << L{0.0625};
+        QTest::newRow("wave") << "wave" << "" << 100.0 << 100.0 << L{0.125, 0.0};
+        QTest::newRow("doubleWave") << "doubleWave" << "" << 100.0 << 100.0 << L{0.0625, 0.0};
         QTest::newRow("verticalScroll") << "verticalScroll" << "" << 100.0 << 100.0 << L{0.125};
         QTest::newRow("smileyFace") << "smileyFace" << "" << 100.0 << 100.0 << L{0.04653};
         QTest::newRow("sun") << "sun" << "" << 100.0 << 100.0 << L{0.25};
         QTest::newRow("moon") << "moon" << "" << 100.0 << 100.0 << L{0.5};
         QTest::newRow("snip1Rect") << "snip1Rect" << "adj=30000" << 100.0 << 50.0 << L{0.3};
-        QTest::newRow("round2DiagRect") << "round2DiagRect" << "" << 100.0 << 50.0 << L{0.16667};
+        QTest::newRow("round2DiagRect") << "round2DiagRect" << "" << 100.0 << 50.0 << L{0.16667, 0.0};
         QTest::newRow("a name the preset doesn't use") << "roundRect" << "adj9=5" << 100.0 << 50.0 << L{0.16667};
         QTest::newRow("no adjustments: rect") << "rect" << "adj=5" << 100.0 << 50.0 << L{};
         QTest::newRow("no adjustments: ellipse") << "ellipse" << "" << 100.0 << 50.0 << L{};
@@ -651,6 +651,40 @@ private Q_SLOTS:
         for (int i = 0; i < expected.size(); ++i) QVERIFY2(qAbs(got[i] - expected[i]) < 1e-4, qPrintable(QStringLiteral("%1: %2 not %3").arg(i).arg(got[i]).arg(expected[i])));
     }
 
+    // The file reader's definitions and the shape library are one evaluator of the one table: the same paths, with the same adjustments.
+    void dmlReaderAndLibraryDrawThePresetsTheSame()
+    {
+        const QHash<QString, QHash<QString, double>> given = {
+            {"arc", {{"adj1", 5400000}, {"adj2", 12000000}}}, {"chord", {{"adj1", 1000000}, {"adj2", 9000000}}}, {"pie", {{"adj1", 3000000}, {"adj2", 15000000}}},
+            {"blockArc", {{"adj1", 10000000}, {"adj2", 1000000}, {"adj3", 20000}}}, {"wedgeRectCallout", {{"adj1", 30000}, {"adj2", -40000}}},
+            {"wedgeRoundRectCallout", {{"adj1", -30000}, {"adj2", 70000}, {"adj3", 10000}}}, {"wedgeEllipseCallout", {{"adj1", 40000}, {"adj2", 60000}}},
+            {"borderCallout1", {{"adj1", 30000}, {"adj2", -20000}, {"adj3", 90000}, {"adj4", -50000}}}, {"callout1", {}}, {"accentCallout1", {}},
+            {"rightArrowCallout", {{"adj1", 20000}, {"adj2", 30000}}}, {"downArrowCallout", {}}};
+        int compared = 0;
+        for (auto it = given.constBegin(); it != given.constEnd(); ++it)
+            for (const QSizeF size : {QSizeF(200, 100), QSizeF(80, 160)})
+                for (const bool set : {false, true}) {
+                    const QString prst = it.key(), id = shapeForPreset(prst);
+                    QVERIFY2(!id.isEmpty(), qPrintable(prst));
+                    const QHash<QString, double> adjust = set ? it.value() : QHash<QString, double>();
+                    const Geometry g = presetGeometry(prst, adjust, size);
+                    const QVector<jp::GeometryPath> parts = jp::shapeParts(id, size, libraryAdjustments(prst, adjust, size));
+                    QVERIFY2(!g.paths.isEmpty() && g.paths.size() == parts.size(), qPrintable(prst));
+                    for (int p = 0; p < parts.size(); ++p) {
+                        QCOMPARE(int(g.paths[p].fill), int(parts[p].fill));
+                        QCOMPARE(g.paths[p].stroke, parts[p].stroke);
+                        QCOMPARE(g.paths[p].path.elementCount(), parts[p].path.elementCount());
+                        for (int i = 0; i < parts[p].path.elementCount(); ++i)
+                            QVERIFY2(qAbs(g.paths[p].path.elementAt(i).x - parts[p].path.elementAt(i).x) < 0.01 && qAbs(g.paths[p].path.elementAt(i).y - parts[p].path.elementAt(i).y) < 0.01,
+                                     qPrintable(prst));
+                    }
+                    const QRectF text = jp::shapeTextRect(id, size, libraryAdjustments(prst, adjust, size));
+                    if (!g.textRect.isNull()) QVERIFY2(qAbs(text.left() - g.textRect.left()) < 0.01 && qAbs(text.bottom() - g.textRect.bottom()) < 0.01, qPrintable(prst));
+                    ++compared;
+                }
+        QCOMPARE(compared, 12 * 2 * 2);
+    }
+
     void dmlLibraryAdjustmentsStayInRange()
     {
         // Whatever a file says, a library shape gets numbers in the range its handle has.
@@ -666,7 +700,7 @@ private Q_SLOTS:
                 // A block arc keeps all three of the standard's adjustments (a file needs them), though the library has one.
                 const qsizetype most = prst == QLatin1String("blockArc") ? 3 : def->defaults.size() + 1;
                 QVERIFY2(adj.size() <= most, qPrintable(prst));
-                for (double a : adj) QVERIFY2(std::isfinite(a) && a >= -1 && a <= 3, qPrintable(QStringLiteral("%1 %2 %3").arg(prst).arg(v).arg(a)));
+                for (double a : adj) QVERIFY2(std::isfinite(a) && a >= -10 && a <= 10, qPrintable(QStringLiteral("%1 %2 %3").arg(prst).arg(v).arg(a)));
                 // And the shape can be drawn with them (a shape with a thickness of nothing may show nothing).
                 const QPainterPath path = jp::shapePath(id, QSizeF(300, 120), adj);
                 for (int i = 0; i < path.elementCount(); ++i) QVERIFY2(std::isfinite(path.elementAt(i).x) && std::isfinite(path.elementAt(i).y), qPrintable(prst));

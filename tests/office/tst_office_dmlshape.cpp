@@ -69,23 +69,26 @@ private Q_SLOTS:
         // Geometry the library draws wrongly or not at all comes as the path the standard defines.
         auto pie = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"pie\"/>")));
         QCOMPARE(pie->shape, QStringLiteral("pie"));
-        QVERIFY(!pie->customPath.isEmpty());
-        QVERIFY(pie->customPath.contains(QPointF(25, 12.5)));
-        QVERIFY(!pie->customPath.contains(QPointF(75, 12.5)));
+        QVERIFY(pie->customPath.isEmpty());
+        const QPainterPath piePath = jp::shapePath(pie->shape, pie->rect.size(), pie->adj);
+        QVERIFY(piePath.contains(QPointF(25, 12.5)));
+        QVERIFY(!piePath.contains(QPointF(75, 12.5)));
         auto wedge = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"wedgeRectCallout\"/>")));
-        QVERIFY(!wedge->customPath.isEmpty());
-        QVERIFY(wedge->customPath.boundingRect().bottom() > 50);
+        QCOMPARE(wedge->shape, QStringLiteral("wedgeRectCallout"));
+        QVERIFY(jp::shapePath(wedge->shape, wedge->rect.size(), wedge->adj).boundingRect().bottom() > 50);
         auto trap = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"nonIsoscelesTrapezoid\"/>")));
         QVERIFY(!trap->customPath.isEmpty());
-        // An arc is its curve, and with a fill its sector too, drawn as shapes whose names don't say "no fill".
-        auto arcItem = dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/>") + dmlSolid(QStringLiteral("FF0000")) +
-                                         QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
-        auto arcGroup = dmlAs<GroupItem>(arcItem);
-        QVERIFY(arcGroup && arcGroup->children.size() == 2);
-        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[0])->shape != QLatin1String("arc") && !dmlAs<ShapeItem>(arcGroup->children[0])->fill.isNone());
-        QVERIFY(dmlAs<ShapeItem>(arcGroup->children[1])->fill.isNone() && !dmlAs<ShapeItem>(arcGroup->children[1])->stroke.isNone());
+        // An arc is the library's arc: its curve stroked and, with a fill, its sector filled (two paths of the standard's definition).
+        auto arcItem = dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/>") + dmlSolid(QStringLiteral("FF0000")) +
+                                                          QStringLiteral("<a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000"))))));
+        QVERIFY(arcItem);
+        QCOMPARE(arcItem->shape, QStringLiteral("arc"));
+        QVERIFY(arcItem->customPath.isEmpty() && !arcItem->fill.isNone() && !arcItem->stroke.isNone());
+        const QVector<jp::GeometryPath> arcParts = jp::shapeParts(arcItem->shape, arcItem->rect.size(), arcItem->adj);
+        QCOMPARE(int(arcParts.size()), 2);
+        QVERIFY(!arcParts[0].stroke && arcParts[0].fill != jp::GeometryPath::None && arcParts[1].stroke && arcParts[1].fill == jp::GeometryPath::None);
         auto arcOnly = dmlAs<ShapeItem>(dmlOne(env, dmlSp(dmlXfrm(0, 0, 100, 50) + QStringLiteral("<a:prstGeom prst=\"arc\"/><a:noFill/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000"))))));
-        QVERIFY(arcOnly && arcOnly->fill.isNone() && !arcOnly->customPath.isEmpty());
+        QVERIFY(arcOnly && arcOnly->fill.isNone() && arcOnly->customPath.isEmpty() && arcOnly->shape == QLatin1String("arc"));
         // A preset nobody draws is a rectangle, and so is one that isn't one.
         auto gear = dmlAs<ShapeItem>(shape(QStringLiteral("<a:prstGeom prst=\"gear6\"/>")));
         QCOMPARE(gear->shape, QStringLiteral("rect"));
@@ -133,11 +136,11 @@ private Q_SLOTS:
         // With no fill on the shape, the path that is only for fill has nothing to do.
         it = dmlOne(env, dmlSp(dmlXfrm(10, 10, 100, 100) + two + QStringLiteral("<a:noFill/><a:ln w=\"12700\">%1</a:ln>").arg(dmlSolid(QStringLiteral("000000")))));
         QVERIFY(dmlAs<ShapeItem>(it));
-        // A callout is its box and its leader line.
+        // A callout is the library's shape, its box and its leader line (two paths of the standard's definition).
         it = dmlOne(env, dmlSp(dmlXfrm(100, 100, 200, 100) + QStringLiteral("<a:prstGeom prst=\"borderCallout1\"/>") + looks));
-        g = dmlAs<GroupItem>(it);
-        QVERIFY(g);
-        QCOMPARE(int(g->children.size()), 2);
+        QVERIFY(dmlAs<ShapeItem>(it));
+        QCOMPARE(dmlAs<ShapeItem>(it)->shape, QStringLiteral("borderCallout1"));
+        QCOMPARE(int(jp::shapeParts(QStringLiteral("borderCallout1"), QSizeF(200, 100)).size()), 2);
         // A line callout with no outline draws only the fill.
         it = dmlOne(env, dmlSp(dmlXfrm(100, 100, 200, 100) + QStringLiteral("<a:prstGeom prst=\"callout1\"/>") + dmlSolid(QStringLiteral("00FF00")) + QStringLiteral("<a:ln><a:noFill/></a:ln>")));
         QVERIFY(dmlAs<ShapeItem>(it));
@@ -1203,11 +1206,12 @@ private Q_SLOTS:
 
     void dmlPresetGeometryUsesTheLibraryWhereItIsAsGood()
     {
-        for (const char *name : {"rect", "roundRect", "ellipse", "triangle", "rightArrow", "star5", "hexagon", "flowChartProcess"})
+        // The library draws every preset it has as the standard defines it, so a file's shape is the library's; the definitions are for those it does not have.
+        for (const char *name : {"rect", "roundRect", "ellipse", "triangle", "rightArrow", "star5", "hexagon", "flowChartProcess", "pie", "chord", "arc", "blockArc", "wedgeRectCallout",
+                                 "wedgeRoundRectCallout", "wedgeEllipseCallout", "borderCallout1", "rightArrowCallout", "downArrowCallout"})
             QVERIFY2(!prefersPresetGeometry(QString::fromLatin1(name)), name);
-        for (const char *name : {"pie", "chord", "arc", "blockArc", "wedgeRectCallout", "wedgeRoundRectCallout", "wedgeEllipseCallout", "borderCallout1",
-                                 "rightArrowCallout", "downArrowCallout"})
-            QVERIFY2(prefersPresetGeometry(QString::fromLatin1(name)) && hasPresetGeometry(QString::fromLatin1(name)), name);
+        for (const char *name : {"pie", "chord", "arc", "blockArc", "wedgeRectCallout", "borderCallout1", "rightArrowCallout", "downArrowCallout", "pieWedge", "leftArrowCallout"})
+            QVERIFY2(hasPresetGeometry(QString::fromLatin1(name)), name);
         QVERIFY(!hasPresetGeometry(QStringLiteral("rect")));
         QVERIFY(presetGeometry(QStringLiteral("rect"), {}, QSizeF(10, 10)).isEmpty());
         QVERIFY(presetGeometry(QStringLiteral("pie"), {}, QSizeF(0, 0)).isEmpty());
