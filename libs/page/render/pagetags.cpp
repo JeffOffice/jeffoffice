@@ -1,4 +1,5 @@
 #include "render/pagetags.h"
+#include "app/equationedit.h"
 #include "core/items.h"
 
 #include "text/textprops.h"
@@ -70,7 +71,7 @@ PdfTag PageTagger::tagOf(const Item &it) const
         break;
     case ItemType::Equation:
         tag.type = QStringLiteral("Formula");
-        tag.alt = it.altText.trimmed().isEmpty() ? static_cast<const EquationItem &>(it).linear : it.altText.trimmed();
+        tag.alt = it.altText.trimmed().isEmpty() ? equationReadableText(static_cast<const EquationItem &>(it)) : it.altText.trimmed();
         break;
     case ItemType::Group:
         tag.type = it.altText.trimmed().isEmpty() ? QStringLiteral("Div") : QStringLiteral("Figure");

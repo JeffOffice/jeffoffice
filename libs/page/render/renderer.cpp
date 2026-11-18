@@ -634,11 +634,30 @@ QPainterPath Renderer::textArtOutline(const TextArtItem &w)
 }
 
 // An equation shown Linear: the line it is typed in (UnicodeMath), as one run of normal text; the markup itself when it has no such line.
-static QByteArray linearFormMarkup(const QByteArray &markup)
+static QByteArray linearFormMarkupMade(const QByteArray &markup)
 {
     const QString text = office::wml::equationToUnicodeMath(markup);
     if (text.isEmpty()) return markup;
     return "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:rPr><m:nor/></m:rPr><m:t xml:space=\"preserve\">" + text.toHtmlEscaped().toUtf8() + "</m:t></m:r></m:oMath>";
+}
+
+static std::atomic<qint64> g_linearFormsMade{0};
+qint64 Renderer::linearFormsMadeForTest() { return g_linearFormsMade.load(); }
+
+static QByteArray linearFormMarkup(const QByteArray &markup)
+{
+    // (Read and printed once for each markup: painting, hit tests, and export ask again and again. The markup is the key; a few hundred are kept.)
+    static QMutex lock;
+    static QCache<QByteArray, QByteArray> cache(256);
+    {
+        QMutexLocker hold(&lock);
+        if (const QByteArray *kept = cache.object(markup)) return *kept;
+    }
+    ++g_linearFormsMade;
+    const QByteArray made = linearFormMarkupMade(markup);
+    QMutexLocker hold(&lock);
+    cache.insert(markup, new QByteArray(made), 1);
+    return made;
 }
 
 QPainterPath Renderer::equationOutline(const EquationItem &w, QSizeF *natural)

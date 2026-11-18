@@ -175,6 +175,7 @@ public:
     static qint64 effectLayersMadeForTest();
     static void keepEffectLayersForTest(bool on);   // off: every paint makes them again (to time what keeping them saves)
     static qint64 textArtOutlinesMadeForTest();
+    static qint64 linearFormsMadeForTest();
     static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
     static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF());

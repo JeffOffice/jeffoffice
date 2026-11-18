@@ -1,4 +1,5 @@
 #include "io/epub.h"
+#include "app/equationedit.h"
 
 #include "core/document.h"
 #include "core/items.h"
@@ -111,7 +112,7 @@ void Book::item(const Item &it)
         break;
     }
     case ItemType::Equation: {
-        const QString line = static_cast<const EquationItem &>(it).linear.trimmed();
+        const QString line = equationReadableText(static_cast<const EquationItem &>(it));
         if (!line.isEmpty()) current().body += QStringLiteral("<p class=\"equation\">%1</p>\n").arg(xml(line));
         break;
     }
