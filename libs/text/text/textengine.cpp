@@ -735,7 +735,10 @@ void drawUnderline(QPainter *p, const QTextLine &line, int s, int e, const QText
     up.setCapStyle(Qt::FlatCap);
     switch (style) {
     case QTextCharFormat::DotLine: up.setStyle(Qt::DotLine); break;
-    case QTextCharFormat::DashUnderline: up.setStyle(Qt::DashLine); break;
+    case QTextCharFormat::DashUnderline:
+        if (kind & 8) up.setDashPattern({8, 3});   // long dashes (twice Qt's dash)
+        else up.setStyle(Qt::DashLine);
+        break;
     case QTextCharFormat::DashDotLine: up.setStyle(Qt::DashDotLine); break;
     case QTextCharFormat::DashDotDotLine: up.setStyle(Qt::DashDotDotLine); break;
     default: break;

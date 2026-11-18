@@ -49,7 +49,9 @@ QString underlineName(const QTextCharFormat &cf)
     switch (cf.underlineStyle()) {
     case QTextCharFormat::NoUnderline: return QString();
     case QTextCharFormat::DotLine: return heavy ? QStringLiteral("dottedHeavy") : QStringLiteral("dotted");
-    case QTextCharFormat::DashUnderline: return heavy ? QStringLiteral("dashHeavy") : QStringLiteral("dash");
+    case QTextCharFormat::DashUnderline:
+        if (kind & 8) return heavy ? QStringLiteral("dashLongHeavy") : QStringLiteral("dashLong");   // (long dashes: tp::UnderlineKind's 8, as the .docx reader keeps them)
+        return heavy ? QStringLiteral("dashHeavy") : QStringLiteral("dash");
     case QTextCharFormat::DashDotLine: return heavy ? QStringLiteral("dotDashHeavy") : QStringLiteral("dotDash");
     case QTextCharFormat::DashDotDotLine: return heavy ? QStringLiteral("dotDotDashHeavy") : QStringLiteral("dotDotDash");
     case QTextCharFormat::WaveUnderline: return kind & 1 ? QStringLiteral("wavyDbl") : heavy ? QStringLiteral("wavyHeavy") : QStringLiteral("wavy");

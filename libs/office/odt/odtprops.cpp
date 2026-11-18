@@ -260,9 +260,9 @@ QByteArray Reader::rPrXml(const Props &p, const QString &rStyle, bool inStyle) c
             if (type == QLatin1String("double")) val = "double";
             else if (style == QLatin1String("dotted")) val = width == QLatin1String("bold") ? "dottedHeavy" : "dotted";
             else if (style == QLatin1String("dash")) val = width == QLatin1String("bold") ? "dashedHeavy" : "dash";
-            else if (style == QLatin1String("long-dash")) val = "dashLong";
-            else if (style == QLatin1String("dot-dash")) val = "dotDash";
-            else if (style == QLatin1String("dot-dot-dash")) val = "dotDotDash";
+            else if (style == QLatin1String("long-dash")) val = width == QLatin1String("bold") ? "dashLongHeavy" : "dashLong";
+            else if (style == QLatin1String("dot-dash")) val = width == QLatin1String("bold") ? "dashDotHeavy" : "dotDash";
+            else if (style == QLatin1String("dot-dot-dash")) val = width == QLatin1String("bold") ? "dashDotDotHeavy" : "dotDotDash";
             else if (style == QLatin1String("wave")) val = width == QLatin1String("bold") ? "wavyHeavy" : "wave";
             else if (width == QLatin1String("bold")) val = "thick";
             const QString c = colorHex(g("style:text-underline-color"));

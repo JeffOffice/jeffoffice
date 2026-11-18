@@ -122,6 +122,25 @@ QString odtContentOf(const QByteArray &bodyXml, QStringList *notes = nullptr, co
 class OdtTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
+    // Heavy dashed underlines keep their line and their weight both ways: the bold long-dash, dot-dash, and dot-dot-dash of an .odt are the heavy ones of a .docx, and back.
+    void heavyDashedUnderlinesSurviveBothWays()
+    {
+        struct Row { const char *style, *width, *val; };
+        const Row rows[] = {{"long-dash", "bold", "dashLongHeavy"}, {"dot-dash", "bold", "dashDotHeavy"}, {"dot-dot-dash", "bold", "dashDotDotHeavy"},
+                            {"long-dash", "auto", "dashLong"}, {"dot-dash", "auto", "dotDash"}, {"dot-dot-dash", "auto", "dotDotDash"}, {"dash", "bold", "dashedHeavy"}};
+        for (const Row &r : rows) {
+            Made m;
+            m.autoStyles = QByteArray("<style:style style:name=\"T1\" style:family=\"text\"><style:text-properties style:text-underline-style=\"") + r.style +
+                           "\" style:text-underline-type=\"single\" style:text-underline-width=\"" + r.width + "\"/></style:style>";
+            m.body = "<text:p><text:span text:style-name=\"T1\">x</text:span></text:p>";
+            const QString d = document(m);
+            QVERIFY2(d.contains(QLatin1String("<w:u w:val=\"") + QLatin1String(r.val) + QLatin1Char('"')), r.style + QByteArray(" ") + r.width + ": " + d.toUtf8());
+            const QString back = odtContentOf(QByteArray("<w:p><w:r><w:rPr><w:u w:val=\"") + r.val + "\"/></w:rPr><w:t>x</w:t></w:r></w:p>");
+            QVERIFY2(back.contains(QLatin1String("style:text-underline-style=\"") + QLatin1String(r.style) + QLatin1Char('"')), r.val);
+            QCOMPARE(back.contains(QLatin1String("style:text-underline-width=\"bold\"")), QLatin1String(r.width) == QLatin1String("bold"));
+        }
+    }
+
     // A package written as a template: the type in "mimetype" (first, stored) and in the manifest's root entry is the template's; every other part is the same.
     void aPackageIsWrittenAsATemplate()
     {

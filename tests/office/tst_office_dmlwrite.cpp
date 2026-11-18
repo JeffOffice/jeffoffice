@@ -216,6 +216,37 @@ private Q_SLOTS:
         QVERIFY(r.text().contains(QStringLiteral("typeface=\"Carlito\"")));
     }
 
+    // Every dashed underline and its heavy form is written under its own name and read back as it was (long dashes are tp::UnderlineKind's 8).
+    void dmlWriteDashedUnderlinesKeepTheirLength()
+    {
+        struct Row { QTextCharFormat::UnderlineStyle style; int kind; const char *name; };
+        const Row rows[] = {{QTextCharFormat::DashUnderline, 0, "dash"},         {QTextCharFormat::DashUnderline, 4, "dashHeavy"},
+                            {QTextCharFormat::DashUnderline, 8, "dashLong"},     {QTextCharFormat::DashUnderline, 12, "dashLongHeavy"},
+                            {QTextCharFormat::DashDotLine, 0, "dotDash"},        {QTextCharFormat::DashDotLine, 4, "dotDashHeavy"},
+                            {QTextCharFormat::DashDotDotLine, 0, "dotDotDash"},  {QTextCharFormat::DashDotDotLine, 4, "dotDotDashHeavy"}};
+        WriteRound r;
+        const QString id = r.addStory();
+        QTextCursor c(r.story(id));
+        for (const Row &row : rows) {
+            QTextCharFormat f;
+            f.setFontPointSize(14);
+            f.setUnderlineStyle(row.style);
+            if (row.kind) f.setProperty(jp::tp::UnderlineKind, row.kind);
+            c.insertText(QString::fromLatin1(row.name) + QLatin1Char(' '), f);
+        }
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(0, 0, 400, 100);
+        t->storyId = id;
+        QVERIFY2(r.run({t}), qPrintable(r.error));
+        for (const Row &row : rows) QVERIFY2(r.text().contains(QStringLiteral("u=\"%1\"").arg(QLatin1String(row.name))), row.name);
+        const QVector<Run> runs = runsOf(r.storyOf(r.items[0])->firstBlock());
+        QCOMPARE(int(runs.size()), int(std::size(rows)));
+        for (int i = 0; i < int(std::size(rows)); ++i) {
+            QVERIFY2(runs[i].format.underlineStyle() == rows[i].style, rows[i].name);
+            QCOMPARE(runs[i].format.intProperty(jp::tp::UnderlineKind), rows[i].kind);
+        }
+    }
+
     void dmlWriteTextEscapesAndCleansWhatXmlCannotHold()
     {
         WriteRound r;

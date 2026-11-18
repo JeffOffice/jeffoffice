@@ -1411,6 +1411,7 @@ private Q_SLOTS:
     void wordLettersShareTheirWidthsEvenly();
     void underlinedSpacesPastTheLineEndAreUnderlinedToo();
     void anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes();
+    void longDashUnderlinesHaveLongerDashesThanDashedOnes();
     void underlinesTakeTheTextsColorFromThePenWhenItSetsNone();
     void onlyPlainSingleUnderlinesAreDrawnHere();
     void underlinesCostInProportionToTheirRunsAndLines();

@@ -382,8 +382,8 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
                 else if (v.startsWith(QLatin1String("dotted"))) style = "dotted";
                 else if (v == QLatin1String("dash") || v == QLatin1String("dashedHeavy")) style = "dash";
                 else if (v.startsWith(QLatin1String("dashLong"))) style = "long-dash";
-                else if (v == QLatin1String("dotDash")) style = "dot-dash";
-                else if (v == QLatin1String("dotDotDash")) style = "dot-dot-dash";
+                else if (v == QLatin1String("dotDash") || v == QLatin1String("dashDotHeavy")) style = "dot-dash";
+                else if (v == QLatin1String("dotDotDash") || v == QLatin1String("dashDotDotHeavy")) style = "dot-dot-dash";
                 else if (v.startsWith(QLatin1String("wav"))) style = "wave";
                 if (v.endsWith(QLatin1String("Heavy"))) width = "bold";
                 x += " style:text-underline-style=\"" + style + "\" style:text-underline-type=\"" + type + "\"" + (width.isEmpty() ? QByteArray() : " style:text-underline-width=\"" + width + "\"");

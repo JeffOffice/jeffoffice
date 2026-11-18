@@ -534,6 +534,36 @@ void FlowTests::anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes()
     }
 }
 
+// A long-dash underline (tp::UnderlineKind's 8) is drawn with longer dashes than a dashed one: fewer, longer pieces along the same line.
+void FlowTests::longDashUnderlinesHaveLongerDashesThanDashedOnes()
+{
+    auto pieces = [&](int kind) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat f;
+        f.setFontPointSize(14);
+        f.setUnderlineStyle(QTextCharFormat::DashUnderline);
+        if (kind) f.setProperty(tp::UnderlineKind, kind);
+        c.insertText(QString(60, QLatin1Char(' ')) + QLatin1Char('x'), f);
+        const QImage img = paintedStory(doc, 1000);
+        int most = 0;
+        for (int y = 0; y < img.height(); ++y) {
+            int n = 0;
+            bool on = false;
+            for (int x = 0; x < img.width(); ++x) {
+                const bool ink = qGray(img.pixel(x, y)) < 128;
+                if (ink && !on) ++n;
+                on = ink;
+            }
+            most = std::max(most, n);
+        }
+        return most;
+    };
+    const int dashed = pieces(0), longer = pieces(8);
+    QVERIFY2(longer > 1 && dashed > 1, qPrintable(QStringLiteral("dashed %1, long %2").arg(dashed).arg(longer)));
+    QVERIFY2(longer * 3 < dashed * 2, qPrintable(QStringLiteral("dashed %1 pieces, long dashes %2").arg(dashed).arg(longer)));
+}
+
 // The underline is in the color of the letters: black where a run sets none (the engine draws such letters black whatever the painter's pen is), the run's own where it sets one.
 void FlowTests::underlinesTakeTheTextsColorFromThePenWhenItSetsNone()
 {

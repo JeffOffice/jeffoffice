@@ -305,6 +305,31 @@ private Q_SLOTS:
         }
     }
 
+    // The count goes on while the kind and the start stay: a paragraph whose bullet is another color (or font, or size) goes on at the next number, in its own color, and so does
+    // one whose numbering comes from the list style.
+    void textAutonumbersContinueThroughAnotherBulletColor()
+    {
+        const QString own = QStringLiteral("<a:buAutoNum type=\"arabicPeriod\" startAt=\"2\"/>");
+        const QString red = QStringLiteral("<a:buClr><a:srgbClr val=\"FF0000\"/></a:buClr>");
+        const QString big = QStringLiteral("<a:buSzPct val=\"150000\"/><a:buFont typeface=\"Arial\"/>");
+        auto p = [](const QString &text, const QString &pPr) { return para(run(text), QStringLiteral("<a:pPr>%1</a:pPr>").arg(pPr)); };
+        const QString lst = QStringLiteral("<a:lvl1pPr>%1</a:lvl1pPr>").arg(own);
+        for (const bool third : {false, true}) {   // (the third names its numbering itself, or takes it from the list style)
+            Body b(p(QStringLiteral("a"), own) + p(QStringLiteral("b"), own) + p(QStringLiteral("c"), red + (third ? own : QString())) + p(QStringLiteral("d"), own)
+                       + p(QStringLiteral("e"), QString()) + p(QStringLiteral("f"), big + own) + p(QStringLiteral("g"), own),
+                   {}, lst);
+            const QStringList want = {QStringLiteral("2."), QStringLiteral("3."), QStringLiteral("4."), QStringLiteral("5."), QStringLiteral("6."), QStringLiteral("7."), QStringLiteral("8.")};
+            QCOMPARE(b.doc.blockCount(), int(want.size()));
+            for (int i = 0; i < want.size(); ++i) {
+                QTextList *l = b.block(i).textList();
+                QVERIFY2(l, qPrintable(QString::number(i)));
+                QCOMPARE(l->itemText(b.block(i)), want[i]);
+            }
+            QCOMPARE(b.block(2).textList()->format().stringProperty(jp::tp::BulletColor).isEmpty(), false);
+            QVERIFY(b.block(3).textList()->format().stringProperty(jp::tp::BulletColor).isEmpty());
+        }
+    }
+
     void textEmptyParagraphsHaveNoBulletAndKeepTheNumbering()
     {
         const QString pPr = QStringLiteral("<a:pPr><a:buAutoNum type=\"arabicPeriod\"/></a:pPr>");
@@ -496,8 +521,8 @@ private Q_SLOTS:
         const Row rows[] = {
             {"sng", U::SingleUnderline, 0},       {"words", U::SingleUnderline, 2},      {"dbl", U::SingleUnderline, 1},
             {"heavy", U::SingleUnderline, 4},     {"dotted", U::DotLine, 0},             {"dottedHeavy", U::DotLine, 4},
-            {"dash", U::DashUnderline, 0},        {"dashHeavy", U::DashUnderline, 4},    {"dashLong", U::DashUnderline, 0},
-            {"dashLongHeavy", U::DashUnderline, 4}, {"dotDash", U::DashDotLine, 0},      {"dotDashHeavy", U::DashDotLine, 4},
+            {"dash", U::DashUnderline, 0},        {"dashHeavy", U::DashUnderline, 4},    {"dashLong", U::DashUnderline, 8},
+            {"dashLongHeavy", U::DashUnderline, 12}, {"dotDash", U::DashDotLine, 0},      {"dotDashHeavy", U::DashDotLine, 4},
             {"dotDotDash", U::DashDotDotLine, 0}, {"dotDotDashHeavy", U::DashDotDotLine, 4}, {"wavy", U::WaveUnderline, 0},
             {"wavyHeavy", U::WaveUnderline, 4},   {"wavyDbl", U::WaveUnderline, 1},      {"none", U::NoUnderline, 0},
         };
