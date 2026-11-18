@@ -20,14 +20,16 @@ struct Node {
     QVector<int> kids;
 };
 
-QString localPart(QStringView qualified)
+const char kMathmlUri[] = "http://www.w3.org/1998/Math/MathML";
+bool isOmmlUri(QStringView u)
 {
-    const qsizetype colon = qualified.lastIndexOf(QLatin1Char(':'));
-    return (colon < 0 ? qualified : qualified.mid(colon + 1)).toString();
+    return u == QLatin1String("http://schemas.openxmlformats.org/officeDocument/2006/math") || u == QLatin1String("http://purl.oclc.org/ooxml/officeDocument/math");
 }
 
 // Refused: more than kMostBytes, kMostElements elements, nesting past kMostDepth, a DOCTYPE (so no entity is ever defined or loaded), and XML that is not well formed.
-bool readTree(const QByteArray &xml, QVector<Node> &nodes, QString *error)
+// A name in another namespace than the part's own is read as "?name", which nothing matches (so it is kept as text). MathML may have no namespace at all if its root has none (a formula part
+// whose default namespace is not written); markup must be in its own. Attributes are matched by local name only when they have no namespace (markup's are in its own).
+bool readTree(const QByteArray &xml, QVector<Node> &nodes, QString *error, bool omml)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -36,8 +38,8 @@ bool readTree(const QByteArray &xml, QVector<Node> &nodes, QString *error)
     };
     if (xml.size() > kMostBytes) return fail(QStringLiteral("part too large"));
     QXmlStreamReader r(xml);
-    r.setNamespaceProcessing(false);
     QVector<int> open;
+    bool rootNone = false;
     while (!r.atEnd()) {
         switch (r.readNext()) {
         case QXmlStreamReader::DTD:
@@ -48,8 +50,14 @@ bool readTree(const QByteArray &xml, QVector<Node> &nodes, QString *error)
             if (nodes.size() >= kMostElements) return fail(QStringLiteral("too many elements"));
             if (open.size() >= kMostDepth) return fail(QStringLiteral("nested too deep"));
             Node n;
-            n.name = localPart(r.qualifiedName());
-            for (const QXmlStreamAttribute &a : r.attributes()) n.attrs.append({localPart(a.qualifiedName()), a.value().toString()});
+            const QStringView uri = r.namespaceUri();
+            if (nodes.isEmpty()) rootNone = uri.isEmpty();
+            const bool mine = omml ? isOmmlUri(uri) : (uri == QLatin1String(kMathmlUri) || (uri.isEmpty() && rootNone));
+            n.name = mine ? r.name().toString() : QLatin1Char('?') + r.name().toString();
+            for (const QXmlStreamAttribute &a : r.attributes()) {
+                const QStringView auri = a.namespaceUri();
+                if (auri.isEmpty() || (omml && isOmmlUri(auri))) n.attrs.append({a.name().toString(), a.value().toString()});
+            }
             const int index = int(nodes.size());
             nodes.append(n);
             if (!open.isEmpty()) nodes[open.last()].kids.append(index);
@@ -69,6 +77,14 @@ bool readTree(const QByteArray &xml, QVector<Node> &nodes, QString *error)
     if (r.hasError()) return fail(r.errorString());
     if (nodes.isEmpty()) return fail(QStringLiteral("no element"));
     return true;
+}
+
+int countElements(const QByteArray &x)
+{
+    int n = 0;
+    for (qsizetype i = 0; i + 1 < x.size(); ++i)
+        if (x[i] == '<' && x[i + 1] != '/' && x[i + 1] != '?') ++n;
+    return n;
 }
 
 QByteArray esc(const QString &s) { return s.toHtmlEscaped().toUtf8(); }
@@ -176,7 +192,14 @@ public:
 
 private:
     const Tree &m_t;
+    mutable qint64 m_elements = 0, m_bytes = 0;
+    mutable bool m_over = false;
 
+public:
+    // True when the tokens of the text alone passed the output limits (the rest is then not made).
+    bool over() const { return m_over; }
+
+private:
     static QByteArray join(const QVector<QByteArray> &items)
     {
         QByteArray out;
@@ -210,7 +233,7 @@ private:
     static QByteArray mo(const QString &text, const char *attrs = "") { return QByteArray("<mo") + attrs + ">" + esc(text) + "</mo>"; }
 
     // Text as MathML tokens: letters, numbers, operators, and spaces.
-    static QVector<QByteArray> tokens(const QString &text, const QString &sty, const QString &scr)
+    QVector<QByteArray> tokens(const QString &text, const QString &sty, const QString &scr) const
     {
         QString variant;
         for (const Variant &v : kVariants)
@@ -227,9 +250,15 @@ private:
         const QVector<uint> cp = codePoints(text);
         for (int i = 0; i < cp.size();) {
             const uint c = cp[i];
+            if (m_over) return {};
             if (QChar::isSpace(c)) {
-                out.append("<mspace width=\"0.278em\"/>");
-                ++i;
+                // a run of blanks is one space of that many times the width
+                int count = 0;
+                while (i < cp.size() && QChar::isSpace(cp[i])) {
+                    ++count;
+                    ++i;
+                }
+                out.append("<mspace width=\"" + QByteArray::number(count * 0.278, 'f', 3) + "em\"/>");
             } else if (isDigit(c)) {
                 QString num;
                 while (i < cp.size() && (isDigit(cp[i]) || (cp[i] == '.' && i + 1 < cp.size() && isDigit(cp[i + 1])))) num += fromPoint(cp[i++]);
@@ -240,9 +269,20 @@ private:
                 while (upright && i < cp.size() && QChar::isLetter(cp[i])) word += fromPoint(cp[i++]);
                 out.append("<mi" + vattr + ">" + esc(word) + "</mi>");
             } else {
-                out.append(mo(fromPoint(c)));
-                ++i;
+                // a long run of one character (over 16) is one operator; shorter ones are one each, as they read
+                int run = 1;
+                while (i + run < cp.size() && cp[i + run] == c) ++run;
+                if (run > 16) {
+                    QString all;
+                    for (int k = 0; k < run; ++k) all += fromPoint(c);
+                    out.append(mo(all));
+                    i += run;
+                } else {
+                    out.append(mo(fromPoint(c)));
+                    ++i;
+                }
             }
+            if (++m_elements > kMostOutputElements || (m_bytes += out.last().size()) > kMostOutputBytes) m_over = true;
         }
         return out;
     }
@@ -303,12 +343,31 @@ private:
             QByteArray rows;
             for (int k : m_t.at(n).kids)
                 if (m_t.name(k) == QLatin1String("e")) rows += "<mtr><mtd>" + wrap(children(k)) + "</mtd></mtr>";
-            return {"<mtable columnalign=\"left\">" + rows + "</mtable>"};
+            return {"<mtable class=\"eqArr\" columnalign=\"left\">" + rows + "</mtable>"};
+        }
+        if (name == QLatin1String("groupChr")) {
+            bool has = false;
+            const QString chr = prop(n, "groupChrPr", "chr", &has);
+            const uint c = has && !chr.isEmpty() ? chr.toUcs4().first() : 0x23DF;
+            const bool top = prop(n, "groupChrPr", "pos") == QLatin1String("top");
+            return {QByteArray(top ? "<mover class=\"groupChr\">" : "<munder class=\"groupChr\">") + arg(n, "e") + mo(fromPoint(c)) + (top ? "</mover>" : "</munder>")};
+        }
+        if (name == QLatin1String("borderBox")) return {"<menclose notation=\"box\">" + arg(n, "e") + "</menclose>"};
+        if (name == QLatin1String("phant")) {
+            bool has = false;
+            const QString shown = prop(n, "phantPr", "show", &has);
+            const bool show = !has || truthy(shown);
+            QByteArray attrs;
+            if (flag(n, "phantPr", "zeroWid")) attrs += " width=\"0\"";
+            if (flag(n, "phantPr", "zeroAsc")) attrs += " height=\"0\"";
+            if (flag(n, "phantPr", "zeroDesc")) attrs += " depth=\"0\"";
+            if (!show && attrs.isEmpty()) return {"<mphantom>" + arg(n, "e") + "</mphantom>"};
+            return {"<mpadded" + attrs + (show ? " class=\"phant\"" : "") + ">" + (show ? arg(n, "e") : "<mphantom>" + arg(n, "e") + "</mphantom>") + "</mpadded>"};
         }
         if (name == QLatin1String("func")) return {"<mrow>" + arg(n, "fName") + mo(fromPoint(kApplyFunction)) + arg(n, "e") + "</mrow>"};
         if (name == QLatin1String("limLow")) return {"<munder>" + arg(n, "e") + arg(n, "lim") + "</munder>"};
         if (name == QLatin1String("limUpp")) return {"<mover>" + arg(n, "e") + arg(n, "lim") + "</mover>"};
-        if (name == QLatin1String("box") || name == QLatin1String("phant") || name == QLatin1String("borderBox") || name == QLatin1String("groupChr")) return {arg(n, "e")};
+        if (name == QLatin1String("box")) return {arg(n, "e")};
         if (name == QLatin1String("e") || name == QLatin1String("oMath")) return children(n);
         if (name.endsWith(QLatin1String("Pr"))) return {};
         // What has no match is kept as its text.
@@ -321,7 +380,7 @@ private:
     {
         bool has = false;
         const QString chr = prop(n, "naryPr", "chr", &has);
-        const QString symbol = has ? chr : QString(QChar(0x222B));
+        const QString symbol = has && !chr.isEmpty() ? chr : QString(QChar(0x222B));
         const uint c = symbol.isEmpty() ? 0x222B : symbol.toUcs4().first();
         bool hasLoc = false;
         const QString loc = prop(n, "naryPr", "limLoc", &hasLoc);
@@ -345,7 +404,7 @@ private:
         bool first = true;
         for (int k : m_t.at(n).kids) {
             if (m_t.name(k) != QLatin1String("e")) continue;
-            if (!first && !separator.isEmpty()) out += mo(separator, " separator=\"true\" stretchy=\"true\"");
+            if (!first) out += mo(separator, " separator=\"true\" stretchy=\"true\"");
             first = false;
             out += wrap(children(k));
         }
@@ -397,13 +456,85 @@ private:
         const bool keep = text.startsWith(QLatin1Char(' ')) || text.endsWith(QLatin1Char(' '));
         return "<m:r>" + (props.isEmpty() ? QByteArray() : "<m:rPr>" + props + "</m:rPr>") + (keep ? "<m:t xml:space=\"preserve\">" : "<m:t>") + esc(text) + "</m:t></m:r>";
     }
-    static QByteArray part(const char *tag, const QByteArray &inner) { return QByteArray("<m:") + tag + ">" + inner + "</m:" + tag + ">"; }
+    static QByteArray part(const char *tag, const QByteArray &inner)
+    {
+        return inner.isEmpty() ? QByteArray("<m:") + tag + "/>" : QByteArray("<m:") + tag + ">" + inner + "</m:" + tag + ">";
+    }
     static QByteArray valued(const char *tag, const QString &value) { return QByteArray("<m:") + tag + " m:val=\"" + esc(value) + "\"/>"; }
 
     QByteArray one(int n) { return seq(QVector<int>{n}); }
     QByteArray oneOrNone(int n) { return n >= 0 ? one(n) : QByteArray(); }
     QByteArray argAt(const QVector<int> &kids, int i, const char *tag) { return part(tag, i >= 0 && i < kids.size() ? one(kids[i]) : QByteArray()); }
-    QString text(int n) const { return m_t.at(n).text.simplified(); }
+    // The text of a token: blanks at its ends dropped, tabs and line breaks as blanks, and everything else (inner blanks, no-break spaces) as it is.
+    QString text(int n) const
+    {
+        QString t = m_t.at(n).text;
+        for (QChar &ch : t)
+            if (ch == QLatin1Char('\t') || ch == QLatin1Char('\n') || ch == QLatin1Char('\r')) ch = QLatin1Char(' ');
+        qsizetype b = 0, e = t.size();
+        while (b < e && t[b] == QLatin1Char(' ')) ++b;
+        while (e > b && t[e - 1] == QLatin1Char(' ')) --e;
+        return t.mid(b, e - b);
+    }
+
+    // The style a token has: its own attributes over those of the mstyle elements round it.
+    struct Style {
+        QString variant, weight, fontStyle;
+    };
+    QVector<Style> m_styles;
+    Style styleOf(int n) const
+    {
+        Style s = m_styles.isEmpty() ? Style() : m_styles.last();
+        if (m_t.has(n, "mathvariant")) s.variant = m_t.attr(n, "mathvariant");
+        if (m_t.has(n, "fontweight")) s.weight = m_t.attr(n, "fontweight");
+        if (m_t.has(n, "fontstyle")) s.fontStyle = m_t.attr(n, "fontstyle");
+        return s;
+    }
+    static void styleToMarkup(const Style &st, bool upright, QString *sty, QString *scr)
+    {
+        sty->clear();
+        scr->clear();
+        if (!st.variant.isEmpty()) {
+            for (const Variant &v : kVariants)
+                if (st.variant == QLatin1String(v.mathml)) {
+                    *sty = QLatin1String(v.sty);
+                    *scr = QLatin1String(v.scr);
+                }
+        } else if (upright)
+            *sty = QStringLiteral("p");
+        const bool bold = st.weight == QLatin1String("bold"), italic = st.fontStyle == QLatin1String("italic");
+        if (bold) *sty = (*sty == QLatin1String("i") || *sty == QLatin1String("bi")) ? QStringLiteral("bi") : QStringLiteral("b");
+        if (italic) *sty = (*sty == QLatin1String("b") || *sty == QLatin1String("bi")) ? QStringLiteral("bi") : QStringLiteral("i");
+        if (!bold && !italic && sty->isEmpty() && st.fontStyle == QLatin1String("normal") && scr->isEmpty()) *sty = QStringLiteral("p");
+    }
+    // The width of an mspace in em (units em, ex, px, pt, and the named spaces), or 0 for one that is none of them.
+    static double spaceWidth(const QString &w)
+    {
+        static const QVector<QPair<const char *, double>> named = {{"veryverythinmathspace", 1 / 18.}, {"verythinmathspace", 2 / 18.}, {"thinmathspace", 3 / 18.}, {"mediummathspace", 4 / 18.},
+                                                                    {"thickmathspace", 5 / 18.}, {"verythickmathspace", 6 / 18.}, {"veryverythickmathspace", 7 / 18.}};
+        const QString v = w.trimmed();
+        for (const auto &p : named)
+            if (v == QLatin1String(p.first)) return p.second;
+        qsizetype i = 0;
+        while (i < v.size() && (v[i].isDigit() || v[i] == QLatin1Char('.'))) ++i;
+        bool ok = false;
+        const double number = v.left(i).toDouble(&ok);
+        if (!ok) return 0;
+        const QString unit = v.mid(i).trimmed();
+        if (unit == QLatin1String("em")) return number;
+        if (unit == QLatin1String("ex")) return number / 2;
+        if (unit == QLatin1String("px")) return number / 16;
+        if (unit == QLatin1String("pt")) return number / 12;
+        return 0;
+    }
+    static bool isZero(const QString &v)
+    {
+        bool ok = false;
+        qsizetype i = 0;
+        const QString t = v.trimmed();
+        while (i < t.size() && (t[i].isDigit() || t[i] == QLatin1Char('.'))) ++i;
+        return t.left(i).toDouble(&ok) == 0 && ok;
+    }
 
     bool isOp(int n, const std::function<bool(uint)> &pred) const
     {
@@ -423,22 +554,48 @@ private:
     }
     bool isSeparator(int n) const { return m_t.name(n) == QLatin1String("mo") && m_t.attr(n, "separator") == QLatin1String("true"); }
 
-    // A group that begins and ends with a fence is a fence of the markup; what lies between, cut at separators (when all are one character), is its elements.
+    // What a fence mark in a group is: 1 only opens, 2 only closes, 3 either (a bar), 0 is no fence.
+    int fenceKind(int n) const
+    {
+        if (m_t.name(n) != QLatin1String("mo") || m_t.attr(n, "fence") != QLatin1String("true")) return 0;
+        const QVector<uint> cp = codePoints(text(n));
+        if (cp.size() != 1) return 0;
+        const uint c = cp[0];
+        if (c == '(' || c == '[' || c == '{' || c == 0x27E8 || c == 0x2308 || c == 0x230A || c == 0x27E6 || c == 0x2329 || c == '<') return 1;
+        if (c == ')' || c == ']' || c == '}' || c == 0x27E9 || c == 0x2309 || c == 0x230B || c == 0x27E7 || c == 0x232A || c == '>') return 2;
+        return 3;
+    }
+
+    // A group that begins and ends with a fence is one fence of the markup only when no fence between closes the first one (`(a)+(b)` is two); what lies between, cut at the separators of
+    // the outer level (when all are one character), is its elements.
     bool fence(int n, QByteArray *out)
     {
         const QVector<int> &kids = m_t.at(n).kids;
         if (kids.size() < 2 || !isFence(kids.first(), true) || !isFence(kids.last(), false)) return false;
-        QString separator;
-        bool mixed = false;
-        for (int i = 1; i + 1 < kids.size(); ++i)
-            if (isSeparator(kids[i])) {
-                if (separator.isEmpty()) separator = text(kids[i]);
-                else if (separator != text(kids[i])) mixed = true;
+        QVector<bool> outer(kids.size(), false);
+        int depth = 0;
+        for (int i = 1; i + 1 < kids.size(); ++i) {
+            const int kind = fenceKind(kids[i]);
+            if (kind == 3) return false;
+            if (kind == 2) {
+                if (depth == 0) return false;
+                --depth;
             }
-        const bool cut = !mixed && !separator.isEmpty();
+            outer[i] = depth == 0;
+            if (kind == 1) ++depth;
+        }
+        QString separator;
+        bool found = false, mixed = false;
+        for (int i = 1; i + 1 < kids.size(); ++i)
+            if (outer[i] && isSeparator(kids[i])) {
+                if (!found) separator = text(kids[i]);
+                else if (separator != text(kids[i])) mixed = true;
+                found = true;
+            }
+        const bool cut = found && !mixed;
         QVector<QVector<int>> cells(1);
         for (int i = 1; i + 1 < kids.size(); ++i) {
-            if (cut && isSeparator(kids[i])) cells.append(QVector<int>());
+            if (cut && outer[i] && isSeparator(kids[i])) cells.append(QVector<int>());
             else cells.last().append(kids[i]);
         }
         QByteArray props = valued("begChr", text(kids.first()));
@@ -505,6 +662,13 @@ private:
             const QString &name = m_t.name(n);
             const QVector<int> &kids = m_t.at(n).kids;
             const int after = i + 1 < nodes.size() ? nodes[i + 1] : -1;
+            // Anything followed by the sign for applying a function is the name of one (a limit too), and the element after the sign is what it takes.
+            if (name != QLatin1String("mo") && after >= 0 && isOp(after, isApplyFunction)) {
+                const int operand = i + 2 < nodes.size() ? nodes[i + 2] : -1;
+                out += part("func", part("fName", one(n)) + part("e", oneOrNone(operand)));
+                i += operand >= 0 ? 2 : 1;
+                continue;
+            }
             if (name == QLatin1String("mi") || name == QLatin1String("mn") || name == QLatin1String("mo") || name == QLatin1String("mtext") || name == QLatin1String("ms")) {
                 const QString t = text(n);
                 if (name == QLatin1String("mo")) {
@@ -516,36 +680,44 @@ private:
                         continue;
                     }
                 }
-                if (name == QLatin1String("mtext") || name == QLatin1String("ms")) {
+                if (name == QLatin1String("ms")) {
+                    const QString l = m_t.has(n, "lquote") ? m_t.attr(n, "lquote") : QStringLiteral("\""), r = m_t.has(n, "rquote") ? m_t.attr(n, "rquote") : QStringLiteral("\"");
+                    out += run(l + t + r, QString(), QString(), true);
+                } else if (name == QLatin1String("mtext")) {
                     if (!t.isEmpty()) out += run(t, QString(), QString(), true);
                 } else if (name == QLatin1String("mi") || name == QLatin1String("mn")) {
                     if (t.isEmpty()) continue;
-                    if (name == QLatin1String("mi") && after >= 0 && isOp(after, isApplyFunction)) {
-                        const int operand = i + 2 < nodes.size() ? nodes[i + 2] : -1;
-                        out += part("func", part("fName", one(n)) + part("e", oneOrNone(operand)));
-                        i += operand >= 0 ? 2 : 1;
-                        continue;
-                    }
                     QString sty, scr;
-                    const QString variant = m_t.attr(n, "mathvariant");
-                    if (!variant.isEmpty()) {
-                        for (const Variant &v : kVariants)
-                            if (variant == QLatin1String(v.mathml)) {
-                                sty = QLatin1String(v.sty);
-                                scr = QLatin1String(v.scr);
-                            }
-                    } else if (name == QLatin1String("mi") && codePoints(t).size() > 1)
-                        sty = QStringLiteral("p");
+                    styleToMarkup(styleOf(n), name == QLatin1String("mi") && codePoints(t).size() > 1, &sty, &scr);
                     out += run(t, sty, scr);
                 } else if (!t.isEmpty())
                     out += run(t);
             } else if (name == QLatin1String("mspace")) {
-                out += run(QStringLiteral(" "));
+                // a space only if it is wide enough to be one (0.2em); a wider one is as many spaces as it is wide, up to 32
+                const double w = spaceWidth(m_t.attr(n, "width"));
+                if (w >= 0.2) out += run(QString(qBound(1, qRound(w / 0.278), 32), QLatin1Char(' ')));
             } else if (name == QLatin1String("mrow")) {
                 QByteArray d;
                 out += fence(n, &d) ? d : seq(kids);
-            } else if (name == QLatin1String("mstyle") || name == QLatin1String("mpadded") || name == QLatin1String("merror") || name == QLatin1String("menclose")) {
+            } else if (name == QLatin1String("mstyle")) {
+                m_styles.append(styleOf(n));
                 out += seq(kids);
+                m_styles.removeLast();
+            } else if (name == QLatin1String("mpadded")) {
+                const bool zero = (m_t.has(n, "width") && isZero(m_t.attr(n, "width"))) || (m_t.has(n, "height") && isZero(m_t.attr(n, "height"))) || (m_t.has(n, "depth") && isZero(m_t.attr(n, "depth")));
+                if (zero || m_t.attr(n, "class") == QLatin1String("phant")) {
+                    const bool hidden = kids.size() == 1 && m_t.name(kids[0]) == QLatin1String("mphantom");
+                    QByteArray props = hidden ? valued("show", QStringLiteral("0")) : QByteArray();
+                    if (m_t.has(n, "width") && isZero(m_t.attr(n, "width"))) props += valued("zeroWid", QStringLiteral("1"));
+                    if (m_t.has(n, "height") && isZero(m_t.attr(n, "height"))) props += valued("zeroAsc", QStringLiteral("1"));
+                    if (m_t.has(n, "depth") && isZero(m_t.attr(n, "depth"))) props += valued("zeroDesc", QStringLiteral("1"));
+                    out += part("phant", part("phantPr", props) + part("e", seq(hidden ? m_t.at(kids[0]).kids : kids)));
+                } else
+                    out += seq(kids);
+            } else if (name == QLatin1String("merror")) {
+                out += seq(kids);
+            } else if (name == QLatin1String("menclose")) {
+                out += m_t.attr(n, "notation") == QLatin1String("box") ? part("borderBox", part("borderBoxPr", QByteArray()) + part("e", seq(kids))) : seq(kids);
             } else if (name == QLatin1String("mphantom")) {
                 out += part("phant", part("phantPr", valued("show", QStringLiteral("0"))) + part("e", seq(kids)));
             } else if (name == QLatin1String("semantics") || name == QLatin1String("maction")) {
@@ -579,7 +751,10 @@ private:
             } else if (name == QLatin1String("mmultiscripts")) {
                 out += multiscripts(kids);
             } else if (name == QLatin1String("munder") || name == QLatin1String("mover") || name == QLatin1String("munderover")) {
-                if (!kids.isEmpty() && isNaryBase(kids[0])) {
+                if (name != QLatin1String("munderover") && kids.size() == 2 && (m_t.attr(n, "class") == QLatin1String("groupChr") || isOp(kids[1], [](uint c) { return c >= 0x23DC && c <= 0x23E1; })) &&
+                    m_t.name(kids[1]) == QLatin1String("mo") && !codePoints(text(kids[1])).isEmpty()) {
+                    out += part("groupChr", part("groupChrPr", valued("chr", fromPoint(codePoints(text(kids[1])).first())) + valued("pos", QLatin1String(name == QLatin1String("mover") ? "top" : "bot"))) + argAt(kids, 0, "e"));
+                } else if (!kids.isEmpty() && isNaryBase(kids[0])) {
                     out += nary(kids, name, after);
                     if (after >= 0) ++i;
                 } else if (name == QLatin1String("mover") && kids.size() == 2 && isOp(kids[1], isBarChar) && m_t.attr(n, "accent") != QLatin1String("true")) {
@@ -596,7 +771,18 @@ private:
                     out += part("limUpp", part("e", part("limLow", argAt(kids, 0, "e") + argAt(kids, 1, "lim"))) + argAt(kids, 2, "lim"));
                 }
             } else if (name == QLatin1String("mtable")) {
-                out += table(n);
+                if (m_t.attr(n, "class") == QLatin1String("eqArr")) {
+                    QByteArray rows;
+                    for (int r : kids) {
+                        if (m_t.name(r) != QLatin1String("mtr")) continue;
+                        QVector<int> cellKids;
+                        for (int c : m_t.at(r).kids)
+                            if (m_t.name(c) == QLatin1String("mtd")) cellKids += m_t.at(c).kids;
+                        rows += part("e", seq(cellKids));
+                    }
+                    out += part("eqArr", part("eqArrPr", QByteArray()) + rows);
+                } else
+                    out += table(n);
             } else if (name == QLatin1String("mfenced")) {
                 const QString open = m_t.has(n, "open") ? m_t.attr(n, "open").trimmed() : QStringLiteral("(");
                 const QString close = m_t.has(n, "close") ? m_t.attr(n, "close").trimmed() : QStringLiteral(")");
@@ -651,12 +837,17 @@ QByteArray mathmlFromOmml(const QByteArray &markup, bool *ok, QString *error)
 {
     if (ok) *ok = false;
     Tree tree;
-    if (!readTree(markup, tree.nodes, error)) return {};
+    if (!readTree(markup, tree.nodes, error, true)) return {};
     if (tree.name(0) != QLatin1String("oMath") && tree.name(0) != QLatin1String("oMathPara")) {
         if (error) *error = QStringLiteral("not math markup");
         return {};
     }
-    const QByteArray out = ToMathml(tree).all();
+    ToMathml to(tree);
+    const QByteArray out = to.all();
+    if (to.over() || out.size() > kMostOutputBytes || countElements(out) > kMostOutputElements) {
+        if (error) *error = QStringLiteral("output too large");
+        return {};
+    }
     if (ok) *ok = true;
     return out;
 }
@@ -665,12 +856,16 @@ QByteArray ommlFromMathml(const QByteArray &xml, bool *ok, QString *error)
 {
     if (ok) *ok = false;
     Tree tree;
-    if (!readTree(xml, tree.nodes, error)) return {};
+    if (!readTree(xml, tree.nodes, error, false)) return {};
     if (tree.name(0) != QLatin1String("math")) {
         if (error) *error = QStringLiteral("not MathML");
         return {};
     }
     const QByteArray out = FromMathml(tree).all();
+    if (out.size() > kMostOutputBytes || countElements(out) > kMostOutputElements) {
+        if (error) *error = QStringLiteral("output too large");
+        return {};
+    }
     if (ok) *ok = true;
     return out;
 }

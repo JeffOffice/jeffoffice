@@ -62,6 +62,9 @@ private Q_SLOTS:
             const QByteArray second = toOmml(m1, &ok);
             QVERIFY2(ok, qPrintable(design.linear));
             QCOMPARE(wml::equationLine(second), wml::equationLine(first));
+            int at = 0;
+            while (at < first.size() && at < second.size() && first[at] == second[at]) ++at;
+            QVERIFY2(second == first, qPrintable(design.linear + QStringLiteral(" differs at ") + QString::number(at) + QStringLiteral(": ") + QString::fromUtf8(first.mid(at - 20, 90)) + QStringLiteral(" | ") + QString::fromUtf8(second.mid(at - 20, 90))));
             QVERIFY2(!wml::equationLine(first).isEmpty(), qPrintable(design.linear));
             const QByteArray m2 = toMathml(second, &ok);
             QVERIFY(ok);
@@ -230,9 +233,9 @@ private Q_SLOTS:
     }
 
     // The nesting limit: exactly kMostDepth levels (the root counts) are read, one more is refused; both ways.
-    void nestingIsLimitedToTwentyFourLevels()
+    void nestingIsLimitedToSixtyFourLevels()
     {
-        QCOMPARE(mathml::kMostDepth, 24);
+        QCOMPARE(mathml::kMostDepth, 64);
         auto nested = [](const char *open, const char *close, int levels, const QByteArray &leaf) {
             QByteArray s;
             for (int i = 0; i < levels; ++i) s += open;
@@ -240,17 +243,38 @@ private Q_SLOTS:
             for (int i = 0; i < levels; ++i) s += close;
             return s;
         };
-        // math + 22 mrow + mi = 24 deep
+        // math + 62 mrow + mi = 64 deep
         bool ok = false;
-        toOmml(mml(nested("<mrow>", "</mrow>", 22, "<mi>x</mi>")), &ok);
+        toOmml(mml(nested("<mrow>", "</mrow>", 62, "<mi>x</mi>")), &ok);
         QVERIFY(ok);
-        toOmml(mml(nested("<mrow>", "</mrow>", 23, "<mi>x</mi>")), &ok);
+        toOmml(mml(nested("<mrow>", "</mrow>", 63, "<mi>x</mi>")), &ok);   // 65 deep
         QVERIFY(!ok);
-        // oMath + 21 e + r + t = 24 deep
-        toMathml(omml(nested("<m:e>", "</m:e>", 21, run("x"))), &ok);
+        // oMath + 61 e + r + t = 64 deep
+        toMathml(omml(nested("<m:e>", "</m:e>", 61, run("x"))), &ok);
         QVERIFY(ok);
-        toMathml(omml(nested("<m:e>", "</m:e>", 22, run("x"))), &ok);
+        toMathml(omml(nested("<m:e>", "</m:e>", 62, run("x"))), &ok);
         QVERIFY(!ok);
+    }
+
+    // What the editor makes nests two levels for each fraction: a continued fraction 20 deep is read, both ways, and so is the nesting another program writes (wrappers in wrappers).
+    void deepEquationsFromTheEditorAndAnotherProgramConvert()
+    {
+        QString linear = QStringLiteral("1");
+        for (int i = 0; i < 20; ++i) linear = QStringLiteral("1+1/(") + linear + QLatin1Char(')');
+        const QByteArray markup = wml::equationMarkup(linear);
+        QVERIFY(!markup.isEmpty());
+        bool ok = false;
+        const QByteArray m = toMathml(markup, &ok);
+        QVERIFY(ok);
+        QCOMPARE(m.count("<mfrac>"), 20);
+        const QByteArray back = toOmml(m, &ok);
+        QVERIFY(ok);
+        QCOMPARE(wml::equationLine(back), wml::equationLine(markup));
+        QByteArray part = "<mi>x</mi>";
+        for (int i = 0; i < 10; ++i) part = "<mrow><mstyle mathvariant=\"normal\"><msup>" + part + "<mn>2</mn></msup></mstyle></mrow>";
+        const QByteArray deep = toOmml(mml(part), &ok);
+        QVERIFY(ok);
+        QCOMPARE(names(deep).count(QStringLiteral("sSup")), 10);
     }
 
     void elementsAreLimitedToFourThousand()
@@ -319,6 +343,171 @@ private Q_SLOTS:
         const QByteArray out = mathml::ommlFromMathml(xml, &ok, &error);
         QVERIFY(!ok && out.isEmpty());
         QVERIFY2(error.contains(QLatin1String("DOCTYPE")), qPrintable(error));
+    }
+
+    // One megabyte of blanks was 25 MB of output. A run of blanks is one space of that width and reads back as that many.
+    void aRunOfBlanksIsOneSpace()
+    {
+        bool ok = false;
+        const QByteArray big = toMathml(omml("<m:r><m:t xml:space=\"preserve\">" + QByteArray(900000, ' ') + "</m:t></m:r>"), &ok);
+        QVERIFY(ok);
+        QVERIFY2(big.size() < 1000, qPrintable(QString::number(big.size())));
+        QCOMPARE(names(big).count(QStringLiteral("mspace")), 1);
+        const QByteArray five = toOmml(toMathml(omml("<m:r><m:t xml:space=\"preserve\">a     b</m:t></m:r>")));
+        QVERIFY(five.contains("<m:t>a</m:t>") && five.contains("<m:t>b</m:t>"));
+        QVERIFY(five.contains("<m:t xml:space=\"preserve\">     </m:t>"));
+    }
+
+    // A long run of one operator character is one operator; mixed ones cannot be shortened and are refused past the output limit, in elements, exactly at it.
+    void outputIsLimitedAndLongOperatorRunsAreOne()
+    {
+        bool ok = false;
+        const QByteArray plus = toMathml(omml(run(QByteArray(100000, '+').constData())), &ok);
+        QVERIFY(ok);
+        QCOMPARE(names(plus).count(QStringLiteral("mo")), 1);
+        QCOMPARE(toOmml(plus).count('+'), 100000);
+        QCOMPARE(mathml::kMostOutputElements, 20000);
+        // math + mrow + 19998 letters = 20000 elements
+        toMathml(omml(run(QByteArray(19998, 'x').constData())), &ok);
+        QVERIFY(ok);
+        QString error;
+        mathml::mathmlFromOmml(omml(run(QByteArray(19999, 'x').constData())), &ok, &error);
+        QVERIFY(!ok);
+        QVERIFY2(error.contains(QLatin1String("output")), qPrintable(error));
+        QByteArray mixed;
+        for (int i = 0; i < 100000; ++i) mixed += "+-";
+        toMathml(omml(run(mixed.constData())), &ok);
+        QVERIFY(!ok);
+        // The other way the output cannot pass the limit from 4,000 elements (5 at the most for each): the worst case is read.
+        QByteArray body;
+        for (int i = 0; i < 3999; ++i) body += "<mi mathvariant=\"bold-script\">x</mi>";
+        toOmml(mml(body), &ok);
+        QVERIFY(ok);
+    }
+
+    // `(a)+(b)` written with fences is two groups, not one that runs from the first fence to the last.
+    void twoFencedGroupsInARowStayTwo()
+    {
+        const QByteArray two = toOmml(mml("<mrow><mo fence=\"true\" stretchy=\"true\">(</mo><mi>a</mi><mo fence=\"true\" stretchy=\"true\">)</mo><mo>+</mo>"
+                                          "<mo fence=\"true\" stretchy=\"true\">(</mo><mi>b</mi><mo fence=\"true\" stretchy=\"true\">)</mo></mrow>"));
+        QCOMPARE(names(two).count(QStringLiteral("d")), 0);
+        QVERIFY(wml::equationLine(two).contains(QLatin1String("+")));
+        // A group in a group is one; a separator of an inner group does not cut the outer.
+        const QByteArray nested = toOmml(mml("<mrow><mo fence=\"true\">(</mo><mi>a</mi><mo separator=\"true\">,</mo><mo fence=\"true\">[</mo><mi>b</mi><mo separator=\"true\">,</mo><mi>c</mi>"
+                                             "<mo fence=\"true\">]</mo><mo fence=\"true\">)</mo></mrow>"));
+        QCOMPARE(names(nested).count(QStringLiteral("e")), 2);
+        QCOMPARE(names(nested).count(QStringLiteral("d")), 1);
+    }
+
+    void aPartInTheWrongNamespaceIsRefused()
+    {
+        bool ok = true;
+        toOmml("<evil:math xmlns:evil=\"http://example.com/x\"><evil:mi>x</evil:mi></evil:math>", &ok);
+        QVERIFY(!ok);
+        toOmml("<math xmlns=\"http://example.com/x\"><mi>x</mi></math>", &ok);
+        QVERIFY(!ok);
+        toMathml("<m:oMath xmlns:m=\"http://example.com/x\"><m:r><m:t>x</m:t></m:r></m:oMath>", &ok);
+        QVERIFY(!ok);
+        toMathml("<oMath><r><t>x</t></r></oMath>", &ok);
+        QVERIFY(!ok);
+        // A formula part with no namespace written is read; an element of another namespace inside one in MathML's is kept as text, not mapped.
+        QVERIFY(!toOmml("<math><mi>x</mi></math>", &ok).isEmpty());
+        QVERIFY(ok);
+        const QByteArray foreign = toOmml(mml("<mrow><x:mfrac xmlns:x=\"http://example.com/x\"><mi>a</mi><mi>b</mi></x:mfrac></mrow>"));
+        QVERIFY(!names(foreign).contains(QStringLiteral("f")));
+        // An attribute in another namespace is not the attribute.
+        const QByteArray attr = toOmml(mml("<mi x:mathvariant=\"bold\" xmlns:x=\"http://example.com/x\">y</mi>"));
+        QVERIFY(!attr.contains("<m:sty"));
+    }
+
+    // A part shaped as another program writes it: semantics, the StarMath annotation, nested groups, styles on mstyle, fences with stretchy, upright names, quoted strings, wide spaces.
+    void aPartShapedLikeAnotherProgramsReads()
+    {
+        const QByteArray xml = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" display=\"block\"><semantics><mrow><mstyle mathvariant=\"normal\"><mrow><mi mathvariant=\"normal\">sin</mi><mo>&#x2061;</mo>"
+                               "<mrow><mo fence=\"true\" stretchy=\"true\">(</mo><mrow><mi>x</mi><mspace width=\"0.278em\"/><mtext>if&#xA0;a  b</mtext></mrow><mo fence=\"true\" stretchy=\"true\">)</mo></mrow></mrow></mstyle>"
+                               "<mspace width=\"0.1em\"/><mstyle fontweight=\"bold\"><mi>y</mi></mstyle><mstyle fontstyle=\"italic\"><mi>zz</mi></mstyle><ms>q</ms></mrow>"
+                               "<annotation encoding=\"StarMath 5.0\">sin (x ~ \"if a b\") </annotation></semantics></math>";
+        bool ok = false;
+        const QByteArray out = toOmml(xml, &ok);
+        QVERIFY(ok);
+        QVERIFY(!out.contains("StarMath") && !out.contains("semantics"));
+        const QStringList n = names(out);
+        QVERIFY(n.contains(QStringLiteral("func")) && n.contains(QStringLiteral("d")));
+        QVERIFY(out.contains("<m:t>sin</m:t>"));
+        QVERIFY(out.contains("<m:sty m:val=\"p\"/>"));
+        QVERIFY2(out.contains("if\xC2\xA0" "a  b"), "inner blanks and a no-break space are kept");
+        QVERIFY(out.contains("<m:sty m:val=\"b\"/></m:rPr><m:t>y</m:t>"));
+        QVERIFY(out.contains("<m:sty m:val=\"i\"/></m:rPr><m:t>zz</m:t>"));
+        QVERIFY(out.contains("<m:t>&quot;q&quot;</m:t>") || out.contains("<m:t>\"q\"</m:t>"));
+        // (a space under 0.2em is none; the one of 0.278em is a blank)
+        QCOMPARE(out.count("<m:t xml:space=\"preserve\"> </m:t>"), 1);
+    }
+
+    void mstyleMspaceMsAndMencloseAreRead()
+    {
+        // mstyle: its attributes reach the tokens in it, and a token's own win.
+        const QByteArray styled = toOmml(mml("<mstyle mathvariant=\"bold\"><mi>a</mi><mi mathvariant=\"italic\">b</mi></mstyle>"));
+        QVERIFY(styled.contains("<m:sty m:val=\"b\"/></m:rPr><m:t>a</m:t>") && styled.contains("<m:sty m:val=\"i\"/></m:rPr><m:t>b</m:t>"));
+        // mspace: 0.2em is a blank; narrower, and a width with no unit, are none; a wide one is several, never more than 32.
+        QCOMPARE(toOmml(mml("<mi>a</mi><mspace width=\"0.2em\"/><mi>b</mi>")).count("preserve"), 1);
+        QCOMPARE(toOmml(mml("<mi>a</mi><mspace width=\"0.19em\"/><mi>b</mi>")).count("preserve"), 0);
+        QCOMPARE(toOmml(mml("<mi>a</mi><mspace width=\"3\"/><mi>b</mi>")).count("preserve"), 0);
+        QVERIFY(toOmml(mml("<mspace width=\"1000000em\"/>")).contains("<m:t xml:space=\"preserve\">" + QByteArray(32, ' ') + "</m:t>"));
+        // ms keeps its quotes, and its own if it names them.
+        QVERIFY(toOmml(mml("<ms lquote=\"'\" rquote=\"'\">s</ms>")).contains("<m:t>'s'</m:t>"));
+        // menclose: a box is the markup's border box, and comes back as one; another kind is looked through.
+        const QByteArray box = toOmml(mml("<menclose notation=\"box\"><mi>x</mi></menclose>"));
+        QVERIFY(names(box).contains(QStringLiteral("borderBox")));
+        QVERIFY(toMathml(box).contains("<menclose notation=\"box\">"));
+        QVERIFY(!names(toOmml(mml("<menclose notation=\"top\"><mi>x</mi></menclose>"))).contains(QStringLiteral("borderBox")));
+    }
+
+    // A limit written as a function (the name, the sign for applying it, its operand) is the markup's function with a limit as its name, both ways.
+    void aLimitAsAFunctionNameIsAFunction()
+    {
+        const QByteArray fn = toOmml(mml("<mrow><munder><mi>lim</mi><mrow><mi>n</mi><mo>&#x2192;</mo><mi>k</mi></mrow></munder><mo>&#x2061;</mo><mi>f</mi></mrow>"));
+        QVERIFY(names(fn).indexOf(QStringLiteral("func")) >= 0);
+        QVERIFY(names(fn).indexOf(QStringLiteral("limLow")) > names(fn).indexOf(QStringLiteral("fName")));
+        const QByteArray back = toMathml(fn);
+        QVERIFY(back.contains("<munder>") && back.contains("\xE2\x81\xA1"));
+        QCOMPARE(toOmml(back), fn);
+    }
+
+    // What the first version lost on the way: the equation array, group character, border box, phantom, an empty separator, an empty operator symbol.
+    void shapesThatLostTheirKindKeepIt()
+    {
+        const QByteArray arr = omml("<m:eqArr><m:eqArrPr/><m:e>" + run("a") + "</m:e><m:e>" + run("b") + "</m:e></m:eqArr>");
+        QVERIFY(toMathml(arr).contains("class=\"eqArr\""));
+        QCOMPARE(names(toOmml(toMathml(arr))).count(QStringLiteral("e")), 2);
+        QVERIFY(names(toOmml(toMathml(arr))).contains(QStringLiteral("eqArr")) && !names(toOmml(toMathml(arr))).contains(QStringLiteral("mr")));
+
+        const QByteArray group = omml("<m:groupChr><m:groupChrPr><m:chr m:val=\"~\"/><m:pos m:val=\"top\"/></m:groupChrPr><m:e>" + run("x") + "</m:e></m:groupChr>");
+        const QByteArray gm = toMathml(group);
+        QVERIFY(gm.contains("<mover class=\"groupChr\">"));
+        const QByteArray gb = toOmml(gm);
+        QVERIFY(names(gb).contains(QStringLiteral("groupChr")) && gb.contains("<m:chr m:val=\"~\"/>") && gb.contains("<m:pos m:val=\"top\"/>"));
+
+        const QByteArray box = omml("<m:borderBox><m:borderBoxPr/><m:e>" + run("x") + "</m:e></m:borderBox>");
+        QVERIFY(toMathml(box).contains("<menclose notation=\"box\">"));
+        QVERIFY(names(toOmml(toMathml(box))).contains(QStringLiteral("borderBox")));
+
+        const QByteArray hidden = omml("<m:phant><m:phantPr><m:show m:val=\"0\"/><m:zeroWid m:val=\"1\"/></m:phantPr><m:e>" + run("x") + "</m:e></m:phant>");
+        const QByteArray hm = toMathml(hidden);
+        QVERIFY(hm.contains("<mphantom>") && hm.contains("width=\"0\""));
+        const QByteArray hb = toOmml(hm);
+        QVERIFY(hb.contains("<m:show m:val=\"0\"/>") && hb.contains("<m:zeroWid m:val=\"1\"/>") && !hb.contains("zeroAsc"));
+        const QByteArray shown = omml("<m:phant><m:phantPr><m:zeroAsc m:val=\"1\"/></m:phantPr><m:e>" + run("x") + "</m:e></m:phant>");
+        const QByteArray sb = toOmml(toMathml(shown));
+        QVERIFY(sb.contains("<m:zeroAsc m:val=\"1\"/>") && !sb.contains("<m:show"));
+        QVERIFY(names(toOmml(mml("<mphantom><mi>x</mi></mphantom>"))).contains(QStringLiteral("phant")));
+
+        const QByteArray list = omml("<m:d><m:dPr><m:begChr m:val=\"(\"/><m:sepChr m:val=\"\"/><m:endChr m:val=\")\"/></m:dPr><m:e>" + run("a") + "</m:e><m:e>" + run("b") + "</m:e></m:d>");
+        const QByteArray lb = toOmml(toMathml(list));
+        QCOMPARE(names(lb).count(QStringLiteral("e")), 2);
+        QVERIFY(lb.contains("<m:sepChr m:val=\"\"/>"));
+
+        const QByteArray emptyChr = omml("<m:nary><m:naryPr><m:chr m:val=\"\"/></m:naryPr><m:sub/><m:sup/><m:e>" + run("f") + "</m:e></m:nary>");
+        QVERIFY(toMathml(emptyChr).contains("\xE2\x88\xAB"));
     }
 
     void notXmlOrNotMathIsRefused()
