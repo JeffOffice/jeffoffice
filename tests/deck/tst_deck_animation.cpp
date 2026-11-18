@@ -663,7 +663,7 @@ private Q_SLOTS:
         QVERIFY(!deck::statesAt(tl, g, 0, 0).value(deck::Target{4}).clip.isNull());
         QVERIFY(deck::statesAt(tl, g, 1).value(deck::Target{4}).clip.isNull());
         // Another filter is drawn as a fade.
-        const deck::Timeline wheel = deck::readTimeline(animTiming(animSteps({animNode("entr", 21, 1, "clickEffect", 0, {animShow(4, true), animFilter(4, "wheel(1)", true, 1000)})})));
+        const deck::Timeline wheel = deck::readTimeline(animTiming(animSteps({animNode("entr", 18, 1, "clickEffect", 0, {animShow(4, true), animFilter(4, "strips(rightDown)", true, 1000)})})));
         const deck::TargetState w = deck::statesAt(wheel, g, 0, 250).value(deck::Target{4});
         QVERIFY(animNear(w.opacity, 0.25));
         QVERIFY(w.clip.isNull());
@@ -1034,9 +1034,9 @@ private Q_SLOTS:
     {
         auto d = editDeck(1);
         Page &slide = *d->pages[0];
-        // A wheel (entrance 21): an effect with no kind here.
-        const QString wheel = animNode("entr", 21, 1, "clickEffect", 0, {animShow(10, true), animFilter(10, "wheel(1)", true, 2000)});
-        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {wheel})}) + animStep({animGroup(0, {animFadeIn(3, 500)})}));
+        // Strips (entrance 18): an effect with no kind here.
+        const QString strips = animNode("entr", 18, 1, "clickEffect", 0, {animShow(10, true), animFilter(10, "strips(rightDown)", true, 2000)});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {strips})}) + animStep({animGroup(0, {animFadeIn(3, 500)})}));
         deck::AnimSequence seq = deck::readAnimations(slide);
         QCOMPARE(seq.effects.size(), 2);
         QVERIFY(seq.effects[0].custom());
@@ -1044,13 +1044,13 @@ private Q_SLOTS:
         QCOMPARE(seq.effects[0].cls, deck::EffectClass::Entrance);
         QVERIFY(!seq.effects[1].custom());
         QCOMPARE(seq.effects[0].duration, 2000);
-        // Written again with the fade before it, the wheel's behaviors are as they were.
+        // Written again with the fade before it, the strips' behaviors are as they were.
         seq.move(1, 0);
         QVERIFY(seq.effects[1].custom());
         deck::setAnimations(*d, slide, seq);
         const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
-        QVERIFY(xml.contains(QStringLiteral("presetID=\"21\"")) && xml.contains(QStringLiteral("filter=\"wheel(1)\"")));
-        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("2 0 clickEffect 10 21/1")}));
+        QVERIFY(xml.contains(QStringLiteral("presetID=\"18\"")) && xml.contains(QStringLiteral("filter=\"strips(rightDown)\"")));
+        QCOMPARE(animOutline(xml), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("2 0 clickEffect 10 18/1")}));
         // Ids stay unique and sequential in document order.
         QDomDocument dom;
         QVERIFY(office::parseXml(xml.toUtf8(), &dom));
@@ -1066,7 +1066,7 @@ private Q_SLOTS:
         seq = deck::readAnimations(slide);
         seq.effects[1].start = deck::EffectStart::WithPrevious;
         deck::setAnimations(*d, slide, seq);
-        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("1 0 withEffect 10 21/1")}));
+        QCOMPARE(animOutline(slide.props.value(QStringLiteral("timingXml")).toString()), (QStringList{QStringLiteral("1 0 clickEffect 3 10/0"), QStringLiteral("1 0 withEffect 10 18/1")}));
         seq = deck::readAnimations(slide);
         seq.remove(1);
         deck::setAnimations(*d, slide, seq);
