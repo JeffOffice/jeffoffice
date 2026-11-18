@@ -1056,21 +1056,27 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
             if (!via.empty()) {
                 const std::vector<jp::calc::LineDead> records = map.deadRecords();
                 std::vector<char> taken(records.size(), 0);
-                auto inVia = [&](quint32 id) {
-                    if (id == jp::calc::LineMapCore::kNone) return false;
-                    for (const jp::calc::IdRun &r : via)
-                        if (id >= r.first && id - r.first < r.count) return true;
-                    return false;
-                };
-                for (bool grew = true; grew;) {
-                    grew = false;
-                    for (size_t k = 0; k < records.size(); ++k) {
-                        const jp::calc::LineDead &d = records[k];
-                        if (taken[k] || (!inVia(d.after) && !inVia(d.before))) continue;
-                        taken[k] = 1;
-                        via.push_back({d.first, d.count});
-                        grew = true;
-                    }
+                // (the records that point into the runs, and those that point into the runs they add, and so on: each run is looked up once in the records by the line before and by the line after)
+                std::vector<uint32_t> byBefore(records.size()), byAfter(records.size());
+                for (size_t k = 0; k < records.size(); ++k) byBefore[k] = byAfter[k] = uint32_t(k);
+                std::sort(byBefore.begin(), byBefore.end(), [&](uint32_t a, uint32_t b) { return records[a].before < records[b].before; });
+                std::sort(byAfter.begin(), byAfter.end(), [&](uint32_t a, uint32_t b) { return records[a].after < records[b].after; });
+                std::vector<jp::calc::IdRun> pending = via;
+                while (!pending.empty()) {
+                    const jp::calc::IdRun r = pending.back();
+                    pending.pop_back();
+                    auto take = [&](const std::vector<uint32_t> &index, quint32 jp::calc::LineDead::*key) {
+                        auto at = std::lower_bound(index.begin(), index.end(), r.first, [&](uint32_t k, quint32 v) { return records[k].*key < v; });
+                        for (; at != index.end() && records[*at].*key != jp::calc::LineMapCore::kNone && records[*at].*key - r.first < r.count; ++at) {
+                            const size_t k = *at;
+                            if (taken[k]) continue;
+                            taken[k] = 1;
+                            via.push_back({records[k].first, records[k].count});
+                            pending.push_back({records[k].first, records[k].count});
+                        }
+                    };
+                    take(byBefore, &jp::calc::LineDead::before);
+                    take(byAfter, &jp::calc::LineDead::after);
                 }
                 for (size_t k = 0; k < records.size(); ++k)
                     if (taken[k] && records[k].first < firstNew) q.dead.push_back({records[k].first, std::min(records[k].count, firstNew - records[k].first)});
