@@ -13,6 +13,7 @@
 // a look at each object. The layer holds no cells and no file.
 
 #include "core/export.h"
+#include "core/textdirection.h"
 #include "grid/layout.h"
 #include "grid/overlay.h"
 #include "sheet/drawing.h"
@@ -157,8 +158,12 @@ public:
     // Drawing a box with the mouse (a text box): while armed, a press, a drag, and a release on the cells draw a box (the rule every app shares: a click of under 4 points gives `usual`, any
     // other box is at least 18 points a side, and Shift keeps it square) in place of picking; `boxDrawn` says where (the grid's units). The pointer is a cross, Escape puts it down, and
     // so does the release.
-    void armBox(bool on, const QSizeF &usualPoints = QSizeF(120, 36));
+    void armBox(bool on, const QSizeF &usualPoints = jp::usualTextBoxSize());
     bool boxArmed() const { return m_boxArmed; }
+    // The most a drawn box is, in the grid's units: the preview and the box made are both held to it.
+    static constexpr double kMaxBoxWidth = 4000, kMaxBoxHeight = 2000;
+    // The box the drag has so far, in the grid's units (empty when none is being drawn): what is shown, and what boxDrawn gives.
+    QRectF boxPreview() const { return m_boxDragging ? boxNowUnits() : QRectF(); }
 
     // Makes every picture that the screen needs now, however many and however long (waits for the charts on the worker); otherwise they are made in the time between events.
     void prepareAll();
@@ -224,7 +229,7 @@ private:
     bool m_mirrored = false;   // the painter is mirrored: pictures are turned back
     // The box being drawn (armBox): the grid's units at the press and now, and whether Shift is down.
     bool m_boxArmed = false, m_boxDragging = false, m_boxShift = false;
-    QSizeF m_boxUsual{120, 36};
+    QSizeF m_boxUsual = jp::usualTextBoxSize();
     QPointF m_boxFrom, m_boxNow;
     bool unitsAt(const GridLayout &layout, const QPoint &point, QPointF *units) const;
     QRectF boxNowUnits() const;

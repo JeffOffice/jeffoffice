@@ -34,7 +34,7 @@ namespace jp {
 
 static const int kRuler = 22;
 static const double kHandle = 4.5;     // handle radius in pixels
-static const QSizeF kUsualTextBox(144, 72);   // the size of a text box clicked onto the page
+static const QSizeF kUsualTextBox = usualTextBoxSize();   // the size of a text box clicked onto the page
 
 // How people move the rulers' zero points; the gestures are all here. Shift
 // and the right button on a ruler move that ruler's zero to where you let

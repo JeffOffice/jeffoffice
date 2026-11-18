@@ -112,18 +112,41 @@ private Q_SLOTS:
         QVERIFY(open(e));
         crunch::SheetObjects *o = e.win.w.objects();
         const QPoint from = e.view()->cellRect(4, 2).center();
-        // (a click, and a drag of under 4 points: the usual size, 160 by 48 pixels at 100%)
+        // (a click, and a drag of under 4 points: the usual size every app has, 144 by 72 points, 192 by 96 pixels at 100%)
         e.win.w.act(QStringLiteral("insert.textBox.draw"))->trigger();
         drag(e, from, from + QPoint(2, 1));
         QVERIFY(e.settle());
         grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
-        QVERIFY2(std::abs(box.w - 160) < 3 && std::abs(box.h - 48) < 3, qPrintable(QStringLiteral("%1x%2").arg(box.w).arg(box.h)));
+        QVERIFY2(std::abs(box.w - 192) < 3 && std::abs(box.h - 96) < 3, qPrintable(QStringLiteral("%1x%2").arg(box.w).arg(box.h)));
         // (a drag of 10 points, 13 pixels: a box that can hold a line, 18 points or 24 pixels a side)
         e.win.w.act(QStringLiteral("insert.textBox.draw"))->trigger();
         drag(e, from + QPoint(400, 0), from + QPoint(413, 13));
         QVERIFY(e.settle());
         box = o->layer()->boxNow(o->layer()->selectedId());
         QVERIFY2(std::abs(box.w - 24) < 3 && std::abs(box.h - 24) < 3, qPrintable(QStringLiteral("%1x%2").arg(box.w).arg(box.h)));
+    }
+
+    void theDrawnBoxPreviewIsTheSizeTheBoxGetsEvenWhenTheDragIsHuge()
+    {
+        EditWindow e;
+        QVERIFY(open(e));
+        e.view()->setZoom(0.1);
+        crunch::SheetObjects *o = e.win.w.objects();
+        QWidget *vp = e.view()->viewport();
+        for (const QPoint by : {QPoint(120, 60), QPoint(700, 400)}) {   // (6000 by 3000 units is past the most a box can be, 4000 by 2000)
+            e.win.w.act(QStringLiteral("insert.textBox.draw"))->trigger();
+            const QPoint from = e.view()->cellRect(1, 1).center();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+            QTest::mouseMove(vp, from + by / 2);
+            QTest::mouseMove(vp, from + by);
+            const QRectF preview = o->layer()->boxPreview();
+            QVERIFY(preview.width() > 0);
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, from + by);
+            QVERIFY(e.settle());
+            const grid::ObjectBox box = o->layer()->boxNow(o->layer()->selectedId());
+            QVERIFY2(std::abs(box.w - preview.width()) < 3 && std::abs(box.h - preview.height()) < 3, qPrintable(QStringLiteral("%1x%2 shown, %3x%4 made").arg(preview.width()).arg(preview.height()).arg(box.w).arg(box.h)));
+            if (by.x() > 500) QVERIFY2(preview.width() <= 4000.5 && preview.height() <= 2000.5, qPrintable(QStringLiteral("%1x%2").arg(preview.width()).arg(preview.height())));
+        }
     }
 
     void theArmedToolShowsACrossAndEscAndAnyOtherCommandPutItDown()
@@ -210,17 +233,26 @@ private Q_SLOTS:
             e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();   // (already across: no step, and the file's value stays)
             QVERIFY(e.settle());
             QCOMPARE(stack->count(), steps);
-            e.select(QStringLiteral("F9"));
-            e.enter(QStringLiteral("5"));   // (a change, so that there is something to save)
+            // (an edit of the same object that is not about the direction: the object is made again, and the file's value stays in it)
+            QVERIFY(e.win.w.setObjectFill(QColor(255, 200, 0), false));
             QVERIFY(e.settle());
+            QVERIFY(elementOf(e, liveId(e)).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value)));
             steps = stack->count();
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY2(e.win.w.save() && savedOk(saved), qPrintable(QString::number(value.size())));
             QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value).toUtf8()));
+            // (a direction picked replaces it, and across again leaves none)
             e.win.w.act(QStringLiteral("object.dir.r90"))->trigger();
             QVERIFY(e.settle());
             QCOMPARE(stack->count(), steps + 1);
             QVERIFY(elementOf(e, liveId(e)).contains(QStringLiteral("vert=\"vert\"")));
+            QVERIFY(!elementOf(e, liveId(e)).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value)));
+            e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();
+            QVERIFY(e.settle());
+            QVERIFY(!elementOf(e, liveId(e)).contains(QStringLiteral("vert=")));
+            QSignalSpy savedAgain(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save() && savedOk(savedAgain));
+            QVERIFY(!partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("vert="));
         }
     }
 

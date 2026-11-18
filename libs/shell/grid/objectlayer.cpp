@@ -898,7 +898,9 @@ bool ObjectLayer::unitsAt(const GridLayout &layout, const QPoint &point, QPointF
 QRectF ObjectLayer::boxNowUnits() const
 {
     const auto ends = jp::textBoxDragEnds(m_boxFrom * kPointsPerUnit, m_boxNow * kPointsPerUnit, m_boxShift, m_boxUsual);
-    return QRectF(ends.first / kPointsPerUnit, ends.second / kPointsPerUnit).normalized();
+    QRectF box = QRectF(ends.first / kPointsPerUnit, ends.second / kPointsPerUnit).normalized();
+    box.setSize(QSizeF(std::min(box.width(), kMaxBoxWidth), std::min(box.height(), kMaxBoxHeight)));
+    return box;
 }
 
 void ObjectLayer::paintBox(QPainter *p, const GridLayout &layout, Pane pane, const QRect &clip) const

@@ -554,6 +554,8 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         return;
     }
     rememberView();
+    const bool boxWasArmed = m_objects && m_objects->layer()->boxArmed();   // (the Draw Text Box tool is for the sheet it was picked on)
+    if (boxWasArmed) m_objects->layer()->armBox(false);
     m_sheet = sheetIndex;
     const int tab = m_tabSheets.indexOf(sheetIndex);
     if (tab >= 0 && m_tabs->currentIndex() != tab) {
@@ -577,7 +579,8 @@ void CrunchWindow::setActiveSheet(int sheetIndex)
         updatePointViews();
         return;
     }
-    if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+    if (boxWasArmed && m_objects && m_objects->isChartSheet(sheetIndex)) setStatus(tr("A text box can't go on a chart sheet, which holds only its chart."));
+    else if (!m_calculating && !m_loading) setStatus(tr("Ready"));
 }
 
 // ---- the calculation, on the worker

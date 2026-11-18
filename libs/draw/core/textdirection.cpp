@@ -53,6 +53,8 @@ TextDirection textDirectionFromOdf(const QString &styleMode, const QString &exte
     return TextDirection::Horizontal;
 }
 
+QSizeF usualTextBoxSize() { return QSizeF(144, 72); }
+
 std::pair<QPointF, QPointF> textBoxDragEnds(const QPointF &from, const QPointF &to, bool keepProportions, const QSizeF &usual)
 {
     if (!std::isfinite(from.x()) || !std::isfinite(from.y()) || !std::isfinite(to.x()) || !std::isfinite(to.y())) return {from, from};

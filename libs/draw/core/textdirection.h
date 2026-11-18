@@ -31,6 +31,9 @@ JO_COMMON_EXPORT QString textDirectionName(TextDirection direction);
 JO_COMMON_EXPORT QString textDirectionOdfAttributes(TextDirection direction);
 JO_COMMON_EXPORT TextDirection textDirectionFromOdf(const QString &styleMode, const QString &extensionMode, bool turnedBack = false);
 
+// The size of a text box clicked onto a page or a sheet, in points: the same in every app.
+JO_COMMON_EXPORT QSizeF usualTextBoxSize();
+
 // The corners of a text box drawn by dragging from one point of the page to another (points; put in order): a drag of under 4 points both ways gives the `usual` size from `from`; any other
 // has each side at least 18 points (a box that can hold a line); `keepProportions` (Shift) makes it as wide as it is tall. The preview and the box made are both this.
 JO_COMMON_EXPORT std::pair<QPointF, QPointF> textBoxDragEnds(const QPointF &from, const QPointF &to, bool keepProportions, const QSizeF &usual);

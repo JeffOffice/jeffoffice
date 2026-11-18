@@ -813,7 +813,11 @@ bool CrunchWindow::insertTextBox()
 
 void CrunchWindow::armTextBoxDraw()
 {
-    if (!m_session || !m_objects || !m_view || m_chartSheetShown || !editingAllowed()) return;
+    if (!m_session || !m_objects || !m_view || !editingAllowed()) return;
+    if (m_chartSheetShown) {
+        setStatus(tr("A text box can't go on a chart sheet, which holds only its chart."));
+        return;
+    }
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active) return;
     if (m_shapeEditor) endShapeTextEdit(true);
@@ -828,8 +832,8 @@ bool CrunchWindow::drawTextBox(const QRectF &box)
     if (!m_session || !m_objects || m_chartSheetShown || box.width() < 1 || box.height() < 1) return false;
     crunch::ObjectClip clip;
     clip.kind = QStringLiteral("shape");
-    clip.width = std::min(box.width(), 4000.0);
-    clip.height = std::min(box.height(), 2000.0);
+    clip.width = std::min(box.width(), grid::ObjectLayer::kMaxBoxWidth);
+    clip.height = std::min(box.height(), grid::ObjectLayer::kMaxBoxHeight);
     clip.elementXml = shapeXml(QStringLiteral("rect"), clip.width, clip.height, true);
     DrawingAnchor anchor;
     grid::ObjectBox place;

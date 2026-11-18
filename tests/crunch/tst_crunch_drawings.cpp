@@ -1388,6 +1388,23 @@ private Q_SLOTS:
         QTRY_VERIFY(shown(e, 0, 0));
     }
 
+    // The Draw Text Box tool belongs to the sheet it was picked on: showing another sheet puts it down, and a chart sheet has no place for a text box, which the status bar says.
+    void aDrawnTextBoxToolIsPutDownWhenAnotherSheetIsShown()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithChartSheet()));
+        crunch::SheetObjects *o = e.win.w.objects();
+        e.win.w.act(QStringLiteral("insert.textBox.draw"))->trigger();
+        QVERIFY(o->layer()->boxArmed());
+        e.win.w.setActiveSheet(1);
+        QTRY_VERIFY(shown(e, 1, 1));
+        QVERIFY(!o->layer()->boxArmed());
+        QVERIFY2(e.win.w.statusText().contains(QStringLiteral("chart sheet")), qPrintable(e.win.w.statusText()));
+        e.win.w.setActiveSheet(0);
+        QTRY_VERIFY(shown(e, 0, 0));
+        QVERIFY(!o->layer()->boxArmed());   // (not armed again by coming back)
+    }
+
     // The commands that work on cells are off while a chart sheet is shown (they would act on cells nobody sees), by the commands themselves and on the ribbon's buttons, whatever is
     // triggered (by the command, or by its keys) does nothing, and they are on again on a sheet of cells: those that were on before.
     void aChartSheetTurnsOffEveryCommandOnCells()
