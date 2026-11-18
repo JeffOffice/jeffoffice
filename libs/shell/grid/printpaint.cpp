@@ -152,6 +152,7 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     options.gridColor = setup.blackAndWhite ? QColor(Qt::black) : m_gridline;
     options.backdrop = Qt::white;
     options.paper = Qt::white;
+    options.solidColors = m_solidColors;
     options.monochrome = setup.blackAndWhite;
     options.strokedDashes = true;
     const double scale = print.scalePercent / 100.0;

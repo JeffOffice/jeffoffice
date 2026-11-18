@@ -61,6 +61,25 @@ QImage PageObjectPainter::pictureOf(Item &item, const QSize &wanted, double zoom
     return image;
 }
 
+bool PageObjectPainter::seeThrough(Item &item, const QImage &image)
+{
+    if (!image.hasAlphaChannel()) return false;
+    if (item.clearKey == image.cacheKey()) return item.clear;
+    const QImage a = image.format() == QImage::Format_ARGB32 || image.format() == QImage::Format_ARGB32_Premultiplied ? image : image.convertToFormat(QImage::Format_ARGB32);
+    bool any = false;
+    for (int y = 0; y < a.height() && !any; ++y) {
+        const QRgb *line = reinterpret_cast<const QRgb *>(a.constScanLine(y));
+        for (int x = 0; x < a.width(); ++x)
+            if (qAlpha(line[x]) != 255) {
+                any = true;
+                break;
+            }
+    }
+    item.clearKey = image.cacheKey();
+    item.clear = any;
+    return any;
+}
+
 void PageObjectPainter::trim()
 {
     qint64 bytes = 0;
@@ -127,7 +146,7 @@ void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom, con
         item.used = m_tick;
         if (image.isNull()) continue;
         p->setRenderHint(QPainter::SmoothPixmapTransform, true);
-        if (under && image.hasAlphaChannel()) {
+        if (under && seeThrough(item, image)) {
             QImage flat = under(p->transform().mapRect(whole), image.size(), index);
             if (!flat.isNull()) {
                 QPainter on(&flat);

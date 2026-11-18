@@ -245,6 +245,18 @@ QBrush GridPainter::patternBrush(PatternKind kind, QRgb fg, QRgb bg)
 
 // ---- drawing a cell's parts
 
+// A color as drawn: as it is, or (PaintOptions::solidColors) with what is beneath it showing through it laid on that, and no see-through left.
+QColor laidOn(QRgb color, const QColor &beneath)
+{
+    const int a = qAlpha(color);
+    if (a == 255) return QColor::fromRgba(color);
+    const double k = a / 255.0;
+    auto mix = [&](int on, int under) { return int(std::lround(on * k + under * (1 - k))); };
+    return QColor(mix(qRed(color), beneath.red()), mix(qGreen(color), beneath.green()), mix(qBlue(color), beneath.blue()));
+}
+
+QColor GridPainter::solid(QRgb color) const { return m_solid ? laidOn(color, m_beneath) : QColor::fromRgba(color); }
+
 void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look, const PaintOptions &)
 {
     if (look.pattern == PatternKind::None || m_mono) return;
@@ -253,7 +265,7 @@ void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look,
         const GradientLook &g = *look.gradient;
         const QRectF r(rect);
         QGradientStops stops;
-        for (const auto &s : g.stops) stops.append({std::clamp(s.first, 0.0, 1.0), QColor::fromRgba(s.second)});
+        for (const auto &s : g.stops) stops.append({std::clamp(s.first, 0.0, 1.0), solid(s.second)});
         std::stable_sort(stops.begin(), stops.end(), [](const QGradientStop &a, const QGradientStop &b) { return a.first < b.first; });
         if (g.path) {
             const QPointF c(r.left() + (g.left + g.right) / 2 * r.width(), r.top() + (g.top + g.bottom) / 2 * r.height());
@@ -273,12 +285,12 @@ void GridPainter::drawFill(QPainter *p, const QRect &rect, const CellLook &look,
         return;
     }
     if (look.pattern == PatternKind::Solid) {
-        p->fillRect(rect, QColor::fromRgba(look.fg));
+        p->fillRect(rect, solid(look.fg));
         return;
     }
     // (the pattern begins at the cell's corner, so it is the same wherever the cell is on the screen)
     p->setBrushOrigin(rect.topLeft());
-    p->fillRect(rect, patternBrush(look.pattern, look.fg, look.bg));
+    p->fillRect(rect, patternBrush(look.pattern, solid(look.fg).rgba(), solid(look.bg).rgba()));
 }
 
 // Where a line along an edge of the grid lies across it, in the painter's units: `thickness` pixels of the grid wide, beginning `first` pixels from the edge at `edge` (an x for a
@@ -318,7 +330,7 @@ void GridPainter::drawEdge(QPainter *p, const LineLook &line, int x, int y, int 
 {
     if (line.style == BorderStyle::None || length <= 0) return;
     ++m_stats.borderSegments;
-    const QColor color = m_mono ? QColor(Qt::black) : QColor::fromRgba(line.color);
+    const QColor color = m_mono ? QColor(Qt::black) : solid(line.color);
     int thickness = 1;
     int first = -1;      // where its first pixel is, from the edge
     QList<qreal> dashes;
@@ -401,20 +413,20 @@ void GridPainter::drawBar(QPainter *p, const QRect &cell, const CondBar &bar, bo
     if (bar.gradient) {
         // solid at the end that is at the axis, and lighter at the far end
         QLinearGradient g(bar.negative ? r.right() + 1 : r.left(), 0, bar.negative ? r.left() : r.right() + 1, 0);
-        g.setColorAt(0, QColor::fromRgba(bar.fill));
-        g.setColorAt(1, QColor::fromRgba(bar.fillEnd));
+        g.setColorAt(0, solid(bar.fill));
+        g.setColorAt(1, solid(bar.fillEnd));
         p->fillRect(r, g);
     } else {
-        p->fillRect(r, QColor::fromRgba(bar.fill));
+        p->fillRect(r, solid(bar.fill));
     }
     if (bar.hasBorder) {
-        p->setPen(QColor::fromRgba(bar.border));
+        p->setPen(solid(bar.border));
         p->setBrush(Qt::NoBrush);
         p->drawRect(r.adjusted(0, 0, -1, -1));
     }
     if (bar.hasAxis) {
         const int ax = inner.left() + int(std::lround(bar.axisAt * inner.width()));
-        p->fillRect(QRect(ax, inner.top() - 1, 1, inner.height() + 2), QColor::fromRgba(bar.axis));
+        p->fillRect(QRect(ax, inner.top() - 1, 1, inner.height() + 2), solid(bar.axis));
     }
 }
 
@@ -707,7 +719,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             range.format.setFont(rf);
             if (run.vertAlign == 1) range.format.setVerticalAlignment(QTextCharFormat::AlignSuperScript);
             else if (run.vertAlign == 2) range.format.setVerticalAlignment(QTextCharFormat::AlignSubScript);
-            range.format.setForeground(QColor::fromRgba(m_mono ? 0xFF000000u : run.color ? run.color : sh.color ? sh.color : look.textColor));
+            range.format.setForeground(solid(m_mono ? 0xFF000000u : run.color ? run.color : sh.color ? sh.color : look.textColor));
             formats.append(range);
         }
         layout.setFormats(formats);
@@ -758,11 +770,11 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             run.setUnderline(false);
             run.setStrikeOut(false);   // (a glyph run of a raw font draws no strike-out line: it is drawn below)
             if (clip) p->setClipRect(box & area);
-            p->setPen(QColor::fromRgba(ink));
+            p->setPen(solid(ink));
             p->drawGlyphRun(QPointF(std::round(x), std::round(y)), run);
             if (look.strike) {
                 if (!clip) p->setClipRect(box & area);
-                QPen pen(QColor::fromRgba(ink), std::max(1.0, face.lineWidth()));
+                QPen pen(solid(ink), std::max(1.0, face.lineWidth()));
                 pen.setCapStyle(Qt::FlatCap);
                 p->save();
                 p->setPen(pen);
@@ -773,12 +785,12 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             }
             if (look.underline == Underline::Single) {
                 if (!clip) p->setClipRect(box & area);
-                drawSingleUnderline(p, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), QColor::fromRgba(ink));
+                drawSingleUnderline(p, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), solid(ink));
                 if (!clip) p->setClipRect(area);
             }
             if (otherUnderline) {
                 p->setClipRect(box & area);
-                drawUnderlineLines(p, look.underline, cell, r, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), o.gridlines, QColor::fromRgba(ink));
+                drawUnderlineLines(p, look.underline, cell, r, std::round(x), w, std::round(y), face.lineWidth(), face.underlinePos(), o.gridlines, solid(ink));
                 if (!clip) p->setClipRect(area);
             }
             if (clip) p->setClipRect(area);
@@ -786,7 +798,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         }
     }
     p->setFont(font);
-    p->setPen(QColor::fromRgba(ink));
+    p->setPen(solid(ink));
     const QFontMetricsF fm(font);
     if (look.rotation != 0 && look.rotation != 255) {
         // turned: the box the text turns in (as wide and as tall as the turned text is) is put in the cell where its alignment says, and the text is turned about the middle of it
@@ -802,7 +814,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         p->translate(QPointF(bx + bw / 2, by + bh / 2));
         p->rotate(-turn);
         p->drawText(QRectF(-tw / 2 - 2, -th / 2, tw + 4, th), Qt::AlignCenter | Qt::TextSingleLine | Qt::TextDontClip, text);
-        if (otherUnderline) drawUnderlineLines(p, look.underline, QRect(-100000, -100000, 200000, 200000), QRect(int(-tw / 2), 0, int(tw), 1), -tw / 2, tw, -th / 2 + fm.ascent(), fm.lineWidth(), fm.underlinePos(), false, QColor::fromRgba(ink));
+        if (otherUnderline) drawUnderlineLines(p, look.underline, QRect(-100000, -100000, 200000, 200000), QRect(int(-tw / 2), 0, int(tw), 1), -tw / 2, tw, -th / 2 + fm.ascent(), fm.lineWidth(), fm.underlinePos(), false, solid(ink));
         p->restore();
         return;
     }
@@ -839,14 +851,14 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
         const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
         const double top = (flags & Qt::AlignTop) ? r.top() : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - h) / 2 : r.bottom() + 1 - h;
         p->setClipRect(box & area);
-        drawSingleUnderline(p, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), QColor::fromRgba(ink));
+        drawSingleUnderline(p, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), solid(ink));
     }
     if (otherUnderline && !look.wrap) {
         const double w = fm.horizontalAdvance(text), h = fm.height();
         const double x = left ? r.left() : right ? r.right() + 1 - w : r.left() + (r.width() - w) / 2;
         const double top = (flags & Qt::AlignTop) ? r.top() : (flags & Qt::AlignVCenter) ? r.top() + (r.height() - h) / 2 : r.bottom() + 1 - h;
         p->setClipRect(box & area);
-        drawUnderlineLines(p, look.underline, cell, r, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), o.gridlines, QColor::fromRgba(ink));
+        drawUnderlineLines(p, look.underline, cell, r, x, w, top + fm.ascent(), fm.lineWidth(), fm.underlinePos(), o.gridlines, solid(ink));
     }
     if (clip || otherUnderline || ownSingle) p->setClipRect(area);
 }
@@ -1093,13 +1105,17 @@ marked:
                 const CellLook *look = w.looks[i * C + j];
                 const CondCell *cc = condOf(i, j);
                 const QRect cellRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size);
+                m_beneath = m_paper;
                 if (cc && cc->hasScale) {
-                    p->fillRect(cellRect, QColor::fromRgba(cc->scale));
+                    p->fillRect(cellRect, solid(cc->scale));
                     ++m_stats.fills;
+                    m_beneath = solid(cc->scale);
                 } else if (look && look->hasFill()) {
                     drawFill(p, cellRect, *look, o);
+                    if (look->pattern == PatternKind::Solid) m_beneath = solid(look->fg);   // (what a bar is on)
                 }
                 if (cc && cc->hasBar) drawBar(p, cellRect, cc->bar, o.gridlines);
+                m_beneath = m_paper;
             }
         // sparklines: over the fill, under the borders and the text
         if (m_sheet->hasSparklines()) {
@@ -1163,7 +1179,7 @@ marked:
                 if (here && here->diagonal.style != BorderStyle::None && (here->diagonalUp || here->diagonalDown)) {
                     p->save();
                     p->setClipRect(QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size) & area);
-                    p->setPen(m_mono ? QColor(Qt::black) : QColor::fromRgba(here->diagonal.color));
+                    p->setPen(m_mono ? QColor(Qt::black) : solid(here->diagonal.color));
                     if (here->diagonalUp) p->drawLine(w.cols[j].start, rs.start + rs.size - 1, w.cols[j].start + w.cols[j].size - 1, rs.start);
                     if (here->diagonalDown) p->drawLine(w.cols[j].start, rs.start, w.cols[j].start + w.cols[j].size - 1, rs.start + rs.size - 1);
                     p->restore();
@@ -1244,6 +1260,15 @@ marked:
     // (merged ranges do not overlap in a sheet that is whole, so what they cover is the screen at the most; a file that stacks a hundred thousand of them over it is drawn as far as
     // eight screens of fill, and the rest are counted as left out)
     qint64 mergeArea = 8 * qint64(area.width()) * area.height();
+    // (the rows or columns of a merged range that this page shows: not those it has hidden, nor those on the pages before and after, which a tagged page's cell spans count by)
+    auto shownIn = [](const std::vector<Span> &spans, qint64 first, qint64 last) {
+        auto from = spans.begin(), to = spans.end();
+        if (from != to && from->ring) ++from;
+        if (from != to && (to - 1)->ring) --to;
+        const auto lo = std::lower_bound(from, to, first, [](const Span &sp, qint64 v) { return sp.index < v; });
+        const auto hi = std::upper_bound(lo, to, last, [](qint64 v, const Span &sp) { return v < sp.index; });
+        return std::max<qint64>(1, hi - lo);
+    };
     for (size_t at = 0; at < merges.size(); ++at) {
         const int id = merges[at];
         const jp::office::sheet::CellRange &m = L.merges.range(id);
@@ -1267,10 +1292,18 @@ marked:
             if (anchorCondValue.any) anchorCond = &anchorCondValue;
         }
         const CellLook &look = m_sheet->lookOf(m.row1, m.col1, xf);
-        if (anchorCond && anchorCond->hasScale) p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), QColor::fromRgba(anchorCond->scale));
-        else if (look.hasFill()) drawFill(p, rect, look, o);
-        else fillPaper(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0));
+        m_beneath = m_paper;
+        if (anchorCond && anchorCond->hasScale) {
+            p->fillRect(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0), solid(anchorCond->scale));
+            m_beneath = solid(anchorCond->scale);
+        } else if (look.hasFill()) {
+            drawFill(p, rect, look, o);
+            if (look.pattern == PatternKind::Solid) m_beneath = solid(look.fg);
+        } else {
+            fillPaper(rect.adjusted(0, 0, o.gridlines ? -1 : 0, o.gridlines ? -1 : 0));
+        }
         if (anchorCond && anchorCond->hasBar) drawBar(p, rect, anchorCond->bar, o.gridlines);
+        m_beneath = m_paper;
         if (look.hasBorder() || xf == 0) {
             auto lookOf = [&](quint32 r, quint32 c) -> const CellLook * {
                 const Cell *x = m_sheet->cellAt(r, c);
@@ -1296,7 +1329,7 @@ marked:
             const Shown sh = m_sheet->shown(m.row1, m.col1, *anchor);
             if ((sh.kind != Kind::Empty || sh.hashes) && !(anchorCond && anchorCond->hideValue && (anchorCond->hasBar || icon))) {
                 m_iconInset = icon ? iconSize + 4 : 0;
-                if (o.cellText) o.cellText(true, m.row1, m.col1, qint64(m.row2) - qint64(m.row1) + 1, qint64(m.col2) - qint64(m.col1) + 1);
+                if (o.cellText) o.cellText(true, m.row1, m.col1, shownIn(w.rows, m.row1, m.row2), shownIn(w.cols, m.col1, m.col2));
                 drawText(p, rect, rect, area, look, sh, o);
                 if (o.cellText) o.cellText(false, m.row1, m.col1, 1, 1);
                 m_iconInset = 0;
@@ -1484,6 +1517,9 @@ void GridPainter::paint(QPainter *p, const QRect &clip, const PaintOptions &o)
 {
     m_stats = PaintStats();
     m_mono = o.monochrome;
+    m_solid = o.solidColors;
+    m_beneath = o.paper.isValid() ? o.paper : QColor(Qt::white);
+    m_paper = m_beneath;
     m_strokedDashes = o.strokedDashes;
     m_sheet->conditional().beginPaint();   // (the steps this paint may spend on the rules' formulas)
     m_sheet->beginSparklinePaint();

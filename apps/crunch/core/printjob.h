@@ -204,6 +204,10 @@ public:
     void prefetchPictures();
     // How many times the contexts worked out a page's place (counted, for tests).
     qint64 layoutsWorkedOut() const;
+    // PDF/A: how many see-through pictures a page may be given the pixels beneath it of one at a time (the page is painted for each); past this the page's cells are painted once and each picture is
+    // given its part of that. How many pages were painted so far for these pixels (counted, for tests).
+    static constexpr int kMostBackdropsPerPage = 50;
+    qint64 backdropPaints() const { return m_backdropPaints; }
     // What the painter did for the page drawn last (cells looked at and the like): counted, for tests.
     const jp::grid::PaintStats &lastPaintStats() const { return m_lastStats; }
 
@@ -267,6 +271,10 @@ private:
     // The links of the pages as a PDF with one page to a sheet holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF). At most kMostPdfLinks.
     QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf);
     Context &contextFor(int infoIndex);
+    // The painters of a sheet (cells and, unless `forBackdrop`, objects).
+    void fillContext(Context &c, const SheetInfo &info, bool forBackdrop);
+    void paintBeneath(QPainter *painter, int page, PageObjectPainter *objects, int stopAt);
+    jp::office::sheet::HfContext labelsOf(const Page &pg, const SheetInfo &info) const;
     const SheetInfo *infoOfSheet(int sheet) const;
 
     std::unique_ptr<PrintSource> m_source;
@@ -280,8 +288,8 @@ private:
     bool m_lastMissed = false;
     quint64 m_tick = 0;
     bool m_cancelled = false;
-    int m_stopObjectsAt = -1;   // PDF/A: a page is being painted into the pixels beneath an object, which leave out that object and those after it
-    bool m_inBackdrop = false;
+    Context m_backdropContext;   // PDF/A: the cells of a sheet painted apart from the page in hand
+    qint64 m_backdropPaints = 0;   // pages painted into the pixels beneath see-through pictures (PDF/A)
     bool m_grayInPdf = false;  // a PDF is made gray by its own color model: the pages are painted in color as they are
     bool m_inGray = false;     // a page is being painted in color into the pixels that will be made gray
     QDateTime m_now;

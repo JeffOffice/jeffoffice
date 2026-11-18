@@ -58,6 +58,8 @@ public:
     void setBaseFont(const QString &family, double points);
     // The ink and paper of the page (the grid's colors; a printed gridline is dark, not the screen's pale).
     void setGridlineColor(const QColor &color) { m_gridline = color; }
+    // Colors with alpha are drawn solid, laid on what is beneath them (a PDF/A page: PaintOptions::solidColors).
+    void setSolidColors(bool on) { m_solidColors = on; }
 
     // Draws the page. `labels` has the page's number and the totals, the date, and the names its fields come to; `firstOfSheet` and the number's parity pick the header and footer.
     void paint(QPainter *painter, const SheetPrint &print, const PageCut &page, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool firstOfSheet, const PageObjects &objects = nullptr);
@@ -99,7 +101,7 @@ private:
     QFont m_base;
     QColor m_gridline = QColor(0x40, 0x40, 0x40);
     bool m_missedPictures = false;
-    bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false;
+    bool m_asyncPictures = false, m_screenGrid = false, m_screenHeadings = false, m_solidColors = false;
     // the metrics of the pages worked out (by the page's cut, which is as long-lived as the job), and the page the grid's layout is set for now
     std::unordered_map<const PageCut *, PageMetrics> m_metrics;
     const PageCut *m_applied = nullptr;

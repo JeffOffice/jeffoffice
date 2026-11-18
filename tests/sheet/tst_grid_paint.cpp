@@ -206,6 +206,15 @@ private Q_SLOTS:
     // Windows, with no fonts at all) draws every letter as wide as the font is tall.
     void initTestCase() { jp::initCore(); }
 
+    // A page for a PDF/A file has nothing see-through: a color with alpha is drawn as it looks laid on what is beneath it (a bar on its cell's fill), and one without alpha is as it is.
+    void aColorWithAlphaIsLaidOnWhatIsBeneathIt()
+    {
+        QCOMPARE(jp::grid::laidOn(0x80FF0000u, QColor(Qt::white)), QColor(255, 127, 127));
+        QCOMPARE(jp::grid::laidOn(0x80FF0000u, QColor(0, 0, 255)), QColor(128, 0, 127));
+        QCOMPARE(jp::grid::laidOn(0xFF336699u, QColor(Qt::white)), QColor(0x33, 0x66, 0x99));
+        QCOMPARE(jp::grid::laidOn(0x00FF0000u, QColor(10, 20, 30)), QColor(10, 20, 30));
+    }
+
     // The gridlines are the last pixel of each cell's right and bottom, and a fill covers the cell whole, so a filled cell has none; with gridlines off there are none.
     void gridlinesAreTheLastPixelAndAFillCoversThem()
     {

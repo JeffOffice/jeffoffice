@@ -193,6 +193,10 @@ private Q_SLOTS:
     void aSelectionPrintsAlone();
     void aPdfCanBeExportedAsPdfA();
     void aPdfAFileOfASheetWithObjectsHasNoTransparency();
+    void aGrayPdfAFileKeepsItsWordsAndHasNoTransparency();
+    void aRefusedPdfAFileIsNotMadeAndNamesThePage();
+    void theBackdropOfSeeThroughPicturesLeavesThePaintAlone();
+    void aTableCellSpansOnlyWhatThePageShows();
     void aPdfHasABookmarkForEachSheet();
     void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
     void aTaggedPdfHasTheCellsAsATable();

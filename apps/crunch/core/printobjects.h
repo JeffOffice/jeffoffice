@@ -49,7 +49,10 @@ private:
         QSize requested;
         double zoom = 0;
         quint64 used = 0;
+        qint64 clearKey = 0;     // the picture (its cache key) that `clear` is known for
+        bool clear = false;      // some of its pixels are see-through
     };
+    static bool seeThrough(Item &item, const QImage &image);
     QImage pictureOf(Item &item, const QSize &wanted, double zoom, const QRectF &inner);
     void trim();
 

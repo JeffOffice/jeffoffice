@@ -1,6 +1,7 @@
 #include "core/printjob.h"
 
 #include "grid/hfpicturecache.h"
+#include "io/pdftransparency.h"
 
 #include "core/sheetobjects.h"
 #include "sheet/cellref.h"
@@ -485,15 +486,25 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
     Context &c = m_contexts.back();
     c.sheet = info.sheet;
     c.used = m_tick;
+    fillContext(c, info, false);
+    return c;
+}
+
+void PrintJob::fillContext(Context &c, const SheetInfo &info, bool forBackdrop)
+{
+    c.sheet = info.sheet;
     if (info.chart) {
         // (a chart sheet: no cells; the chart is made as large as the page's room)
         c.grid = std::make_unique<GridSheet>();
         c.painter = std::make_unique<PagePainter>(c.grid.get());
         c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
-        c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
-        c.objects->fitFirstTo(double(info.cols.total()), double(info.rows.total()));
-        if (m_tagger) c.painter->setTagger(m_tagger);
-        return c;
+        c.painter->setSolidColors(m_options.archival);
+        if (!forBackdrop) {
+            c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
+            c.objects->fitFirstTo(double(info.cols.total()), double(info.rows.total()));
+            if (m_tagger) c.painter->setTagger(m_tagger);
+        }
+        return;
     }
     GridData data = m_source->data(info.sheet);
     data.geometry = info.geometry;
@@ -507,11 +518,12 @@ PrintJob::Context &PrintJob::contextFor(int infoIndex)
                                                                                           : GridSheet::ErrorDisplay::Shown);
     c.painter = std::make_unique<PagePainter>(c.grid.get());
     c.painter->setBaseFont(m_source->baseFontFamily(), m_source->baseFontPoints());
+    c.painter->setSolidColors(m_options.archival);   // (PDF/A: a see-through fill or bar is laid on what is beneath it)
+    if (forBackdrop) return;
     c.painter->setAsyncPictures(m_asyncPictures);
     c.painter->setScreenMarks(m_screenGrid, m_screenHeadings);
     if (!info.setup.draft) c.objects = std::make_unique<PageObjectPainter>(m_source->objects(info.sheet), info.rows, info.cols);
     if (m_tagger) c.painter->setTagger(m_tagger);
-    return c;
 }
 
 namespace {
@@ -556,12 +568,8 @@ bool PrintJob::paint(QPainter *painter, int page)
     return ok;
 }
 
-bool PrintJob::paintColors(QPainter *painter, int page)
+jp::office::sheet::HfContext PrintJob::labelsOf(const Page &pg, const SheetInfo &info) const
 {
-    if (page < 0 || page >= pageCount()) return false;
-    const Page &pg = m_pages[size_t(page)];
-    const SheetInfo &info = m_sheets[size_t(pg.info)];
-    Context &c = contextFor(pg.info);
     jp::office::sheet::HfContext labels;
     labels.page = pg.number;
     labels.pages = m_totalNumbers;
@@ -571,6 +579,51 @@ bool PrintJob::paintColors(QPainter *painter, int page)
     if (!labels.path.isEmpty() && !labels.path.endsWith(QLatin1Char('/'))) labels.path += QLatin1Char('/');
     labels.sheet = m_source->sheetName(info.sheet);
     labels.locale = QLocale();
+    return labels;
+}
+
+// PDF/A: what lies beneath the pictures of a page, painted apart from the page that is being painted (its own painters: the grid and the painter of a paint in progress are not
+// asked to paint again; they are kept for the pages of the sheet that follow). `beneath` has the page's count of pictures asked for, and the page without its objects once there are many.
+namespace {
+struct Beneath {
+    int asked = 0;       // pictures that were given the pixels beneath them one at a time
+    QImage page;         // the page's cells painted once (when many pictures ask)
+    double scale = 0;
+};
+} // namespace
+
+void PrintJob::paintBeneath(QPainter *painter, int page, PageObjectPainter *objects, int stopAt)
+{
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (!m_backdropContext.painter || m_backdropContext.sheet != info.sheet) fillContext(m_backdropContext, info, true);   // (kept for the pages of the sheet that follow)
+    ++m_backdropPaints;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    if (info.chart) {
+        const jp::grid::PageMetrics m = jp::grid::pageMetrics(info.print, cut, info.setup, info.rows, info.cols);
+        if (objects && objects->count() > 0) {
+            painter->save();
+            painter->translate(m.cells.left(), m.cells.top());
+            painter->scale(m.unit, m.unit);
+            painter->setClipRect(QRect(0, 0, int(m.widthUnits), int(m.heightUnits)));
+            objects->paint(painter, cut, m.zoom, PageObjectPainter::Backdrop(), stopAt);
+            painter->restore();
+        }
+        return;
+    }
+    jp::grid::PageObjects drawn;
+    if (objects && objects->count() > 0)
+        drawn = [objects, &cut, stopAt](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { objects->paint(p, cut, layout.zoom(), PageObjectPainter::Backdrop(), stopAt); };
+    m_backdropContext.painter->paint(painter, info.print, cut, info.setup, labelsOf(pg, info), pg.index == 0, drawn);
+}
+
+bool PrintJob::paintColors(QPainter *painter, int page)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    Context &c = contextFor(pg.info);
+    const jp::office::sheet::HfContext labels = labelsOf(pg, info);
     if (pg.note >= 0) {
         // a page of notes: their lines in the page's room, and the header and footer
         const double U = 8;
@@ -597,16 +650,20 @@ bool PrintJob::paintColors(QPainter *painter, int page)
         return true;
     }
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
-    // PDF/A: what lies beneath an object's picture is painted into pixels, so that the picture's clear corners are not left clear.
+    // PDF/A: what lies beneath a see-through picture is painted into pixels, so that the picture's clear parts are not left clear. The page beneath is painted by painters of its own, for each of
+    // the first few pictures (with the objects that lie under that one); past kMostBackdropsPerPage the page's cells are painted once, and each picture is given its part of them.
     const QTransform base = painter->transform();
     PageObjectPainter::Backdrop under;
-    if (m_options.archival && !m_inBackdrop && c.objects && c.objects->count() > 0) {
-        under = [this, base, page](const QRectF &where, const QSize &pixels, int index) {
+    if (m_options.archival && c.objects && c.objects->count() > 0) {
+        const auto beneath = std::make_shared<Beneath>();
+        PageObjectPainter *const objectsOf = c.objects.get();
+        under = [this, base, page, beneath, objectsOf](const QRectF &where, const QSize &pixels, int index) {
             const QRectF points = base.inverted().mapRect(where);
             if (pixels.isEmpty() || points.width() <= 0 || points.height() <= 0) return QImage();
-            QImage img(pixels, QImage::Format_RGB32);
-            img.fill(Qt::white);
-            {
+            if (beneath->asked < kMostBackdropsPerPage) {
+                ++beneath->asked;
+                QImage img(pixels, QImage::Format_RGB32);
+                img.fill(Qt::white);
                 QPainter ip(&img);
                 ip.setRenderHint(QPainter::Antialiasing);
                 ip.setRenderHint(QPainter::TextAntialiasing);
@@ -614,19 +671,29 @@ bool PrintJob::paintColors(QPainter *painter, int page)
                 ip.scale(img.width() / points.width(), img.height() / points.height());
                 ip.translate(-points.topLeft());
                 ip.setClipRect(points);
-                PdfTagger *const tagger = m_tagger;
-                m_tagger = nullptr;
-                for (Context &x : m_contexts)
-                    if (x.painter) x.painter->setTagger(nullptr);
-                m_inBackdrop = true;
-                m_stopObjectsAt = index;
-                paintColors(&ip, page);
-                m_stopObjectsAt = -1;
-                m_inBackdrop = false;
-                m_tagger = tagger;
-                for (Context &x : m_contexts)
-                    if (x.painter) x.painter->setTagger(tagger);
+                paintBeneath(&ip, page, objectsOf, index);
+                ip.end();
+                return img;
             }
+            if (beneath->page.isNull()) {
+                const QSizeF paper = pageSize(page);
+                constexpr double kMostPixels = 16.0 * 1000 * 1000;
+                beneath->scale = std::min(300.0 / 72.0, std::sqrt(kMostPixels / std::max(1.0, paper.width() * paper.height())));
+                beneath->page = QImage(QSize(std::max(1, int(std::ceil(paper.width() * beneath->scale))), std::max(1, int(std::ceil(paper.height() * beneath->scale)))), QImage::Format_RGB32);
+                beneath->page.fill(Qt::white);
+                QPainter ip(&beneath->page);
+                ip.setRenderHint(QPainter::Antialiasing);
+                ip.setRenderHint(QPainter::TextAntialiasing);
+                ip.scale(beneath->scale, beneath->scale);
+                paintBeneath(&ip, page, objectsOf, 0);
+            }
+            const QRect part = QRectF(points.x() * beneath->scale, points.y() * beneath->scale, points.width() * beneath->scale, points.height() * beneath->scale).toAlignedRect().intersected(beneath->page.rect());
+            QImage img(pixels, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            if (part.isEmpty()) return img;
+            QPainter ip(&img);
+            ip.setRenderHint(QPainter::SmoothPixmapTransform);
+            ip.drawImage(QRectF(0, 0, pixels.width(), pixels.height()), beneath->page, QRectF(part));
             return img;
         };
     }
@@ -638,7 +705,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
             painter->scale(m.unit, m.unit);
             painter->setClipRect(QRect(0, 0, int(m.widthUnits), int(m.heightUnits)));
             c.painter->markDecoration(painter, true);   // (a chart has no tag: it is left out of the reading order)
-            c.objects->paint(painter, cut, m.zoom, under, m_stopObjectsAt);
+            c.objects->paint(painter, cut, m.zoom, under);
             c.painter->markDecoration(painter, false);
             painter->restore();
         }
@@ -646,7 +713,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
         return true;
     }
     jp::grid::PageObjects objects;
-    if (c.objects && c.objects->count() > 0) objects = [&c, &cut, under, this](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom(), under, m_stopObjectsAt); };
+    if (c.objects && c.objects->count() > 0) objects = [&c, &cut, under](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom(), under); };
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
     m_lastStats = c.painter->stats();
     m_lastMissed = c.painter->missedPictures();
@@ -998,7 +1065,8 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     // The PDF is made in memory (the bookmarks, the links, and the tags are added to the finished file; with a password the plain PDF is never on the disk).
     QSaveFile file(path);
     QBuffer memory;
-    const bool inMemory = encrypted || tagging || !links.isEmpty() || !marks.isEmpty();
+    const bool archiving = m_options.archival && !encrypted;
+    const bool inMemory = encrypted || tagging || archiving || !links.isEmpty() || !marks.isEmpty();
     if (inMemory) memory.open(QIODevice::WriteOnly);
     else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
     auto make = [&](jp::PdfTagger *tagger) {
@@ -1077,6 +1145,21 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     }
     if (inMemory) {
         QByteArray bytes = memory.data();
+        // PDF/A-1 allows no transparency: what could not be made solid is not made into a file that claims to be one.
+        if (archiving) {
+            const jp::PdfTransparency clear = jp::pdfTransparency(bytes);
+            if (clear.refused()) {
+                file.cancelWriting();
+                return fail(jp::pdfTransparencyRefusal(clear, QStringLiteral("PDF/A"), [&](int pdfPage) {
+                    QStringList on;
+                    for (int page = 0; page < pdfPageOf.size(); ++page)
+                        if (pdfPageOf[page] == pdfPage - 1) on << QString::number(page + 1);
+                    return on.isEmpty() ? QString()
+                                        : on.size() == 1 ? QCoreApplication::translate("jp::crunch::PrintJob", "page %1").arg(on.first())
+                                                         : QCoreApplication::translate("jp::crunch::PrintJob", "pages %1").arg(on.join(QStringLiteral(", ")));
+                }));
+            }
+        }
         if (tooBig) {
             const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "This PDF is too large to tag for screen readers, so it was saved without tags.");
             if (!m_messages.contains(said)) m_messages << said;

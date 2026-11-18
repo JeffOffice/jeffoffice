@@ -14,6 +14,7 @@
 #include "render/pdfpage.h"
 #include "io/qtpdf.h"
 #include "io/pdftransparency.h"
+#include "../pdftransparencyfixtures.h"
 #include "sheet/links.h"
 #include "core/editsession.h"
 #include "app/passworddialogs.h"
@@ -3797,3 +3798,130 @@ void CrunchPrintTests::theTopPanesScrollAndRowsInsertedAboveTheBarAreKept()
     QVERIFY(e.view()->isSplit());
     QCOMPARE(e.view()->sheet().layout().pane(grid::Pane::Body).firstRow, lower);
 }
+
+
+// A gray PDF/A file of a sheet with a fill and a data bar: the gray is the PDF's own (its words are text), and the file has no transparency and reads.
+void CrunchPrintTests::aGrayPdfAFileKeepsItsWordsAndHasNoTransparency()
+{
+    QString rows;
+    for (int r = 1; r <= 5; ++r)
+        rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" s=\"3\"><v>%1</v></c><c r=\"B%1\" t=\"inlineStr\"><is><t>Grayword%1</t></is></c></row>").arg(r);
+    const QByteArray book = buildXlsx({worksheet(rows, QStringLiteral("<conditionalFormatting sqref=\"A1:A5\"><cfRule type=\"dataBar\" priority=\"1\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/>"
+                                                                    "<color rgb=\"FF638EC6\"/></dataBar></cfRule></conditionalFormatting>"))},
+                                     QByteArray(), QString(), QString(), findStyles());
+    EditWindow e;
+    QVERIFY(e.open(book));
+    const QString path = e.folder.dir.filePath(QStringLiteral("graya.pdf"));
+    crunch::PrintJobOptions options;
+    options.grayscale = true;
+    options.archival = true;
+    options.pdfTags = true;
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    const jp::PdfTransparency found = jp::pdfTransparency(bytes);
+    QVERIFY(!found.unreadable);
+    QVERIFY2(!found.found, "a gray PDF/A file has transparency");
+    const jp::PdfDocument pdf(bytes);
+    QVERIFY(pdf.isValid());
+    QVERIFY2(pdf.text(0).contains(QLatin1String("Grayword3")), qPrintable(pdf.text(0)));
+    QCOMPARE(inkOf(pdf.render(0, QSize(612, 792))).colored, 0);
+}
+
+// What the check finds in the file stops a PDF/A export of a sheet, which names the page (the page of the job, not the PDF's object order) and leaves the file that was there.
+void CrunchPrintTests::aRefusedPdfAFileIsNotMadeAndNamesThePage()
+{
+    EditWindow e;
+    QVERIFY(e.open(wordPageBook(3)));
+    const QString path = e.folder.dir.filePath(QStringLiteral("refused.pdf"));
+    {
+        QFile earlier(path);
+        QVERIFY(earlier.open(QIODevice::WriteOnly));
+        earlier.write("the earlier file");
+    }
+    jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+        QList<QByteArray> objects{"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 4 0 R 5 0 R] /Count 3 >>"};
+        for (int page = 0; page < 3; ++page)
+            objects << QByteArray("<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 6 0 R >> >> /Contents ") + (page == 1 ? "8" : "7") + " 0 R >>";
+        objects << QByteArray("<< /Type /ExtGState /ca 0.5 >>") << jptest::handStream({}, "q Q") << jptest::handStream({}, "/GS1 gs 0 0 9 9 re f");
+        // (the objects are in the order [catalog, pages, three pages, state, two streams]: the second page is the one that draws with the state)
+        return jptest::handPdf({objects[0], objects[1], objects[2], objects[3], objects[4], objects[5], objects[6], objects[7]});
+    });
+    const auto reset = qScopeGuard([] { jp::setPdfTransparencyProbeForTest(nullptr); });
+    crunch::PrintJobOptions options;
+    options.archival = true;
+    QString why;
+    QVERIFY(!e.win.w.exportPdfTo(path, options, QString(), &why));
+    QVERIFY2(why.contains(QLatin1String("page 2")) && !why.contains(QLatin1String("PDF page")) && why.contains(QLatin1String("PDF/A")) && why.contains(QLatin1String("see-through")), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QCOMPARE(f.readAll(), QByteArray("the earlier file"));
+    // a PDF that is not PDF/A is not looked at
+    options.archival = false;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+}
+
+// The pixels beneath a see-through picture are painted by painters of their own: what the page's paint counted (its words, fills) is what it counts with none of this, and a page of very many
+// pictures does not paint the page for each of them.
+void CrunchPrintTests::theBackdropOfSeeThroughPicturesLeavesThePaintAlone()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(30, {})));
+    e.view()->selectRange(0, 0, 3, 2);
+    constexpr int kShapes = 80;
+    for (int i = 0; i < kShapes; ++i) QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+    QVERIFY(e.settle());
+    QString why;
+    qint64 words[2] = {0, 0};
+    qint64 fills[2] = {0, 0};
+    qint64 painted[2] = {0, 0};
+    for (int archival = 0; archival < 2; ++archival) {
+        crunch::PrintJobOptions options;
+        options.archival = archival;
+        const std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QImage page(612, 792, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        QPainter p(&page);
+        QVERIFY(job->paint(&p, 0));
+        p.end();
+        words[archival] = job->lastPaintStats().textRuns;
+        fills[archival] = job->lastPaintStats().fills;
+        painted[archival] = job->backdropPaints();
+    }
+    QVERIFY(words[0] > 0);
+    QCOMPARE(words[1], words[0]);
+    QCOMPARE(fills[1], fills[0]);
+    QCOMPARE(painted[0], qint64(0));
+    // (the first pictures are given the page beneath one by one, and the rest the page painted once: at most the bound and one more)
+    QVERIFY2(painted[1] >= crunch::PrintJob::kMostBackdropsPerPage && painted[1] <= crunch::PrintJob::kMostBackdropsPerPage + 1, qPrintable(QString::number(painted[1])));
+}
+
+// A merged cell is a table cell that spans the rows and columns the page shows of it (not hidden ones, and not those on the pages before and after).
+void CrunchPrintTests::aTableCellSpansOnlyWhatThePageShows()
+{
+    QString rows;
+    for (int r = 1; r <= 30; ++r) {
+        rows += QStringLiteral("<row r=\"%1\"%2>").arg(r).arg(r == 4 || r == 5 ? QStringLiteral(" hidden=\"1\"") : QString());
+        if (r == 1) rows += QStringLiteral("<c r=\"A1\" t=\"inlineStr\"><is><t>Mergedword</t></is></c>");
+        rows += QStringLiteral("</row>");
+    }
+    const QByteArray book = buildXlsx({worksheet(rows, QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:A30\"/></mergeCells><rowBreaks count=\"2\" manualBreakCount=\"2\">"
+                                                                    "<brk id=\"10\" max=\"16383\" man=\"1\"/><brk id=\"20\" max=\"16383\" man=\"1\"/></rowBreaks>"))});
+    EditWindow e;
+    QVERIFY(e.open(book));
+    const QString path = e.folder.dir.filePath(QStringLiteral("span.pdf"));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    // (rows 1 to 10 are on the first page, and two of them are hidden)
+    QVERIFY2(bytes.contains("/RowSpan 8 "), "the span is not the rows of the page that are shown");
+    QVERIFY2(!bytes.contains("/RowSpan 30"), "the span is the whole merged range");
+}
+

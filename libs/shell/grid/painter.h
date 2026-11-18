@@ -65,7 +65,12 @@ struct PaintOptions {
     // tagged for a PDF marks the cell's words by it.
     // `rowSpan` and `colSpan` are how many rows and columns the cell covers (a merged range: its first cell's).
     std::function<void(bool begin, qint64 row, qint64 col, qint64 rowSpan, qint64 colSpan)> cellText;
+    // A PDF/A page has nothing see-through: a color with alpha (a fill, a color scale, a data bar, a line, letters) is laid on what is beneath it (the cell's fill under a bar, else `paper`) and drawn solid.
+    bool solidColors = false;
 };
+
+// A color with alpha as it looks laid on `beneath` (solid); a color without alpha as it is.
+QColor laidOn(QRgb color, const QColor &beneath);
 
 struct PaintStats {
     qint64 panes = 0;            // parts of the grid drawn
@@ -138,6 +143,7 @@ private:
     void drawIcon(QPainter *p, const QRect &cell, const QString &set, int index, int count, int size);
     const QFont &fontFor(const CellLook &look);
     QBrush patternBrush(PatternKind kind, QRgb fg, QRgb bg);
+    QColor solid(QRgb color) const;
 
     GridSheet *m_sheet;
     PaintStats m_stats;
@@ -154,6 +160,8 @@ private:
     double m_lastFontZoom = 0;
     QRgb m_lastInk = 0;
     bool m_mono = false;        // the paint in hand is in black and white (PaintOptions::monochrome)
+    bool m_solid = false;       // colors with alpha are laid on what is beneath them (PaintOptions::solidColors)
+    QColor m_beneath = Qt::white, m_paper = Qt::white;   // what a color is laid on: the cell's fill (a bar), else the paper
     bool m_strokedDashes = false;   // and dashes are strokes (PaintOptions::strokedDashes)
 };
 
