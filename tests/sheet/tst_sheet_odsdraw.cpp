@@ -470,14 +470,14 @@ private Q_SLOTS:
         jp::initCore();
         QString why;
         QString frames;
-        for (int i = 0; i < jp::office::kMostMathObjects + 1; ++i) frames += formulaFrame(QStringLiteral("Object 1"), i);
+        for (int i = 0; i < 2000 + 1; ++i) frames += formulaFrame(QStringLiteral("Object 1"), i);
         Read r;
         QVERIFY2(readOds(handWritten(frames, QString(), {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &r, &why), qPrintable(why));
-        QCOMPARE(equationLinesOf(r).size(), jp::office::kMostMathObjects);
+        QCOMPARE(equationLinesOf(r).size(), 2000);
         // Written: 2,001 equations make 2,000 formula objects.
         Saved s;
-        QVERIFY2(saveAsOds(xlsxWith(equationAnchors(jp::office::kMostMathObjects + 1)), &s, &why), qPrintable(why));
-        QCOMPARE(formulaPartsOf(s.parts), jp::office::kMostMathObjects);
+        QVERIFY2(saveAsOds(xlsxWith(equationAnchors(2000 + 1)), &s, &why), qPrintable(why));
+        QCOMPARE(formulaPartsOf(s.parts), 2000);
         // Read: documents of about a megabyte each: 16 fit in 16 MB.
         QByteArray big = hello();
         big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
@@ -485,7 +485,7 @@ private Q_SLOTS:
         for (int i = 0; i < 20; ++i) many += formulaFrame(QStringLiteral("Object 1"), i);
         Read heavy;
         QVERIFY2(readOds(handWritten(many, QString(), {{QStringLiteral("Object 1/content.xml"), big}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &heavy, &why), qPrintable(why));
-        QCOMPARE(equationLinesOf(heavy).size(), int(jp::office::kMostMathObjectBytes / big.size()));
+        QCOMPARE(equationLinesOf(heavy).size(), int((16 << 20) / big.size()));
     }
 
     // A chart in an .ods is still not read: the reader says so, and the writer says the copy has none.

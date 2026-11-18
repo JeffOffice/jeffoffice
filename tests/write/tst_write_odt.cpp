@@ -1076,23 +1076,23 @@ private Q_SLOTS:
         QString err;
         // Read: 2,001 frames of one object.
         QStringList frames;
-        for (int i = 0; i < office::kMostMathObjects + 1; ++i) frames << frameOf(QStringLiteral("Object 1"));
+        for (int i = 0; i < 2000 + 1; ++i) frames << frameOf(QStringLiteral("Object 1"));
         QStringList notes;
         const QByteArray odt = formulaOdt(frames, {{QStringLiteral("Object 1/content.xml"), hello()}});
         const QByteArray docx = office::odt::toDocxPackage(odt, &err, &notes);
         QVERIFY2(!docx.isEmpty(), qPrintable(err));
-        QCOMPARE(mathsOf(docx).size(), office::kMostMathObjects);
+        QCOMPARE(mathsOf(docx).size(), 2000);
         QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("equations past")), qPrintable(notes.join(QLatin1Char('|'))));
         // Written: 2,001 equations make 2,000 objects, the last is kept as text.
         QStringList wnotes;
-        const QByteArray written = office::odt::fromDocxPackage(equationsDocx(office::kMostMathObjects + 1), &err, &wnotes);
+        const QByteArray written = office::odt::fromDocxPackage(equationsDocx(2000 + 1), &err, &wnotes);
         QVERIFY2(!written.isEmpty(), qPrintable(err));
         QMap<QString, QByteArray> parts;
         QVERIFY(jp::readZip(written, parts));
         int objects = 0;
         for (const QString &k : parts.keys())
             if (k.startsWith(QLatin1String("Object ")) && k.endsWith(QLatin1String("/content.xml"))) ++objects;
-        QCOMPARE(objects, office::kMostMathObjects);
+        QCOMPARE(objects, 2000);
         QVERIFY2(wnotes.join(QLatin1Char('|')).contains(QLatin1String("plain text")), qPrintable(wnotes.join(QLatin1Char('|'))));
         // Read: documents of about a megabyte each (the comment is padding): 16 fit in 16 MB, the 17th and on are left.
         QByteArray big = hello();
@@ -1102,7 +1102,7 @@ private Q_SLOTS:
         const QByteArray heavy = formulaOdt(many, {{QStringLiteral("Object 1/content.xml"), big}});
         const QByteArray heavyDocx = office::odt::toDocxPackage(heavy, &err);
         QVERIFY2(!heavyDocx.isEmpty(), qPrintable(err));
-        QCOMPARE(mathsOf(heavyDocx).size(), int(office::kMostMathObjectBytes / big.size()));
+        QCOMPARE(mathsOf(heavyDocx).size(), int((16 << 20) / big.size()));
     }
 
     static QByteArray odtPart(const QByteArray &odt, const QString &name)

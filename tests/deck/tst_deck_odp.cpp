@@ -2770,13 +2770,13 @@ private Q_SLOTS:
     {
         QString err;
         QStringList objects;
-        for (int i = 0; i < office::kMostMathObjects + 1; ++i) objects << QStringLiteral("Object 1");
+        for (int i = 0; i < 2000 + 1; ++i) objects << QStringLiteral("Object 1");
         auto d = deck::importOdp(mathDeck(objects, {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
         QVERIFY2(d, qPrintable(err));
-        QCOMPARE(equationsOf(*d).size(), office::kMostMathObjects);
+        QCOMPARE(equationsOf(*d).size(), 2000);
         // Written: 2,001 equations make 2,000 objects; the last is a picture.
         auto made = deck::newPresentation();
-        for (int i = 0; i < office::kMostMathObjects + 1; ++i) made->pages[0]->items.push_back(anEquation(QStringLiteral("x"), i % 400));
+        for (int i = 0; i < 2000 + 1; ++i) made->pages[0]->items.push_back(anEquation(QStringLiteral("x"), i % 400));
         QStringList notes;
         const QByteArray odp = deck::exportOdp(*made, false, &err, &notes);
         QVERIFY2(!odp.isEmpty(), qPrintable(err));
@@ -2785,7 +2785,7 @@ private Q_SLOTS:
         int formulas = 0;
         for (const QString &k : parts.keys())
             if (k.startsWith(QLatin1String("Object ")) && k.endsWith(QLatin1String("/content.xml"))) ++formulas;
-        QCOMPARE(formulas, office::kMostMathObjects);
+        QCOMPARE(formulas, 2000);
         QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("quations")), qPrintable(notes.join(QLatin1Char('|'))));
         // Read: documents of about a megabyte each: 16 fit in 16 MB.
         QByteArray big = hello();
@@ -2794,7 +2794,7 @@ private Q_SLOTS:
         for (int i = 0; i < 20; ++i) many << QStringLiteral("Object 1");
         auto heavy = deck::importOdp(mathDeck(many, {{QStringLiteral("Object 1/content.xml"), big}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
         QVERIFY2(heavy, qPrintable(err));
-        QCOMPARE(equationsOf(*heavy).size(), int(office::kMostMathObjectBytes / big.size()));
+        QCOMPARE(equationsOf(*heavy).size(), int((16 << 20) / big.size()));
     }
 
 private:
