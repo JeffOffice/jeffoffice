@@ -3193,6 +3193,19 @@ private Q_SLOTS:
         QCOMPARE(now->previewPng, two->previewPng);
         // The size and place stay: the element still says 1270000 EMU (100 points).
         QVERIFY(documentXml(saved).contains("width:100.00pt"));
+        // The same with an object the file had: opened, replaced, and saved, the old package and picture are not in the new file.
+        auto reopened = open(saved);
+        QVERIFY(reopened);
+        const int where = firstObjectPosition(*reopened);
+        QVERIFY(where >= 0);
+        const auto three = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("third, and the longest of them"), pngOfColor(14, Qt::yellow), 1270000, 1270000, budget);
+        QVERIFY(three);
+        QVERIFY(setObjectAt(*reopened, where, *three));
+        const QByteArray resaved = reopened->toDocx();
+        const QStringList again = partsUnder(resaved, QStringLiteral("/word/embeddings/"));
+        QCOMPARE(int(again.size()), 1);
+        QCOMPARE(partOf(resaved, again[0]), three->partBytes);
+        QCOMPARE(int(partsUnder(resaved, QStringLiteral("/word/media/")).size()), 1);
         // An object that is not ours takes no place of one that is.
         const auto other = office::ole::keepObject(QStringLiteral("Foo.Widget.1"), QByteArray("x"), pngOfColor(2, Qt::red), 1, 1, budget);
         QVERIFY(other && !other->isOurs);
