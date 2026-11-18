@@ -3061,6 +3061,33 @@ private Q_SLOTS:
         QCOMPARE(static_cast<LineItem &>(*list[0]).start.id, QStringLiteral("b"));
     }
 
+    // A callout's pointer is drawn outside its frame; a click on the pointer selects the callout, and the selection's bounds reach the pointer.
+    void aClickOnACalloutsPointerOutsideItsFrameSelectsIt()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto callout = std::make_shared<ShapeItem>();
+        callout->shape = QStringLiteral("wedgeRectCallout");
+        callout->rect = QRectF(100, 100, 200, 100);
+        ed->addItem(callout, false);
+        ed->select(QStringList());
+        Canvas *c = w.canvas();
+        // The tip is at 0.29 of the width and 1.125 of the height from the frame's top left: 12.5 points below the frame.
+        const QPointF tip(100 + 0.29 * 200, 100 + 1.1 * 100);
+        QVERIFY(!callout->rect.contains(tip));
+        QTest::mouseClick(c->viewport(), Qt::LeftButton, Qt::NoModifier, c->pageToView(tip).toPoint());
+        QCOMPARE(ed->selection(), QStringList{callout->id});
+        QVERIFY(ed->selectionBounds().bottom() > 212.4);
+        // Beside the pointer nothing is.
+        ed->select(QStringList());
+        QTest::mouseClick(c->viewport(), Qt::LeftButton, Qt::NoModifier, c->pageToView(QPointF(100 + 0.9 * 200, 100 + 1.1 * 100)).toPoint());
+        QVERIFY(ed->selection().isEmpty());
+    }
+
     // An object dragged on a grid lands on it (its edge on a multiple of the spacing, worked out from the grid, not from pixels); Alt leaves snapping off.
     void aDraggedObjectSnapsToTheGrid()
     {

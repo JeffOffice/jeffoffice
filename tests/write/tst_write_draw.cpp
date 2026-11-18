@@ -4085,6 +4085,31 @@ private Q_SLOTS:
         QVERIFY(w.grab().save(dir + QStringLiteral("/connsites.png")));
     }
 
+    // A callout's pointer is drawn outside its frame; a click on the pointer selects the callout.
+    void aClickOnACalloutsPointerOutsideItsFrameSelectsIt()
+    {
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(160, 90, "wedgeRectCallout"), 100, 100, 160, 90) + "</w:p>"));
+        QVERIFY(doc);
+        WriteWindow w;
+        w.resize(900, 900);
+        w.show();
+        w.setDocument(std::move(doc), QString());
+        w.view()->refresh();
+        QRectF frame;
+        QTRY_VERIFY(w.view()->pictureRect(0, &frame));
+        // The pointer's tip is at 0.29 of the width and 1.125 of the height from the frame's top left, below the frame; click a little above it.
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, frame.center().toPoint());
+        QCOMPARE(w.view()->selectedPicture(), 0);
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        const QPoint tip(int(frame.left() + 0.29 * frame.width()), int(frame.top() + 1.1 * frame.height()));
+        QVERIFY(!frame.contains(tip));
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, tip);
+        QCOMPARE(w.view()->selectedPicture(), 0);
+        // Beside the pointer, outside the frame, nothing is hit.
+        QTest::mouseClick(w.view()->viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(int(frame.left() + 0.9 * frame.width()), tip.y()));
+        QVERIFY(w.view()->selectedPicture() != 0);
+    }
+
     void aFileCannotCollapseTheSitesWithBuiltInOrGuideNames()
     {
         PictureInfo plain, crafted;

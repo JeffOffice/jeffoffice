@@ -199,7 +199,10 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
 
 QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w)
 {
-    QRectF room = w.rect.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
+    // (A callout's pointer sticks out of its frame: the text keeps off that too.)
+    QRectF frame = w.rect;
+    if (o.item && o.item->rotation == 0) frame = frame.united(localReach(*o.item).translated(w.rect.topLeft()));
+    QRectF room = frame.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
     if (w.rect.top() >= w.anchorTop - 0.01 && room.top() < w.anchorTop) room.setTop(w.anchorTop);
     return room;
 }

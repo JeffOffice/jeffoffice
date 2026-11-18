@@ -435,6 +435,11 @@ void walkItems(const ItemList &list, F &&fn)
 }
 
 QRectF unionBounds(const ItemList &items);
+// Where an object is drawn: its frame, and for a callout the pointer or line that goes out of it. In the frame's own coordinates, and in page coordinates (turned and flipped with it).
+QRectF localReach(const Item &it);
+QRectF pageReach(const Item &it);
+// Whether a point of the page is on the object's frame, or on the part of its drawing outside the frame.
+bool reachesPoint(const Item &it, const QPointF &page);
 
 // The sides' count: what an object that has no sites of its own has (office/connectionsites.h counts and places the others).
 constexpr int kConnectionSites = 4;

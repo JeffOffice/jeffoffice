@@ -485,7 +485,7 @@ QString Editor::selectionKind() const
 QRectF Editor::selectionBounds() const
 {
     QRectF r;
-    for (Item *it : selectedItems()) r = r.isNull() ? it->bounds() : r.united(it->bounds());
+    for (Item *it : selectedItems()) r = r.isNull() ? pageReach(*it) : r.united(pageReach(*it));   // (a callout's pointer is part of it)
     return r;
 }
 

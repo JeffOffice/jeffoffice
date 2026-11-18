@@ -1065,6 +1065,54 @@ void GroupItem::fromJson(const QJsonObject &o)
     syncRect();
 }
 
+// The outline an object of a shape is drawn in, where it may reach outside its frame: edited points or a file's own outline (any shape), and the drawing of a preset callout (its pointer
+// or its line). No other preset does, so no other is drawn here.
+static bool reachingOutline(const Item &it, QPainterPath *path)
+{
+    const QString *name = nullptr;
+    const QVector<double> *adj = nullptr;
+    const QPainterPath *custom = nullptr;
+    if (it.type() == ItemType::Shape) {
+        const auto &s = static_cast<const ShapeItem &>(it);
+        name = &s.shape, adj = &s.adj, custom = &s.customPath;
+    } else if (it.type() == ItemType::Text) {
+        const auto &t = static_cast<const TextItem &>(it);
+        name = &t.shape, adj = &t.adj, custom = &t.customPath;
+    } else {
+        return false;
+    }
+    if (!custom->isEmpty()) {
+        *path = *custom;
+        return true;
+    }
+    const ShapeDef *d = name->isEmpty() ? nullptr : shapeDef(*name);
+    if (!d || d->category != QLatin1String("Callouts")) return false;
+    *path = shapePath(*name, it.rect.size(), *adj);
+    return true;
+}
+
+QRectF localReach(const Item &it)
+{
+    const QRectF frame(QPointF(0, 0), it.rect.size());
+    QPainterPath path;
+    return reachingOutline(it, &path) ? frame.united(path.boundingRect()) : frame;
+}
+
+QRectF pageReach(const Item &it)
+{
+    QPainterPath path;
+    if (!reachingOutline(it, &path)) return it.bounds();
+    return it.transform().map(QPolygonF(QRectF(QPointF(0, 0), it.rect.size()).united(path.boundingRect()))).boundingRect();
+}
+
+bool reachesPoint(const Item &it, const QPointF &page)
+{
+    const QPointF local = it.transform().inverted().map(page);
+    if (QRectF(QPointF(0, 0), it.rect.size()).contains(local)) return true;
+    QPainterPath path;
+    return reachingOutline(it, &path) && path.boundingRect().contains(local) && path.contains(local);
+}
+
 void remapGlue(const ItemList &items, const QHash<QString, QString> &ids)
 {
     walkItems(items, [&](const ItemPtr &it) {

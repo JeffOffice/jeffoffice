@@ -1157,7 +1157,8 @@ QString Canvas::itemAt(const QPointF &page, bool enterGroups, int *row, int *col
         }
         const QPointF local = it->transform().inverted().map(page);
         const QRectF r(QPointF(0, 0), it->rect.size());
-        if (!r.adjusted(-tol, -tol, tol, tol).contains(local)) return false;
+        // (A callout's pointer is outside its frame.)
+        if (!localReach(*it).adjusted(-tol, -tol, tol, tol).contains(local)) return false;
         if (it->type() == ItemType::Shape) {
             const auto *s = static_cast<const ShapeItem *>(it);
             const QPainterPath path = Renderer::silhouette(*d, *it);

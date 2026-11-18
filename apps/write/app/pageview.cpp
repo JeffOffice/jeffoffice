@@ -2146,7 +2146,7 @@ int PageView::floatingPictureAt(const Hit &hit)
     const auto &items = r->page->doc->pages[0]->items;
     for (auto it = items.crbegin(); it != items.crend(); ++it) {
         const auto &item = *it;
-        if (!item->id.startsWith(QLatin1String("flow-object-")) || !item->rect.contains(hit.point)) continue;
+        if (!item->id.startsWith(QLatin1String("flow-object-")) || !reachesPoint(*item, hit.point)) continue;
         const QStringList parts = item->id.split(QLatin1Char('-'));
         if (parts.size() >= 3) {
             ids << parts[parts.size() - 2].toInt();
