@@ -182,15 +182,15 @@ An **object** holds its own file inside the workbook, so the app that made it ca
 
 1. Click **Insert**, then **Object**, and choose **From JeffCrunch Range**, **From JeffCrunch Chart**, or **From JeffWrite Page**.
 2. Pick the file, and the range or the page number if the box asks for one. If you copied one in the other app, the box offers to use it.
-3. The object goes in at the selected cell. Drag it to move it, and drag a handle to size it. Press **Delete** to take it away. Each one is a single step of Undo.
+3. The object goes in at the selected cell. Drag it to move it, and drag a handle to size it. A range, chart, or page that you size is drawn again at its new size, so it stays sharp. Press **Delete** to take it away. Each one is a single step of Undo.
 
 To put in what you copied in another app, click the arrow under **Paste** and choose **As Object**.
 
-**Double-click** an object to open it in the app that made it. Save it there, and the object here shows the change as one step of Undo. A cell you were typing in is left as it is. A copy you paste is an object of its own: changing one does not change the other.
+**Double-click** an object to open it in the app that made it. Save it there, and the object here shows the change as one step of Undo. A cell you were typing in is left as it is. A copy you paste is an object of its own: changing one does not change the other. The same goes for a sheet you copy: its objects are copies, and the copy of the sheet keeps them.
 
 **File**, then **Info**, then **Objects** lists every object in the workbook. Select one to open it, turn it into a plain picture, or delete it.
 
-An object made in another program shows as the picture its file keeps. You can pick it and delete it, but not move it or edit it here, and it is saved just as the file had it. Saved as an .xlsx or .ods file, your objects are in the standard form other programs read.
+An object made in another program shows as the picture its file keeps, whatever kind of picture that is. You can pick it, move it, size it, line it up with other objects, and delete it, and it moves with the cells as your own objects do. You can't edit it here, put it in a group, or change its place in the order of the objects. It is saved just as the file had it, with only its place changed if you moved it. An object an .ods file held works the same way. Saved as an .xlsx or .ods file, your objects are in the standard form other programs read. When an .ods file is written for an object whose picture can't be drawn, the object is kept without a picture.
 
 ## Diagrams from other programs
 
