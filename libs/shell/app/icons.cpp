@@ -275,9 +275,20 @@ QIcon shapeIcon(const QString &shapeId)
         QPainterPath path = shapePath(shapeId, box.size());
         path.translate(box.topLeft());
         const ShapeDef *d = shapeDef(shapeId);
+        // (The fill is the one outline; the strokes are every path the shape has, so that a cube keeps its edges.)
+        if (d && !d->open) {
+            p->setPen(Qt::NoPen);
+            p->setBrush(QBrush(QColor(uiAccent().red(), uiAccent().green(), uiAccent().blue(), 40)));
+            p->drawPath(path);
+        }
         p->setPen(QPen(uiText(), std::max(1.0, r.width() / 22)));
-        p->setBrush(d && d->open ? Qt::NoBrush : QBrush(QColor(uiAccent().red(), uiAccent().green(), uiAccent().blue(), 40)));
-        p->drawPath(path);
+        p->setBrush(Qt::NoBrush);
+        for (const GeometryPath &part : shapeParts(shapeId, box.size())) {
+            if (!part.stroke) continue;
+            QPainterPath stroked = part.path;
+            stroked.translate(box.topLeft());
+            p->drawPath(stroked);
+        }
     });
 }
 

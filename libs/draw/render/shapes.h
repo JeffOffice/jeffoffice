@@ -50,8 +50,10 @@ struct ShapeDef {
 
 const QVector<ShapeDef> &shapeLibrary();
 const ShapeDef *shapeDef(const QString &id);
+// How many times a preset shape has been worked out from its definition, not found in the cache (for a test).
+qint64 presetEvaluationsForTest();
 
-// What is stroked: every path of the shape's definition, or an open shape's outline paths only.
+// The shape's one outline: the union of its filled paths, or an open shape's outline paths. (shapeParts has every path, each with how it is drawn.)
 QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 // The shape's paths each with how it is drawn: filled (or not, or lightened or darkened) and stroked (or not). A shape that is no preset has one.
 QVector<GeometryPath> shapeParts(const QString &id, const QSizeF &size, const QVector<double> &adj = {});

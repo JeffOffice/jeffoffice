@@ -760,6 +760,36 @@ QPointF pageOrigin()
     return r.topLeft() - QPointF(100 * s, 100 * s);
 }
 
+
+// What the library of 0.42 drew (its own code run at these sizes, with the old adjustments as saved): samples spread along the outline, then the outline's box (l, t, r, b).
+struct OldDrawing {
+    const char *shape;
+    double w, h;
+    QVector<double> adj, samples, box;
+};
+
+QVector<OldDrawing> oldDrawings()
+{
+    return {
+        {"arc", 120, 80, {0.25}, {61.65, 0.06, 64.95, 0.17, 68.24, 0.42, 71.53, 0.76, 74.77, 1.37, 78.00, 2.04, 81.24, 2.71, 84.43, 3.53, 87.53, 4.65, 90.64, 5.78, 93.73, 6.93, 96.62, 8.52, 99.52, 10.12, 102.41, 11.71, 104.98, 13.78, 107.55, 15.86, 110.05, 18.00, 112.14, 20.56, 114.22, 23.12, 116.06, 25.85, 117.56, 28.78, 118.75, 31.86, 119.50, 35.08, 119.88, 38.35}, {60.00, 0.00, 120.00, 40.00}},
+        {"arc", 120, 80, {0.45}, {62.91, 0.10, 68.72, 0.47, 74.48, 1.31, 80.18, 2.49, 85.79, 4.02, 91.27, 6.01, 96.53, 8.47, 101.63, 11.28, 106.25, 14.81, 110.59, 18.66, 114.27, 23.18, 117.31, 28.13, 119.17, 33.63, 119.95, 39.39, 119.37, 45.18, 117.65, 50.71, 114.92, 55.83, 111.40, 60.43, 107.27, 64.53, 102.66, 68.09, 97.63, 71.02, 92.39, 73.55, 86.99, 75.72, 81.38, 77.27}, {60.00, 0.00, 120.00, 78.05}},
+        {"arc", 120, 80, {0.7}, {64.68, 0.16, 73.99, 1.20, 83.17, 3.10, 91.99, 6.27, 100.31, 10.55, 107.84, 16.09, 114.12, 22.99, 118.50, 31.21, 119.97, 40.42, 118.20, 49.57, 113.59, 57.66, 107.18, 64.44, 99.57, 69.85, 91.20, 74.02, 82.35, 77.07, 73.17, 78.96, 63.85, 79.87, 54.48, 79.70, 45.18, 78.64, 36.06, 76.56, 27.25, 73.39, 18.96, 69.07, 11.44, 63.49, 5.40, 56.36}, {2.93, 0.00, 120.00, 80.00}},
+        {"pie", 120, 80, {0.75}, {67.04, 40.00, 81.11, 40.00, 95.19, 40.00, 109.26, 40.00, 119.75, 36.68, 114.70, 23.71, 104.90, 13.71, 92.83, 6.57, 79.44, 2.33, 65.55, 0.19, 51.50, 0.45, 37.66, 2.93, 24.53, 7.89, 12.80, 15.57, 3.74, 26.21, 0.03, 39.63, 3.38, 53.14, 12.22, 63.96, 23.88, 71.75, 36.93, 76.92, 50.76, 79.48, 60.00, 75.19, 60.00, 61.11, 60.00, 47.04}, {0.00, 0.00, 120.00, 80.00}},
+        {"pie", 120, 80, {0.3}, {64.17, 40.00, 72.52, 40.00, 80.86, 40.00, 89.21, 40.00, 97.55, 40.00, 105.90, 40.00, 114.25, 40.00, 119.80, 37.42, 117.79, 29.36, 113.51, 22.25, 107.89, 16.13, 101.27, 11.08, 93.96, 7.06, 86.14, 4.15, 78.09, 2.05, 69.88, 0.59, 61.56, 0.05, 53.22, 0.36, 44.95, 1.39, 43.53, 6.25, 47.19, 13.75, 50.85, 21.25, 54.51, 28.75, 58.17, 36.25}, {41.43, 0.00, 120.00, 40.00}},
+        {"chord", 120, 80, {0.75}, {96.87, 8.66, 85.19, 3.81, 72.85, 0.97, 60.23, 0.01, 47.59, 0.88, 35.23, 3.65, 23.52, 8.44, 12.99, 15.42, 4.53, 24.77, 0.26, 36.60, 1.61, 49.08, 8.17, 59.81, 17.55, 68.26, 28.81, 74.02, 40.90, 77.74, 53.41, 79.75, 66.08, 79.80, 78.59, 77.84, 90.70, 74.20, 102.00, 68.52, 102.43, 56.09, 102.43, 43.41, 102.43, 30.73, 102.43, 18.06}, {0.00, 0.00, 102.43, 80.00}},
+        {"chord", 120, 80, {0.3}, {98.76, 9.70, 91.28, 6.01, 83.42, 3.17, 75.23, 1.46, 66.97, 0.29, 58.61, 0.07, 50.27, 0.57, 42.02, 1.88, 33.94, 4.03, 26.16, 7.06, 18.82, 11.03, 12.12, 16.01, 6.80, 21.81, 15.12, 20.93, 23.43, 20.05, 31.75, 19.17, 40.06, 18.30, 48.38, 17.42, 56.69, 16.54, 65.01, 15.66, 73.32, 14.79, 81.64, 13.91, 89.95, 13.03, 98.27, 12.15}, {6.53, 0.00, 102.43, 21.83}},
+        {"quadArrow", 120, 80, {0.12, 0.22, 0.22}, {66.56, 6.56, 74.65, 17.60, 70.32, 30.40, 88.88, 30.40, 102.40, 25.35, 113.44, 33.44, 113.44, 46.56, 102.40, 54.65, 88.88, 49.60, 70.32, 49.60, 74.65, 62.40, 66.56, 73.44, 53.44, 73.44, 45.35, 62.40, 49.68, 49.60, 31.12, 49.60, 17.60, 54.65, 6.56, 46.56, 6.56, 33.44, 17.60, 25.35, 31.12, 30.40, 49.68, 30.40, 45.35, 17.60, 53.44, 6.56}, {0.00, 0.00, 120.00, 80.00}},
+        {"arc", 80, 120, {0.25}, {41.65, 0.12, 44.92, 0.50, 48.14, 1.25, 51.22, 2.44, 54.15, 3.94, 56.88, 5.78, 59.44, 7.86, 62.00, 9.95, 64.14, 12.45, 66.22, 15.02, 68.29, 17.59, 69.88, 20.48, 71.48, 23.38, 73.07, 26.27, 74.22, 29.36, 75.35, 32.47, 76.47, 35.57, 77.29, 38.76, 77.96, 42.00, 78.63, 45.23, 79.24, 48.47, 79.58, 51.76, 79.83, 55.05, 79.94, 58.35}, {40.00, 0.00, 80.00, 60.00}},
+        {"arc", 80, 120, {0.45}, {43.03, 0.23, 48.93, 1.55, 54.43, 4.09, 59.27, 7.73, 63.67, 11.87, 67.49, 16.59, 70.60, 21.78, 73.42, 27.15, 75.49, 32.86, 77.27, 38.65, 78.50, 44.60, 79.46, 50.58, 79.89, 56.64, 79.85, 62.70, 79.53, 68.76, 78.65, 74.77, 77.47, 80.71, 75.82, 86.56, 73.62, 92.21, 71.01, 97.68, 67.93, 102.91, 64.18, 107.68, 59.85, 111.92, 54.96, 115.47}, {40.00, 0.00, 80.00, 117.07}},
+        {"arc", 80, 120, {0.7}, {44.54, 0.41, 53.13, 3.37, 60.49, 8.72, 66.58, 15.47, 71.38, 23.20, 75.01, 31.54, 77.61, 40.27, 79.32, 49.23, 79.94, 58.33, 79.66, 67.45, 78.28, 76.46, 76.15, 85.32, 72.99, 93.88, 68.59, 101.88, 62.94, 109.04, 56.00, 114.94, 47.79, 118.84, 38.78, 119.85, 29.93, 117.89, 21.97, 113.51, 15.41, 107.20, 10.18, 99.75, 6.12, 91.59, 3.17, 82.97}, {1.95, 0.00, 80.00, 120.00}},
+        {"pie", 80, 120, {0.75}, {47.04, 60.00, 61.11, 60.00, 75.19, 60.00, 79.48, 50.76, 76.92, 36.93, 71.75, 23.88, 63.96, 12.22, 53.14, 3.38, 39.63, 0.03, 26.21, 3.74, 15.57, 12.80, 7.89, 24.53, 2.93, 37.66, 0.45, 51.50, 0.19, 65.55, 2.33, 79.44, 6.57, 92.83, 13.71, 104.90, 23.71, 114.70, 36.68, 119.75, 40.00, 109.26, 40.00, 95.19, 40.00, 81.11, 40.00, 67.04}, {0.00, 0.00, 80.00, 120.00}},
+        {"pie", 80, 120, {0.3}, {43.97, 60.00, 51.90, 60.00, 59.84, 60.00, 67.78, 60.00, 75.71, 60.00, 79.88, 56.35, 79.24, 48.45, 77.69, 40.67, 75.55, 33.05, 72.72, 25.64, 68.90, 18.69, 64.10, 12.39, 58.35, 6.98, 51.75, 2.64, 44.17, 0.33, 36.28, 0.44, 28.68, 2.55, 29.07, 9.59, 30.75, 17.34, 32.43, 25.10, 34.11, 32.86, 35.79, 40.61, 37.48, 48.37, 39.16, 56.12}, {27.62, 0.00, 80.00, 60.00}},
+        {"chord", 80, 120, {0.75}, {64.19, 12.51, 54.38, 4.06, 42.08, 0.16, 29.36, 2.21, 18.62, 9.45, 10.59, 19.62, 5.05, 31.38, 1.64, 43.92, 0.11, 56.83, 0.58, 69.83, 2.99, 82.63, 7.53, 94.81, 14.44, 105.80, 23.80, 114.77, 35.75, 119.65, 48.61, 118.57, 59.69, 111.93, 68.28, 102.26, 68.28, 89.23, 68.28, 76.20, 68.28, 63.17, 68.28, 50.15, 68.28, 37.12, 68.28, 24.09}, {0.00, 0.00, 68.28, 120.00}},
+        {"chord", 80, 120, {0.3}, {66.29, 15.11, 62.30, 10.20, 57.40, 6.20, 52.08, 2.80, 46.11, 0.77, 39.84, 0.02, 33.58, 0.84, 27.65, 3.02, 22.28, 6.32, 17.53, 10.49, 13.43, 15.29, 9.93, 20.56, 6.99, 26.16, 4.64, 32.04, 9.77, 31.47, 15.93, 30.00, 22.09, 28.54, 28.25, 27.08, 34.41, 25.62, 40.57, 24.15, 46.73, 22.69, 52.89, 21.23, 59.04, 19.77, 65.20, 18.31}, {4.35, 0.00, 68.28, 32.75}},
+        {"quadArrow", 80, 120, {0.12, 0.22, 0.22}, {46.56, 6.56, 54.65, 17.60, 49.60, 31.12, 49.60, 49.68, 62.40, 45.35, 73.44, 53.44, 73.44, 66.56, 62.40, 74.65, 49.60, 70.32, 49.60, 88.88, 54.65, 102.40, 46.56, 113.44, 33.44, 113.44, 25.35, 102.40, 30.40, 88.88, 30.40, 70.32, 17.60, 74.65, 6.56, 66.56, 6.56, 53.44, 17.60, 45.35, 30.40, 49.68, 30.40, 31.12, 25.35, 17.60, 33.44, 6.56}, {0.00, 0.00, 80.00, 120.00}},
+    };
+}
+
 } // namespace
 
 namespace {
@@ -794,6 +824,38 @@ static int svgImages(WriteDoc &doc)
     int n = 0;
     for (const auto &img : doc.flow().images) n += img.format == QLatin1String("svg") ? 1 : 0;
     return n;
+}
+
+} // namespace
+
+namespace {
+
+// The numbers below come from an independent evaluator written straight from the standard (guides in order, a later definition of a name over an earlier, arcs by the standard's
+// angles) and are literal here: each preset at one frame size has samples spread along its outline (every path), its text rectangle (l, t, r, b), and a point deep inside each
+// of its filled parts (the three deepest).
+struct StandardNumbers {
+    const char *preset;
+    double w, h;
+    QVector<double> samples;
+    QVector<double> text;
+    QVector<double> inside;
+};
+QVector<StandardNumbers> standardNumbers()
+{
+    return {
+    {"circularArrow", 120, 80, {5.29, 36.58, 7.31, 30.03, 10.93, 24.20, 15.71, 19.28, 21.24, 15.19, 27.26, 11.89, 33.63, 9.30, 40.23, 7.35, 46.97, 6.01, 53.80, 5.24, 60.67, 5.02, 67.54, 5.35, 74.36, 6.23, 81.08, 7.68, 87.64, 9.75, 93.95, 12.47, 99.89, 15.93, 105.29, 20.18, 110.01, 25.04, 112.57, 28.50, 111.07, 35.21, 108.53, 38.68, 103.41, 34.09, 98.30, 29.49, 93.56, 25.04, 92.39, 22.65, 86.19, 19.67, 79.66, 17.53, 72.94, 16.06, 66.12, 15.24, 59.25, 15.01, 52.38, 15.37, 45.57, 16.32, 38.89, 17.93, 32.42, 20.26, 26.33, 23.43, 20.90, 27.64, 16.77, 33.10, 15.02, 39.68, 8.44, 40.00}, {21.11, 15.25, 98.89, 64.75}, {102.0, 26.0}},
+    {"circularArrow", 80, 120, {5.08, 56.46, 5.68, 49.40, 6.86, 42.42, 8.66, 35.57, 11.13, 28.93, 14.34, 22.62, 18.36, 16.80, 23.28, 11.72, 29.12, 7.73, 35.79, 5.43, 42.84, 5.22, 49.63, 7.13, 55.64, 10.84, 60.75, 15.73, 64.95, 21.43, 68.31, 27.66, 70.92, 34.25, 72.84, 41.06, 74.14, 48.03, 79.21, 50.05, 74.39, 55.25, 69.56, 59.58, 64.43, 54.69, 59.48, 49.86, 64.03, 47.68, 62.59, 40.75, 60.39, 34.02, 57.36, 27.63, 53.25, 21.87, 47.87, 17.30, 41.21, 15.07, 34.30, 16.22, 28.43, 20.11, 23.92, 25.56, 20.55, 31.78, 18.07, 38.41, 16.39, 45.29, 15.38, 52.30, 15.01, 59.37, 8.54, 60.00}, {15.25, 21.11, 64.75, 98.89}, {69.3, 51.0}},
+    {"leftCircularArrow", 120, 80, {8.44, 40.00, 15.02, 40.32, 16.77, 46.90, 20.90, 52.36, 26.33, 56.57, 32.42, 59.74, 38.89, 62.07, 45.57, 63.68, 52.38, 64.63, 59.25, 64.99, 66.12, 64.76, 72.94, 63.94, 79.66, 62.47, 86.19, 60.33, 92.39, 57.35, 93.56, 54.96, 98.30, 50.51, 103.41, 45.91, 108.53, 41.32, 111.07, 44.79, 112.57, 51.50, 110.01, 54.96, 105.29, 59.82, 99.89, 64.07, 93.95, 67.53, 87.64, 70.25, 81.08, 72.32, 74.36, 73.77, 67.54, 74.65, 60.67, 74.98, 53.80, 74.76, 46.97, 73.99, 40.23, 72.65, 33.63, 70.70, 27.26, 68.11, 21.24, 64.81, 15.71, 60.72, 10.93, 55.80, 7.31, 49.97, 5.29, 43.42}, {21.11, 15.25, 98.89, 64.75}, {102.0, 54.0}},
+    {"leftRightCircularArrow", 120, 80, {9.25, 36.65, 7.75, 29.94, 8.52, 25.04, 13.64, 21.19, 18.88, 16.76, 24.73, 13.16, 30.97, 10.28, 37.48, 8.08, 44.16, 6.49, 50.96, 5.48, 57.82, 5.04, 64.69, 5.14, 71.53, 5.79, 78.30, 6.99, 84.92, 8.81, 91.35, 11.25, 97.46, 14.39, 103.12, 18.28, 108.08, 23.02, 113.20, 25.68, 111.70, 32.39, 110.20, 39.10, 105.57, 36.03, 100.46, 31.43, 95.34, 26.84, 94.86, 24.19, 88.87, 20.83, 82.47, 18.34, 75.82, 16.60, 69.04, 15.52, 62.18, 15.03, 55.31, 15.14, 48.47, 15.84, 41.73, 17.15, 35.16, 19.16, 28.88, 21.95, 24.98, 25.04, 22.79, 28.52, 17.67, 33.11, 12.56, 37.70}, {21.11, 15.25, 98.89, 64.75}, {18.0, 26.0}},
+    {"ellipseRibbon2", 120, 80, {14.28, 75.81, 43.58, 70.75, 41.18, 60.99, 70.90, 60.34, 80.73, 67.52, 97.99, 74.01, 117.22, 73.64, 105.32, 46.36, 119.63, 20.62, 91.88, 12.82, 72.27, 0.42, 42.54, 0.85, 23.01, 13.80, 2.99, 25.11, 12.60, 51.13, 0.69, 78.41, 30.96, 62.35, 60.60, 60.00, 89.80, 62.61, 72.07, 60.41, 1.07, 77.55, 12.97, 50.27, 2.52, 24.31, 23.92, 13.62, 43.47, 0.77, 73.20, 0.49, 92.80, 12.99, 119.16, 21.43, 105.69, 47.21, 117.60, 74.49, 97.07, 73.82, 81.55, 67.08, 69.97, 60.28, 40.25, 61.09, 42.65, 70.84, 13.37, 76.04, 30.00, 46.68, 30.00, 16.92, 90.00, 37.85, 45.00, 65.74}, {30.00, 2.50, 90.00, 60.00}, {60.0, 30.0, 42.0, 64.0}},
+    {"ellipseRibbon", 120, 80, {14.28, 4.19, 43.58, 9.25, 41.18, 19.01, 70.90, 19.66, 80.73, 12.48, 97.99, 5.99, 117.22, 6.36, 105.32, 33.64, 119.63, 59.38, 91.88, 67.18, 72.27, 79.58, 42.54, 79.15, 23.01, 66.20, 2.99, 54.89, 12.60, 28.87, 0.69, 1.59, 30.96, 17.65, 60.60, 20.00, 89.80, 17.39, 72.07, 19.59, 2.54, 0.83, 31.46, 7.74, 30.82, 17.06, 58.70, 19.99, 88.35, 17.76, 85.96, 8.13, 114.98, 1.60, 110.20, 22.45, 113.46, 48.83, 103.83, 64.66, 84.42, 78.34, 54.73, 79.92, 30.00, 72.60, 5.99, 61.90, 11.86, 39.74, 5.58, 12.79, 30.00, 51.68, 30.00, 21.92, 90.00, 42.85, 45.00, 14.49}, {30.00, 20.00, 90.00, 77.50}, {60.0, 50.0, 42.0, 16.0}},
+    {"ribbon2", 120, 80, {14.91, 80.00, 44.31, 78.59, 37.30, 66.67, 67.12, 66.67, 86.69, 73.31, 89.50, 80.00, 119.33, 80.00, 108.04, 53.41, 114.20, 26.22, 104.30, 13.33, 86.30, 0.00, 56.47, 0.00, 30.00, 4.87, 8.64, 13.33, 8.69, 32.65, 9.07, 59.85, 39.09, 73.33, 45.00, 68.77, 88.41, 67.28, 2.59, 74.25, 14.83, 47.05, 2.94, 19.86, 22.67, 13.33, 40.68, -0.00, 70.50, -0.00, 90.00, 11.84, 118.34, 13.33, 108.44, 39.01, 113.80, 66.21, 105.30, 80.00, 75.82, 78.75, 82.91, 66.67, 53.09, 66.67, 33.11, 73.28, 30.70, 80.00, 0.88, 80.00, 30.00, 61.05, 30.00, 31.23, 90.00, 25.26, 90.00, 55.09}, {30.00, 0.00, 90.00, 66.67}, {56.0, 34.0, 34.0, 70.0}},
+    {"horizontalScroll", 120, 80, {115.00, 5.77, 99.47, 10.00, 75.31, 10.00, 51.15, 10.00, 27.00, 10.00, 2.91, 10.46, 0.00, 33.47, 0.00, 57.62, 3.94, 79.88, 20.23, 70.00, 44.39, 70.00, 68.55, 70.00, 92.71, 70.00, 116.82, 69.66, 120.00, 46.83, 120.00, 22.67, 9.81, 16.35, 9.18, 13.15, 117.23, 0.53, 0.13, 13.86, 22.45, 10.00, 46.61, 10.00, 70.76, 10.00, 94.92, 10.00, 111.58, 1.36, 120.00, 17.53, 120.00, 41.69, 119.93, 65.84, 97.85, 70.00, 73.69, 70.00, 49.53, 70.00, 25.37, 70.00, 8.63, 78.43, 0.00, 62.76, 0.00, 38.61, 110.55, 10.00, 110.20, 5.97, 2.64, 19.40, 10.00, 33.76, 10.00, 57.92}, {10.00, 10.00, 115.00, 70.00}, {30.0, 40.0, 8.0, 16.0}},
+    {"flowChartMultidocument", 120, 80, {24.85, 79.81, 73.68, 69.58, 103.31, 46.47, 86.07, 13.61, 35.97, 13.61, 0.00, 27.74, 8.51, 12.75, 52.58, 6.72, 102.68, 6.72, 111.11, 48.38, 103.31, 30.09, 69.69, 13.61, 19.60, 13.61, 48.80, 0.00, 98.90, 0.00, 120.00, 28.99, 111.11, 36.69, 90.98, 6.72, 40.89, 6.72, 25.72, 13.61, 75.82, 13.61, 103.31, 36.22, 83.78, 67.89, 35.08, 79.29, 0.00, 62.17, 8.51, 12.08, 53.25, 6.72, 103.35, 6.72, 111.11, 49.06, 40.93, 0.00, 91.03, 0.00, 120.00, 21.12, 8.89, 78.48, 58.19, 73.69, 103.31, 62.50, 120.00, 28.46, 98.37, 0.00, 48.27, 0.00, 8.51, 10.34, 0.00, 51.92}, {0.00, 13.61, 103.31, 76.97}, {34.0, 46.0}},
+    {"gear6", 120, 80, {97.84, 17.94, 105.27, 14.55, 111.53, 20.87, 109.16, 28.14, 107.51, 36.01, 107.29, 44.80, 109.61, 52.57, 110.94, 59.73, 104.68, 66.05, 97.12, 61.62, 89.35, 62.16, 80.99, 65.18, 72.31, 67.06, 70.25, 75.70, 64.03, 79.07, 55.13, 79.07, 49.56, 74.88, 46.86, 66.93, 38.20, 64.95, 29.89, 61.81, 22.16, 62.06, 14.73, 65.45, 8.47, 59.13, 10.84, 51.86, 12.49, 43.99, 12.71, 35.20, 10.39, 27.43, 9.06, 20.27, 15.32, 13.95, 22.88, 18.38, 30.65, 17.84, 39.01, 14.82, 47.69, 12.94, 49.75, 4.30, 55.97, 0.93, 64.87, 0.93, 70.44, 5.12, 73.14, 13.07, 81.80, 15.05, 90.11, 18.19}, {25.95, 20.26, 94.05, 59.74}, {60.0, 40.0}},
+    {"gear9", 120, 80, {90.21, 8.90, 97.91, 9.24, 99.52, 16.63, 104.59, 23.54, 111.06, 29.74, 118.34, 32.24, 113.63, 38.28, 110.81, 46.81, 110.81, 55.10, 109.30, 62.46, 101.57, 60.38, 93.39, 64.53, 84.72, 68.44, 83.26, 76.68, 73.79, 78.80, 69.10, 71.51, 59.42, 72.00, 49.74, 71.37, 45.07, 78.55, 35.61, 76.43, 34.46, 67.88, 25.59, 63.99, 17.46, 61.02, 9.90, 61.61, 9.89, 54.17, 8.83, 45.71, 5.33, 37.77, 1.98, 31.13, 10.09, 29.86, 16.23, 22.72, 20.13, 15.52, 23.12, 8.71, 30.49, 9.82, 38.44, 10.88, 47.92, 8.88, 53.33, 3.26, 60.58, 0.34, 66.87, 4.41, 73.23, 9.05, 82.68, 11.20}, {21.14, 18.74, 98.86, 59.86}, {60.0, 40.0}},
+    {"parallelogram", 120, 80, {1.11, 75.57, 3.32, 66.72, 5.53, 57.87, 7.74, 49.02, 9.96, 40.17, 12.17, 31.32, 14.38, 22.47, 16.60, 13.62, 18.81, 4.77, 24.21, 0.00, 33.33, 0.00, 42.45, 0.00, 51.58, 0.00, 60.70, 0.00, 69.82, 0.00, 78.95, 0.00, 88.07, 0.00, 97.19, 0.00, 106.32, 0.00, 115.44, 0.00, 118.89, 4.43, 116.68, 13.28, 114.47, 22.13, 112.26, 30.98, 110.04, 39.83, 107.83, 48.68, 105.62, 57.53, 103.40, 66.38, 101.19, 75.23, 95.79, 80.00, 86.67, 80.00, 77.55, 80.00, 68.42, 80.00, 59.30, 80.00, 50.18, 80.00, 41.05, 80.00, 31.93, 80.00, 22.81, 80.00, 13.68, 80.00, 4.56, 80.00}, {18.33, 12.22, 101.67, 67.78}, {52.0, 40.0}},
+    };
 }
 
 } // namespace
@@ -3875,9 +3937,11 @@ private Q_SLOTS:
                 }
             return best;
         };
-        // The standard's own numbers put a few sites off its own drawing: a block arc's third site is the frame's center, which its band does not reach, and the circular arrow, the cloud
-        // callout, and the multi-document each have one a few points off their curve in a frame that is not square. The limits are what the standard's numbers give.
-        const QHash<QString, double> exceptions = {{"blockArc", 25.0}, {"circularArrow", 8.9}, {"cloudCallout", 2.7}, {"fcMultidocument", 2.6}};
+        // The standard's own numbers put a few sites off its own drawing, and these stay (each checked by hand with an independent evaluator of the standard's table, which puts them just
+        // where this does): a block arc's third site is the frame's center, which its band does not reach (25 pt at 200 x 100); the cloud callout's last site is the tip of its pointer, a
+        // little off the pointer's small circles (2.8 pt); and the multi-document's third site is 1.5 to 2.4 pt off the curve of its front sheet. (The circular arrow had one 8.8 pt off
+        // only while products of two sizes were held to 1e15; it is on its outline now.) The limits are what the standard's numbers give.
+        const QHash<QString, double> exceptions = {{"blockArc", 25.0}, {"cloudCallout", 2.7}, {"fcMultidocument", 2.6}};
         QVector<std::pair<double, QString>> bad, all;
         for (const jp::ShapeDef &def : jp::shapeLibrary()) {
             if (!jp::hasConnectionSites(def.id)) continue;
@@ -3923,17 +3987,28 @@ private Q_SLOTS:
             const QSizeF size(200, 100);
             const jp::Geometry g = jp::buildGeometry(*spec, {}, size);
             QPainterPath want;
-            for (const jp::GeometryPath &part : g.paths)
-                if (part.stroke || !def.open) want.addPath(part.path);
+            QRectF frame;
+            for (const jp::GeometryPath &part : g.paths) {
+                if (def.open && part.stroke) want.addPath(part.path);
+                if (!def.open && part.fill != jp::GeometryPath::None) frame = frame.united(part.path.boundingRect());
+            }
             const QPainterPath got = jp::shapePath(def.id, size);
             QVERIFY2(!got.isEmpty(), qPrintable(def.id));
-            QCOMPARE(got.elementCount(), want.elementCount());
-            for (int i = 0; i < got.elementCount(); ++i)
-                QVERIFY2(std::abs(got.elementAt(i).x - want.elementAt(i).x) <= 0.01 && std::abs(got.elementAt(i).y - want.elementAt(i).y) <= 0.01, qPrintable(def.id + QStringLiteral(" element %1").arg(i)));
+            if (def.open) {
+                // An open shape's outline is its stroked paths as they are.
+                QCOMPARE(got.elementCount(), want.elementCount());
+                for (int i = 0; i < got.elementCount(); ++i)
+                    QVERIFY2(std::abs(got.elementAt(i).x - want.elementAt(i).x) <= 0.01 && std::abs(got.elementAt(i).y - want.elementAt(i).y) <= 0.01, qPrintable(def.id + QStringLiteral(" element %1").arg(i)));
+            } else if (!frame.isNull()) {
+                // A closed shape's is the union of its filled paths: it fills the same box.
+                const QRectF box = got.boundingRect();
+                QVERIFY2(std::abs(box.left() - frame.left()) < 0.05 && std::abs(box.top() - frame.top()) < 0.05 && std::abs(box.right() - frame.right()) < 0.05 && std::abs(box.bottom() - frame.bottom()) < 0.05,
+                         qPrintable(def.id + QStringLiteral(" outline box")));
+            }
             // The text rectangle: l, t, r, b of the table's rect, from the guides' own values (in EMU).
             jp::GuideEvaluator ev(size.width() * 12700, size.height() * 12700);
-            for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
-            for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->adjust) ev.assign(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->guides) ev.assign(a.name, a.words);
             const QRectF rect = QRectF(QPointF(ev.value(spec->textRect[0]) / 12700, ev.value(spec->textRect[1]) / 12700), QPointF(ev.value(spec->textRect[2]) / 12700, ev.value(spec->textRect[3]) / 12700)).normalized();
             const QRectF text = jp::shapeTextRect(def.id, size);
             QVERIFY2(std::abs(text.left() - rect.left()) <= 0.01 && std::abs(text.top() - rect.top()) <= 0.01 && std::abs(text.right() - rect.right()) <= 0.01 && std::abs(text.bottom() - rect.bottom()) <= 0.01,
@@ -3946,6 +4021,56 @@ private Q_SLOTS:
         }
         // Every shape but the two that are no preset of the standard's (the tab and the flow arrow).
         QCOMPARE(checked, int(jp::shapeLibrary().size()) - 2);
+    }
+
+    // The standard's products of two sizes reach 5e21 (the circular arrows) and a name is defined twice (ellipse ribbons, circular arrows, the parallelogram's text rectangle, gears):
+    // each preset's outline and text rectangle are within half a point of the independent numbers.
+    void presetsDrawAndTextWhereAnIndependentEvaluatorPutsThem()
+    {
+        const auto distance = [](const QVector<QPolygonF> &polys, const QPointF &p) {
+            double best = 1e18;
+            for (const QPolygonF &poly : polys)
+                for (int i = 0; i + 1 < poly.size(); ++i) {
+                    const QPointF a = poly[i], b = poly[i + 1], d = b - a;
+                    const double len2 = d.x() * d.x() + d.y() * d.y();
+                    const double t = len2 > 0 ? std::clamp(((p.x() - a.x()) * d.x() + (p.y() - a.y()) * d.y()) / len2, 0.0, 1.0) : 0.0;
+                    best = std::min(best, std::hypot(p.x() - (a.x() + t * d.x()), p.y() - (a.y() + t * d.y())));
+                }
+            return best;
+        };
+        for (const StandardNumbers &n : standardNumbers()) {
+            const jp::GeomSpec *spec = jp::presetSpec(QString::fromLatin1(n.preset));
+            QVERIFY2(spec, n.preset);
+            const QSizeF size(n.w, n.h);
+            const QString what = QStringLiteral("%1 %2x%3").arg(QString::fromLatin1(n.preset)).arg(n.w).arg(n.h);
+            const jp::Geometry g = jp::buildGeometry(*spec, {}, size);
+            QTransform flat;
+            QVector<QPolygonF> polys;
+            for (const jp::GeometryPath &part : g.paths) polys += part.path.toSubpathPolygons(flat);
+            for (int i = 0; i + 1 < n.samples.size(); i += 2) {
+                const double d = distance(polys, QPointF(n.samples[i], n.samples[i + 1]));
+                QVERIFY2(d < 0.5, qPrintable(what + QStringLiteral(" sample %1 is %2 pt off the outline").arg(i / 2).arg(d)));
+            }
+            const QRectF text = g.textRect;
+            QVERIFY2(std::abs(text.left() - n.text[0]) < 0.05 && std::abs(text.top() - n.text[1]) < 0.05 && std::abs(text.right() - n.text[2]) < 0.05 && std::abs(text.bottom() - n.text[3]) < 0.05,
+                     qPrintable(what + QStringLiteral(" text rectangle %1,%2 %3,%4").arg(text.left()).arg(text.top()).arg(text.right()).arg(text.bottom())));
+        }
+    }
+
+    // The one outline (fill of a text box, a picture's cut, a click) is the union of the filled parts, not their winding sum: the parts of the ribbons, the scroll, and the multi-document
+    // wind both ways and must not cancel.
+    void theOneOutlineIsTheUnionOfTheFilledParts()
+    {
+        int points = 0;
+        for (const StandardNumbers &n : standardNumbers()) {
+            const QString id = jp::shapeIdOfPreset(QString::fromLatin1(n.preset));
+            if (id.isEmpty()) continue;   // (the left circular arrows are no shape of the library's)
+            const QPainterPath outline = jp::shapePath(id, QSizeF(n.w, n.h));
+            for (int i = 0; i + 1 < n.inside.size(); i += 2, ++points)
+                QVERIFY2(outline.contains(QPointF(n.inside[i], n.inside[i + 1])),
+                         qPrintable(QStringLiteral("%1 %2,%3").arg(QString::fromLatin1(n.preset)).arg(n.inside[i]).arg(n.inside[i + 1])));
+        }
+        QVERIFY2(points >= 10, qPrintable(QString::number(points)));
     }
 
     // A handle is where the standard's definition puts it (a point handle on both axes, a polar one by angle and radius), and a drag to a place gives the adjustments that put it there.
@@ -3966,8 +4091,8 @@ private Q_SLOTS:
                     const QString where = QStringLiteral("%1 handle %2 at %3x%4").arg(QLatin1String(name)).arg(h.standard).arg(size.width()).arg(size.height());
                     // Its place: the table's position, worked out here by hand from the guides.
                     jp::GuideEvaluator ev(size.width() * 12700, size.height() * 12700);
-                    for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
-                    for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+                    for (const jp::GeomGuide &a : spec->adjust) ev.assign(a.name, a.words);
+                    for (const jp::GeomGuide &a : spec->guides) ev.assign(a.name, a.words);
                     const jp::GeomHandle &gh = spec->handles[h.standard];
                     QCOMPARE(h.polar, gh.polar);
                     const QPointF want(ev.value(gh.posX) / 12700, ev.value(gh.posY) / 12700);
@@ -4009,6 +4134,35 @@ private Q_SLOTS:
         QCOMPARE(adj[0], 0.5);
     }
 
+    // The circular arrow's last handle moves a radius and an angle at once: a drag of it follows the mouse at the pace of a mouse (100 moves in under a second is the loose bound; it took
+    // about 18 seconds with a search of a grid at each move), and each move puts the handle where the mouse is.
+    void aHandleOfRadiusAndAngleFollowsTheMouseQuickly()
+    {
+        const jp::ShapeDef *def = jp::shapeDef(QStringLiteral("circularArrow"));
+        QVERIFY(def);
+        const QSizeF size(120, 80);
+        const jp::AdjHandle *handle = nullptr;
+        for (const jp::AdjHandle &h : def->handles)
+            if (h.polar && h.indexX >= 0 && h.indexY >= 0) handle = &h;
+        QVERIFY(handle);
+        QVector<double> adj = def->defaults;
+        QElapsedTimer timer;
+        qint64 total = 0;
+        for (int k = 1; k <= 100; ++k) {
+            QVector<double> moved = def->defaults;
+            moved[handle->indexY] += 0.0015 * k;
+            moved[handle->indexX] += 0.0005 * k;
+            const QPointF target = jp::adjHandlePos(*handle, size, moved);
+            timer.start();
+            jp::adjDrag(*handle, size, adj, target);
+            total += timer.nsecsElapsed();
+            const QPointF got = jp::adjHandlePos(*handle, size, adj);
+            QVERIFY2(std::abs(got.x() - target.x()) <= 0.05 && std::abs(got.y() - target.y()) <= 0.05, qPrintable(QStringLiteral("move %1: at %2,%3 not %4,%5").arg(k).arg(got.x()).arg(got.y()).arg(target.x()).arg(target.y())));
+        }
+        if (qEnvironmentVariableIsSet("JW_SHAPE_TIME")) qInfo("DRAGTIME 100 moves: %lld us (%lld us each)", total / 1000, total / 100000);
+        QVERIFY2(total < 1000000000, qPrintable(QStringLiteral("100 moves took %1 ms").arg(total / 1000000)));
+    }
+
     // Words in a ribbon, a cloud, and an oval callout begin in the standard's text rectangle and fit its width.
     void wordsInAShapeSitWhereTheStandardsTextRectangleIs()
     {
@@ -4031,8 +4185,8 @@ private Q_SLOTS:
             const jp::GeomSpec *spec = jp::presetSpec(def->preset);
             QVERIFY(spec);
             jp::GuideEvaluator ev(240 * 12700, 120 * 12700);
-            for (const jp::GeomGuide &a : spec->adjust) ev.define(a.name, a.words);
-            for (const jp::GeomGuide &a : spec->guides) ev.define(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->adjust) ev.assign(a.name, a.words);
+            for (const jp::GeomGuide &a : spec->guides) ev.assign(a.name, a.words);
             const QRectF want = QRectF(QPointF(ev.value(spec->textRect[0]) / 12700, ev.value(spec->textRect[1]) / 12700), QPointF(ev.value(spec->textRect[2]) / 12700, ev.value(spec->textRect[3]) / 12700)).normalized();
             QVERIFY2(want.width() < 240 - 5 && want.height() < 120 - 5, name);   // (each is smaller than its frame)
             QPointF origin;
@@ -4116,6 +4270,75 @@ private Q_SLOTS:
         }
     }
 
+    // A save of 0.42 had its arcs, pies, and chords in the angles of Qt's ellipse (not the standard's rays from the center), so on a frame that is not square they must be turned into the
+    // standard's before the shape is the same: the shape of 0.42 is what the file looked like, and the quad arrow's thick shafts are too (adjustments 0.3 to 0.45). (The U-turn arrow is
+    // drawn differently by the standard and is left as it is.)
+    void anOldSaveOnANonSquareFrameLooksAsItDid()
+    {
+        const auto distance = [](const QVector<QPolygonF> &polys, const QPointF &p) {
+            double best = 1e18;
+            for (const QPolygonF &poly : polys)
+                for (int i = 0; i + 1 < poly.size(); ++i) {
+                    const QPointF a = poly[i], b = poly[i + 1], d = b - a;
+                    const double len2 = d.x() * d.x() + d.y() * d.y();
+                    const double t = len2 > 0 ? std::clamp(((p.x() - a.x()) * d.x() + (p.y() - a.y()) * d.y()) / len2, 0.0, 1.0) : 0.0;
+                    best = std::min(best, std::hypot(p.x() - (a.x() + t * d.x()), p.y() - (a.y() + t * d.y())));
+                }
+            return best;
+        };
+        for (const OldDrawing &o : oldDrawings()) {
+            const QSizeF size(o.w, o.h);
+            const QString id = QString::fromLatin1(o.shape);
+            const QVector<double> adj = jp::adjFromModel2Library(id, size, o.adj);
+            const QString what = QStringLiteral("%1 %2x%3 adj %4").arg(id).arg(o.w).arg(o.h).arg(o.adj.value(0));
+            QTransform flat;
+            const QPainterPath path = jp::shapePath(id, size, adj);
+            const QVector<QPolygonF> polys = path.toSubpathPolygons(flat);
+            for (int i = 0; i + 1 < o.samples.size(); i += 2) {
+                const double d = distance(polys, QPointF(o.samples[i], o.samples[i + 1]));
+                QVERIFY2(d < 0.7, qPrintable(what + QStringLiteral(" sample %1 is %2 pt off").arg(i / 2).arg(d)));
+            }
+            const QRectF box = path.boundingRect();
+            QVERIFY2(std::abs(box.left() - o.box[0]) < 0.7 && std::abs(box.top() - o.box[1]) < 0.7 && std::abs(box.right() - o.box[2]) < 0.7 && std::abs(box.bottom() - o.box[3]) < 0.7,
+                     qPrintable(what + QStringLiteral(" box %1,%2 %3,%4").arg(box.left()).arg(box.top()).arg(box.right()).arg(box.bottom())));
+        }
+    }
+
+    // A quad arrow of 0.42 could have a shaft thicker than its heads are wide (adjustments 0.3 and 0.45, drawn as a tangle at the heads); the standard has a shaft at most as wide as a head, so
+    // the heads are widened and the shaft keeps its thickness: the edges of the arms (points of 0.42's outline) are where they were. The heads cannot be the old ones.
+    void anOldQuadArrowWithAThickShaftKeepsItsShaft()
+    {
+        struct Edge {
+            double w, h, t;
+            QVector<double> points;
+        };
+        // Points on the arms' edges of 0.42's drawing (its shaft's half-thickness is t of the shorter side).
+        const QVector<Edge> edges = {
+            {120, 80, 0.3, {90, 16, 90, 64, 30, 16, 30, 64, 100, 16, 100, 64}},
+            {80, 120, 0.3, {16, 90, 64, 90, 16, 30, 64, 30, 16, 100, 64, 100}},
+            {120, 80, 0.45, {98, 4, 98, 76, 22, 4, 22, 76, 100, 4, 100, 76}},
+            {80, 120, 0.45, {4, 20, 76, 20, 4, 100, 76, 100, 4, 22, 76, 22}},
+        };
+        for (const Edge &e : edges) {
+            const QSizeF size(e.w, e.h);
+            const QVector<double> adj = jp::adjFromModel2Library(QStringLiteral("quadArrow"), size, {e.t, 0.22, 0.22});
+            const QPainterPath path = jp::shapePath(QStringLiteral("quadArrow"), size, adj);
+            QTransform flat;
+            const QVector<QPolygonF> polys = path.toSubpathPolygons(flat);
+            for (int i = 0; i + 1 < e.points.size(); i += 2) {
+                double best = 1e18;
+                for (const QPolygonF &poly : polys)
+                    for (int k = 0; k + 1 < poly.size(); ++k) {
+                        const QPointF a = poly[k], b = poly[k + 1], d = b - a, p(e.points[i], e.points[i + 1]);
+                        const double len2 = d.x() * d.x() + d.y() * d.y();
+                        const double u = len2 > 0 ? std::clamp(((p.x() - a.x()) * d.x() + (p.y() - a.y()) * d.y()) / len2, 0.0, 1.0) : 0.0;
+                        best = std::min(best, std::hypot(p.x() - (a.x() + u * d.x()), p.y() - (a.y() + u * d.y())));
+                    }
+                QVERIFY2(best < 0.7, qPrintable(QStringLiteral("%1x%2 t=%3 edge point %4 is %5 pt off").arg(e.w).arg(e.h).arg(e.t).arg(i / 2).arg(best)));
+            }
+        }
+    }
+
     // Each shape that is drawn differently now, with adjustments that are not the defaults, in a .docx: saved again it keeps its preset and its adjustments (the file's numbers), and the
     // shape opens as the library's.
     void theChangedShapesKeepTheirPresetsAndAdjustmentsThroughADocx()
@@ -4178,18 +4401,47 @@ private Q_SLOTS:
         }
     }
 
-    // The cost of drawing every shape 100 times over (JW_SHAPE_TIME=1 prints it): an unchanged shape's outline is worked out once.
+    // Every shape is worked out from its definition once for a size and its adjustments (the count of evaluations, not the time, says so), and drawing them all again 100 times finds them; a
+    // loose bound on the time of an evaluation of every shape (JW_SHAPE_TIME=1 prints the times).
     void everyShapeIsDrawnQuicklyAgain()
     {
-        if (!qEnvironmentVariableIsSet("JW_SHAPE_TIME")) QSKIP("JW_SHAPE_TIME=1 prints the time");
         const auto &lib = jp::shapeLibrary();
+        int presets = 0;
+        for (const jp::ShapeDef &def : lib) presets += !def.preset.isEmpty();
         QElapsedTimer t;
+        // Cold: three sizes nobody has asked for, so that every preset is worked out afresh each time.
+        const qint64 first = jp::presetEvaluationsForTest();
         t.start();
         int elements = 0;
+        for (int round = 0; round < 3; ++round)
+            for (const jp::ShapeDef &def : lib) elements += jp::shapePath(def.id, QSizeF(213.7 + round * 3.1, 97.3)).elementCount();
+        const qint64 cold = t.elapsed();
+        QCOMPARE(jp::presetEvaluationsForTest() - first, qint64(3 * presets));
+        // Warm: the last size again, 100 times: nothing is worked out again.
+        const qint64 second = jp::presetEvaluationsForTest();
+        t.start();
         for (int round = 0; round < 100; ++round)
-            for (const jp::ShapeDef &def : lib) elements += jp::shapePath(def.id, QSizeF(200, 100)).elementCount();
-        qInfo("SHAPETIME %d shapes x 100: %lld ms (%d elements)", int(lib.size()), qint64(t.elapsed()), elements);
+            for (const jp::ShapeDef &def : lib) elements += jp::shapePath(def.id, QSizeF(213.7 + 2 * 3.1, 97.3)).elementCount();
+        const qint64 warm = t.elapsed();
+        QCOMPARE(jp::presetEvaluationsForTest(), second);
+        if (qEnvironmentVariableIsSet("JW_SHAPE_TIME")) qInfo("SHAPETIME %d shapes: 3 cold rounds %lld ms, 100 warm rounds %lld ms (%d elements)", int(lib.size()), cold, warm, elements);
         QVERIFY(elements > 0);
+        // (Very loose: a slow, shared machine is several times slower than this one.)
+        QVERIFY2(cold < 30000, qPrintable(QStringLiteral("%1 ms").arg(cold)));
+        QVERIFY2(warm < 30000, qPrintable(QStringLiteral("%1 ms").arg(warm)));
+    }
+
+    // The cache of evaluated shapes keeps what is drawn again and again when a page draws many sizes: a shape drawn between a thousand others is still found each time.
+    void theShapeCacheKeepsTheShapesDrawnOftenAmongManySizes()
+    {
+        const QSizeF hot(88.8, 44.4);
+        jp::shapePath(QStringLiteral("cloud"), hot);
+        for (int i = 0; i < 1500; ++i) {
+            jp::shapePath(QStringLiteral("star5"), QSizeF(50 + i * 0.01, 60));
+            const qint64 before = jp::presetEvaluationsForTest();
+            jp::shapePath(QStringLiteral("cloud"), hot);
+            QVERIFY2(jp::presetEvaluationsForTest() == before, qPrintable(QStringLiteral("the cloud was worked out again after %1 other sizes").arg(i)));
+        }
     }
 
     // A sheet of every shape the library draws, at 120 x 80 with its default adjustments (JW_SHAPE_SHOTS=<folder>, file name in JW_SHAPE_SHOT_NAME).

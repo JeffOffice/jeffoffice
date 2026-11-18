@@ -117,26 +117,64 @@ QHash<QString, double> standardAdjustments(const QString &prst, const QVector<do
 // What a preset shape of this size and these adjustments is, kept for the next time the same shape is drawn.
 struct Evaluated {
     Geometry geometry;
-    QPainterPath outline;     // what is stroked: every path, or, for an open shape, those with an outline
+    QPainterPath outline;     // the union of what is filled, or, for an open shape, the paths with an outline
     QRectF textRect;
 };
 
+thread_local qint64 g_presetEvaluations = 0;
+
+constexpr int kMostCached = 512;
+
 Evaluated evaluatePreset(const ShapeDef &d, const QSizeF &size, const QVector<double> &adj)
 {
-    thread_local QHash<QByteArray, Evaluated> cache;
+    // (Each entry says when it was last asked for; when the cache is full the half least recently used goes, so a page of many sizes still finds the ones it draws again and again.)
+    struct Kept {
+        Evaluated value;
+        quint64 used = 0;
+    };
+    thread_local QHash<QByteArray, Kept> cache;
+    thread_local quint64 clock = 0;
     QByteArray key = d.id.toLatin1();
     key.append(reinterpret_cast<const char *>(&size), sizeof(QSizeF));
     key.append(reinterpret_cast<const char *>(adj.constData()), int(adj.size() * sizeof(double)));
-    const auto hit = cache.constFind(key);
-    if (hit != cache.constEnd()) return *hit;
+    const auto hit = cache.find(key);
+    if (hit != cache.end()) {
+        hit->used = ++clock;
+        return hit->value;
+    }
+    ++g_presetEvaluations;
     Evaluated e;
     if (const GeomSpec *spec = presetSpec(d.preset)) e.geometry = buildGeometry(*spec, standardAdjustments(d.preset, adj, size), size);
-    for (const GeometryPath &part : e.geometry.paths)
-        if (part.stroke || !d.open) e.outline.addPath(part.path);
+    if (d.open) {
+        for (const GeometryPath &part : e.geometry.paths)
+            if (part.stroke) e.outline.addPath(part.path);
+    } else {
+        // The true union of what is filled: parts that wind in opposite ways (a ribbon's fold, a scroll's curl, the sheets of a multi-document) would cancel one another in a sum.
+        bool any = false;
+        for (const GeometryPath &part : e.geometry.paths) {
+            if (part.fill == GeometryPath::None) continue;
+            QPainterPath one = part.path;
+            one.setFillRule(Qt::WindingFill);
+            e.outline = any ? e.outline.united(one) : one;
+            any = true;
+        }
+        if (!any)
+            for (const GeometryPath &part : e.geometry.paths) e.outline.addPath(part.path);
+    }
     e.outline.setFillRule(Qt::WindingFill);
     e.textRect = e.geometry.textRect.isNull() ? QRectF(QPointF(0, 0), size) : e.geometry.textRect;
-    if (cache.size() >= 512) cache.clear();
-    cache.insert(key, e);
+    if (cache.size() >= kMostCached) {
+        QVector<quint64> times;
+        times.reserve(cache.size());
+        for (auto it = cache.constBegin(); it != cache.constEnd(); ++it) times.append(it->used);
+        std::nth_element(times.begin(), times.begin() + times.size() / 2, times.end());
+        const quint64 cut = times[times.size() / 2];
+        for (auto it = cache.begin(); it != cache.end();) {
+            if (it->used < cut) it = cache.erase(it);
+            else ++it;
+        }
+    }
+    cache.insert(key, Kept{e, ++clock});
     return e;
 }
 
@@ -180,6 +218,11 @@ double turnDifference(double a, double b)
 }
 
 } // namespace
+
+qint64 presetEvaluationsForTest()
+{
+    return g_presetEvaluations;
+}
 
 static QVector<ShapeDef> build()
 {
@@ -472,31 +515,44 @@ static QVector<double> adjBeforeModel2(const QString &id, const QSizeF &size, co
 
 // A save of 0.42 and before, whose arcs, pies, chords, block arcs, snipped and corner shapes, U-turn arrows, and arrows with a head of their own length keep the old library's own meanings
 // for their adjustments. Each becomes the standard's, so that the shape looks as it did.
-QVector<double> adjFromModel2Library(const QString &id, const QSizeF &, const QVector<double> &adj)
+QVector<double> adjFromModel2Library(const QString &id, const QSizeF &size, const QVector<double> &adj)
 {
     const auto at = [&](int i, double d) { return i < adj.size() ? adj[i] : d; };
     const auto turn = [](double t) { return t - std::floor(t); };
+    // The old angles were those of Qt's ellipse (the angle that a point's own coordinates are made from, as a turn from the right, clockwise here); the standard's is the ray from the
+    // center, and on a frame that is not square the two differ. This is the standard's angle of the point of the old ellipse at an angle.
+    const double a = std::max(0.5, size.width()) / 2, b = std::max(0.5, size.height()) / 2;
+    const auto ray = [&](double t) {
+        const double r = turn(std::atan2(b * std::sin(t * 2 * M_PI), a * std::cos(t * 2 * M_PI)) / (2 * M_PI));
+        return r > 1 - 1e-12 ? 0.0 : r;
+    };
     // (Angles are fractions of a turn, clockwise from the right, as the standard's. The old library measured its angles anticlockwise.)
     if (id == QLatin1String("arc")) {
         // The old one began at the top and went round a fraction of a turn.
         const double sweep = std::clamp(at(0, 0.25), 1e-6, 0.999999);
-        return {0.75, turn(0.75 + sweep)};
+        return {0.75, ray(0.75 + sweep)};
     }
     if (id == QLatin1String("pie")) {
         // From the right, anticlockwise.
         const double sweep = std::clamp(at(0, 0.75), 1e-6, 0.999999);
-        return {turn(1 - sweep), 0.0};
+        return {ray(1 - sweep), 0.0};
     }
     if (id == QLatin1String("chord")) {
         // From the upper right (45 degrees), anticlockwise.
         const double sweep = std::clamp(at(0, 0.75), 1e-6, 0.999999);
-        return {turn(0.875 - sweep), 0.875};
+        return {ray(0.875 - sweep), ray(0.875)};
     }
     if (id == QLatin1String("blockArc")) return {0.5, 0.0, at(0, 0.25)};
     if (id == QLatin1String("snip2diag")) return {0.0, at(0, 0.1667)};
     if (id == QLatin1String("snipRound") || id == QLatin1String("corner")) return {at(0, id == QLatin1String("corner") ? 0.5 : 0.1667), at(0, id == QLatin1String("corner") ? 0.5 : 0.1667)};
     if (id == QLatin1String("uturnArrow")) return {at(0, 0.25), 0.25, at(1, 0.25), 0.4375, 0.75};
     if (id == QLatin1String("leftUpArrow") || id == QLatin1String("bentUpArrow")) return {at(0, 0.25), at(1, 0.25), at(1, 0.25)};
+    if (id == QLatin1String("quadArrow")) {
+        // The old shaft could be thicker than its heads are wide, which the standard does not draw (a shaft is at most as wide as a head): the heads are widened to the shaft, and their length
+        // held to what is left of the half frame, so that the shaft keeps its thickness.
+        const double t = at(0, 0.12), head = std::max(at(1, 0.22), t);
+        return {t, head, std::min(at(2, 0.22), std::max(0.0, 0.5 - head))};
+    }
     return adj;
 }
 
@@ -584,122 +640,162 @@ void adjDrag(const AdjHandle &hd, const QSizeF &s, QVector<double> &adj, const Q
     // (A point handle moves its adjustments along x and y; a polar one moves its angle, then its radius.)
     const int order[2] = {g.polar ? 1 : 0, g.polar ? 0 : 1};
     // (A polar handle that moves both is set again, once the radius is known, for the angle that is a little off where the radius is not the first one's.)
-    const int steps = g.polar && index[0] >= 0 && index[1] >= 0 ? 4 : 2;
-    for (int step = 0; step < steps; ++step) {
-        const int axis = order[step % 2];
-        double lo, hi;
-        if (index[axis] < 0 || !range(axis, &lo, &hi)) continue;
-        double v;
-        if (!g.polar) {
-            v = crossing([&](double t) { const QPointF at = placeWith(axis, t); return (axis == 0 ? at.x() : at.y()) - (axis == 0 ? p.x() : p.y()); }, lo, hi);
-        } else if (axis == 1) {
-            const double target = angleOf(center, p);
-            v = std::clamp(target, lo, hi);
-            // (The angle of the handle's own place is not always the adjustment's: let the place's error correct it.)
-            for (int i = 0; i < 12; ++i) v = std::clamp(v + turnDifference(target, angleOf(center, placeWith(1, v))), lo, hi);
-        } else {
-            // The radius that brings the handle nearest the point: the best of some samples across the range, then narrowed in.
-            const auto miss = [&](double t) { const QPointF at = placeWith(0, t); return std::hypot(at.x() - p.x(), at.y() - p.y()); };
-            constexpr int kSamples = 32;
-            int best = 0;
-            double bestMiss = miss(lo);
-            for (int i = 1; i <= kSamples; ++i) {
-                const double m = miss(lo + (hi - lo) * i / kSamples);
-                if (m < bestMiss) {
-                    bestMiss = m;
-                    best = i;
+    const bool both = g.polar && index[0] >= 0 && index[1] >= 0;
+    const int steps = both ? 4 : 2;
+    // Each adjustment on its own, the angle first, then the radius (a polar one that moves both is set again, once the radius is known).
+    const auto separately = [&] {
+        for (int step = 0; step < steps; ++step) {
+            const int axis = order[step % 2];
+            double lo, hi;
+            if (index[axis] < 0 || !range(axis, &lo, &hi)) continue;
+            double v;
+            if (!g.polar) {
+                v = crossing([&](double t) { const QPointF at = placeWith(axis, t); return (axis == 0 ? at.x() : at.y()) - (axis == 0 ? p.x() : p.y()); }, lo, hi);
+            } else if (axis == 1) {
+                const double target = angleOf(center, p);
+                v = std::clamp(target, lo, hi);
+                // (The angle of the handle's own place is not always the adjustment's: let the place's error correct it.)
+                for (int i = 0; i < 12; ++i) v = std::clamp(v + turnDifference(target, angleOf(center, placeWith(1, v))), lo, hi);
+            } else {
+                // The radius that brings the handle nearest the point: the best of some samples across the range, then narrowed in.
+                const auto miss = [&](double t) { const QPointF at = placeWith(0, t); return std::hypot(at.x() - p.x(), at.y() - p.y()); };
+                constexpr int kSamples = 32;
+                int best = 0;
+                double bestMiss = miss(lo);
+                for (int i = 1; i <= kSamples; ++i) {
+                    const double m = miss(lo + (hi - lo) * i / kSamples);
+                    if (m < bestMiss) {
+                        bestMiss = m;
+                        best = i;
+                    }
                 }
+                double a = lo + (hi - lo) * std::max(0, best - 1) / kSamples, b = lo + (hi - lo) * std::min(kSamples, best + 1) / kSamples;
+                for (int i = 0; i < 40; ++i) {
+                    const double m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
+                    if (miss(m1) < miss(m2)) b = m2; else a = m1;
+                }
+                v = (a + b) / 2;
             }
-            double a = lo + (hi - lo) * std::max(0, best - 1) / kSamples, b = lo + (hi - lo) * std::min(kSamples, best + 1) / kSamples;
-            for (int i = 0; i < 40; ++i) {
-                const double m1 = a + (b - a) / 3, m2 = b - (b - a) / 3;
-                if (miss(m1) < miss(m2)) b = m2; else a = m1;
-            }
-            v = (a + b) / 2;
+            now.insert(refs[axis], v);
+            adj[index[axis]] = v / presetAdjustmentScale(hd.preset, index[axis]);
         }
-        now.insert(refs[axis], v);
-        adj[index[axis]] = v / presetAdjustmentScale(hd.preset, index[axis]);
+    };
+    if (!both) {
+        separately();
+        return;
     }
-    // A polar handle that moves both: the place is not always the angle and radius about the center, so the two are set together, by Newton's steps from where they are.
-    if (g.polar && index[0] >= 0 && index[1] >= 0) {
-        double lo[2], hi[2], x[2] = {now.value(refs[0]), now.value(refs[1])};
-        if (!range(0, &lo[0], &hi[0]) || !range(1, &lo[1], &hi[1])) return;
-        bool coarse = false;
-        const auto at = [&](const double *v) {
-            QHash<QString, double> trial = now;
-            trial.insert(refs[0], v[0]);
-            trial.insert(refs[1], v[1]);
-            // (The other adjustments are held to their ranges, which these two change; the grid's many tries leave that out.)
-            if (!coarse) {
-                const QVector<double> values = presetAdjustmentValues(hd.preset, trial, frame);
-                for (int i = 0; i < names.size(); ++i) trial.insert(names[i], values[i]);
+    // A polar handle that moves both: the place is not always the angle and radius about the center, so the two are set together, by Newton's steps from where they are (the last
+    // drag's, which is near; a mouse moves a little at a time), then, if that is not enough, from the two set apart, and last from the best of a grid made finer and finer.
+    double lo[2], hi[2], x[2] = {now.value(refs[0]), now.value(refs[1])};
+    if (!range(0, &lo[0], &hi[0]) || !range(1, &lo[1], &hi[1])) return;
+    // `coarse`: the other adjustments are not held to their ranges, which these two change (so a search of many tries costs a fraction of one that does).
+    bool coarse = true;
+    const auto at = [&](const double *v) {
+        QHash<QString, double> trial = now;
+        trial.insert(refs[0], v[0]);
+        trial.insert(refs[1], v[1]);
+        if (!coarse) {
+            const QVector<double> values = presetAdjustmentValues(hd.preset, trial, frame);
+            for (int i = 0; i < names.size(); ++i) trial.insert(names[i], values[i]);
+        }
+        HandleGeometry place;
+        return evaluateHandle(*spec, hd.standard, trial, frame, &place) ? place.at : QPointF();
+    };
+    const auto missAt = [&](const double *v, bool exact) {
+        const bool was = coarse;
+        coarse = !exact;
+        const QPointF f = at(v) - p;
+        coarse = was;
+        return std::hypot(f.x(), f.y());
+    };
+    const auto newton = [&](bool exact) {
+        coarse = !exact;
+        for (int i = 0; i < 12; ++i) {
+            const QPointF f = at(x) - p;
+            const double was = std::hypot(f.x(), f.y());
+            if (was < 1e-4) return;
+            const double step[2] = {std::max(1e-3, 1e-5 * (hi[0] - lo[0])), std::max(1e-3, 1e-5 * (hi[1] - lo[1]))};
+            double j[2][2];
+            for (int c = 0; c < 2; ++c) {
+                double y[2] = {x[0], x[1]};
+                y[c] += step[c];
+                const QPointF d = at(y) - at(x);
+                j[0][c] = d.x() / step[c];
+                j[1][c] = d.y() / step[c];
             }
-            HandleGeometry place;
-            return evaluateHandle(*spec, hd.standard, trial, frame, &place) ? place.at : QPointF();
-        };
-        const auto newton = [&] {
-            for (int i = 0; i < 30; ++i) {
-                const QPointF f = at(x) - p;
-                const double was = std::hypot(f.x(), f.y());
-                if (was < 1e-4) return;
-                const double step[2] = {std::max(1e-3, 1e-5 * (hi[0] - lo[0])), std::max(1e-3, 1e-5 * (hi[1] - lo[1]))};
-                double j[2][2];
-                for (int c = 0; c < 2; ++c) {
-                    double y[2] = {x[0], x[1]};
-                    y[c] += step[c];
-                    const QPointF d = at(y) - at(x);
-                    j[0][c] = d.x() / step[c];
-                    j[1][c] = d.y() / step[c];
+            const double det = j[0][0] * j[1][1] - j[0][1] * j[1][0];
+            if (std::fabs(det) < 1e-12) return;
+            const double d0 = (j[1][1] * f.x() - j[0][1] * f.y()) / det, d1 = (-j[1][0] * f.x() + j[0][0] * f.y()) / det;
+            // (Halve the step until the place is nearer.)
+            bool nearer = false;
+            double scale = 1;
+            for (int k = 0; k < 6 && !nearer; ++k, scale /= 2) {
+                const double y[2] = {std::clamp(x[0] - scale * d0, lo[0], hi[0]), std::clamp(x[1] - scale * d1, lo[1], hi[1])};
+                const QPointF e = at(y) - p;
+                if (std::hypot(e.x(), e.y()) < was) {
+                    x[0] = y[0];
+                    x[1] = y[1];
+                    nearer = true;
                 }
-                const double det = j[0][0] * j[1][1] - j[0][1] * j[1][0];
-                if (std::fabs(det) < 1e-12) return;
-                const double d0 = (j[1][1] * f.x() - j[0][1] * f.y()) / det, d1 = (-j[1][0] * f.x() + j[0][0] * f.y()) / det;
-                // (Halve the step until the place is nearer.)
-                bool nearer = false;
-                double scale = 1;
-                for (int k = 0; k < 8 && !nearer; ++k, scale /= 2) {
-                    const double y[2] = {std::clamp(x[0] - scale * d0, lo[0], hi[0]), std::clamp(x[1] - scale * d1, lo[1], hi[1])};
+            }
+            if (!nearer) return;
+        }
+    };
+    double best[2] = {x[0], x[1]};
+    double bestMiss = 1e18;
+    const auto keep = [&] {
+        const double m = missAt(x, true);
+        if (m < bestMiss) {
+            bestMiss = m;
+            best[0] = x[0];
+            best[1] = x[1];
+        }
+        return m <= 0.01;
+    };
+    bool done = false;
+    newton(false);
+    done = keep();
+    if (!done) {
+        // Newton's steps from the adjustments set one at a time.
+        separately();
+        x[0] = now.value(refs[0]);
+        x[1] = now.value(refs[1]);
+        if (range(0, &lo[0], &hi[0]) && range(1, &lo[1], &hi[1])) {
+            newton(false);
+            done = keep();
+        }
+    }
+    if (!done) {
+        // The place is not a smooth function of the two all across their ranges: the best of a coarse grid, then of finer and finer ones around it, then Newton's steps.
+        coarse = true;
+        double c[2] = {(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2}, half[2] = {(hi[0] - lo[0]) / 2, (hi[1] - lo[1]) / 2};
+        int rows = 9, cols = 17;
+        double g2[2] = {c[0], c[1]};
+        double gridBest = 1e18;
+        for (int level = 0; level < 5; ++level) {
+            for (int r = 0; r < rows; ++r)
+                for (int a = 0; a < cols; ++a) {
+                    const double y[2] = {std::clamp(c[0] - half[0] + 2 * half[0] * r / (rows - 1), lo[0], hi[0]), std::clamp(c[1] - half[1] + 2 * half[1] * a / (cols - 1), lo[1], hi[1])};
                     const QPointF e = at(y) - p;
-                    if (std::hypot(e.x(), e.y()) < was) {
-                        x[0] = y[0];
-                        x[1] = y[1];
-                        nearer = true;
+                    if (std::hypot(e.x(), e.y()) < gridBest) {
+                        gridBest = std::hypot(e.x(), e.y());
+                        g2[0] = y[0];
+                        g2[1] = y[1];
                     }
                 }
-                if (!nearer) return;
-            }
-        };
-        const auto miss = [&] { const QPointF f = at(x) - p; return std::hypot(f.x(), f.y()); };
-        newton();
-        // Still off (the place is not a smooth function of the two all across their ranges): the best of a grid of values, then Newton's steps again.
-        if (miss() > 0.01) {
-            double best = 1e18, g[2] = {x[0], x[1]};
-            coarse = true;
-            for (int r = 0; r <= 24; ++r)
-                for (int a = 0; a <= 48; ++a) {
-                    const double y[2] = {lo[0] + (hi[0] - lo[0]) * r / 24, lo[1] + (hi[1] - lo[1]) * a / 48};
-                    const QPointF e = at(y) - p;
-                    if (std::hypot(e.x(), e.y()) < best) {
-                        best = std::hypot(e.x(), e.y());
-                        g[0] = y[0];
-                        g[1] = y[1];
-                    }
-                }
-            coarse = false;
-            const double before = miss();
-            const double kept[2] = {x[0], x[1]};
-            x[0] = g[0];
-            x[1] = g[1];
-            newton();
-            if (miss() > before) {
-                x[0] = kept[0];
-                x[1] = kept[1];
-            }
+            c[0] = g2[0];
+            c[1] = g2[1];
+            for (int k = 0; k < 2; ++k) half[k] = half[k] * 2 / ((k == 0 ? rows : cols) - 1) * 1.5;
+            rows = cols = 5;
         }
-        for (int c = 0; c < 2; ++c) {
-            now.insert(refs[c], x[c]);
-            adj[index[c]] = x[c] / presetAdjustmentScale(hd.preset, index[c]);
-        }
+        x[0] = g2[0];
+        x[1] = g2[1];
+        newton(false);
+        keep();
+    }
+    for (int k = 0; k < 2; ++k) {
+        now.insert(refs[k], best[k]);
+        adj[index[k]] = best[k] / presetAdjustmentScale(hd.preset, index[k]);
     }
 }
 

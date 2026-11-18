@@ -2363,11 +2363,11 @@ bool outlineOf(const QByteArray &graphic, qint64 cx, qint64 cy, Outline *out)
     const ShapeDef *def = id.isEmpty() ? nullptr : shapeDef(id);
     if (!def) return false;
     // (A shape drawn in several parts, or with a part that is not filled or not stroked, can't be one outline without changing how it looks.)
-    const office::Geometry parts = office::presetGeometry(g.prst, g.given, g.size);
-    bool simple = !def->open && parts.paths.size() <= 1;
-    for (const office::GeometryPath &part : parts.paths) simple = simple && part.fill != office::GeometryPath::None && part.stroke;
-    if (!simple) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it is drawn in more than one part."));
     const QVector<double> adj = office::libraryAdjustments(g.prst, g.given, g.size);
+    const QVector<GeometryPath> parts = shapeParts(id, g.size, adj);
+    bool simple = !def->open && parts.size() <= 1;
+    for (const GeometryPath &part : parts) simple = simple && part.fill != GeometryPath::None && part.stroke;
+    if (!simple) return refuse(QT_TRANSLATE_NOOP("jp::write::Pictures", "Edit Points is not offered for this shape: it is drawn in more than one part."));
     out->path = shapePath(id, g.size, adj);
     int subpaths = 0;
     for (int i = 0; i < out->path.elementCount(); ++i) subpaths += out->path.elementAt(i).type == QPainterPath::MoveToElement;
