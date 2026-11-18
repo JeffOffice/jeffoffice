@@ -7738,16 +7738,23 @@ private Q_SLOTS:
         QTextCursor c(doc->story());
         QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse"), QSizeF(200, 200)), PictureResult::Ok);
         QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
-        QVERIFY(setPictureWrapSide(*doc, 0, PictureWrapSide::Right));
         const auto lines = doc->pager().lines(0);
         QVERIFY(lines.size() > 8);
+        // (A row beside the ellipse has the text on both sides of it as two lines: the wider of the two is the row's room.)
+        QMap<int, double> room;
         double full = 0;
-        for (const auto &l : lines) full = std::max(full, l.rect.width());
+        for (const auto &l : lines) {
+            double &w = room[int(std::lround(l.rect.top() * 2))];
+            w = std::max(w, l.rect.width());
+            full = std::max(full, l.rect.width());
+        }
         QVector<double> beside;
-        for (const auto &l : lines)
-            if (l.rect.width() < full - 20) beside << l.rect.width();
+        for (double w : room)
+            if (w < full - 20) beside << w;
         QVERIFY2(beside.size() >= 4, qPrintable(QString::number(beside.size())));
-        const double top = beside.first(), middle = *std::min_element(beside.begin(), beside.end());
+        const int at = int(std::min_element(beside.begin(), beside.end()) - beside.begin());
+        const double middle = beside[at], top = std::max(beside.first(), beside.last());
+        QVERIFY2(at >= beside.size() / 4 && at <= beside.size() * 3 / 4, qPrintable(QString::number(at) + " of " + QString::number(beside.size())));
         QVERIFY2(top > middle + 30, qPrintable(QStringLiteral("top %1, middle %2").arg(top).arg(middle)));
     }
 
