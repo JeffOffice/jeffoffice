@@ -147,8 +147,8 @@ void CrunchWindow::updateEditActions()
         QAction *a = act(id);
         if (!a) continue;
         const bool allowed = (open || (m_session && !m_saving && isReadOnly() && commandAllowedReadOnly(id))) && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;   // (Find and Go To work in a workbook open for reading only; Replace and the rest do not)
-        // (Commands another update turns on from what it knows are only turned off here: turning them on, and that update off again, at every edit made Qt 6.11 slow in proportion to the edits so far.)
-        const bool owned = id == QLatin1String("pivot.reportPages") || id == QLatin1String("printarea.clear") || std::any_of(pivotOwned.begin(), pivotOwned.end(), [&](const char *own) { return id == QLatin1String(own); });
+        // (Commands another update turns on from what it knows are only turned off here: turning them on, and that update off again, at every edit made Qt 6.11 slow in proportion to the edits so far; Delete Background was one of them, 210 s for 10,000 row edits.)
+        const bool owned = id == QLatin1String("pivot.reportPages") || id == QLatin1String("printarea.clear") || id == QLatin1String("page.deleteBackground") || std::any_of(pivotOwned.begin(), pivotOwned.end(), [&](const char *own) { return id == QLatin1String(own); });
         if (!owned || !allowed) a->setEnabled(allowed);
     }
     for (const char *id : {"edit.copy", "edit.selectAll", "view.formulas", "view.gridlines", "view.headings", "view.freeze", "view.freezeRow", "view.freezeCol", "view.unfreeze", "view.split"})
