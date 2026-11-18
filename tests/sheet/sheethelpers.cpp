@@ -33,11 +33,15 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
     PackageWriter w;
     const QString relBase = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
     QString sheetList;
+    // (a sheet of many megabytes is stored in the ZIP, not deflated: the package writer deflates at level 9, which took seconds for the 600,000-row sheets; the reader takes both forms)
+    constexpr qsizetype kStoreFrom = 4 << 20;
+    QMap<QString, QByteArray> stored;
     w.addPart(QStringLiteral("/xl/workbook.xml"), QByteArray(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
     w.addRelationship(QStringLiteral("/"), relBase + "officeDocument", QStringLiteral("/xl/workbook.xml"));
     for (int i = 0; i < sheets.size(); ++i) {
         const QString part = QStringLiteral("/xl/worksheets/sheet%1.xml").arg(i + 1);
-        w.addPart(part, sheets[i], QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
+        if (sheets[i].size() >= kStoreFrom) stored[part.mid(1)] = sheets[i];
+        w.addPart(part, stored.contains(part.mid(1)) ? QByteArray("<worksheet/>") : sheets[i], QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
         const QString id = w.addRelationship(QStringLiteral("/xl/workbook.xml"), relBase + "worksheet", part);
         const QString name = i < names.size() ? names[i] : QStringLiteral("Sheet%1").arg(i + 1);
         sheetList += QStringLiteral("<sheet name=\"%3\" sheetId=\"%1\"%4 r:id=\"%2\"/>").arg(i + 1).arg(id, name.toHtmlEscaped().replace(QLatin1Char('"'), QLatin1String("&quot;")),
@@ -59,7 +63,16 @@ QByteArray buildXlsx(const QVector<QByteArray> &sheets, const QByteArray &shared
                                  + (workbookPr.isEmpty() ? QString() : "<workbookPr " + workbookPr + "/>") + (bookViews.isEmpty() ? QString() : "<bookViews>" + bookViews + "</bookViews>") + "<sheets>" + sheetList + "</sheets>" + (definedNames.isEmpty() ? QString() : "<definedNames>" + definedNames + "</definedNames>")
                                  + (calcPr.isEmpty() ? QString() : "<calcPr " + calcPr + "/>") + afterCalc + "</workbook>").toUtf8();
     w.addPart(QStringLiteral("/xl/workbook.xml"), workbook, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"));
-    return w.finish();
+    if (stored.isEmpty()) return w.finish();
+    QMap<QString, QByteArray> parts;
+    jp::readZip(w.finish(), parts);
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) {
+        const auto big = stored.constFind(it.key());
+        if (big != stored.cend()) z.add(it.key(), big.value(), false);
+        else z.add(it.key(), it.value(), true);
+    }
+    return z.finish();
 }
 
 bool readSheetXml(const QByteArray &xml, Sheet *out, const ReadOptions &options)
