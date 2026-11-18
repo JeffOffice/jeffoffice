@@ -840,6 +840,7 @@ void Exporter::writeSlide(X &x, int index)
     m_where = sc.where;
     // The objects something else names: connectors' ends, and what animations aim at.
     m_ids.clear();
+    m_itemOf.clear();
     m_idOfShape.clear();
     m_paragraphIds.clear();
     m_needIds.clear();
@@ -873,6 +874,7 @@ void Exporter::writeSlide(X &x, int index)
         if (m_needIds.contains(it->id) || (it->sourceId > 0 && aimed.contains(it->sourceId))) {
             const QString id = QStringLiteral("id%1").arg(++counter);
             m_ids.insert(it->id, id);
+            m_itemOf.insert(it->id, it.get());
             if (it->sourceId > 0) m_idOfShape.insert(it->sourceId, id);
         }
         // The paragraphs of its text that an animation aims at.

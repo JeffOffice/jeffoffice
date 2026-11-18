@@ -618,12 +618,10 @@ void Exporter::writeLine(X &x, Scope &sc, const LineItem &l)
         auto glue = [&](const char *shape, const char *point, const LineItem::Glue &g) {
             const auto id = m_ids.constFind(g.id);
             if (g.id.isEmpty() || id == m_ids.cend() || g.site < 0) return;
-            // (The file's glue points are the four sides: a shape's own site is the side it leaves by.)
-            int side = g.site;
-            if (m_page)
-                walkItems(m_page->items, [&](const ItemPtr &o) {
-                    if (o->id == g.id) side = sideOfConnectionSite(*o, g.site);
-                });
+            // (The file's glue points are the four sides: a shape's own site is the side it leaves by. An end whose shape is not found has no glue written.)
+            const Item *shapeItem = m_itemOf.value(g.id);
+            if (!shapeItem) return;
+            const int side = sideOfConnectionSite(*shapeItem, g.site);
             if (side < 0 || side > 3) return;
             x.attr(shape, id.value()).attr(point, fileSite[side]);
         };

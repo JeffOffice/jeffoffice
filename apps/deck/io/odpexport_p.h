@@ -275,6 +275,7 @@ private:
 
     // The page being written: the ids of the objects something else names (a connector, an animation).
     QHash<QString, QString> m_ids;                    // Item::id -> draw:id
+    QHash<QString, const Item *> m_itemOf;            // Item::id -> the object, for each one in m_ids
     QHash<int, QString> m_idOfShape;                  // Item::sourceId -> draw:id
     QHash<QPair<int, int>, QString> m_paragraphIds;   // (Item::sourceId, paragraph) -> the id of the paragraph an animation aims at
     QString m_where;                                  // "Slide 3", for the notes on what is left out
