@@ -279,6 +279,50 @@ struct LimitsGuard {
 
 } // namespace
 
+// The object is at rows 4 to 7 (columns 4 to 7); the line before it is deleted.
+void lineDeleteMovesObject(bool rows, bool ours)
+{
+    for (const bool save : {false, true}) {
+        Spec spec;
+        spec.png = drawtest::pngBytes(40, 30, Qt::red);
+        spec.fromRow = 3;
+        spec.toRow = 6;
+        spec.fromCol = 3;
+        spec.toCol = 6;
+        QTemporaryDir dir;
+        const QString book = savedFile(dir, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total"}, 2)));
+        EditWindow e;
+        QVERIFY(ready(e, ours ? sheetOf({"A1=1"}) : bookWith({spec})));
+        if (ours) QVERIFY(e.win.w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B1")));
+        crunch::SheetEmbeds *embeds = embedsOf(e);
+        QTRY_COMPARE(embeds->countOf(0), 1);
+        const int id = embeds->idsOf(0).front();
+        if (ours) QVERIFY(e.win.w.moveObject(id, cells(3, 3, 6, 6)));
+        auto line = [&](const DrawingAnchor &a) { return int(rows ? a.from.row : a.from.col); };
+        QCOMPARE(line(embeds->anchorOf(0, id)), 3);
+        const int base = e.win.w.undoStack()->index();
+        e.select(rows ? QStringLiteral("A2") : QStringLiteral("B1"));
+        e.win.w.act(rows ? QStringLiteral("cells.delete.rows") : QStringLiteral("cells.delete.columns"))->trigger();
+        QTRY_COMPARE(line(embeds->anchorOf(0, id)), 2);
+        if (!save) {
+            while (e.win.w.undoStack()->index() > base) e.win.w.undoStack()->undo();
+            QTRY_COMPARE(line(embeds->anchorOf(0, id)), 3);
+            continue;
+        }
+        QMap<QString, QByteArray> after;
+        QVERIFY(saveAndRead(e, &after));
+        if (!ours) {
+            const QList<QList<qint64>> saved = savedAnchors(after.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+            QCOMPARE(saved, QList<QList<qint64>>{flat(embeds->anchorOf(0, id))});
+            QCOMPARE(saved.first()[rows ? 2 : 0], qint64(2));
+        }
+        QVERIFY(e.win.w.session()->stepsForgottenBySave() > 0);
+        while (e.win.w.undoStack()->index() > base) e.win.w.undoStack()->undo();
+        QCOMPARE(line(embeds->anchorOf(0, id)), 2);   // (the cells are still deleted, and the object is with them)
+        QCOMPARE(embeds->countOf(0), 1);
+    }
+}
+
 class CrunchObjectTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
@@ -605,6 +649,12 @@ private Q_SLOTS:
         QVERIFY(saveAndRead(e, &back));
         QCOMPARE(savedAnchors(back.value(QStringLiteral("xl/worksheets/sheet1.xml"))).first()[2], qint64(1));
     }
+
+    // Rows or columns deleted before an object move it, and Undo puts it back; once the file is saved the delete is not undone (the file has lost the cells), so the object stays with the cells.
+    void aForeignObjectMovesWhenRowsBeforeItAreDeleted() { lineDeleteMovesObject(true, false); }
+    void aForeignObjectMovesWhenColumnsBeforeItAreDeleted() { lineDeleteMovesObject(false, false); }
+    void anObjectOfOursMovesWhenRowsBeforeItAreDeleted() { lineDeleteMovesObject(true, true); }
+    void anObjectOfOursMovesWhenColumnsBeforeItAreDeleted() { lineDeleteMovesObject(false, true); }
 
     void anObjectWhoseRowsAreDeletedStaysOutOfTheFileOnceSaved()
     {
