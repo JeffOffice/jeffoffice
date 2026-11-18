@@ -1607,8 +1607,8 @@
        "heading": "4093b92b4583c338604763e539a661037c4770c3577268c8d3c67315da78ff91",
        "items": [
         {
-         "status": "todo",
-         "text": "68e9249de71f528b362c22e7addff35ae4ab938c229477098d5cef0b6873e2e2"
+         "status": "partly",
+         "text": "72a5f14d53d5c9b9fc06caed8c356c71ff9411ecf98515dc405e6a91af75326f"
         },
         {
          "status": "partly",
@@ -3381,8 +3381,9 @@
        "text": "a6cdbf0f8cc49e90e65dbefc0809d5c269b5a6e2db0449eb19e143ad55013432"
       },
       {
-       "status": "partly",
-       "text": "6bcc64cc0c066c4f23b00753f53070943a9811622f16c1ed2936b71c042a69fd"
+       "hide_soon": true,
+       "status": "done",
+       "text": "e7682c051573d111c32d9b46cea5a9156887f26d271b00381749f423f6b09a92"
       }
      ]
     },
@@ -3727,6 +3728,15 @@
         {
          "status": "partly",
          "text": "f33f7f1238ea2a2fc12bc001ae13db61d847f25e6d381c3bba5f1fb179369ef3"
+        }
+       ]
+      },
+      {
+       "heading": "b4edec85fae01ce4b69ee1f222cbd4ba6cc9f285fc7a38d0d399790a9156daab",
+       "items": [
+        {
+         "status": "partly",
+         "text": "f853aa1f6cc2890fad9deeb384b05f43a9c65b8ca5f5c68365ef9a15e5003ed8"
         }
        ]
       },
@@ -4682,7 +4692,7 @@
       },
       {
        "status": "partly",
-       "text": "ceb242ebdff551e9a7078d0afa1db7ec0ee8b4579c57313eb4852fbc8be7e65d"
+       "text": "3548ac5f628235d22e4a14fcf1276157d01bb96012899adb4afd8aba9b5e98f5"
       },
       {
        "hide_soon": true,
@@ -6990,7 +7000,7 @@
         },
         {
          "status": "partly",
-         "text": "f0f9da3549102c3c5b2f8ec14f232f8618fffe31c64f2b0354985043f03d3a31"
+         "text": "278da4e0c4e33dc6957fe51071c7224c35bfd62829abf8adf1d520fe71f6da02"
         },
         {
          "status": "partly",
@@ -6998,7 +7008,7 @@
         },
         {
          "status": "partly",
-         "text": "bd829a1f8639c085d6dd01c6ef39f0973839c1109b69195cc3ee870f8628bb94"
+         "text": "c7b5131fff3a63d633a9c806418ef85a8d3b0508dce7a419cc1d88f04f36d76b"
         }
        ]
       },
@@ -10712,6 +10722,18 @@
     "fr": "Formules matricielles : saisie avec `Ctrl+Shift+Enter`"
    }
   },
+  "278da4e0c4e33dc6957fe51071c7224c35bfd62829abf8adf1d520fe71f6da02": {
+   "drop": false,
+   "en": "An Equation tab appears while an equation is selected, with Edit Equation, Professional and Linear, Normal Text, the typing format (simple line, UnicodeMath, or LaTeX), five symbol menus, and eleven structures. Fractions, scripts, roots, integrals, large operators, brackets, functions, accents, limits, and matrices can be inserted from a button or from the equation box. Any equation can be changed in the box in UnicodeMath or LaTeX.",
+   "es": "Una pestaña Ecuación aparece mientras hay una ecuación seleccionada, con Editar ecuación, Profesional y Lineal, Texto normal, el formato de escritura (línea simple, UnicodeMath o LaTeX), cinco menús de símbolos y once estructuras. Se pueden insertar fracciones, subíndices y superíndices, raíces, integrales, operadores grandes, paréntesis, funciones, acentos, límites y matrices desde un botón o desde el cuadro de ecuación. Cualquier ecuación se puede modificar en el cuadro en UnicodeMath o LaTeX.",
+   "fr": "Un onglet Équation apparaît lorsqu’une équation est sélectionnée, avec Modifier l’équation, Professionnel et Linéaire, Texte normal, le format de saisie (ligne simple, UnicodeMath ou LaTeX), cinq menus de symboles et onze structures. Fractions, exposants et indices, racines, intégrales, grands opérateurs, parenthèses, fonctions, accents, limites et matrices peuvent être insérés depuis un bouton ou depuis la boîte d’équation. Toute équation peut être modifiée dans la boîte en UnicodeMath ou LaTeX.",
+   "soon": {
+    "drop": false,
+    "en": "Symbol galleries beyond the five groups, ink equations, and Professional and Linear forms that change the display",
+    "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y formas Profesional y Lineal que cambian la visualización",
+    "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et formes Professionnel et Linéaire qui modifient l’affichage"
+   }
+  },
   "281f21e099fb4481053131c14f72f106124c89caeee686a5ee4cd45859049830": {
    "drop": false,
    "en": "Fit the sheet to a number of pages wide and tall, or automatic, or set a percent from 10 to 400; a warning appears when the type becomes too small to read.",
@@ -11634,6 +11656,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "3548ac5f628235d22e4a14fcf1276157d01bb96012899adb4afd8aba9b5e98f5": {
+   "drop": false,
+   "en": "Insert an equation typed in a line, with fractions, powers and subscripts, roots, sums, integrals, brackets, accents, matrices, and symbols, using the built-in equations or the `Alt+=` shortcut. The equation is placed on the page as an object that can be moved, resized, rotated, and colored, and it is edited again with a double-click or `Enter`. An Equation tab with Edit Equation, Professional and Linear, Normal Text, symbol menus, and eleven structures appears while an equation is selected. Equations are saved in `.jpub` files; a `.pub` file saves each equation as a picture.",
+   "es": "Inserte una ecuación escrita en una línea, con fracciones, potencias y subíndices, raíces, sumas, integrales, paréntesis, acentos, matrices y símbolos, usando las ecuaciones integradas o el atajo `Alt+=`. La ecuación se coloca en la página como un objeto que se puede mover, redimensionar, girar y colorear, y se vuelve a editar con doble clic o `Enter`. Una pestaña Ecuación con Editar ecuación, Profesional y Lineal, Texto normal, menús de símbolos y once estructuras aparece mientras hay una ecuación seleccionada. Las ecuaciones se guardan en archivos `.jpub`; un archivo `.pub` guarda cada ecuación como imagen.",
+   "fr": "Insérez une équation saisie sur une ligne, avec fractions, puissances et indices, racines, sommes, intégrales, parenthèses, accents, matrices et symboles, à partir des équations intégrées ou du raccourci `Alt+=`. L’équation est placée sur la page comme un objet qu’on peut déplacer, redimensionner, faire pivoter et colorer, et on la modifie à nouveau par un double-clic ou `Entrée`. Un onglet Équation avec Modifier l’équation, Professionnel et Linéaire, Texte normal, des menus de symboles et onze structures apparaît lorsqu’une équation est sélectionnée. Les équations sont enregistrées dans les fichiers `.jpub` ; un fichier `.pub` enregistre chaque équation sous forme d’image.",
+   "soon": {
+    "drop": false,
+    "en": "Symbol galleries beyond the five groups, ink equations, and equations in `.pub` files",
+    "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y ecuaciones en archivos `.pub`",
+    "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et équations dans les fichiers `.pub`"
    }
   },
   "35d755aadb9a81fa2c77f8ab28ab243d0db5bcba6cbc250b00a1060507c93e50": {
@@ -15620,18 +15654,6 @@
     "fr": ""
    }
   },
-  "68e9249de71f528b362c22e7addff35ae4ab938c229477098d5cef0b6873e2e2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Equation tab: structures (fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, matrix), symbols, professional and linear forms, and ink equations",
-    "es": "Pestaña Ecuación: estructuras (fracción, índice, radical, integral, operador grande, corchete, función, acento, límite, operador, matriz), símbolos, formas profesional y lineal, y ecuaciones a mano",
-    "fr": "Onglet Équation : structures (fraction, exposant et indice, radical, intégrale, grand opérateur, parenthèses, fonction, accent, limite, opérateur, matrice), symboles, formes professionnelle et linéaire, et équations manuscrites"
-   }
-  },
   "68f035c8bfba802129c988ef5e36fd0fef12b429c08c7e9c94696f8eb4e483c3": {
    "drop": false,
    "en": "Choose from a gallery of more than 90 color schemes, create a new color scheme, and create, choose, or update font schemes.",
@@ -15870,18 +15892,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6bcc64cc0c066c4f23b00753f53070943a9811622f16c1ed2936b71c042a69fd": {
-   "drop": false,
-   "en": "Compare finds added, deleted, and moved slides; added, deleted, moved, and resized objects; changes to text, fill, line, and font; notes; and new comments. Accept or reject each change as one undo step, or accept or reject all.",
-   "es": "La comparación detecta diapositivas agregadas, eliminadas y movidas; objetos agregados, eliminados, movidos y redimensionados; cambios de texto, relleno, línea y fuente; notas y comentarios nuevos. Acepte o rechace cada cambio como un solo paso de deshacer, o acepte o rechace todos.",
-   "fr": "La comparaison repère les diapositives ajoutées, supprimées et déplacées ; les objets ajoutés, supprimés, déplacés et redimensionnés ; les modifications du texte, du remplissage, du trait et de la police ; les notes et les nouveaux commentaires. Acceptez ou rejetez chaque modification en une seule étape d’annulation, ou acceptez ou rejetez tout.",
-   "soon": {
-    "drop": false,
-    "en": "Reviewing Pane and Compare command, with word-level text differences and pending changes kept in the file",
-    "es": "Panel de revisiones y comando Comparar, con diferencias de texto por palabra y cambios pendientes guardados en el archivo",
-    "fr": "Volet de révision et commande Comparer, avec différences de texte au niveau des mots et modifications en attente conservées dans le fichier"
    }
   },
   "6bcfa3b05a9333f6c9ddfbd47c3d55766822df971eab35eb39db34bb09019e52": {
@@ -16470,6 +16480,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "72a5f14d53d5c9b9fc06caed8c356c71ff9411ecf98515dc405e6a91af75326f": {
+   "drop": false,
+   "en": "An Equation tab appears while an equation is selected, with Edit Equation, Professional and Linear, Normal Text, the typing format, five symbol menus, and eleven structures. A button opens the equation box with the structure inserted, and the box has the same structures in a row of buttons. An equation brought in by a file can be changed in the box in UnicodeMath.",
+   "es": "Una pestaña Ecuación aparece mientras hay una ecuación seleccionada, con Editar ecuación, Profesional y Lineal, Texto normal, el formato de escritura, cinco menús de símbolos y once estructuras. Un botón abre el cuadro de la ecuación con la estructura insertada, y el cuadro tiene las mismas estructuras en una fila de botones. Una ecuación procedente de un archivo se puede modificar en el cuadro en UnicodeMath.",
+   "fr": "Un onglet Équation apparaît lorsqu’une équation est sélectionnée, avec Modifier l’équation, Professionnel et Linéaire, Texte normal, le format de saisie, cinq menus de symboles et onze structures. Un bouton ouvre la boîte de l’équation avec la structure insérée, et la boîte propose les mêmes structures dans une rangée de boutons. Une équation provenant d’un fichier peut être modifiée dans la boîte en UnicodeMath.",
+   "soon": {
+    "drop": false,
+    "en": "Symbol galleries beyond the five groups and ink equations",
+    "es": "Galerías de símbolos más allá de los cinco grupos y ecuaciones a tinta",
+    "fr": "Galeries de symboles au-delà des cinq groupes et équations manuscrites"
    }
   },
   "73566caba80190a92c89998696ab05f73c4c8e0ad150d89c8eb7e3cdb01362bc": {
@@ -20648,6 +20670,18 @@
     "fr": ""
    }
   },
+  "b4edec85fae01ce4b69ee1f222cbd4ba6cc9f285fc7a38d0d399790a9156daab": {
+   "drop": false,
+   "en": "Equation, Ink, and Zoom tools",
+   "es": "Herramientas de ecuación, tinta y zoom",
+   "fr": "Outils d’équation, d’encre et de zoom",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b4f524446fabc6ae78dcbbb448253e68d8530fb51eca9c1763c560ab93a59176": {
    "drop": false,
    "en": "Right-click a cell (cut, copy, paste, insert, delete, clear, filter, sort, notes, links, Format Cells), a row heading, a column heading, a sheet tab, a selected object, or a chart to get a shortcut menu.",
@@ -21066,18 +21100,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "bd829a1f8639c085d6dd01c6ef39f0973839c1109b69195cc3ee870f8628bb94": {
-   "drop": false,
-   "en": "An equation in a `.docx` file is read, drawn as a line of text in its order, and written back as it was. An equation inserted with Insert > Equation is saved the same way and reads back.",
-   "es": "Una ecuación de un archivo `.docx` se lee, se dibuja como una línea de texto en su orden y se escribe de nuevo tal como estaba. Una ecuación insertada con Insertar > Ecuación se guarda del mismo modo y se vuelve a leer.",
-   "fr": "Une équation d’un fichier `.docx` est lue, dessinée comme une ligne de texte dans son ordre et réécrite telle quelle. Une équation insérée avec Insertion > Équation est enregistrée de la même façon et relue.",
-   "soon": {
-    "drop": false,
-    "en": "Equations laid out as printed, in `.doc` and `.odt` files, on screen, in print, and in PDF",
-    "es": "Ecuaciones con el diseño impreso, en archivos `.doc` y `.odt`, en pantalla, en impresión y en PDF",
-    "fr": "Équations mises en page comme à l’impression, dans les fichiers `.doc` et `.odt`, à l’écran, à l’impression et en PDF"
    }
   },
   "bddc8d737ee0e569a1843dbd3653afec67fec0ce99de6338bc96abbee5734144": {
@@ -21788,6 +21810,18 @@
     "fr": ""
    }
   },
+  "c7b5131fff3a63d633a9c806418ef85a8d3b0508dce7a419cc1d88f04f36d76b": {
+   "drop": false,
+   "en": "Equations in `.docx` files are read, saved, and drawn built up in two dimensions on the text baseline, the same on screen, in print, and in PDF. Equations in a line and on their own line are supported, and Insert and Edit equation set them in one step.",
+   "es": "Las ecuaciones de los archivos `.docx` se leen, se guardan y se dibujan en dos dimensiones sobre la línea base del texto, igual en pantalla, en impresión y en PDF. Se admiten ecuaciones en línea y en su propia línea, y Insertar y Editar ecuación las aplican en un solo paso.",
+   "fr": "Les équations des fichiers `.docx` sont lues, enregistrées et dessinées en deux dimensions sur la ligne de base du texte, de la même façon à l’écran, à l’impression et en PDF. Les équations dans une ligne et sur leur propre ligne sont prises en charge, et Insérer et Modifier l’équation les appliquent en une seule étape.",
+   "soon": {
+    "drop": false,
+    "en": "Equations as MathML in `.odt` files",
+    "es": "Ecuaciones como MathML en archivos `.odt`",
+    "fr": "Équations en MathML dans les fichiers `.odt`"
+   }
+  },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
    "drop": true,
    "en": "",
@@ -22434,18 +22468,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ceb242ebdff551e9a7078d0afa1db7ec0ee8b4579c57313eb4852fbc8be7e65d": {
-   "drop": false,
-   "en": "Type an equation in a line and place it on the page as an object: fractions, powers and subscripts, roots, sums, integrals, brackets, accents, matrices, and symbols, with a gallery of built-in equations (`Alt+=`). Equations move, resize, rotate, and take a color like any object, and print as vector shapes.",
-   "es": "Escriba una ecuación en una línea y colóquela en la página como un objeto: fracciones, potencias y subíndices, raíces, sumas, integrales, paréntesis, acentos, matrices y símbolos, con una galería de ecuaciones integradas (`Alt+=`). Las ecuaciones se mueven, cambian de tamaño, giran y admiten color como cualquier objeto, y se imprimen como formas vectoriales.",
-   "fr": "Saisissez une équation sur une ligne et placez-la dans la page comme un objet : fractions, puissances et indices, racines, sommes, intégrales, parenthèses, accents, matrices et symboles, avec une galerie d’équations prédéfinies (`Alt+=`). Les équations se déplacent, se redimensionnent, pivotent et prennent une couleur comme n’importe quel objet, et s’impriment en formes vectorielles.",
-   "soon": {
-    "drop": false,
-    "en": "Equation tab with structures and symbols, ink equations, and equations in `.pub` files",
-    "es": "Pestaña Ecuación con estructuras y símbolos, ecuaciones a mano alzada y ecuaciones en archivos `.pub`",
-    "fr": "Onglet Équation avec structures et symboles, équations manuscrites et équations dans les fichiers `.pub`"
    }
   },
   "ceb61b3722fc46c569af74262f57019cbc0b6042d576bf701f8fcd3faba4ee2a": {
@@ -24272,6 +24294,18 @@
     "fr": ""
    }
   },
+  "e7682c051573d111c32d9b46cea5a9156887f26d271b00381749f423f6b09a92": {
+   "drop": false,
+   "en": "Compare the presentation with another version and review each change in a Reviewing Pane. Accept or reject changes one at a time, or accept or reject all, filter by slide, author, and state, and move between changes with Previous and Next. Text changes are shown word by word, and each decision can be undone. Undecided changes are saved in `.pptx` and `.odp` files and found again when the file opens.",
+   "es": "Compare la presentación con otra versión y revise cada cambio en un panel de revisión. Acepte o rechace los cambios uno por uno, o acepte o rechace todos, filtre por diapositiva, autor y estado, y pase de un cambio a otro con Anterior y Siguiente. Los cambios de texto se muestran palabra por palabra y cada decisión se puede deshacer. Los cambios sin decidir se guardan en archivos `.pptx` y `.odp` y se recuperan al abrir el archivo.",
+   "fr": "Comparez la présentation avec une autre version et passez en revue chaque modification dans un volet de révision. Acceptez ou rejetez les modifications une à une, ou toutes à la fois, filtrez par diapositive, auteur et état, et passez d’une modification à l’autre avec Précédent et Suivant. Les modifications de texte s’affichent mot par mot, et chaque décision peut être annulée. Les modifications en attente sont enregistrées dans les fichiers `.pptx` et `.odp` et retrouvées à l’ouverture du fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e77e56b4cd44514a6c8d0ebe0d8ea4171e3d30555a786a0b4c2e8636e7ece02d": {
    "drop": false,
    "en": "Behind the scenes: media playback",
@@ -24956,18 +24990,6 @@
     "fr": ""
    }
   },
-  "f0f9da3549102c3c5b2f8ec14f232f8618fffe31c64f2b0354985043f03d3a31": {
-   "drop": false,
-   "en": "Type fractions, superscripts and subscripts, roots with a degree, sums, integrals, and products with limits, common function names, accents, bars over and under, brackets that grow, and matrices with round, square, or straight brackets.",
-   "es": "Escriba fracciones, superíndices y subíndices, raíces con índice, sumatorios, integrales y productos con límites, nombres de funciones comunes, acentos, barras superiores e inferiores, paréntesis que se ajustan y matrices con corchetes redondos, cuadrados o rectos.",
-   "fr": "Saisissez des fractions, exposants et indices, racines avec degré, sommes, intégrales et produits avec bornes, noms de fonctions courantes, accents, barres au-dessus et au-dessous, délimiteurs extensibles et matrices avec parenthèses, crochets ou barres droites.",
-   "soon": {
-    "drop": false,
-    "en": "Symbol galleries",
-    "es": "Galerías de símbolos",
-    "fr": "Galeries de symboles"
-   }
-  },
   "f12ab3fb7dbad203ef1cf2e099a707f732655ee720a576c0326dca5c07babd77": {
    "drop": false,
    "en": "Choose the font and size in their boxes, and use Increase and Decrease Font Size.",
@@ -25494,6 +25516,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f853aa1f6cc2890fad9deeb384b05f43a9c65b8ca5f5c68365ef9a15e5003ed8": {
+   "drop": false,
+   "en": "An Equation tab appears while an equation is selected, with Edit Equation, Professional and Linear, Normal Text, the typing format, five symbol menus, and eleven structures. A button opens the equation box with the structure inserted, and the box has the same structures in a row of buttons. An equation brought in by a file can be changed in the box in UnicodeMath.",
+   "es": "Una pestaña Ecuación aparece mientras hay una ecuación seleccionada, con Editar ecuación, Profesional y Lineal, Texto normal, el formato de escritura, cinco menús de símbolos y once estructuras. Un botón abre el cuadro de la ecuación con la estructura insertada, y el cuadro tiene las mismas estructuras en una fila de botones. Una ecuación procedente de un archivo se puede modificar en el cuadro en UnicodeMath.",
+   "fr": "Un onglet Équation apparaît lorsqu’une équation est sélectionnée, avec Modifier l’équation, Professionnel et Linéaire, Texte normal, le format de saisie, cinq menus de symboles et onze structures. Un bouton ouvre la boîte de l’équation avec la structure insérée, et la boîte propose les mêmes structures dans une rangée de boutons. Une équation provenant d’un fichier peut être modifiée dans la boîte en UnicodeMath.",
+   "soon": {
+    "drop": false,
+    "en": "Symbol galleries beyond the five groups, ink equations, and the professional or linear form saved in `.pptx` files",
+    "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y forma profesional o lineal guardada en archivos `.pptx`",
+    "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et forme professionnelle ou linéaire enregistrée dans les fichiers `.pptx`"
    }
   },
   "f8a61b65ce4588c93321d7d0cb91745b7d668d6fc7d0d4295bd9a68e6c6c4378": {
