@@ -1837,8 +1837,8 @@
        "text": "b4f524446fabc6ae78dcbbb448253e68d8530fb51eca9c1763c560ab93a59176"
       },
       {
-       "status": "todo",
-       "text": "898747049394d12dd491d9d3a15e2e329eb9da8516ede33ce564a58ec847e95c"
+       "status": "partly",
+       "text": "a0e2b34213cc428fbfa481a5347c4ec691d9e2452ee1e7e42c4cd29c3fe683ef"
       }
      ]
     },
@@ -17856,18 +17856,6 @@
     "fr": ""
    }
   },
-  "898747049394d12dd491d9d3a15e2e329eb9da8516ede33ce564a58ec847e95c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Mini toolbar beside selected cell text and Quick Analysis button under a selected range",
-    "es": "Minibarra de herramientas junto al texto de la celda seleccionada y botón de análisis rápido bajo un rango seleccionado",
-    "fr": "Mini barre d’outils près du texte de la cellule sélectionnée et bouton d’analyse rapide sous une plage sélectionnée"
-   }
-  },
   "8987e996e922c56cb585b5feca1f655623196949b84e1cd1fb4ffbb89eaa79a0": {
    "drop": false,
    "en": "Show or hide ribbon tabs and groups, add your own tabs and groups with any command, and rename and reorder them. Add, remove, and reorder commands on the quick toolbar (up to 100), and place it below the ribbon. Reset One and Reset All restore the defaults.",
@@ -19498,6 +19486,18 @@
     "en": "Style Inspector pane: change formatting",
     "es": "Panel Inspector de estilos: cambiar el formato",
     "fr": "Volet Inspecteur de styles : modifier la mise en forme"
+   }
+  },
+  "a0e2b34213cc428fbfa481a5347c4ec691d9e2452ee1e7e42c4cd29c3fe683ef": {
+   "drop": false,
+   "en": "Select text in a cell being edited to get a small floating bar with font, size, bold, italic, underline, grow, shrink, and font color; only the selected characters change. Right-click cells to find the same buttons at the top of the shortcut menu, plus fill color, borders, currency, percent, comma, more and fewer decimals, merge, and copy formatting. Each button does a single Undo step, and the bar can be turned off in the options.",
+   "es": "Seleccione texto en una celda que está editando para ver una pequeña barra flotante con fuente, tamaño, negrita, cursiva, subrayado, aumentar, reducir y color de fuente; solo cambian los caracteres seleccionados. Haga clic con el botón derecho en las celdas para encontrar los mismos botones en la parte superior del menú contextual, además de color de relleno, bordes, moneda, porcentaje, millares, más y menos decimales, combinar y copiar formato. Cada botón cuenta como un solo paso de deshacer, y la barra se puede desactivar en las opciones.",
+   "fr": "Sélectionnez du texte dans une cellule en cours de modification pour afficher une petite barre flottante avec police, taille, gras, italique, souligné, agrandir, réduire et couleur de police ; seuls les caractères sélectionnés changent. Faites un clic droit sur des cellules pour retrouver les mêmes boutons en haut du menu contextuel, ainsi que couleur de remplissage, bordures, devise, pourcentage, séparateur de milliers, plus et moins de décimales, fusionner et reproduire la mise en forme. Chaque bouton correspond à une seule étape d’annulation, et la barre peut être désactivée dans les options.",
+   "soon": {
+    "drop": false,
+    "en": "Quick Analysis button under a selected range",
+    "es": "Botón de análisis rápido bajo un rango seleccionado",
+    "fr": "Bouton d’analyse rapide sous une plage sélectionnée"
    }
   },
   "a1467c2cd971bac5144e2cb03003b63b58b96707d07c16eda8038797ad26f1a2": {
