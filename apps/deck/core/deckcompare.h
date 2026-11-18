@@ -54,6 +54,7 @@ struct CompareWork {
     int sampleSlide = -1;   // (the slide of that object)
     QString sampleId;
     QSet<QString> ids;                          // the ids of the objects of the working presentation, as far as the comparison has seen them
+    QSet<QString> made;                         // the ids of objects the comparison put into the working presentation itself
     QHash<QString, int> hint;                   // an object's id: its last known place in its list
     QHash<QString, QString> theirsWork;         // "slide/path" of an object of theirs: the id of the working object that is it (matched, or taken in)
     QHash<QString, int> slideAt;                // a slide's id: its last known place in the working presentation
@@ -68,10 +69,10 @@ struct DeckComparison {
     qint64 work = 0;
     // The characters of text read, and the runs whose formatting was compared, from each presentation.
     qint64 textMine = 0, textTheirs = 0, sigRunsMine = 0, sigRunsTheirs = 0;
-    // `mine` as it was when the comparison was made, kept so that a rejected change can bring its version back; `theirs` belongs to the caller
-    // and must stay while the changes are used.
+    // `mine` and `theirs` as they were when the comparison was made, kept so that a change can be taken or rejected whatever becomes of the caller's
+    // presentations (the pictures and movies are shared with them, not copied).
     std::unique_ptr<Document> mine;
-    const Document *theirs = nullptr;
+    std::unique_ptr<Document> theirs;
     // Slide pairing: for each slide of `theirs` the slide of `mine` it was matched with (-1 for none), and the other way round.
     QVector<int> mineOfTheirs, theirsOfMine;
     // Where each slide of either side is in the working presentation now.

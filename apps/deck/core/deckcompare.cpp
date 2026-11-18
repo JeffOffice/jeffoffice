@@ -18,6 +18,7 @@
 #include <QTextList>
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <vector>
 
 namespace jp::deck {
@@ -523,7 +524,8 @@ Item *itemAtPath(const ItemList &top, const QString &path)
 }
 
 
-// Gives each object of the working presentation that shares its id (or has none) the id its place has in the copy of mine, which has none repeated, and
+// Gives each object of the working presentation that shares its id (or has none) the id its place has in the copy of mine, which has none repeated (or
+// a new one when mine has nothing at that place), and
 // each slide that shares an id one of its own. The working presentation is taken to be mine as it was compared: slide m is slide m, and an object is where
 // its path says. After that an id is an address. Done by the first accept or reject, and again if an undo took the ids away.
 void stampItems(ItemList &wl, const ItemList &sl, QSet<QString> &seen, int page, DeckComparison &cmp)
@@ -541,6 +543,8 @@ void stampItems(ItemList &wl, const ItemList &sl, QSet<QString> &seen, int page,
                 st.sampleId = wi.id;
             }
         }
+        // One with no counterpart in mine (the presentation was edited since) is made its own too: every object of the working presentation is an address.
+        if (wi.id.isEmpty() || seen.contains(wi.id)) wi.id = newId();
         seen.insert(wi.id);
         if (wi.type() == ItemType::Group) stampItems(static_cast<GroupItem &>(wi).children, si ? static_cast<const GroupItem *>(si)->children : none, seen, page, cmp);
     }
@@ -758,7 +762,7 @@ void removeSlideAt(Document &w, int index)
 DeckComparison compareDecks(const Document &mine, const Document &theirs)
 {
     DeckComparison out;
-    out.theirs = &theirs;
+    out.theirs = Document::fromSnapshot(theirs.snapshot());
     out.mine = Document::fromSnapshot(mine.snapshot());
     // The copy of mine has no id repeated (the later ones are given new ones); an object with none gets one. The objects of the working presentation are known by these.
     for (auto &p : out.mine->pages)
@@ -1096,6 +1100,28 @@ bool take(Document &w, DeckComparison &cmp, Change &ch, bool accept)
     const QString mid = dataString(ch, "mid");
     auto locate = [&](const QString &id) -> Spot {
         if (id.isEmpty()) return {};
+        // An id the comparison has not seen in the working presentation, or one it put there itself (the index of Document::find does not know it
+        // yet), is looked for on this slide alone: find looks through every slide for an id it does not know, and that is most of what accepting
+        // objects added or putting back objects deleted asks for.
+        if (!st.ids.contains(id) || st.made.contains(id)) {
+            Spot found;
+            const auto h = st.hint.constFind(id);
+            if (h != st.hint.cend() && *h >= 0 && *h < int(page.items.size()) && page.items[*h]->id == id) {
+                found = Spot{&page.items, *h, page.items[*h].get()};
+            } else {
+                std::function<bool(ItemList &)> look = [&](ItemList &l) {
+                    for (int i = 0; i < int(l.size()); ++i) {
+                        ++cmp.work;
+                        if (l[i]->id == id) { found = Spot{&l, i, l[i].get()}; return true; }
+                        if (l[i]->type() == ItemType::Group && look(static_cast<GroupItem *>(l[i].get())->children)) return true;
+                    }
+                    return false;
+                };
+                look(page.items);
+            }
+            if (found.item) st.ids.insert(id);
+            return found;
+        }
         const Document::Loc loc = w.find(id);
         if (loc.item && loc.item->id == id && loc.page == sl && !loc.scratch) return Spot{loc.list, loc.index, loc.item};
         return {};
@@ -1122,7 +1148,7 @@ bool take(Document &w, DeckComparison &cmp, Change &ch, bool accept)
             const int at = placeFor(*list, ipath, added, added ? ts : ms, cmp);
             list->insert(list->begin() + at, made);
             ItemList one{made};
-            walkItems(one, [&](const ItemPtr &it) { st.ids.insert(it->id); });
+            walkItems(one, [&](const ItemPtr &it) { st.ids.insert(it->id); st.made.insert(it->id); });
             st.hint[made->id] = at;
             ch.data[QStringLiteral("wid")] = made->id;
             if (added) st.theirsWork[tkey] = made->id;

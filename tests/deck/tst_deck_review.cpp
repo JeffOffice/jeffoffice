@@ -2027,12 +2027,120 @@ private Q_SLOTS:
                 QVERIFY(applyChange(*working, cmp, order == 1 ? 1 : 0));
             }
             QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("keep")}));
+            QCOMPARE(working->pages[0]->items.size(), size_t(1));
+            QCOMPARE(working->pages[0]->items[0]->rect.y(), 60.0);   // the one that was kept, not another
             QCOMPARE(cmp.changes.count(review::State::Accepted), 2);
             QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
             // And back: each object returns to its own place.
             QCOMPARE(rejectAll(*working, cmp, true), 2);
             QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("one"), QStringLiteral("keep"), QStringLiteral("two")}));
         }
+    }
+
+    // Which of two objects that share an id survives, by where it sits: deleting only the second must not take the first, and the other way round.
+    // Three share an id; every subset of them is deleted by theirs, taken in one go and taken back.
+    void compareKeepsTheRightObjectWhenIdsRepeat()
+    {
+        auto build = [&]() {
+            auto d = deck::newPresentation();
+            d->pages[0]->items.clear();
+            addBox(*d, *d->pages[0], QStringLiteral("one"), 10, 10)->id = QStringLiteral("x");
+            addBox(*d, *d->pages[0], QStringLiteral("keep"), 10, 60);
+            addBox(*d, *d->pages[0], QStringLiteral("two"), 10, 110)->id = QStringLiteral("x");
+            addBox(*d, *d->pages[0], QStringLiteral("three"), 10, 160)->id = QStringLiteral("x");
+            return d;
+        };
+        auto mine = build();
+        for (int gone = 1; gone < 8; ++gone) {   // bit i set: the i-th of one, two, three (items 0, 2, 3) is deleted by theirs
+            auto theirs = copyOf(*mine);
+            const int idx[3] = {0, 2, 3};
+            for (int k = 2; k >= 0; --k)
+                if (gone & (1 << k)) theirs->pages[0]->items.erase(theirs->pages[0]->items.begin() + idx[k]);
+            DeckComparison cmp = compareDecks(*mine, *theirs);
+            auto working = copyOf(*mine);   // (a copy gives repeated ids new ones: the one worked on repeats them, as the compared deck did)
+            for (int i : {0, 2, 3}) working->pages[0]->items[i]->id = QStringLiteral("x");
+            QCOMPARE(acceptAll(*working, cmp), cmp.changes.size());
+            QList<double> ys, want;
+            for (const auto &it : working->pages[0]->items) ys << it->rect.y();
+            for (int k = 0; k < 4; ++k)
+                if (k == 1 || !(gone & (1 << (k == 0 ? 0 : k - 1)))) want << 10 + 50 * k;
+            QCOMPARE(ys, want);
+            QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+            QCOMPARE(rejectAll(*working, cmp, true), cmp.changes.size());
+            QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("one"), QStringLiteral("keep"), QStringLiteral("two"), QStringLiteral("three")}));
+        }
+    }
+
+    // Objects the working presentation has that the compared one did not (it was edited since) and that repeat an id are made their own ids too, so that
+    // every object on the slide can be told from every other.
+    void compareGivesEveryWorkingObjectItsOwnId()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        addBox(*mine, *mine->pages[0], QStringLiteral("one"), 10, 10)->id = QStringLiteral("x");
+        addBox(*mine, *mine->pages[0], QStringLiteral("two"), 10, 60)->id = QStringLiteral("x");
+        auto theirs = copyOf(*mine);
+        theirs->pages[0]->items.erase(theirs->pages[0]->items.begin() + 1);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 1);
+        auto working = copyOf(*mine);
+        for (int i : {0, 1}) working->pages[0]->items[i]->id = QStringLiteral("x");
+        addBox(*working, *working->pages[0], QStringLiteral("late"), 10, 110)->id = QStringLiteral("x");   // added to the working presentation after the comparison
+        addBox(*working, *working->pages[0], QStringLiteral("later"), 10, 160)->id = QString();
+        QCOMPARE(acceptAll(*working, cmp), 1);
+        QSet<QString> ids;
+        for (const auto &it : working->pages[0]->items) ids.insert(it->id);
+        QCOMPARE(ids.size(), 3);
+        QVERIFY(!ids.contains(QString()));
+        QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("one"), QStringLiteral("late"), QStringLiteral("later")}));
+    }
+
+    // Accepting objects added, deleted, and changed on many slides never looks through the whole presentation for an id the working presentation does not have.
+    void compareAcceptAllDoesNotScanTheDocument()
+    {
+        auto mine = lettered(40);
+        for (auto &p : mine->pages)
+            for (int k = 0; k < 5; ++k) addBox(*mine, *p, QStringLiteral("m%1").arg(k), 10, 100 + 30 * k);
+        auto theirs = copyOf(*mine);
+        for (auto &p : theirs->pages) {
+            addBox(*theirs, *p, QStringLiteral("new"), 300, 10);
+            p->items.erase(p->items.begin() + 2);
+        }
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QVERIFY(cmp.changes.size() >= 80);
+        auto working = copyOf(*mine);
+        working->find(boxOf(*working, 0)->id);   // (the index exists)
+        const int scans = working->findScansForTest();
+        QCOMPARE(acceptAll(*working, cmp), cmp.changes.size());
+        QCOMPARE(working->findScansForTest(), scans);
+        QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+        QCOMPARE(rejectAll(*working, cmp, true), cmp.changes.size());
+        QCOMPARE(working->findScansForTest(), scans);
+        QCOMPARE(compareDecks(*working, *mine).changes.size(), 0);
+    }
+
+    // The comparison keeps its own copy of theirs: it still accepts after the caller's presentation is gone.
+    void compareSurvivesTheDeathOfTheirs()
+    {
+        auto mine = compareBase();
+        auto theirs = copyOf(*mine);
+        addBox(*theirs, *theirs->pages[1], QStringLiteral("added"), 300, 10);
+        QTextCursor c(theirs->storyDoc(boxOf(*theirs, 2)->storyId));
+        c.movePosition(QTextCursor::End);
+        c.insertText(QStringLiteral(" more"));
+        theirs->pages.removeAt(4);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QVERIFY(cmp.changes.size() >= 3);
+        QVERIFY(static_cast<const void *>(&*cmp.theirs) != static_cast<const void *>(theirs.get()));   // its own copy
+        theirs->pages.clear();   // (what the caller does to theirs afterward does not reach the comparison)
+        theirs.reset();
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), cmp.changes.size());
+        QCOMPARE(letters(*working), QStringLiteral("ABCD"));
+        QStringList got;
+        for (const auto &it : working->pages[1]->items) if (it->type() == ItemType::Shape) got << textOfBox(*working, static_cast<ShapeItem *>(it.get()));
+        QVERIFY(got.contains(QStringLiteral("added")));
+        QVERIFY(textOfBox(*working, boxOf(*working, 2)).endsWith(QStringLiteral(" more")));
     }
 
     // The same for slides: ids in a file repeat, and each accept removes the slide its change is about.
@@ -2602,6 +2710,15 @@ private Q_SLOTS:
     {
         using review::crunchPosition;
         QCOMPARE(crunchPosition(0, 0, 0), qint64(0));
+        // Out of range is held to the edge, so a key never runs into its neighbor's: (0, 0, 2^14) is not (0, 1, 0), and nothing goes negative.
+        QCOMPARE(crunchPosition(0, 0, 16384), crunchPosition(0, 0, 16383));
+        QVERIFY(crunchPosition(0, 0, 16384) < crunchPosition(0, 1, 0));
+        QCOMPARE(crunchPosition(0, 1 << 26, 0), crunchPosition(0, (1 << 26) - 1, 0));
+        QVERIFY(crunchPosition(0, 1 << 26, 16383) < crunchPosition(1, 0, 0));
+        QCOMPARE(crunchPosition(1 << 23, 0, 0), crunchPosition((1 << 23) - 1, 0, 0));
+        QVERIFY(crunchPosition(1 << 23, 1 << 26, 1 << 14) > 0);
+        QCOMPARE(crunchPosition(-1, -1, -1), qint64(0));
+        QCOMPARE(crunchPosition(0, (1 << 26) - 1, 16383) + 1, crunchPosition(1, 0, 0));
         QCOMPARE(crunchPosition(0, 0, 1), qint64(1));
         QCOMPARE(crunchPosition(0, 1, 0), qint64(1) << 14);
         QCOMPARE(crunchPosition(1, 0, 0), qint64(1) << 40);

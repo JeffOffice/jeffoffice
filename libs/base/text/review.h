@@ -95,8 +95,14 @@ struct Reply {
 constexpr int kMaxReplies = 1000;
 
 // The sort key of a Crunch cell: sheet, then row, then column, so that no two cells have the same number and the order is the workbook's. A column
-// is under 2^14 (16,384, the most a sheet has), a row under 2^26 (a sheet has 2^20), a sheet under 2^23: the three fields never touch.
-constexpr qint64 crunchPosition(int sheet, int row, int col) { return (qint64(sheet) << 40) | (qint64(row) << 14) | qint64(col); }
+// is under 2^14 (16,384, the most a sheet has), a row under 2^26 (a sheet has 2^20), a sheet under 2^23: the three fields never touch. A value outside
+// its range (a file is not trusted) is held to the nearest edge of it, 0 or the largest, so the key stays whole, never negative, and never another cell's.
+constexpr int kCrunchMaxSheet = (1 << 23) - 1, kCrunchMaxRow = (1 << 26) - 1, kCrunchMaxCol = (1 << 14) - 1;
+constexpr int crunchClamp(int v, int hi) { return v < 0 ? 0 : v > hi ? hi : v; }
+constexpr qint64 crunchPosition(int sheet, int row, int col)
+{
+    return (qint64(crunchClamp(sheet, kCrunchMaxSheet)) << 40) | (qint64(crunchClamp(row, kCrunchMaxRow)) << 14) | qint64(crunchClamp(col, kCrunchMaxCol));
+}
 
 struct Change {
     QString id;                  // told apart within a ChangeList
