@@ -19,6 +19,15 @@ The equation is put at the cell you are in, selected. To start from a well-known
 - **Symbols:** type a backslash and a name. `\alpha` is α, `\pi` is π, `\infty` is ∞, and `\leq` is ≤.
 - **Accents, brackets, and matrices:** `\hat{x}`, `\left( ... \right)`, and `\pmatrix{a & b \\ c & d}`.
 
+## Type it in UnicodeMath or LaTeX
+
+Next to the box is a list of typing formats: **Simple line** (the one above), **UnicodeMath**, and **LaTeX**. These are two ways of writing math as plain text that many people already know. When you pick another format, what you typed is written again in it.
+
+- **UnicodeMath:** `a/b` is a fraction, `x^2_i` has a power and a subscript, `√(x)` is a root, and `∑_(i=1)^n i` is a sum. Put words in quotes, such as `"if x"`, and they stay as plain text instead of math letters. `(a|b)` makes brackets with two parts, and `\matrix(a&b@c&d)` makes a matrix (`&` between cells, `@` between rows).
+- **LaTeX:** `\frac{a}{b}` is a fraction, `\sqrt[3]{x}` is a cube root, `\sum_{i=1}^n i` is a sum, `\text{if x}` is plain text, and `\begin{pmatrix} a & b \\ c & d \end{pmatrix}` is a matrix.
+
+The two buttons **Professional** and **Linear** change how the box shows your equation. Professional draws it built up, as it will look. Linear shows only the line you typed. If an equation can't be written in the format you pick, the box tells you and keeps what you typed.
+
 ## Change, move, and size
 
 Double-click the equation, or select it and click **Insert > Symbols > Equation**, to open the box with its line. Change it and click **OK**. It is one step to undo. Drag the equation to move it, and drag a handle to size it; the equation keeps its proportions inside the box.

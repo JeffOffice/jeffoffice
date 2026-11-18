@@ -26,6 +26,15 @@ The equation is saved in the document in the standard form for math, so other pr
 
 In the page, JeffWrite shows an equation as one line of text. The equation in the file keeps its fractions and roots, so other programs lay it out.
 
+## Type it in UnicodeMath or LaTeX
+
+Next to the box is a list of typing formats: **Simple line** (the one above), **UnicodeMath**, and **LaTeX**. These are two ways of writing math as plain text that many people already know. When you pick another format, what you typed is written again in it.
+
+- **UnicodeMath:** `a/b` is a fraction, `x^2_i` has a power and a subscript, `√(x)` is a root, and `∑_(i=1)^n i` is a sum. Put words in quotes, such as `"if x"`, and they stay as plain text instead of math letters. `(a|b)` makes brackets with two parts, and `\matrix(a&b@c&d)` makes a matrix (`&` between cells, `@` between rows).
+- **LaTeX:** `\frac{a}{b}` is a fraction, `\sqrt[3]{x}` is a cube root, `\sum_{i=1}^n i` is a sum, `\text{if x}` is plain text, and `\begin{pmatrix} a & b \\ c & d \end{pmatrix}` is a matrix.
+
+The two buttons **Professional** and **Linear** change how the box shows your equation. Professional draws it built up, as it will look. Linear shows only the line you typed. If an equation can't be written in the format you pick, the box tells you and keeps what you typed.
+
 ## Built-in equations
 
 Click **Insert > Built-In Equations** to see a list of well-known equations, such as the quadratic formula and the area of a circle. Click one to put it in at the caret.
