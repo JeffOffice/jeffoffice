@@ -9,6 +9,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
 #include "office/package.h"
+#include "ole/odfobject.h"
 #include "office/xml.h"
 
 #include <QColor>
@@ -256,6 +257,8 @@ private:
     ItemPtr readPicture(const QDomElement &frame, const QDomElement &image, Scope &sc, const QTransform &t);
     // A frame whose object is a formula: an equation. Null for any other (or one that is refused or past the limits: the frame is then read as its picture).
     ItemPtr readEquation(const QDomElement &frame, const QDomElement &object, Scope &sc, const QTransform &t);
+    // An embedded object of another kind (a sub-document that is not a formula or a chart, or a binary part) with its picture: the picture is the item, and the object's package is kept in the page's "charts".
+    ItemPtr readObject(const QDomElement &frame, const QDomElement &object, const QDomElement &image, Scope &sc, const QTransform &t);
     ItemPtr readTableFrame(const QDomElement &frame, const QDomElement &table, Scope &sc, const QTransform &t);
     void fitRows(TableItem &t);
     ItemPtr readCustomShape(const QDomElement &e, Scope &sc, const QTransform &t);
@@ -295,6 +298,8 @@ private:
     qint64 m_formulaBytes = 0;
     QHash<QString, bool> m_formulaPart;           // the objects found to be formulas or not, from their first bytes, once
     QHash<QString, QByteArray> m_formulaOfPart;   // the markup of each formula object read (empty for one that is refused), so that frames that name it again do not read it again
+    std::unique_ptr<office::ole::OdfObjectReader> m_objects;   // the other embedded objects, each part read once
+    office::ole::ObjectBudget m_objectBudget;                  // what they come to, against the object core's caps
     QHash<QString, QColor> m_formulaColor;        // and the color each names for its letters
     QStringList *m_notes;
     std::deque<QDomDocument> m_doms;

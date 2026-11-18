@@ -22,6 +22,7 @@
 #include <QCoreApplication>
 #include <QImage>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QRegularExpression>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -318,6 +319,8 @@ ItemPtr Reader::readFrame(const QDomElement &e, Scope &sc, const QTransform &par
     if (!table.isNull()) return readTableFrame(e, table, sc, parentTransform);
     if (!object.isNull() && tagOf(object) == QLatin1String("draw:object"))
         if (ItemPtr equation = readEquation(e, object, sc, parentTransform)) return equation;
+    if (!object.isNull() && !image.isNull())
+        if (ItemPtr kept = readObject(e, object, image, sc, parentTransform)) return kept;
     if (!image.isNull()) return readPicture(e, image, sc, parentTransform);
     if (!plugin.isNull()) {
         if (!m_said.contains(QStringLiteral("plugin"))) note(QCoreApplication::translate("OdpImport", "Movies, sounds, and other plug-in objects were left out."));
@@ -442,6 +445,31 @@ ItemPtr Reader::readEquation(const QDomElement &frame, const QDomElement &object
     eq->markup = markup;
     eq->linear = office::wml::equationLinear(markup);
     return eq;
+}
+
+ItemPtr Reader::readObject(const QDomElement &frame, const QDomElement &object, const QDomElement &image, Scope &sc, const QTransform &parentTransform)
+{
+    if (!sc.page) return nullptr;
+    if (!m_objects) m_objects = std::make_unique<office::ole::OdfObjectReader>(office::ole::odfSourceOfPackage(m_pkg));
+    const Attrs a(frame);
+    const qint64 widthEmu = std::llround(std::clamp(extent(lengthOr(a.get("svg:width"), 0)), 0.0, 1.0e6) * office::ole::kEmuPerPoint), heightEmu = std::llround(std::clamp(extent(lengthOr(a.get("svg:height"), 0)), 0.0, 1.0e6) * office::ole::kEmuPerPoint);
+    office::ole::EmbeddedObject kept;
+    // (the count and the bytes are looked at before any part is inflated, and a part many frames name is read once)
+    const auto result = m_objects->read(at(object, "xlink:href"), tagOf(object) == QLatin1String("draw:object-ole"), widthEmu, heightEmu, QByteArray(), m_objectBudget, &kept);
+    if (result == office::ole::OdfObjectReader::Result::PastLimit) {
+        if (!m_said.contains(QStringLiteral("objects")))
+            note(QCoreApplication::translate("OdpImport", "Embedded objects past the %1 a file may have, or the size they may come to together, are shown as their pictures.").arg(office::ole::limits().objects));
+        m_said.insert(QStringLiteral("objects"));
+        return nullptr;
+    }
+    if (result != office::ole::OdfObjectReader::Result::Kept) return nullptr;
+    ItemPtr picture = readPicture(frame, image, sc, parentTransform);
+    if (!picture) return nullptr;
+    QJsonArray charts = sc.page->props.value(QStringLiteral("charts")).toArray();
+    charts.append(QJsonObject{{QStringLiteral("item"), picture->id}, {QStringLiteral("kind"), QStringLiteral("object")}, {QStringLiteral("progId"), kept.progId}, {QStringLiteral("name"), a.get("draw:name")},
+                              {QStringLiteral("part"), kept.origin}, {QStringLiteral("data"), QString::fromLatin1(kept.partBytes.toBase64())}});
+    sc.page->props[QStringLiteral("charts")] = charts;
+    return picture;
 }
 
 ItemPtr Reader::readPicture(const QDomElement &frame, const QDomElement &imageElement, Scope &sc, const QTransform &parentTransform)

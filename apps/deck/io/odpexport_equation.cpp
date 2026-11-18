@@ -25,7 +25,8 @@ bool Exporter::writeEquation(X &x, Scope &sc, const EquationItem &eq)
     const QColor color = eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_doc.colors);
     const QByteArray png = office::wml::equationPng(eq.markup, std::max(1, int(std::lround(w * px))), std::max(1, int(std::lround(h * px))), color);
     if (png.isEmpty()) return false;
-    const QString dir = QStringLiteral("Object %1").arg(++m_formulaCount);
+    ++m_formulaCount;
+    const QString dir = QStringLiteral("Object %1").arg(++m_objectCounter);
     m_formulaBytes += content.size();
     addFile(dir + QStringLiteral("/"), QByteArray(), QStringLiteral("application/vnd.oasis.opendocument.formula"), false);
     addFile(dir + QStringLiteral("/content.xml"), content, QStringLiteral("text/xml"), true);

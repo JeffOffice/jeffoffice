@@ -436,6 +436,40 @@ void Exporter::writeShape(X &x, Scope &sc, const ShapeItem &s)
 
 // ---- pictures
 
+QPair<QString, bool> Exporter::objectOf(const PictureItem &p)
+{
+    if (!m_page) return {};
+    if (m_objectEntriesOf != m_page) {
+        m_objectEntries.clear();
+        m_objectEntriesOf = m_page;
+        for (const QJsonValue &v : m_page->props.value(QStringLiteral("charts")).toArray())
+            if (v.toObject().value(QStringLiteral("kind")).toString() == QLatin1String("object")) m_objectEntries.insert(v.toObject().value(QStringLiteral("item")).toString(), v.toObject());
+    }
+    const auto entry = m_objectEntries.constFind(p.id);
+    if (entry == m_objectEntries.cend()) return {};
+    const QString data = entry->value(QStringLiteral("data")).toString(), progId = entry->value(QStringLiteral("progId")).toString();
+    // (the size and the budget are asked before the package is decoded, and the same package is written once)
+    const QByteArray key = QCryptographicHash::hash(progId.toUtf8() + '\0' + data.toLatin1(), QCryptographicHash::Sha1).toHex();
+    if (const auto known = m_objectDirOfBytes.constFind(QString::fromLatin1(key)); known != m_objectDirOfBytes.cend()) return known.value();
+    QPair<QString, bool> done;
+    const qint64 size = data.size() / 4 * 3;
+    if (size > office::ole::limits().objectBytes || !m_objectBudget.fits(size)) {
+        if (!m_objectsPastLimit)
+            say(QCoreApplication::translate("OdpExport", "Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.").arg(office::ole::limits().objects));
+        m_objectsPastLimit = true;
+    } else if (const auto kept = office::ole::keepObject(progId, QByteArray::fromBase64(data.toLatin1()), QByteArray(), 0, 0, m_objectBudget, QString())) {
+        const QString dir = QStringLiteral("Object %1").arg(m_objectCounter + 1);
+        const QVector<office::ole::OdfOutPart> parts = office::ole::odfPartsOf(*kept, dir);
+        if (!parts.isEmpty()) {
+            ++m_objectCounter;
+            for (const office::ole::OdfOutPart &part : parts) addFile(part.path, part.bytes, part.mediaType, part.compress);
+            done = {dir, parts.first().path.endsWith(QLatin1Char('/'))};
+        }
+    }
+    m_objectDirOfBytes.insert(QString::fromLatin1(key), done);
+    return done;
+}
+
 void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
 {
     const QString cls = presentationClass(p, sc.master);
@@ -542,6 +576,8 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
         x.open("draw:param").attr("draw:name", "VolumeDB").attr("draw:value", number(db, 1)).close();
         x.close();
     }
+    if (const QPair<QString, bool> object = objectOf(p); !object.first.isEmpty())
+        x.open(object.second ? "draw:object" : "draw:object-ole").attr("xlink:href", "./" + object.first).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onLoad").close();
     x.open("draw:image").attr("xlink:href", part).attr("xlink:type", "simple").attr("xlink:show", "embed").attr("xlink:actuate", "onLoad");
     const auto image = m_doc.images.constFind(p.imageId);
     if (image != m_doc.images.cend()) {

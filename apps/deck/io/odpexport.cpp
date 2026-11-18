@@ -889,6 +889,7 @@ void Exporter::writeSlide(X &x, int index)
     // What this kind of file holds as a picture only.
     for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray()) {
         const QString kind = v.toObject().value(QStringLiteral("kind")).toString();
+        if (kind == QLatin1String("object")) continue;   // (an object another kind of file holds is written as an object, with its picture)
         if (kind == QLatin1String("diagram")) sayOnce(QStringLiteral("diagram"), QCoreApplication::translate("OdpExport", "diagrams are saved as pictures: their parts can't be edited in this kind of file."));
         else if (kind == QLatin1String("equation")) sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
         else if (kind == QLatin1String("object")) sayOnce(QStringLiteral("object"), QCoreApplication::translate("OdpExport", "Embedded objects are saved as their pictures in this kind of file. To keep what is inside them, save as a .pptx file."));

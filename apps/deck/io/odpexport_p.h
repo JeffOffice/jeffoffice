@@ -10,9 +10,11 @@
 #include "core/showsettings.h"
 #include "core/style.h"
 #include "core/transition.h"
+#include "ole/odfobject.h"
 
 #include <QColor>
 #include <QHash>
+#include <QJsonObject>
 #include <QMap>
 #include <QPair>
 #include <QRectF>
@@ -213,6 +215,8 @@ private:
     void writeTextBox(X &x, Scope &sc, const TextItem &t);
     void writeShape(X &x, Scope &sc, const ShapeItem &s);
     void writePicture(X &x, Scope &sc, const PictureItem &p);
+    // The object another kind of file holds for a picture (its package, kept by the reader): written as parts of the file; the name it has and whether it is a folder, empty for none.
+    QPair<QString, bool> objectOf(const PictureItem &p);
     void writeLine(X &x, Scope &sc, const LineItem &l);
     void writeGroup(X &x, Scope &sc, const GroupItem &g);
     // A barcode as the picture other programs show, with the settings in the frame (office/barcodemarker.h); false when it can't be a picture.
@@ -259,6 +263,12 @@ private:
     QHash<QString, QString> m_pictureNames;           // image id -> part name
     int m_formulaCount = 0;                           // the formula objects written (named Object N), and the bytes of their documents
     qint64 m_formulaBytes = 0;
+    office::ole::ObjectBudget m_objectBudget;         // the embedded objects written, against the object core's caps
+    QHash<QString, QPair<QString, bool>> m_objectDirOfBytes;   // an object's program ID and bytes (hashed) -> its folder or part (empty for one that is refused) and whether it is a folder
+    QHash<QString, QJsonObject> m_objectEntries;      // the objects of the slide being written, by the id of the picture that shows each
+    const Page *m_objectEntriesOf = nullptr;
+    int m_objectCounter = 0;                          // the names made for objects of every kind (Object N)
+    bool m_objectsPastLimit = false;
     QSet<QString> m_pageNames;
 
     QByteArray m_contentXml, m_stylesXml, m_metaXml, m_manifestXml;
