@@ -10,6 +10,7 @@
 #include "core/spellcheck.h"
 #include "core/barcodeitem.h"
 #include "core/editops.h"
+#include "core/textboxops.h"
 #include "flow/paginator.h"
 #include "core/mergeops.h"
 #include "core/writeprops.h"
@@ -1224,6 +1225,9 @@ bool PageView::beginShapeTextEdit(const QString &typed)
     look.wrap = box.wrap;
     look.autofit = box.autofit;
     look.zoom = m_zoom;
+    // (Words that run turned are typed turned: the editor lays them out and paints them as the page does, so they don't move when the edit ends.)
+    const TextDirection direction = textBoxDirection(*m_doc, position);
+    look.quarterTurns = direction == TextDirection::Rotate90 ? 1 : direction == TextDirection::Rotate270 ? 3 : 0;
     const double s = scale();
     look.insets = QMarginsF(box.insets.left() * s, box.insets.top() * s, box.insets.right() * s, box.insets.bottom() * s);
     m_shapeEditor = new ShapeTextEdit(viewport());

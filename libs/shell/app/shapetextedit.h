@@ -13,6 +13,7 @@
 #include <QPair>
 #include <QPointer>
 #include <QTextEdit>
+#include <QTransform>
 #include <QVector>
 #include <functional>
 #include <memory>
@@ -28,6 +29,7 @@ struct ShapeTextLook {
     bool autofit = false;                  // the words shrink to fit (the editor keeps the caret in view; the host's page shows the shrunk words)
     QMarginsF insets = QMarginsF(7.2, 3.6, 7.2, 3.6);   // in pixels of the editor
     QColor textColor;                      // the color words with none of their own are drawn in (empty: black)
+    int quarterTurns = 0;                  // the words run turned: 1 is a quarter turn clockwise (down the frame), 3 the other way (up); the frame given to begin() is the box as it stands, not turned
     double zoom = 1;                       // the pixels of the editor to the points of the story (sizes shown larger or smaller; the story keeps its points)
 };
 
@@ -92,6 +94,7 @@ Q_SIGNALS:
 
 protected:
     bool event(QEvent *e) override;
+    bool viewportEvent(QEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
@@ -102,6 +105,9 @@ private:
     double scaled(double points);
     double unscaled(double shown) const;
     void refit();
+    bool turned() const { return m_look.quarterTurns == 1 || m_look.quarterTurns == 3; }
+    QTransform turnTransform() const;   // the turned words' own place to the editor's pixels
+    bool turnedViewportEvent(QEvent *e);
     void marksChanged();
     void mergeFormat(const QTextCharFormat &f);
 
@@ -110,6 +116,8 @@ private:
     BulletMaker m_bullets;
     bool m_changed = false, m_done = false, m_refitting = false;
     int m_marks = 0;
+    QPointF m_turnOrigin;   // turned words: where the story's top left is, in the words' own axes (the insets, and the anchor's room)
+    bool m_turnDragging = false;
     std::unique_ptr<QTextDocument> m_story;
     QPointer<QWidget> m_back;
     QHash<qint64, double> m_originals;   // the sizes shown at a zoom, each with the size it was (so that they are given back exactly)

@@ -3,6 +3,7 @@
 #include <QAbstractTextDocumentLayout>
 #include <QFocusEvent>
 #include <QKeyEvent>
+#include <QMouseEvent>
 #include <QPainter>
 #include <QMimeData>
 #include <QPalette>
@@ -145,7 +146,8 @@ void ShapeTextEdit::begin(std::unique_ptr<QTextDocument> story, const QRect &fra
     m_story->setUndoRedoEnabled(true);
     m_story->clearUndoRedoStacks();
     setDocument(m_story.get());
-    setLineWrapMode(look.wrap ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
+    // (Turned words are laid out and painted by the editor itself, on the frame's other axis, so it never wraps them at the widget's width.)
+    setLineWrapMode(look.wrap && !turned() ? QTextEdit::WidgetWidth : QTextEdit::NoWrap);
     if (!m_back) m_back = new ShapeTextBack(parentWidget());
     setGeometry(frame);
     m_back->setGeometry(frame);
@@ -161,6 +163,13 @@ void ShapeTextEdit::begin(std::unique_ptr<QTextDocument> story, const QRect &fra
         Q_EMIT formatChanged();
     });
     connect(this, &QTextEdit::currentCharFormatChanged, this, [this] { Q_EMIT formatChanged(); });
+    if (turned()) {
+        // (what Qt marks to be painted is in the unturned axes: the whole viewport is painted again)
+        const auto again = [this] { viewport()->update(); };
+        connect(this, &QTextEdit::textChanged, this, again);
+        connect(this, &QTextEdit::cursorPositionChanged, this, again);
+        connect(this, &QTextEdit::selectionChanged, this, again);
+    }
     connect(this, &QTextEdit::cursorPositionChanged, this, [this] { Q_EMIT formatChanged(); });
     QPalette pal = palette();
     pal.setColor(QPalette::Text, look.textColor.isValid() ? look.textColor : QColor(Qt::black));
@@ -218,6 +227,27 @@ void ShapeTextEdit::refit()
 {
     if (m_refitting || !m_story) return;
     m_refitting = true;
+    if (turned()) {
+        // The words run along the frame's height: the insets turn with them (as the page draws a turned box), and the words' own top is the frame's right edge (a quarter turn
+        // clockwise) or left edge.
+        const QMarginsF in = m_look.insets;
+        const bool cw = m_look.quarterTurns == 1;
+        const int left = int(cw ? in.top() : in.bottom()), right = int(cw ? in.bottom() : in.top());
+        const int top = int(cw ? in.right() : in.left()), bottom = int(cw ? in.left() : in.right());
+        const int along = std::max(1, height() - left - right), across = std::max(1, width() - top - bottom);
+        m_story->setTextWidth(m_look.wrap ? along : -1);
+        const double h = m_story->documentLayout()->documentSize().height();
+        int offset = 0;
+        if (h < across) {
+            if (m_look.anchor & Qt::AlignVCenter) offset = int((across - h) / 2);
+            else if (m_look.anchor & Qt::AlignBottom) offset = int(across - h);
+        }
+        m_turnOrigin = QPointF(left, top + offset);
+        setViewportMargins(0, 0, 0, 0);
+        viewport()->update();
+        m_refitting = false;
+        return;
+    }
     const QMarginsF in = m_look.insets;
     const int left = int(in.left()), right = int(in.right()), top = int(in.top()), bottom = int(in.bottom());
     const int availWidth = std::max(1, width() - left - right), avail = std::max(1, height() - top - bottom);
@@ -454,6 +484,83 @@ void ShapeTextEdit::insertFromMimeData(const QMimeData *source)
         QTextBlockFormat bf = b.blockFormat();
         bf.setAlignment(*align);
         b.setBlockFormat(bf);
+    }
+}
+
+QTransform ShapeTextEdit::turnTransform() const
+{
+    QTransform t;
+    if (m_look.quarterTurns == 1) {
+        t.translate(viewport()->width(), 0);
+        t.rotate(90);
+    } else {
+        t.translate(0, viewport()->height());
+        t.rotate(-90);
+    }
+    return t;
+}
+
+bool ShapeTextEdit::viewportEvent(QEvent *e)
+{
+    if (turned() && m_story && turnedViewportEvent(e)) return true;
+    return QTextEdit::viewportEvent(e);
+}
+
+// Turned words: painted through the turn, and the mouse taken back through it, so that what is clicked is what is shown.
+bool ShapeTextEdit::turnedViewportEvent(QEvent *e)
+{
+    switch (e->type()) {
+    case QEvent::Paint: {
+        QPainter p(viewport());
+        p.setTransform(turnTransform());
+        p.translate(m_turnOrigin);
+        QAbstractTextDocumentLayout::PaintContext ctx;
+        ctx.palette = palette();
+        ctx.cursorPosition = hasFocus() ? textCursor().position() : -1;
+        const QTextCursor cursor = textCursor();
+        if (cursor.hasSelection()) {
+            QAbstractTextDocumentLayout::Selection sel;
+            sel.cursor = cursor;
+            sel.format.setBackground(palette().brush(QPalette::Highlight));
+            sel.format.setForeground(palette().brush(QPalette::HighlightedText));
+            ctx.selections.append(sel);
+        }
+        for (const QTextEdit::ExtraSelection &x : extraSelections()) {
+            QAbstractTextDocumentLayout::Selection sel;
+            sel.cursor = x.cursor;
+            sel.format = x.format;
+            ctx.selections.append(sel);
+        }
+        m_story->documentLayout()->draw(&p, ctx);
+        return true;
+    }
+    case QEvent::MouseButtonPress:
+    case QEvent::MouseButtonDblClick:
+    case QEvent::MouseMove:
+    case QEvent::MouseButtonRelease: {
+        const auto *m = static_cast<QMouseEvent *>(e);
+        const bool left = e->type() == QEvent::MouseMove ? (m->buttons() & Qt::LeftButton) && m_turnDragging : m->button() == Qt::LeftButton;
+        if (!left) return false;
+        if (e->type() == QEvent::MouseButtonRelease) {
+            m_turnDragging = false;
+            return true;
+        }
+        const QPointF at = turnTransform().inverted().map(QPointF(m->position())) - m_turnOrigin;
+        const int position = m_story->documentLayout()->hitTest(at, Qt::FuzzyHit);
+        if (position < 0) return true;
+        QTextCursor c = textCursor();
+        if (e->type() == QEvent::MouseMove) {
+            c.setPosition(position, QTextCursor::KeepAnchor);
+        } else {
+            m_turnDragging = true;
+            setFocus(Qt::MouseFocusReason);
+            c.setPosition(position, (m->modifiers() & Qt::ShiftModifier) && e->type() == QEvent::MouseButtonPress ? QTextCursor::KeepAnchor : QTextCursor::MoveAnchor);
+            if (e->type() == QEvent::MouseButtonDblClick) c.select(QTextCursor::WordUnderCursor);
+        }
+        setTextCursor(c);
+        return true;
+    }
+    default: return false;
     }
 }
 

@@ -36,6 +36,53 @@ private Q_SLOTS:
         QVERIFY(e.changed());
     }
 
+    void wordsTurnedAQuarterAreLaidOutOnTheBoxsHeightAndMouseHitsFollowThem()
+    {
+        QWidget host;
+        host.resize(400, 400);
+        const QString text = QStringLiteral("Hello big world");
+        ShapeTextLook look;
+        look.insets = QMarginsF();
+        {
+            ShapeTextEdit e(&host);
+            e.begin(story(text), QRect(0, 0, 100, 200), look);
+            QCOMPARE(e.story()->textWidth(), 100.0);
+        }
+        // Turned clockwise: the line runs down the box, and its start is at the top (the first line at the right edge).
+        look.quarterTurns = 1;
+        ShapeTextEdit e(&host);
+        e.begin(story(text), QRect(0, 0, 100, 200), look);
+        QCOMPARE(e.story()->textWidth(), 200.0);
+        QTest::mouseClick(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(98, 2));
+        QCOMPARE(e.textCursor().position(), 0);
+        QTest::mouseClick(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(98, 198));
+        QCOMPARE(e.textCursor().position(), int(text.size()));
+        // A drag from the top down selects from the start; the words are not typed across.
+        QTest::mousePress(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(98, 2));
+        QTest::mouseMove(e.viewport(), QPoint(98, 198));
+        QTest::mouseRelease(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(98, 198));
+        QCOMPARE(e.textCursor().selectedText(), text);
+        e.take();
+    }
+
+    void wordsTurnedTheOtherWayStartAtTheBottom()
+    {
+        QWidget host;
+        host.resize(400, 400);
+        const QString text = QStringLiteral("Hello big world");
+        ShapeTextLook look;
+        look.insets = QMarginsF();
+        look.quarterTurns = 3;
+        ShapeTextEdit e(&host);
+        e.begin(story(text), QRect(0, 0, 100, 200), look);
+        QCOMPARE(e.story()->textWidth(), 200.0);
+        QTest::mouseClick(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(2, 198));
+        QCOMPARE(e.textCursor().position(), 0);
+        QTest::mouseClick(e.viewport(), Qt::LeftButton, Qt::NoModifier, QPoint(2, 2));
+        QCOMPARE(e.textCursor().position(), int(text.size()));
+        e.take();
+    }
+
     void escapeLeavesAndKeeps()
     {
         QWidget host;
