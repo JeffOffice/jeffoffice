@@ -8381,6 +8381,34 @@ private Q_SLOTS:
         }
     }
 
+    // A box's style may say the direction in its paragraph properties, where other programs put it, when its graphic properties do not.
+    void aBoxStyleCanSayItsDirectionInItsParagraphPropertiesInAnOdt()
+    {
+        for (const TextDirection direction : {TextDirection::Rotate90, TextDirection::Rotate270}) {
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+            QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Boxed words")}));
+            QVERIFY(setTextBoxDirection(*doc, 0, direction));
+            QString err;
+            const QByteArray odt = doc->toOdt(&err);
+            QVERIFY2(!odt.isEmpty(), qPrintable(err));
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(odt, parts));
+            QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+            static const QRegularExpression inGraphic(QStringLiteral("(<style:graphic-properties[^>]*?) style:writing-mode=\"tb-rl\"( loext:writing-mode=\"bt-lr\")?([^>]*)/>"));
+            QVERIFY(content.contains(inGraphic));
+            content.replace(inGraphic, QStringLiteral("\\1\\3/><style:paragraph-properties style:writing-mode=\"tb-rl\"\\2/>"));
+            parts.insert(QStringLiteral("content.xml"), content.toUtf8());
+            jp::ZipWriter z;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+            auto back = WriteDoc::fromFile(z.finish());
+            QVERIFY(back);
+            QCOMPARE(int(textBoxDirection(*back, 0)), int(direction));
+        }
+    }
+
     void theDirectionOfAShapesWordsIsRead()
     {
         const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "rect", "A", "vert=\"vert270\"", 100, 100, 150, 100) + wordShape(6, "ellipse", "B", "vert=\"vert\"", 100, 250, 150, 100)

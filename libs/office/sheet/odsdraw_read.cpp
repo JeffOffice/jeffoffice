@@ -699,7 +699,13 @@ private:
         const QString v = props.value(QStringLiteral("graphic:draw:textarea-vertical-align"));
         item->valign = v == QLatin1String("middle") ? jp::VAlign::Middle : v == QLatin1String("bottom") ? jp::VAlign::Bottom : jp::VAlign::Top;
         item->noWrap = props.value(QStringLiteral("graphic:fo:wrap-option")) == QLatin1String("no-wrap");
-        const TextDirection direction = textDirectionFromOdf(props.value(QStringLiteral("graphic:style:writing-mode")), props.value(QStringLiteral("graphic:loext:writing-mode")));
+        // (the shape's style may say it in its paragraph properties, where other programs put it, when its graphic properties do not)
+        QString styleMode = props.value(QStringLiteral("graphic:style:writing-mode")), extensionMode = props.value(QStringLiteral("graphic:loext:writing-mode"));
+        if (styleMode.isEmpty() && extensionMode.isEmpty()) {
+            styleMode = props.value(QStringLiteral("para:style:writing-mode"));
+            extensionMode = props.value(QStringLiteral("para:loext:writing-mode"));
+        }
+        const TextDirection direction = textDirectionFromOdf(styleMode, extensionMode);
         item->vertical = direction != TextDirection::Horizontal;
         item->turnedBack = direction == TextDirection::Rotate270;
         p->item = item;

@@ -18,6 +18,7 @@
 #include "wml/wmlmathpath.h"
 
 #include <QDomDocument>
+#include <QRegularExpression>
 #include <QThread>
 
 #include "ole/odfobject.h"
@@ -284,6 +285,43 @@ private Q_SLOTS:
             const QString back = child(child(r.drawing.objects[0].element, "txBody"), "bodyPr").attribute(QStringLiteral("vert"));
             QCOMPARE(back, QLatin1String(c.vert) == QLatin1String("vert") || QLatin1String(c.vert) == QLatin1String("vert270") ? QLatin1String(c.vert) : QString());
         }
+    }
+
+    // The mode may be in the paragraph properties of the shape's own style (where other programs put it) when its graphic properties do not say; a paragraph style of the words is not looked at.
+    void aTextBoxStyleCanSayItsDirectionInItsParagraphProperties()
+    {
+        QString box = textBoxXml(3, QStringLiteral("Note"), QStringLiteral("Check the totals"));
+        box.replace(QStringLiteral("<a:bodyPr wrap=\"square\" rtlCol=\"0\"/>"), QStringLiteral("<a:bodyPr vert=\"vert270\" wrap=\"square\" rtlCol=\"0\"/>"));
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(oneCell(5, 5, 1828800, 457200, box, 20000, 10000)), &s, &why), qPrintable(why));
+        const QString content = QString::fromUtf8(s.parts.value(QStringLiteral("content.xml")));
+        const QRegularExpression styleWithMode(QStringLiteral("(<style:style [^>]*>)((?:(?!</style:style>).)*?)(<style:graphic-properties[^>]*?) style:writing-mode=\"tb-rl\" loext:writing-mode=\"bt-lr\"([^>]*/>)((?:(?!</style:style>).)*)</style:style>"),
+                                               QRegularExpression::DotMatchesEverythingOption);
+        QVERIFY(styleWithMode.match(content).hasMatch());
+        auto readBack = [&](const QString &changed) {
+            QMap<QString, QByteArray> parts = s.parts;
+            parts.insert(QStringLiteral("content.xml"), changed.toUtf8());
+            jp::ZipWriter z;
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+            Read r;
+            QString err;
+            if (!readOds(z.finish(), &r, &err) || r.drawing.objects.size() != 1) return QString::fromLatin1("unread");
+            return child(child(r.drawing.objects[0].element, "txBody"), "bodyPr").attribute(QStringLiteral("vert"));
+        };
+        // (moved to the paragraph properties of the same style)
+        QString moved = content;
+        moved.replace(styleWithMode, QStringLiteral("\\1\\2\\3\\4<style:paragraph-properties style:writing-mode=\"tb-rl\" loext:writing-mode=\"bt-lr\"/>\\5</style:style>"));
+        QVERIFY(moved != content);
+        QCOMPARE(readBack(moved), QStringLiteral("vert270"));
+        // (the graphic properties win when they say; and a paragraph style of the words is not the shape's)
+        QString onWords = content;
+        onWords.replace(styleWithMode, QStringLiteral("\\1\\2\\3\\4\\5</style:style>"));
+        onWords.replace(QStringLiteral("</office:automatic-styles>"), QStringLiteral("<style:style style:name=\"PW\" style:family=\"paragraph\"><style:paragraph-properties style:writing-mode=\"tb-rl\"/></style:style></office:automatic-styles>"));
+        static const QRegularExpression wordsStyle(QStringLiteral("<text:p text:style-name=\"[^\"]*\""));
+        QVERIFY(onWords.contains(wordsStyle));
+        onWords.replace(wordsStyle, QStringLiteral("<text:p text:style-name=\"PW\""));
+        QCOMPARE(readBack(onWords), QString());
     }
 
     // Text Art is a fontwork shape in the .ods: a custom shape with an enhanced geometry that says its words are set along a path. It comes back as Text Art with the same words, font, style, and warp.

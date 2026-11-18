@@ -831,9 +831,13 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
             const qint64 w = lengthToEmu(g("svg:stroke-width"), &okw);
             line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
         }
+        // (the shape's style may say the direction in its paragraph properties, where other programs put it, when its graphic properties do not)
+        const bool inGraphic = !g("style:writing-mode").isEmpty() || !g("loext:writing-mode").isEmpty();
+        const QString modeKey = inGraphic ? QStringLiteral("gr:") : QStringLiteral("para:");
+        const TextDirection boxDirection = textDirectionFromOdf(gp.value(modeKey + QStringLiteral("style:writing-mode")), gp.value(modeKey + QStringLiteral("loext:writing-mode")));
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
                                    num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" + fill + line +
-                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"" + QByteArray(textDirectionVert(textDirectionFromOdf(g("style:writing-mode"), g("loext:writing-mode")))) + "\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
+                                   "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"" + QByteArray(textDirectionVert(boxDirection)) + "\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
                                    "\" rIns=\"" + num(pad("right")) + "\" bIns=\"" + num(pad("bottom")) + "\" anchor=\"t\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
