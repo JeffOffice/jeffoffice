@@ -1132,6 +1132,7 @@ void PageView::setTableTool(TableTool tool)
 {
     if (m_tableTool == tool) return;
     m_tableTool = tool;
+    if (tool != TableTool::None) m_shapeDraw.clear();   // (one tool at a time: an armed shape or box is put down)
     m_toolDrag = ToolDrag();
     m_hoverCursorShape = -1;
     viewport()->setCursor(tool == TableTool::None ? Qt::IBeamCursor : Qt::CrossCursor);

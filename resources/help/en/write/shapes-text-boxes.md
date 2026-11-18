@@ -24,7 +24,7 @@ Or click **Insert > Text Box** and pick a design.
 - **Banner** is a dark bar across the page with light words.
 - **Note** is a pale yellow box.
 
-To turn the words, select the text box and click **Shape Format > Text Direction**. **Horizontal** is the usual way. **Rotate all text 90°** runs the words down the box, and **Rotate all text 270°** runs them up. The box keeps its size, the words are set again, and the change is one step to undo. A box that is linked to another keeps its link.
+To turn the words, select the text box and click **Shape Format > Text Direction**. **Horizontal** is the usual way. **Rotate all text 90°** runs the words down the box, and **Rotate all text 270°** runs them up. The box keeps its size, the words are set again, and the change is one step to undo. A box that is linked to another keeps its link. A document saved as an .odt file keeps the words of the box, but not the direction they run.
 
 To change the words, select the text box and click **Shape Format > Edit Text**. Type the words. Each line you type is a paragraph. The window can edit a text box that holds only words. If a box holds a table, a picture, or a list, the command is off, and the box is kept just as it was.
 

@@ -7605,7 +7605,10 @@ private Q_SLOTS:
             return at;
         };
         // A shape, then a box, then a shape in a row: no state is left over from one for the next.
+        QVERIFY(!win.w.view()->drawingShape());
         draw->trigger();
+        QVERIFY(win.w.view()->drawingShape());
+        QCOMPARE(vp->cursor().shape(), Qt::CrossCursor);
         win.w.view()->beginShapeDraw(QStringLiteral("rect"));
         QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, viewAt(150.3, 150.3));
         QTest::mouseMove(vp, viewAt(200, 180));
@@ -7795,24 +7798,194 @@ private Q_SLOTS:
         QVERIFY(!xml.contains("layout-flow") && xml.contains("mso-fit-shape-to-text:t") && xml.contains("BOXTEXT"));
     }
 
-    void theDirectionOfATextBoxIsKeptByTheOdtOrItsGapIsRecordedAndNothingCrashes()
+    void aSingleQuotedBodyAttributeIsReadAndSetInPlaceWithoutASecondOne()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "rect", "A", "vert='vert270' wrap='none'", 100, 100, 150, 100) + "</w:p>";
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QCOMPARE(int(textBoxDirection(*doc, 6)), int(TextDirection::Rotate270));
+        QVERIFY(setTextBoxDirection(*doc, 6, TextDirection::Rotate90));
+        const QByteArray xml = documentXml(doc->toDocx());
+        QCOMPARE(xml.count("vert="), 1);
+        QVERIFY2(xml.contains("wrap='none'"), xml.constData());
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(int(textBoxDirection(*again, 6)), int(TextDirection::Rotate90));
+    }
+
+    void aSingleQuotedStyleOfAnOlderFormatBoxIsReadAndSetInPlaceWithoutASecondOne()
+    {
+        const QByteArray vml = "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + vml + "><v:rect id=\"t\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:120pt;height:40pt;z-index:3\">"
+                                 "<v:textbox inset=\"0,0,0,0\" style='mso-fit-shape-to-text:t;layout-flow:vertical'><w:txbxContent><w:p><w:r><w:t>BOXTEXT</w:t></w:r></w:p></w:txbxContent></v:textbox></v:rect></w:pict></w:r></w:p>"));
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (doc->story()->characterAt(i) == QChar::ObjectReplacementCharacter) at = i;
+        QVERIFY(at >= 0);
+        QCOMPARE(int(textBoxDirection(*doc, at)), int(TextDirection::Rotate90));
+        QVERIFY(setTextBoxDirection(*doc, at, TextDirection::Rotate270));
+        const QByteArray xml = documentXml(doc->toDocx());
+        const qsizetype tag = xml.indexOf("<v:textbox");
+        const QByteArray textbox = xml.mid(tag, xml.indexOf('>', tag) - tag);
+        QVERIFY2(textbox.count("style=") == 1 && textbox.contains("mso-layout-flow-alt:bottom-to-top") && textbox.contains("mso-fit-shape-to-text:t"), textbox.constData());
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QCOMPARE(int(textBoxDirection(*again, at)), int(TextDirection::Rotate270));
+    }
+
+    void aBoxMadeByDrawingThenTurnedIsSavedAndReopenedTurned()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertTextBoxAt(*doc, c, QPointF(100, 100), QPointF(220, 160)), PictureResult::Ok);
+        QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Turned")}));
+        QVERIFY(setTextBoxDirection(*doc, 0, TextDirection::Rotate270));
+        const QByteArray saved = doc->toDocx();
+        auto again = open(saved);
+        QVERIFY(again);
+        QCOMPARE(int(textBoxDirection(*again, 0)), int(TextDirection::Rotate270));
+        QCOMPARE(textBoxText(*again, 0)->join(QLatin1Char('|')), QStringLiteral("Turned"));
+        const PictureInfo info = pictureAt(*again, again->story(), 0);
+        QVERIFY(std::abs(info.width - 120) < 0.5 && std::abs(info.height - 60) < 0.5);
+    }
+
+    void hostileDirectionValuesAreReadWithoutACrashAndSettingOneLeavesOneAttribute()
+    {
+        const QByteArrayList values = {"eaVert", "wordArtVert", "mongolianVert", "garbage", ""};
+        for (const QByteArray &value : values) {
+            const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "rect", "A", "vert=\"" + value + "\"", 100, 100, 150, 100) + "</w:p>";
+            auto doc = open(makeDocx(body));
+            QVERIFY2(doc, value.constData());
+            const TextDirection read = textBoxDirection(*doc, 6);
+            QVERIFY(read == TextDirection::Horizontal || read == TextDirection::Rotate90 || read == TextDirection::Rotate270);
+            QVERIFY2(setTextBoxDirection(*doc, 6, TextDirection::Rotate270), value.constData());
+            QCOMPARE(int(textBoxDirection(*doc, 6)), int(TextDirection::Rotate270));
+            const QByteArray xml = documentXml(doc->toDocx());
+            QVERIFY2(xml.count("vert=") == 1, value.constData());
+        }
+    }
+
+    void aDragOfTwoPointsHighStillMakesABoxThatHoldsALine()
+    {
+        const auto ends = textBoxDragEnds(QPointF(100, 100), QPointF(300, 102), false);
+        QCOMPARE(ends.second.x() - ends.first.x(), 200.0);
+        QCOMPARE(ends.second.y() - ends.first.y(), 18.0);
+        const auto up = textBoxDragEnds(QPointF(100, 100), QPointF(98, 40), false);
+        QCOMPARE(up.second.x() - up.first.x(), 18.0);
+        QCOMPARE(up.first.y(), 40.0);
+        QCOMPARE(up.second.y(), 100.0);
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertTextBoxAt(*doc, c, QPointF(100, 100), QPointF(300, 102)), PictureResult::Ok);
+        QCOMPARE(pictureAt(*doc, doc->story(), 0).height, 18.0);
+        // (Under four points either way is still a click.)
+        const auto click = textBoxDragEnds(QPointF(100, 100), QPointF(102, 101), false);
+        QCOMPARE(click.second.x() - click.first.x(), textBoxDesigns().first().size.width());
+    }
+
+    void theDrawPreviewOfATextBoxIsTheSizeTheBoxIsPutInAt()
+    {
+        const QPointF from(100, 120);
+        const auto preview = shapeDragEnds(QStringLiteral("textbox"), from, from + QPointF(1, 1), false);
+        const auto made = textBoxDragEnds(from, from + QPointF(1, 1), false);
+        QCOMPARE(preview.first, made.first);
+        QCOMPARE(preview.second, made.second);
+        const auto dragged = shapeDragEnds(QStringLiteral("textbox"), from, from + QPointF(200, 2), false);
+        QCOMPARE(dragged.second.y() - dragged.first.y(), 18.0);
+    }
+
+    void aDirectionOnABoxOfTheOlderFormatWithNoWordsIsRefusedAndRecordsNothing()
+    {
+        const QByteArray vml = "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + vml + "><v:rect id=\"t\" style=\"position:absolute;margin-left:10pt;margin-top:5pt;width:120pt;height:40pt;z-index:3\"/></w:pict></w:r></w:p>"));
+        QVERIFY(doc);
+        int at = -1;
+        for (int i = 0; i < doc->story()->characterCount(); ++i)
+            if (doc->story()->characterAt(i) == QChar::ObjectReplacementCharacter) at = i;
+        QVERIFY(at >= 0);
+        const quint64 serial = doc->nextStepSerial();
+        QVERIFY(!setTextBoxDirection(*doc, at, TextDirection::Rotate90));
+        QCOMPARE(doc->nextStepSerial(), serial);
+        QCOMPARE(int(textBoxDirection(*doc, at)), int(TextDirection::Horizontal));
+    }
+
+    void pickingDrawTableWhileDrawTextBoxIsArmedPutsTheBoxToolDown()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        QWidget *vp = win.w.view()->viewport();
+        const double s = win.w.view()->zoom() * 96.0 / 72.0;
+        const QPointF origin = pageOrigin();
+        auto viewAt = [&](double x, double y) { return (origin + QPointF(x * s, y * s)).toPoint(); };
+        win.w.act(QStringLiteral("insert.textBox.draw"))->trigger();
+        QVERIFY(win.w.view()->drawingShape());
+        win.w.view()->setTableTool(PageView::TableTool::Draw);
+        QVERIFY(!win.w.view()->drawingShape());
+        QCOMPARE(vp->cursor().shape(), Qt::CrossCursor);
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, viewAt(150.3, 300.3));
+        QTest::mouseMove(vp, viewAt(200, 330));
+        QTest::mouseMove(vp, viewAt(300.3, 360.3));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, viewAt(300.3, 360.3));
+        for (int i = 0; i < doc->story()->characterCount(); ++i) QVERIFY(!isDrawnObjectAt(doc->story(), i));
+        QVERIFY(documentXml(doc->toDocx()).contains("<w:tbl>"));
+    }
+
+    void aTurnedBoxIsTypedInTurnedAndItsEditorLaysOutOnTheBoxsHeight()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertTextBoxAt(*doc, c, QPointF(100, 100), QPointF(160, 300)), PictureResult::Ok);
+        QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Turned words")}));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        ShapeTextEdit *flat = (QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2), win.w.view()->shapeEditor());
+        QVERIFY(flat);
+        QVERIFY(flat->story()->textWidth() < flat->width());
+        win.w.view()->endShapeTextEdit(false);
+        QVERIFY(setTextBoxDirection(*doc, 0, TextDirection::Rotate90));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2);
+        ShapeTextEdit *edit = win.w.view()->shapeEditor();
+        QVERIFY(edit);
+        QVERIFY(edit->height() > edit->width());
+        QVERIFY(edit->story()->textWidth() > edit->width());
+        win.w.view()->endShapeTextEdit(false);
+        QVERIFY(setTextBoxDirection(*doc, 0, TextDirection::Rotate270));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_F2);
+        edit = win.w.view()->shapeEditor();
+        QVERIFY(edit);
+        QVERIFY(edit->story()->textWidth() > edit->width());
+        win.w.view()->endShapeTextEdit(false);
+    }
+
+    void aTextBoxKeepsItsWordsButNotItsDirectionInAnOdt()
     {
         auto doc = textDoc({"Before after"});
         QTextCursor c(doc->story());
         c.setPosition(0);
         QCOMPARE(insertTextBox(*doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        QVERIFY(setTextBoxText(*doc, 0, {QStringLiteral("Boxed words")}));
         QVERIFY(setTextBoxDirection(*doc, 0, TextDirection::Rotate90));
         QString err;
         const QByteArray odt = doc->toOdt(&err);
         QVERIFY2(!odt.isEmpty(), qPrintable(err));
         auto back = WriteDoc::fromFile(odt);
         QVERIFY(back);
-        const PictureInfo info = pictureAt(*back, back->story(), 0);
-        QVERIFY(info.valid);
-        // (Known gap if it reads back across: the .odt writer is not changed in this branch, so the words may come back across; either way the box is kept.)
-        const TextDirection kept = textBoxDirection(*back, 0);
-        QVERIFY(kept == TextDirection::Rotate90 || kept == TextDirection::Horizontal);
-        if (kept != TextDirection::Rotate90) qInfo("odt gap: a text box's direction is not kept by the .odt writer");
+        QVERIFY(pictureAt(*back, back->story(), 0).valid);
+        const auto words = textBoxText(*back, 0);
+        QVERIFY(words.has_value());
+        QCOMPARE(words->join(QLatin1Char('|')), QStringLiteral("Boxed words"));
+        // (The .odt writer does not write a box's direction: it comes back across. The help page says so.)
+        QCOMPARE(int(textBoxDirection(*back, 0)), int(TextDirection::Horizontal));
     }
 
     void theDirectionOfAShapesWordsIsRead()

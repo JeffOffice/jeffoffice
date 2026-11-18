@@ -9,6 +9,7 @@
 #include "core/barcodeitem.h"
 #include "app/iconpicker.h"
 #include "core/editops.h"
+#include "core/textboxops.h"
 #include "app/compresspictures.h"
 #include "office/barcodemarker.h"
 #include "office/chart.h"
@@ -2145,6 +2146,7 @@ bool isLinePreset(const QString &preset)
 
 std::pair<QPointF, QPointF> shapeDragEnds(const QString &preset, const QPointF &from, const QPointF &to, bool keepProportions)
 {
+    if (preset == QLatin1String("textbox")) return textBoxDragEnds(from, to, keepProportions);   // (the box is put in at its own design's size)
     const bool line = isLinePreset(preset);
     if (!std::isfinite(from.x()) || !std::isfinite(from.y()) || !std::isfinite(to.x()) || !std::isfinite(to.y())) return {from, from};
     QPointF d = to - from;

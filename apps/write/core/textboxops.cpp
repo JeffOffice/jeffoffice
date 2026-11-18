@@ -8,7 +8,6 @@
 #include "wml/wml.h"
 
 #include <QCoreApplication>
-#include <QRegularExpression>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -33,6 +32,9 @@ std::pair<QPointF, QPointF> textBoxDragEnds(const QPointF &from, const QPointF &
         const double side = std::max(std::abs(d.x()), std::abs(d.y()));
         d = QPointF(d.x() < 0 ? -side : side, d.y() < 0 ? -side : side);
     }
+    // (A box that can hold a line: at least 18 points each way.)
+    auto atLeast = [](double v) { return std::abs(v) < 18 ? (v < 0 ? -18.0 : 18.0) : v; };
+    d = QPointF(atLeast(d.x()), atLeast(d.y()));
     const QPointF end = from + d;
     return {QPointF(std::min(from.x(), end.x()), std::min(from.y(), end.y())), QPointF(std::max(from.x(), end.x()), std::max(from.y(), end.y()))};
 }
@@ -142,15 +144,36 @@ Tag ownBodyTag(const QByteArray &x)
 
 const char *vertWord(TextDirection d) { return d == TextDirection::Rotate90 ? "vert" : d == TextDirection::Rotate270 ? "vert270" : "horz"; }
 
-// The value of an attribute in a start tag (empty if none).
-QByteArray attributeIn(const QByteArray &tag, const QByteArray &name)
+// An attribute of the start tag [tagBegin, tagEnd], either quoted way: where its value is, or valueBegin -1 for none.
+struct Attr {
+    qsizetype valueBegin = -1, valueEnd = -1;
+    char quote = 0;
+};
+
+Attr findAttr(const QByteArray &x, qsizetype tagBegin, qsizetype tagEnd, const QByteArray &name)
 {
-    static const QRegularExpression any(QStringLiteral("\\s([A-Za-z:]+)=\"([^\"]*)\""));
-    const QString text = QString::fromUtf8(tag);
-    auto it = any.globalMatch(text);
-    while (it.hasNext()) {
-        const auto m = it.next();
-        if (m.captured(1).toUtf8() == name) return m.captured(2).toUtf8();
+    auto space = [](char ch) { return ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n'; };
+    qsizetype i = tagBegin + 1;
+    while (i < tagEnd && !space(x[i]) && x[i] != '/' && x[i] != '>') ++i;
+    while (i < tagEnd) {
+        while (i < tagEnd && space(x[i])) ++i;
+        const qsizetype nameBegin = i;
+        while (i < tagEnd && !space(x[i]) && x[i] != '=' && x[i] != '/' && x[i] != '>') ++i;
+        if (i == nameBegin) {
+            ++i;
+            continue;
+        }
+        const QByteArray found = x.mid(nameBegin, i - nameBegin);
+        while (i < tagEnd && space(x[i])) ++i;
+        if (i >= tagEnd || x[i] != '=') continue;
+        ++i;
+        while (i < tagEnd && space(x[i])) ++i;
+        if (i >= tagEnd || (x[i] != '"' && x[i] != '\'')) continue;
+        const char quote = x[i];
+        const qsizetype end = x.indexOf(quote, i + 1);
+        if (end < 0 || end > tagEnd) return {};
+        if (found == name) return {i + 1, end, quote};
+        i = end + 1;
     }
     return {};
 }
@@ -159,13 +182,15 @@ TextDirection directionOfDrawing(const QByteArray &raw)
 {
     const Tag t = ownBodyTag(raw);
     if (t.begin < 0 || t.end < 0) return TextDirection::Horizontal;
-    const QByteArray v = attributeIn(raw.mid(t.begin, t.end - t.begin + 1), "vert");
+    const Attr a = findAttr(raw, t.begin, t.end, "vert");
+    const QByteArray v = a.valueBegin >= 0 ? raw.mid(a.valueBegin, a.valueEnd - a.valueBegin) : QByteArray();
     return v == "vert270" ? TextDirection::Rotate270 : v == "vert" || v == "eaVert" ? TextDirection::Rotate90 : TextDirection::Horizontal;
 }
 
 // A box of the older format: its words' style says how they flow (layout-flow, and mso-layout-flow-alt for the turn the other way).
 struct Flow {
-    qsizetype begin = -1, end = -1;   // the value of the style attribute of v:textbox
+    qsizetype begin = -1, end = -1;   // the value of the style attribute of v:textbox (or, with none, where one goes)
+    bool has = false;
 };
 
 Flow flowStyle(const QByteArray &raw)
@@ -174,9 +199,9 @@ Flow flowStyle(const QByteArray &raw)
     if (tag < 0) return {};
     const qsizetype close = endOfTag(raw, tag);
     if (close < 0) return {};
-    const qsizetype style = raw.indexOf(" style=\"", tag);
-    if (style < 0 || style > close) return {tag + 10, tag + 10};
-    return {style + 8, raw.indexOf('"', style + 8)};
+    const Attr a = findAttr(raw, tag, close, "style");
+    if (a.valueBegin < 0) return {tag + 10, tag + 10, false};
+    return {a.valueBegin, a.valueEnd, true};
 }
 
 TextDirection directionOfPict(const QByteArray &raw)
@@ -192,15 +217,15 @@ QByteArray pictWithDirection(const QByteArray &raw, TextDirection d)
 {
     const Flow f = flowStyle(raw);
     if (f.begin < 0) return raw;
-    const bool had = f.end > f.begin || raw.mid(f.begin - 8, 8) == " style=\"";
     QStringList keep;
-    if (f.end > f.begin)
+    if (f.has)
         for (const QString &part : QString::fromUtf8(raw.mid(f.begin, f.end - f.begin)).split(QLatin1Char(';'), Qt::SkipEmptyParts))
             if (!part.trimmed().startsWith(QLatin1String("layout-flow")) && !part.trimmed().startsWith(QLatin1String("mso-layout-flow-alt"))) keep << part.trimmed();
     if (d != TextDirection::Horizontal) keep << QStringLiteral("layout-flow:vertical");
     if (d == TextDirection::Rotate270) keep << QStringLiteral("mso-layout-flow-alt:bottom-to-top");
     const QByteArray style = keep.join(QLatin1Char(';')).toUtf8();
-    if (had) return raw.left(f.begin) + style + raw.mid(f.end);
+    if (f.has) return raw.left(f.begin) + style + raw.mid(f.end);
+    if (style.isEmpty()) return raw;
     return raw.left(f.begin) + " style=\"" + style + "\"" + raw.mid(f.begin);
 }
 
@@ -214,14 +239,9 @@ QByteArray drawingWithDirection(const QByteArray &raw, TextDirection d)
         return raw.left(wsp) + "<wps:bodyPr vert=\"" + value + "\"/>" + raw.mid(wsp);
     }
     if (t.end < 0) return raw;
-    const QByteArray tag = raw.mid(t.begin, t.end - t.begin + 1);
-    static const QRegularExpression has(QStringLiteral("\\svert=\"[^\"]*\""));
-    const QString text = QString::fromUtf8(tag);
-    const QRegularExpressionMatch m = has.match(text);
-    QString out = text;
-    if (m.hasMatch()) out.replace(m.capturedStart(), m.capturedLength(), QStringLiteral(" vert=\"%1\"").arg(QString::fromLatin1(value)));
-    else out.insert(11, QStringLiteral(" vert=\"%1\"").arg(QString::fromLatin1(value)));
-    return raw.left(t.begin) + out.toUtf8() + raw.mid(t.end + 1);
+    const Attr a = findAttr(raw, t.begin, t.end, "vert");
+    if (a.valueBegin >= 0) return raw.left(a.valueBegin) + value + raw.mid(a.valueEnd);
+    return raw.left(t.begin + 11) + " vert=\"" + value + "\"" + raw.mid(t.begin + 11);
 }
 
 } // namespace
@@ -243,7 +263,9 @@ bool setTextBoxDirection(WriteDoc &doc, int position, TextDirection direction)
     const bool pict = atom.tag == QLatin1String("pict");
     if ((pict ? directionOfPict(atom.raw) : directionOfDrawing(atom.raw)) == direction) return false;
     if (!pict && !atom.raw.contains("<wps:wsp")) return false;
+    const QByteArray before = atom.raw;
     atom.raw = pict ? pictWithDirection(atom.raw, direction) : drawingWithDirection(atom.raw, direction);
+    if (atom.raw == before) return false;   // (nothing in it takes a direction: no step)
     QTextCharFormat cf = charFormatAt(story, position);
     cf.clearProperty(flow::fp::AnchorId);
     cf.clearProperty(tp::InlineObject);
