@@ -791,7 +791,7 @@
         },
         {
          "status": "todo",
-         "text": "a93e4681d33691014cf0795349be350b2def1360efd43b7f2c9153b56dec3eb9"
+         "text": "e086fc1ae61af787099318570591c67b44c802adcac915f5c6fc2f877ed5170d"
         }
        ]
       },
@@ -3049,7 +3049,7 @@
         },
         {
          "status": "partly",
-         "text": "c5a077f672b633645b3b4f22c4c2278544438ad4c844d3ebca10102b95b788dd"
+         "text": "1d2223e4bb4cba50ff668f9f3605303a738d062a3d85364aa5ff7424281fffd2"
         }
        ]
       },
@@ -6304,7 +6304,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "cb1918004f1fcfac5d072c7333a0f75831a8a2061baed34df8f3fe5126be9c22"
+         "text": "dfc887e0cca47eb66d040b98c2f5f83bd52293da45be4a52ba1332a82a4e1d80"
         },
         {
          "status": "partly",
@@ -6447,7 +6447,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "1d2698a850fc71fb45fd985129cde4481d84a9d6de3fb6c9a7a3033bbf8938ad"
+         "text": "a5d7a639e6bd2e77b106847c002931d748663bdfce2a38217f302df9f8e4e8db"
         },
         {
          "status": "partly",
@@ -9702,16 +9702,16 @@
     "fr": ""
    }
   },
-  "1d2698a850fc71fb45fd985129cde4481d84a9d6de3fb6c9a7a3033bbf8938ad": {
+  "1d2223e4bb4cba50ff668f9f3605303a738d062a3d85364aa5ff7424281fffd2": {
    "drop": false,
-   "en": "Set a picture’s text wrap to in line with text, square, tight, top and bottom, behind text, or in front of text. Tight and through wrap outlines are read, laid out, and saved.",
-   "es": "Establezca el ajuste de texto de una imagen: en línea con el texto, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto. Los contornos de ajuste estrecho y a través se leen, se aplican y se guardan.",
-   "fr": "Réglez l’habillage d’une image : aligné sur le texte, carré, rapproché, haut et bas, derrière le texte ou devant le texte. Les contours d’habillage rapproché et traversant sont lus, appliqués et enregistrés.",
+   "en": "An embedded object in a file is kept as a frame and shown as its saved picture. In an `.odp` file, embedded objects of other kinds are kept with all their parts and written back as they were.",
+   "es": "Un objeto incrustado en un archivo se conserva como un marco y se muestra como su imagen guardada. En un archivo `.odp`, los objetos incrustados de otros tipos se conservan con todas sus partes y se vuelven a escribir tal como estaban.",
+   "fr": "Un objet incorporé dans un fichier est conservé sous forme de cadre et affiché sous la forme de son image enregistrée. Dans un fichier `.odp`, les objets incorporés d’autres types sont conservés avec toutes leurs parties et réécrits tels quels.",
    "soon": {
     "drop": false,
-    "en": "Wrap Text for shapes and text boxes",
-    "es": "Ajuste de texto para formas y cuadros de texto",
-    "fr": "Habillage du texte pour les formes et les zones de texte"
+    "en": "Object: open an embedded object",
+    "es": "Objeto: abrir un objeto incrustado",
+    "fr": "Objet : ouvrir un objet incorporé"
    }
   },
   "1d45741a0b38459a182cfbd49012dc3aa791410e3bb7b84d5f25c468e8beae2b": {
@@ -19722,6 +19722,18 @@
     "fr": "Raccourcis clavier pour les blocs de construction"
    }
   },
+  "a5d7a639e6bd2e77b106847c002931d748663bdfce2a38217f302df9f8e4e8db": {
+   "drop": false,
+   "en": "Set a picture's wrap to in line with text, square, tight, top and bottom, behind text, or in front of text in one step. Square, tight, and top-and-bottom wraps from files are laid out with their distances, and tight wrap outlines are read, laid out, and saved. Choosing Tight on a shape, a picture cut to a shape, or a picture with transparency starts the outline from what is shown, and Edit Wrap Points starts from it.",
+   "es": "Establezca el ajuste de una imagen en alineado con el texto, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto en un solo paso. Los ajustes cuadrado, estrecho y superior e inferior de los archivos se distribuyen con sus distancias, y los contornos de ajuste estrecho se leen, se distribuyen y se guardan. Al elegir Estrecho en una forma, en una imagen recortada con una forma o en una imagen con transparencia, el contorno parte de lo que se muestra, y Editar puntos de ajuste parte de él.",
+   "fr": "Réglez l’habillage d’une image sur aligné sur le texte, carré, rapproché, haut et bas, derrière le texte ou devant le texte en une seule étape. Les habillages carré, rapproché et haut et bas des fichiers sont mis en page avec leurs distances, et les contours d’habillage rapproché sont lus, mis en page et enregistrés. Choisir Rapproché sur une forme, une image découpée en forme ou une image avec transparence part de ce qui est affiché, et Modifier les points d’habillage part de ce contour.",
+   "soon": {
+    "drop": false,
+    "en": "Wrap options: allow overlap, layout in table cells, and mirrored margins; wrap for text boxes with their own shape",
+    "es": "Opciones de ajuste: permitir superposición, diseño en celdas de tabla y márgenes simétricos; ajuste para cuadros de texto con forma propia",
+    "fr": "Options d’habillage : autoriser le chevauchement, mise en page dans les cellules de tableau et marges en miroir ; habillage des zones de texte ayant leur propre forme"
+   }
+  },
   "a5da13cab92a9f3c7da3d5dda5a79da7077e3cf96e0d62535ce25c0790f444bf": {
    "drop": false,
    "en": "Older binary `.ppt`, `.pps`, and `.pot`",
@@ -19948,18 +19960,6 @@
     "en": "Save as `.docm` and `.dotm` with macros kept",
     "es": "Guardar como `.docm` y `.dotm` conservando las macros",
     "fr": "Enregistrement en `.docm` et `.dotm` avec conservation des macros"
-   }
-  },
-  "a93e4681d33691014cf0795349be350b2def1360efd43b7f2c9153b56dec3eb9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Object: embedded objects from other programs, shown as a picture and opened in their own program",
-    "es": "Objeto: objetos incrustados de otros programas, mostrados como imagen y abiertos en su propio programa",
-    "fr": "Objet : objets incorporés d’autres programmes, affichés sous forme d’image et ouverts dans leur propre programme"
    }
   },
   "a94eb9b5bc8284fbf01725609e29d995d5d47d23927fd478235245ce0537e0e7": {
@@ -21690,18 +21690,6 @@
     "fr": ""
    }
   },
-  "c5a077f672b633645b3b4f22c4c2278544438ad4c844d3ebca10102b95b788dd": {
-   "drop": false,
-   "en": "An embedded object from another program in a file is kept as a frame and shows its saved picture.",
-   "es": "Un objeto incrustado de otro programa en un archivo se conserva como un marco y muestra su imagen guardada.",
-   "fr": "Un objet incorporé provenant d’un autre programme dans un fichier est conservé sous forme de cadre et affiche son image enregistrée.",
-   "soon": {
-    "drop": false,
-    "en": "Embedded objects: open and edit",
-    "es": "Objetos incrustados: abrir y editar",
-    "fr": "Objets incorporés : ouvrir et modifier"
-   }
-  },
   "c5cacad83e3520c8ce1d02dbe3c1e961d045f6ccaf861de085e9a4437d3149f7": {
    "drop": false,
    "en": "Options has General and Proofing pages. General covers user name and initials, light or dark interface, display language, usage statistics (opt in), and update checks.",
@@ -22168,18 +22156,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "cb1918004f1fcfac5d072c7333a0f75831a8a2061baed34df8f3fe5126be9c22": {
-   "drop": false,
-   "en": "Insert a text box at the caret with its fill, outline, insets, and wrap, and change its words, fill, outline, wrap, and size from the Shape Format tab. Text boxes in a file are drawn with their fill, outline, and insets, and shapes with words keep their shape, anchoring, and text direction.",
-   "es": "Inserte un cuadro de texto en el punto de inserción con su relleno, contorno, márgenes interiores y ajuste, y cambie sus palabras, relleno, contorno, ajuste y tamaño desde la pestaña Formato de forma. Los cuadros de texto de un archivo se dibujan con su relleno, contorno y márgenes interiores, y las formas con texto conservan su forma, anclaje y dirección del texto.",
-   "fr": "Insérez une zone de texte au point d’insertion avec son remplissage, son contour, ses marges internes et son habillage, puis modifiez ses mots, son remplissage, son contour, son habillage et sa taille depuis l’onglet Format de la forme. Les zones de texte d’un fichier sont dessinées avec leur remplissage, leur contour et leurs marges internes, et les formes contenant du texte conservent leur forme, leur ancrage et leur direction du texte.",
-   "soon": {
-    "drop": false,
-    "en": "Text boxes: draw with the mouse, set a vertical direction, and link boxes",
-    "es": "Cuadros de texto: dibujar con el ratón, definir dirección vertical y vincular cuadros",
-    "fr": "Zones de texte : dessiner à la souris, définir une direction verticale et lier des zones"
    }
   },
   "cb853a0d5adab0f0922757bab82aa5d49b4eb2f7d12bae03ef8b1885772e7fbb": {
@@ -23646,6 +23622,18 @@
     "fr": ""
    }
   },
+  "dfc887e0cca47eb66d040b98c2f5f83bd52293da45be4a52ba1332a82a4e1d80": {
+   "drop": false,
+   "en": "Insert a text box with a fill, outline, insets, and wrap, draw it with the mouse, and set its text direction to horizontal or rotated 90 or 270 degrees. Edit its text, and set its fill, outline, wrap, and size on the Shape Format tab. Shapes with text from a file keep their shape, and their text follows the outline.",
+   "es": "Inserte un cuadro de texto con relleno, contorno, márgenes interiores y ajuste, dibújelo con el mouse y establezca la dirección del texto en horizontal o girada 90 o 270 grados. Edite su texto y establezca su relleno, contorno, ajuste y tamaño en la pestaña Formato de forma. Las formas con texto de un archivo conservan su forma y el texto sigue el contorno.",
+   "fr": "Insérez une zone de texte avec remplissage, contour, marges intérieures et habillage, dessinez-la à la souris et réglez la direction du texte en horizontal ou pivoté de 90 ou 270 degrés. Modifiez son texte et réglez son remplissage, son contour, son habillage et sa taille dans l’onglet Format de la forme. Les formes contenant du texte provenant d’un fichier conservent leur forme et le texte suit le contour.",
+   "soon": {
+    "drop": false,
+    "en": "Linked text boxes: text continues from one box to the next",
+    "es": "Cuadros de texto vinculados: el texto continúa de un cuadro al siguiente",
+    "fr": "Zones de texte liées : le texte continue d’une zone à la suivante"
+   }
+  },
   "dfd1f09d255d29171974f5271ab08c89a677c21bf1a490e734c9dba5888e8d1e": {
    "drop": false,
    "en": "Press `Tab` to move between cells; pressing `Tab` in the last cell adds a row.",
@@ -23680,6 +23668,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e086fc1ae61af787099318570591c67b44c802adcac915f5c6fc2f877ed5170d": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Object: an embedded object from another program, shown as its saved picture and opened in its own program",
+    "es": "Objeto: un objeto incrustado de otro programa, mostrado como su imagen guardada y abierto en su propio programa",
+    "fr": "Objet : un objet incorporé d’un autre programme, affiché sous la forme de son image enregistrée et ouvert dans son propre programme"
    }
   },
   "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f": {
