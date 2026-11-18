@@ -234,6 +234,35 @@ private Q_SLOTS:
         }
     }
 
+    void aTurnedBackBoxThatIsItselfRotatedKeepsBothInAPubFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        MainWindow w;
+        w.editor()->setDocument(oneSlide());
+        Editor *ed = w.editor();
+        ed->addItem(ed->newTextBox(QRectF(100, 100, 60, 300), QStringLiteral("Hello turned")));
+        TextItem *box = textBoxOf(ed);
+        QVERIFY(box);
+        ed->change(QStringLiteral("Text Direction"), [&] {
+            box->setDirection(TextDirection::Rotate270);
+            box->rotation = 30;
+        });
+        QString err;
+        std::unique_ptr<Document> doc;
+        for (int round = 0; round < 2; ++round) {   // (and again: what is read is written as it was)
+            const QString file = dir.filePath(QStringLiteral("r%1.pub").arg(round));
+            QVERIFY2(jp::exportPublisher(round ? *doc : *ed->doc(), file, &err), qPrintable(err));
+            doc = jp::importPublisherFile(file, &err);
+            QVERIFY2(doc, qPrintable(err));
+            const TextItem *got = firstTextBox(*doc);
+            QVERIFY(got);
+            QVERIFY(got->vertical);
+            QVERIFY(got->turnedBack);
+            QVERIFY2(std::abs(got->rotation - 30) < 0.5, qPrintable(QString::number(got->rotation)));
+        }
+    }
+
     void aClickNearTheStartOfTurnedWordsPutsTheCaretAtTheStart()
     {
         MainWindow w;
