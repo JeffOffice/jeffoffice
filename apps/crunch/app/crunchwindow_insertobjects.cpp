@@ -113,6 +113,8 @@ void CrunchWindow::createInsertObjectActions()
         m_opsActions << QString::fromLatin1(k.id);
     }
     mk("insert.textBox", tr("Text Box"), "type", QKeySequence(), [this] { insertTextBox(); });
+    mk("insert.textBox.draw", tr("Draw Text Box"), "text-cursor-input", QKeySequence(), [this] { armTextBoxDraw(); });
+    m_opsActions << QStringLiteral("insert.textBox.draw");
     m_opsActions << QStringLiteral("insert.textBox");
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(), [this] { insertEquationDialog(); });
     m_opsActions << QStringLiteral("insert.equation");
@@ -219,6 +221,7 @@ bool CrunchWindow::placeObjectClip(const crunch::ObjectClip &clip, const QString
     if (!m_session || !m_objects || m_chartSheetShown) return false;
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return false;
+    m_objects->layer()->armBox(false);
     const DrawingAnchor anchor = at ? *at : newObjectAnchor(clip.width, clip.height);
     QString why;
     const int id = m_objects->makeElement(m_sheet, clip, anchor, &why);
@@ -804,6 +807,38 @@ bool CrunchWindow::insertTextBox()
     clip.height = 48;
     clip.elementXml = shapeXml(QStringLiteral("rect"), clip.width, clip.height, true);
     if (!placeObjectClip(clip, tr("Insert Text Box"))) return false;
+    setStatus(tr("Text box inserted"));
+    return true;
+}
+
+void CrunchWindow::armTextBoxDraw()
+{
+    if (!m_session || !m_objects || !m_view || m_chartSheetShown || !editingAllowed()) return;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active) return;
+    if (m_shapeEditor) endShapeTextEdit(true);
+    m_objects->layer()->armBox(true);
+    m_view->setFocus(Qt::OtherFocusReason);
+    setStatus(tr("Drag on the sheet to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops."));
+}
+
+// The box a drag drew (the grid's units): a text box of that size, at that place, as one step of Undo.
+bool CrunchWindow::drawTextBox(const QRectF &box)
+{
+    if (!m_session || !m_objects || m_chartSheetShown || box.width() < 1 || box.height() < 1) return false;
+    crunch::ObjectClip clip;
+    clip.kind = QStringLiteral("shape");
+    clip.width = std::min(box.width(), 4000.0);
+    clip.height = std::min(box.height(), 2000.0);
+    clip.elementXml = shapeXml(QStringLiteral("rect"), clip.width, clip.height, true);
+    DrawingAnchor anchor;
+    grid::ObjectBox place;
+    place.x = box.x();
+    place.y = box.y();
+    place.w = clip.width;
+    place.h = clip.height;
+    if (!m_objects->layer()->anchorAtBox(place, AnchorKind::TwoCell, &anchor)) anchor = newObjectAnchor(clip.width, clip.height);
+    if (!placeObjectClip(clip, tr("Insert Text Box"), &anchor)) return false;
     setStatus(tr("Text box inserted"));
     return true;
 }

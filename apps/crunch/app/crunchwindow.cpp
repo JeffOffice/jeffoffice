@@ -316,6 +316,8 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
             return;
         }
         telemetry::count(id);
+        // (a box being drawn is put down by any other command: one tool at a time)
+        if (m_objects && id != QLatin1String("insert.textBox.draw")) m_objects->layer()->armBox(false);
         if (fn) fn();
     });
     m_actions.insert(id, a);

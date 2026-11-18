@@ -217,7 +217,7 @@
           "name": "Text",
           "keytip": "ZX",
           "items": [
-            {"large": "insert.textBox", "keytip": "X"},
+            {"large": "insert.textBox.draw", "keytip": "X", "split": true, "menu": ["insert.textBox.draw", "insert.textBox"]},
             {"widget": "textArtButton", "keytip": "WA"},
             {"large": "insert.headerFooter", "keytip": "H"}
           ]
@@ -753,7 +753,8 @@
           "name": "Shape Text",
           "keytip": "ZX",
           "items": [
-            {"large": "object.editText", "keytip": "ET"}
+            {"large": "object.editText", "keytip": "ET"},
+            {"large": {"id": "ribbon.textDirection", "text": "Text Direction", "icon": "rotate-cw"}, "keytip": "TD", "menu": ["object.dir.horz", "object.dir.r90", "object.dir.r270"]}
           ]
         },
         {

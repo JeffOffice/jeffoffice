@@ -1,6 +1,7 @@
 #include "grid/objectlayer.h"
 #include "app/plaintext.h"
 #include "app/shapetextedit.h"
+#include "core/textdirection.h"
 
 #include <QCursor>
 #include <QToolTip>
@@ -517,7 +518,11 @@ QRect ObjectLayer::visibleRect(const Entry &e) const
 void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const QRect &clip)
 {
     m_layout = &layout;
-    if (m_entries.empty() || clip.isEmpty()) return;
+    if (clip.isEmpty()) return;
+    if (m_entries.empty()) {
+        paintBox(p, layout, pane, clip);
+        return;
+    }
     m_dpr = std::max(1.0, p->device()->devicePixelRatioF());
     ensureBoxes(layout);
     ++m_frame;
@@ -580,6 +585,7 @@ void ObjectLayer::paint(QPainter *p, const GridLayout &layout, Pane pane, const 
         }
     }
     p->restore();
+    paintBox(p, layout, pane, clip);
     if (later) schedule(0);
     // the grid has moved since the objects near the screen were looked at: they are, a moment after it stops
     const std::vector<qint64> key = {layout.scrollX(), layout.scrollY(), qint64(layout.zoom() * 1000), layout.viewport().width(), layout.viewport().height(), layout.frozenRows(), layout.frozenCols()};
@@ -867,6 +873,48 @@ bool ObjectLayer::fractionAt(const Entry &e, const GridLayout &layout, const QPo
     return false;
 }
 
+void ObjectLayer::armBox(bool on, const QSizeF &usualPoints)
+{
+    m_boxArmed = on;
+    m_boxUsual = usualPoints;
+    m_boxDragging = false;
+    requestRepaint();
+}
+
+// The grid's unit is a pixel at 100%: three quarters of a point.
+constexpr double kPointsPerUnit = 0.75;
+
+bool ObjectLayer::unitsAt(const GridLayout &layout, const QPoint &point, QPointF *units) const
+{
+    const Hit h = layout.hit(point);
+    if (h.kind != Hit::Kind::Cell) return false;
+    const QRect r = layout.cellRect(h.row, h.col);
+    const double zoom = std::max(1e-6, layout.zoom());
+    *units = QPointF(double(layout.cols.position(h.col)) + (point.x() - r.left()) / zoom, double(layout.rows.position(h.row)) + (point.y() - r.top()) / zoom);
+    return true;
+}
+
+QRectF ObjectLayer::boxNowUnits() const
+{
+    const auto ends = jp::textBoxDragEnds(m_boxFrom * kPointsPerUnit, m_boxNow * kPointsPerUnit, m_boxShift, m_boxUsual);
+    return QRectF(ends.first / kPointsPerUnit, ends.second / kPointsPerUnit).normalized();
+}
+
+void ObjectLayer::paintBox(QPainter *p, const GridLayout &layout, Pane pane, const QRect &clip) const
+{
+    if (!m_boxDragging) return;
+    const QRectF b = boxNowUnits();
+    const bool fr = pane == Pane::Corner || pane == Pane::Top, fc = pane == Pane::Corner || pane == Pane::Left;
+    const int left = clampPlace(layout.screenXAt(std::llround(b.left()), fc)), right = clampPlace(layout.screenXAt(std::llround(b.right()), fc));
+    const int top = clampPlace(layout.screenYAt(std::llround(b.top()), fr)), bottom = clampPlace(layout.screenYAt(std::llround(b.bottom()), fr));
+    p->save();
+    p->setClipRect(clip);
+    p->setBrush(Qt::NoBrush);
+    p->setPen(QPen(QColor(30, 30, 30), 1, Qt::DashLine));
+    p->drawRect(QRect(left, top, std::max(1, right - left), std::max(1, bottom - top)).adjusted(0, 0, -1, -1));
+    p->restore();
+}
+
 bool ObjectLayer::anchorAtBox(const ObjectBox &box, AnchorKind editAs, DrawingAnchor *out) const
 {
     if (!m_layout) return false;
@@ -983,10 +1031,20 @@ void ObjectLayer::finishDrag(bool commit)
 
 void ObjectLayer::cancelDrag() { finishDrag(false); }
 
-bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers)
+bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
     m_layout = &layout;
     finishDrag(false);
+    if (m_boxArmed) {
+        QPointF at;
+        if (!unitsAt(layout, point, &at)) return false;
+        select(-1);
+        m_boxDragging = true;
+        m_boxShift = modifiers & Qt::ShiftModifier;
+        m_boxFrom = m_boxNow = at;
+        requestRepaint();
+        return true;
+    }
     if (m_selected >= 0 && canMove(m_selected)) {
         const int handle = handleAt(point);
         if (handle >= 0) {
@@ -1028,6 +1086,19 @@ bool ObjectLayer::press(const QPoint &point, const GridLayout &layout, Qt::Keybo
 
 bool ObjectLayer::mouseMove(const QPoint &point, const GridLayout &layout, Qt::MouseButtons buttons, Qt::KeyboardModifiers modifiers)
 {
+    if (m_boxDragging) {
+        m_layout = &layout;
+        if (!(buttons & Qt::LeftButton)) {
+            m_boxDragging = false;
+            requestRepaint();
+            return false;
+        }
+        QPointF at;
+        if (unitsAt(layout, point, &at)) m_boxNow = at;
+        m_boxShift = modifiers & Qt::ShiftModifier;
+        requestRepaint();
+        return true;
+    }
     if (m_drag.mode == DragMode::None) return false;
     m_layout = &layout;
     if (!(buttons & Qt::LeftButton)) {
@@ -1054,6 +1125,18 @@ bool ObjectLayer::mouseMove(const QPoint &point, const GridLayout &layout, Qt::M
 
 bool ObjectLayer::mouseRelease(const QPoint &point, const GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
+    if (m_boxDragging) {
+        m_layout = &layout;
+        QPointF at;
+        if (unitsAt(layout, point, &at)) m_boxNow = at;
+        m_boxShift = modifiers & Qt::ShiftModifier;
+        const QRectF box = boxNowUnits();
+        m_boxDragging = false;
+        m_boxArmed = false;
+        requestRepaint();
+        Q_EMIT boxDrawn(box);
+        return true;
+    }
     if (m_drag.mode == DragMode::None) return false;
     m_layout = &layout;
     if (m_drag.mode != DragMode::Pending && m_drag.entry < m_entries.size()) {
@@ -1067,6 +1150,7 @@ bool ObjectLayer::mouseRelease(const QPoint &point, const GridLayout &layout, Qt
 std::optional<Qt::CursorShape> ObjectLayer::cursorAt(const QPoint &point, const GridLayout &layout)
 {
     m_layout = &layout;
+    if (m_boxArmed) return Qt::CrossCursor;
     if (m_fills || m_entries.empty()) return std::nullopt;
     if (m_selected >= 0 && canMove(m_selected)) {
         switch (handleAt(point)) {
@@ -1183,6 +1267,10 @@ bool ObjectLayer::nudge(int dx, int dy, bool resize, bool snap, double step)
 
 bool ObjectLayer::key(QKeyEvent *event)
 {
+    if (m_boxArmed && event->key() == Qt::Key_Escape) {
+        armBox(false);
+        return true;
+    }
     if (m_selected < 0) return false;
     switch (event->key()) {
     case Qt::Key_Shift:

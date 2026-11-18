@@ -888,6 +888,49 @@ void CrunchWindow::compressPicturesDialog()
     tellCompressSaved(this, saved);
 }
 
+namespace {
+
+// A text box of a drawing (not another shape that has words): its words are laid out turned, and the page paints them so.
+bool isTextBoxElement(const QDomElement &sp)
+{
+    return sp.localName() == QLatin1String("sp") && childNamed(childNamed(sp, QStringLiteral("nvSpPr")), QStringLiteral("cNvSpPr")).attribute(QStringLiteral("txBox")) == QLatin1String("1");
+}
+
+TextDirection directionOfBody(const QDomElement &sp)
+{
+    const QDomElement props = childNamed(childNamed(sp, QStringLiteral("txBody")), QStringLiteral("bodyPr"));
+    return textDirectionFromVert(props.attribute(QStringLiteral("vert"))).value_or(TextDirection::Horizontal);
+}
+
+} // namespace
+
+bool CrunchWindow::pickedTextBoxDirection(TextDirection *direction)
+{
+    const int id = pickedObject();
+    if (id < 0 || !m_objects || pickedObjects().size() != 1 || m_objects->kindOf(m_sheet, id) != ObjectKind::Shape) return false;
+    crunch::ObjectClip clip;
+    if (!m_objects->copyElement(m_sheet, id, &clip, nullptr)) return false;
+    const QByteArray wrapped = "<w xmlns:xdr=\"" + kXdr.toUtf8() + "\" xmlns:a=\"" + kA.toUtf8() + "\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces + ">" + clip.elementXml + "</w>";
+    QDomDocument doc;
+    if (!doc.setContent(wrapped, QDomDocument::ParseOption::UseNamespaceProcessing)) return false;
+    const QDomElement sp = doc.documentElement().firstChildElement();
+    if (!isTextBoxElement(sp) || childNamed(childNamed(sp, QStringLiteral("txBody")), QStringLiteral("bodyPr")).isNull()) return false;
+    if (direction) *direction = directionOfBody(sp);
+    return true;
+}
+
+bool CrunchWindow::setTextBoxDirection(TextDirection direction)
+{
+    return restyleObject(tr("Text Direction"), [&](QDomElement &el, grid::ObjectBox *) {
+        if (!isTextBoxElement(el)) return false;
+        QDomElement props = childNamed(childNamed(el, QStringLiteral("txBody")), QStringLiteral("bodyPr"));
+        if (props.isNull() || directionOfBody(el) == direction) return false;   // (a value that is none of ours reads as across, and is kept as it was)
+        if (direction == TextDirection::Horizontal) props.removeAttribute(QStringLiteral("vert"));
+        else props.setAttribute(QStringLiteral("vert"), QString::fromLatin1(textDirectionVert(direction)));
+        return true;
+    });
+}
+
 bool CrunchWindow::setObjectText(const ShapeTextChoices &choices)
 {
     return restyleObject(tr("Edit Text"), [&](QDomElement &el, grid::ObjectBox *) { return setText(el, choices); });
@@ -942,6 +985,8 @@ bool CrunchWindow::beginShapeTextEdit(int id, const QString &typed)
                 return (v.isEmpty() ? points : std::clamp(v.toDouble() / 12700.0, 0.0, 1000.0)) * zoom * 96.0 / 72.0;
             };
             look.insets = QMarginsF(inset("lIns", 7.2), inset("tIns", 3.6), inset("rIns", 7.2), inset("bIns", 3.6));
+            // (Words that run turned are typed turned: the editor lays them out and paints them as the page does.)
+            if (isTextBoxElement(sp)) look.quarterTurns = textDirectionQuarterTurns(directionOfBody(sp));
         }
     }
     look.zoom = zoom;
@@ -1205,6 +1250,13 @@ void CrunchWindow::createObjectFormatActions()
     mkObject("object.resetPicture", tr("Reset Picture"), "rotate-ccw", [this] { resetPicture(false); });
     mkObject("object.resetPictureSize", tr("Reset Picture & Size"), "rotate-ccw", [this] { resetPicture(true); });
     mkObject("object.editText", tr("Edit Text…"), "text-cursor-input", [this] { editObjectText(); });
+    {
+        static const std::pair<const char *, TextDirection> directions[] = {{"object.dir.horz", TextDirection::Horizontal}, {"object.dir.r90", TextDirection::Rotate90}, {"object.dir.r270", TextDirection::Rotate270}};
+        for (const auto &d : directions) {
+            const TextDirection direction = d.second;
+            mk(QString::fromLatin1(d.first), textDirectionName(direction), direction == TextDirection::Horizontal ? "text" : "rotate-cw", QKeySequence(), [this, direction] { setTextBoxDirection(direction); }, true, false);
+        }
+    }
     mkObject("object.rotateRight", tr("Rotate Right 90°"), "rotate-cw", [this] { rotateObject(1, false, false); });
     mkObject("object.rotateLeft", tr("Rotate Left 90°"), "rotate-ccw", [this] { rotateObject(-1, false, false); });
     mkObject("object.flipH", tr("Flip Horizontal"), "flip-horizontal", [this] { rotateObject(0, true, false); });

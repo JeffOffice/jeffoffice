@@ -70,6 +70,8 @@ void ObjectPicker::paint(QPainter *painter, const grid::GridLayout &layout, grid
 
 bool ObjectPicker::press(const QPoint &point, const grid::GridLayout &layout, Qt::KeyboardModifiers modifiers)
 {
+    // (a box being drawn takes every press, whatever is under it)
+    if (m_layer->boxArmed()) return m_layer->press(point, layout, modifiers);
     // (a handle of the one object picked is the layer's: Shift on a corner keeps the proportions)
     if ((modifiers & (Qt::ShiftModifier | Qt::ControlModifier)) && m_layer->handleAt(point) < 0) {
         const int hit = m_layer->objectAt(point);

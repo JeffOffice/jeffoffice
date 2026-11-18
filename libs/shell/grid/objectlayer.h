@@ -154,6 +154,12 @@ public:
     // The object at a point of the viewport (the topmost whose ink, or whose box for a picture or chart, is under it), or -1.
     int objectAt(const QPoint &point) const;
 
+    // Drawing a box with the mouse (a text box): while armed, a press, a drag, and a release on the cells draw a box (the rule every app shares: a click of under 4 points gives `usual`, any
+    // other box is at least 18 points a side, and Shift keeps it square) in place of picking; `boxDrawn` says where (the grid's units). The pointer is a cross, Escape puts it down, and
+    // so does the release.
+    void armBox(bool on, const QSizeF &usualPoints = QSizeF(120, 36));
+    bool boxArmed() const { return m_boxArmed; }
+
     // Makes every picture that the screen needs now, however many and however long (waits for the charts on the worker); otherwise they are made in the time between events.
     void prepareAll();
     // Pictures the screen needs that are not made, are out of date, or are being made: a window waits for 0 before it is shot.
@@ -197,6 +203,8 @@ Q_SIGNALS:
     void contextMenuRequested(int id, const QPoint &global);
     // A double click on an object.
     void objectActivated(int id);
+    // A box was drawn (armBox): its place in the grid's units. The layer is no longer armed.
+    void boxDrawn(const QRectF &box);
 
 private Q_SLOTS:
     void deliver();
@@ -214,6 +222,13 @@ private:
         size_t entry = 0;
     };
     bool m_mirrored = false;   // the painter is mirrored: pictures are turned back
+    // The box being drawn (armBox): the grid's units at the press and now, and whether Shift is down.
+    bool m_boxArmed = false, m_boxDragging = false, m_boxShift = false;
+    QSizeF m_boxUsual{120, 36};
+    QPointF m_boxFrom, m_boxNow;
+    bool unitsAt(const GridLayout &layout, const QPoint &point, QPointF *units) const;
+    QRectF boxNowUnits() const;
+    void paintBox(QPainter *p, const GridLayout &layout, Pane pane, const QRect &clip) const;
     struct Entry {
         LayerObject object;
         mutable ObjectBox box;

@@ -29,6 +29,7 @@
 #include "app/formatdialog.h"
 #include "app/widgets.h"
 #include "core/color.h"
+#include "core/textdirection.h"
 #include "core/auditing.h"
 #include "app/chartdesign.h"
 #include "core/editsession.h"
@@ -1524,6 +1525,13 @@ public:
     bool insertOnlinePicture(const QString &path, const QString &title, const QString &credit);
     bool insertShape(const QString &preset);
     bool insertTextBox();
+    // Insert > Draw Text Box: the next drag on the sheet draws the box (the sheet's pointer is a cross, Esc and any other command put it down); drawTextBox puts it in, as one step of Undo.
+    void armTextBoxDraw();
+    bool drawTextBox(const QRectF &box);
+    // The way the words of the picked text box run (false when the picked object is none), and Shape Format > Text Direction: patches only the body's vert, as one step of Undo (false, and no step, when
+    // the object is no text box or already runs so).
+    bool pickedTextBoxDirection(jp::TextDirection *direction);
+    bool setTextBoxDirection(jp::TextDirection direction);
     // Insert > Form Controls: a control of the kind at the cell with the cursor (one step of Undo). Format Control: the cell, range, and limits of a control of the layer (the ids of controls start
     // at crunch::kControlIdBase); a click's result is carried out as one step (a cell typed, or the controls' own states).
     bool insertFormControl(jp::office::sheet::ControlKind kind);

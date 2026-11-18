@@ -340,6 +340,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_stablesaves.cpp
   tests/pub/tst_pub_tables.cpp
   tests/pub/tst_pub_text.cpp
+  tests/pub/tst_pub_textbox.cpp
   tests/pub/tst_pub_update.cpp
   tests/pub/tst_pub_window.cpp
   tests/shell/tst_shell_fileinfo.cpp
@@ -628,6 +629,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_pptxobjects.cpp
   tests/deck/tst_deck_review.cpp
   tests/deck/tst_deck_speech.cpp
+  tests/deck/tst_deck_textbox.cpp
   tests/deck/tst_deck_slidelist.cpp
   tests/deck/tst_deck_slideshow.cpp
   tests/deck/tst_deck_sizelinks.cpp
@@ -842,6 +844,7 @@ target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_pagenum.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_language.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_barcode.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_pastetable.cpp)
+target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_textbox.cpp)
 # Developer tool: pictures of JeffCrunch's dialogs (JO_SHOT_DIR), for looking at the style.
 qt_add_executable(jo_uigrab_crunch tests/testrunner.cpp tests/uigrab/tst_uigrab_crunch.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp)
 target_link_libraries(jo_uigrab_crunch PRIVATE jccore Qt6::Test Qt6::CorePrivate)

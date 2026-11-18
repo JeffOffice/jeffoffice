@@ -919,6 +919,16 @@ void CrunchWindow::updateChartState()
         for (const char *name : {"object.rotateRight", "object.rotateLeft", "object.flipH", "object.flipV"}) act(QString::fromLatin1(name))->setEnabled(picture || shape || line);
         for (const char *name : {"object.cropSquare", "object.crop43", "object.crop34", "object.crop169", "object.crop916", "object.cropReset", "object.cropFill", "object.cropFit"}) act(QString::fromLatin1(name))->setEnabled(picture);
         act(QStringLiteral("object.editText"))->setEnabled(shape);
+        {
+            // (Text Direction is for a text box: the one picked shows the way its words run)
+            TextDirection now = TextDirection::Horizontal;
+            const bool box = shape && pickedTextBoxDirection(&now);
+            const std::pair<const char *, TextDirection> directions[] = {{"object.dir.horz", TextDirection::Horizontal}, {"object.dir.r90", TextDirection::Rotate90}, {"object.dir.r270", TextDirection::Rotate270}};
+            for (const auto &d : directions) {
+                act(QString::fromLatin1(d.first))->setEnabled(box);
+                act(QString::fromLatin1(d.first))->setChecked(box && now == d.second);
+            }
+        }
         act(QStringLiteral("object.compress"))->setEnabled(picture);
         for (const char *name : {"object.changePicture", "object.resetPicture", "object.resetPictureSize"}) act(QString::fromLatin1(name))->setEnabled(picture);
         {

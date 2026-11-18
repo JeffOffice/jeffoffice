@@ -140,6 +140,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Tables"),
     QT_TRANSLATE_NOOP("Ribbon", "Text"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Art"),
+    QT_TRANSLATE_NOOP("Ribbon", "Text Direction"),
     QT_TRANSLATE_NOOP("Ribbon", "Text Warp"),
     QT_TRANSLATE_NOOP("Ribbon", "Tools"),
     QT_TRANSLATE_NOOP("Ribbon", "Top/Bottom Rules"),
