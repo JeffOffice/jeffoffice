@@ -273,6 +273,9 @@ struct PaintOptions {
     // For a caller that tags the output (see render/pagetags.h): called just before and just after what is drawn for each paragraph that has lines in the frame (`opens` says which),
     // with the position where the paragraph begins and where its first line in the frame is from the frame's top. Unset, nothing is called.
     std::function<void(QPainter *, int position, double top, bool opens)> markBlock;
+    // A flattened PDF (PDF/A) draws the lines with letters that are see-through or have an effect as pictures of their own (StoryLayout::seeThroughLines): set, those lines are left out
+    // here (and the effects drawn for the frame), and every other line is drawn as it is, as text.
+    bool plainLinesOnly = false;
 };
 
 // A paragraph's text layout. Qt works out a tab's width from the layout's tab
@@ -386,6 +389,9 @@ public:
     int lastPosition(int frame) const;
 
     void paint(QPainter *p, int frame, const PaintOptions &o) const;
+    // The lines of the frame that have letters drawn see-through (a color with alpha) or with an effect (a shadow, a glow, an emboss, a list of effects), each as a band the frame's width,
+    // from the frame's top. A flattened PDF draws these as pictures and the rest as text (PaintOptions::plainLinesOnly).
+    QVector<QRectF> seeThroughLines(int frame) const;
 
     int hitTest(int frame, const QPointF &local) const;
     bool caretRect(int pos, int *frame, QRectF *rect) const;
@@ -576,6 +582,7 @@ private:
     // The effect lists of runs (tp::TextFx): under the letters (shadows beside them, glow, reflection) or over them (an inner shadow).
     void paintTextEffects(QPainter *p, int frame, bool over) const;
     void paintBox(QPainter *p, int block, int frame) const;   // a paragraph's borders and shading
+    QVector<bool> seeThroughLinesOf(const Block &B) const;   // which of a paragraph's lines have see-through or effect letters
     // One layout pass; returns how far each frame's text moved down for its
     // vertical alignment.
     QVector<double> buildOnce(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env);

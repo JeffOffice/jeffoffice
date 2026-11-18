@@ -898,6 +898,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         po.shadeFields = ctx.opt.shadeFields;
         po.showSpecial = ctx.opt.showSpecial;
         po.output = ctx.opt.textOutput;
+        po.plainLinesOnly = ctx.opt.plainLinesOnly;
         const QVector<TextItem *> chain = ctx.doc->chainOf(t.id);
         const QString sid = chain.isEmpty() ? t.storyId : chain.first()->storyId;
         if (ctx.opt.editStory == sid) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
@@ -1722,6 +1723,189 @@ static bool fillUsesTransparency(const Fill &f)
     return false;
 }
 
+// Flattened output (PDF/A allows no transparency): each see-through object becomes an opaque picture of its own area, holding what lies beneath it with the object blended on top.
+// Everything else stays as it is, as vector and text, in the order it is stacked: the page's color, the master pages' objects, and the page's objects.
+namespace {
+
+struct FlatLayer {
+    const Item *item = nullptr;
+    double xOffset = 0;      // a master's, on the right page of a two-page spread
+    bool clipToPage = false;
+    bool master = false;
+};
+
+enum class FlatKind { Plain, Whole, Lines };
+
+} // namespace
+
+static void paintFlatLayer(QPainter *p, const PaintContext &c, const FlatLayer &l, const QRectF &pr)
+{
+    p->save();
+    if (l.clipToPage) p->setClipRect(pr, Qt::IntersectClip);
+    p->translate(l.xOffset, 0);
+    Renderer::paintItem(p, c, *l.item);
+    p->restore();
+}
+
+static PaintContext withoutMarks(const PaintContext &c)
+{
+    PaintContext x = c;
+    x.opt.flattenTransparency = false;
+    x.opt.plainLinesOnly = false;
+    x.around = nullptr;
+    x.aroundText = nullptr;
+    x.mark = nullptr;
+    x.markCell = nullptr;
+    x.markBlock = nullptr;
+    x.markInline = nullptr;
+    x.markArtifact = nullptr;
+    return x;
+}
+
+// The opaque picture of `area` (whole pixels at `scale`): the page's color, the layers beneath `upTo` that reach it, and the layer itself.
+static QImage flatPatch(const PaintContext &c, const Fill &bg, const QRectF &pr, const std::vector<FlatLayer> &layers, size_t upTo, const QRectF &area, double scale)
+{
+    QImage patch(QSize(int(std::lround(area.width() * scale)), int(std::lround(area.height() * scale))).expandedTo(QSize(1, 1)), QImage::Format_RGB32);
+    patch.fill(Qt::white);
+    QPainter pp(&patch);
+    pp.setRenderHint(QPainter::Antialiasing);
+    pp.setRenderHint(QPainter::TextAntialiasing);
+    pp.setRenderHint(QPainter::SmoothPixmapTransform);
+    pp.scale(patch.width() / area.width(), patch.height() / area.height());
+    pp.translate(-area.topLeft());
+    const PaintContext under = withoutMarks(c);
+    Renderer::paintBackground(&pp, under, bg, pr);
+    for (size_t j = 0; j <= upTo; ++j) {
+        const QRectF b = layers[j].item->bounds().translated(layers[j].xOffset, 0).adjusted(-40, -40, 40, 40);
+        if (j < upTo && !b.intersects(area)) continue;
+        paintFlatLayer(&pp, under, layers[j], pr);
+    }
+    return patch;
+}
+
+// A picture's area made whole points (and not whole pixels of the picture): a reader showing the page at a whole number of pixels to the point (72 dpi on a screen) then puts the edge of the
+// picture on an edge of its pixels, where the page's own vector shapes have theirs, and no seam shows along it.
+static QRectF snapped(const QRectF &r)
+{
+    return QRectF(QPointF(std::floor(r.left()), std::floor(r.top())), QPointF(std::ceil(r.right()), std::ceil(r.bottom())));
+}
+
+QImage LayoutCache::sharedPatch(const QImage &patch)
+{
+    // (the same picture on page after page, a master's, is one picture in the PDF: the writer keeps each picture it is given once)
+    for (const QImage &known : std::as_const(m_flatPatches))
+        if (known.size() == patch.size() && known == patch) return known;
+    m_flatPatches.prepend(patch);
+    while (m_flatPatches.size() > 8) m_flatPatches.removeLast();
+    return patch;
+}
+
+static void paintPageFlat(QPainter *p, const PaintContext &ctx, const PaintContext &c, const Page &pg, MasterPage *m, const QVector<MasterPage *> &chain, const Fill &bg, int pageIndex)
+{
+    const Document &doc = *ctx.doc;
+    const QRectF pr(QPointF(0, 0), doc.pageSize());
+    const double scale = ctx.opt.flattenDpi / 72.0;
+    // The page's color: a see-through solid one is made solid here (laid on white); another (a picture, a gradient) is one picture of itself.
+    if (ctx.markArtifact) ctx.markArtifact(p, true);
+    if (fillUsesTransparency(bg)) {
+        const QBrush brush = bg.brush(pr, doc.colors, lookupFor(doc));
+        if (brush.style() == Qt::SolidPattern) {
+            const QColor k = brush.color();
+            const double a = k.alphaF();
+            p->fillRect(pr, QColor::fromRgbF(k.redF() * a + (1 - a), k.greenF() * a + (1 - a), k.blueF() * a + (1 - a)));
+        } else {
+            QImage under(QSize(int(std::lround(pr.width() * scale)), int(std::lround(pr.height() * scale))).expandedTo(QSize(1, 1)), QImage::Format_RGB32);
+            under.fill(Qt::white);
+            QPainter pp(&under);
+            pp.setRenderHint(QPainter::Antialiasing);
+            pp.scale(under.width() / pr.width(), under.height() / pr.height());
+            Renderer::paintBackground(&pp, withoutMarks(c), bg, pr);
+            pp.end();
+            p->drawImage(pr, under);
+        }
+    } else {
+        Renderer::paintBackground(p, c, bg, pr);
+    }
+    if (ctx.markArtifact) ctx.markArtifact(p, false);
+    // The layers, bottom first.
+    std::vector<FlatLayer> layers;
+    if (m && !ctx.opt.noMaster && pg.showMasterItems && !chain.isEmpty()) {
+        const double xOffset = m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0;
+        int lowest = int(chain.size()) - 1;
+        while (lowest > 0 && chain[lowest]->showMasterItems) --lowest;
+        for (int i = lowest; i < chain.size(); ++i)
+            for (const auto &it : chain[i]->items)
+                if (!it->role.startsWith(QLatin1String("ph:")) && !it->hidden && !ctx.opt.hidden.contains(it->id))
+                    layers.push_back({it.get(), xOffset, chain[i]->twoPage || doc.slideText, true});
+    }
+    const size_t masters = layers.size();
+    for (const auto &it : pg.items)
+        if (!it->hidden && !ctx.opt.hidden.contains(it->id)) layers.push_back({it.get(), 0, false, false});
+    for (size_t k = 0; k < layers.size(); ++k) {
+        const FlatLayer &l = layers[k];
+        const Item &it = *l.item;
+        const bool master = k < masters;
+        if (master) {
+            if (ctx.markArtifact) ctx.markArtifact(p, true);
+        } else if (ctx.mark) {
+            ctx.mark(p, it, true);
+        }
+        const auto closed = qScopeGuard([&] {
+            if (master) {
+                if (ctx.markArtifact) ctx.markArtifact(p, false);
+            } else if (ctx.mark) {
+                ctx.mark(p, it, false);
+            }
+        });
+        FlatKind kind = FlatKind::Plain;
+        QVector<QRectF> bands;
+        if (Renderer::usesTransparency(doc, it)) {
+            kind = FlatKind::Whole;
+            // A text box whose see-through letters (or effects) are in some of its lines: only those lines are pictures.
+            if (it.type() == ItemType::Text && !Renderer::itemUsesTransparency(doc, it, false) && !static_cast<const TextItem &>(it).vertical) {
+                const LayoutCache::FrameLayout fl = ctx.cache->textFrame(doc, static_cast<const TextItem &>(it), c.pageNumber, c.opt);
+                if (fl.layout && fl.frame >= 0) {
+                    const QTransform t = it.transform();
+                    for (const QRectF &band : fl.layout->seeThroughLines(fl.frame)) bands << t.mapRect(band).translated(l.xOffset, 0);
+                    kind = bands.isEmpty() ? FlatKind::Plain : FlatKind::Lines;
+                }
+            }
+        }
+        if (kind == FlatKind::Plain) {
+            paintFlatLayer(p, c, l, pr);
+            continue;
+        }
+        QVector<QRectF> areas;
+        if (kind == FlatKind::Whole) {
+            const double margin = it.fx.any() ? 40 : 4;
+            areas << it.bounds().translated(l.xOffset, 0).adjusted(-margin, -margin, margin, margin);
+        } else {
+            // The text as text, but for the lines drawn as pictures; each of these (those that touch each other are one) is a picture of its own area.
+            PaintContext plain = c;
+            plain.opt.plainLinesOnly = true;
+            paintFlatLayer(p, plain, l, pr);
+            std::sort(bands.begin(), bands.end(), [](const QRectF &a, const QRectF &b) { return a.top() < b.top(); });
+            for (const QRectF &band : std::as_const(bands)) {
+                const QRectF grown = band.adjusted(-24, -24, 24, 24);
+                if (!areas.isEmpty() && areas.last().intersects(grown)) areas.last() = areas.last().united(grown);
+                else areas << grown;
+            }
+            // (a text of very many such lines is one picture: each picture costs a pass over what lies beneath it)
+            if (areas.size() > 24) {
+                QRectF all = areas.first();
+                for (const QRectF &a : std::as_const(areas)) all = all.united(a);
+                areas = {all};
+            }
+        }
+        for (const QRectF &want : std::as_const(areas)) {
+            const QRectF br = snapped(want.intersected(pr));
+            if (br.isEmpty()) continue;
+            const QImage patch = ctx.cache->sharedPatch(flatPatch(c, bg, pr, layers, k, br, scale));
+            p->drawImage(br, patch);
+        }
+    }
+}
+
 void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
 {
     const Document &doc = *ctx.doc;
@@ -1737,96 +1921,39 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     MasterPage *m = doc.masterFor(pg);
     const QVector<MasterPage *> chain = doc.masterChain(m);
     const Fill bg = backgroundOf(pg, chain);
-    if (ctx.markArtifact) ctx.markArtifact(p, true);
-    // Flattened output: a background or a master object that is see-through is made into one opaque picture of the page beneath the items.
-    bool underClear = false;
     if (ctx.opt.flattenTransparency) {
-        underClear = fillUsesTransparency(bg);
-        if (m && !ctx.opt.noMaster && pg.showMasterItems)
-            for (const MasterPage *mp : chain)
-                for (const auto &it : mp->items)
-                    if (!underClear && usesTransparency(doc, *it)) underClear = true;
-    }
-    if (underClear) {
-        const double scale = ctx.opt.flattenDpi / 72.0;
-        QImage under(QSize(int(std::lround(pr.width() * scale)), int(std::lround(pr.height() * scale))).expandedTo(QSize(1, 1)), QImage::Format_RGB32);
-        under.fill(Qt::white);
-        {
-            QPainter pp(&under);
-            pp.setRenderHint(QPainter::Antialiasing);
-            pp.setRenderHint(QPainter::TextAntialiasing);
-            pp.setRenderHint(QPainter::SmoothPixmapTransform);
-            pp.scale(scale, scale);
-            PaintContext plain = c;
-            plain.opt.flattenTransparency = false;
-            paintBackground(&pp, plain, bg, pr);
-            if (m && !ctx.opt.noMaster) paintMastersUnder(&pp, plain, pg, chain, m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0);
-        }
-        p->drawImage(pr, under);
-    } else {
-        paintBackground(p, c, bg, pr);
-        if (m && !ctx.opt.noMaster) {
-            const bool right = (pageIndex + 1) % 2 == 1;
-            paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
-        }
-    }
-    if (ctx.markArtifact) ctx.markArtifact(p, false);
-    if (!ctx.opt.flattenTransparency) {
-        if (ctx.around || ctx.mark) {
-            for (const auto &it : pg.items) {
-                const bool marked = ctx.mark && !it->hidden && !ctx.opt.hidden.contains(it->id);
-                if (marked) ctx.mark(p, *it, true);
-                if (ctx.around) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
-                else paintItem(p, c, *it);
-                if (marked) ctx.mark(p, *it, false);
-            }
-        } else {
-            paintItems(p, c, pg.items);
-        }
-        if (ctx.markArtifact) ctx.markArtifact(p, true);
-        paintCatalogCells(p, c, pg);
-        if (ctx.markArtifact) ctx.markArtifact(p, false);
+        paintPageFlat(p, ctx, c, pg, m, chain, bg, pageIndex);
         return;
     }
-    // Flattened output: transparent items become opaque patches holding the
-    // page beneath them with the item blended on top; the rest stays vector.
-    const double scale = ctx.opt.flattenDpi / 72.0;
-    for (size_t k = 0; k < pg.items.size(); ++k) {
-        const Item &it = *pg.items[k];
-        if (it.hidden || ctx.opt.hidden.contains(it.id)) continue;
-        if (ctx.mark) ctx.mark(p, it, true);
-        const auto closed = qScopeGuard([&] { if (ctx.mark) ctx.mark(p, it, false); });
-        if (!usesTransparency(doc, it)) {
-            paintItem(p, c, it);
-            continue;
-        }
-        const double margin = it.fx.any() ? 40 : 4;
-        QRectF br = it.bounds().adjusted(-margin, -margin, margin, margin).intersected(pr);
-        if (br.isEmpty()) continue;
-        // Snap to whole patch pixels so neighboring content lines up.
-        br = QRectF(std::floor(br.left() * scale) / scale, std::floor(br.top() * scale) / scale,
-                    std::ceil(br.width() * scale) / scale, std::ceil(br.height() * scale) / scale);
-        QImage patch(QSize(int(std::lround(br.width() * scale)), int(std::lround(br.height() * scale))).expandedTo(QSize(1, 1)),
-                     QImage::Format_RGB32);
-        patch.fill(Qt::white);
-        {
-            QPainter pp(&patch);
-            pp.setRenderHint(QPainter::Antialiasing);
-            pp.setRenderHint(QPainter::TextAntialiasing);
-            pp.setRenderHint(QPainter::SmoothPixmapTransform);
-            pp.scale(scale, scale);
-            pp.translate(-br.topLeft());
-            PaintContext under = c;
-            under.opt.flattenTransparency = false;
-            paintBackground(&pp, under, bg, pr);
-            if (m) paintMastersUnder(&pp, under, pg, chain, m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0);
-            for (size_t j = 0; j <= k; ++j) paintItem(&pp, under, *pg.items[j]);
-        }
-        p->drawImage(br, patch);
+    if (ctx.markArtifact) ctx.markArtifact(p, true);
+    paintBackground(p, c, bg, pr);
+    if (m && !ctx.opt.noMaster) {
+        const bool right = (pageIndex + 1) % 2 == 1;
+        paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
     }
+    if (ctx.markArtifact) ctx.markArtifact(p, false);
+    if (ctx.around || ctx.mark) {
+        for (const auto &it : pg.items) {
+            const bool marked = ctx.mark && !it->hidden && !ctx.opt.hidden.contains(it->id);
+            if (marked) ctx.mark(p, *it, true);
+            if (ctx.around) ctx.around(p, *it, [&](QPainter *pp) { paintItem(pp, c, *it); });
+            else paintItem(p, c, *it);
+            if (marked) ctx.mark(p, *it, false);
+        }
+    } else {
+        paintItems(p, c, pg.items);
+    }
+    if (ctx.markArtifact) ctx.markArtifact(p, true);
+    paintCatalogCells(p, c, pg);
+    if (ctx.markArtifact) ctx.markArtifact(p, false);
 }
 
 bool Renderer::usesTransparency(const Document &doc, const Item &it)
+{
+    return itemUsesTransparency(doc, it, true);
+}
+
+bool Renderer::itemUsesTransparency(const Document &doc, const Item &it, bool withText)
 {
     if (it.fx.any()) return true;
     if (it.fill.transparency > 0 || it.stroke.transparency > 0 || blipEffectsClear(it.fill.blipEffects)) return true;
@@ -1834,9 +1961,9 @@ bool Renderer::usesTransparency(const Document &doc, const Item &it)
         if (st.transparency > 0) return true;
     switch (it.type()) {
     case ItemType::Text:
-        return storyUsesTransparency(doc, static_cast<const TextItem &>(it).storyId);
+        return withText && storyUsesTransparency(doc, static_cast<const TextItem &>(it).storyId);
     case ItemType::Shape:
-        return storyUsesTransparency(doc, static_cast<const ShapeItem &>(it).storyId);
+        return withText && storyUsesTransparency(doc, static_cast<const ShapeItem &>(it).storyId);
     case ItemType::Group:
         for (const auto &ch : static_cast<const GroupItem &>(it).children)
             if (usesTransparency(doc, *ch)) return true;

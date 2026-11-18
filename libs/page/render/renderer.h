@@ -39,6 +39,8 @@ struct RenderOptions {
     // patch already blended with what lies beneath (rendered at flattenDpi).
     bool flattenTransparency = false;
     double flattenDpi = 300;
+    // Text: the lines with see-through letters or effects are left out (StoryLayout::seeThroughLines; flattened output draws them as pictures of their own).
+    bool plainLinesOnly = false;
     // Output only: pictures are downsampled to at most this resolution (0: keep).
     double maxImageDpi = 0;
     // With maxImageDpi: a picture is made that resolution exactly (a word processor's minimum size), not the first half of its own size that is no finer than a half more than that.
@@ -67,7 +69,9 @@ public:
     // Likewise for a slide's shape whose text shrinks on overflow and isn't kept as a file had it: the first of the program's steps that fits,
     // returned in `fitScale` and `fitCut`.
     const StoryLayout *storyBoxFit(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double *fitScale, double *fitCut);
-    void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); }
+    void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); m_flatPatches.clear(); }
+    // A flattened page's picture, or the one the same as it that an earlier page had (so that a see-through master's is made one picture for all the pages).
+    QImage sharedPatch(const QImage &patch);
     // While a Pass is alive the publication is not changed (a page being painted), so the layout of each text box is worked out once: a chain of
     // boxes is set up whole for each of its boxes otherwise, the square of the chain's length.
     class Pass {
@@ -99,6 +103,7 @@ private:
     QHash<QString, Entry> m_entries;
     int m_pass = 0;
     QHash<QString, FrameLayout> m_passFrames;   // by box and page, while a Pass is alive
+    QList<QImage> m_flatPatches;                // the last few flattened pictures
 };
 
 struct PaintContext {
@@ -143,6 +148,8 @@ public:
     // Whether drawing this item produces any transparency (see-through picture
     // pixels, translucent fills or lines, shadows, glows, soft edges...).
     static bool usesTransparency(const Document &doc, const Item &it);
+    // The same for the object itself, not (`withText` false) for see-through letters or effects in the text of a text box or a shape.
+    static bool itemUsesTransparency(const Document &doc, const Item &it, bool withText);
     static void paintItem(QPainter *p, const PaintContext &ctx, const Item &it);
 
     // Frame-local outline used for selection, wrap and shadows.

@@ -6456,6 +6456,40 @@ void StoryLayout::paintBox(QPainter *p, int bi, int frame) const
     line(box.right, QRectF(x1 - box.right.width(), yTop, box.right.width(), yBottom - yTop), false);
 }
 
+QVector<bool> StoryLayout::seeThroughLinesOf(const Block &B) const
+{
+    QVector<bool> out(B.lines.size(), false);
+    auto mark = [&](int from, int length) {
+        for (int i = 0; i < B.lines.size(); ++i) {
+            const QTextLine l = B.tl->lineAt(i);
+            if (from < l.textStart() + l.textLength() && from + length > l.textStart()) out[i] = true;
+        }
+    };
+    for (const auto &r : B.tl->formats())
+        if (r.format.hasProperty(QTextFormat::ForegroundBrush) && r.format.foreground().color().alpha() < 255) mark(r.start, r.length);
+    for (const auto &er : B.effects) mark(er.start, er.length);
+    return out;
+}
+
+QVector<QRectF> StoryLayout::seeThroughLines(int frame) const
+{
+    QVector<QRectF> out;
+    if (frame < 0 || frame >= m_frames.size()) return out;
+    for (const auto &B : m_blocks) {
+        if (B->lines.isEmpty()) continue;
+        bool here = false;
+        for (const Line &l : B->lines) here |= (l.frame == frame);
+        if (!here) continue;
+        const QVector<bool> clear = seeThroughLinesOf(*B);
+        for (int i = 0; i < B->lines.size(); ++i) {
+            if (!clear[i] || B->lines[i].frame != frame) continue;
+            const PtLine l(B->tl->lineAt(i));
+            out << QRectF(0, l.position().y() - frameY(frame), m_frames[frame].size.width(), l.height());
+        }
+    }
+    return out;
+}
+
 void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
 {
     if (frame < 0 || frame >= m_frames.size()) return;
@@ -6465,7 +6499,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
     // below the frames before it (frameY), not from the frame's top.
     const QRectF clip(-1e5, frameY(frame) - 1e3, 2e5, fs.size.height() + 2e3);
     p->save();
-    paintTextEffects(p, frame, false);
+    if (!o.plainLinesOnly) paintTextEffects(p, frame, false);
     for (int bi = 0; bi < m_blocks.size(); ++bi) {
         const auto &B = m_blocks[bi];
         bool any = false;
@@ -6517,8 +6551,11 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             p->restore();
         }
 
+        // (the lines a flattened PDF draws as pictures are left out here, and the effects that are drawn for them)
+        const QVector<bool> clearLines = o.plainLinesOnly ? seeThroughLinesOf(*B) : QVector<bool>();
+        auto left = [&](int i) { return !clearLines.isEmpty() && clearLines[i]; };
         // Text effects drawn beneath the text from the same glyph runs.
-        for (const auto &er : B->effects) {
+        if (!o.plainLinesOnly) for (const auto &er : B->effects) {
             const double sz = er.format.fontPointSize() / fontPointFactor();
             const bool shadow = er.format.boolProperty(tp::Shadow), emboss = er.format.boolProperty(tp::Emboss),
                        engrave = er.format.boolProperty(tp::Engrave);
@@ -6563,12 +6600,17 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
         p->translate(off);
         p->scale(1 / kFine, 1 / kFine);
         if (!B->directGlyphs) {
-            B->tl->draw(p, QPointF(0, 0), {}, QRectF(clip.topLeft() * kFine, clip.size() * kFine));
+            if (clearLines.contains(true)) {
+                for (int i = 0; i < B->lines.size(); ++i)
+                    if (B->lines[i].frame == frame && !left(i)) B->tl->lineAt(i).draw(p, QPointF(0, 0));
+            } else {
+                B->tl->draw(p, QPointF(0, 0), {}, QRectF(clip.topLeft() * kFine, clip.size() * kFine));
+            }
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
             for (const auto &r : fmts) {
                 if (!r.format.hasProperty(tp::HandBold)) continue;   // (the stroke's width is 0 but in a picture for kind 3: see handBoldWidth)
                 for (int i = 0; i < B->lines.size(); ++i) {
-                    if (B->lines[i].frame != frame) continue;
+                    if (B->lines[i].frame != frame || left(i)) continue;
                     const QTextLine line = B->tl->lineAt(i);
                     const int s = std::max(r.start, line.textStart()), e = std::min(r.start + r.length, line.textStart() + line.textLength());
                     if (s < e) drawHandBold(p, line, s, e, r.format, o.output);
@@ -6578,7 +6620,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             for (const auto &r : fmts) {
                 if (!r.format.fontStrikeOut() || !r.format.boolProperty(tp::DoubleStrike)) continue;
                 for (int i = 0; i < B->lines.size(); ++i) {
-                    if (B->lines[i].frame != frame) continue;
+                    if (B->lines[i].frame != frame || left(i)) continue;
                     const QTextLine line = B->tl->lineAt(i);
                     const int s = std::max(r.start, line.textStart()), e = std::min(r.start + r.length, line.textStart() + line.textLength());
                     if (s >= e) continue;
@@ -6601,7 +6643,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             std::stable_sort(own.begin(), own.end(), [&](int a, int b) { return fmts[a].start < fmts[b].start; });
             int first = 0;
             for (int i = 0; i < B->lines.size() && !own.isEmpty(); ++i) {
-                if (B->lines[i].frame != frame) continue;
+                if (B->lines[i].frame != frame || left(i)) continue;
                 const QTextLine line = B->tl->lineAt(i);
                 const int ls = line.textStart(), le = ls + line.textLength();
                 ++g_underlineVisits;
@@ -6620,7 +6662,7 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
             // slanted, is scaled and sheared from its baseline (its widths stay as laid out).
             const QList<QTextLayout::FormatRange> fmts = B->tl->formats();
             for (int i = 0; i < B->lines.size(); ++i) {
-                if (B->lines[i].frame != frame) continue;
+                if (B->lines[i].frame != frame || left(i)) continue;
                 const QTextLine line = B->tl->lineAt(i);
                 const int ls = line.textStart(), le = ls + line.textLength();
                 const double base = line.y() + line.ascent();
