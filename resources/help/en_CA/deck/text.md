@@ -13,7 +13,7 @@ Text that is too long for its placeholder gets smaller so that it fits. Drag a p
 
 ## Add a text box
 
-For words that aren't in a placeholder, click **Insert > Text > Text Box**, then drag a box on the slide and type. A text box can be moved and resized like any object. See [Shapes, pictures, tables, and Text Art](objects).
+For words that aren't in a placeholder, click **Insert > Text > Text Box**, then drag a box on the slide and type. A drag makes a box of the size you drag, but never less than 18 points (0.25 inch) on a side, and a click of less than 4 points gives a box 2 inches wide and 1 inch tall. Hold **Shift** to keep the box square. Press **Esc**, or pick another tool, to put the box tool down. A text box can be moved and resized like any object. See [Shapes, pictures, tables, and Text Art](objects).
 
 ## Format letters
 
@@ -47,7 +47,7 @@ Click in a paragraph, or select several. Then use the **Home > Paragraph** group
 
 A text place on a new slide already has the bullets of its layout, so what you type there is bulleted from the start. The first theme, JeffOffice, has none, and a layout that has none gives none.
 
-Three buttons change the whole box and not just a paragraph. **Text Direction** sets **Horizontal** or **Rotate All Text 90°**. **Align Text** puts the text at the **Top**, **Middle**, or **Bottom** of its box. **Columns** sets one, two, or three columns in a text box.
+Three buttons change the whole box and not just a paragraph. **Text Direction** sets **Horizontal**, **Rotate all text 90°**, or **Rotate all text 270°**. The words are typed turned, as they are shown, and a presentation saved as a .pptx or .odp file keeps the direction. **Align Text** puts the text at the **Top**, **Middle**, or **Bottom** of its box. **Columns** sets one, two, or three columns in a text box.
 
 ## Find and replace words
 

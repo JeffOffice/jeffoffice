@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, link a shape to a cell, shape shows a cell, text box shows a cell, cell value in a shape, licence -->
+<!-- keywords: embedded object, insert object, object from a range, object from a chart, object from a page, paste as object, objects list, edit object, field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, link a shape to a cell, shape shows a cell, text box shows a cell, cell value in a shape, licence -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -84,7 +84,9 @@ On the **Insert** tab, in **Illustrations**, **Picture** opens a file chooser. P
 
 **Barcode > Barcodes From Cells** (in the same **Barcode** menu) makes a barcode for each filled cell of the selected cells, for a sheet of labels. Select the cells, click it, then choose the type and look in the same window. What you type there is only a sample, because each cell's own text becomes its barcode. The barcodes go in a column just to the right of the selected cells, one under the next, as a single step you can undo. A cell whose text the code can't hold (a letter in an EAN-13, for example) is named in a message and gets no barcode. At most 500 cells are done at once; select fewer if it says there are too many. Each barcode remembers the cell it came from and follows it: when you change that cell, the barcode is made again from the new text, in the same place and at the same size, as its own step that you can undo. The link moves with the cell when you insert or delete rows or columns. If you delete the cell, the barcode keeps the last text it had. When you save, the picture in the file is made from the cell's text as it is then, so other programs show the current value too.
 
-**Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge.
+**Shapes** opens a list: rectangle, rounded rectangle, oval, triangle, diamond, arrows, a star, a heart, a cloud, a speech callout, and a line. Pick one and it lands on the sheet in light blue with a darker edge. **Text Box**, in the **Text** group, puts in an empty box with no fill and no edge. Click **Draw Text Box** (the main button, or the first choice in its menu), then drag on the sheet to draw the box. A drag makes a box of the size you drag, but never less than 18 points (0.25 inch) on a side, and a click of less than 4 points gives the usual size. Hold **Shift** to keep the box square. The pointer is a cross until you let go; **Esc**, or any other command, puts the tool down. The box is one step you can undo.
+
+To turn the words of a text box, pick it and click **Text Direction** on the **Shape Format** tab: **Horizontal**, **Rotate all text 90°**, or **Rotate all text 270°**. The words are typed turned, as they are shown, and a workbook saved as an .xlsx or .ods file keeps the direction.
 
 With a shape picked, **Styles** on the **Shape Format** tab gives it a ready-made look: a fill and an outline that go together, such as light blue with a darker blue edge. The last two keep only the outline or only the fill. One click is one step you can undo. **Shape Fill** and **Shape Outline** change each part by itself.
 
@@ -173,6 +175,22 @@ Press **Delete** with the object picked. Undo brings it back.
 ## What is saved
 
 Everything above is saved in the file in the form other spreadsheet programs read, so a chart you make here opens there the same way. A chart that came from another program with something JeffCrunch cannot keep when it rewrites a chart (error bars, a three-dimensional chart) can still be moved, sized, and deleted, but its elements and data are not changed here.
+
+## Put in an object
+
+An **object** holds its own file inside the workbook, so the app that made it can open it again. It shows a picture of itself, but it is not a picture: it stays an object when you move it, size it, copy it, or save the workbook.
+
+1. Click **Insert**, then **Object**, and choose **From JeffCrunch Range**, **From JeffCrunch Chart**, or **From JeffWrite Page**.
+2. Pick the file, and the range or the page number if the box asks for one. If you copied one in the other app, the box offers to use it.
+3. The object goes in at the selected cell. Drag it to move it, and drag a handle to size it. A range, chart, or page that you size is drawn again at its new size, so it stays sharp. Press **Delete** to take it away. Each one is a single step of Undo.
+
+To put in what you copied in another app, click the arrow under **Paste** and choose **As Object**.
+
+**Double-click** an object to open it in the app that made it. Save it there, and the object here shows the change as one step of Undo. A cell you were typing in is left as it is. A copy you paste is an object of its own: changing one does not change the other. The same goes for a sheet you copy: its objects are copies, and the copy of the sheet keeps them.
+
+**File**, then **Info**, then **Objects** lists every object in the workbook. Select one to open it, turn it into a plain picture, or delete it.
+
+An object made in another program shows as the picture its file keeps, whatever kind of picture that is. You can pick it, move it, size it, line it up with other objects, and delete it, and it moves with the cells as your own objects do. You can't edit it here, put it in a group, or change its place in the order of the objects. It is saved just as the file had it, with only its place changed if you moved it. An object an .ods file held works the same way. Saved as an .xlsx or .ods file, your objects are in the standard form other programs read. When an .ods file is written for an object whose picture can't be drawn, the object is kept without a picture.
 
 ## Diagrams from other programs
 
