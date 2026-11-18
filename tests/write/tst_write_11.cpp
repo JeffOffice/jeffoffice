@@ -1,4 +1,7 @@
 #include "tst_write.h"
+#include "io/zip.h"
+#include <QTranslator>
+#include <limits>
 #include "text/numbersystems.h"
 #include "app/listdialogs.h"
 #include "app/writedialogs.h"
@@ -3154,10 +3157,17 @@ void WriteTests::theNumberFormatChoicesAreShown()
     auto doc = open(makeDocx(paragraphs(1, 5)));
     QVERIFY(doc);
     bool saved = false;
+    int ticks = 0;
     QTimer timer;
     QObject::connect(&timer, &QTimer::timeout, [&] {
         auto *box = qobject_cast<QDialog *>(QApplication::activeModalWidget());
         auto *combo = box ? box->findChild<QComboBox *>(QStringLiteral("numberFormat")) : nullptr;
+        // (A box or a combo that never comes would leave the dialog open for ever: after about ten seconds it is closed, and the test fails.)
+        if (++ticks > 500) {
+            timer.stop();
+            if (box) box->reject();
+            return;
+        }
         if (!combo) return;
         combo->setCurrentIndex(std::max(0, combo->findData(QStringLiteral("hebrew1"))));
         combo->showPopup();
@@ -3172,6 +3182,229 @@ void WriteTests::theNumberFormatChoicesAreShown()
     timer.start(20);
     jp::write::pageNumberFormatDialog(nullptr, doc.get(), 0);
     QVERIFY(saved);
+}
+
+// Korean counting leaves the one out of ten thousand (만) but writes it before a hundred million (일억).
+void WriteTests::koreanCountingKeepsTheOneBeforeAHundredMillion()
+{
+    using jp::numsys::numberIn;
+    QCOMPARE(numberIn("koreanCounting", 10000), QString(u8"만"));
+    QCOMPARE(numberIn("koreanCounting", 20000), QString(u8"이만"));
+    QCOMPARE(numberIn("koreanCounting", 10001), QString(u8"만일"));
+    QCOMPARE(numberIn("koreanCounting", 110000), QString(u8"십일만"));
+    QCOMPARE(numberIn("koreanCounting", 100000000), QString(u8"일억"));
+    QCOMPARE(numberIn("koreanCounting", 100000001), QString(u8"일억일"));
+    QCOMPARE(numberIn("koreanCounting", 200000000), QString(u8"이억"));
+    QCOMPARE(numberIn("koreanCounting", 123456789), QString(u8"일억이천삼백사십오만육천칠백팔십구"));
+}
+
+void WriteTests::chineseCountingAboveTenThousandIsWrittenOutRight()
+{
+    using jp::numsys::numberIn;
+    QCOMPARE(numberIn("chineseCounting", 10010), QString(u8"一万零一十"));
+    QCOMPARE(numberIn("chineseCounting", 10100), QString(u8"一万零一百"));
+    QCOMPARE(numberIn("chineseCounting", 20000), QString(u8"二万"));
+    QCOMPARE(numberIn("chineseCounting", 100000), QString(u8"十万"));
+    QCOMPARE(numberIn("chineseCounting", 1000000), QString(u8"一百万"));
+    QCOMPARE(numberIn("chineseCounting", 1000100), QString(u8"一百万零一百"));
+    QCOMPARE(numberIn("chineseCounting", 100000000), QString(u8"一亿"));
+    QCOMPARE(numberIn("taiwaneseCounting", 100000000), QString(u8"一億"));
+    QCOMPARE(numberIn("japaneseCounting", 100000000), QString(u8"一億"));
+}
+
+// 15 and 16 are 9 + 6 and 9 + 7, also in the hundreds, and also in a list.
+void WriteTests::hebrewNumeralsAvoidTheNameOfGodAlsoInAList()
+{
+    using jp::numsys::numberIn;
+    QCOMPARE(numberIn("hebrew1", 15), QString(u8"טו"));
+    QCOMPARE(numberIn("hebrew1", 16), QString(u8"טז"));
+    QCOMPARE(numberIn("hebrew1", 115), QString(u8"קטו"));
+    QCOMPARE(numberIn("hebrew1", 116), QString(u8"קטז"));
+    QCOMPARE(numberIn("hebrew1", 915), QString(u8"תתקטו"));
+    QCOMPARE(numberIn("hebrew1", 916), QString(u8"תתקטז"));
+    const QByteArray numbering =
+        "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/>"
+        "<w:lvl w:ilvl=\"0\"><w:start w:val=\"15\"/><w:numFmt w:val=\"hebrew1\"/><w:lvlText w:val=\"%1\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"1\"><w:start w:val=\"115\"/><w:numFmt w:val=\"hebrew1\"/><w:lvlText w:val=\"%2\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"2\"><w:start w:val=\"915\"/><w:numFmt w:val=\"hebrew1\"/><w:lvlText w:val=\"%3\"/></w:lvl></w:abstractNum>"
+        "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+    const QByteArray body = numPara(1, 0) + numPara(1, 0) + numPara(1, 1) + numPara(1, 1) + numPara(1, 2) + numPara(1, 2);
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    QVERIFY(doc);
+    QStringList labels;
+    for (int i = 0; i < 6; ++i) labels << labelOfBlock(doc->story()->findBlockByNumber(i));
+    QCOMPARE(labels, (QStringList{QString(u8"טו"), QString(u8"טז"), QString(u8"קטו"), QString(u8"קטז"), QString(u8"תתקטו"), QString(u8"תתקטז")}));
+}
+
+// Every format a person can pick, and the ones that share a sample with another, keep their name through .odt (the lists and the page numbers).
+void WriteTests::everyNumberFormatAndItsTwinsKeepTheirNameThroughAnOdt()
+{
+    QStringList formats = jp::numsys::offeredFormats();
+    formats << QStringLiteral("taiwaneseCounting") << QStringLiteral("ideographDigital") << QStringLiteral("japaneseCounting") << QStringLiteral("japaneseDigitalTenThousand") << QStringLiteral("koreanDigital2")
+            << QStringLiteral("koreanDigital") << QStringLiteral("hebrew2") << QStringLiteral("decimalFullWidth2") << QStringLiteral("numberInDash") << QStringLiteral("hex") << QStringLiteral("decimalHalfWidth")
+            << QStringLiteral("chineseCountingThousand") << QStringLiteral("taiwaneseCountingThousand") << QStringLiteral("taiwaneseDigital") << QStringLiteral("ideographZodiacTraditional")
+            << QStringLiteral("decimalEnclosedCircleChinese") << QStringLiteral("decimalZero");
+    formats.removeDuplicates();
+    for (const QString &format : formats) QVERIFY2(jp::numsys::knows(format), qPrintable(format));
+    // The lists: one list of each format, as one abstract number each.
+    QByteArray numbering, body;
+    for (int i = 0; i < formats.size(); ++i) {
+        numbering += "<w:abstractNum w:abstractNumId=\"" + QByteArray::number(i) + "\"><w:multiLevelType w:val=\"multilevel\"/><w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"" + formats[i].toLatin1() +
+                     "\"/><w:lvlText w:val=\"%1\"/></w:lvl></w:abstractNum>";
+        body += numPara(i + 1, 0);
+    }
+    for (int i = 0; i < formats.size(); ++i) numbering += "<w:num w:numId=\"" + QByteArray::number(i + 1) + "\"><w:abstractNumId w:val=\"" + QByteArray::number(i) + "\"/></w:num>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    QVERIFY(doc);
+    auto namesIn = [&](const QByteArray &docx) {
+        QStringList out;
+        const QByteArray xml = documentXmlOfPart(docx, QStringLiteral("/word/numbering.xml"));
+        static const QRegularExpression abstract(QStringLiteral("<w:abstractNum\\b.*?</w:abstractNum>"), QRegularExpression::DotMatchesEverythingOption);
+        static const QRegularExpression fmt(QStringLiteral("w:numFmt w:val=\"([^\"]*)\""));
+        auto it = abstract.globalMatch(QString::fromUtf8(xml));
+        while (it.hasNext()) out << fmt.match(it.next().captured(0)).captured(1);
+        return out;
+    };
+    QCOMPARE(namesIn(doc->toDocx()), formats);
+    QString err;
+    const QByteArray odt = doc->toOdt(&err);
+    QVERIFY2(!odt.isEmpty(), qPrintable(err));
+    auto fromOdt = WriteDoc::fromFile(odt, &err);
+    QVERIFY2(fromOdt, qPrintable(err));
+    const QStringList back = namesIn(fromOdt->toDocx());
+    for (int i = 0; i < formats.size(); ++i) QCOMPARE(back.value(i), formats[i]);
+    // (The sample stays in style:num-format for other programs, and the exact name is beside it.)
+    QMap<QString, QByteArray> parts;
+    QVERIFY(jp::readZip(odt, parts));
+    const QByteArray styles = parts.value(QStringLiteral("styles.xml")) + parts.value(QStringLiteral("content.xml"));
+    QVERIFY(styles.contains("jo:num-fmt=\"koreanDigital\""));
+    QVERIFY(styles.contains("style:num-format=\"\xEC\x9D\xBC, \xEC\x9D\xB4, \xEC\x82\xBC, ...\""));
+    // The page numbers.
+    for (const QString &format : formats) {
+        const QByteArray one = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgNumType w:fmt=\"" + format.toLatin1() + "\"/></w:sectPr>";
+        auto page = open(makeDocxWithParts(paragraphs(1, 2), one, {}));
+        QVERIFY2(page, qPrintable(format));
+        const QByteArray wanted = "w:fmt=\"" + format.toLatin1() + "\"";   // (the page's number format as the file names it)
+        QVERIFY2(documentXml(page->toDocx()).contains(wanted), qPrintable(format));
+        const QByteArray pageOdt = page->toOdt(&err);
+        QVERIFY2(!pageOdt.isEmpty(), qPrintable(err));
+        auto again = WriteDoc::fromFile(pageOdt, &err);
+        QVERIFY2(again, qPrintable(err));
+        QVERIFY2(documentXml(again->toDocx()).contains(wanted), qPrintable(format));
+    }
+}
+
+// A label shows its sample as one piece, so a right-to-left sample does not reorder the commas of the left-to-right label.
+void WriteTests::theChoiceLabelsIsolateTheirSamples()
+{
+    for (const char *format : {"hebrew1", "hebrew2", "arabicAlpha", "arabicAbjad", "hindiNumbers", "thaiNumbers", "chineseCounting"}) {
+        const QString label = jp::numsys::formatLabel(QString::fromLatin1(format));
+        QVERIFY2(label.contains(QChar(0x2068)) && label.contains(QChar(0x2069)), format);
+        QVERIFY2(label.indexOf(QChar(0x2068)) < label.indexOf(QStringLiteral(", ")) && label.indexOf(QStringLiteral("…")) < label.indexOf(QChar(0x2069)), format);
+        QVERIFY2(label.endsWith(QChar(0x2069) + QStringLiteral(")")), format);
+    }
+    int count = 0;
+    const jp::NumberStyleName *names = jp::numberStyleNames(&count);
+    bool found = false;
+    for (int i = 0; i < count; ++i)
+        if (QByteArray(names[i].id) == "arabicAlpha") found = QString::fromUtf8(names[i].example).contains(QChar(0x2068));
+    QVERIFY(found);
+}
+
+namespace {
+// Says "ZZ" for one label, as a translation of the program would.
+class LabelTranslator : public QTranslator {
+public:
+    QString translate(const char *context, const char *sourceText, const char *disambiguation = nullptr, int n = -1) const override
+    {
+        if (QByteArray(context) == "jp::NumberSystems" && QByteArray(sourceText) == "Thai digits") return QStringLiteral("ZZ digits");
+        return QTranslator::translate(context, sourceText, disambiguation, n);
+    }
+    bool isEmpty() const override { return false; }
+};
+} // namespace
+
+void WriteTests::theChoiceLabelsFollowTheInterfaceLanguage()
+{
+    auto labelOf = [](const char *id) {
+        int count = 0;
+        const jp::NumberStyleName *names = jp::numberStyleNames(&count);
+        for (int i = 0; i < count; ++i)
+            if (QByteArray(names[i].id) == id) return QString::fromUtf8(names[i].example);
+        return QString();
+    };
+    QVERIFY(labelOf("thaiNumbers").startsWith(QStringLiteral("Thai digits")));
+    {
+        LabelTranslator translator;
+        QCoreApplication::installTranslator(&translator);
+        QVERIFY(labelOf("thaiNumbers").startsWith(QStringLiteral("ZZ digits")));
+        QCoreApplication::removeTranslator(&translator);
+    }
+    QVERIFY(labelOf("thaiNumbers").startsWith(QStringLiteral("Thai digits")));
+}
+
+void WriteTests::anOrdinalOfTheSmallestNumberIsDefined()
+{
+    using jp::numsys::numberIn;
+    QCOMPARE(numberIn("ordinal", std::numeric_limits<qint64>::min()), QStringLiteral("-9223372036854775808th"));
+    QCOMPARE(numberIn("ordinal", -21), QStringLiteral("-21st"));
+    QCOMPARE(numberIn("ordinal", std::numeric_limits<qint64>::max()), QStringLiteral("9223372036854775807th"));
+    QCOMPARE(fields::formatNumber(std::numeric_limits<qint64>::min(), {QStringLiteral("ordinal")}), QStringLiteral("-9223372036854775808th"));
+}
+
+// A start of 2147483647 (what a file can say) must not wrap the number of the later notes.
+void WriteTests::aNoteStartNearTheLimitDoesNotWrap()
+{
+    auto doc = open(makeDocx(paragraphs(1, 2)));
+    QVERIFY(doc);
+    NoteFields fields(doc.get());
+    fields.footnoteStart = std::numeric_limits<int>::max();
+    QCOMPARE(fields.noteMarkText(false, 1), QStringLiteral("2147483647"));
+    QCOMPARE(fields.noteMarkText(false, 5), QStringLiteral("2147483647"));
+    fields.footnoteStart = 3;
+    QCOMPARE(fields.noteMarkText(false, 2), QStringLiteral("4"));
+}
+
+// A switch that names a character format of other scripts (DBCHAR, CIRCLENUM, GANADA, CHOSUNG) counts as a number format, and the text of a text result is not lost by it.
+void WriteTests::aTextFieldKeepsItsTextUnderACharacterFormatSwitch()
+{
+    fields::Env env;
+    env.bookmark = [](const QString &) {
+        fields::BookmarkInfo b;
+        b.text = QStringLiteral("Quarterly report");
+        b.number = QStringLiteral("1.2");
+        return std::optional<fields::BookmarkInfo>(b);
+    };
+    env.merge = [](const fields::Code &) { return std::optional<QString>(QStringLiteral("Dear Ana")); };
+    for (const char *sw : {"dbchar", "DBCHAR", "circlenum", "ganada", "chosung"}) {
+        const QString s = QString::fromLatin1(sw);
+        QCOMPARE(*fields::compute(fields::parseCode(QStringLiteral("REF mark \\* ") + s), env), QStringLiteral("Quarterly report"));
+        QCOMPARE(*fields::compute(fields::parseCode(QStringLiteral("REF mark \\n \\* ") + s), env), QStringLiteral("1.2"));
+        QCOMPARE(*fields::compute(fields::parseCode(QStringLiteral("MERGEFIELD Name \\* ") + s), env), QStringLiteral("Dear Ana"));
+    }
+    QCOMPARE(*fields::compute(fields::parseCode(QStringLiteral("REF mark \\* dbchar \\* Upper")), env), QStringLiteral("QUARTERLY REPORT"));
+    // A number still counts in it.
+    QCOMPARE(fields::formatNumber(12, {QStringLiteral("dbchar")}), QString(u8"１２"));
+    QCOMPARE(fields::formatNumber(3, {QStringLiteral("circlenum")}), QString(u8"③"));
+}
+
+// Hexadecimal and dashed numbers as a list counts in them.
+void WriteTests::hexAndDashNumbersAreShownInAList()
+{
+    const QByteArray numbering =
+        "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/>"
+        "<w:lvl w:ilvl=\"0\"><w:start w:val=\"255\"/><w:numFmt w:val=\"hex\"/><w:lvlText w:val=\"%1\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"1\"><w:start w:val=\"5\"/><w:numFmt w:val=\"numberInDash\"/><w:lvlText w:val=\"%2\"/></w:lvl></w:abstractNum>"
+        "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+    const QByteArray body = numPara(1, 0) + numPara(1, 0) + numPara(1, 1) + numPara(1, 1);
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    QVERIFY(doc);
+    QStringList labels;
+    for (int i = 0; i < 4; ++i) labels << labelOfBlock(doc->story()->findBlockByNumber(i));
+    QCOMPARE(labels, (QStringList{QStringLiteral("FF"), QStringLiteral("100"), QStringLiteral("- 5 -"), QStringLiteral("- 6 -")}));
 }
 
 void WriteTests::editingOneLevelOfARealListKeepsTheRest()

@@ -50,23 +50,23 @@ QComboBox *alignmentBox(const QString &current, QWidget *parent)
 
 const NumberStyleName *numberStyleNames(int *count)
 {
-    // (the formats of other scripts and systems follow, from the one list of libs/base/text/numbersystems.h; the examples are UTF-8)
-    static const std::vector<NumberStyleName> names = [] {
-        static std::vector<QByteArray> kept;
-        std::vector<NumberStyleName> list = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"},
-                                              {"decimalZero", "01, 02, 03"}, {"ordinal", "1st, 2nd, 3rd"}, {"cardinalText", "One, Two, Three"}, {"ordinalText", "First, Second, Third"}};
-        const QStringList more = numsys::offeredFormats();
-        kept.reserve(size_t(more.size()) * 2);
-        for (const QString &format : more) {
-            if (format == QLatin1String("ordinal") || format == QLatin1String("cardinalText") || format == QLatin1String("ordinalText")) continue;
-            kept.push_back(format.toLatin1());
-            kept.push_back(numsys::formatLabel(format).toUtf8());
-            list.push_back({kept[kept.size() - 2].constData(), kept.back().constData()});
-        }
-        return list;
-    }();
-    if (count) *count = int(names.size());
-    return names.data();
+    // (the formats of other scripts and systems follow, from the one list of libs/base/text/numbersystems.h; the examples are UTF-8; the labels are made when asked, so they follow the interface language)
+    static std::vector<QByteArray> kept;
+    static std::vector<NumberStyleName> list;
+    std::vector<QByteArray> fresh;
+    for (const QString &format : numsys::offeredFormats()) {
+        if (format == QLatin1String("ordinal") || format == QLatin1String("cardinalText") || format == QLatin1String("ordinalText")) continue;
+        fresh.push_back(format.toLatin1());
+        fresh.push_back(numsys::formatLabel(format).toUtf8());
+    }
+    if (list.empty() || fresh != kept) {
+        kept = fresh;
+        list = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"},
+                {"decimalZero", "01, 02, 03"}, {"ordinal", "1st, 2nd, 3rd"}, {"cardinalText", "One, Two, Three"}, {"ordinalText", "First, Second, Third"}};
+        for (size_t i = 0; i + 1 < kept.size(); i += 2) list.push_back({kept[i].constData(), kept[i + 1].constData()});
+    }
+    if (count) *count = int(list.size());
+    return list.data();
 }
 
 bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, ListBoxes mode)

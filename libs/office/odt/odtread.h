@@ -31,6 +31,7 @@ struct StyleDef {
 struct ListLevel {
     bool defined = false, bullet = false;
     QString numFmt;            // the standard's: "1", "a", "A", "i", "I", or another
+    QString exactFmt;          // jo:num-fmt: the w:numFmt name this program wrote beside it
     QString prefix, suffix, bulletChar, textStyle;
     int display = 1, start = 1;
     double left = 0, hanging = 0;      // twips: where the text and the label begin

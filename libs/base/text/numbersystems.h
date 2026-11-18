@@ -36,5 +36,7 @@ QString formatLabel(const QString &format);
 // The text of ODF's style:num-format for a format ("" where it has none), and the format an ODF value names ("" for one this does not know).
 QString odfFormatOf(const QString &format);
 QString formatOfOdf(const QString &odf);
+// The same, preferring the exact name a file also gives (when its sample is the one that name is spelled by, so that another program's edit of the sample wins).
+QString formatOfOdf(const QString &odf, const QString &exact);
 
 } // namespace jp::numsys

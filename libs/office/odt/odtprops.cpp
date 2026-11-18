@@ -470,8 +470,11 @@ QString bulletOf(const QString &c)
     return c.left(1);
 }
 
-QByteArray numFmtOf(const QString &fmt)
+QByteArray numFmtOf(const QString &fmt, const QString &exact)
 {
+    // (The exact name a file gives beside a sample is read first: formats that share a sample are told apart by it.)
+    if (!exact.isEmpty() && !fmt.isEmpty())
+        if (const QString same = jp::numsys::formatOfOdf(fmt, exact); same == exact) return exact.toLatin1();
     if (fmt == QLatin1String("1")) return "decimal";
     if (fmt == QLatin1String("a")) return "lowerLetter";
     if (fmt == QLatin1String("A")) return "upperLetter";
@@ -480,7 +483,7 @@ QByteArray numFmtOf(const QString &fmt)
     if (fmt == QLatin1String("01")) return "decimalZero";
     if (fmt.isEmpty()) return "none";
     // (The formats of other scripts and systems that ODF spells as their first numbers; one it has no name for shows as digits.)
-    if (const QString other = jp::numsys::formatOfOdf(fmt); !other.isEmpty()) return other.toLatin1();
+    if (const QString other = jp::numsys::formatOfOdf(fmt, exact); !other.isEmpty()) return other.toLatin1();
     return "decimal";
 }
 
@@ -537,7 +540,7 @@ QByteArray Reader::numberingXml() const
             QByteArray fmt = "bullet";
             if (l.bullet) lvlText = esc(bulletOf(l.bulletChar));
             else {
-                fmt = numFmtOf(l.numFmt);
+                fmt = numFmtOf(l.numFmt, l.exactFmt);
                 QString t = l.prefix;
                 const int shown = std::min(l.display, lv + 1);
                 for (int k = lv + 1 - shown + 1; k <= lv + 1; ++k) {

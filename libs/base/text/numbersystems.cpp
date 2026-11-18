@@ -125,7 +125,7 @@ struct Han {
     bool zeroWord;             // a gap of zeros inside the number is written (Chinese: 一千零一), or not (Japanese: 千一)
     bool dropOne;              // "one" before tens, hundreds, and thousands is left out everywhere (Japanese: 千百十)...
     bool dropOneTens;          // ... or only before the tens at the start (Chinese: 十一, but 一百一十)
-    bool dropOneBig;           // and before ten thousand (Korean: 만)
+    bool dropOneBig;           // and before ten thousand, not before a hundred million (Korean: 만, but 일억)
 };
 
 QString han(qint64 n, const Han &h)
@@ -157,7 +157,7 @@ QString han(qint64 n, const Han &h)
         }
         if ((pendingZero || g < 1000) && !out.isEmpty() && h.zeroWord) out += h.digit[0];
         pendingZero = false;
-        if (gi > 0 && g == 1 && h.dropOneBig) part.clear();
+        if (gi == 1 && g == 1 && h.dropOneBig) part.clear();
         out += part;
         if (gi > 0) out += h.big[gi - 1];
     }
@@ -244,7 +244,7 @@ QString capitalized(QString s)
 
 QString ordinalDigits(qint64 n)
 {
-    const qint64 a = n < 0 ? -n : n;
+    const quint64 a = n < 0 ? quint64(0) - quint64(n) : quint64(n);
     const int last = int(a % 100) >= 11 && int(a % 100) <= 13 ? 0 : int(a % 10);
     return QString::number(n) + (last == 1 ? QStringLiteral("st") : last == 2 ? QStringLiteral("nd") : last == 3 ? QStringLiteral("rd") : QStringLiteral("th"));
 }
@@ -402,7 +402,8 @@ QString formatLabel(const QString &format)
     if (!e || !e->label[0]) return QString();
     QStringList sample;
     for (int n = 1; n <= 3; ++n) sample << numberIn(format, n);
-    return QCoreApplication::translate("jp::NumberSystems", e->label) + QStringLiteral(" (") + sample.join(QStringLiteral(", ")) + QStringLiteral(", …)");
+    // (The whole sample is isolated, so that a right-to-left one does not reorder the commas of a left-to-right label.)
+    return QCoreApplication::translate("jp::NumberSystems", e->label) + QStringLiteral(" (\u2068") + sample.join(QStringLiteral(", ")) + QStringLiteral(", …\u2069)");
 }
 
 // ---- ODF: the first three numbers of the sequence, as a text document's style:num-format spells it
@@ -439,6 +440,16 @@ QString formatOfOdf(const QString &odf)
         return h;
     }();
     return bySample.value(plain(odf));
+}
+
+QString formatOfOdf(const QString &odf, const QString &exact)
+{
+    const QString found = formatOfOdf(odf);
+    if (exact.isEmpty() || exact.size() >= 64 || !knows(exact)) return found;
+    // (The exact name counts when it is spelled the way the file's sample says; the sample of a format that has none is "1".)
+    const QString spelled = odfFormatOf(exact);
+    if (spelled.isEmpty() ? odf == QLatin1String("1") : formatOfOdf(spelled) == found) return exact;
+    return found;
 }
 
 } // namespace jp::numsys

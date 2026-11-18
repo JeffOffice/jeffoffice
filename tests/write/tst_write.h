@@ -1781,6 +1781,16 @@ private Q_SLOTS:
     void aListAndPageNumbersInOtherNumberFormatsAreShownAndKept();
     void aNumberFormatWithNoNameHereKeepsItsName();
     void theNumberFormatChoicesAreShown();
+    void koreanCountingKeepsTheOneBeforeAHundredMillion();
+    void chineseCountingAboveTenThousandIsWrittenOutRight();
+    void hebrewNumeralsAvoidTheNameOfGodAlsoInAList();
+    void everyNumberFormatAndItsTwinsKeepTheirNameThroughAnOdt();
+    void theChoiceLabelsIsolateTheirSamples();
+    void theChoiceLabelsFollowTheInterfaceLanguage();
+    void anOrdinalOfTheSmallestNumberIsDefined();
+    void aNoteStartNearTheLimitDoesNotWrap();
+    void aTextFieldKeepsItsTextUnderACharacterFormatSwitch();
+    void hexAndDashNumbersAreShownInAList();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();
     void aPictureBulletIsDrawnAndKeptInTheFile();

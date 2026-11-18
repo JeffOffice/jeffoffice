@@ -766,9 +766,11 @@ QByteArray Writer::listLevelsXml(const QByteArray &head, const AbstractDef &def,
             const QString odf = jp::numsys::odfFormatOf(l.fmt);
             fmt = odf.isEmpty() ? QByteArray("1") : esc(odf);
         }
+        // (Other programs read the sample; this one reads the exact name, which tells the formats of one sample apart.)
+        const QByteArray exactName = fmts.contains(l.fmt) || !jp::numsys::knows(l.fmt) ? QByteArray() : " jo:num-fmt=\"" + esc(l.fmt) + "\"";
         int start = l.start;
         if (startOverride && startOverride[lv] >= 0) start = startOverride[lv];
-        x += "<text:list-level-style-number text:level=\"" + num(lv + 1) + "\" style:num-format=\"" + fmt + "\"" + (prefix.isEmpty() ? QByteArray() : " style:num-prefix=\"" + esc(prefix) + "\"") +
+        x += "<text:list-level-style-number text:level=\"" + num(lv + 1) + "\" style:num-format=\"" + fmt + "\"" + exactName + (prefix.isEmpty() ? QByteArray() : " style:num-prefix=\"" + esc(prefix) + "\"") +
              (suffix.isEmpty() ? QByteArray() : " style:num-suffix=\"" + esc(suffix) + "\"") + " text:display-levels=\"" + num(std::min(shown, lv + 1)) + "\" text:start-value=\"" + num(std::max(0, start)) + "\">" +
              indent + "</text:list-level-style-number>";
     }
@@ -846,7 +848,9 @@ QString Writer::masterFor(const SectionInfo &s)
 static QByteArray pageNumFormat(const QString &format)
 {
     const QString odf = jp::numsys::odfFormatOf(format);
-    return odf.isEmpty() ? QByteArray("1") : esc(odf);
+    const QByteArray sample = odf.isEmpty() ? QByteArray("1") : esc(odf);
+    // (With the exact name beside the sample, which tells apart the formats that share one.)
+    return sample + (format.isEmpty() || !jp::numsys::knows(format) || format == QLatin1String("decimal") ? QByteArray() : "\" jo:num-fmt=\"" + esc(format));
 }
 
 QByteArray Writer::masterPages()

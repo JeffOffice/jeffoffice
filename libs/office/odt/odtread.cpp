@@ -276,6 +276,7 @@ void Reader::collectListStyle(const Odf &o, int node, bool named)
         l.bullet = bullet || image;
         l.bulletChar = bullet ? o.at(c, "text:bullet-char") : QStringLiteral("•");
         l.numFmt = o.at(c, "style:num-format");
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0) l.exactFmt = t.attr(c, "num-fmt", jo);
         l.prefix = o.at(c, "style:num-prefix");
         l.suffix = o.at(c, "style:num-suffix");
         l.display = std::max(1, std::min(10, o.at(c, "text:display-levels").isEmpty() ? 1 : o.at(c, "text:display-levels").toInt()));
@@ -315,6 +316,7 @@ void Reader::collectOutline(const Odf &o, int node)
         ListLevel &l = def.level[level - 1];
         l.defined = true;
         l.numFmt = o.at(c, "style:num-format");
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0) l.exactFmt = t.attr(c, "num-fmt", jo);
         l.prefix = o.at(c, "style:num-prefix");
         l.suffix = o.at(c, "style:num-suffix");
         l.display = std::max(1, std::min(10, o.at(c, "text:display-levels").isEmpty() ? 1 : o.at(c, "text:display-levels").toInt()));
@@ -683,7 +685,7 @@ QByteArray Reader::sectPrXml(const SectionState &s)
         const QString first = lp("style:first-page-number");
         const bool hasStart = !first.isEmpty() && first != QLatin1String("continue") && first.toInt() > 0 && !s.continuous;
         // (The page's own number format: "1" is decimal, and the formats of other scripts and systems are named by their first numbers.)
-        const QString format = jp::numsys::formatOfOdf(lp("style:num-format"));
+        const QString format = jp::numsys::formatOfOdf(lp("style:num-format"), lp("num-fmt"));
         const bool hasFormat = !format.isEmpty() && format != QLatin1String("decimal");
         if (hasStart || hasFormat) x += "<w:pgNumType" + (hasFormat ? " w:fmt=\"" + format.toUtf8() + "\"" : QByteArray()) + (hasStart ? " w:start=\"" + num(first.toInt()) + "\"" : QByteArray()) + "/>";
     }

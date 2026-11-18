@@ -5,6 +5,9 @@
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 
+#include <algorithm>
+#include <limits>
+
 using namespace jp::office;
 using namespace jp::office::wml;
 
@@ -42,7 +45,7 @@ bool unpackedNoteSettings(const QByteArray &bytes, WriteDoc::NoteSettings *out)
     qint32 start = 1, columns = 1;
     d >> s.format >> start >> s.restart >> s.position >> columns;
     if (d.status() != QDataStream::Ok) return false;
-    s.start = start;
+    s.start = std::clamp<qint32>(start, 0, 32767);   // (as the file's own start is read)
     s.columns = std::clamp<int>(columns, 1, office::wml::kMaxFootnoteColumns);
     *out = s;
     return true;
@@ -123,7 +126,9 @@ void WriteDoc::followEndnoteSettings(const QByteArray &bytes)
 QString NoteFields::noteMarkText(bool endnote, int number) const
 {
     if (endnote || number <= 0) return QString::number(number);
-    return noteNumberText(footnoteFormat.isEmpty() ? QStringLiteral("decimal") : footnoteFormat, number + std::max(footnoteStart, 1) - 1);
+    // (Counted in 64 bits: a start near the most an int holds would wrap; the number shown stops at that most.)
+    const qint64 shown = qint64(number) + std::max(footnoteStart, 1) - 1;
+    return noteNumberText(footnoteFormat.isEmpty() ? QStringLiteral("decimal") : footnoteFormat, int(std::min<qint64>(shown, std::numeric_limits<int>::max())));
 }
 
 void WriteDoc::applyFootnoteSettings()
