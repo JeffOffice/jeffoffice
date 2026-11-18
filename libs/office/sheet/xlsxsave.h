@@ -194,7 +194,11 @@ struct SheetChanges {
     QString drawingRelId;
     // The links from the sheet to its tables' parts: the ids of the relationships of tables made here (saving sets them, from SaveChanges::addedTables), and of tables taken out.
     std::vector<QString> addTableRels, removeTableRels;
-    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && !bgSet && noteOps.empty() && controlsNow.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
+    // The sheet's embedded objects (see drawing.h): the children of its `oleObjects` taken out, those given other relationships, and new elements (saving plans the parts and relationships from
+    // SaveChanges::oleObjects and sets this; whoever asks for a save does not).
+    bool oleSet = false;
+    OleTailEdit ole;
+    bool empty() const { return !replaceSparklines && !replaceValidations && !replaceIgnoredErrors && !replaceScenarios && !condEdit && drawingRelId.isEmpty() && addTableRels.empty() && removeTableRels.empty() && !showRows && !replaceAutoFilter && filterMode < 0 && cells.empty() && results.empty() && !replaceColumns && !replaceMerges && !replaceFormat && !replaceTabColor && tabSelected < 0 && viewKind < 0 && viewZoom == 0 && viewNormalZoom == 0 && !setPane && !hfSet && !bgSet && !oleSet && noteOps.empty() && controlsNow.empty() && unlinks.empty() && links.empty() && !setProtection && skeleton.isEmpty() && rows.empty() && copyFromPart.isEmpty() && !setPage; }
 };
 
 // A column of a table renamed (by a person, in its header): the formulas outside the cells that name it (defined names, validations, conditional formats, charts) follow.
@@ -375,6 +379,9 @@ struct SaveChanges {
     std::map<QString, std::map<int, bool>> objectPrints;
     // Objects a person put on sheets (a chart, a picture, a shape): by the sheet's place, what the drawing part gets and the parts it relates to (drawingadd.h). A sheet with no drawing is given one.
     std::map<int, AddedDrawing> addedObjects;
+    // Embedded objects a person put on sheets, replaced, or took out, by the sheet's place (drawing.h): the parts and relationships are made and the old ones let go of when nothing else names them.
+    // The objects of the whole workbook are held to ole::limits() (their count and bytes, over every sheet); a save that would pass them fails.
+    std::map<int, OleObjectEdit> oleObjects;
     // Part names the caller has chosen for what it adds (lower case): a part the saver names itself (one that comes back with an object) takes none of them.
     std::set<QString> reservedParts;
     // Drawings whose objects are drawn in another order: for each drawing part (by its name), the order of all the children of its root as they are after what is above is done (the objects taken

@@ -441,6 +441,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_chartmake.cpp
   tests/sheet/tst_sheet_chartedit.cpp
   tests/sheet/tst_sheet_drawing.cpp
+  tests/sheet/tst_sheet_oleobjects.cpp
   tests/sheet/tst_sheet_cells.cpp
   tests/sheet/tst_sheet_crypt.cpp
   tests/sheet/tst_sheet_tablemodel.cpp

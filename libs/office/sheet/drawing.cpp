@@ -6,6 +6,9 @@
 #include "office/drawingml.h"
 #include "office/xml.h"
 #include "sheet/cellref.h"
+#include "sheet/xmlscan.h"
+
+#include <QRegularExpression>
 
 #include <algorithm>
 
@@ -295,6 +298,244 @@ QVector<SheetEquation> readEquations(const Package &package, const QString &draw
         const QByteArray markup = shapeMath(o.element);
         if (markup.isEmpty()) continue;
         out.push_back(SheetEquation{o.anchor, o.name, o.description, markup});
+    }
+    return out;
+}
+
+// ---- embedded objects
+
+namespace {
+
+QString relationshipIdOf(QByteArrayView tag)
+{
+    static const QRegularExpression id(QStringLiteral("\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    const QRegularExpressionMatch m = id.match(QString::fromUtf8(tag));
+    if (!m.hasMatch()) return QString();
+    return xmlscan::unescape(m.captured(m.capturedStart(1) >= 0 ? 1 : 2).toUtf8());
+}
+
+qint64 numberAfter(const QByteArray &xml, qsizetype from, qint64 limit)
+{
+    const qsizetype end = xml.indexOf('<', from);
+    bool ok = false;
+    const qint64 v = xml.mid(from, end < 0 ? -1 : end - from).trimmed().toLongLong(&ok);
+    return !ok || v < 0 ? 0 : std::min(v, limit);
+}
+
+} // namespace
+
+std::vector<OleChild> oleChildrenOf(const QByteArray &after, bool *truncated)
+{
+    using xmlscan::Tag;
+    // (the elements of the worksheet are at depth one under a root made up for them)
+    static const QByteArray root("<worksheet>");
+    const QByteArray xml = root + after;
+    std::vector<OleChild> out;
+    if (truncated) *truncated = false;
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    bool inList = false;
+    OleChild child;
+    bool inChild = false, haveObject = false, inFrom = false, inTo = false;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            if (inList && inChild && depth == 2) {
+                child.end = t.end;
+                out.push_back(child);
+                out.back().begin -= root.size();
+                out.back().end -= root.size();
+                inChild = false;
+            } else if (inList && !inChild && depth == 1) {
+                return out;   // (the list is closed)
+            }
+            if (depth < 0) break;
+            continue;
+        }
+        if (!inList) {
+            if (depth == 1 && t.local == "oleObjects") {
+                if (t.selfClosing) return out;
+                inList = true;
+            }
+            if (!t.selfClosing) ++depth;
+            continue;
+        }
+        if (!inChild && depth == 2) {
+            if (int(out.size()) >= kMaxOleChildren) {
+                if (truncated) *truncated = true;
+                return out;
+            }
+            child = OleChild();
+            child.begin = t.start;
+            inChild = true;
+            haveObject = false;
+            inFrom = inTo = false;
+            if (t.selfClosing) {
+                // (an oleObject that closes itself: it names an object and no picture or place)
+                child.end = t.end;
+                if (t.local == "oleObject") {
+                    const QByteArrayView tag = QByteArrayView(xml).mid(t.start, t.end - t.start);
+                    child.progId = xmlscan::unescape(xmlscan::attribute(tag, "progId")).left(256);
+                    child.shapeId = xmlscan::unescape(xmlscan::attribute(tag, "shapeId")).toLongLong();
+                    child.objectRel = relationshipIdOf(tag);
+                }
+                out.push_back(child);
+                out.back().begin -= root.size();
+                out.back().end -= root.size();
+                inChild = false;
+                continue;
+            }
+        }
+        if (inChild) {
+            const QByteArrayView tag = QByteArrayView(xml).mid(t.start, t.end - t.start);
+            if (t.local == "oleObject" && !haveObject) {
+                haveObject = true;
+                child.progId = xmlscan::unescape(xmlscan::attribute(tag, "progId")).left(256);
+                child.shapeId = xmlscan::unescape(xmlscan::attribute(tag, "shapeId")).toLongLong();
+                child.objectRel = relationshipIdOf(tag);
+            } else if (t.local == "objectPr" && child.pictureRel.isEmpty()) {
+                child.pictureRel = relationshipIdOf(tag);
+            } else if (t.local == "from" || t.local == "to") {
+                inFrom = t.local == "from";
+                inTo = !inFrom;
+                child.hasAnchor = true;
+            } else if (inFrom || inTo) {
+                AnchorPoint &point = inFrom ? child.anchor.from : child.anchor.to;
+                if (t.local == "col") point.col = quint32(numberAfter(xml, t.end, kMaxColumns - 1));
+                else if (t.local == "row") point.row = quint32(numberAfter(xml, t.end, kMaxRows - 1));
+                else if (t.local == "colOff") point.colOff = numberAfter(xml, t.end, kMaxDrawingEmu);
+                else if (t.local == "rowOff") point.rowOff = numberAfter(xml, t.end, kMaxDrawingEmu);
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return out;
+}
+
+namespace {
+
+// What follows a sheet's cells, read as a stream: what comes after the first end of `sheetData` that is found (the whole part if there is none to find).
+bool tailOfSheet(const Package &package, const QString &part, QByteArray *tail)
+{
+    const std::unique_ptr<QIODevice> in = package.openPart(part);
+    if (!in || !in->open(QIODevice::ReadOnly)) return false;
+    static const QByteArray close("</sheetData>"), empty("<sheetData/>");
+    QByteArray buf;
+    bool found = false;
+    constexpr qint64 kTailCap = qint64(64) << 20;
+    for (;;) {
+        const QByteArray chunk = in->read(1 << 20);
+        if (chunk.isEmpty()) break;
+        buf += chunk;
+        if (!found) {
+            qsizetype at = buf.lastIndexOf(close);
+            qsizetype length = close.size();
+            if (at < 0) {
+                at = buf.lastIndexOf(empty);
+                length = empty.size();
+            }
+            if (at >= 0) {
+                buf.remove(0, at + length);   // (what is left follows the cells; a later end of sheetData would be a damaged part's)
+                found = true;
+            } else if (buf.size() > (1 << 21)) {
+                buf.remove(0, buf.size() - 16);   // (cells go by; the end of sheetData may be cut between two chunks)
+            }
+        }
+        if (buf.size() > kTailCap) return false;
+    }
+    *tail = buf;
+    return true;
+}
+
+} // namespace
+
+bool readSheetOleChildren(const Package &package, const QString &sheetPart, std::vector<OleChild> *out)
+{
+    out->clear();
+    if (!package.hasPart(sheetPart)) return false;
+    QByteArray tail;
+    if (!tailOfSheet(package, sheetPart, &tail)) return false;
+    *out = oleChildrenOf(tail);
+    return true;
+}
+
+namespace {
+
+void measureTwoCell(const DrawingAnchor &a, qint64 *w, qint64 *h)
+{
+    *w = (qint64(a.to.col) - qint64(a.from.col)) * 609600 + a.to.colOff - a.from.colOff;
+    *h = (qint64(a.to.row) - qint64(a.from.row)) * 190500 + a.to.rowOff - a.from.rowOff;
+}
+
+bool isObjectRelationship(const Relationship &r)
+{
+    return !r.id.isEmpty() && !r.external && (r.type.endsWith(QLatin1String("/oleObject")) || r.type.endsWith(QLatin1String("/package")))
+           && r.target.startsWith(QLatin1String("/xl/embeddings/"), Qt::CaseInsensitive);
+}
+
+} // namespace
+
+bool readSheetOleObjects(const Package &package, const QString &sheetPart, OleReadState *state, std::vector<SheetOleObject> *out)
+{
+    out->clear();
+    if (!package.hasPart(sheetPart)) return false;
+    QByteArray tail;
+    if (!tailOfSheet(package, sheetPart, &tail)) return false;
+    const std::vector<OleChild> children = oleChildrenOf(tail);
+    for (size_t i = 0; i < children.size(); ++i) {
+        const OleChild &c = children[i];
+        const Relationship rel = package.relationship(sheetPart, c.objectRel);
+        if (!isObjectRelationship(rel) || !package.hasPart(rel.target) || !c.hasAnchor || c.progId.isEmpty()) continue;
+        // (what a part comes to is asked of the package before it is inflated, and a part that many objects name is inflated once)
+        const Relationship image = c.pictureRel.isEmpty() ? Relationship() : package.relationship(sheetPart, c.pictureRel);
+        const bool pictureUsable = !image.id.isEmpty() && !image.external && image.type.endsWith(QLatin1String("/image")) && package.hasPart(image.target);
+        const qint64 size = package.partSize(rel.target), pictureSize = pictureUsable ? package.partSize(image.target) : 0;
+        const bool pictureFits = pictureUsable && pictureSize >= 0 && pictureSize <= ole::limits().pictureBytes;
+        if (state->refused.count(rel.target.toLower()) || size < 0 || size > ole::limits().objectBytes || !state->budget.fits(size, pictureFits ? pictureSize : 0)) {
+            ++state->pastLimit;
+            continue;
+        }
+        qint64 w = 0, h = 0;
+        if (state->measure) state->measure(c.anchor, &w, &h);
+        else measureTwoCell(c.anchor, &w, &h);
+        w = std::clamp<qint64>(w, 0, ole::kMaxEmu);
+        h = std::clamp<qint64>(h, 0, ole::kMaxEmu);
+        auto partOf = [&](const QString &name) {
+            const QString key = name.toLower();
+            auto it = state->parts.find(key);
+            if (it == state->parts.end()) it = state->parts.emplace(key, package.part(name)).first;
+            return it->second;
+        };
+        const QByteArray bytes = partOf(rel.target);
+        const QByteArray preview = pictureFits ? partOf(image.target) : QByteArray();
+        std::optional<ole::EmbeddedObject> kept = ole::keepObject(c.progId, bytes, preview, w, h, state->budget, rel.target);
+        if (!kept) {
+            state->refused.insert(rel.target.toLower());
+            ++state->pastLimit;
+            continue;
+        }
+        SheetOleObject o;
+        o.object = *kept;
+        o.anchor = c.anchor;
+        o.anchor.kind = AnchorKind::TwoCell;
+        o.fileIndex = int(i);
+        o.shapeId = c.shapeId;
+        out->push_back(std::move(o));
+    }
+    return true;
+}
+
+std::vector<SheetOleObject> oleObjectsThatFit(const std::vector<SheetOleObject> &objects, ole::ObjectBudget *budget)
+{
+    std::vector<SheetOleObject> out;
+    for (const SheetOleObject &o : objects) {
+        if (!budget->admit(o.object.partBytes.size(), o.object.previewPng.size())) continue;
+        SheetOleObject copy = o;
+        copy.fileIndex = -1;
+        copy.object.origin.clear();
+        out.push_back(std::move(copy));
     }
     return out;
 }

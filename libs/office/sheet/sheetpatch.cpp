@@ -962,6 +962,113 @@ QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relI
     return after.left(insertAt) + element + after.mid(insertAt);
 }
 
+// A tag with the id of its relationship set to `id` (the one it has, whatever its prefix; or one put in, with the namespace declared with it).
+QByteArray tagWithRelationshipId(const QByteArray &tag, const QByteArray &id)
+{
+    static const QRegularExpression idAttr(QStringLiteral("(\\s[A-Za-z_][\\w.-]*:id\\s*=\\s*)(\"[^\"]*\"|'[^']*')"));
+    const QString text = QString::fromUtf8(tag);
+    const QRegularExpressionMatch m = idAttr.match(text);
+    const QByteArray value = xmlscan::escapeAttribute(QString::fromLatin1(id));
+    if (m.hasMatch()) return (text.left(m.capturedStart(2)) + QLatin1Char('"') + QString::fromLatin1(value) + QLatin1Char('"') + text.mid(m.capturedEnd(2))).toUtf8();
+    const qsizetype close = tag.endsWith("/>") ? tag.size() - 2 : tag.size() - 1;
+    return tag.left(close) + " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + value + "\"" + tag.mid(close);
+}
+
+// An embedded object's element: the program, the relationships of its bytes and picture, and its place.
+QByteArray oleObjectElement(const OleTailEdit::Add &a, const QByteArray &prefix)
+{
+    auto point = [](const char *name, const AnchorPoint &p) {
+        return QByteArray("<xdr:") + name + "><xdr:col>" + QByteArray::number(p.col) + "</xdr:col><xdr:colOff>" + QByteArray::number(p.colOff) + "</xdr:colOff><xdr:row>" + QByteArray::number(p.row) +
+               "</xdr:row><xdr:rowOff>" + QByteArray::number(p.rowOff) + "</xdr:rowOff></xdr:" + name + ">";
+    };
+    QByteArray out = "<" + prefix + "oleObject xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" progId=\"" +
+                     xmlscan::escapeAttribute(a.progId) + "\" shapeId=\"" + QByteArray::number(a.shapeId) + "\" r:id=\"" + xmlscan::escapeAttribute(a.objectRel) + "\"><" + prefix + "objectPr defaultSize=\"0\"";
+    if (!a.pictureRel.isEmpty()) out += " r:id=\"" + xmlscan::escapeAttribute(a.pictureRel) + "\"";
+    out += "><" + prefix + "anchor moveWithCells=\"1\">" + point("from", a.anchor.from) + point("to", a.anchor.to) + "</" + prefix + "anchor></" + prefix + "objectPr></" + prefix + "oleObject>";
+    return out;
+}
+
+// A child of the `oleObjects` with the relationships of its object and its picture changed: the tags of its `oleObject` elements get the object's, its `objectPr` the picture's.
+QByteArray oleChildWithRelationships(const QByteArray &raw, const QString &objectRel, const QString &pictureRel)
+{
+    QByteArray out;
+    qsizetype copied = 0, pos = 0;
+    Tag t;
+    while (xmlscan::nextTag(raw, pos, &t)) {
+        pos = t.end;
+        if (t.closing) continue;
+        const bool object = t.local == "oleObject", picture = t.local == "objectPr" && !pictureRel.isEmpty();
+        if (!object && !picture) continue;
+        out += raw.mid(copied, t.start - copied);
+        out += tagWithRelationshipId(raw.mid(t.start, t.end - t.start), (object ? objectRel : pictureRel).toLatin1());
+        copied = t.end;
+    }
+    return out + raw.mid(copied);
+}
+
+// What follows a sheet's cells with the children of its `oleObjects` that are named taken out, the relationships of some changed (a replaced object's bytes and picture), and new objects at the
+// end. The children that are not named are kept as the file has them, byte for byte. The element is put where the format has it (before the controls and the table parts) when the sheet had
+// none, and taken out when nothing is left in it.
+QByteArray tailWithOleObjects(const QByteArray &after, const OleTailEdit &edit, const QByteArray &prefix)
+{
+    static const QList<QByteArray> later = {"controls", "webPublishItems", "tableParts", "extLst"};
+    Tag t;
+    qsizetype pos = 0, insertAt = -1, start = -1, end = -1;
+    QByteArray name;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) {
+                if (insertAt < 0) insertAt = t.start;   // </worksheet>
+                break;
+            }
+            continue;
+        }
+        if (depth == 0) {
+            if (t.local == "oleObjects" && start < 0) {
+                start = t.start;
+                name = QByteArray(t.name);
+                end = t.end;
+                if (!t.selfClosing) {
+                    Tag c;
+                    qsizetype p2 = t.end;
+                    int d2 = 1;
+                    while (d2 > 0 && xmlscan::nextTag(after, p2, &c)) {
+                        p2 = c.end;
+                        if (c.closing) --d2;
+                        else if (!c.selfClosing) ++d2;
+                    }
+                    end = p2;
+                    pos = p2;
+                }
+                continue;
+            }
+            if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    if (start < 0 && insertAt < 0) return after;
+    QByteArray body;
+    if (start >= 0) {
+        const std::vector<OleChild> children = oleChildrenOf(after);
+        for (size_t i = 0; i < children.size(); ++i) {
+            if (edit.remove.count(int(i))) continue;
+            QByteArray raw = after.mid(children[i].begin, children[i].end - children[i].begin);
+            if (const auto changed = edit.retarget.find(int(i)); changed != edit.retarget.end()) raw = oleChildWithRelationships(raw, changed->second.first, changed->second.second);
+            body += raw;
+        }
+    }
+    for (const OleTailEdit::Add &a : edit.add) body += oleObjectElement(a, prefix);
+    if (body.isEmpty()) return start < 0 ? after : after.left(start) + after.mid(end);
+    if (start < 0) {
+        const QByteArray element = "<" + prefix + "oleObjects>" + body + "</" + prefix + "oleObjects>";
+        return after.left(insertAt) + element + after.mid(insertAt);
+    }
+    const QByteArray element = "<" + name + ">" + body + "</" + name + ">";
+    return after.left(start) + element + after.mid(end);
+}
+
 // What follows a sheet's cells with the element that names its background picture (`picture`) made to name `relId` (taken out when it is empty): in place of the one the sheet has, or
 // where the format puts it (after the headers' drawing, before the embedded objects and the table parts).
 QByteArray tailWithBackground(const QByteArray &after, const QByteArray &relId, const QByteArray &prefix)
@@ -1857,6 +1964,7 @@ public:
         m_hfRel = changes.hfRel.toLatin1();
         m_bgSet = changes.bgSet;
         m_bgRel = changes.bgRel.toLatin1();
+        if (changes.oleSet) m_ole = &changes.ole;
         if (changes.replaceSparklines) m_sparklines = &changes.sparklines;
         if (changes.condEdit) m_cond = &changes;
         m_legacyId = changes.legacyRelId.toLatin1();
@@ -2373,7 +2481,7 @@ private:
     // ---- what follows the rows
     bool tail()
     {
-        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || m_bgSet || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_dropControls.empty() || !m_addTables->empty() || !m_removeTables->empty()) {
+        if (m_merges || m_validations || m_ignored || m_scenarios || m_page || m_filter || !m_drawingId.isEmpty() || m_hfSet || m_bgSet || m_ole || !m_legacyId.isEmpty() || m_links || m_protection || m_sparklines || m_cond || !m_dropControls.empty() || !m_addTables->empty() || !m_removeTables->empty()) {
             // (what follows the cells is held whole to change its merged ranges, its filter, its page setup, and its drawing)
             while (fill()) {
                 if (cancelled()) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -2396,6 +2504,7 @@ private:
                 if (m_links) tail = tailWithLinks(tail, *m_unlinks, *m_links, m_prefix);
                 if (m_hfSet) tail = tailWithHeaderDrawing(tail, m_hfRel, m_prefix);
                 if (m_bgSet) tail = tailWithBackground(tail, m_bgRel, m_prefix);
+                if (m_ole) tail = tailWithOleObjects(tail, *m_ole, m_prefix);
                 if (!m_addTables->empty() || !m_removeTables->empty()) tail = tailWithTableParts(tail, *m_addTables, *m_removeTables, m_prefix);
                 if (!m_dropControls.empty()) tail = tailWithoutControls(tail, m_dropControls);
                 if (m_cond) tail = tailWithCondEdit(tail, *m_cond, m_prefix);
@@ -2462,6 +2571,7 @@ private:
     QByteArray m_hfRel;
     bool m_bgSet = false;
     QByteArray m_bgRel;
+    const OleTailEdit *m_ole = nullptr;
     QByteArray m_legacyId;
     std::vector<qint64> m_dropControls;
     const std::vector<CellRange> *m_unlinks = nullptr;
