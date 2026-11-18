@@ -924,9 +924,16 @@ bool CrunchWindow::setTextBoxDirection(TextDirection direction)
     return restyleObject(tr("Text Direction"), [&](QDomElement &el, grid::ObjectBox *) {
         if (!isTextBoxElement(el)) return false;
         QDomElement props = childNamed(childNamed(el, QStringLiteral("txBody")), QStringLiteral("bodyPr"));
-        if (props.isNull() || directionOfBody(el) == direction) return false;   // (a value that is none of ours reads as across, and is kept as it was)
-        if (direction == TextDirection::Horizontal) props.removeAttribute(QStringLiteral("vert"));
-        else props.setAttribute(QStringLiteral("vert"), QString::fromLatin1(textDirectionVert(direction)));
+        if (props.isNull()) return false;
+        // (a value that is none of ours reads as across and is kept until a direction is picked; picking one, across too, writes it, as in the other apps)
+        const QString vert = props.attribute(QStringLiteral("vert"));
+        if (direction == TextDirection::Horizontal) {
+            if (!props.hasAttribute(QStringLiteral("vert")) || vert == QLatin1String("horz")) return false;
+            props.removeAttribute(QStringLiteral("vert"));
+        } else {
+            if (directionOfBody(el) == direction && vert == QLatin1String(textDirectionVert(direction))) return false;
+            props.setAttribute(QStringLiteral("vert"), QString::fromLatin1(textDirectionVert(direction)));
+        }
         return true;
     });
 }

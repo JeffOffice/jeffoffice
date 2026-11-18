@@ -214,7 +214,7 @@ private Q_SLOTS:
     }
 
     // A direction this program does not know (a value that is none of ours, or one 100,000 characters long) reads as across and is kept in the file until a direction is chosen.
-    void aDirectionThisProgramDoesNotKnowReadsAcrossAndIsKeptUntilOneIsChosen()
+    void aDirectionThisProgramDoesNotKnowReadsAcrossAndIsKeptUntilOneIsPicked()
     {
         for (const QString &value : {QStringLiteral("junk"), QStringLiteral("wordArtVert"), QString(100000, QLatin1Char('x'))}) {
             const QString sp = QStringLiteral("<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"2\" name=\"Box\"/><xdr:cNvSpPr txBox=\"1\"/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/>"
@@ -229,24 +229,32 @@ private Q_SLOTS:
             QTRY_VERIFY(e.win.w.act(QStringLiteral("object.dir.horz"))->isEnabled());
             QTRY_VERIFY(e.win.w.act(QStringLiteral("object.dir.horz"))->isChecked());   // (read across)
             QUndoStack *stack = e.win.w.session()->undoStack();
-            int steps = stack->count();
-            e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();   // (already across: no step, and the file's value stays)
-            QVERIFY(e.settle());
-            QCOMPARE(stack->count(), steps);
             // (an edit of the same object that is not about the direction: the object is made again, and the file's value stays in it)
             QVERIFY(e.win.w.setObjectFill(QColor(255, 200, 0), false));
             QVERIFY(e.settle());
             QVERIFY(elementOf(e, liveId(e)).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value)));
-            steps = stack->count();
             QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
             QVERIFY2(e.win.w.save() && savedOk(saved), qPrintable(QString::number(value.size())));
             QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value).toUtf8()));
+            // (across picked, though it reads across already: the value goes, as in the other apps, in one step; picked again, nothing)
+            int steps = stack->count();
+            e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();
+            QVERIFY(e.settle());
+            QCOMPARE(stack->count(), steps + 1);
+            QVERIFY(!elementOf(e, liveId(e)).contains(QStringLiteral("vert=")));
+            e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();
+            QVERIFY(e.settle());
+            QCOMPARE(stack->count(), steps + 1);
+            steps = stack->count();
             // (a direction picked replaces it, and across again leaves none)
             e.win.w.act(QStringLiteral("object.dir.r90"))->trigger();
             QVERIFY(e.settle());
             QCOMPARE(stack->count(), steps + 1);
             QVERIFY(elementOf(e, liveId(e)).contains(QStringLiteral("vert=\"vert\"")));
             QVERIFY(!elementOf(e, liveId(e)).contains(QString(QStringLiteral("vert=\"%1\"")).arg(value)));
+            QSignalSpy saved90(&e.win.w, &CrunchWindow::saved);
+            QVERIFY(e.win.w.save() && savedOk(saved90));
+            QVERIFY(partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml")).contains("vert=\"vert\""));
             e.win.w.act(QStringLiteral("object.dir.horz"))->trigger();
             QVERIFY(e.settle());
             QVERIFY(!elementOf(e, liveId(e)).contains(QStringLiteral("vert=")));
