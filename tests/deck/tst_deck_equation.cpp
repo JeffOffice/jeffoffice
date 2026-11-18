@@ -6,6 +6,7 @@
 #include "app/equationtab.h"
 #include "app/theme.h"
 #include "app/ribbon.h"
+#include "app/ribboncustom.h"
 #include "office/drawingml_write.h"
 #include "office/xml.h"
 #include <QXmlStreamWriter>
@@ -354,6 +355,24 @@ private Q_SLOTS:
         withDialog([&] { Q_EMIT w.canvas()->pictureTabWanted(); }, QStringLiteral("equationDialog"), [&](QDialog *) {});
         QCOMPARE(ed->undoStack()->index(), steps);
         QCOMPARE(equationCount(*doc), 0);
+        // Linear chosen with the math as it was is a change: an equation shown as a line, one step that undoes.
+        const bool linearBefore = jp::equationLinearSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationLinearSetting(linearBefore); });
+        jp::setEquationLinearSetting(false);
+        ed->select(id);
+        withDialog([&] { Q_EMIT w.canvas()->pictureTabWanted(); }, QStringLiteral("equationDialog"), [&](QDialog *d) { d->findChild<QRadioButton *>(QStringLiteral("equationLinear"))->setChecked(true); });
+        QCOMPARE(equationCount(*doc), 1);
+        QVERIFY(firstEquation(*doc)->linearForm);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        ed->undoStack()->undo();
+        QCOMPARE(equationCount(*doc), 0);
+        // The tab's Linear button does the same.
+        jp::setEquationLinearSetting(false);
+        ed->select(id);
+        w.act(QStringLiteral("equation.linear"))->trigger();
+        QCOMPARE(equationCount(*doc), 1);
+        QVERIFY(firstEquation(*doc)->linearForm);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
     }
 
     // Text around an equation is not lost: a box with words and math stays the picture it was and is written back whole.
@@ -677,6 +696,69 @@ private Q_SLOTS:
         QCOMPARE(pictures, 1);
     }
 
+    // The typing format and the Linear choice are program-wide settings: every open window's Equation tab shows a change made in another.
+    void aChangeOnOneWindowsEquationTabShowsOnTheOthers()
+    {
+        const bool linearBefore = jp::equationLinearSetting();
+        const jp::EquationSyntax syntaxBefore = jp::equationSyntaxSetting();
+        const auto restore = qScopeGuard([&] {
+            jp::setEquationLinearSetting(linearBefore);
+            jp::setEquationSyntaxSetting(syntaxBefore);
+        });
+        jp::setEquationSyntaxSetting(jp::EquationSyntax::Line);
+        jp::setEquationLinearSetting(false);
+        DeckWindow first, second;
+        QVERIFY(!second.act(QStringLiteral("equation.syntaxLatex"))->isChecked());
+        first.act(QStringLiteral("equation.syntaxLatex"))->trigger();
+        QVERIFY(second.act(QStringLiteral("equation.syntaxLatex"))->isChecked());
+        QVERIFY(!second.act(QStringLiteral("equation.syntaxLine"))->isChecked());
+        QVERIFY(!second.act(QStringLiteral("equation.linear"))->isChecked());
+        first.act(QStringLiteral("equation.linear"))->trigger();
+        QVERIFY(second.act(QStringLiteral("equation.linear"))->isChecked());
+    }
+
+    // A file has no Linear form: the picture is the built-up equation, in a frame of the built-up layout's proportions (not the Linear line's), the math unchanged.
+    void aLinearEquationIsSavedBuiltUpInPptxAndOdp()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        insertLine(w, QStringLiteral("(a+b)/c"));
+        const QByteArray markup = firstEquation(*ed->doc())->markup;
+        const QSizeF pro = firstEquation(*ed->doc())->rect.size();
+        w.editor()->select(firstEquation(*ed->doc())->id);
+        w.act(QStringLiteral("equation.linear"))->trigger();
+        EquationItem *eq = firstEquation(*ed->doc());
+        QVERIFY(eq->linearForm);
+        const QPointF topLeft(eq->rect.topLeft());
+        QVERIFY(eq->rect.width() / eq->rect.height() > 1.5 * pro.width() / pro.height());
+        QString err;
+        const QByteArray pptx = deck::exportPresentation(*ed->doc(), &err);
+        QVERIFY2(!pptx.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(pptx, &err);
+        QVERIFY2(back, qPrintable(err));
+        const PictureItem *pic = keptPicture(*back, *back->pages[0], QStringLiteral("equation"));
+        QVERIFY(pic);
+        QVERIFY(qAbs(pic->rect.x() - topLeft.x()) < 0.2 && qAbs(pic->rect.y() - topLeft.y()) < 0.2);
+        QVERIFY(qAbs(pic->rect.width() / pic->rect.height() - pro.width() / pro.height()) < 0.02 * pro.width() / pro.height());
+        Exported e;
+        QVERIFY2(unpack(pptx, &e, &err), qPrintable(err));
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")).contains(QString::fromUtf8(markup).mid(QString::fromUtf8(markup).indexOf(QStringLiteral("<m:f>")), 20)));
+        const QByteArray odp = deck::exportOdp(*ed->doc(), false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto backOdp = deck::importOdp(odp, &err);
+        QVERIFY2(backOdp, qPrintable(err));
+        int pictures = 0;
+        for (const ItemPtr &it : backOdp->pages[0]->items) {
+            if (it->type() != ItemType::Picture) continue;
+            ++pictures;
+            const double ratio = (it->rect.width() - 8) / (it->rect.height() - 8);
+            QVERIFY(qAbs(ratio - pro.width() / pro.height()) < 0.03 * pro.width() / pro.height());
+        }
+        QCOMPARE(pictures, 1);
+        QCOMPARE(firstEquation(*ed->doc())->markup, markup);   // (the item itself is as it was)
+        QVERIFY(firstEquation(*ed->doc())->linearForm);
+    }
+
     static bool tabShown(DeckWindow &w)
     {
         for (int i = 0; i < w.ribbon()->tabCount(); ++i)
@@ -774,6 +856,37 @@ private Q_SLOTS:
         compare->setVisible(false);
         QVERIFY(b->isHidden());
         QVERIFY(group->userHidden());
+    }
+
+    // A group the person hid in Customize stays hidden when its command comes (the button group's own "nothing to show" is not the person's choice), and applying leaves other groups alone.
+    void aGroupHiddenInCustomizeStaysHiddenWhenItsCommandAppears()
+    {
+        DeckWindow w;
+        QAction *compare = w.act(QStringLiteral("review.compare"));
+        QVERIFY(compare);
+        RibbonGroup *group = nullptr, *other = nullptr;
+        for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Review"))->groups()) {
+            if (g->title() == QLatin1String("Compare")) group = g;
+            else if (!other) other = g;
+        }
+        QVERIFY(group && other);
+        const auto reset = qScopeGuard([] { RibbonCustom().save(); RibbonCustom::applyAll(); });
+        RibbonCustom c;
+        QVERIFY(c.setGroupHidden(QStringLiteral("Review"), QStringLiteral("Compare"), true));
+        c.save();
+        RibbonCustom::applyAll();
+        QVERIFY(group->hiddenByUser());
+        QVERIFY(!other->hiddenByUser());
+        compare->setVisible(true);
+        QVERIFY(group->userHidden());
+        QVERIFY(group->hiddenByUser());
+        c.setGroupHidden(QStringLiteral("Review"), QStringLiteral("Compare"), false);
+        c.save();
+        RibbonCustom::applyAll();
+        QVERIFY(!group->userHidden());
+        compare->setVisible(false);
+        QVERIFY(group->userHidden());
+        QVERIFY(!group->hiddenByUser());
     }
 
     // The window with the Equation tab shown, when JO_SHOT_DIR names a folder.

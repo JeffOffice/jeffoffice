@@ -11,7 +11,9 @@
 #include "app/equationtab.h"
 #include "app/ribbon.h"
 #include "app/theme.h"
+#include "render/renderer.h"
 #include "io/pubimport.h"
+#include "io/zip.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathast.h"
 #include "wml/wmlmathpath.h"
@@ -78,6 +80,85 @@ private Q_SLOTS:
         QVERIFY(!id.isEmpty());
         ed->select(id);
         QCOMPARE(w.helpContext(), QStringLiteral("equations"));
+    }
+
+    // The Help for the tab names the matrices the menu has (a 2 by 2, an identity, and a column of two), not one it lacks.
+    void theHelpNamesOnlyMatricesTheMenuHas()
+    {
+        for (const char *dir : {"", "deck/", "write/", "crunch/"}) {
+            QFile f(QStringLiteral(JP_TEST_DATA "/../../resources/help/en/") + QLatin1String(dir) + QStringLiteral("equations.md"));
+            QVERIFY2(f.open(QIODevice::ReadOnly), dir);
+            const QString text = QString::fromUtf8(f.readAll());
+            QVERIFY2(!text.contains(QStringLiteral("3 by 3")), dir);
+            QVERIFY2(text.contains(QStringLiteral("identity matrix")), dir);
+        }
+        for (const jp::EquationCategory &c : jp::equationCategories())
+            if (c.id == QLatin1String("matrix")) {
+                QStringList ids;
+                for (const jp::EquationVariant &v : c.variants) ids << v.id;
+                QCOMPARE(ids, QStringList({"two", "identity", "column"}));
+            }
+    }
+
+    // The Linear form of an equation is made once for its markup, however often it is drawn, hit, or exported.
+    void theLinearFormIsMadeOncePerMarkup()
+    {
+        jp::EquationItem eq;
+        eq.markup = jp::office::wml::equationMarkup(QStringLiteral("(a+b)/c+x^2"));
+        eq.linearForm = true;
+        eq.rect = QRectF(0, 0, 200, 40);
+        const qint64 before = jp::Renderer::linearFormsMadeForTest();
+        for (int i = 0; i < 25; ++i) QVERIFY(!jp::Renderer::equationOutline(eq).isEmpty());
+        QCOMPARE(jp::Renderer::linearFormsMadeForTest() - before, qint64(1));
+        eq.markup = jp::office::wml::equationMarkup(QStringLiteral("(a+b)/c+x^3"));
+        for (int i = 0; i < 25; ++i) QVERIFY(!jp::Renderer::equationOutline(eq).isEmpty());
+        QCOMPARE(jp::Renderer::linearFormsMadeForTest() - before, qint64(2));
+        eq.linearForm = false;
+        for (int i = 0; i < 5; ++i) jp::Renderer::equationOutline(eq);
+        QCOMPARE(jp::Renderer::linearFormsMadeForTest() - before, qint64(2));
+    }
+
+    // A full line says so when a structure will not go in (the preview shows a note), and the line stays as it was.
+    void aFullLineRefusesAStructureAndSaysSo()
+    {
+        QLineEdit line;
+        line.setText(QString(jp::office::wml::kMostEquationInput - 1, QLatin1Char('x')));
+        QVERIFY(!jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("structure:fraction.stacked"), jp::EquationSyntax::Line)));
+        QCOMPARE(line.text().size(), jp::office::wml::kMostEquationInput - 1);
+        QVERIFY(jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("symbol:\u03c0"), jp::EquationSyntax::Line)));
+        withDialog([&] { jp::askEquationMarkup(nullptr, QStringLiteral("Edit Equation"), nullptr, nullptr); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->setText(QString(jp::office::wml::kMostEquationInput - 1, QLatin1Char('x')));
+            d->findChild<QToolButton *>(QStringLiteral("equationStructure_fraction"))->click();
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text().size(), jp::office::wml::kMostEquationInput - 1);
+            QVERIFY(d->findChild<QLabel *>(QStringLiteral("equationPreview"))->text().contains(QStringLiteral("no room")));
+        });
+    }
+
+    // An equation typed in LaTeX (no line of our own makes it) still says itself in words: alt text, the e-book, and the screen reader never get nothing.
+    void anEquationTypedInLatexHasReadableText()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        bool ok = false;
+        const QByteArray markup = jp::office::wml::equationFromLatex(QStringLiteral("\\frac{a}{b}+\\sqrt{x}"), &ok);
+        QVERIFY(ok);
+        const QString id = jp::insertEquationMarkup(ed, markup, QString(), false);
+        QVERIFY(!id.isEmpty());
+        const auto *eq = static_cast<const jp::EquationItem *>(ed->doc()->item(id));
+        QVERIFY(eq->linear.isEmpty());
+        QVERIFY(!jp::equationReadableText(*eq).isEmpty());
+        QCOMPARE(jp::equationReadableText(*eq), jp::office::wml::equationToUnicodeMath(markup));
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("book.epub"));
+        QString err;
+        QVERIFY2(w.exportEpubTo(path, QStringLiteral("Math"), QString(), true, &err), qPrintable(err));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> z;
+        QVERIFY2(jp::readZip(f.readAll(), z, &err), qPrintable(err));
+        int found = 0;
+        for (auto it = z.cbegin(); it != z.cend(); ++it) found += it.value().contains("<p class=\"equation\">");
+        QCOMPARE(found, 1);
     }
 
     // The equation is an object: it moves and sizes like one, in steps that undo, and "Equation" with it selected opens the same editor on it.
@@ -1139,11 +1220,14 @@ private Q_SLOTS:
                                                  {"function", "sin(x)"}, {"accent", "x^"}, {"limit", "limx\u2192 a y"}, {"op", "a \u00d7 b"}, {"matrix", "(a b; c d)"}};
         QCOMPARE(jp::equationCategories().size(), 11);
         QString mismatches;
+        // (the element each category builds, and the ones a variant builds differently)
+        const QMap<QString, QString> builtBy = {{"fraction", "<m:f>"}, {"script", "<m:sSup>"}, {"script.sub", "<m:sSub>"}, {"script.supsub", "<m:sSubSup>"}, {"radical", "<m:rad>"}, {"integral", "<m:nary>"}, {"operator", "<m:nary>"},
+                                                {"bracket", "<m:d>"}, {"function.sin", "<m:t>sin</m:t>"}, {"function.cos", "<m:t>cos</m:t>"}, {"function.tan", "<m:t>tan</m:t>"}, {"function.log", "<m:t>log</m:t>"}, {"function.ln", "<m:t>ln</m:t>"}, {"accent", "<m:acc>"}, {"accent.over", "<m:bar>"}, {"limit", "<m:limLow>|<m:sSub>"}, {"op", "<m:r>"}, {"matrix", "<m:m>"}};
         for (const jp::EquationCategory &c : jp::equationCategories()) {
             QVERIFY2(expected.contains(c.id), qPrintable(c.id));
             QVERIFY(!c.variants.isEmpty() && !c.name.isEmpty() && !c.icon.isEmpty());
             const QByteArray firstMarkup = markupIn(textIn(c.variants.first(), EquationSyntax::Line), EquationSyntax::Line);
-            const QMap<QString, QByteArray> element = {{"fraction", "<m:f>"}, {"script", "<m:sSup>"}, {"radical", "<m:rad>"}, {"integral", "<m:nary>"}, {"operator", "<m:nary>"}, {"bracket", "<m:d>"}, {"accent", "<m:acc>"}, {"matrix", "<m:m>"}};
+            const QMap<QString, QByteArray> element = {{"fraction", "<m:f>"}, {"script", "<m:sSup>"}, {"radical", "<m:rad>"}, {"integral", "<m:nary>"}, {"operator", "<m:nary>"}, {"bracket", "<m:d>"}, {"accent", "<m:acc>"}, {"accent.over", "<m:bar>"}, {"matrix", "<m:m>"}};
             if (element.contains(c.id)) QVERIFY2(firstMarkup.contains(element.value(c.id)), qPrintable(c.id));
             const QString made = jp::office::wml::equationLine(firstMarkup);
             if (made != expected.value(c.id)) mismatches += c.id + ": " + made + "\n";
@@ -1153,6 +1237,12 @@ private Q_SLOTS:
                     const QString text = textIn(v, syntax);
                     const QByteArray m = markupIn(text, syntax);
                     QVERIFY2(!m.isEmpty(), qPrintable(c.id + "." + v.id + ": " + text));
+                    // (the structure it builds, not only the text it reads as)
+                    const QString key = c.id + QLatin1Char('.') + v.id;
+                    const QString wanted = builtBy.contains(key) ? builtBy.value(key) : builtBy.value(c.id);
+                    bool built = false;
+                    for (const QString &one : wanted.split(QLatin1Char('|'), Qt::SkipEmptyParts)) built = built || m.contains(one.toLatin1());   // ("lim" is a script in one format, a limit in another)
+                    QVERIFY2(built, qPrintable(key + " should hold " + wanted + " in " + QString::fromUtf8(m)));
                     // (the same equation in every format, whatever each one calls it: only a space can differ, as in sin(x) and sin (x))
                     if (first.isEmpty()) first = m;
                     QCOMPARE(QString(jp::office::wml::equationLine(m)).remove(QLatin1Char(' ')), QString(jp::office::wml::equationLine(first)).remove(QLatin1Char(' ')));
