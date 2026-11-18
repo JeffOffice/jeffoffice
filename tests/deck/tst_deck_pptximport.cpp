@@ -994,7 +994,9 @@ private Q_SLOTS:
             {"chord", "adj1=2000000 adj2=12000000"}, {"ellipseRibbon", "adj1=20000 adj2=60000 adj3=10000"}, {"ellipseRibbon2", "adj1=20000 adj2=60000 adj3=10000"},
             {"uturnArrow", "adj1=20000 adj2=20000 adj3=22000 adj4=40000 adj5=70000"}, {"circularArrow", "adj1=10000 adj2=1200000 adj3=20000000 adj4=10000000 adj5=11000"},
             {"cloudCallout", "adj1=-30000 adj2=50000"}, {"ribbon", "adj1=20000 adj2=60000"}, {"ribbon2", "adj1=20000 adj2=60000"},
-            {"blockArc", "adj1=10000000 adj2=1000000 adj3=20000"}, {"cloud", ""}, {"flowChartMultidocument", ""}};
+            {"blockArc", "adj1=10000000 adj2=1000000 adj3=20000"}, {"cloud", ""}, {"flowChartMultidocument", ""},
+            // (What a file says of the stretch of a hexagon, a pentagon, and a heptagon is kept as it says it, though the definition has its own.)
+            {"hexagon", "adj=20000 vf=100000"}, {"pentagon", "hf=100000 vf=100000"}, {"heptagon", "hf=100000 vf=100000"}};
         QString shapes;
         int id = 10;
         for (const Case &c : cases) {

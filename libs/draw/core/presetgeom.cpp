@@ -282,14 +282,14 @@ QVector<double> presetAdjustmentValues(const QString &prst, const QHash<QString,
         now.insert(name, v[i]);
     }
     // Each adjustment a handle moves stays inside the handle's range, which can depend on the ones before it. The ones no handle moves are constants of the definition (the
-    // stretch of a regular polygon or a star, hf and vf), or have the range of a size that can be as large as its frame.
+    // stretch of a regular polygon or a star, hf and vf: a file's own are kept, in a range a drawing can use), or have the range of a size that can be as large as its frame.
     const QStringList names = presetAdjustmentList(prst);
     const QVector<double> defaults = presetAdjustmentDefaults(prst);
     for (int i = 0; i < names.size(); ++i) {
         bool moved = false;
         for (const GeomHandle &h : s->handles) moved = moved || h.first.ref == names[i] || h.second.ref == names[i];
         if (moved) continue;
-        v[i] = names[i] == QLatin1String("hf") || names[i] == QLatin1String("vf") ? defaults[i] : std::clamp(v[i], std::min(0.0, defaults[i]), std::max(100000.0, defaults[i]));
+        v[i] = names[i] == QLatin1String("hf") || names[i] == QLatin1String("vf") ? std::clamp(v[i], 0.0, 200000.0) : std::clamp(v[i], std::min(0.0, defaults[i]), std::max(100000.0, defaults[i]));
         now.insert(names[i], v[i]);
     }
     for (int hi = 0; hi < s->handles.size(); ++hi) {
