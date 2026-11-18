@@ -1767,7 +1767,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         QStringList released;   // the sheet's relationships the old objects and pictures were named by
         // what the sheet's legacy drawing is to do for them: a shape taken out, given another picture, or put in (by its number); the picture is the part's name
         struct Shape {
-            enum class What { Add, Retarget, Remove } what = What::Add;
+            enum class What { Add, Retarget, Remove, Reanchor } what = What::Add;
             qint64 shapeId = 0;
             QString picturePart;
             DrawingAnchor anchor;
@@ -1799,7 +1799,9 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             if (se.isNew) continue;
             const TailRead got = readSheetOleTail(package, se.part, &tails[sheet]);
             if (got == TailRead::TooBig) return tooBigTail();
-            if (got != TailRead::Ok || tails[sheet].children.size() >= size_t(kMaxOleChildren)) return notSo();
+            if (got == TailRead::Ok && tails[sheet].children.size() >= size_t(kMaxOleChildren))
+                return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet has too many embedded objects (%1 or more) for this program to change them.").arg(kMaxOleChildren));
+            if (got != TailRead::Ok) return notSo();
         }
         // what the workbook's own objects come to, but for those the edits take away or replace (as the reader keeps them: the ones it left out are left out here)
         ole::ObjectBudget budget;
@@ -1873,6 +1875,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             for (int index : edit.remove)
                 if (index < 0 || index >= int(children.size())) return notSo();
+            for (const auto &[index, anchor] : edit.reanchor)
+                if (index < 0 || index >= int(children.size()) || edit.remove.count(index) || !children[size_t(index)].hasAnchor) return notSo();
             for (const auto &[index, object] : edit.replace) {
                 if (index < 0 || index >= int(children.size()) || edit.remove.count(index)) return notSo();
                 // (only an object of ours is given new bytes: another program's is kept as it is)
@@ -1896,31 +1900,42 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     }
                 }
             };
-            // (a replaced object's picture is written only where the object has an `objectPr` to name it: else the part would be named by nothing)
-            auto putParts = [&](const ole::EmbeddedObject &object, QString *objectRel, QString *pictureRel, QString *picturePart, bool withPicture) {
-                if (!object.isOurs || (withPicture && object.previewPng.isEmpty()) || object.partBytes.isEmpty() || object.partBytes.size() > ole::limits().objectBytes || !ole::looksLikePackage(object.partBytes)
-                    || (withPicture && !object.previewPng.startsWith("\x89PNG")))
-                    return false;
-                const qint64 pictureBytes = withPicture ? object.previewPng.size() : 0;
+            // (a replaced object's picture is written only where the object has an `objectPr` to name it: else the part would be named by nothing.) An object of ours is written as a package of
+            // its kind; one of another program as the parts it was read from (its bytes, the type of its part, its picture as the file had it). A picture is the PNG the object has, else the
+            // one the file had, else none: a save never fails over a picture.
+            auto putParts = [&](const ole::EmbeddedObject &object, QString *objectRel, QString *pictureRel, QString *picturePart, bool withPicture, bool foreign) {
+                if (object.partBytes.isEmpty() || object.partBytes.size() > ole::limits().objectBytes) return false;
+                if (foreign ? object.isOurs : (!object.isOurs || !ole::looksLikePackage(object.partBytes))) return false;
+                const bool png = withPicture && !object.previewPng.isEmpty() && object.previewPng.startsWith("\x89PNG");
+                const bool other = withPicture && !png && !object.otherPicture.isEmpty() && !object.otherPictureExt.isEmpty();
+                const qint64 pictureBytes = png ? object.previewPng.size() : other ? object.otherPicture.size() : 0;
                 if (!budget.admit(object.partBytes.size(), pictureBytes)) return false;
                 oleBytes += object.partBytes.size() + pictureBytes;
                 if (oleBytes > kMaxAddedBytes) return false;
-                const ole::Kind kind = object.kind();
                 OleWrite::NewPart objectPart, picture;
-                objectPart.part = freePartName(QStringLiteral("/xl/embeddings/object"), QStringLiteral(".") + ole::extensionOf(kind), taken);
+                if (foreign) {
+                    const QString extension = object.origin.contains(QLatin1Char('.')) ? object.origin.mid(object.origin.lastIndexOf(QLatin1Char('.')) + 1).toLower() : QStringLiteral("bin");
+                    objectPart.part = freePartName(QStringLiteral("/xl/embeddings/oleObject"), QStringLiteral(".") + extension, taken);
+                    objectPart.contentType = !object.partType.isEmpty() ? object.partType : QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject");
+                    objectPart.relType = object.relType == QLatin1String("package") ? QStringLiteral("package") : QStringLiteral("oleObject");
+                } else {
+                    const ole::Kind kind = object.kind();
+                    objectPart.part = freePartName(QStringLiteral("/xl/embeddings/object"), QStringLiteral(".") + ole::extensionOf(kind), taken);
+                    objectPart.contentType = kind == ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                                                                       : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+                    objectPart.relType = QStringLiteral("package");
+                }
                 taken.insert(objectPart.part.toLower());
-                objectPart.contentType = kind == ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                                                                   : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-                objectPart.relType = QStringLiteral("package");
                 objectPart.bytes = object.partBytes;
                 *objectRel = objectPart.relId = newId();
                 w.parts.push_back(std::move(objectPart));
-                if (withPicture) {
-                    picture.part = freePartName(QStringLiteral("/xl/media/oleimage"), QStringLiteral(".png"), taken);
+                if (png || other) {
+                    const QString extension = png ? QStringLiteral("png") : object.otherPictureExt;
+                    picture.part = freePartName(QStringLiteral("/xl/media/oleimage"), QStringLiteral(".") + extension, taken);
                     taken.insert(picture.part.toLower());
-                    picture.contentType = QStringLiteral("image/png");
+                    picture.contentType = png ? QStringLiteral("image/png") : !object.otherPictureType.isEmpty() ? object.otherPictureType : QStringLiteral("application/octet-stream");
                     picture.relType = QStringLiteral("image");
-                    picture.bytes = object.previewPng;
+                    picture.bytes = png ? object.previewPng : object.otherPicture;
                     *pictureRel = picture.relId = newId();
                     *picturePart = picture.part;
                     w.parts.push_back(std::move(picture));
@@ -1941,20 +1956,27 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             }
             for (const auto &[index, object] : edit.replace) {
                 QString objectRel, pictureRel, picturePart;
-                if (!putParts(object, &objectRel, &pictureRel, &picturePart, children[size_t(index)].hasObjectPr)) return tooMany();
+                // (a picture the save has none to replace the file's with is the file's: the child keeps naming it)
+                const bool picture = children[size_t(index)].hasObjectPr && !object.previewPng.isEmpty();
+                if (!putParts(object, &objectRel, &pictureRel, &picturePart, picture, false)) return tooMany();
                 tail.retarget[index] = {objectRel, pictureRel};
                 release(children[size_t(index)].objectRel);
-                release(children[size_t(index)].pictureRel);
+                if (!pictureRel.isEmpty()) release(children[size_t(index)].pictureRel);
+                else if (!children[size_t(index)].pictureRel.isEmpty()) stays << children[size_t(index)].pictureRel;
                 if (children[size_t(index)].shapeId > 0 && !picturePart.isEmpty()) w.shapes.push_back({OleWrite::Shape::What::Retarget, children[size_t(index)].shapeId, picturePart, DrawingAnchor()});
+            }
+            for (const auto &[index, anchor] : edit.reanchor) {
+                tail.reanchor[index] = anchor;
+                if (children[size_t(index)].shapeId > 0) w.shapes.push_back({OleWrite::Shape::What::Reanchor, children[size_t(index)].shapeId, QString(), anchor});
             }
             for (const OleObjectEdit::Add &add : edit.add) {
                 OleTailEdit::Add a;
                 QString picturePart;
-                if (!putParts(add.object, &a.objectRel, &a.pictureRel, &picturePart, true)) return tooMany();
+                if (!putParts(add.object, &a.objectRel, &a.pictureRel, &picturePart, true, !add.object.isOurs)) return tooMany();
                 a.progId = add.object.progId;
                 a.shapeId = ++shape;
                 a.anchor = add.anchor;
-                w.shapes.push_back({OleWrite::Shape::What::Add, a.shapeId, picturePart, add.anchor});
+                if (!picturePart.isEmpty()) w.shapes.push_back({OleWrite::Shape::What::Add, a.shapeId, picturePart, add.anchor});
                 tail.add.push_back(std::move(a));
             }
             oleWrites.push_back(std::move(w));
@@ -2258,7 +2280,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 for (const Relationship &r : package.relationships(v.vmlPart)) relIds << r.id;
             std::set<qint64> gone;
             for (const OleWrite::Shape &s : w.shapes)
-                if (s.what != OleWrite::Shape::What::Add) gone.insert(s.shapeId);
+                if (s.what == OleWrite::Shape::What::Remove || s.what == OleWrite::Shape::What::Retarget) gone.insert(s.shapeId);
             if (!gone.empty() && !was.isEmpty()) {
                 QSet<QString> kept;
                 QStringList letGo;
@@ -2271,11 +2293,16 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     v.edit.remove.insert(s.shapeId);
                     continue;
                 }
+                if (s.what == OleWrite::Shape::What::Reanchor) {
+                    v.edit.reanchor[s.shapeId] = s.anchor;
+                    continue;
+                }
                 const QString id = relIds.takeFree();
                 v.newRels.emplace_back(id, s.picturePart);
                 if (s.what == OleWrite::Shape::What::Retarget) v.edit.retarget[s.shapeId] = id;
                 else v.edit.add.push_back({s.shapeId, id, s.anchor});
             }
+            if (v.edit.remove.empty() && v.edit.retarget.empty() && v.edit.reanchor.empty() && v.edit.add.empty()) continue;
             oleVmlWrites.push_back(std::move(v));
         }
     }
@@ -2998,8 +3025,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             for (const OleWrite::NewPart &part : w.parts) {
                 newEntries.emplace_back(part.part.startsWith(QLatin1Char('/')) ? part.part.mid(1) : part.part, part.bytes);
                 QByteArray t2;
-                const bool image = part.relType == QLatin1String("image");
-                if (!(image ? addContentDefault(types, QStringLiteral("png"), part.contentType, &t2) : addContentOverride(types, part.part, part.contentType, &t2))) return bad();
+                const bool png = part.relType == QLatin1String("image") && part.part.endsWith(QLatin1String(".png"), Qt::CaseInsensitive);
+                if (!(png ? addContentDefault(types, QStringLiteral("png"), part.contentType, &t2) : addContentOverride(types, part.part, part.contentType, &t2))) return bad();
                 types = t2;
                 const QString target = relativeTarget(se.part, part.part);
                 if (se.isNew) {

@@ -48,6 +48,11 @@ struct EmbeddedObject {
     QString origin;        // where a reader found it (the part's name), kept so a writer can put it back
     OdfForm odfForm = OdfForm::None;   // an object an OpenDocument file held that is not one of ours (it has no program ID): how it was held,
     QString mediaType;                 // and the media type the file's manifest gave it
+    // What a file that holds the object as a package of parts had of it that the object core does not use, kept so that the object can be written back as it was: the type of its part and the kind
+    // of relationship that named it, and its picture when that is not a PNG (a metafile, say), as the file had it, with its extension and type. A picture of ours is drawn again; one of these is not.
+    QString partType, relType;
+    QByteArray otherPicture;
+    QString otherPictureExt, otherPictureType;
 
     Kind kind() const { return isOurs ? kindOfProgIdImpl(progId) : Kind::Other; }
 private:

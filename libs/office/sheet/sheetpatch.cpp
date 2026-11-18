@@ -1044,6 +1044,43 @@ QByteArray oleChildWithRelationships(const QByteArray &raw, const QString &objec
     return out + raw.mid(copied);
 }
 
+// A child of the `oleObjects` with its place changed and nothing else: the numbers in the `from` and `to` of the `anchor` of its `objectPr` are written over, where the file has them (its own
+// prefixes, attributes, and whatever else is around them are kept).
+QByteArray oleChildWithAnchor(const QByteArray &raw, const DrawingAnchor &anchor)
+{
+    QByteArray out;
+    qsizetype copied = 0, pos = 0;
+    Tag t;
+    int inPoint = 0;   // 1: in `from`, 2: in `to`
+    bool inAnchor = false;
+    while (xmlscan::nextTag(raw, pos, &t)) {
+        pos = t.end;
+        if (t.local == "anchor") {
+            inAnchor = !t.closing && !t.selfClosing;
+            continue;
+        }
+        if (!inAnchor) continue;
+        if (t.local == "from" || t.local == "to") {
+            inPoint = t.closing ? 0 : (t.local == "from" ? 1 : 2);
+            continue;
+        }
+        if (t.closing || t.selfClosing || !inPoint) continue;
+        const AnchorPoint &p = inPoint == 1 ? anchor.from : anchor.to;
+        qint64 value = 0;
+        if (t.local == "col") value = p.col;
+        else if (t.local == "colOff") value = p.colOff;
+        else if (t.local == "row") value = p.row;
+        else if (t.local == "rowOff") value = p.rowOff;
+        else continue;
+        Tag end;
+        if (!xmlscan::nextTag(raw, t.end, &end) || !end.closing) continue;
+        out += raw.mid(copied, t.end - copied) + QByteArray::number(value);
+        copied = end.start;
+        pos = end.start;
+    }
+    return out + raw.mid(copied);
+}
+
 // What follows a sheet's cells with the children of its `oleObjects` that are named taken out, the relationships of some changed (a replaced object's bytes and picture), and new objects at the
 // end. The children that are not named are kept as the file has them, byte for byte. The element is put where the format has it (before the controls and the table parts) when the sheet had
 // none, and taken out when nothing is left in it.
@@ -1111,6 +1148,7 @@ QByteArray tailWithOleObjects(const QByteArray &after, const OleTailEdit &edit, 
             if (edit.remove.count(int(i))) continue;
             QByteArray raw = after.mid(children[i].begin, children[i].end - children[i].begin);
             if (const auto changed = edit.retarget.find(int(i)); changed != edit.retarget.end()) raw = oleChildWithRelationships(raw, changed->second.first, changed->second.second);
+            if (const auto moved = edit.reanchor.find(int(i)); moved != edit.reanchor.end()) raw = oleChildWithAnchor(raw, moved->second);
             body += raw;
         }
     }

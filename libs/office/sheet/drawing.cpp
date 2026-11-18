@@ -573,8 +573,18 @@ bool readSheetOleObjects(const Package &package, const QString &sheetPart, OleRe
             ++state->pastLimit;
             continue;
         }
+        // (what a file that holds the object as parts has of it that is not kept otherwise, to put it back as it was: a picture that is not a PNG, and the type of the part)
+        kept->partType = package.contentType(rel.target);
+        kept->relType = rel.type.mid(rel.type.lastIndexOf(QLatin1Char('/')) + 1);
+        if (kept->previewPng.isEmpty() && !preview.isEmpty() && state->budget.admit(0, preview.size())) {
+            kept->otherPicture = preview;
+            kept->otherPictureExt = image.target.mid(image.target.lastIndexOf(QLatin1Char('.')) + 1).toLower();
+            kept->otherPictureType = package.contentType(image.target);
+        }
         SheetOleObject o;
         o.object = *kept;
+        o.objectRel = c.objectRel;
+        o.pictureRel = pictureFits ? c.pictureRel : QString();
         o.anchor = c.anchor;
         o.anchor.kind = AnchorKind::TwoCell;
         o.fileIndex = int(i);
@@ -709,7 +719,7 @@ bool vmlWithOleShapes(const QByteArray &vml, const OleVmlEdit &edit, QByteArray 
     QByteArray result;
     qsizetype at = 0;
     for (const VmlShape &shape : shapes) {
-        if (shape.id <= 0 || !(edit.remove.count(shape.id) || edit.retarget.count(shape.id))) continue;
+        if (shape.id <= 0 || !(edit.remove.count(shape.id) || edit.retarget.count(shape.id) || edit.reanchor.count(shape.id))) continue;
         const QByteArray piece = vml.mid(shape.start, shape.end - shape.start);
         if (!piece.contains("Pict")) continue;   // (only the shape of an object: a note's or a control's has the number of its own)
         result += vml.mid(at, shape.start - at);
@@ -718,13 +728,25 @@ bool vmlWithOleShapes(const QByteArray &vml, const OleVmlEdit &edit, QByteArray 
         QByteArray changed = piece;
         xmlscan::Tag t;
         qsizetype pos = 0;
-        while (xmlscan::nextTag(piece, pos, &t)) {
+        while (edit.retarget.count(shape.id) && xmlscan::nextTag(piece, pos, &t)) {
             pos = t.end;
             if (t.closing || t.local != "imagedata") continue;
             qsizetype from = 0, to = 0;
             if (xmlscan::attributeValue(QByteArrayView(piece).mid(t.start, t.end - t.start), "o:relid", &from, &to))
                 changed = piece.left(t.start + from) + xmlscan::escapeAttribute(edit.retarget.at(shape.id)) + piece.mid(t.start + to);
             break;
+        }
+        if (const auto moved = edit.reanchor.find(shape.id); moved != edit.reanchor.end()) {
+            // (the place the shape has, in the form that file has it: cells and pixel offsets; nothing else of the shape changes)
+            const qsizetype open = changed.indexOf("Anchor>");
+            const qsizetype close = open < 0 ? -1 : changed.indexOf("</", open);
+            if (open >= 0 && close > open) {
+                const DrawingAnchor &n = moved->second;
+                auto px = [](qint64 emu) { return QByteArray::number(emu / kEmuPerPixel); };
+                const QByteArray now = QByteArray::number(n.from.col) + ", " + px(n.from.colOff) + ", " + QByteArray::number(n.from.row) + ", " + px(n.from.rowOff) + ", " + QByteArray::number(n.to.col) + ", "
+                                       + px(n.to.colOff) + ", " + QByteArray::number(n.to.row) + ", " + px(n.to.rowOff);
+                changed = changed.left(open + 7) + now + changed.mid(close);
+            }
         }
         result += changed;
     }

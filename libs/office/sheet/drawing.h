@@ -148,6 +148,7 @@ struct OleVmlAdd {
 struct OleVmlEdit {
     std::set<qint64> remove;
     std::map<qint64, QString> retarget;
+    std::map<qint64, DrawingAnchor> reanchor;
     std::vector<OleVmlAdd> add;
 };
 // The picture relationship (`o:relid`) of each shape of the drawing that has one of the numbers, and of the shapes that stay; the second is used to let a relationship go only when no shape keeps it.
@@ -161,6 +162,7 @@ struct SheetOleObject {
     DrawingAnchor anchor;
     int fileIndex = -1;             // the child's place among the sheet's `oleObjects` in the file (-1: one that is not in the file yet)
     qint64 shapeId = 0;
+    QString objectRel, pictureRel;  // the ids of the sheet's relationships that name the object's bytes and its picture (what a later read finds the same object by)
 };
 
 // What reading the objects of the sheets of a workbook keeps between sheets: the count and bytes so far, the parts already inflated, and the parts refused (too large, or over the caps).
@@ -187,8 +189,9 @@ struct OleObjectEdit {
     };
     std::set<int> remove;
     std::map<int, ole::EmbeddedObject> replace;
+    std::map<int, DrawingAnchor> reanchor;   // moved or sized: only the place changes (the object's part and picture, and their relationships, are as the file has them)
     std::vector<Add> add;
-    bool empty() const { return remove.empty() && replace.empty() && add.empty(); }
+    bool empty() const { return remove.empty() && replace.empty() && reanchor.empty() && add.empty(); }
 };
 
 // What saving gives the patch of a sheet's XML for its `oleObjects`: the children to take out, the replaced ones' new relationships (the object's and the picture's), and the new elements.
@@ -200,6 +203,7 @@ struct OleTailEdit {
     };
     std::set<int> remove;
     std::map<int, std::pair<QString, QString>> retarget;
+    std::map<int, DrawingAnchor> reanchor;
     std::vector<Add> add;
 };
 

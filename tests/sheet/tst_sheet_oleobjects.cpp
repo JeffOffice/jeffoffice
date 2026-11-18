@@ -888,6 +888,119 @@ private Q_SLOTS:
         QCOMPARE(sheetTailReads() - start, qint64(2));
     }
 
+
+    // Moving or sizing an object changes the place its element says and nothing else: its part, its picture (whatever kind), the relationships, and the types of the file are as they were, for the
+    // element of a plain `oleObject` and for one that is wrapped, and the shape of the legacy drawing has the place too.
+    void anObjectsPlaceChangesAndNothingElseDoes()
+    {
+        Spec plain;
+        plain.bytes = QByteArray("not ours, not a package");
+        plain.png = pngBytes(9, 9, Qt::yellow);
+        Spec wrapped;
+        wrapped.target = QStringLiteral("/xl/embeddings/oleObject2.bin");
+        wrapped.bytes = QByteArray("another");
+        wrapped.png = pngBytes(11, 5, Qt::cyan);
+        wrapped.wrap = true;
+        wrapped.shapeId = 1030;
+        wrapped.toCol = 6;
+        const QByteArray xlsx = bookWith({plain, wrapped});
+        const auto was = unzip(xlsx);
+        SaveChanges changes;
+        changes.oleObjects[0].reanchor[0] = cells(2, 3, 5, 9);
+        changes.oleObjects[0].reanchor[1] = cells(7, 8, 12, 20);
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, changes, &out, &why), qPrintable(why));
+        const auto now = unzip(out);
+        for (auto it = was.begin(); it != was.end(); ++it)
+            if (it.key() != QLatin1String("xl/worksheets/sheet1.xml")) QCOMPARE(now.value(it.key()), it.value());
+        QCOMPARE(now.size(), was.size());
+        const QVector<SheetOleObject> seen = readAll(out);
+        QCOMPARE(int(seen.size()), 2);
+        QCOMPARE(seen[0].anchor.from.col, quint32(2));
+        QCOMPARE(seen[0].anchor.to.row, quint32(9));
+        QCOMPARE(seen[1].anchor.from.row, quint32(8));
+        QCOMPARE(seen[1].anchor.to.col, quint32(12));
+        QCOMPARE(seen[0].object.partBytes, plain.bytes);
+        QCOMPARE(seen[1].object.previewPng, wrapped.png);
+        // (only the numbers of the places differ in the sheet)
+        QByteArray was1 = was.value(QStringLiteral("xl/worksheets/sheet1.xml")), now1 = now.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QCOMPARE(now1.size() - now1.count("<xdr:col>"), was1.size() - was1.count("<xdr:col>") + (now1.size() - was1.size()));
+        QVERIFY(now1.contains("progId=\"Foo.Widget.1\""));
+        // a place for a child that is not there is refused
+        SaveChanges bad;
+        bad.oleObjects[0].reanchor[5] = cells(1, 1, 2, 2);
+        QVERIFY(!save(xlsx, bad, &out, &why));
+    }
+
+    // An object of another program that is put back (an Undo of a delete that was saved) is written as the parts it was read from, and a picture that is not a PNG is as the file had it; an
+    // object with no picture at all is written with none; none of it fails the save.
+    void aForeignObjectPutBackKeepsItsPartAndItsOwnKindOfPicture()
+    {
+        Spec s;
+        s.bytes = QByteArray("not ours, not a package");
+        s.png = QByteArray("METAFILE-BYTES");
+        s.pictureType = QStringLiteral("image");
+        QMap<QString, QByteArray> parts = unzip(bookWith({s}));
+        // the picture is a metafile: its part, relationship, and type say so
+        const QByteArray metafile = parts.take(QStringLiteral("xl/media/p1.png"));
+        parts.insert(QStringLiteral("xl/media/p1.emf"), metafile);
+        parts[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")].replace("/xl/media/p1.png", "/xl/media/p1.emf");
+        parts[QStringLiteral("[Content_Types].xml")].replace("/xl/media/p1.png\" ContentType=\"image/png\"", "/xl/media/p1.emf\" ContentType=\"image/x-emf\"");
+        QByteArray xlsx;
+        {
+            jp::ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+            xlsx = z.finish();
+        }
+        const QVector<SheetOleObject> seen = readAll(xlsx);
+        QCOMPARE(int(seen.size()), 1);
+        QVERIFY(seen[0].object.previewPng.isEmpty());
+        QCOMPARE(seen[0].object.otherPicture, metafile);
+        QCOMPARE(seen[0].object.otherPictureExt, QStringLiteral("emf"));
+        QCOMPARE(seen[0].object.otherPictureType, QStringLiteral("image/x-emf"));
+        // taken away and put back in a save of its own, beside another that is moved
+        SaveChanges changes;
+        changes.oleObjects[0].remove.insert(0);
+        changes.oleObjects[0].add.push_back({seen[0].object, cells(3, 3, 6, 8)});
+        ole::EmbeddedObject bare = seen[0].object;
+        bare.otherPicture.clear();
+        bare.partBytes = QByteArray("a second one");
+        changes.oleObjects[0].add.push_back({bare, cells(8, 3, 11, 8)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, changes, &out, &why), qPrintable(why));
+        const auto now = unzip(out);
+        const QStringList pictures = partsUnder(now, QStringLiteral("xl/media/"));
+        QCOMPARE(int(pictures.size()), 1);
+        QVERIFY(pictures.first().endsWith(QStringLiteral(".emf")));
+        QCOMPARE(now.value(pictures.first()), metafile);
+        QVERIFY(now.value(QStringLiteral("[Content_Types].xml")).contains("image/x-emf"));
+        QCOMPARE(int(partsUnder(now, QStringLiteral("xl/embeddings/")).size()), 2);
+        const QVector<SheetOleObject> again = readAll(out);
+        QCOMPARE(int(again.size()), 2);
+        QCOMPARE(again[0].object.partBytes, s.bytes);
+        QCOMPARE(again[0].object.otherPicture, metafile);
+        QVERIFY(again[1].object.otherPicture.isEmpty() && again[1].object.previewPng.isEmpty());
+        QCOMPARE(again[1].anchor.from.col, quint32(8));
+    }
+
+    // A sheet with as many embedded objects as a save looks at is refused in plain words, not with the words for a sheet that can't hold objects at all.
+    void aSheetWithTooManyObjectsIsRefusedPlainly()
+    {
+        QString children;
+        for (int i = 0; i < kMaxOleChildren; ++i) children += QStringLiteral("<oleObject progId=\"Foo.Widget.1\" shapeId=\"%1\" r:id=\"rIdNone%1\"/>").arg(i + 1);
+        const QByteArray xlsx = buildXlsx({worksheet(QString(), QStringLiteral("<oleObjects>") + children + QStringLiteral("</oleObjects>"))});
+        SaveChanges changes;
+        changes.oleObjects[0].add.push_back({ours("new", 6, Qt::red), cells(1, 1, 4, 6)});
+        QByteArray out;
+        QString why;
+        QVERIFY(!save(xlsx, changes, &out, &why));
+        QVERIFY2(why.contains(QStringLiteral("too many")), qPrintable(why));
+        QVERIFY2(why.contains(QString::number(kMaxOleChildren)), qPrintable(why));
+        QVERIFY(!why.contains(QStringLiteral("can't put them on")));
+    }
+
     // Controls that are wrapped, as another program writes them, are where the objects go before.
     void objectsGoBeforeWrappedControls()
     {
