@@ -1423,6 +1423,24 @@ private Q_SLOTS:
         QCOMPARE(int(keptObjects(*other->pages[at]).size()), 1);
     }
 
+    // A copy checks every object against what is left, not only up to the first refusal: a large object that does not fit leaves room for a smaller one after it.
+    void aCopyKeepsALaterObjectThatFitsAfterARefusedOne()
+    {
+        QString err;
+        const QByteArray big(200, 'b'), small(50, 's');
+        auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B")}, {big, small})), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(keptObjects(*d->pages[0]).size()), 2);
+        const qint64 held = big.size() + small.size() + 2 * tinyPng().size();
+        LimitsGuard guard;
+        office::ole::Limits l;
+        l.totalBytes = held + small.size() + tinyPng().size() + 10;   // room for the small one again, not the large one
+        office::ole::setLimits(l);
+        const int copy = deck::duplicateSlide(*d, 0);
+        QVERIFY(copy >= 1);
+        QCOMPARE(keptObjects(*d->pages[copy]), QList<QByteArray>{small});
+    }
+
     // Saving holds the objects of the whole presentation to the caps: what is past them is written as its picture, with a note.
     void saveHoldsTheObjectsToTheCaps()
     {

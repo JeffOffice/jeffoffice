@@ -753,10 +753,8 @@ void keepObjectsThatFit(const Document &d, const ItemList &items, QJsonArray *ch
     QJsonArray kept;
     for (const QJsonValue &v : *charts) {
         const QJsonObject e = v.toObject();
-        if (isObjectEntry(e) && (!room || !budget.admit(objectBytesOf(e), pictures.value(e.value(QStringLiteral("item")).toString())))) {
-            room = false;
-            continue;
-        }
+        // (a refusal counts nothing, so a later object that is smaller may still fit)
+        if (isObjectEntry(e) && (!room || !budget.admit(objectBytesOf(e), pictures.value(e.value(QStringLiteral("item")).toString())))) continue;
         kept.append(v);
     }
     *charts = kept;

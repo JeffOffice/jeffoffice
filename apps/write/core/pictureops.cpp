@@ -4778,6 +4778,12 @@ const BodyObjects &bodyObjectsOf(const WriteDoc &doc)
             if (!refs) cache.uses.push_back(ObjectUse{QString(), QString(), std::max<qint64>(raw.size(), 1)});
             else cache.uses.push_back(ObjectUse{refs->objectId, refs->pictureId, 0});
         }
+    // (The shapes of the other parts that hold text, headers and footers and notes, have numbers of the same series: a new one is past them too.)
+    for (const QString &name : doc.packagePartNames()) {
+        const QString lower = name.toLower();
+        if (!lower.startsWith(QLatin1String("/word/")) || !lower.endsWith(QLatin1String(".xml")) || lower == QLatin1String("/word/document.xml")) continue;
+        if (lower.contains(QLatin1String("header")) || lower.contains(QLatin1String("footer")) || lower.contains(QLatin1String("notes"))) noteShapeIds(doc.partData(name), &cache.highestShape);
+    }
     return cache;
 }
 
@@ -4787,6 +4793,24 @@ QString objectTargetOf(const WriteDoc &doc, const QString &id)
     for (const office::Relationship &r : doc.mainRelationships())
         if (r.id == id && !r.external) return r.target.toLower();
     return QString();
+}
+
+// The picture of each object that a part other than the main one holds (a header, a footer): by the Id of the object's link, the name of the picture's part (lower-cased); an object whose
+// picture is missing or not an internal part is left out.
+QHash<QString, QString> objectPicturesOf(const WriteDoc &doc, const QString &owner, const QVector<office::Relationship> &rels)
+{
+    QHash<QString, QString> out;
+    const QByteArray xml = doc.partData(owner);
+    static const QByteArray open("<w:object"), close("</w:object>");
+    for (qsizetype at = xml.indexOf(open); at >= 0; at = xml.indexOf(open, at + open.size())) {
+        const qsizetype end = xml.indexOf(close, at);
+        if (end < 0) break;
+        const std::optional<ObjectRefs> refs = objectRefsOf(xml.mid(at, end + close.size() - at));
+        if (!refs || refs->pictureId.isEmpty()) continue;
+        for (const office::Relationship &r : rels)
+            if (r.id == refs->pictureId && !r.external) out.insert(refs->objectId, r.target.toLower());
+    }
+    return out;
 }
 
 // What the document's objects come to, taken in as a budget: the packages of every part that names one (the body, headers, footers, notes, text boxes, and the parts kept as they were), each
@@ -4812,14 +4836,19 @@ bool objectBudgetOf(const WriteDoc &doc, const QString &leave, office::ole::Obje
     // The packages that other parts name, and those of the main part that no object of the body names (a header's, a text box's, a kept part's).
     QStringList owners = doc.partsWithRelationships();
     owners.prepend(QString());
+    QSet<QString> partPictures;   // by part name: a picture two objects of other parts show is counted once
     for (const QString &owner : std::as_const(owners)) {
         const QVector<office::Relationship> rels = owner.isEmpty() ? doc.mainRelationships() : doc.relationshipsOfPart(owner);
+        const QHash<QString, QString> pictureOf = owner.isEmpty() ? QHash<QString, QString>() : objectPicturesOf(doc, owner, rels);   // the object's link Id -> the picture's part
         for (const office::Relationship &r : rels) {
             if (!isObjectRelationship(r) || (owner.isEmpty() && r.id == leave)) continue;
             const QString target = r.target.toLower();
             if (seen.contains(target)) continue;
             seen.insert(target);
-            if (!budget->admit(doc.partData(r.target).size())) return false;
+            const QString picture = pictureOf.value(r.id);
+            const bool pictureNew = !picture.isEmpty() && !partPictures.contains(picture);
+            if (!picture.isEmpty()) partPictures.insert(picture);
+            if (!budget->admit(doc.partData(r.target).size(), pictureNew ? doc.partData(picture).size() : 0)) return false;
         }
     }
     return true;
