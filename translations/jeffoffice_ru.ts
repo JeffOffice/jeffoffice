@@ -1453,7 +1453,7 @@ Back page story	4</source>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../libs/page/canvas/canvas.cpp" line="+177"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="+178"/>
         <source>Page</source>
         <translation>Страница</translation>
     </message>
@@ -1473,12 +1473,12 @@ Back page story	4</source>
         <translation type="unfinished">Редактирование: %1</translation>
     </message>
     <message>
-        <location line="+511"/>
+        <location line="+512"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Создать связь текстовых полей</translation>
     </message>
     <message>
-        <location line="-1575"/>
+        <location line="-1576"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Переместить нулевую точку линейки</translation>
     </message>
@@ -1493,7 +1493,7 @@ Back page story	4</source>
         <translation type="unfinished">Перетащите, чтобы переместить нулевую точку обеих линеек. Дважды щёлкните, чтобы вернуть её в угол страницы.</translation>
     </message>
     <message>
-        <location line="+1591"/>
+        <location line="+1592"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Удалить точку обтекания</translation>
     </message>
@@ -2167,7 +2167,7 @@ Back page story	4</source>
         <translation type="unfinished">%1 (затемнение %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+517"/>
+        <location filename="../libs/page/core/document.cpp" line="+518"/>
         <source>Organization Name</source>
         <translation type="unfinished">Название организации</translation>
     </message>
@@ -2212,7 +2212,7 @@ Back page story	4</source>
         <translation type="unfinished">Веб-сайт</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/items.cpp" line="+28"/>
+        <location filename="../libs/draw/core/items.cpp" line="+29"/>
         <source>Text Box</source>
         <translation type="unfinished">Текстовое поле</translation>
     </message>
@@ -2252,7 +2252,7 @@ Back page story	4</source>
         <translation type="unfinished">Формула</translation>
     </message>
     <message>
-        <location line="+884"/>
+        <location line="+896"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Ваш текст здесь</translation>
     </message>
@@ -5872,7 +5872,7 @@ Back page story	4</source>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+735"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+737"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Заполнитель</translation>
@@ -5908,7 +5908,7 @@ Back page story	4</source>
         <translation type="unfinished">Рисунок</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+175"/>
         <source>Line</source>
         <translation type="unfinished">Линия</translation>
     </message>
@@ -6455,7 +6455,7 @@ Back page story	4</source>
         <translation type="unfinished">файл PDF не был создан этой программой</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2384"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2395"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Не удалось сохранить %n объект в .pub</numerusform>
@@ -8018,7 +8018,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Содержимое публикации повреждено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+166"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+167"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">Внедрённый шрифт «%1» не импортирован.</translation>
     </message>
@@ -8028,7 +8028,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Импортирована только нумерация страниц первого раздела.</translation>
     </message>
     <message>
-        <location line="+1045"/>
+        <location line="+1047"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не удалось отобразить рисунок %1.</translation>
     </message>
@@ -8685,7 +8685,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Слайд %1</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+67"/>
         <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">Диаграммы сохраняются как рисунки: их части нельзя изменить в этом формате файла.</translation>
     </message>
@@ -8751,7 +8751,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Последний слайд диапазона показа нельзя сохранить; показ идёт до конца.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+213"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+214"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
         <translation type="unfinished">Формулы, которые нельзя сохранить как формулы, сохраняются как рисунки.</translation>
     </message>
@@ -8794,7 +8794,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+97"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">В файле отсутствует часть.</translation>
     </message>
@@ -8809,7 +8809,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>Only the first 1,000 master pages are read.</source>
         <translation type="unfinished">Прочитаны только первые 1 000 главных страниц.</translation>
     </message>
@@ -8863,7 +8863,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Слайд %1 пропущен: в файле нет для него главной страницы.</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+92"/>
         <source>a text document</source>
         <translation type="unfinished">текстовый документ</translation>
     </message>
@@ -10517,7 +10517,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Макет %1</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+126"/>
         <source>The table styles of the presentation can&apos;t be read (%1), so its tables take the usual style.</source>
         <translation type="unfinished">Стили таблиц презентации не могут быть прочитаны (%1), поэтому таблицы используют обычный стиль.</translation>
     </message>
@@ -11090,7 +11090,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+203"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+269"/>
         <source>Rectangle</source>
         <translation type="unfinished">Прямоугольник</translation>
     </message>
@@ -11161,7 +11161,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
+        <location line="+2"/>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
@@ -11184,7 +11184,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+6"/>
-        <location line="+3"/>
+        <location line="+6"/>
         <location line="+11"/>
         <location line="+3"/>
         <location line="+7"/>
@@ -11194,12 +11194,12 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+3"/>
-        <location line="+324"/>
+        <location line="+335"/>
         <source>Basic Shapes</source>
         <translation type="unfinished">Основные фигуры</translation>
     </message>
     <message>
-        <location line="-460"/>
+        <location line="-473"/>
         <source>Isosceles Triangle</source>
         <translation type="unfinished">Равнобедренный треугольник</translation>
     </message>
@@ -11234,7 +11234,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Шестиугольник</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Heptagon</source>
         <translation type="unfinished">Семиугольник</translation>
     </message>
@@ -11349,7 +11349,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Молния</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>Sun</source>
         <translation type="unfinished">Солнце</translation>
     </message>
@@ -11426,12 +11426,12 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+3"/>
         <location line="+4"/>
         <location line="+4"/>
-        <location line="+229"/>
+        <location line="+240"/>
         <source>Block Arrows</source>
         <translation type="unfinished">Блочные стрелки</translation>
     </message>
     <message>
-        <location line="-318"/>
+        <location line="-329"/>
         <source>Left Arrow</source>
         <translation type="unfinished">Стрелка влево</translation>
     </message>
@@ -11544,14 +11544,14 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+0"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+5"/>
-        <location line="+4"/>
+        <location line="+7"/>
+        <location line="+7"/>
         <location line="+3"/>
         <source>Equation Shapes</source>
         <translation type="unfinished">Фигуры для формул</translation>
     </message>
     <message>
-        <location line="-14"/>
+        <location line="-19"/>
         <source>Minus</source>
         <translation type="unfinished">Минус</translation>
     </message>
@@ -11561,12 +11561,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Умножение</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Division</source>
         <translation type="unfinished">Деление</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+7"/>
         <source>Equal</source>
         <translation type="unfinished">Равно</translation>
     </message>
@@ -11576,7 +11576,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Не равно</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+17"/>
         <source>Flowchart: Process</source>
         <translation type="unfinished">Блок-схема: процесс</translation>
     </message>
@@ -11588,16 +11588,16 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+3"/>
         <location line="+3"/>
+        <location line="+3"/>
+        <location line="+9"/>
+        <location line="+1"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+1"/>
+        <location line="+2"/>
+        <location line="+2"/>
         <location line="+4"/>
-        <location line="+10"/>
-        <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+1"/>
         <location line="+4"/>
         <location line="+2"/>
         <location line="+3"/>
@@ -11613,7 +11613,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="-68"/>
         <source>Flowchart: Alternate Process</source>
         <translation type="unfinished">Блок-схема: альтернативный процесс</translation>
     </message>
@@ -11643,12 +11643,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: документ</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>Flowchart: Multidocument</source>
         <translation type="unfinished">Блок-схема: несколько документов</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>Flowchart: Terminator</source>
         <translation type="unfinished">Блок-схема: пуск/остановка</translation>
     </message>
@@ -11688,7 +11688,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: перфолента</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Flowchart: Summing Junction</source>
         <translation type="unfinished">Блок-схема: суммирующий узел</translation>
     </message>
@@ -11748,14 +11748,14 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: дисплей</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Explosion 1</source>
         <translation type="unfinished">Взрыв 1</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+5"/>
-        <location line="+5"/>
+        <location line="+9"/>
+        <location line="+10"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -11777,12 +11777,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Звёзды и ленты</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-49"/>
         <source>Explosion 2</source>
         <translation type="unfinished">Взрыв 2</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+10"/>
         <source>4-Point Star</source>
         <translation type="unfinished">4-конечная звезда</translation>
     </message>
@@ -11879,28 +11879,28 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <location line="+8"/>
-        <location line="+3"/>
-        <location line="+3"/>
+        <location line="+2"/>
+        <location line="+2"/>
         <location line="+3"/>
         <source>Callouts</source>
         <translation type="unfinished">Выноски</translation>
     </message>
     <message>
-        <location line="-25"/>
+        <location line="-17"/>
         <source>Rounded Rectangular Callout</source>
         <translation type="unfinished">Выноска с закруглёнными углами</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Oval Callout</source>
         <translation type="unfinished">Овальная выноска</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Cloud Callout</source>
         <translation type="unfinished">Выноска-облако</translation>
     </message>
@@ -11910,12 +11910,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Линейная выноска 1</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Line Callout 2</source>
         <translation type="unfinished">Линейная выноска 2</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Line Callout 1 (Accent Bar)</source>
         <translation type="unfinished">Линейная выноска 1 (с акцентной полосой)</translation>
     </message>
@@ -11925,7 +11925,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Линейная выноска 1 (без границы)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Action Button: Blank</source>
         <translation type="unfinished">Управляющая кнопка: пустая</translation>
     </message>
@@ -50521,7 +50521,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+769"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+775"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished">уровни элементов списка (все элементы выводятся на одном уровне)</translation>
     </message>
@@ -68100,7 +68100,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+282"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+289"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">В книге нет листов.</translation>
     </message>
@@ -75732,7 +75732,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-303"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2210"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Эту фигуру нельзя вставить сюда.</translation>
     </message>
@@ -75778,31 +75778,31 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/pictureops.cpp" line="-1541"/>
         <location line="+346"/>
         <location line="+2020"/>
-        <location line="+1416"/>
+        <location line="+1445"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Рисунки в этом документе вместе занимают столько же места, сколько JeffWrite может вставить за раз, поэтому этот рисунок не добавлен.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4516"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4545"/>
         <location line="+372"/>
         <location line="+823"/>
-        <location line="+2884"/>
+        <location line="+2913"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Пока нельзя вставить рисунок в верхний или нижний колонтитул либо в примечание.</translation>
     </message>
     <message>
-        <location line="-4227"/>
+        <location line="-4256"/>
         <location line="+345"/>
         <location line="+821"/>
-        <location line="+2886"/>
+        <location line="+2915"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Рисунок нельзя вставить сюда, или в этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать.</translation>
     </message>
     <message>
-        <location line="-4214"/>
+        <location line="-4243"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">В этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать. Сохраните его и откройте снова, чтобы изменить больше.</translation>
     </message>
@@ -75830,7 +75830,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Это текстовое поле содержит больше, чем текст (таблицу, рисунок, поле или список), поэтому его текст нельзя изменить здесь.</translation>
     </message>
     <message>
-        <location line="+2487"/>
+        <location line="+2516"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Этот рисунок слишком сложен для отрисовки, поэтому он оставлен без изменений.</translation>
     </message>

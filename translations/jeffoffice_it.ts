@@ -1453,7 +1453,7 @@ Articolo dell&apos;ultima pagina	4</translation>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../libs/page/canvas/canvas.cpp" line="+177"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="+178"/>
         <source>Page</source>
         <translation>Pagina</translation>
     </message>
@@ -1473,12 +1473,12 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Modifica di %1</translation>
     </message>
     <message>
-        <location line="+511"/>
+        <location line="+512"/>
         <source>Create Text Box Link</source>
         <translation type="unfinished">Crea collegamento casella di testo</translation>
     </message>
     <message>
-        <location line="-1575"/>
+        <location line="-1576"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Sposta punto zero del righello</translation>
     </message>
@@ -1493,7 +1493,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Trascina per spostare il punto zero di entrambi i righelli. Fai doppio clic per riportarlo all&apos;angolo della pagina.</translation>
     </message>
     <message>
-        <location line="+1591"/>
+        <location line="+1592"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Elimina punto di disposizione</translation>
     </message>
@@ -2166,7 +2166,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">%1 (ombra %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+517"/>
+        <location filename="../libs/page/core/document.cpp" line="+518"/>
         <source>Organization Name</source>
         <translation type="unfinished">Nome organizzazione</translation>
     </message>
@@ -2211,7 +2211,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Sito web</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/items.cpp" line="+28"/>
+        <location filename="../libs/draw/core/items.cpp" line="+29"/>
         <source>Text Box</source>
         <translation type="unfinished">Casella di testo</translation>
     </message>
@@ -2251,7 +2251,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Equazione</translation>
     </message>
     <message>
-        <location line="+884"/>
+        <location line="+896"/>
         <source>Your Text Here</source>
         <translation type="unfinished">Inserire il testo qui</translation>
     </message>
@@ -5870,7 +5870,7 @@ Articolo dell&apos;ultima pagina	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+735"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+737"/>
         <location line="+161"/>
         <source>Placeholder</source>
         <translation type="unfinished">Segnaposto</translation>
@@ -5906,7 +5906,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Immagine</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+175"/>
         <source>Line</source>
         <translation type="unfinished">Linea</translation>
     </message>
@@ -6453,7 +6453,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">non è un PDF creato da questo programma</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2384"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2395"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Impossibile salvare %n oggetto in .pub</numerusform>
@@ -8011,7 +8011,7 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <translation type="unfinished">Il contenuto della pubblicazione è danneggiato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+166"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+167"/>
         <source>Embedded font &quot;%1&quot; was not imported.</source>
         <translation type="unfinished">Il tipo di carattere incorporato &quot;%1&quot; non è stato importato.</translation>
     </message>
@@ -8021,7 +8021,7 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <translation type="unfinished">È stata importata solo la numerazione delle pagine della prima sezione.</translation>
     </message>
     <message>
-        <location line="+1045"/>
+        <location line="+1047"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Impossibile visualizzare un&apos;immagine %1.</translation>
     </message>
@@ -8678,7 +8678,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diapositiva %1</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+67"/>
         <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">I diagrammi vengono salvati come immagini: le loro parti non possono essere modificate in questo tipo di file.</translation>
     </message>
@@ -8749,7 +8749,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Impossibile salvare l&apos;ultima diapositiva dell&apos;intervallo da mostrare: la presentazione prosegue fino alla fine.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+213"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+214"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
         <translation type="unfinished">Le equazioni che non possono essere salvate come formule vengono salvate come immagini.</translation>
     </message>
@@ -8787,7 +8787,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>OdpImport</name>
     <message>
-        <location filename="../apps/deck/io/odpimport.cpp" line="+97"/>
+        <location filename="../apps/deck/io/odpimport.cpp" line="+98"/>
         <source>The part is missing from the file.</source>
         <translation type="unfinished">La parte non è presente nel file.</translation>
     </message>
@@ -8802,7 +8802,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Schema diapositiva</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+36"/>
         <source>Only the first 1,000 master pages are read.</source>
         <translation type="unfinished">Vengono lette solo le prime 1.000 pagine master.</translation>
     </message>
@@ -8856,7 +8856,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">La diapositiva %1 è stata omessa: il file non contiene una pagina master per essa.</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+92"/>
         <source>a text document</source>
         <translation type="unfinished">un documento di testo</translation>
     </message>
@@ -10509,7 +10509,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Layout %1</translation>
     </message>
     <message>
-        <location line="+125"/>
+        <location line="+126"/>
         <source>The table styles of the presentation can&apos;t be read (%1), so its tables take the usual style.</source>
         <translation type="unfinished">Impossibile leggere gli stili tabella della presentazione (%1), quindi le tabelle usano lo stile predefinito.</translation>
     </message>
@@ -11082,7 +11082,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+203"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+269"/>
         <source>Rectangle</source>
         <translation type="unfinished">Rettangolo</translation>
     </message>
@@ -11153,7 +11153,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
+        <location line="+2"/>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
@@ -11176,7 +11176,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+6"/>
-        <location line="+3"/>
+        <location line="+6"/>
         <location line="+11"/>
         <location line="+3"/>
         <location line="+7"/>
@@ -11186,12 +11186,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+2"/>
         <location line="+2"/>
         <location line="+3"/>
-        <location line="+324"/>
+        <location line="+335"/>
         <source>Basic Shapes</source>
         <translation type="unfinished">Forme di base</translation>
     </message>
     <message>
-        <location line="-460"/>
+        <location line="-473"/>
         <source>Isosceles Triangle</source>
         <translation type="unfinished">Triangolo isoscele</translation>
     </message>
@@ -11226,7 +11226,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Esagono</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Heptagon</source>
         <translation type="unfinished">Ettagono</translation>
     </message>
@@ -11341,7 +11341,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Fulmine</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+6"/>
         <source>Sun</source>
         <translation type="unfinished">Sole</translation>
     </message>
@@ -11418,12 +11418,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+3"/>
         <location line="+4"/>
         <location line="+4"/>
-        <location line="+229"/>
+        <location line="+240"/>
         <source>Block Arrows</source>
         <translation type="unfinished">Frecce decorative</translation>
     </message>
     <message>
-        <location line="-318"/>
+        <location line="-329"/>
         <source>Left Arrow</source>
         <translation type="unfinished">Freccia a sinistra</translation>
     </message>
@@ -11536,14 +11536,14 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+0"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+5"/>
-        <location line="+4"/>
+        <location line="+7"/>
+        <location line="+7"/>
         <location line="+3"/>
         <source>Equation Shapes</source>
         <translation type="unfinished">Forme equazione</translation>
     </message>
     <message>
-        <location line="-14"/>
+        <location line="-19"/>
         <source>Minus</source>
         <translation type="unfinished">Meno</translation>
     </message>
@@ -11553,12 +11553,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Moltiplicazione</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Division</source>
         <translation type="unfinished">Divisione</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+7"/>
         <source>Equal</source>
         <translation type="unfinished">Uguale</translation>
     </message>
@@ -11568,7 +11568,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diverso</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+17"/>
         <source>Flowchart: Process</source>
         <translation type="unfinished">Diagramma di flusso: processo</translation>
     </message>
@@ -11580,16 +11580,16 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+1"/>
         <location line="+3"/>
         <location line="+3"/>
+        <location line="+3"/>
+        <location line="+9"/>
+        <location line="+1"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+2"/>
+        <location line="+1"/>
+        <location line="+2"/>
+        <location line="+2"/>
         <location line="+4"/>
-        <location line="+10"/>
-        <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+1"/>
         <location line="+4"/>
         <location line="+2"/>
         <location line="+3"/>
@@ -11605,7 +11605,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diagramma di flusso</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="-68"/>
         <source>Flowchart: Alternate Process</source>
         <translation type="unfinished">Diagramma di flusso: processo alternativo</translation>
     </message>
@@ -11635,12 +11635,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diagramma di flusso: documento</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
         <source>Flowchart: Multidocument</source>
         <translation type="unfinished">Diagramma di flusso: documenti multipli</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
         <source>Flowchart: Terminator</source>
         <translation type="unfinished">Diagramma di flusso: terminatore</translation>
     </message>
@@ -11680,7 +11680,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diagramma di flusso: nastro perforato</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+4"/>
         <source>Flowchart: Summing Junction</source>
         <translation type="unfinished">Diagramma di flusso: giunzione di somma</translation>
     </message>
@@ -11740,14 +11740,14 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Diagramma di flusso: visualizzazione</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+4"/>
         <source>Explosion 1</source>
         <translation type="unfinished">Esplosione 1</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+5"/>
-        <location line="+5"/>
+        <location line="+9"/>
+        <location line="+10"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -11769,12 +11769,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Stelle e banner</translation>
     </message>
     <message>
-        <location line="-44"/>
+        <location line="-49"/>
         <source>Explosion 2</source>
         <translation type="unfinished">Esplosione 2</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+10"/>
         <source>4-Point Star</source>
         <translation type="unfinished">Stella a 4 punte</translation>
     </message>
@@ -11871,28 +11871,28 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <location line="+8"/>
-        <location line="+3"/>
-        <location line="+3"/>
+        <location line="+2"/>
+        <location line="+2"/>
         <location line="+3"/>
         <source>Callouts</source>
         <translation type="unfinished">Callout</translation>
     </message>
     <message>
-        <location line="-25"/>
+        <location line="-17"/>
         <source>Rounded Rectangular Callout</source>
         <translation type="unfinished">Callout rettangolare arrotondato</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Oval Callout</source>
         <translation type="unfinished">Callout ovale</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Cloud Callout</source>
         <translation type="unfinished">Callout a nuvola</translation>
     </message>
@@ -11902,12 +11902,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Callout con linea 1</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Line Callout 2</source>
         <translation type="unfinished">Callout con linea 2</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Line Callout 1 (Accent Bar)</source>
         <translation type="unfinished">Callout con linea 1 (barra in evidenza)</translation>
     </message>
@@ -11917,7 +11917,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Callout con linea 1 (senza bordo)</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Action Button: Blank</source>
         <translation type="unfinished">Pulsante di azione: vuoto</translation>
     </message>
@@ -50488,7 +50488,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+769"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+775"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished">i livelli degli elementi di elenco (ogni elemento viene esportato su un unico livello)</translation>
     </message>
@@ -68059,7 +68059,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+282"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+289"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>
@@ -75678,7 +75678,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-303"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2210"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Quella forma non può essere inserita qui.</translation>
     </message>
@@ -75724,31 +75724,31 @@ Impossibile applicare la password al file.</translation>
         <location filename="../apps/write/core/pictureops.cpp" line="-1541"/>
         <location line="+346"/>
         <location line="+2020"/>
-        <location line="+1416"/>
+        <location line="+1445"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Le immagini di questo documento hanno già raggiunto la dimensione complessiva massima consentita da JeffWrite, quindi questa non viene aggiunta.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4516"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4545"/>
         <location line="+372"/>
         <location line="+823"/>
-        <location line="+2884"/>
+        <location line="+2913"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Non è ancora possibile inserire un&apos;immagine in un&apos;intestazione, in un piè di pagina o in una nota.</translation>
     </message>
     <message>
-        <location line="-4227"/>
+        <location line="-4256"/>
         <location line="+345"/>
         <location line="+821"/>
-        <location line="+2886"/>
+        <location line="+2915"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Impossibile inserire un&apos;immagine in questa posizione, oppure il documento contiene già il numero massimo di immagini e oggetti disegnati che JeffWrite può visualizzare.</translation>
     </message>
     <message>
-        <location line="-4214"/>
+        <location line="-4243"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Il documento contiene il numero massimo di immagini e oggetti disegnati che JeffWrite può visualizzare. Salvalo e riaprilo per apportare altre modifiche.</translation>
     </message>
@@ -75776,7 +75776,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Questa casella di testo contiene più di semplici parole (una tabella, un&apos;immagine, un campo o un elenco), quindi il suo testo non può essere modificato qui.</translation>
     </message>
     <message>
-        <location line="+2487"/>
+        <location line="+2516"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Questa grafica contiene troppi elementi da disegnare, quindi resta com&apos;era.</translation>
     </message>
