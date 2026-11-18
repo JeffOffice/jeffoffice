@@ -19,6 +19,9 @@
 #include <QDomDocument>
 #include <QThread>
 
+#include "ole/odfobject.h"
+#include "sheet/foreignbook.h"
+
 namespace {
 
 using namespace drawtest;
@@ -116,6 +119,49 @@ QByteArray handWritten(const QString &shapes, const QString &rows = QString(), c
                              .arg(shapes, rows.isEmpty() ? QStringLiteral("<table:table-row table:style-name=\"ro1\" table:number-rows-repeated=\"10\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row>") : rows);
     return buildOds(contentXml(body, styleXml + styles), QString(), QByteArray(), extra);
 }
+
+// An .ods opened as a workbook, saved as an .xlsx, and from that as an .ods again (as the program saves it).
+bool viaXlsx(const QByteArray &ods, Saved *s, QString *why)
+{
+    Workbook wb;
+    if (!openBytes(ods, QStringLiteral("o.ods"), &wb, why)) return false;
+    QByteArray xlsx;
+    SaveReport report;
+    if (!saveXlsx(wb, SaveChanges(), &xlsx, why, &report)) return false;
+    return saveAsOds(xlsx, s, why);
+}
+
+// An .ods of one sheet with the frames in its shapes, the parts given, and a manifest that gives them their media types.
+QByteArray objectSheet(const QString &frames, const QMap<QString, QByteArray> &parts, const QMap<QString, QString> &types)
+{
+    QByteArray manifest = "<?xml version=\"1.0\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.spreadsheet\"/>";
+    for (auto it = types.cbegin(); it != types.cend(); ++it) manifest += "<manifest:file-entry manifest:full-path=\"" + it.key().toUtf8() + "\" manifest:media-type=\"" + it.value().toUtf8() + "\"/>";
+    manifest += "</manifest:manifest>";
+    const QString styleXml = QStringLiteral("<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"1in\"/></style:style>"
+                                            "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"0.5in\"/></style:style>");
+    const QString body = QStringLiteral("<table:table table:name=\"S\"><table:shapes>%1</table:shapes><table:table-column table:style-name=\"co1\" table:number-columns-repeated=\"10\"/>"
+                                        "<table:table-row table:style-name=\"ro1\" table:number-rows-repeated=\"10\"><table:table-cell table:number-columns-repeated=\"10\"/></table:table-row></table:table>")
+                             .arg(frames);
+    return buildOds(contentXml(body, styleXml), QString(), QByteArray(), parts, QStringLiteral("application/vnd.oasis.opendocument.spreadsheet"), manifest);
+}
+
+QByteArray blobOf(int seed, int size)
+{
+    QByteArray b;
+    for (int i = 0; i < size; ++i) b.append(char((i * 31 + seed * 7) & 0xFF));
+    return b;
+}
+
+QString objectFrame(const QString &object, bool binary, int i = 0, const QString &picture = QString())
+{
+    return QStringLiteral("<draw:frame draw:name=\"O%4\" svg:width=\"1.5in\" svg:height=\"0.5in\" svg:x=\"1in\" svg:y=\"%3in\"><draw:%1 xlink:href=\"./%2\"/>%5</draw:frame>")
+        .arg(binary ? QStringLiteral("object-ole") : QStringLiteral("object"), object).arg(0.1 + (i % 20) * 0.1).arg(i).arg(picture.isEmpty() ? QString() : QStringLiteral("<draw:image xlink:href=\"%1\"/>").arg(picture));
+}
+
+// Shrinks the object core's limits for a test and puts the real ones back when it ends.
+struct LimitGuard {
+    ~LimitGuard() { jp::office::ole::resetLimits(); }
+};
 
 } // namespace
 
@@ -462,6 +508,179 @@ private Q_SLOTS:
             QCOMPARE(r.drawing.objects.size(), 1);
             QCOMPARE(int(r.drawing.objects[0].kind), int(ObjectKind::Picture));
         }
+    }
+
+    // ---- embedded objects of other kinds
+
+    static void twoObjectParts(QMap<QString, QByteArray> *parts, QMap<QString, QString> *types)
+    {
+        parts->insert(QStringLiteral("Object 1"), blobOf(1, 3000));
+        types->insert(QStringLiteral("Object 1"), QStringLiteral("application/vnd.sun.star.oleobject"));
+        parts->insert(QStringLiteral("Object 2/content.xml"), "<?xml version=\"1.0\"?><office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\"><office:body><office:drawing/></office:body></office:document-content>");
+        parts->insert(QStringLiteral("Object 2/Pictures/a.png"), pngBytes(4, 4, QColor(9, 9, 9)));
+        parts->insert(QStringLiteral("Object 2/Inner/data.bin"), blobOf(2, 500));
+        types->insert(QStringLiteral("Object 2/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
+        types->insert(QStringLiteral("Object 2/content.xml"), QStringLiteral("text/xml"));
+        types->insert(QStringLiteral("Object 2/Pictures/a.png"), QStringLiteral("image/png"));
+        types->insert(QStringLiteral("Object 2/Inner/"), QStringLiteral("application/x-inner"));
+        types->insert(QStringLiteral("Object 2/Inner/data.bin"), QStringLiteral("application/octet-stream"));
+        parts->insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
+        parts->insert(QStringLiteral("ObjectReplacements/Object 2.png"), pngBytes(4, 4, QColor(3, 2, 1)));
+    }
+
+    static QMap<QString, QString> manifestTypesOf(const QMap<QString, QByteArray> &parts)
+    {
+        QMap<QString, QString> out;
+        const QHash<QString, QString> types = jp::office::ole::odfManifestTypes(parts.value(QStringLiteral("META-INF/manifest.xml")));
+        for (auto it = types.cbegin(); it != types.cend(); ++it) out.insert(it.key(), it.value());
+        return out;
+    }
+
+    // A binary object of another program and a sub-document object: the picture shows, and saving writes every part byte for byte, with the manifest entries they had.
+    void foreignObjectsSurviveAnOdsWithAllTheirParts()
+    {
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        twoObjectParts(&parts, &types);
+        const QByteArray ods = objectSheet(objectFrame(QStringLiteral("Object 1"), true, 0, QStringLiteral("ObjectReplacements/Object 1.png")) + objectFrame(QStringLiteral("Object 2"), false, 1, QStringLiteral("ObjectReplacements/Object 2.png")), parts, types);
+        QString why;
+        Read r;
+        QVERIFY2(readOds(ods, &r, &why), qPrintable(why));
+        QCOMPARE(r.sheet.importedDrawing.objects.size(), 2);
+        QCOMPARE(r.drawing.objects.size(), 2);   // (each shows its picture)
+        QVERIFY2(r.sheet.importedDrawing.notRead.isEmpty(), qPrintable(r.sheet.importedDrawing.notRead.join(QLatin1Char('|'))));
+        QVERIFY2(!r.wb.foreignBook()->skipped().join(QLatin1Char('|')).contains(QLatin1String("charts")), qPrintable(r.wb.foreignBook()->skipped().join(QLatin1Char('|'))));
+        // (opened as a workbook and saved as an .xlsx and from it as an .ods, as the program does)
+        Saved s;
+        QVERIFY2(viaXlsx(ods, &s, &why), qPrintable(why));
+        const QMap<QString, QByteArray> &got = s.parts;
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+            if (it.key().startsWith(QLatin1String("ObjectReplacements/"))) continue;
+            QVERIFY2(got.contains(it.key()), qPrintable(it.key()));
+            QVERIFY2(got.value(it.key()) == it.value(), qPrintable(it.key()));
+        }
+        const QMap<QString, QString> gotTypes = manifestTypesOf(got);
+        for (auto it = types.cbegin(); it != types.cend(); ++it) QVERIFY2(gotTypes.value(it.key()) == it.value(), qPrintable(it.key()));
+        // (the manifest lists exactly the parts written)
+        for (auto it = gotTypes.cbegin(); it != gotTypes.cend(); ++it)
+            if (it.key() != QLatin1String("/") && !it.key().endsWith(QLatin1Char('/'))) QVERIFY2(got.contains(it.key()), qPrintable(it.key()));
+        for (auto it = got.cbegin(); it != got.cend(); ++it)
+            if (it.key() != QLatin1String("mimetype") && it.key() != QLatin1String("META-INF/manifest.xml")) QVERIFY2(gotTypes.contains(it.key()), qPrintable(it.key()));
+        const QByteArray content = got.value(QStringLiteral("content.xml"));
+        QVERIFY2(content.contains("<draw:object-ole xlink:href=\"./Object 1\"") && content.contains("<draw:object xlink:href=\"./Object 2\""), content.right(1500).constData());
+        QCOMPARE(content.count("<draw:image "), 2);
+        QVERIFY2(!s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("bject")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+        // Saved again: the same parts.
+        Saved again;
+        QVERIFY2(viaXlsx(s.ods, &again, &why), qPrintable(why));
+        QCOMPARE(QStringList(again.parts.keys()), QStringList(got.keys()));
+        QCOMPARE(manifestTypesOf(again.parts), gotTypes);
+        for (auto it = got.cbegin(); it != got.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("Object"))) QVERIFY2(again.parts.value(it.key()) == it.value(), qPrintable(it.key()));
+    }
+
+    // Past the count nothing more is inflated; the others are their pictures.
+    void objectsOfASheetPastTheCountAreNotInflated()
+    {
+        LimitGuard guard;
+        jp::office::ole::Limits l = jp::office::ole::limits();
+        l.objects = 3;
+        jp::office::ole::setLimits(l);
+        QString frames;
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        for (int i = 1; i <= 8; ++i) {
+            frames += objectFrame(QStringLiteral("Object %1").arg(i), true, i, QStringLiteral("ObjectReplacements/Object %1.png").arg(i));
+            parts.insert(QStringLiteral("Object %1").arg(i), blobOf(i, 100));
+            types.insert(QStringLiteral("Object %1").arg(i), QStringLiteral("application/vnd.sun.star.oleobject"));
+            parts.insert(QStringLiteral("ObjectReplacements/Object %1.png").arg(i), pngBytes(4, 4, QColor(i, 2, 3)));
+        }
+        const qint64 before = jp::office::ole::odfObjectTestHooks().objectReads.load();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(objectSheet(frames, parts, types), &r, &why), qPrintable(why));
+        QCOMPARE(jp::office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(3));
+        QCOMPARE(r.sheet.importedDrawing.objects.size(), 3);
+        QCOMPARE(r.drawing.objects.size(), 8);
+        QVERIFY2(r.sheet.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("embedded objects past")), qPrintable(r.sheet.importedDrawing.notRead.join(QLatin1Char('|'))));
+    }
+
+    // ... and past the bytes.
+    void objectsOfASheetPastTheBytesAreNotInflated()
+    {
+        LimitGuard guard;
+        jp::office::ole::Limits l = jp::office::ole::limits();
+        l.totalBytes = 5000;
+        l.objectBytes = 4000;
+        jp::office::ole::setLimits(l);
+        QString frames;
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        for (int i = 1; i <= 7; ++i) {
+            frames += objectFrame(QStringLiteral("Object %1").arg(i), true, i, QStringLiteral("ObjectReplacements/Object 1.png"));
+            parts.insert(QStringLiteral("Object %1").arg(i), blobOf(i, i == 7 ? 4500 : 2000));
+            types.insert(QStringLiteral("Object %1").arg(i), QStringLiteral("application/vnd.sun.star.oleobject"));
+        }
+        parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
+        const qint64 before = jp::office::ole::odfObjectTestHooks().objectReads.load();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(objectSheet(frames, parts, types), &r, &why), qPrintable(why));
+        QCOMPARE(jp::office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(2));
+        QCOMPARE(r.sheet.importedDrawing.objects.size(), 2);
+    }
+
+    // A part a thousand frames name is read once.
+    void anObjectAThousandFramesNameIsReadOnce()
+    {
+        QString frames;
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        parts.insert(QStringLiteral("Object 1/content.xml"), "<?xml version=\"1.0\"?><office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\"/>");
+        types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
+        parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
+        for (int i = 0; i < 1000; ++i) frames += objectFrame(QStringLiteral("Object 1"), false, i, QStringLiteral("ObjectReplacements/Object 1.png"));
+        const qint64 before = jp::office::ole::odfObjectTestHooks().objectReads.load();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(objectSheet(frames, parts, types), &r, &why), qPrintable(why));
+        QCOMPARE(jp::office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(1));
+        QCOMPARE(r.sheet.importedDrawing.objects.size(), 1);   // (one package, named by every picture)
+        QCOMPARE(r.drawing.objects.size(), 1000);
+    }
+
+    // An object folder with entries that climb out of it writes nothing outside it.
+    void aHostileObjectFolderOfASheetWritesNothingOutsideIt()
+    {
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        parts.insert(QStringLiteral("Object 1/content.xml"), "<x/>");
+        parts.insert(QStringLiteral("Object 1/../../evil.xml"), "evil");
+        parts.insert(QStringLiteral("Object 1/..\\evil2.xml"), "evil");
+        types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
+        parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
+        QString why;
+        Read r;
+        QVERIFY2(readOds(objectSheet(objectFrame(QStringLiteral("Object 1"), false, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), &r, &why), qPrintable(why));
+        Saved s;
+        QVERIFY2(viaXlsx(objectSheet(objectFrame(QStringLiteral("Object 1"), false, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), &s, &why), qPrintable(why));
+        QVERIFY(s.parts.contains(QStringLiteral("Object 1/content.xml")));
+        for (const QString &n : s.parts.keys()) {
+            QVERIFY2(!n.contains(QLatin1String("..")) && !n.contains(QLatin1Char('\\')) && !n.startsWith(QLatin1Char('/')) && !n.contains(QLatin1String("evil")), qPrintable(n));
+        }
+    }
+
+    // A file with no objects saves no part of an object.
+    void aSheetWithoutObjectsSavesNoObjectParts()
+    {
+        const QByteArray png = pngBytes(8, 4, QColor(200, 30, 30));
+        const QString anchors = twoCell(1, 2, 4, 6, pictureXml(2, QStringLiteral("rId1"), QStringLiteral("Logo"), QStringLiteral("a red logo")), QString(), 0, 0, 0, 0);
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(anchors, {imageTarget(QStringLiteral("rId1"), 1, png)}), &s, &why), qPrintable(why));
+        QStringList names = QStringList(s.parts.keys());
+        names.erase(std::remove_if(names.begin(), names.end(), [](const QString &n) { return n.startsWith(QLatin1String("Pictures/")); }), names.end());
+        QCOMPARE(names, (QStringList{QStringLiteral("META-INF/manifest.xml"), QStringLiteral("content.xml"), QStringLiteral("meta.xml"), QStringLiteral("mimetype"), QStringLiteral("settings.xml"), QStringLiteral("styles.xml")}));
     }
 
     // A formula object that is refused is read once, whatever number of frames name it.

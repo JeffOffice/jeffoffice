@@ -205,6 +205,8 @@ public:
         zip.endStream();
         for (const auto &picture : std::as_const(m_pictures)) zip.add(picture.first, picture.second, false);
         for (const auto &object : std::as_const(m_objectFiles)) zip.add(object.first, object.second, true);
+        for (const ole::OdfOutPart &part : std::as_const(m_objectParts))
+            if (!part.path.endsWith(QLatin1Char('/'))) zip.add(part.path, part.bytes, part.compress);
         zip.add(QStringLiteral("styles.xml"), stylesXml().toUtf8(), true);
         zip.add(QStringLiteral("settings.xml"), settingsXml().toUtf8(), true);
         zip.add(QStringLiteral("meta.xml"), (QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<office:document-meta") + QLatin1String(kNamespaces)
@@ -260,6 +262,8 @@ private:
     qint64 m_pictureBytes = 0, m_objects = 0, m_mathObjects = 0, m_mathBytes = 0;
     int m_chartNumber = 0;
     QVector<QPair<QString, QByteArray>> m_objectFiles;   // the documents of the charts (Object N/content.xml)
+    QVector<ole::OdfOutPart> m_objectParts;              // the parts of the embedded objects of other kinds, and the folders (a slash at the end) that are in the manifest only
+    ole::ObjectBudget m_objectBudget;                    // what they come to in all the sheets, against the object core's caps
     quint32 m_lastObjectRow = 0;   // the last row an object of the sheet being written reaches
     QStringList m_drawingNotes;
     std::vector<oldsave::Written> m_written;
@@ -317,6 +321,8 @@ private:
                 x += "<manifest:file-entry manifest:full-path=\"" + esc(dir).toUtf8() + "\" manifest:media-type=\"" + (object.second.left(512).contains("Math/MathML") ? "application/vnd.oasis.opendocument.formula" : "application/vnd.oasis.opendocument.chart") + "\"/>";
             x += "<manifest:file-entry manifest:full-path=\"" + esc(object.first).toUtf8() + "\" manifest:media-type=\"text/xml\"/>";
         }
+        for (const ole::OdfOutPart &part : m_objectParts)
+            x += "<manifest:file-entry manifest:full-path=\"" + esc(part.path).toUtf8() + "\" manifest:media-type=\"" + esc(part.mediaType).toUtf8() + "\"/>";
         for (const auto &picture : m_pictures) {
             const QString ext = picture.first.mid(picture.first.lastIndexOf(QLatin1Char('.')) + 1);
             const char *known = odt::contentTypeOf(ext);
@@ -350,8 +356,9 @@ private:
         const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
         if (part.isEmpty()) return QString();
         odsdraw::Written drawn;
-        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_mathObjects, &m_mathBytes);
+        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_mathObjects, &m_mathBytes, &m_objectBudget);
         for (const auto &object : drawn.objects) m_objectFiles.push_back(object);
+        m_objectParts += drawn.parts;
         m_styleXml += drawn.styles;
         m_commonStyles += drawn.commonStyles;
         for (const auto &picture : drawn.pictures)

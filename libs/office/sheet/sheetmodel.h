@@ -1466,12 +1466,19 @@ struct ImportedRel {
     QString id;            // the id the anchors name ("rId1")
     int media = 0;         // the place of the picture among `media` (-1 for a chart)
     int chart = -1;        // the place of the chart part among `charts`, for a relationship to a chart
+    int object = -1;       // the place of the package among `objects`, for a relationship to an embedded object
+};
+// An embedded object of another kind (office/ole/odfobject.h): its program ID and its package, as the object core keeps them.
+struct ImportedObject {
+    QString progId;
+    QByteArray bytes;
 };
 struct ImportedDrawing {
     QVector<QByteArray> anchors;
     QVector<ImportedRel> rels;
     QVector<ImportedMedia> media;
     QVector<QByteArray> charts;   // the chart parts (c:chartSpace) of the charts the anchors hold, made from an OpenDocument chart (odschart.h)
+    QVector<ImportedObject> objects;   // the embedded objects the pictures stand for: an anchor names one by the id of a relationship (see odsdraw.h)
     QStringList notRead;   // what was left out, in words (objects past the limits, kinds that are not read)
     bool isEmpty() const { return anchors.isEmpty(); }
 };

@@ -142,6 +142,29 @@ bool Budget::roomForFormula(qint64 n) const
     return formulas.load() < kMostMathObjects && formulaBytes.load() + n <= kMostMathObjectBytes;
 }
 
+bool Budget::takeOle(qint64 n)
+{
+    const ole::Limits &l = ole::limits();
+    qint64 seen = oleObjects.load();
+    do {
+        if (seen >= l.objects) return false;
+    } while (!oleObjects.compare_exchange_weak(seen, seen + 1));
+    qint64 bytes = oleBytes.load();
+    do {
+        if (n > l.objectBytes || bytes + n > l.totalBytes) {
+            --oleObjects;
+            return false;
+        }
+    } while (!oleBytes.compare_exchange_weak(bytes, bytes + n));
+    return true;
+}
+
+bool Budget::roomForOle(qint64 n) const
+{
+    const ole::Limits &l = ole::limits();
+    return oleObjects.load() < l.objects && n <= l.objectBytes && oleBytes.load() + n <= l.totalBytes;
+}
+
 bool Budget::takeBytes(qint64 n, qint64 limit)
 {
     qint64 seen = pictureBytes.load();

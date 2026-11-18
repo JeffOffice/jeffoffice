@@ -15,6 +15,8 @@
 #include "sheet/drawingadd.h"
 #include "sheet/sheetmodel.h"
 
+#include "ole/odfobject.h"
+
 #include <QByteArray>
 #include <QHash>
 #include <QPair>
@@ -45,7 +47,7 @@ constexpr qint64 kMaxNodeChars = 90000000;   // and the characters in them (the 
 
 // What one workbook's reading has taken so far (the sheets are read apart, by any thread).
 struct Budget {
-    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0}, formulas{0}, formulaBytes{0};
+    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0}, formulas{0}, formulaBytes{0}, oleObjects{0}, oleBytes{0};
     // One more object, or `n` more bytes of pictures, if that stays within the limit (taken and counted in one step, so that sheets read on several threads can't pass it together).
     bool takeObject(qint64 limit);
     bool takeChart(qint64 limit);
@@ -53,6 +55,9 @@ struct Budget {
     bool takeFormula(qint64 n);
     // Whether one more formula object of a document `n` bytes long would be taken now (the number and the bytes of those taken, nothing changed).
     bool roomForFormula(qint64 n) const;
+    // One more embedded object of another kind of `n` bytes, if the file stays within the object core's limits on their number and their bytes (office/ole/embedobj.h); and whether it would be.
+    bool takeOle(qint64 n);
+    bool roomForOle(qint64 n) const;
     bool takeBytes(qint64 n, qint64 limit);
 };
 
@@ -136,7 +141,12 @@ using PartPeek = std::function<QByteArray(const QString &name, qint64 *size)>;
 // Makes the drawing of the sheet from its shapes. `parts` gives the bytes of a part of the package by its name ("Pictures/a.png"; empty for one that is not there). The drawing is empty,
 // and `notRead` says what was left out, if nothing can be made.
 void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
-                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek = PartPeek());
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek = PartPeek(), ole::OdfObjectReader *objects = nullptr);
+
+// An embedded object of another kind (a picture is its fallback) is named by its picture's anchor: the element xdr:cNvPr of the anchor holds an a:extLst with an a:ext of the uri kObjectUri whose
+// child (jo:object, in kObjectNs) has r:id, the relationship (of the drawing, of a type ending in /oleObject) to the package, and progId.
+constexpr char kObjectUri[] = "{7E4A1C0D-5B3F-4E8A-9C61-2D0F8B7A3E15}";
+constexpr char kObjectNs[] = "urn:jeffoffice:names:extension:1.0";
 
 // ---- writing
 // What a sheet's drawing is as the standard's elements.
@@ -146,6 +156,7 @@ struct Written {
     QString commonStyles;                            // the styles they use that go in styles.xml (dashes)
     QVector<QPair<QString, QByteArray>> pictures;    // the file's name in the package ("Pictures/a.png") and its bytes
     QVector<QPair<QString, QByteArray>> objects;     // the documents of the charts ("Object 1/content.xml") and their bytes
+    QVector<ole::OdfOutPart> parts;                  // the parts of the embedded objects of other kinds (folders listed by their paths, with a slash at the end)
     int count = 0;
     quint32 lastRow = 0;                             // the last row any object reaches (the rows down to it are written, so that a reader finds their height)
     QStringList notWritten;                          // what was left out, in words
@@ -156,7 +167,7 @@ struct Written {
 // `formulas` and `formulaBytes` count the equations (formula objects) and the bytes of their documents the workbook's earlier sheets have written (office/mathobject.h has the limits); without
 // them an equation is written as its picture.
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes,
-                     qint64 *objects, int *chartNumber, qint64 *formulas = nullptr, qint64 *formulaBytes = nullptr);
+                     qint64 *objects, int *chartNumber, qint64 *formulas = nullptr, qint64 *formulaBytes = nullptr, ole::ObjectBudget *objectBudget = nullptr);
 
 // Lengths: a length in EMU as the standard writes it ("1.2345678in"), and one read (false if it is none); a number that is too large is kept to the most a position may be.
 QString lengthText(qint64 emu);

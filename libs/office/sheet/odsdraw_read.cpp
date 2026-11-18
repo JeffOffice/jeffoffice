@@ -39,6 +39,7 @@ using Props = QHash<QString, QString>;
 struct Placed {
     ItemPtr item;
     int chart = -1;                        // for a chart: the place of its part among those the drawing keeps (no item)
+    int object = -1;                       // for a picture that stands for an embedded object of another kind: the place of its package among those the drawing keeps
     QString name, description, title;      // for a chart: what it is called
     qint64 x = 0, y = 0, cx = 0, cy = 0;   // EMU, from the sheet's top left
     bool hasZ = false;
@@ -54,8 +55,8 @@ struct Placed {
 
 class Converter {
 public:
-    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek)
-        : m_grid(grid), m_styles(styles), m_parts(parts), m_charts(charts), m_peek(peek), m_budget(budget), m_out(out)
+    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek, ole::OdfObjectReader *objects)
+        : m_grid(grid), m_styles(styles), m_parts(parts), m_charts(charts), m_peek(peek), m_budget(budget), m_out(out), m_objectReader(objects)
     {
         m_scheme = builtinColorSchemes().value(0);
     }
@@ -93,6 +94,8 @@ private:
     const ChartMaker &m_charts;
     const PartPeek &m_peek;
     int m_chartCount = 0;
+    ole::OdfObjectReader *m_objectReader = nullptr;   // the embedded objects of other kinds: each part read once
+    ole::ObjectBudget m_oleBudget;                    // what this sheet's come to, against the object core's caps (the workbook's are held by `m_budget`)
     int m_objectsSeen = 0, m_objectsHandled = 0;
     QHash<QString, bool> m_isMath;   // what each object the frames name was found to be (a formula or not), seen from its first bytes once
     struct Formula {
@@ -509,6 +512,44 @@ private:
         return true;
     }
 
+    // The picture of a frame that also holds an embedded object of another kind (a sub-document that is not a formula or a chart, or a binary part): the object's package is kept with the
+    // picture, which stays what the frame shows. Past the limits (the workbook's, looked at before any part is inflated) the picture alone is kept.
+    void keepObject(const NodePtr &frame, Placed *p)
+    {
+        if (!m_objectReader) return;
+        NodePtr object = childOf(frame, "draw:object");
+        if (!object) object = childOf(frame, "draw:object-ole");
+        if (!object) return;
+        const bool binary = object->name == QLatin1String("draw:object-ole");
+        const QString href = object->attrs.value(QStringLiteral("xlink:href"));
+        const qint64 size = m_objectReader->sizeOf(href, binary);
+        if (size < 0) return;
+        if (m_budget && !m_budget->roomForOle(size)) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(ole::limits().objects));
+            return;
+        }
+        ole::EmbeddedObject kept;
+        const auto result = m_objectReader->read(href, binary, p->cx, p->cy, QByteArray(), m_oleBudget, &kept);
+        if (result == ole::OdfObjectReader::Result::PastLimit) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(ole::limits().objects));
+            return;
+        }
+        if (result != ole::OdfObjectReader::Result::Kept) return;
+        if (m_budget && !m_budget->takeOle(kept.partBytes.size())) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(ole::limits().objects));
+            return;
+        }
+        int index = -1;
+        for (int i = 0; i < m_out->objects.size(); ++i)
+            if (m_out->objects[i].progId == kept.progId && m_out->objects[i].bytes == kept.partBytes) index = i;
+        if (index < 0) {
+            index = int(m_out->objects.size());
+            m_out->objects.push_back({kept.progId, kept.partBytes});
+        }
+        p->object = index;
+        ++m_objectsHandled;
+    }
+
     static int countObjects(const NodePtr &n, int depth)
     {
         if (!n || depth > 40) return 0;
@@ -828,7 +869,10 @@ private:
         const QString &name = n->name;
         if (name == QLatin1String("draw:frame")) {
             if (const NodePtr formula = childOf(n, "draw:object"); formula && equation(n, formula, ox, oy, p)) ok = true;
-            else if (const NodePtr image = childOf(n, "draw:image")) ok = picture(n, image, ox, oy, p);
+            else if (const NodePtr image = childOf(n, "draw:image")) {
+                ok = picture(n, image, ox, oy, p);
+                if (ok) keepObject(n, p);
+            }
             else if (const NodePtr box = childOf(n, "draw:text-box")) ok = textBox(n, box, ox, oy, p);
             else if (const NodePtr object = childOf(n, "draw:object")) ok = chart(n, object, ox, oy, p);
             else if (childOf(n, "draw:object-ole")) return false;   // (an object of another program: said by the reader of the document)
@@ -1004,6 +1048,20 @@ private:
             element.replace("<p:", "<xdr:").replace("</p:", "</xdr:");
             element.replace("<xdr:nvPr/>", "");
             QByteArray anchor = anchorXml(anchorOf(p), element);
+            if (p.object >= 0) {
+                // (the object this picture stands for: named in the picture's extension list, through a relationship of the drawing)
+                const QByteArray id = "rIdO" + QByteArray::number(p.object + 1);
+                const QByteArray mark = "<a:extLst><a:ext uri=\"" + QByteArray(kObjectUri) + "\"><jo:object xmlns:jo=\"" + QByteArray(kObjectNs) + "\" r:id=\"" + id + "\" progId=\"" +
+                                        xmlText(m_out->objects[p.object].progId).toUtf8() + "\"/></a:ext></a:extLst>";
+                const qsizetype at = anchor.indexOf("<xdr:cNvPr");
+                const qsizetype end = at < 0 ? -1 : anchor.indexOf('>', at);
+                if (end > 0 && anchor[end - 1] == '/') anchor.replace(end - 1, 2, ">" + mark + "</xdr:cNvPr>");
+                else if (end > 0) {
+                    const qsizetype close = anchor.indexOf("</xdr:cNvPr>", end);
+                    if (close > 0) anchor.insert(close, mark);
+                }
+                if (anchor.contains(kObjectUri)) m_out->rels.push_back({QString::fromLatin1(id), -1, -1, p.object});
+            }
             // (a shape of math is the choice of the programs that read it)
             if (p.item->type() == ItemType::Equation)
                 anchor = "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\">" + anchor +
@@ -1034,10 +1092,10 @@ private:
 } // namespace
 
 void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
-                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek)
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek, ole::OdfObjectReader *objects)
 {
     *out = ImportedDrawing();
-    Converter c(grid, styles, parts, charts, budget, out, peek);
+    Converter c(grid, styles, parts, charts, budget, out, peek, objects);
     c.run(shapes, counters);
 }
 

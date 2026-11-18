@@ -133,8 +133,9 @@ public:
             }
             qint64 x = 0, y = 0, cx = 0, cy = 0;
             m_grid.boxOf(o.anchor, &x, &y, &cx, &cy);
-            const QString xml = emit(*item, double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0, &o.anchor, z);
+            QString xml = emit(*item, double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0, &o.anchor, z);
             if (xml.isEmpty()) continue;
+            objectInFrame(o.element, &xml);
             ++z;
             quint32 bottom = 0;
             qint64 inRow = 0;
@@ -161,7 +162,9 @@ private:
     int *m_chartNumber;
 public:
     qint64 *m_formulas = nullptr, *m_formulaBytes = nullptr;
+    ole::ObjectBudget *m_objectBudget = nullptr;   // the embedded objects of other kinds written in all the sheets so far
 private:
+    QHash<QString, QPair<QString, bool>> m_objectDone;   // an object's part in the package -> its folder or part in the new file (empty for one that is refused), and whether it is a folder
     int m_charts = 0;   // the charts of this sheet
     QHash<QByteArray, QString> m_equationPictures;   // the picture made for equal math, color, and size
     ColorScheme m_scheme;
@@ -408,6 +411,44 @@ private:
         return file;
     }
 
+    // The object a picture stands for (named in its extension list, see odsdraw.h): its package written as parts of the file, and the frame given the object's element before its picture's.
+    void objectInFrame(const QDomElement &element, QString *frame)
+    {
+        if (!m_objectBudget) return;
+        const QDomNodeList marks = element.elementsByTagNameNS(QString::fromLatin1(kObjectNs), QStringLiteral("object"));
+        if (marks.isEmpty()) return;
+        const QDomElement mark = marks.at(0).toElement();
+        const QString id = mark.attributeNS(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("id")), progId = mark.attribute(QStringLiteral("progId"));
+        const qsizetype at = frame->indexOf(QLatin1String("<draw:image"));
+        const Relationship rel = m_package.relationship(m_drawingPart, id);
+        if (id.isEmpty() || at < 0 || rel.id.isEmpty() || rel.external || !m_package.hasPart(rel.target)) return;
+        auto done = m_objectDone.find(rel.target);
+        if (done == m_objectDone.end()) {
+            // (the count and the bytes are looked at before the package is inflated, and a package many pictures name is written once)
+            const qint64 size = m_package.partSize(rel.target);
+            QPair<QString, bool> result;
+            if (size <= 0 || size > ole::limits().objectBytes || !m_objectBudget->fits(size)) {
+                if (size > 0) note(QCoreApplication::translate("Sheet", "embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)").arg(ole::limits().objects));
+            } else {
+                ++ole::odfObjectTestHooks().objectReads;
+                const std::optional<ole::EmbeddedObject> kept = ole::keepObject(progId, m_package.part(rel.target), QByteArray(), 0, 0, *m_objectBudget, rel.target);
+                if (kept) {
+                    const QString dir = QStringLiteral("Object %1").arg(++*m_chartNumber);
+                    const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, dir);
+                    if (!parts.isEmpty()) {
+                        m_out->parts += parts;
+                        result = {dir, parts.first().path.endsWith(QLatin1Char('/'))};
+                    } else {
+                        --*m_chartNumber;
+                    }
+                }
+            }
+            done = m_objectDone.insert(rel.target, result);
+        }
+        if (done.value().first.isEmpty()) return;
+        frame->insert(at, QStringLiteral("<draw:%1 xlink:href=\"./%2\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>").arg(done.value().second ? QStringLiteral("object") : QStringLiteral("object-ole"), done.value().first));
+    }
+
     // A chart: its part is read into the chart model and written as the chart document of the frame's object (`Object N`).
     QString chartFrame(const DrawingObject &o, int z)
     {
@@ -631,11 +672,12 @@ private:
 } // namespace
 
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects,
-                     int *chartNumber, qint64 *formulas, qint64 *formulaBytes)
+                     int *chartNumber, qint64 *formulas, qint64 *formulaBytes, ole::ObjectBudget *objectBudget)
 {
     Writer w(package, mainPart, drawingPart, grid, sheetRef, sheetNumber, out, pictureBytes, objects, chartNumber);
     w.m_formulas = formulas;
     w.m_formulaBytes = formulaBytes;
+    w.m_objectBudget = objectBudget;
     w.run();
 }
 
