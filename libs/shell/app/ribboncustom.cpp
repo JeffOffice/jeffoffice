@@ -630,7 +630,7 @@ void customizeBuiltIn(RibbonTab *page, const QString &tabName, const RibbonCusto
             continue;
         }
         const bool hide = plan.hiddenGroups.contains(tabName + QLatin1Char('/') + g->id());
-        if (g->userHidden() != hide) {
+        if (g->hiddenByUser() != hide) {
             g->setUserHidden(hide);
             touched = true;
         }

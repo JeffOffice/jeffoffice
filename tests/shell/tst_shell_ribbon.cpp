@@ -21,6 +21,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
@@ -231,6 +232,25 @@ class ShellRibbonTests : public QObject {
 private Q_SLOTS:
     void init() { clearSaved(); }
     void cleanup() { clearSaved(); }
+
+    // A group with a hidden button and then a control that is no button is shown (only a group with nothing but hidden buttons is not).
+    void aGroupWithAHiddenButtonAndAnotherControlIsShown()
+    {
+        QWidget host;
+        QAction hidden(QStringLiteral("Hidden"));
+        hidden.setVisible(false);
+        for (int kind = 0; kind < 4; ++kind) {
+            auto *g = new RibbonGroup(QStringLiteral("G"), &host);
+            g->addLarge(&hidden);
+            QVERIFY(g->userHidden());
+            if (kind == 0) g->addWidget(new QComboBox);
+            else if (kind == 1) g->addRow({new QLabel(QStringLiteral("Size")), new QComboBox});
+            else if (kind == 2) g->addGrid({{new QLabel(QStringLiteral("a")), new QComboBox}});
+            else g->addSmall(new QAction(QStringLiteral("Shown"), g));
+            QVERIFY2(!g->userHidden(), qPrintable(QString::number(kind)));
+            QVERIFY(!g->hiddenByUser());
+        }
+    }
 
     void hidingAndShowingTabsAndGroups()
     {

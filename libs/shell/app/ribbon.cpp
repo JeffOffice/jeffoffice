@@ -405,6 +405,7 @@ void RibbonGroup::addRow(const QList<QWidget *> &widgets)
         for (QLabel *l : std::as_const(m_rowLabels)) w = std::max(w, l->sizeHint().width());
         for (QLabel *l : std::as_const(m_rowLabels)) l->setMinimumWidth(w);
     }
+    syncVisibleCommands();
 }
 
 void RibbonGroup::addGrid(const QList<QList<QWidget *>> &rows)
@@ -432,6 +433,7 @@ void RibbonGroup::addGrid(const QList<QList<QWidget *>> &rows)
     col->addStretch(1);
     m_col = nullptr;
     m_cols->addLayout(col);
+    syncVisibleCommands();
 }
 
 void RibbonGroup::addWidget(QWidget *w)
@@ -439,6 +441,7 @@ void RibbonGroup::addWidget(QWidget *w)
     m_col = nullptr;
     w->setParent(this);
     m_cols->addWidget(w);
+    syncVisibleCommands();
 }
 
 void RibbonGroup::addSeparator()
@@ -451,6 +454,7 @@ void RibbonGroup::addSeparator()
     m_cols->addSpacing(2);
     m_cols->addWidget(f);
     m_cols->addSpacing(2);
+    syncVisibleCommands();
 }
 
 void RibbonGroup::setLauncher(const std::function<void()> &fn, const QString &tip)

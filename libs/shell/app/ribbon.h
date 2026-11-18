@@ -49,6 +49,7 @@ public:
     void setUserHidden(bool hidden);
     // A group none of whose buttons shows takes no room either, like one the person turned off (a button follows its command: a hidden command is no button).
     bool userHidden() const { return m_userHidden || m_noCommands; }
+    bool hiddenByUser() const { return m_userHidden; }   // (the person's own choice, apart from a group with no button shown)
     void syncVisibleCommands();
     // Every control the group lays out, in order (rows and columns
     // flattened; the launcher sits outside the layout and isn't one).
