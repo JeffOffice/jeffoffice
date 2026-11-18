@@ -102,6 +102,7 @@ int WriteWindow::compareWith(const QString &revisedPath, const write::CompareOpt
     if (office::readWholeFile(revisedPath, &bytes, &err) && !bytes.isEmpty()) revised = write::WriteDoc::fromFile(bytes, &err, nullptr);
     std::unique_ptr<write::WriteDoc> result;
     int changes = 0;
+    QString note;
     bool canceled = false;
     if (revised) {
         QProgressDialog box(tr("Comparing…"), tr("Cancel"), 0, 100, this);
@@ -114,7 +115,7 @@ int WriteWindow::compareWith(const QString &revisedPath, const write::CompareOpt
             QCoreApplication::processEvents(QEventLoop::ExcludeUserInputEvents | QEventLoop::ExcludeSocketNotifiers);
             if (box.wasCanceled()) canceled = true;
             return !canceled;
-        });
+        }, &note);
         box.reset();
     }
     QApplication::restoreOverrideCursor();
@@ -132,7 +133,8 @@ int WriteWindow::compareWith(const QString &revisedPath, const write::CompareOpt
     target->m_untitled = tr("Compare of %1 and %2").arg(displayName(), QFileInfo(revisedPath).completeBaseName());
     target->setDocument(std::move(result), QString());
     target->m_doc->setModified(true);
-    target->statusBar()->showMessage(changes == 1 ? tr("1 change found.") : tr("%1 changes found.").arg(changes), 8000);
+    const QString found = changes == 1 ? tr("1 change found.") : tr("%1 changes found.").arg(changes);
+    target->statusBar()->showMessage(note.isEmpty() ? found : found + QLatin1Char(' ') + note, note.isEmpty() ? 8000 : 15000);
     return changes;
 }
 

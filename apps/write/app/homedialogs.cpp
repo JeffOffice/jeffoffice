@@ -466,9 +466,17 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
     byCharacter->setChecked(options->byCharacter);
     ignoreCase->setChecked(options->ignoreCase);
     ignoreSpace->setChecked(options->ignoreWhiteSpace);
+    auto *detectMoves = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Find text that was moved"), &dlg);
+    auto *compareFormatting = new QCheckBox(QCoreApplication::translate("jp::write::HomeDialogs", "Find changes of formatting"), &dlg);
+    detectMoves->setObjectName(QStringLiteral("compareDetectMoves"));
+    compareFormatting->setObjectName(QStringLiteral("compareFormatting"));
+    detectMoves->setChecked(options->detectMoves);
+    compareFormatting->setChecked(options->compareFormatting);
     v->addWidget(byCharacter);
     v->addWidget(ignoreCase);
     v->addWidget(ignoreSpace);
+    v->addWidget(detectMoves);
+    v->addWidget(compareFormatting);
     auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
     QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
     QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -479,6 +487,8 @@ bool compareDialog(QWidget *parent, QString *revisedPath, CompareOptions *option
     options->byCharacter = byCharacter->isChecked();
     options->ignoreCase = ignoreCase->isChecked();
     options->ignoreWhiteSpace = ignoreSpace->isChecked();
+    options->detectMoves = detectMoves->isChecked();
+    options->compareFormatting = compareFormatting->isChecked();
     return true;
 }
 
