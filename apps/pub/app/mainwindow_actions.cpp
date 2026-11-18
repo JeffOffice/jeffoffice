@@ -30,6 +30,7 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
 #include "app/equationedit.h"
 #include "wml/wmlmathedit.h"
 #include "app/taskpane.h"
@@ -356,6 +357,7 @@ void MainWindow::createActions()
         mk(QStringLiteral("ins.equationDesign%1").arg(i), office::wml::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
             if (jp::insertEquation(m_ed, office::wml::equationGallery().at(i).linear).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
         });
+    createEquationTabActions();
     mk("ins.barcode", tr("Barcode"), "barcode", QKeySequence(), [this] { barcodeDialog(this, m_ed); });
     mk("ins.icons", tr("Icons"), "smile-plus", QKeySequence(), [this] { insertIcons(m_ed, pickIcons(this)); });
     mk("ins.toc", tr("Table of Contents"), "table-of-contents", QKeySequence(), [this] { insertTableOfContents(m_ed); });
@@ -1383,6 +1385,24 @@ jp::MissingFontsHost MainWindow::missingFontsHost()
         m_ed,
         [this](const jp::FindStory &story) { return !story.master.isEmpty() ? tr("Master page %1").arg(story.master) : tr("Page %1").arg(story.page + 1); },
         [this] { return refuseIfReadOnly(); });
+}
+
+// The Equation tab (equationtab.h): shown while an equation is selected. Its buttons open the equation's dialog with the structure or symbol put in; Professional and Linear change
+// how the selected equation is shown, and the typing formats the dialogs open in.
+void MainWindow::createEquationTabActions()
+{
+    EquationTabHandlers h;
+    h.edit = [this](const QString &pick) { equationDialog(pick); };
+    h.setLinear = [this](bool linear) {
+        setEquationLinearSetting(linear);
+        if (Item *one = m_ed->single(); one && one->type() == ItemType::Equation) jp::setEquationLinearForm(m_ed, one->id, linear);
+        updateContextTabs();
+    };
+    h.setSyntax = [this](EquationSyntax s) {
+        setEquationSyntaxSetting(s);
+        updateContextTabs();
+    };
+    jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable); }, h);
 }
 
 } // namespace jp

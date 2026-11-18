@@ -186,4 +186,30 @@ void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int 
     edit.endEditBlock();
 }
 
+QByteArray equationMarkupAt(const WriteDoc &doc, int position)
+{
+    Inline atom;
+    return equationAtomAt(doc.story(), position, &atom) ? atom.raw : QByteArray();
+}
+
+bool replaceEquationMarkup(WriteDoc &doc, int position, const QByteArray &markup)
+{
+    Inline atom;
+    if (markup.isEmpty() || !equationAtomAt(doc.story(), position, &atom) || isLocked(doc.story()->findBlock(position))) return false;
+    QByteArray props;
+    if (!commonRunProps(atom.raw, &props)) return false;
+    const QByteArray made = withRunProps(markup, props);
+    if (made == atom.raw) return false;
+    if (!props.isEmpty() && made.count(props) != made.count("<m:r>")) return false;
+    QTextCursor c(doc.story());
+    c.setPosition(position);
+    c.setPosition(position + 1, QTextCursor::KeepAnchor);
+    return insertMarkup(doc, c, made);
+}
+
+bool insertEquationMarkup(WriteDoc &doc, QTextCursor &c, const QByteArray &markup)
+{
+    return !markup.isEmpty() && insertMarkup(doc, c, markup);
+}
+
 } // namespace jp::write

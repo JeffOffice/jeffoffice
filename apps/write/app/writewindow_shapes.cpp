@@ -16,6 +16,7 @@
 #include "app/widgets.h"
 #include "core/equationops.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
 #include "core/pictureops.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
@@ -636,41 +637,73 @@ void WriteWindow::editChartData()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
-void WriteWindow::insertEquationDialog()
+void WriteWindow::insertEquationDialog() { equationDialog(QString()); }
+
+// The position of the equation that is selected by itself (-1 for none): the Equation tab is shown for it.
+int WriteWindow::selectedEquation() const
+{
+    if (!m_doc || !m_view) return -1;
+    const QTextCursor now = m_view->cursor();
+    return now.selectionEnd() - now.selectionStart() == 1 && !write::equationMarkupAt(*m_doc, now.selectionStart()).isEmpty() ? now.selectionStart() : -1;
+}
+
+// An equation selected by itself or next to the caret is changed (whatever markup it has: one no line says is written in UnicodeMath or LaTeX); any other place puts a new one in.
+// `pick` is what a button of the Equation tab puts in the line ("" for none).
+void WriteWindow::equationDialog(const QString &pick)
 {
     if (!m_doc || refuseIfReadOnly()) return;
-    // An equation next to the caret, or selected by itself, is changed (when it is one that a line can say); any other place puts a new one in.
     int editAt = -1;
-    QString editText;
+    QString editLine;
+    QByteArray markup;
     {
         const QTextCursor now = m_view->cursor();
         const int from = now.selectionStart(), to = now.selectionEnd();
         for (const int candidate : to - from == 1 ? QList<int>{from} : (to == from ? QList<int>{from, from - 1} : QList<int>{})) {
-            const QString line = write::equationAt(*m_doc, candidate);
-            if (candidate >= 0 && !line.isEmpty()) {
+            const QByteArray found = candidate >= 0 ? write::equationMarkupAt(*m_doc, candidate) : QByteArray();
+            if (!found.isEmpty()) {
                 editAt = candidate;
-                editText = line;
+                markup = found;
+                editLine = write::equationAt(*m_doc, candidate);
                 break;
             }
         }
     }
-    QString typed = editText;
-    if (!askEquation(this, editAt >= 0 ? tr("Edit Equation") : tr("Insert Equation"), &typed)) return;
+    // (This program lays an equation out as a line, so it keeps no form of it: Professional and Linear are only what the dialog starts in.)
+    EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
+    const QByteArray before = markup;
+    if (!askEquationMarkup(this, editAt >= 0 ? tr("Edit Equation") : tr("Insert Equation"), &editLine, &markup, &form, pick)) return;
     if (editAt >= 0) {
-        if (!write::replaceEquation(*m_doc, editAt, typed) && write::equationAt(*m_doc, editAt) != typed) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+        if (!write::replaceEquationMarkup(*m_doc, editAt, markup) && markup != before) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
         m_view->setFocus(Qt::OtherFocusReason);
         return;
     }
     QTextCursor c = m_view->cursor();
-    if (write::insertEquation(*m_doc, c, typed)) m_view->showCursor(c);
+    if (write::insertEquationMarkup(*m_doc, c, markup)) m_view->showCursor(c);
     else statusBar()->showMessage(tr("An equation can't be put here."), 6000);
     m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// The Equation tab (equationtab.h): shown while an equation is selected by itself. Its buttons open the equation's dialog with the structure or symbol put in.
+void WriteWindow::createEquationTabActions()
+{
+    EquationTabHandlers h;
+    h.edit = [this](const QString &pick) { equationDialog(pick); };
+    h.setLinear = [this](bool linear) {
+        setEquationLinearSetting(linear);
+        refreshShapeUi();
+    };
+    h.setSyntax = [this](EquationSyntax s) {
+        setEquationSyntaxSetting(s);
+        refreshShapeUi();
+    };
+    jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable); }, h);
 }
 
 void WriteWindow::createPictureAdjustActions()
 {
     createChartActions();
     mk("insert.equation", tr("Equation…"), "square-pi", QKeySequence(QStringLiteral("Alt+=")), [this] { insertEquationDialog(); });
+    createEquationTabActions();
     for (int i = 0; i < write::equationGallery().size(); ++i)
         mk(QStringLiteral("insert.equation.design.%1").arg(i), write::equationGallery().at(i).name, "square-pi", QKeySequence(), [this, i] {
             if (!m_doc || refuseIfReadOnly()) return;
@@ -945,6 +978,7 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         for (int i = 0; i < write::equationGallery().size(); ++i) m->addAction(act(QStringLiteral("insert.equation.design.%1").arg(i)));
         return m;
     };
+    addEquationTabMenus(parts, [this](const QString &id) { return act(id); }, [this](const QString &pick) { equationDialog(pick); });
     parts.menus[QStringLiteral("objectAlign")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"left", "center", "right"}) m->addAction(act(QStringLiteral("arrange.align.") + QLatin1String(id)));
@@ -1120,6 +1154,8 @@ void WriteWindow::refreshShapeUi()
     const bool shape = info.valid && info.kind != write::DrawnKind::Picture && info.kind != write::DrawnKind::Chart && info.kind != write::DrawnKind::Diagram;
     refreshChartUi();
     m_ribbon->setContextVisible(QStringLiteral("Shape Tools"), shape, false);
+    m_ribbon->setContextVisible(QString::fromLatin1(kEquationContext), selectedEquation() >= 0, false);
+    showEquationTabChoices([this](const QString &id) { return m_actions.value(id); }, equationLinearSetting(), equationSyntaxSetting());
     // (A group is one object: its parts take no fill, line, or words through it; it moves, sizes, orders, and is taken apart.)
     const bool group = info.valid && write::isGroupAt(*m_doc, at);
     const bool editable = shape && info.editable && !group;

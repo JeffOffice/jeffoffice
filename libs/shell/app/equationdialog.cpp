@@ -1,6 +1,10 @@
 #include "app/uistyle.h"
 #include "app/equationdialog.h"
 
+#include "app/equationtab.h"
+#include "app/icons.h"
+#include "app/plaintext.h"
+
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
@@ -12,10 +16,12 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
+#include <QMenu>
 #include <QPainter>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QSignalBlocker>
+#include <QToolButton>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -69,7 +75,7 @@ QImage equationPicture(const QString &linear, double emSize, const QColor &color
 
 bool askEquation(QWidget *parent, const QString &title, QString *linear) { return askEquationMarkup(parent, title, linear, nullptr); }
 
-bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markupOut, EquationForm *formOut)
+bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markupOut, EquationForm *formOut, const QString &startPick)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("equationDialog"));
@@ -117,6 +123,10 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
     designs->addItem(QCoreApplication::translate("EquationDialog", "Built-In Equations"), QString());
     for (const office::wml::EquationDesign &d : office::wml::equationGallery()) designs->addItem(d.name, d.linear);
     layout->addWidget(designs);
+    // The structures and symbols of the Equation tab, to put in the line at its caret.
+    auto *strip = new QHBoxLayout;
+    strip->setSpacing(2);
+    layout->addLayout(strip);
     auto *input = new QLineEdit(linear ? (markupOut ? office::wml::equationLineForEditing(*linear, *markupOut) : *linear) : QString(), &dlg);
     input->setObjectName(QStringLiteral("equationInput"));
     input->setMinimumWidth(420);
@@ -167,6 +177,47 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
         drawn->setPixmap(img.isNull() ? QPixmap() : QPixmap::fromImage(img));
     };
     QObject::connect(input, &QLineEdit::textChanged, &dlg, update);
+    auto put = [&](const QString &pick) { insertIntoEquationLine(input, equationPickText(pick, EquationSyntax(shown))); };
+    for (const EquationCategory &c : equationCategories()) {
+        auto *button = new QToolButton(&dlg);
+        button->setObjectName(QStringLiteral("equationStructure_") + c.id);
+        button->setIcon(icon(c.icon));
+        button->setToolTip(jp::plainToolTip(c.name));
+        button->setAccessibleName(c.name);
+        button->setAutoRaise(true);
+        button->setPopupMode(QToolButton::MenuButtonPopup);
+        auto *menu = new QMenu(button);
+        for (const EquationVariant &v : c.variants) {
+            const QString pick = QStringLiteral("structure:") + c.id + QLatin1Char('.') + v.id;
+            menu->addAction(v.name, &dlg, [put, pick] { put(pick); });
+        }
+        button->setMenu(menu);
+        const QString first = QStringLiteral("structure:") + c.id + QLatin1Char('.') + c.variants.first().id;
+        QObject::connect(button, &QToolButton::clicked, &dlg, [put, first] { put(first); });
+        strip->addWidget(button);
+    }
+    {
+        auto *symbols = new QToolButton(&dlg);
+        symbols->setObjectName(QStringLiteral("equationSymbols"));
+        symbols->setIcon(icon(QStringLiteral("pi")));
+        symbols->setToolTip(QCoreApplication::translate("EquationDialog", "Symbols"));
+        symbols->setAccessibleName(QCoreApplication::translate("EquationDialog", "Symbols"));
+        symbols->setAutoRaise(true);
+        symbols->setPopupMode(QToolButton::InstantPopup);
+        auto *menu = new QMenu(symbols);
+        for (const EquationSymbolGroup &g : equationSymbolGroups()) menu->addMenu(equationSymbolMenu(menu, g, put))->setText(g.name);
+        symbols->setMenu(menu);
+        strip->addWidget(symbols);
+        auto *words = new QToolButton(&dlg);
+        words->setObjectName(QStringLiteral("equationNormalText"));
+        words->setIcon(icon(QStringLiteral("type")));
+        words->setToolTip(QCoreApplication::translate("EquationDialog", "Normal Text"));
+        words->setAccessibleName(QCoreApplication::translate("EquationDialog", "Normal Text"));
+        words->setAutoRaise(true);
+        QObject::connect(words, &QToolButton::clicked, &dlg, [put] { put(QStringLiteral("text")); });
+        strip->addWidget(words);
+    }
+    strip->addStretch(1);
     QObject::connect(linearForm, &QRadioButton::toggled, &dlg, [drawn](bool on) { drawn->setVisible(!on); });
     drawn->setVisible(!startLinear);
     // Another typing format: what is typed is written again in it (kept as it is, and the choice undone, when it can't be).
@@ -201,11 +252,44 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
         }
         input->setFocus();
     });
+    // A program that keeps the markup opens in the typing format chosen on the Equation tab; one with markup no line of ours makes (a file's) opens in the first format that can write it.
+    if (markupOut && (equationSyntaxSetting() != EquationSyntax::Line || (!markupOut->isEmpty() && input->text().trimmed().isEmpty()))) {
+        const bool noLine = input->text().trimmed().isEmpty();
+        const QByteArray base = noLine ? *markupOut : markupOf(shown, input->text());
+        QVector<int> tries;
+        if (equationSyntaxSetting() != EquationSyntax::Line) tries << int(equationSyntaxSetting());
+        if (noLine && !base.isEmpty()) tries << int(UnicodeMathSyntax) << int(LatexSyntax);
+        if (tries.isEmpty()) tries << int(LineSyntax);
+        bool done = false;
+        for (const int to : tries) {
+            const QString text = base.isEmpty() ? QString() : textOf(to, base);
+            if (!base.isEmpty() && text.isEmpty()) continue;
+            shown = to;
+            syntax->setCurrentIndex(syntax->findData(to));
+            QSignalBlocker block(input);
+            input->setText(text);
+            done = true;
+            break;
+        }
+        // (An equation no format can write starts from the text it reads as; left as it is shown, it keeps its markup.)
+        if (!done && noLine) {
+            QSignalBlocker block(input);
+            input->setText(office::wml::equationLine(base));
+        }
+    }
     setHints();
     update();
+    // (Left as it was shown, an equation keeps the markup it had: writing it again in a format may not give the same bytes.)
+    const QString shownText = input->text();
+    const int shownSyntax = shown;
+    const QByteArray had = markupOut ? *markupOut : QByteArray();
+    if (!startPick.isEmpty()) {
+        input->end(false);
+        put(startPick);
+    }
     if (dlg.exec() != QDialog::Accepted) return false;
     if (linear) *linear = currentLine;
-    if (markupOut) *markupOut = current;
+    if (markupOut) *markupOut = !had.isEmpty() && input->text() == shownText && shown == shownSyntax ? had : current;
     if (formOut) *formOut = linearForm->isChecked() ? EquationForm::Linear : EquationForm::Professional;
     return true;
 }

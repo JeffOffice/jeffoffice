@@ -25,6 +25,7 @@
 #include "app/listmenus.h"
 #include "app/settings.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
 #include "app/equationedit.h"
 #include "wml/wmlmathedit.h"
 #include "app/widgets.h"
@@ -840,6 +841,8 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
         return m;
     };
 
+    addEquationTabMenus(parts, [this](const QString &id) { return act(id); }, [this](const QString &pick) { equationDialog(pick); });
+
     // Symbol: the recently used symbols to click, then More Symbols.
     parts.menus[QStringLiteral("symbolMenu")] = [this](QWidget *owner) {
         auto *sm = new QMenu(owner);
@@ -1092,6 +1095,11 @@ void MainWindow::updateContextTabs()
     m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), picture);
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), table);
     m_ribbon->setContextVisible(QStringLiteral("Text Art Tools"), textart);
+    {
+        const auto *eq = it && it->type() == ItemType::Equation && kind == "equation" ? static_cast<const EquationItem *>(it) : nullptr;
+        m_ribbon->setContextVisible(QString::fromLatin1(kEquationContext), eq != nullptr);
+        showEquationTabChoices([this](const QString &id) { return act(id); }, eq ? eq->linearForm : equationLinearSetting(), equationSyntaxSetting());
+    }
     m_ribbon->setContextVisible(QStringLiteral("Master Page"), !m_ed->masterView().isEmpty(), true);   // first, as the other program shows it
     m_ribbon->setTabVisible(QStringLiteral("Mailings"), m_ed->masterView().isEmpty());   // as the other program: no merging on a master
     Q_UNUSED(before);

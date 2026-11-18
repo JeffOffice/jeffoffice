@@ -453,6 +453,9 @@ private:
     void createShapeActions();
     void createPictureAdjustActions();
     void insertEquationDialog();
+    void equationDialog(const QString &pick);   // Insert or Edit Equation, with what a button of the Equation tab puts in the line
+    int selectedEquation() const;               // the position of the equation selected by itself, or -1
+    void createEquationTabActions();
     void createChartActions();
     void chartRibbonParts(RibbonParts &parts);
     void refreshChartUi();

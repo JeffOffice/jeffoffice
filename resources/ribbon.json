@@ -566,6 +566,61 @@
       ]},
       {"use": "Arrange"},
       {"use": "Size"}
-    ]}
+    ]},
+    {
+      "name": "Equation",
+      "keytip": "JQ",
+      "context": "Equation Tools",
+      "color": "equation",
+      "groups": [
+        {
+          "name": "Tools",
+          "keytip": "ZT",
+          "items": [
+            {"large": "equation.edit", "keytip": "EE"},
+            {"small": "equation.professional", "keytip": "EP"},
+            {"small": "equation.linear", "keytip": "EL"},
+            {"small": "equation.normalText", "keytip": "EN"}
+          ]
+        },
+        {
+          "name": "Convert",
+          "keytip": "ZV",
+          "items": [
+            {"small": "equation.syntaxLine", "keytip": "CS"},
+            {"small": "equation.syntaxUnicode", "keytip": "CU"},
+            {"small": "equation.syntaxLatex", "keytip": "CL"}
+          ]
+        },
+        {
+          "name": "Symbols",
+          "keytip": "ZY",
+          "items": [
+            {"small": {"id": "ribbon.equationSymbols.greek", "text": "Greek Letters", "icon": "pi"}, "keytip": "GG", "menu": "@equationSymbols.greek"},
+            {"small": {"id": "ribbon.equationSymbols.operators", "text": "Operators", "icon": "plus"}, "keytip": "GO", "menu": "@equationSymbols.operators"},
+            {"small": {"id": "ribbon.equationSymbols.relations", "text": "Relations", "icon": "equal-approximately"}, "keytip": "GR", "menu": "@equationSymbols.relations"},
+            {"small": {"id": "ribbon.equationSymbols.arrows", "text": "Arrows", "icon": "arrow-left-right"}, "keytip": "GA", "menu": "@equationSymbols.arrows"},
+            {"small": {"id": "ribbon.equationSymbols.others", "text": "Sets and Logic", "icon": "infinity"}, "keytip": "GL", "menu": "@equationSymbols.others"}
+          ]
+        },
+        {
+          "name": "Structures",
+          "keytip": "ZS",
+          "items": [
+            {"large": "equation.structure.fraction", "keytip": "SF", "split": true, "menu": "@equationStructure.fraction"},
+            {"large": "equation.structure.script", "keytip": "SS", "split": true, "menu": "@equationStructure.script"},
+            {"large": "equation.structure.radical", "keytip": "SR", "split": true, "menu": "@equationStructure.radical"},
+            {"large": "equation.structure.integral", "keytip": "SI", "split": true, "menu": "@equationStructure.integral"},
+            {"large": "equation.structure.operator", "keytip": "SO", "split": true, "menu": "@equationStructure.operator"},
+            {"large": "equation.structure.bracket", "keytip": "SB", "split": true, "menu": "@equationStructure.bracket"},
+            {"large": "equation.structure.function", "keytip": "SU", "split": true, "menu": "@equationStructure.function"},
+            {"large": "equation.structure.accent", "keytip": "SA", "split": true, "menu": "@equationStructure.accent"},
+            {"large": "equation.structure.limit", "keytip": "SL", "split": true, "menu": "@equationStructure.limit"},
+            {"large": "equation.structure.op", "keytip": "SP", "split": true, "menu": "@equationStructure.op"},
+            {"large": "equation.structure.matrix", "keytip": "SM", "split": true, "menu": "@equationStructure.matrix"}
+          ]
+        }
+      ]
+    }
   ]
 }

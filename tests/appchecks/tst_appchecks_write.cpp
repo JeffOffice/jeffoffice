@@ -5,6 +5,12 @@
 #include <QScopeGuard>
 #include <QTreeWidget>
 #include "core/pictureinsert.h"
+#include "core/equationops.h"
+#include "app/equationtab.h"
+#include "app/theme.h"
+#include "wml/wmlmathedit.h"
+#include <QComboBox>
+#include <QLineEdit>
 
 #include "app/filescreen.h"
 #include "app/pageview.h"
@@ -1221,6 +1227,93 @@ private Q_SLOTS:
         QTest::mousePress(target, Qt::LeftButton, Qt::NoModifier, from);
         for (int i = 1; i <= steps; ++i) QTest::mouseMove(target, from + (to - from) * i / steps);
         QTest::mouseRelease(target, Qt::LeftButton, Qt::NoModifier, to);
+    }
+
+    // The Equation tab shows exactly while an equation is selected by itself; a structure button opens the equation's dialog with its text in the line; an equation no line of ours makes is
+    // changed in UnicodeMath, and kept as the markup the dialog made.
+    void theEquationTabShowsWhileAnEquationIsSelectedAndItsButtonsEdit()
+    {
+        const jp::EquationSyntax syntaxBefore = jp::equationSyntaxSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationSyntaxSetting(syntaxBefore); });
+        jp::setEquationSyntaxSetting(jp::EquationSyntax::Line);
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        typeInto(w->view(), QStringLiteral("Some words around an equation. "));
+        settle(w.get());
+        QVERIFY(!tabShown(w.get(), "Equation"));
+        QTextCursor c = w->view()->cursor();
+        c.setPosition(5);
+        QVERIFY(write::insertEquation(*w->document(), c, QStringLiteral("a/b")));
+        auto select = [&](int from, int to) {
+            QTextCursor sel(w->document()->story());
+            sel.setPosition(from);
+            sel.setPosition(to, QTextCursor::KeepAnchor);
+            w->view()->setCursor(sel);
+            settle(w.get());
+        };
+        select(5, 6);
+        QVERIFY(tabShown(w.get(), "Equation"));
+        select(0, 4);   // (words)
+        QVERIFY(!tabShown(w.get(), "Equation"));
+        select(5, 6);
+        QVERIFY(tabShown(w.get(), "Equation"));
+        withDialog([&] { w->act(QStringLiteral("equation.structure.script"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->windowTitle(), QStringLiteral("Edit Equation"));
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QCOMPARE(input->text(), QStringLiteral("{a}/{b}x^n"));   // (the line the equation in the text says, and the structure at its end)
+            input->setText(QStringLiteral("a/b^2"));
+        });
+        QCOMPARE(write::equationMarkupAt(*w->document(), 5), office::wml::equationMarkup(QStringLiteral("a/b^2")));
+        // Equations no line of ours makes (a function with its argument) are changed in UnicodeMath and kept as the markup.
+        const QByteArray noLine = "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:func><m:fName><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr><m:t>sin</m:t></m:r></m:fName><m:e><m:r><m:t>x</m:t></m:r></m:e></m:func></m:oMath>";
+        QVERIFY(!noLine.isEmpty() && office::wml::equationLinear(noLine).isEmpty());
+        QVERIFY(write::replaceEquationMarkup(*w->document(), 5, noLine));
+        QVERIFY(write::equationAt(*w->document(), 5).isEmpty());
+        QCOMPARE(write::equationMarkupAt(*w->document(), 5), noLine);
+        select(5, 6);
+        QByteArray wanted;
+        withDialog([&] { w->act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("equationSyntax"))->currentIndex(), 1);
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QVERIFY(!input->text().isEmpty());
+            input->setText(input->text() + QStringLiteral("+1"));
+            wanted = office::wml::equationFromUnicodeMath(input->text());
+        });
+        QVERIFY(!wanted.isEmpty());
+        QCOMPARE(write::equationMarkupAt(*w->document(), 5), wanted);
+        // OK with nothing changed keeps the markup as it was.
+        const QByteArray kept = write::equationMarkupAt(*w->document(), 5);
+        withDialog([&] { w->act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [](QDialog *) {});
+        QCOMPARE(write::equationMarkupAt(*w->document(), 5), kept);
+        select(0, 0);
+        QVERIFY(!tabShown(w.get(), "Equation"));
+        // Professional and Linear, and the typing formats, are what the dialogs open in (this program shows an equation as a line and keeps no form of it).
+        select(5, 6);
+        w->act(QStringLiteral("equation.syntaxLatex"))->trigger();
+        QCOMPARE(jp::equationSyntaxSetting(), jp::EquationSyntax::Latex);
+        QVERIFY(w->act(QStringLiteral("equation.syntaxLatex"))->isChecked() && !w->act(QStringLiteral("equation.syntaxLine"))->isChecked());
+    }
+
+    // The window with the Equation tab shown, when JO_SHOT_DIR names a folder.
+    void theWriteEquationTabPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        w->resize(1440, 900);
+        w->show();
+        typeInto(w->view(), QStringLiteral("The roots of a quadratic are "));
+        QTextCursor c = w->view()->cursor();
+        const int at = c.position();
+        QVERIFY(write::insertEquation(*w->document(), c, QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)")));
+        QTextCursor sel(w->document()->story());
+        sel.setPosition(at);
+        sel.setPosition(at + 1, QTextCursor::KeepAnchor);
+        w->view()->setCursor(sel);
+        settle(w.get());
+        QVERIFY(tabShown(w.get(), "Equation"));
+        w->ribbon()->showTab(w->ribbon()->tab(QStringLiteral("Equation")));
+        QTest::qWait(200);
+        w->grab().save(qEnvironmentVariable("JO_SHOT_DIR") + QStringLiteral("/equation-tab-write.png"));
     }
 
     // The Insert Picture command puts the file's picture in the text and selects it; the Picture Format tab, its Wrap Text choices, its size fields, and its handles change it in one step each;

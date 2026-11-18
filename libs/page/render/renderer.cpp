@@ -12,6 +12,7 @@
 #include "core/svg.h"
 #include "core/texteffects.h"
 #include "core/wrapoutline.h"
+#include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 #include "text/textprops.h"
 
@@ -632,9 +633,17 @@ QPainterPath Renderer::textArtOutline(const TextArtItem &w)
     return path;
 }
 
+// An equation shown Linear: the line it is typed in (UnicodeMath), as one run of normal text; the markup itself when it has no such line.
+static QByteArray linearFormMarkup(const QByteArray &markup)
+{
+    const QString text = office::wml::equationToUnicodeMath(markup);
+    if (text.isEmpty()) return markup;
+    return "<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:rPr><m:nor/></m:rPr><m:t xml:space=\"preserve\">" + text.toHtmlEscaped().toUtf8() + "</m:t></m:r></m:oMath>";
+}
+
 QPainterPath Renderer::equationOutline(const EquationItem &w, QSizeF *natural)
 {
-    const auto laid = office::wml::equationShapeCached(w.markup, w.size);
+    const auto laid = office::wml::equationShapeCached(w.linearForm ? linearFormMarkup(w.markup) : w.markup, w.size);
     if (natural) *natural = laid ? laid->box.size() : QSizeF();
     if (!laid || w.rect.isEmpty()) return QPainterPath();
     // The equation keeps its proportions in a frame of any shape: as large as fits, in the middle.

@@ -961,6 +961,7 @@ QJsonObject EquationItem::toJson() const
     QJsonObject o = Item::toJson();
     if (!linear.isEmpty()) o["linear"] = linear;
     o["markup"] = QString::fromUtf8(markup);
+    if (linearForm) o["linearForm"] = true;
     o["size"] = size;
     return o;
 }
@@ -970,6 +971,7 @@ void EquationItem::fromJson(const QJsonObject &o)
     Item::fromJson(o);
     linear = o["linear"].toString();
     markup = o["markup"].toString().left(1 << 20).toUtf8();
+    linearForm = o["linearForm"].toBool();
     size = std::clamp(o["size"].toDouble(24), 1.0, 1000.0);
 }
 

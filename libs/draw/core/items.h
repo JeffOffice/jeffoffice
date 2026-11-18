@@ -385,6 +385,7 @@ public:
 
     QString linear;
     QByteArray markup;
+    bool linearForm = false;    // shown as the line it is typed in (UnicodeMath), not built up (Professional); the markup is the same either way
     double size = 24;           // the height of the letters, in points, before the frame is sized
 
     QJsonObject toJson() const override;

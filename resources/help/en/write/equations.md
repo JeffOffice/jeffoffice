@@ -1,5 +1,5 @@
 # Equations
-<!-- keywords: equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, alt+=, accent, hat, vector, bar, matrix, brackets, built-in equations, gallery, change an equation, edit an equation -->
+<!-- keywords: equation tab, structures, symbols, convert, equation, equations, math, formula, fraction, square root, superscript, subscript, exponent, sum, integral, greek, symbol, insert equation, alt+=, accent, hat, vector, bar, matrix, brackets, built-in equations, gallery, change an equation, edit an equation -->
 
 An **equation** is a line of math, such as a fraction or a square root. This topic shows how to type one and put it in a document.
 
@@ -35,6 +35,17 @@ Next to the box is a list of typing formats: **Simple line** (the one above), **
 
 The two buttons **Professional** and **Linear** change how the box shows your equation. Professional draws it built up, as it will look. Linear shows only the line you typed. If an equation can't be written in the format you pick, the box tells you and keeps what you typed.
 
+## The Equation tab
+
+Select an equation (click it, or move the caret over it with Shift), and a tab named **Equation** appears at the end of the ribbon. It goes away when you select something else.
+
+- **Tools:** **Edit Equation** opens the box. **Professional** and **Linear** choose how the box starts, built up or as the line only. The document itself always shows an equation as a line of text. **Normal Text** opens the box with a pair of quotes added, for words that are not math.
+- **Convert:** pick the format the box opens in: **Simple Line**, **UnicodeMath**, or **LaTeX**. The next time you edit an equation, it is written in the format you picked. An equation that no line of the simple kind can write, such as a sum with its limits above and below, opens in UnicodeMath instead.
+- **Symbols:** Greek letters, operators, relations, arrows, and sets and logic. Pick a symbol, and the box opens with it added to the line.
+- **Structures:** fraction, script, radical, integral, large operator, bracket, function, accent, limit, operator, and matrix. Click a button for its usual form, or the arrow beside it for more forms, such as a derivative, a root with a degree, or a 3 by 3 matrix.
+
+A structure goes in at the end of the line, with sample letters in it, and the first one is selected so you can type over it. The box has the same structures in a row of small buttons above the line. There a structure goes in at the cursor, and if part of the line is selected, that part goes into the first place of the structure.
+
 ## Built-in equations
 
 Click **Insert > Built-In Equations** to see a list of well-known equations, such as the quadratic formula and the area of a circle. Click one to put it in at the caret.
@@ -45,4 +56,4 @@ Put the caret next to an equation, or select it, and click **Insert > Equation**
 
 ## Equations in other documents
 
-JeffWrite shows the equations that a document holds, and keeps them as they were. It can change an equation that is made of the parts listed above. An equation with other parts, such as grouping marks, is kept as it is, and Insert > Equation puts in a new one instead of changing it.
+JeffWrite shows the equations that a document holds, and keeps them as they were. An equation another program made opens in UnicodeMath, or in LaTeX when UnicodeMath can't write it, so you can change it. If neither can write all of its parts, such as grouping marks, the box starts with the text of the equation. Click **Cancel** to keep the equation as it is, or type a new one to replace it.

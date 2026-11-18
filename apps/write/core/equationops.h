@@ -5,6 +5,7 @@
 #include "core/writedoc.h"
 #include "wml/wmlmathedit.h"
 
+#include <QByteArray>
 #include <QString>
 #include <QTextCursor>
 #include <QVector>
@@ -32,5 +33,10 @@ bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear);
 // The pictures of the equations with one between `from` and `to` of the story made again from the look their runs have now (after a change of size or color, or a paste: a copy from another
 // document names a picture of that document's): the one that cannot be made loses its picture and shows its line.
 void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to, bool joinPrevious = false);   // (joinPrevious: as part of the step that was just made)
+// The same with the markup itself (an m:oMath element), for the equations the Equation tab and the dialog make in any typing format, and for those of a file that no line says.
+// equationMarkupAt is empty where there is no equation after `position`.
+QByteArray equationMarkupAt(const WriteDoc &doc, int position);
+bool replaceEquationMarkup(WriteDoc &doc, int position, const QByteArray &markup);
+bool insertEquationMarkup(WriteDoc &doc, QTextCursor &c, const QByteArray &markup);
 
 } // namespace jp::write

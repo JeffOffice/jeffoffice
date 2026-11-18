@@ -23,7 +23,9 @@ bool askEquation(QWidget *parent, const QString &title, QString *linear);
 // `markup` is also the markup the equation had when it is edited (empty for a new one; a stored line that no longer reads as it did is shown in the line that does, see
 // equationLineForEditing). `form` (if given) is the form the dialog starts in and the one chosen.
 enum class EquationForm { Professional, Linear };
-bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markup, EquationForm *form = nullptr);
+// The dialog has a strip with the structures and symbols of the Equation tab (equationtab.h), which put text into the line at its caret; `startPick` (an equationPickText pick: the tab's
+// button was clicked) is put in at the end of the line when the dialog opens. A program that keeps the markup opens in the typing format chosen on the tab (equationSyntaxSetting).
+bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markup, EquationForm *form = nullptr, const QString &startPick = QString());
 
 // An equation typed as `linear`, drawn with letters `emSize` points tall in `color` on a transparent ground (a null image for a line that makes no equation).
 QImage equationPicture(const QString &linear, double emSize, const QColor &color, double pixelRatio = 1.0);

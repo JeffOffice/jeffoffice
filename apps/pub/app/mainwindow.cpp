@@ -42,6 +42,7 @@
 #include "app/privacy.h"
 #include "app/settings.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
 #include "app/equationedit.h"
 #include "wml/wmlmathedit.h"
 #include "app/taskpane.h"
@@ -2105,30 +2106,38 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
 void MainWindow::editTextArt(const QString &id) { textArtTextDialog(this, m_ed, id); }
 
 // Insert > Equation: the line is typed in the dialog the other programs have, and the equation is put in the middle of the page.
-void MainWindow::insertEquationDialog()
+void MainWindow::insertEquationDialog() { equationDialog(QString()); }
+
+void MainWindow::equationDialog(const QString &pick)
 {
     // (an equation that is selected by itself is changed)
     if (Item *one = m_ed->single(); one && one->type() == ItemType::Equation) {
-        editEquation(one->id);
+        editEquationWith(one->id, pick);
         return;
     }
     QString line;
-    if (!askEquation(this, tr("Insert Equation"), &line)) return;
-    if (jp::insertEquation(m_ed, line).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
+    QByteArray markup;
+    EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
+    if (!askEquationMarkup(this, tr("Insert Equation"), &line, &markup, &form, pick)) return;
+    if (jp::insertEquationMarkup(m_ed, markup, line, form == EquationForm::Linear).isEmpty()) statusBar()->showMessage(tr("An equation can't be put here."), 6000);
 }
 
-// An equation that was typed in a line is changed in the same dialog; one a file brought, which no line makes, is changed only by putting in another.
-void MainWindow::editEquation(QString id)
+// An equation is changed in the same dialog, from the markup it has (one a file brought is written in UnicodeMath or LaTeX there).
+void MainWindow::editEquation(QString id) { editEquationWith(id, QString()); }
+
+void MainWindow::editEquationWith(QString id, const QString &pick)
 {
     auto *w = dynamic_cast<EquationItem *>(m_ed->doc()->item(id));
     if (!w) return;
-    if (w->linear.isEmpty()) {
-        statusBar()->showMessage(tr("This equation can't be changed here."), 6000);
-        return;
-    }
     QString line = w->linear;
-    if (!askEquation(this, tr("Edit Equation"), &line)) return;
-    if (!changeEquation(m_ed, id, line) && w->linear != line.trimmed()) statusBar()->showMessage(tr("This equation can't be changed."), 6000);
+    QByteArray markup = w->markup;
+    EquationForm form = w->linearForm ? EquationForm::Linear : EquationForm::Professional;
+    const QString before = w->linear;
+    const QByteArray beforeMarkup = w->markup;
+    const bool beforeLinear = w->linearForm;
+    if (!askEquationMarkup(this, tr("Edit Equation"), &line, &markup, &form, pick)) return;
+    if (!changeEquationMarkup(m_ed, id, markup, line, form == EquationForm::Linear) && !(markup == beforeMarkup && line.trimmed() == before.trimmed() && (form == EquationForm::Linear) == beforeLinear))
+        statusBar()->showMessage(tr("This equation can't be changed."), 6000);
 }
 
 // ---------------- context menu ----------------

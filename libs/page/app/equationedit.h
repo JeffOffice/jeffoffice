@@ -4,6 +4,7 @@
 
 #include "core/itemsfwd.h"
 
+#include <QByteArray>
 #include <QSizeF>
 #include <QString>
 #include <QPointF>
@@ -16,11 +17,19 @@ class Editor;
 // equation, or one that is too large (the limits of wmlmathedit.h).
 std::shared_ptr<EquationItem> makeEquation(const QString &linear, const QPointF &center, double size = 24);
 
+// The same for an equation that is already markup (typed in any format, as the dialog makes it); `linear` (empty when no line of our syntax makes it) is kept for editing, and `linearForm` is how it is shown.
+std::shared_ptr<EquationItem> makeEquationFromMarkup(const QByteArray &markup, const QString &linear, bool linearForm, const QPointF &center, double size = 24);
+
 // Puts the equation in the middle of the page being edited, selected, as one step that undoes ("Insert Equation"). The id of the item, or empty when the line makes none.
 QString insertEquation(Editor *ed, const QString &linear);
+QString insertEquationMarkup(Editor *ed, const QByteArray &markup, const QString &linear, bool linearForm);
 
 // Changes the line of the equation `id`, keeping its middle and the size its letters are at; one step that undoes ("Edit Equation"). False for a line that makes no equation, or where
 // there is no such equation, or the line is the one it has.
 bool changeEquation(Editor *ed, QString id, const QString &linear);
+// Changes the equation `id` to this markup (and line, and form) in the same way, as one step that undoes; false for markup that makes no equation, or where nothing would change.
+bool changeEquationMarkup(Editor *ed, QString id, const QByteArray &markup, const QString &linear, bool linearForm);
+// Shows the equation `id` Linear or Professional, as one step that undoes ("Edit Equation"); false when it already is, or there is no such equation.
+bool setEquationLinearForm(Editor *ed, QString id, bool linearForm);
 
 } // namespace jp

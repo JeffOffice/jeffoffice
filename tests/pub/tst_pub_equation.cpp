@@ -8,6 +8,8 @@
 #include "app/settings.h"
 #include "app/equationedit.h"
 #include "app/equationdialog.h"
+#include "app/equationtab.h"
+#include "app/ribbon.h"
 #include "app/theme.h"
 #include "io/pubimport.h"
 #include "wml/wmlmathedit.h"
@@ -22,6 +24,7 @@
 #include <QDialogButtonBox>
 #include <QLabel>
 #include <QLineEdit>
+#include <QToolButton>
 #include <QPushButton>
 #include <QRadioButton>
 #include <QTemporaryDir>
@@ -1097,6 +1100,350 @@ private Q_SLOTS:
             QTest::qWait(50);
             shotOf(d, QStringLiteral("equation-dialog-linear-unicodemath"));
         });
+    }
+
+    // ---- The Equation tab (libs/shell/app/equationtab.h) ----
+
+    static QString textIn(const jp::EquationVariant &v, jp::EquationSyntax syntax)
+    {
+        return jp::equationUnmarked(syntax == jp::EquationSyntax::UnicodeMath ? v.unicode : syntax == jp::EquationSyntax::Latex ? v.latex : v.line);
+    }
+    static QByteArray markupIn(const QString &text, jp::EquationSyntax syntax)
+    {
+        return syntax == jp::EquationSyntax::UnicodeMath ? jp::office::wml::equationFromUnicodeMath(text) : syntax == jp::EquationSyntax::Latex ? jp::office::wml::equationFromLatex(text)
+                                                                                                                                            : jp::office::wml::equationMarkup(text);
+    }
+    // Markup another program wrote that the line of our own syntax can't say but UnicodeMath can (a paragraph of one equation, or a function with its argument).
+    static QByteArray markupNoLineMakes()
+    {
+        using namespace jp::office::wml;
+        const QByteArray para = "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"center\"/></m:oMathParaPr>" + xmlMath("<m:r><m:t>y</m:t></m:r>") + "</m:oMathPara>";
+        const QByteArray func = xmlMath("<m:func><m:fName><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr><m:t>sin</m:t></m:r></m:fName><m:e><m:r><m:t>x</m:t></m:r></m:e></m:func>");
+        for (const QByteArray &m : {func, para})
+            if (equationLinear(m).isEmpty() && !equationToUnicodeMath(m).isEmpty()) return m;
+        return QByteArray();
+    }
+    static bool tabShown(jp::MainWindow &w)
+    {
+        for (int i = 0; i < w.ribbon()->tabCount(); ++i)
+            if (w.ribbon()->tabName(i) == QLatin1String("Equation")) return w.ribbon()->tabVisible(i);
+        return false;
+    }
+
+    // Each of the eleven structures puts in what its first variant says, and that reads as the equation named.
+    void theElevenStructuresMakeTheEquationsTheTabSays()
+    {
+        using jp::EquationSyntax;
+        // (the line the pages show for each: a script is written inline, as it is in the text of a page)
+        const QMap<QString, QString> expected = {{"fraction", "a/b"}, {"script", "xn"}, {"radical", "\u221ax"}, {"integral", "\u222b a b x"}, {"operator", "\u2211 (i = 1) n x"}, {"bracket", "(x)"},
+                                                 {"function", "sin(x)"}, {"accent", "x^"}, {"limit", "limx\u2192 a y"}, {"op", "a \u00d7 b"}, {"matrix", "(a b; c d)"}};
+        QCOMPARE(jp::equationCategories().size(), 11);
+        QString mismatches;
+        for (const jp::EquationCategory &c : jp::equationCategories()) {
+            QVERIFY2(expected.contains(c.id), qPrintable(c.id));
+            QVERIFY(!c.variants.isEmpty() && !c.name.isEmpty() && !c.icon.isEmpty());
+            const QByteArray firstMarkup = markupIn(textIn(c.variants.first(), EquationSyntax::Line), EquationSyntax::Line);
+            const QMap<QString, QByteArray> element = {{"fraction", "<m:f>"}, {"script", "<m:sSup>"}, {"radical", "<m:rad>"}, {"integral", "<m:nary>"}, {"operator", "<m:nary>"}, {"bracket", "<m:d>"}, {"accent", "<m:acc>"}, {"matrix", "<m:m>"}};
+            if (element.contains(c.id)) QVERIFY2(firstMarkup.contains(element.value(c.id)), qPrintable(c.id));
+            const QString made = jp::office::wml::equationLine(firstMarkup);
+            if (made != expected.value(c.id)) mismatches += c.id + ": " + made + "\n";
+            for (const jp::EquationVariant &v : c.variants) {
+                QByteArray first;
+                for (const EquationSyntax syntax : {EquationSyntax::Line, EquationSyntax::UnicodeMath, EquationSyntax::Latex}) {
+                    const QString text = textIn(v, syntax);
+                    const QByteArray m = markupIn(text, syntax);
+                    QVERIFY2(!m.isEmpty(), qPrintable(c.id + "." + v.id + ": " + text));
+                    // (the same equation in every format, whatever each one calls it: only a space can differ, as in sin(x) and sin (x))
+                    if (first.isEmpty()) first = m;
+                    QCOMPARE(QString(jp::office::wml::equationLine(m)).remove(QLatin1Char(' ')), QString(jp::office::wml::equationLine(first)).remove(QLatin1Char(' ')));
+                    // (and it reads back from the markup in the format)
+                    const QString back = syntax == EquationSyntax::UnicodeMath ? jp::office::wml::equationToUnicodeMath(m) : syntax == EquationSyntax::Latex ? jp::office::wml::equationToLatex(m) : jp::office::wml::equationLinear(m);
+                    QVERIFY2(!back.isEmpty(), qPrintable(c.id + "." + v.id + ": " + text));
+                    QCOMPARE(markupIn(back, syntax), m);
+                }
+            }
+        }
+        QVERIFY2(mismatches.isEmpty(), qPrintable(mismatches));
+    }
+
+    // A symbol is one character, and reads as just that in every format.
+    void everySymbolOfTheTabIsOneCharacterInEveryFormat()
+    {
+        using jp::EquationSyntax;
+        int count = 0;
+        for (const jp::EquationSymbolGroup &g : jp::equationSymbolGroups())
+            for (int i = 0; i < g.symbols.size(); ++i) {
+                QString symbol(g.symbols[i]);
+                if (g.symbols[i].isHighSurrogate()) symbol += g.symbols[++i];
+                ++count;
+                for (const EquationSyntax syntax : {EquationSyntax::Line, EquationSyntax::UnicodeMath, EquationSyntax::Latex}) {
+                    const QString put = jp::equationPickText(QStringLiteral("symbol:") + symbol, syntax);
+                    QCOMPARE(put, symbol);
+                    QVERIFY2(markupIn(put, syntax).size() > 0, qPrintable(symbol));
+                    QCOMPARE(jp::office::wml::equationLine(markupIn(put, syntax)), symbol);
+                }
+            }
+        QVERIFY(count > 60);
+        QVERIFY(jp::equationPickText(QStringLiteral("symbol:ab"), jp::EquationSyntax::Line).isEmpty());   // (a pick that names two characters is none)
+        QVERIFY(jp::equationPickText(QStringLiteral("structure:fraction.nothing"), jp::EquationSyntax::Line).isEmpty());
+        QVERIFY(jp::equationPickText(QStringLiteral("nothing"), jp::EquationSyntax::Line).isEmpty());
+    }
+
+    // A structure goes in the line at the caret; what is selected becomes its first place to fill, and the first place is selected for typing over.
+    void aStructureGoesInTheLineAtTheCaretAndSelectsItsFirstPlace()
+    {
+        QLineEdit line;
+        line.setText(QStringLiteral("1+"));
+        line.setCursorPosition(2);
+        jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("structure:fraction.stacked"), jp::EquationSyntax::Line));
+        QCOMPARE(line.text(), QStringLiteral("1+a/b"));
+        QCOMPARE(line.selectedText(), QStringLiteral("a"));
+        QCOMPARE(line.selectionStart(), 2);
+        // (a selection is the first place)
+        line.setText(QStringLiteral("x+y"));
+        line.setSelection(2, 1);
+        jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("structure:radical.sqrt"), jp::EquationSyntax::Line));
+        QCOMPARE(line.text(), QStringLiteral("x+sqrt(y)"));
+        QCOMPARE(line.selectedText(), QStringLiteral("y"));
+        // (a symbol has no place to fill: the caret goes after it)
+        line.setText(QStringLiteral("2"));
+        line.setCursorPosition(1);
+        jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("symbol:\u03c0"), jp::EquationSyntax::Line));
+        QCOMPARE(line.text(), QStringLiteral("2\u03c0"));
+        QCOMPARE(line.cursorPosition(), 2);
+        QVERIFY(!line.hasSelectedText());
+        // Past the limit of an equation's line nothing is put in.
+        line.setText(QString(jp::office::wml::kMostEquationInput, QLatin1Char('x')));
+        line.setCursorPosition(1);
+        jp::insertIntoEquationLine(&line, jp::equationPickText(QStringLiteral("structure:fraction.stacked"), jp::EquationSyntax::Line));
+        QCOMPARE(line.text().size(), jp::office::wml::kMostEquationInput);
+    }
+
+    // The dialog has the same structures in a strip, and one picked on the tab is in the line when it opens.
+    void theDialogHasTheStructureStripAndTakesAPickFromTheTab()
+    {
+        QString line;
+        QByteArray markup;
+        withDialog([&] { QVERIFY(jp::askEquationMarkup(nullptr, QStringLiteral("x"), &line, &markup, nullptr, QStringLiteral("structure:radical.sqrt"))); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QCOMPARE(input->text(), QStringLiteral("sqrt(x)"));
+            QCOMPARE(input->selectedText(), QStringLiteral("x"));
+            for (const jp::EquationCategory &c : jp::equationCategories()) QVERIFY2(d->findChild<QToolButton *>(QStringLiteral("equationStructure_") + c.id), qPrintable(c.id));
+            QVERIFY(d->findChild<QToolButton *>(QStringLiteral("equationSymbols")));
+            // The x is the first place of the next structure.
+            d->findChild<QToolButton *>(QStringLiteral("equationStructure_script"))->click();
+            QCOMPARE(input->text(), QStringLiteral("sqrt(x^n)"));
+            QCOMPARE(d->findChild<QLabel *>(QStringLiteral("equationPreview"))->text(), jp::office::wml::equationLine(jp::office::wml::equationMarkup(QStringLiteral("sqrt(x^n)"))));
+            // Normal Text is in quotes in the line, and the typing format changes what is put in.
+            input->setText(QString());
+            d->findChild<QToolButton *>(QStringLiteral("equationNormalText"))->click();
+            QCOMPARE(input->text(), QStringLiteral("\"text\""));
+            auto *syntax = d->findChild<QComboBox *>(QStringLiteral("equationSyntax"));
+            input->setText(QString());
+            syntax->setCurrentIndex(2);
+            Q_EMIT syntax->activated(2);
+            d->findChild<QToolButton *>(QStringLiteral("equationStructure_fraction"))->click();
+            QCOMPARE(input->text(), QStringLiteral("\\frac{a}{b}"));
+            input->setText(QStringLiteral("x"));
+            input->setCursorPosition(1);
+        });
+        QCOMPARE(markup, jp::office::wml::equationMarkup(QStringLiteral("x")));
+    }
+
+    // The dialog opens in the typing format chosen on the tab, and an equation no line of ours makes opens in a format that can write it.
+    void theDialogOpensInTheFormatTheTabChose()
+    {
+        const jp::EquationSyntax before = jp::equationSyntaxSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationSyntaxSetting(before); });
+        const QByteArray markup = jp::office::wml::equationMarkup(QStringLiteral("a/b"));
+        jp::setEquationSyntaxSetting(jp::EquationSyntax::Latex);
+        QString line = QStringLiteral("a/b");
+        QByteArray changed = markup;
+        withDialog([&] { QVERIFY(jp::askEquationMarkup(nullptr, QStringLiteral("x"), &line, &changed)); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("equationSyntax"))->currentIndex(), 2);
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text(), QStringLiteral("\\frac{a}{b}"));
+        });
+        QCOMPARE(changed, markup);
+        // (a new equation starts empty, in that format)
+        line.clear();
+        changed.clear();
+        withDialog([&] { jp::askEquationMarkup(nullptr, QStringLiteral("x"), &line, &changed); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("equationSyntax"))->currentIndex(), 2);
+            QVERIFY(d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text().isEmpty());
+        }, false);
+        // Markup that has no line of ours is written in UnicodeMath, the first format that can.
+        jp::setEquationSyntaxSetting(jp::EquationSyntax::Line);
+        const QByteArray limits = markupNoLineMakes();
+        QVERIFY(!limits.isEmpty() && jp::office::wml::equationLinear(limits).isEmpty());
+        line.clear();
+        changed = limits;
+        withDialog([&] { QVERIFY(jp::askEquationMarkup(nullptr, QStringLiteral("x"), &line, &changed)); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("equationSyntax"))->currentIndex(), 1);
+            QVERIFY(!d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text().isEmpty());
+        });
+        QCOMPARE(changed, limits);
+    }
+
+    // The tab shows exactly while an equation is selected, and its choices follow the equation.
+    void theEquationTabShowsExactlyWhileAnEquationIsSelected()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        QVERIFY(!tabShown(w));
+        const QString id = jp::insertEquation(ed, QStringLiteral("a/b"));
+        QVERIFY(!id.isEmpty());
+        ed->select(id);
+        QTRY_VERIFY(tabShown(w));
+        QVERIFY(w.act(QStringLiteral("equation.professional"))->isChecked() && !w.act(QStringLiteral("equation.linear"))->isChecked());
+        ed->select(QString());
+        QTRY_VERIFY(!tabShown(w));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(50, 50, 100, 40);
+        const QString text = ed->addItem(box);
+        QVERIFY(!text.isEmpty());
+        ed->select(text);
+        QTRY_VERIFY(!tabShown(w));
+        ed->select(id);
+        QTRY_VERIFY(tabShown(w));
+        ed->deleteSelection();
+        QTRY_VERIFY(!tabShown(w));
+        QVERIFY(w.act(QStringLiteral("equation.linear")));   // (the commands stay, for the tab and for the command search)
+    }
+
+    // Professional and Linear change how the equation is shown and never what it is; the form is kept in the file, and undoes.
+    void professionalAndLinearChangeTheFormAndNotTheMarkup()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const jp::EquationSyntax before = jp::equationSyntaxSetting();
+        const bool linearBefore = jp::equationLinearSetting();
+        const auto restore = qScopeGuard([&] {
+            jp::setEquationSyntaxSetting(before);
+            jp::setEquationLinearSetting(linearBefore);
+        });
+        const QString id = jp::insertEquation(ed, QStringLiteral("(a+b)/c"));
+        auto eq = [&] { return dynamic_cast<jp::EquationItem *>(ed->doc()->item(id)); };
+        ed->select(id);
+        const QByteArray markup = eq()->markup;
+        QSizeF professionalSize;
+        jp::Renderer::equationOutline(*eq(), &professionalSize);
+        w.act(QStringLiteral("equation.linear"))->trigger();
+        QVERIFY(eq()->linearForm);
+        QCOMPARE(eq()->markup, markup);
+        QCOMPARE(eq()->linear, QStringLiteral("(a+b)/c"));
+        QSizeF linearSize;
+        jp::Renderer::equationOutline(*eq(), &linearSize);
+        QVERIFY(linearSize != professionalSize);   // (it is drawn as a line)
+        QVERIFY(linearSize.height() < professionalSize.height());
+        QTRY_VERIFY(w.act(QStringLiteral("equation.linear"))->isChecked() && !w.act(QStringLiteral("equation.professional"))->isChecked());
+        // It is kept in the file.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QJsonObject json = eq()->toJson();
+        QVERIFY(json.value("linearForm").toBool());
+        jp::EquationItem again;
+        again.fromJson(json);
+        QVERIFY(again.linearForm);
+        QCOMPARE(again.markup, markup);
+        // Back: the same markup, the same size, and one step undoes each change.
+        w.act(QStringLiteral("equation.professional"))->trigger();
+        QVERIFY(!eq()->linearForm);
+        QCOMPARE(eq()->markup, markup);
+        QCOMPARE(eq()->linear, QStringLiteral("(a+b)/c"));
+        QSizeF backSize;
+        jp::Renderer::equationOutline(*eq(), &backSize);
+        QCOMPARE(backSize, professionalSize);
+        ed->undo();
+        QVERIFY(eq()->linearForm);
+        ed->undo();
+        QVERIFY(!eq()->linearForm);
+        // The choices of the typing format are the ones the dialogs open in.
+        w.act(QStringLiteral("equation.syntaxLatex"))->trigger();
+        QCOMPARE(jp::equationSyntaxSetting(), jp::EquationSyntax::Latex);
+        QTRY_VERIFY(w.act(QStringLiteral("equation.syntaxLatex"))->isChecked() && !w.act(QStringLiteral("equation.syntaxLine"))->isChecked());
+        w.act(QStringLiteral("equation.syntaxLine"))->trigger();
+        QCOMPARE(jp::equationSyntaxSetting(), jp::EquationSyntax::Line);
+    }
+
+    // A button of the tab opens the selected equation's dialog with the structure in the line; the markup and the form are kept as the dialog makes them, a file's equation (no line of ours) can be changed,
+    // and an old line with quotes is edited as it was stored.
+    void aStructureButtonEditsTheSelectedEquation()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        const QString id = jp::insertEquation(ed, QStringLiteral("x"));
+        auto eq = [&] { return dynamic_cast<jp::EquationItem *>(ed->doc()->item(id)); };
+        ed->select(id);
+        withDialog([&] { w.act(QStringLiteral("equation.structure.fraction"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QCOMPARE(input->text(), QStringLiteral("xa/b"));
+            input->setText(QStringLiteral("x/y"));
+        });
+        QCOMPARE(eq()->linear, QStringLiteral("x/y"));
+        QCOMPARE(eq()->markup, jp::office::wml::equationMarkup(QStringLiteral("x/y")));
+        // One picked from a menu of the tab does the same.
+        withDialog([&] { w.act(QStringLiteral("equation.pick.script.sub"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text(), QStringLiteral("x/yx_i"));
+        }, false);
+        QCOMPARE(eq()->linear, QStringLiteral("x/y"));   // (Cancel changes nothing)
+        // The form chosen in the dialog is kept.
+        withDialog([&] { w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            d->findChild<QRadioButton *>(QStringLiteral("equationLinear"))->setChecked(true);
+        });
+        QVERIFY(eq()->linearForm);
+        withDialog([&] { w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QVERIFY(d->findChild<QRadioButton *>(QStringLiteral("equationLinear"))->isChecked());
+            d->findChild<QRadioButton *>(QStringLiteral("equationProfessional"))->setChecked(true);
+        });
+        QVERIFY(!eq()->linearForm);
+        // An equation a file brought, which no line of ours makes, is changed in UnicodeMath, and kept as markup with no line.
+        const QByteArray limits = markupNoLineMakes();
+        QVERIFY(!limits.isEmpty() && jp::office::wml::equationLinear(limits).isEmpty());
+        ed->change(QStringLiteral("Put"), [&] {
+            eq()->markup = limits;
+            eq()->linear.clear();
+        });
+        withDialog([&] { w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            auto *input = d->findChild<QLineEdit *>(QStringLiteral("equationInput"));
+            QVERIFY(!input->text().isEmpty());
+            QCOMPARE(d->findChild<QComboBox *>(QStringLiteral("equationSyntax"))->currentIndex(), 1);
+            input->setText(input->text() + QStringLiteral("+1"));
+        });
+        QVERIFY(eq()->markup != limits);
+        QVERIFY(eq()->linear.isEmpty());
+        // A line stored with quotes before Normal Text was read means those quotes: it is edited as it was stored, and OK with no change keeps the markup.
+        const QByteArray old = jp::office::wml::equationMarkup(QStringLiteral("\\left\"a\\right\""));
+        QVERIFY(!old.isEmpty());
+        ed->change(QStringLiteral("Put"), [&] {
+            eq()->markup = old;
+            eq()->linear = QStringLiteral("\"a\"");
+        });
+        withDialog([&] { w.act(QStringLiteral("equation.edit"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("equationInput"))->text(), jp::office::wml::equationLineForEditing(QStringLiteral("\"a\""), old));
+        });
+        QCOMPARE(eq()->markup, old);
+    }
+
+    // The window with the Equation tab shown, and the dialog with its strip (JO_SHOT_DIR names the folder; the test does nothing without it).
+    void theEquationTabPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        jp::MainWindow w;
+        w.resize(1440, 900);
+        w.show();
+        const QString id = jp::insertEquation(w.editor(), QStringLiteral("x=(-b\\pm\\sqrt(b^2-4ac))/(2a)"));
+        QVERIFY(!id.isEmpty());
+        w.editor()->select(id);
+        QTRY_VERIFY(tabShown(w));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Equation")));
+        QTest::qWait(200);
+        shotOf(&w, QStringLiteral("equation-tab-pub"));
+        withDialog([&] { w.act(QStringLiteral("equation.structure.integral"))->trigger(); }, QStringLiteral("equationDialog"), [&](QDialog *d) {
+            d->resize(640, d->sizeHint().height());
+            QTest::qWait(100);
+            shotOf(d, QStringLiteral("equation-dialog-strip"));
+        }, false);
     }
 
     // Text with control characters makes markup that is well formed, and a lone surrogate or a noncharacter is left out.

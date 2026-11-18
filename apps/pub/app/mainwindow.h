@@ -224,6 +224,9 @@ public:
     void editTextArt(const QString &id);
     void insertEquationDialog();
     void editEquation(QString id);   // (by value: an edit replaces the item whose id this often is, Nov 17)
+    void editEquationWith(QString id, const QString &pick);   // the same, with what a button of the Equation tab puts in the line ("" for none)
+    void equationDialog(const QString &pick);                 // Insert Equation (or Edit Equation, for a selected one), with what a button of the Equation tab puts in
+    void createEquationTabActions();
     void refreshUi();
     void screenshotTo(const QString &path);
 
