@@ -57,12 +57,6 @@ public:
     virtual bool saveCopy(const QHash<QString, QString> &moved, QByteArray *bytes, QString *error) = 0;
 };
 
-// One part of a package: its name and its bytes.
-struct PackPart {
-    QString name;
-    QByteArray data;
-};
-
 // A document that is an Office Open XML package (a ZIP). `savedBytes` is the file as the app saves it, with no password; `password` is the one the copy is locked with (empty: none).
 // Links are found in the relationships of every part that point outside the package (pictures, movies, sounds, linked objects, linked workbooks), and in the INCLUDEPICTURE and INCLUDETEXT
 // fields. The fonts are those the parts name (runs, styles, cells, shapes, charts, and the theme's two).
@@ -83,7 +77,8 @@ protected:
 private:
     bool have(QString *error);
     QByteArray m_bytes;
-    QVector<PackPart> m_parts;
+    QVector<PackLink> m_links;
+    QStringList m_fonts;
     bool m_have = false;
 };
 
@@ -124,6 +119,23 @@ JO_COMMON_EXPORT QString fontsLeftOutText(const QStringList &families);
 JO_COMMON_EXPORT bool writeZipFile(const QString &path, const QByteArray &bytes, QString *error);
 
 enum class PackMode { Zip, Folder };
+
+// For tests: what Pack and Go held and did (reset by the test before a run).
+struct PackStats {
+    qint64 largestPartHeld = 0;    // bytes of the largest single part of a package held at once
+    qint64 largestFileChunk = 0;   // bytes of the largest buffer a linked file was read into
+    qint64 rewriteSlices = 0;      // pieces put together when links are moved in a part
+    qint64 rewriteBytesIn = 0;     // bytes of the parts that had links moved
+    int zipReads = 0;              // times a package's ZIP was read through
+};
+JO_COMMON_EXPORT PackStats &packStats();
+// For tests: the caps on reading a package (made small to see them hold).
+struct PackReadCaps {
+    int entries = 10000;                     // parts
+    qint64 part = qint64(512) << 20;         // one part inflated
+    qint64 total = qint64(2) << 30;          // all the parts inflated
+};
+JO_COMMON_EXPORT PackReadCaps &packReadCaps();
 
 struct PackItem {
     enum Status { Packed, Missing, Refused };

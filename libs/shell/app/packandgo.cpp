@@ -19,54 +19,24 @@
 #include <QSaveFile>
 #include <QMessageBox>
 #include <QSet>
+#include <QTemporaryDir>
 #include <QUrl>
 #include <QVBoxLayout>
 
+#include <algorithm>
+#include <cstring>
 #include <utility>
 
 namespace jp {
 
 namespace {
 
-constexpr int kMostEntries = 10000;                       // parts of a package read
-constexpr qint64 kMostPartBytes = qint64(512) << 20;      // one part inflated
-constexpr qint64 kMostPackageBytes = qint64(2) << 30;     // all the parts inflated
 constexpr int kMostLinks = 100000;                        // links found in a package
 constexpr int kMostFamilies = 2000;                       // fonts named in a package
 constexpr int kMostLinkText = 4096;                       // one link's text
+constexpr int kMostInstructionText = 65536;               // one field's instruction, joined from its runs
 constexpr int kMostListed = 20;                           // links named in the report
-
-using Part = PackPart;
-
-bool readParts(const QByteArray &zip, QVector<Part> *out, QString *error)
-{
-    ZipScanStats stats;
-    bool any = false;
-    scanZipEach(
-        zip,
-        [&](ZipScanEntry &e) {
-            any = true;
-            if (!e.whole) return;
-            out->push_back({e.name, std::move(e.data)});
-        },
-        kMostEntries, kMostPartBytes, kMostPackageBytes, &stats);
-    if (!any || stats.entriesLeftOut || stats.sizeLeftOut) {
-        if (error) *error = QCoreApplication::translate("PackAndGo", "The file is too large or is not a package Pack and Go can read.");
-        return false;
-    }
-    return true;
-}
-
-QByteArray writeParts(const QVector<Part> &parts)
-{
-    ZipWriter z;
-    // ([Content_Types].xml first, as packages have it)
-    for (const Part &p : parts)
-        if (p.name == QLatin1String("[Content_Types].xml")) z.add(p.name, p.data, true);
-    for (const Part &p : parts)
-        if (p.name != QLatin1String("[Content_Types].xml")) z.add(p.name, p.data, true);
-    return z.finish();
-}
+constexpr qint64 kFileChunk = qint64(1) << 20;            // a linked file is read this much at a time
 
 QString unescapeXml(QString s)
 {
@@ -104,40 +74,94 @@ bool kindOfRelationship(const QString &type, PackKind *kind)
     return true;
 }
 
-// One Relationship element: where it is in the part, and its attributes.
-struct Rel {
-    qsizetype start = 0, length = 0;
-    QString type, target;
-    bool external = false;
-    qsizetype targetStart = -1, targetLength = 0;   // the value of Target, inside the element
+// The scans below work on the part's bytes (UTF-8), never on a copy of the whole part as text.
+bool isSpace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
+bool isNameChar(char c) { return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == ':' || c == '_' || c == '.' || c == '-'; }
+
+// One attribute of a tag that begins at `at` (just after its name): where its value is in the part (not including the quotes).
+struct Attr {
+    QByteArray name;
+    qsizetype valueStart = 0, valueLength = 0;
 };
 
-QVector<Rel> relationshipsIn(const QString &xml)
+// The attributes of the tag whose name ends at `at`; `end` gets the place of the tag's closing '>' (-1 when the part ends first).
+QVector<Attr> attributesAt(const QByteArray &xml, qsizetype at, qsizetype *end)
 {
-    static const QRegularExpression element(QStringLiteral("<Relationship\\b[^>]*>"));
-    static const QRegularExpression attribute(QStringLiteral("([A-Za-z:]+)\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    QVector<Attr> out;
+    const qsizetype n = xml.size();
+    qsizetype i = at;
+    *end = -1;
+    while (i < n) {
+        const char c = xml[i];
+        if (c == '>') {
+            *end = i;
+            break;
+        }
+        if (!isNameChar(c)) {
+            ++i;
+            continue;
+        }
+        const qsizetype nameStart = i;
+        while (i < n && isNameChar(xml[i])) ++i;
+        qsizetype j = i;
+        while (j < n && isSpace(xml[j])) ++j;
+        if (j >= n || xml[j] != '=') continue;
+        ++j;
+        while (j < n && isSpace(xml[j])) ++j;
+        if (j >= n || (xml[j] != '"' && xml[j] != '\'')) {
+            i = j;
+            continue;
+        }
+        const qsizetype close = xml.indexOf(xml[j], j + 1);
+        if (close < 0) break;
+        Attr a;
+        a.name = xml.mid(nameStart, i - nameStart);
+        a.valueStart = j + 1;
+        a.valueLength = close - j - 1;
+        out.push_back(a);
+        i = close + 1;
+    }
+    return out;
+}
+
+QString valueOf(const QByteArray &xml, const Attr &a) { return unescapeXml(QString::fromUtf8(xml.constData() + a.valueStart, a.valueLength)); }
+
+// One Relationship element: its attributes, and where the value of Target is in the part.
+struct Rel {
+    QString type, target;
+    bool external = false;
+    qsizetype targetStart = -1, targetLength = 0;
+};
+
+QVector<Rel> relationshipsIn(const QByteArray &xml)
+{
+    static const QByteArray tag("<Relationship");
     QVector<Rel> out;
-    auto it = element.globalMatch(xml);
-    while (it.hasNext() && out.size() < kMostLinks) {
-        const QRegularExpressionMatch m = it.next();
+    qsizetype pos = 0;
+    while (out.size() < kMostLinks) {
+        pos = xml.indexOf(tag, pos);
+        if (pos < 0) break;
+        const qsizetype nameEnd = pos + tag.size();
+        if (nameEnd >= xml.size()) break;
+        if (isNameChar(xml[nameEnd])) {   // (<Relationships>)
+            pos = nameEnd;
+            continue;
+        }
+        qsizetype end = -1;
+        const QVector<Attr> attrs = attributesAt(xml, nameEnd, &end);
         Rel r;
-        r.start = m.capturedStart();
-        r.length = m.capturedLength();
-        auto at = attribute.globalMatch(m.captured());
-        while (at.hasNext()) {
-            const QRegularExpressionMatch a = at.next();
-            const QString name = a.captured(1);
-            const bool dq = a.capturedStart(2) >= 0;
-            const QString value = dq ? a.captured(2) : a.captured(3);
-            if (name == QLatin1String("Type")) r.type = value;
-            else if (name == QLatin1String("TargetMode")) r.external = value.compare(QLatin1String("External"), Qt::CaseInsensitive) == 0;
-            else if (name == QLatin1String("Target")) {
-                r.target = unescapeXml(value);
-                r.targetStart = m.capturedStart() + a.capturedStart(dq ? 2 : 3);
-                r.targetLength = value.size();
+        for (const Attr &a : attrs) {
+            if (a.name == "Type") r.type = valueOf(xml, a);
+            else if (a.name == "TargetMode") r.external = valueOf(xml, a).compare(QLatin1String("External"), Qt::CaseInsensitive) == 0;
+            else if (a.name == "Target") {
+                r.target = valueOf(xml, a);
+                r.targetStart = a.valueStart;
+                r.targetLength = a.valueLength;
             }
         }
         out.push_back(r);
+        if (end < 0) break;
+        pos = end + 1;
     }
     return out;
 }
@@ -169,29 +193,82 @@ QVector<FieldLink> fieldLinksIn(const QString &instruction)
     return out;
 }
 
-// The parts that hold field instructions: the instruction text and the instr attribute.
+// A field's instruction: the text of the runs between one field mark and the next, joined (a field's text is split across runs wherever the program that wrote it chose), or the
+// instr attribute of a simple field.
 struct Instr {
-    qsizetype start = 0, length = 0;   // the value, as the part spells it
-    QString value;                     // unescaped
+    QVector<std::pair<qsizetype, qsizetype>> runs;   // where each piece of the value is in the part (start, length), as the part spells it
+    QString value;                                   // joined, unescaped
     bool attribute = false;
 };
 
-QVector<Instr> instructionsIn(const QString &xml)
+QVector<Instr> instructionsIn(const QByteArray &xml)
 {
-    static const QRegularExpression found(QStringLiteral("<w:instrText\\b[^>]*>([^<]*)</w:instrText>|<w:fldSimple\\b[^>]*?\\bw:instr=\"([^\"]*)\""));
+    static const QByteArray endTag("</w:instrText>");
     QVector<Instr> out;
-    auto it = found.globalMatch(xml);
-    while (it.hasNext() && out.size() < kMostLinks) {
-        const QRegularExpressionMatch m = it.next();
-        const int g = m.capturedStart(1) >= 0 ? 1 : 2;
-        const QString v = unescapeXml(m.captured(g));
-        if (!v.contains(QLatin1String("INCLUDE"), Qt::CaseInsensitive)) continue;
-        out.push_back({m.capturedStart(g), m.capturedLength(g), v, g == 2});
+    Instr cur;
+    auto closeField = [&] {
+        if (!cur.runs.isEmpty() && cur.value.contains(QLatin1String("INCLUDE"), Qt::CaseInsensitive) && out.size() < kMostLinks) out.push_back(cur);
+        cur = Instr();
+    };
+    auto isTag = [&](qsizetype at, const char *name) {
+        const qsizetype len = qsizetype(strlen(name));
+        return xml.size() > at + len && QByteArrayView(xml).mid(at, len) == QByteArrayView(name, len) && !isNameChar(xml[at + len]);
+    };
+    qsizetype pos = 0;
+    while (pos >= 0 && pos < xml.size()) {
+        pos = xml.indexOf("<w:", pos);
+        if (pos < 0) break;
+        const qsizetype at = pos + 3;
+        if (isTag(at, "instrText")) {
+            const qsizetype open = xml.indexOf('>', at);
+            if (open < 0) break;
+            pos = open + 1;
+            if (xml[open - 1] == '/') continue;
+            const qsizetype close = xml.indexOf('<', open + 1);
+            if (close < 0) break;
+            if (QByteArrayView(xml).mid(close, endTag.size()) != QByteArrayView(endTag)) {
+                pos = close;
+                continue;
+            }
+            pos = close + endTag.size();
+            const qsizetype length = close - open - 1;
+            if (cur.value.size() + length > kMostInstructionText) continue;
+            cur.runs.push_back({open + 1, length});
+            cur.value += unescapeXml(QString::fromUtf8(xml.constData() + open + 1, length));
+        } else if (isTag(at, "fldChar")) {
+            closeField();
+            pos = at;
+        } else if (isTag(at, "fldSimple")) {
+            closeField();
+            qsizetype end = -1;
+            const QVector<Attr> attrs = attributesAt(xml, at + 9, &end);
+            for (const Attr &a : attrs)
+                if (a.name == "w:instr") {
+                    cur.runs.push_back({a.valueStart, a.valueLength});
+                    cur.value = valueOf(xml, a);
+                    cur.attribute = true;
+                    closeField();
+                    break;
+                }
+            if (end < 0) break;
+            pos = end + 1;
+        } else {
+            pos = at;
+        }
     }
+    closeField();
     return out;
 }
 
-bool isWordPart(const QString &name) { return name.startsWith(QLatin1String("word/")) && name.endsWith(QLatin1String(".xml")) && !name.contains(QLatin1String("/_rels/")); }
+// The parts that can hold a field with a file in it: the body and the headers and footers.
+bool isFieldPart(const QString &name)
+{
+    if (!name.endsWith(QLatin1String(".xml"))) return false;
+    return name == QLatin1String("word/document.xml") || (name.startsWith(QLatin1String("word/header")) && name.indexOf(QLatin1Char('/'), 5) < 0) ||
+           (name.startsWith(QLatin1String("word/footer")) && name.indexOf(QLatin1Char('/'), 5) < 0);
+}
+
+bool mayHoldFields(const QByteArray &xml) { return xml.contains("<w:instrText") || xml.contains("<w:fldSimple"); }
 
 QString fieldPathText(const QString &p) { return QString(p).replace(QLatin1Char('\\'), QLatin1String("\\\\")).replace(QLatin1Char('"'), QLatin1String("\\\"")); }
 
@@ -235,11 +312,230 @@ QString plainName(const QString &file, QSet<QString> *taken)
 
 } // namespace
 
+PackStats &packStats()
+{
+    static PackStats stats;
+    return stats;
+}
+
+PackReadCaps &packReadCaps()
+{
+    static PackReadCaps caps;
+    return caps;
+}
+
 // ---------------- the package scan ----------------
 
-static QVector<PackLink> linksInParts(const QVector<Part> &parts);
-static QStringList fontsInParts(const QVector<Part> &parts);
-static QByteArray linksMovedIn(QVector<Part> parts, const QHash<QString, QString> &moved);
+namespace {
+
+// What a scan of a package finds: the files it links to and the fonts it names.
+struct Found {
+    QVector<PackLink> links;
+    QStringList fonts;
+};
+
+// Collects the links of one part (relationships, and fields in the parts that can have them), each target once.
+struct LinkCollector {
+    QVector<PackLink> out;
+    QSet<QString> seen;
+    void add(const QString &name, const QByteArray &data)
+    {
+        if (out.size() >= kMostLinks) return;
+        if (name.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive)) {
+            for (const Rel &r : relationshipsIn(data)) {
+                PackKind kind;
+                if (!r.external || r.target.isEmpty() || r.target.size() > kMostLinkText || hasOtherScheme(r.target) || !kindOfRelationship(r.type, &kind)) continue;
+                if (kind == PackKind::Movie && allowedSuffixes(PackKind::Sound).contains(QFileInfo(r.target).suffix().toLower()) && !allowedSuffixes(PackKind::Movie).contains(QFileInfo(r.target).suffix().toLower()))
+                    kind = PackKind::Sound;
+                if (seen.contains(r.target)) continue;
+                seen.insert(r.target);
+                out.push_back({r.target, kind});
+            }
+        } else if (isFieldPart(name) && mayHoldFields(data)) {
+            for (const Instr &i : instructionsIn(data))
+                for (const FieldLink &f : fieldLinksIn(i.value)) {
+                    if (f.path.isEmpty() || f.path.size() > kMostLinkText || hasOtherScheme(f.path) || seen.contains(f.path)) continue;
+                    seen.insert(f.path);
+                    out.push_back({f.path, f.text ? PackKind::Document : PackKind::Picture});
+                }
+        }
+    }
+};
+
+// The value of the attribute `name` in the tag at `at` (after the tag's name), or an empty array.
+QByteArray attributeValue(const QByteArray &xml, qsizetype at, const char *name)
+{
+    qsizetype end = -1;
+    for (const Attr &a : attributesAt(xml, at, &end))
+        if (a.name == name) return xml.mid(a.valueStart, a.valueLength);
+    return QByteArray();
+}
+
+// Collects the font families a part names: drawing typefaces, run fonts, and the names in cell styles.
+struct FontCollector {
+    QStringList out;
+    QSet<QString> seen;
+    void addValue(const QByteArray &raw)
+    {
+        const QString f = unescapeXml(QString::fromUtf8(raw)).trimmed();
+        if (f.isEmpty() || f.startsWith(QLatin1Char('+')) || out.size() >= kMostFamilies || seen.contains(f.toLower())) return;
+        seen.insert(f.toLower());
+        out.push_back(f);
+    }
+    void add(const QString &name, const QByteArray &xml)
+    {
+        if (!name.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive)) return;
+        const bool word = name.startsWith(QLatin1String("word/")), sheet = name.startsWith(QLatin1String("xl/"));
+        if (!(word || sheet || name.startsWith(QLatin1String("ppt/")))) return;
+        auto tagIs = [&](qsizetype at, const char *tag) {
+            const qsizetype len = qsizetype(strlen(tag));
+            return xml.size() > at + len && QByteArrayView(xml).mid(at, len) == QByteArrayView(tag, len) && !isNameChar(xml[at + len]);
+        };
+        qsizetype pos = 0;
+        while (out.size() < kMostFamilies) {
+            pos = xml.indexOf('<', pos);
+            if (pos < 0 || pos + 1 >= xml.size()) break;
+            const qsizetype at = pos + 1;
+            ++pos;
+            if (xml[at] == 'a' && at + 1 < xml.size() && xml[at + 1] == ':') {
+                for (const char *tag : {"a:latin", "a:ea", "a:cs", "a:sym"})
+                    if (tagIs(at, tag)) {
+                        addValue(attributeValue(xml, at + qsizetype(strlen(tag)), "typeface"));
+                        break;
+                    }
+            } else if (word && tagIs(at, "w:rFonts")) {
+                for (const char *attr : {"w:ascii", "w:hAnsi", "w:eastAsia", "w:cs"}) addValue(attributeValue(xml, at + 8, attr));
+            } else if (sheet && (tagIs(at, "name") || tagIs(at, "rFont"))) {
+                addValue(attributeValue(xml, at + (xml[at] == 'n' ? 4 : 5), "val"));
+            }
+        }
+    }
+};
+
+bool partProblem(const ZipScanEntry &e, QString *error)
+{
+    if (e.whole) return false;
+    if (error) *error = QCoreApplication::translate("PackAndGo", "Pack and Go could not read the part \"%1\" of the file (%2), so nothing was saved.").arg(e.name, e.problem.isEmpty() ? QCoreApplication::translate("PackAndGo", "damaged") : e.problem);
+    return true;
+}
+
+// One pass over a package's parts, a part at a time (the part is not kept). `each` is given a part that was read whole. False, with `error`, when the package is not one it can read: a part
+// that does not inflate (damaged, or over a cap) is a failure, never a part left out.
+bool eachPart(const QByteArray &zip, const std::function<void(ZipScanEntry &)> &each, QString *error)
+{
+    const PackReadCaps caps = packReadCaps();
+    ++packStats().zipReads;
+    ZipScanStats stats;
+    QString problem;
+    bool any = false;
+    scanZipEach(
+        zip,
+        [&](ZipScanEntry &e) {
+            any = true;
+            if (!problem.isEmpty()) return;
+            if (partProblem(e, &problem)) return;
+            packStats().largestPartHeld = std::max<qint64>(packStats().largestPartHeld, e.data.size());
+            each(e);
+        },
+        caps.entries, caps.part, caps.total, &stats);
+    if (!problem.isEmpty()) {
+        if (error) *error = problem;
+        return false;
+    }
+    if (!any || stats.entriesLeftOut || stats.sizeLeftOut) {
+        if (error) *error = QCoreApplication::translate("PackAndGo", "The file is too large or is not a package Pack and Go can read.");
+        return false;
+    }
+    return true;
+}
+
+bool scanPackage(const QByteArray &zip, Found *found, QString *error)
+{
+    LinkCollector links;
+    FontCollector fonts;
+    if (!eachPart(zip, [&](ZipScanEntry &e) {
+            links.add(e.name, e.data);
+            fonts.add(e.name, e.data);
+        }, error))
+        return false;
+    found->links = links.out;
+    found->fonts = fonts.out;
+    return true;
+}
+
+// A part with each link in `moved` changed: one forward pass that puts the pieces together (the text between the links, and the new targets).
+QByteArray linksMovedInRelationships(const QByteArray &xml, const QHash<QString, QString> &moved, bool *changed)
+{
+    QByteArray out;
+    qsizetype from = 0;
+    for (const Rel &r : relationshipsIn(xml)) {
+        if (!r.external || r.targetStart < 0 || !moved.contains(r.target)) continue;
+        if (!*changed) out.reserve(xml.size() + 1024);
+        *changed = true;
+        out.append(xml.constData() + from, r.targetStart - from);
+        out.append(escapeXml(moved.value(r.target)).toUtf8());
+        from = r.targetStart + r.targetLength;
+        packStats().rewriteSlices += 2;
+    }
+    if (!*changed) return QByteArray();
+    out.append(xml.constData() + from, xml.size() - from);
+    ++packStats().rewriteSlices;
+    packStats().rewriteBytesIn += xml.size();
+    return out;
+}
+
+QByteArray linksMovedInFields(const QByteArray &xml, const QHash<QString, QString> &moved, bool *changed)
+{
+    QByteArray out;
+    qsizetype from = 0;
+    for (const Instr &i : instructionsIn(xml)) {
+        const QVector<FieldLink> fields = fieldLinksIn(i.value);
+        QString value;
+        qsizetype valueFrom = 0;
+        bool here = false;
+        for (const FieldLink &f : fields) {
+            if (!moved.contains(f.path)) continue;
+            // (the escaping a quoted name has is undone when read: write it back the same way)
+            value += QStringView(i.value).mid(valueFrom, f.start - valueFrom);
+            value += f.quoted ? fieldPathText(moved.value(f.path)) : moved.value(f.path);
+            valueFrom = f.start + f.length;
+            here = true;
+        }
+        if (!here) continue;
+        value += QStringView(i.value).mid(valueFrom);
+        if (!*changed) out.reserve(xml.size() + 1024);
+        *changed = true;
+        // (the whole instruction goes in its first run, and the others are emptied)
+        for (qsizetype k = 0; k < i.runs.size(); ++k) {
+            out.append(xml.constData() + from, i.runs[k].first - from);
+            if (k == 0) out.append(escapeXml(value, i.attribute).toUtf8());
+            from = i.runs[k].first + i.runs[k].second;
+            packStats().rewriteSlices += 2;
+        }
+    }
+    if (!*changed) return QByteArray();
+    out.append(xml.constData() + from, xml.size() - from);
+    ++packStats().rewriteSlices;
+    packStats().rewriteBytesIn += xml.size();
+    return out;
+}
+
+// The package with each link in `moved` changed, a part at a time.
+QByteArray movedPackage(const QByteArray &zip, const QHash<QString, QString> &moved, QString *error)
+{
+    ZipWriter z;
+    if (!eachPart(zip, [&](ZipScanEntry &e) {
+            bool changed = false;
+            QByteArray out;
+            if (e.name.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive)) out = linksMovedInRelationships(e.data, moved, &changed);
+            else if (isFieldPart(e.name) && mayHoldFields(e.data)) out = linksMovedInFields(e.data, moved, &changed);
+            z.add(e.name, changed ? out : e.data, true);
+        }, error))
+        return QByteArray();
+    return z.finish();
+}
+
+} // namespace
 
 bool OpcPackSource::have(QString *error)
 {
@@ -250,145 +546,50 @@ bool OpcPackSource::have(QString *error)
         if (error) *error = err.isEmpty() ? QCoreApplication::translate("PackAndGo", "The copy couldn't be made.") : err;
         return false;
     }
-    QVector<Part> parts;
-    if (!readParts(bytes, &parts, &err)) {
+    Found found;
+    if (!scanPackage(bytes, &found, &err)) {
         if (error) *error = err;
         return false;
     }
     m_bytes = bytes;
-    m_parts = std::move(parts);
+    m_links = found.links;
+    m_fonts = found.fonts;
     m_have = true;
     return true;
 }
 
 QVector<PackLink> OpcPackSource::linksOf(const QByteArray &package, QString *error)
 {
-    QVector<Part> parts;
-    if (!readParts(package, &parts, error)) return QVector<PackLink>();
-    return linksInParts(parts);
-}
-
-static QVector<PackLink> linksInParts(const QVector<Part> &parts)
-{
-    QVector<PackLink> out;
-    QSet<QString> seen;
-    for (const Part &p : parts) {
-        if (out.size() >= kMostLinks) break;
-        if (p.name.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive)) {
-            const QString xml = QString::fromUtf8(p.data);
-            for (const Rel &r : relationshipsIn(xml)) {
-                PackKind kind;
-                if (!r.external || r.target.isEmpty() || r.target.size() > kMostLinkText || hasOtherScheme(r.target) || !kindOfRelationship(r.type, &kind)) continue;
-                if (kind == PackKind::Movie && allowedSuffixes(PackKind::Sound).contains(QFileInfo(r.target).suffix().toLower()) && !allowedSuffixes(PackKind::Movie).contains(QFileInfo(r.target).suffix().toLower()))
-                    kind = PackKind::Sound;
-                if (seen.contains(r.target)) continue;
-                seen.insert(r.target);
-                out.push_back({r.target, kind});
-            }
-        } else if (isWordPart(p.name) && p.data.contains("INCLUDE")) {
-            for (const Instr &i : instructionsIn(QString::fromUtf8(p.data)))
-                for (const FieldLink &f : fieldLinksIn(i.value)) {
-                    if (f.path.isEmpty() || f.path.size() > kMostLinkText || hasOtherScheme(f.path) || seen.contains(f.path)) continue;
-                    seen.insert(f.path);
-                    out.push_back({f.path, f.text ? PackKind::Document : PackKind::Picture});
-                }
-        }
-    }
-    return out;
-}
-
-static QStringList fontsInParts(const QVector<Part> &parts)
-{
-    static const QRegularExpression drawing(QStringLiteral("<a:(?:latin|ea|cs|sym)\\b[^>]*?\\btypeface=\"([^\"]*)\""));
-    static const QRegularExpression runFonts(QStringLiteral("<w:rFonts\\b[^>]*>"));
-    static const QRegularExpression wordAttr(QStringLiteral("\\bw:(?:ascii|hAnsi|eastAsia|cs)=\"([^\"]*)\""));
-    static const QRegularExpression cell(QStringLiteral("<(?:name|rFont)\\s+val=\"([^\"]*)\""));
-    QStringList out;
-    QSet<QString> seen;
-    auto add = [&](const QString &raw) {
-        const QString f = unescapeXml(raw).trimmed();
-        if (f.isEmpty() || f.startsWith(QLatin1Char('+')) || out.size() >= kMostFamilies || seen.contains(f.toLower())) return;
-        seen.insert(f.toLower());
-        out.push_back(f);
-    };
-    for (const Part &p : parts) {
-        if (!p.name.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive)) continue;
-        if (!(p.name.startsWith(QLatin1String("word/")) || p.name.startsWith(QLatin1String("ppt/")) || p.name.startsWith(QLatin1String("xl/")))) continue;
-        const QString xml = QString::fromUtf8(p.data);
-        for (auto it = drawing.globalMatch(xml); it.hasNext();) add(it.next().captured(1));
-        if (p.name.startsWith(QLatin1String("word/")))
-            for (auto it = runFonts.globalMatch(xml); it.hasNext();)
-                for (auto at = wordAttr.globalMatch(it.next().captured()); at.hasNext();) add(at.next().captured(1));
-        if (p.name.startsWith(QLatin1String("xl/")))
-            for (auto it = cell.globalMatch(xml); it.hasNext();) add(it.next().captured(1));
-    }
-    return out;
+    Found found;
+    return scanPackage(package, &found, error) ? found.links : QVector<PackLink>();
 }
 
 QStringList OpcPackSource::fontsOf(const QByteArray &package)
 {
-    QVector<Part> parts;
-    return readParts(package, &parts, nullptr) ? fontsInParts(parts) : QStringList();
-}
-
-static QByteArray linksMovedIn(QVector<Part> parts, const QHash<QString, QString> &moved)
-{
-    for (Part &p : parts) {
-        if (p.name.endsWith(QLatin1String(".rels"), Qt::CaseInsensitive)) {
-            QString xml = QString::fromUtf8(p.data);
-            const QVector<Rel> rels = relationshipsIn(xml);
-            bool changed = false;
-            for (qsizetype i = rels.size() - 1; i >= 0; --i) {
-                const Rel &r = rels[i];
-                if (!r.external || r.targetStart < 0 || !moved.contains(r.target)) continue;
-                xml.replace(r.targetStart, r.targetLength, escapeXml(moved.value(r.target)));
-                changed = true;
-            }
-            if (changed) p.data = xml.toUtf8();
-        } else if (isWordPart(p.name) && p.data.contains("INCLUDE")) {
-            QString xml = QString::fromUtf8(p.data);
-            const QVector<Instr> instrs = instructionsIn(xml);
-            bool changed = false;
-            for (qsizetype i = instrs.size() - 1; i >= 0; --i) {
-                QString value = instrs[i].value;
-                const QVector<FieldLink> fields = fieldLinksIn(value);
-                bool here = false;
-                for (qsizetype k = fields.size() - 1; k >= 0; --k) {
-                    if (!moved.contains(fields[k].path)) continue;
-                    // (the escaping a quoted name has is undone when read: write it back the same way)
-                    value.replace(fields[k].start, fields[k].length, fields[k].quoted ? fieldPathText(moved.value(fields[k].path)) : moved.value(fields[k].path));
-                    here = true;
-                }
-                if (!here) continue;
-                xml.replace(instrs[i].start, instrs[i].length, escapeXml(value, instrs[i].attribute));
-                changed = true;
-            }
-            if (changed) p.data = xml.toUtf8();
-        }
-    }
-    return writeParts(parts);
+    Found found;
+    return scanPackage(package, &found, nullptr) ? found.fonts : QStringList();
 }
 
 QByteArray OpcPackSource::withLinks(const QByteArray &package, const QHash<QString, QString> &moved, QString *error)
 {
-    QVector<Part> parts;
-    return readParts(package, &parts, error) ? linksMovedIn(std::move(parts), moved) : QByteArray();
+    return movedPackage(package, moved, error);
 }
 
 QStringList OpcPackSource::fontFamilies()
 {
-    return have(nullptr) ? fontsInParts(m_parts) : QStringList();
+    return have(nullptr) ? m_fonts : QStringList();
 }
 
 QVector<PackLink> OpcPackSource::links()
 {
-    return have(nullptr) ? linksInParts(m_parts) : QVector<PackLink>();
+    return have(nullptr) ? m_links : QVector<PackLink>();
 }
 
 bool OpcPackSource::saveCopy(const QHash<QString, QString> &moved, QByteArray *bytes, QString *error)
 {
     if (!have(error)) return false;
-    QByteArray out = moved.isEmpty() ? m_bytes : linksMovedIn(m_parts, moved);
+    // (with nothing to move, the package is not read again or made again)
+    QByteArray out = moved.isEmpty() ? m_bytes : movedPackage(m_bytes, moved, error);
     if (out.isEmpty()) return false;
     const QString secret = password();
     if (!secret.isEmpty()) {
@@ -420,15 +621,16 @@ PackedFonts packFonts(const QStringList &families, const QStringList &dirs)
             QFile f(fi.absoluteFilePath());
             if (!f.open(QIODevice::ReadOnly)) continue;
             const QByteArray data = f.readAll();
+            // (a file that cannot be inspected, a collection or a damaged or very large one, is packed as it always was: only a license that is read and forbids it leaves a font out)
             FontFileInfo info;
-            if (!inspectFont(data, &info) || !fontAllowsEmbedding(info.fsType)) {
+            if (inspectFont(data, &info) && !fontAllowsEmbedding(info.fsType)) {
                 const QString family = info.family.isEmpty() ? stem : info.family;
                 if (!out.leftOut.contains(family)) out.leftOut.push_back(family);
                 continue;
             }
             out.files.push_back({fi.fileName(), data});
         }
-        if (!out.files.isEmpty() || !out.leftOut.isEmpty()) break;
+        if (!out.files.isEmpty()) break;
     }
     return out;
 }
@@ -473,13 +675,18 @@ QString resolvePackLink(const QString &targetIn, PackKind kind, const QString &b
     path = QDir::fromNativeSeparators(path);
     const bool relative = QDir::isRelativePath(path);
     const QString base = baseFolder.isEmpty() ? QString() : QDir::cleanPath(QFileInfo(baseFolder).absoluteFilePath());
+    // A picture, movie, or sound may be anywhere (a whole path is the usual link); a document, workbook, or object travels only from the document's own folder, so that a file cannot
+    // pull in the person's other documents.
+    const bool stays = kind == PackKind::Document || kind == PackKind::Workbook || kind == PackKind::Object;
+    auto leaves = [&] { return no(QCoreApplication::translate("PackAndGo", "The link leaves the document's folder.")); };
     if (relative) {
         if (base.isEmpty()) return no(QCoreApplication::translate("PackAndGo", "The document has not been saved, so there is no folder to find the file in."), true);
         path = QDir::cleanPath(base + QLatin1Char('/') + path);
         // (a relative link stays in the document's folder: it may not go up out of it)
-        if (!path.startsWith(base.endsWith(QLatin1Char('/')) ? base : base + QLatin1Char('/'))) return no(QCoreApplication::translate("PackAndGo", "The link leaves the document's folder."));
+        if (!path.startsWith(base.endsWith(QLatin1Char('/')) ? base : base + QLatin1Char('/'))) return leaves();
     } else {
         path = QDir::cleanPath(path);
+        if (stays && base.isEmpty()) return leaves();
     }
     if (isOnAnotherComputer(path) || isWindowsSpecialPath(path)) return no(QCoreApplication::translate("PackAndGo", "The link is not a file Pack and Go takes."));
     const QFileInfo info(path);
@@ -487,9 +694,14 @@ QString resolvePackLink(const QString &targetIn, PackKind kind, const QString &b
     if (!info.isFile()) return no(QCoreApplication::translate("PackAndGo", "The link is not a file."));
     if (!documentPath.isEmpty() && info.canonicalFilePath() == QFileInfo(documentPath).canonicalFilePath()) return no(QCoreApplication::translate("PackAndGo", "The link is to the document itself."));
     if (!allowedSuffixes(kind).contains(info.suffix().toLower())) return no(QCoreApplication::translate("PackAndGo", "This is not a kind of file Pack and Go takes."));
-    // (a link to a file that is really another kind is looked at by what it comes to)
+    // (where the file really is, past any symbolic link, is what is looked at: a link may not lead out of the folder, nor to another kind of file)
     const QString real = info.canonicalFilePath();
-    if (real.isEmpty() || !allowedSuffixes(kind).contains(QFileInfo(real).suffix().toLower())) return no(QCoreApplication::translate("PackAndGo", "This is not a kind of file Pack and Go takes."));
+    if (real.isEmpty()) return no(QCoreApplication::translate("PackAndGo", "The file was not found."), true);
+    if (relative || stays) {
+        const QString realBase = QDir(base).canonicalPath();
+        if (realBase.isEmpty() || !real.startsWith(realBase.endsWith(QLatin1Char('/')) ? realBase : realBase + QLatin1Char('/'))) return leaves();
+    }
+    if (!allowedSuffixes(kind).contains(QFileInfo(real).suffix().toLower())) return no(QCoreApplication::translate("PackAndGo", "This is not a kind of file Pack and Go takes."));
     return info.absoluteFilePath();
 }
 
@@ -628,17 +840,27 @@ PackReport packAndGo(PackAndGoSource &source, const QString &destination, PackMo
         return n.isEmpty() ? QStringLiteral("document") : n;
     }();
 
-    // Read each file, once, as it is written (a file that is larger than it said is not taken).
-    auto readFile = [&](const Planned &p, QByteArray *data) {
-        QFile f(p.file);
-        if (!f.open(QIODevice::ReadOnly)) return false;
-        *data = f.read(p.size + 1);
-        return data->size() == p.size;
-    };
     auto notPacked = [&](const Planned &p, const QString &why) {
         PackItem &i = report.items[p.item];
         i.status = PackItem::Refused;
         i.why = why;
+    };
+    // A file is read once, in pieces, as it is written (it is never held whole); one that is not the size it was when it was found has changed under us, and stops the Pack and Go.
+    auto streamFile = [&](QFile &f, qint64 size, const std::function<bool(const char *, qint64)> &sink) {
+        QByteArray buffer(int(std::min<qint64>(std::max<qint64>(size, 1), kFileChunk)), Qt::Uninitialized);
+        packStats().largestFileChunk = std::max<qint64>(packStats().largestFileChunk, buffer.size());
+        qint64 left = size;
+        while (left > 0) {
+            const qint64 got = f.read(buffer.data(), std::min<qint64>(left, buffer.size()));
+            if (got <= 0 || !sink(buffer.constData(), got)) return false;
+            left -= got;
+        }
+        char more = 0;
+        return f.read(&more, 1) == 0;
+    };
+    auto changed = [&](const Planned &p) {
+        report.error = QCoreApplication::translate("PackAndGo", "Pack and Go stopped, because %1 changed while it was being copied. Nothing was saved.").arg(QDir::toNativeSeparators(p.file));
+        return report;
     };
 
     if (mode == PackMode::Zip) {
@@ -646,12 +868,18 @@ PackReport packAndGo(PackAndGoSource &source, const QString &destination, PackMo
         z.add(docName, document);
         for (const PackFontFile &f : fonts.files) z.add(QStringLiteral("fonts/") + f.name, f.data);
         for (const Planned &p : planned) {
-            QByteArray data;
-            if (!readFile(p, &data)) {
+            QFile f(p.file);
+            if (!f.open(QIODevice::ReadOnly)) {
                 notPacked(p, QCoreApplication::translate("PackAndGo", "The file could not be read."));
                 continue;
             }
-            z.add(report.items[p.item].packedAs, data);
+            z.beginStream(report.items[p.item].packedAs, false);
+            if (!streamFile(f, p.size, [&](const char *data, qint64 n) {
+                    z.write(data, qsizetype(n));
+                    return true;
+                }))
+                return changed(p);
+            z.endStream();
         }
         const QByteArray bytes = z.finish();
         QString detail;
@@ -668,25 +896,43 @@ PackReport packAndGo(PackAndGoSource &source, const QString &destination, PackMo
             report.error = QCoreApplication::translate("PackAndGo", "Pack and Go couldn't save %1.\n%2").arg(QDir::toNativeSeparators(folder), what);
             return report;
         };
-        if (QFileInfo::exists(folder) || !QDir().mkpath(folder + QStringLiteral("/linked")) || !QDir().mkpath(folder + QStringLiteral("/fonts"))) return fail(QCoreApplication::translate("PackAndGo", "The folder couldn't be made."));
+        // Written in a folder of its own beside the place it is going, and moved there when whole: a failure leaves nothing half made (the folder removes itself).
+        QDir().mkpath(destination);
+        QTemporaryDir work(QDir(destination).filePath(QStringLiteral(".packandgo-XXXXXX")));
+        if (QFileInfo::exists(folder) || !work.isValid() || !QDir().mkpath(work.path() + QStringLiteral("/linked")) || !QDir().mkpath(work.path() + QStringLiteral("/fonts")))
+            return fail(QCoreApplication::translate("PackAndGo", "The folder couldn't be made."));
         auto put = [&](const QString &name, const QByteArray &data) {
-            QSaveFile out(folder + QLatin1Char('/') + name);
-            return out.open(QIODevice::WriteOnly) && out.write(data) == data.size() && out.commit();
+            QFile out(work.path() + QLatin1Char('/') + name);
+            const bool ok = out.open(QIODevice::WriteOnly) && out.write(data) == data.size();
+            return ok && out.flush() && (out.close(), out.error() == QFileDevice::NoError);
         };
         if (!put(docName, document)) return fail(QCoreApplication::translate("PackAndGo", "The file couldn't be written."));
         for (const PackFontFile &f : fonts.files)
             if (!put(QStringLiteral("fonts/") + f.name, f.data)) return fail(QCoreApplication::translate("PackAndGo", "The file couldn't be written."));
         for (const Planned &p : planned) {
-            QByteArray data;
-            if (!readFile(p, &data)) {
+            QFile f(p.file);
+            if (!f.open(QIODevice::ReadOnly)) {
                 notPacked(p, QCoreApplication::translate("PackAndGo", "The file could not be read."));
                 continue;
             }
-            if (!put(report.items[p.item].packedAs, data)) return fail(QCoreApplication::translate("PackAndGo", "The file couldn't be written."));
+            QFile out(work.path() + QLatin1Char('/') + report.items[p.item].packedAs);
+            if (!out.open(QIODevice::WriteOnly)) return fail(QCoreApplication::translate("PackAndGo", "The file couldn't be written."));
+            bool wrote = true;
+            const bool whole = streamFile(f, p.size, [&](const char *data, qint64 n) { return wrote = out.write(data, n) == n; });
+            out.close();
+            if (!wrote) return fail(QCoreApplication::translate("PackAndGo", "The file couldn't be written."));
+            if (!whole) return changed(p);
         }
         // (no empty folders left behind)
-        QDir(folder).rmdir(QStringLiteral("linked"));
-        QDir(folder).rmdir(QStringLiteral("fonts"));
+        QDir(work.path()).rmdir(QStringLiteral("linked"));
+        QDir(work.path()).rmdir(QStringLiteral("fonts"));
+        bool moved = false;
+        for (int n = 2; !moved && n < 1000; ++n) {
+            if (!QFileInfo::exists(folder) && QDir().rename(work.path(), folder)) moved = true;
+            else folder = QDir(destination).filePath(base + QLatin1Char(' ') + QString::number(n));
+        }
+        if (!moved) return fail(QCoreApplication::translate("PackAndGo", "The folder couldn't be made."));
+        work.setAutoRemove(false);
         report.path = folder;
     }
     report.ok = true;
