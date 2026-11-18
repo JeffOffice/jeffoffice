@@ -38,6 +38,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Colors"),
     QT_TRANSLATE_NOOP("Ribbon", "Columns"),
     QT_TRANSLATE_NOOP("Ribbon", "Comments"),
+    QT_TRANSLATE_NOOP("Ribbon", "Compare"),
     QT_TRANSLATE_NOOP("Ribbon", "Convert"),
     QT_TRANSLATE_NOOP("Ribbon", "Crop"),
     QT_TRANSLATE_NOOP("Ribbon", "Custom Slide Show"),
