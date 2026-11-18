@@ -1,7 +1,7 @@
 # Funções estatísticas
-<!-- keywords: funções, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST, funções estatísticas, média, desvio padrão, variância, distribuição, regressão, correlação -->
+<!-- keywords: funções, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.ETS, FORECAST.ETS.CONFINT, FORECAST.ETS.SEASONALITY, FORECAST.ETS.STAT, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST -->
 
-Estas são as funções estatísticas que o JeffCrunch consegue calcular. Cada uma mostra a sua escrita, o que faz e o que é cada um dos seus argumentos. Um argumento entre parênteses retos é opcional, e "..." significa que pode dar tantos mais do último quanto precisar. Para experimentar uma delas, veja [Escolher uma função](insert-function). Enquanto escreve uma função numa célula, aparece por baixo da célula uma pequena dica com os respetivos argumentos, e um clique no nome da função na dica abre a respetiva entrada aqui.
+Estas são as funções estatísticas que o JeffCrunch consegue calcular. Cada uma mostra como se escreve, o que faz e o que é cada um dos seus argumentos. Um argumento entre parênteses retos é opcional, e "..." significa que pode indicar tantos outros quantos precisar, do último tipo. Para experimentar uma destas funções, veja [Escolher uma função](insert-function). Enquanto escreve uma função numa célula, aparece por baixo da célula uma pequena sugestão com os respetivos argumentos; se clicar no nome da função nessa sugestão, abre-se aqui a respetiva entrada.
 
 ## AVEDEV
 
@@ -10,7 +10,7 @@ Estas são as funções estatísticas que o JeffCrunch consegue calcular. Cada u
 Devolve a média das distâncias dos números em relação à sua média.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## AVERAGE
 
@@ -19,7 +19,7 @@ Devolve a média das distâncias dos números em relação à sua média.
 Devolve a média dos números.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## AVERAGEA
 
@@ -28,7 +28,7 @@ Devolve a média dos números.
 Devolve a média dos valores, contando o texto como zero e o verdadeiro como um.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## AVERAGEIF
 
@@ -37,8 +37,8 @@ Devolve a média dos valores, contando o texto como zero e o verdadeiro como um.
 Calcula a média das células que cumprem uma condição.
 
 - `range`: O bloco de células a testar.
-- `criteria`: O que procurar: um número, um texto, ou um teste como ">5".
-- `average_range` (opcional): As células cuja média será calculada (as células a analisar, se for omitido).
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
+- `average_range` (opcional): As células a calcular a média (as células a testar, se for omitido).
 
 ## AVERAGEIFS
 
@@ -46,10 +46,10 @@ Calcula a média das células que cumprem uma condição.
 
 Calcula a média das células que cumprem várias condições.
 
-- `average_range`: As células cuja média será calculada (as células a analisar, se for omitido).
+- `average_range`: As células a calcular a média (as células a testar, se for omitido).
 - `criteria_range1`: O primeiro bloco de células a testar.
-- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto, ou um teste como ">5".
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto ou um teste, como ">5".
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## BETA.DIST
 
@@ -59,7 +59,7 @@ Devolve o valor ou a percentagem acumulada da curva beta em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 - `A` (opcional): O limite inferior de x (0 se for omitido).
 - `B` (opcional): O limite superior de x (1 se for omitido).
@@ -72,7 +72,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva beta.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0 se for omitido).
 - `B` (opcional): O limite superior de x (1 se for omitido).
 
@@ -84,7 +84,7 @@ Devolve a percentagem acumulada da curva beta em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0 se for omitido).
 - `B` (opcional): O limite superior de x (1 se for omitido).
 
@@ -96,7 +96,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva beta.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0 se for omitido).
 - `B` (opcional): O limite superior de x (1 se for omitido).
 
@@ -104,7 +104,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva beta.
 
 `BINOM.DIST(number_s, trials, probability_s, cumulative)`
 
-Devolve a probabilidade de um número de sucessos em um número de tentativas.
+Devolve a probabilidade de um número de sucessos num número de tentativas.
 
 - `number_s`: O número de sucessos.
 - `trials`: O número de tentativas.
@@ -120,7 +120,7 @@ Devolve a probabilidade de os sucessos caírem num intervalo.
 - `trials`: O número de tentativas.
 - `probability_s`: A probabilidade de sucesso em cada tentativa, de 0 a 1.
 - `number_s`: O número de sucessos.
-- `number_s2` (opcional): O maior número de sucessos a contar (igual ao menor, se for omitido).
+- `number_s2` (opcional): O número máximo de sucessos a contar (igual ao mínimo se for omitido).
 
 ## BINOM.INV
 
@@ -136,7 +136,7 @@ Devolve o menor número de sucessos cuja probabilidade acumulada atinge um valor
 
 `BINOMDIST(number_s, trials, probability_s, cumulative)`
 
-Devolve a probabilidade de um número de sucessos em um número de tentativas.
+Devolve a probabilidade de um número de sucessos num número de tentativas.
 
 - `number_s`: O número de sucessos.
 - `trials`: O número de tentativas.
@@ -223,7 +223,7 @@ Devolve a probabilidade de as contagens diferirem das contagens esperadas apenas
 Devolve a margem de um intervalo de confiança para uma média, usando a curva normal.
 
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `size`: A dimensão da amostra, um número inteiro igual ou superior a 1.
 
 ## CONFIDENCE.NORM
@@ -233,7 +233,7 @@ Devolve a margem de um intervalo de confiança para uma média, usando a curva n
 Devolve a margem de um intervalo de confiança para uma média, usando a curva normal.
 
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `size`: A dimensão da amostra, um número inteiro igual ou superior a 1.
 
 ## CONFIDENCE.T
@@ -243,14 +243,14 @@ Devolve a margem de um intervalo de confiança para uma média, usando a curva n
 Devolve a margem de um intervalo de confiança para uma média, usando a curva t de Student.
 
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `size`: A dimensão da amostra, um número inteiro igual ou superior a 1.
 
 ## CORREL
 
 `CORREL(array1, array2)`
 
-Devolve o grau de proximidade com que dois conjuntos de números variam em conjunto, de -1 a 1.
+Devolve o grau em que dois conjuntos de números variam em conjunto, de -1 a 1.
 
 - `array1`: O primeiro bloco de células ou lista de valores.
 - `array2`: O segundo bloco de células ou lista de valores, do mesmo tamanho do primeiro.
@@ -262,7 +262,7 @@ Devolve o grau de proximidade com que dois conjuntos de números variam em conju
 Conta os números numa lista ou num bloco de células.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## COUNTA
 
@@ -271,7 +271,7 @@ Conta os números numa lista ou num bloco de células.
 Conta as células que não estão vazias.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## COUNTBLANK
 
@@ -288,7 +288,7 @@ Conta as células vazias num bloco.
 Conta as células que cumprem uma condição.
 
 - `range`: O bloco de células a testar.
-- `criteria`: O que procurar: um número, um texto, ou um teste como ">5".
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
 
 ## COUNTIFS
 
@@ -297,8 +297,8 @@ Conta as células que cumprem uma condição.
 Conta as linhas em que todas as condições se verificam.
 
 - `criteria_range1`: O primeiro bloco de células a testar.
-- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto, ou um teste como ">5".
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto ou um teste, como ">5".
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## COVAR
 
@@ -344,7 +344,7 @@ Devolve o menor número de sucessos cuja probabilidade acumulada atinge um valor
 Devolve a soma dos quadrados das distâncias dos números em relação à sua média.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## EXPON.DIST
 
@@ -450,23 +450,58 @@ Devolve a transformação de Fisher de um número entre -1 e 1.
 
 Devolve a inversa da transformação de Fisher.
 
-- `y`: O número cuja inversa da transformação de Fisher será calculada.
+- `y`: O número cuja inversa da transformação de Fisher pretende obter.
 
 ## FORECAST
 
 `FORECAST(x, known_y's, known_x's)`
 
-Prevê um valor ao longo da reta de melhor ajuste.
+Prevê um valor ao longo da reta que melhor se ajusta.
 
 - `x`: O valor de x para o qual prever um valor de y.
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's`: O bloco de células que contém os valores de x que já tem.
 
+## FORECAST.ETS
+
+`FORECAST.ETS(target_date, values, timeline, [seasonality], [data_completion], [aggregation])`
+
+Prevê um valor futuro de uma série que tem uma tendência e uma época, por alisamento exponencial.
+
+- `target_date`: O momento para o qual prever um valor.
+- `values`: Os valores que já tem.
+- `timeline`: As datas ou números dos valores, espaçados de forma igual.
+- `seasonality`: 1 para determinar a época a partir dos valores, 0 para nenhuma, ou o comprimento da época.
+- `data_completion`: 1 para preencher um ponto em falta com uma reta entre os vizinhos, 0 para o preencher com zero.
+- `aggregation`: Como se combinam os valores no mesmo momento: 1 média, 2 contagem, 3 counta, 4 máximo, 5 mediana, 6 mínimo, 7 soma.
+
+## FORECAST.ETS.CONFINT
+
+`FORECAST.ETS.CONFINT(target_date, values, timeline, [confidence_level], [seasonality], [data_completion], [aggregation])`
+
+Devolve a distância acima e abaixo de uma previsão suavizada a que o valor provavelmente estará.
+
+- `confidence_level`: Um número superior a 0 e inferior a 1; 0,95 se for omitido.
+
+## FORECAST.ETS.SEASONALITY
+
+`FORECAST.ETS.SEASONALITY(values, timeline, [data_completion], [aggregation])`
+
+Devolve o comprimento da época que se repete numa série, ou 1 se não existir nenhuma.
+
+## FORECAST.ETS.STAT
+
+`FORECAST.ETS.STAT(values, timeline, statistic_type, [seasonality], [data_completion], [aggregation])`
+
+Devolve uma das constantes de alisamento ou medidas de ajuste de uma previsão suavizada.
+
+- `statistic_type`: 1 Alfa, 2 Beta, 3 Gama, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 o passo da linha temporal.
+
 ## FORECAST.LINEAR
 
 `FORECAST.LINEAR(x, known_y's, known_x's)`
 
-Prevê um valor ao longo da reta de melhor ajuste.
+Prevê um valor ao longo da reta que melhor se ajusta.
 
 - `x`: O valor de x a utilizar.
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
@@ -476,7 +511,7 @@ Prevê um valor ao longo da reta de melhor ajuste.
 
 `FREQUENCY(data_array, bins_array)`
 
-Conta quantos valores caem em cada intervalo, e devolve as contagens como uma coluna.
+Conta quantos valores caem em cada intervalo e devolve as contagens como uma coluna.
 
 - `data_array`: O bloco de células com os valores a contar.
 - `bins_array`: O bloco de células com os limites dos intervalos em que contar.
@@ -506,7 +541,7 @@ Devolve o valor ou a percentagem acumulada da curva gama em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## GAMMA.INV
@@ -517,7 +552,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva gama.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 
 ## GAMMADIST
 
@@ -527,7 +562,7 @@ Devolve o valor ou a percentagem acumulada da curva gama em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## GAMMAINV
@@ -538,7 +573,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva gama.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 
 ## GAMMALN
 
@@ -571,18 +606,18 @@ Devolve a percentagem da curva normal padrão entre a média e z.
 Devolve a média geométrica de números positivos.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## GROWTH
 
 `GROWTH(known_y's, [known_x's], [new_x's], [const])`
 
-Devolve os valores ao longo da curva exponencial de melhor ajuste para novos valores de x.
+Devolve os valores ao longo da curva exponencial que melhor se ajusta, para novos valores de x.
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's` (opcional): O bloco de células que contém os valores de x que já tem.
-- `new_x's` (opcional): Os valores de x para os quais devolver os valores de y (os valores de x conhecidos, se for omitido).
-- `const` (opcional): Verdadeiro ou omitido para ajustar uma linha que não tem de passar por zero; falso para a fazer passar por zero.
+- `new_x's` (opcional): Os valores de x para os quais devolver valores de y (os valores de x conhecidos, se for omitido).
+- `const` (opcional): Verdadeiro ou omitido para ajustar uma curva que não tem de passar por zero; falso para que passe por zero.
 
 ## HARMEAN
 
@@ -591,7 +626,7 @@ Devolve os valores ao longo da curva exponencial de melhor ajuste para novos val
 Devolve a média harmónica de números positivos.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## HYPGEOM.DIST
 
@@ -620,7 +655,7 @@ Devolve a probabilidade de extrair um número de sucessos sem repor os itens.
 
 `INTERCEPT(known_y's, known_x's)`
 
-Devolve o ponto em que a reta de melhor ajuste cruza o eixo vertical.
+Devolve o ponto em que a reta que melhor se ajusta cruza o eixo vertical.
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's`: O bloco de células que contém os valores de x que já tem.
@@ -629,10 +664,10 @@ Devolve o ponto em que a reta de melhor ajuste cruza o eixo vertical.
 
 `KURT(number1, ...)`
 
-Devolve o grau de achatamento ou de pico de um conjunto de números, comparado com uma curva normal.
+Devolve o grau de achatamento ou de pico de um conjunto de números, em comparação com uma curva normal.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## LARGE
 
@@ -641,7 +676,7 @@ Devolve o grau de achatamento ou de pico de um conjunto de números, comparado c
 Devolve o k-ésimo maior número de um conjunto.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `k`: A posição a devolver, contando a partir do maior: 1 é o maior.
+- `k`: Que posição devolver, contando a partir do maior: 1 é o maior.
 
 ## LINEST
 
@@ -651,7 +686,7 @@ Ajusta uma reta ou um plano aos dados pelo método dos mínimos quadrados, e dev
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's` (opcional): O bloco de células que contém os valores de x que já tem.
-- `const` (opcional): Verdadeiro ou omitido para ajustar uma linha que não tem de passar por zero; falso para a fazer passar por zero.
+- `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não tem de passar por zero; falso para que passe por zero.
 - `stats` (opcional): Verdadeiro para devolver também mais números sobre o ajuste; falso ou omitido para devolver apenas a reta.
 
 ## LOGEST
@@ -662,7 +697,7 @@ Ajusta uma curva exponencial aos dados, e devolve os seus números como uma linh
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's` (opcional): O bloco de células que contém os valores de x que já tem.
-- `const` (opcional): Verdadeiro ou omitido para ajustar uma linha que não tem de passar por zero; falso para a fazer passar por zero.
+- `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não tem de passar por zero; falso para que passe por zero.
 - `stats` (opcional): Verdadeiro para devolver também mais números sobre o ajuste; falso ou omitido para devolver apenas a curva.
 
 ## LOGINV
@@ -673,7 +708,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva log-normal.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## LOGNORM.DIST
 
@@ -683,7 +718,7 @@ Devolve o valor ou a percentagem acumulada da curva log-normal em x.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## LOGNORM.INV
@@ -694,7 +729,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva log-normal.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## LOGNORMDIST
 
@@ -704,7 +739,7 @@ Devolve a percentagem acumulada da curva log-normal em x.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## MAXA
 
@@ -713,7 +748,7 @@ Devolve a percentagem acumulada da curva log-normal em x.
 Devolve o maior valor, contando o texto como zero e o verdadeiro como um.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MAXIFS
 
@@ -723,8 +758,8 @@ Devolve o maior número entre as células que cumprem várias condições.
 
 - `max_range`: As células das quais obter o maior valor.
 - `criteria_range1`: O primeiro bloco de células a testar.
-- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto, ou um teste como ">5".
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto ou um teste, como ">5".
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MEDIAN
 
@@ -733,7 +768,7 @@ Devolve o maior número entre as células que cumprem várias condições.
 Devolve o número central de um conjunto.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MINA
 
@@ -742,7 +777,7 @@ Devolve o número central de um conjunto.
 Devolve o menor valor, contando o texto como zero e o verdadeiro como um.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MINIFS
 
@@ -752,8 +787,8 @@ Devolve o menor número entre as células que cumprem várias condições.
 
 - `min_range`: As células das quais obter o menor valor.
 - `criteria_range1`: O primeiro bloco de células a testar.
-- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto, ou um teste como ">5".
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto ou um teste, como ">5".
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MODE
 
@@ -762,25 +797,25 @@ Devolve o menor número entre as células que cumprem várias condições.
 Devolve o número que ocorre com mais frequência.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MODE.MULT
 
 `MODE.MULT(number1, ...)`
 
-Devolve uma coluna com os números que ocorrem com mais frequência num conjunto.
+Devolve uma coluna com os números que surgem com mais frequência num conjunto.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## MODE.SNGL
 
 `MODE.SNGL(number1, ...)`
 
-Devolve o número que ocorre com mais frequência num conjunto.
+Devolve o número que surge com mais frequência num conjunto.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## NEGBINOM.DIST
 
@@ -811,7 +846,7 @@ Devolve o valor ou a percentagem acumulada da curva normal em x.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## NORM.INV
@@ -822,7 +857,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva normal.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## NORM.S.DIST
 
@@ -849,7 +884,7 @@ Devolve o valor ou a percentagem acumulada da curva normal em x.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## NORMINV
@@ -860,7 +895,7 @@ Devolve o valor de x correspondente a uma percentagem de uma curva normal.
 
 - `probability`: Uma probabilidade, de 0 a 1.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## NORMSDIST
 
@@ -882,7 +917,7 @@ Devolve o valor de z correspondente a uma percentagem da curva normal padrão.
 
 `PEARSON(array1, array2)`
 
-Devolve o grau de proximidade com que dois conjuntos de números variam em conjunto, de -1 a 1.
+Devolve o grau em que dois conjuntos de números variam em conjunto, de -1 a 1.
 
 - `array1`: O primeiro bloco de células ou lista de valores.
 - `array2`: O segundo bloco de células ou lista de valores, do mesmo tamanho do primeiro.
@@ -965,7 +1000,7 @@ Devolve a altura da curva normal padrão em x.
 
 `POISSON(x, mean, cumulative)`
 
-Devolve a probabilidade de um número de eventos, a partir de quantos se esperam.
+Devolve a probabilidade de um número de eventos, a partir do número esperado.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
@@ -975,7 +1010,7 @@ Devolve a probabilidade de um número de eventos, a partir de quantos se esperam
 
 `POISSON.DIST(x, mean, cumulative)`
 
-Devolve a probabilidade de um número de eventos, a partir de quantos se esperam.
+Devolve a probabilidade de um número de eventos, a partir do número esperado.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
@@ -988,7 +1023,7 @@ Devolve a probabilidade de um número de eventos, a partir de quantos se esperam
 Devolve a probabilidade de os valores caírem entre dois limites.
 
 - `x_range`: O bloco de células com os valores de x.
-- `prob_range`: As probabilidades correspondentes a cada valor de x, cada uma de 0 a 1, com soma 1.
+- `prob_range`: As probabilidades correspondentes a cada valor de x, cada uma de 0 a 1, com soma igual a 1.
 - `lower_limit`: O limite inferior do intervalo.
 - `upper_limit` (opcional): O limite superior do intervalo (apenas o limite inferior, se for omitido).
 
@@ -999,7 +1034,7 @@ Devolve a probabilidade de os valores caírem entre dois limites.
 Devolve os pontos de quartil de um conjunto de números.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `quart`: Qual o quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
+- `quart`: Que quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## QUARTILE.EXC
 
@@ -1008,7 +1043,7 @@ Devolve os pontos de quartil de um conjunto de números.
 Devolve os pontos de quartil de um conjunto de números, excluindo os extremos.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `quart`: Qual o quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
+- `quart`: Que quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## QUARTILE.INC
 
@@ -1017,7 +1052,7 @@ Devolve os pontos de quartil de um conjunto de números, excluindo os extremos.
 Devolve os pontos de quartil de um conjunto de números, do menor para o maior.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `quart`: Qual o quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
+- `quart`: Que quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## RANK
 
@@ -1027,27 +1062,27 @@ Devolve a posição de um número numa lista quando a lista é ordenada.
 
 - `number`: O número a processar.
 - `ref`: Uma célula ou bloco de células.
-- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior em primeiro; qualquer outro número coloca o menor em primeiro.
 
 ## RANK.AVG
 
 `RANK.AVG(number, ref, [order])`
 
-Devolve a posição de um número numa lista, e a posição média quando há empates.
+Devolve a posição de um número numa lista e a posição média quando há empates.
 
 - `number`: O número a processar.
 - `ref`: Uma célula ou bloco de células.
-- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior em primeiro; qualquer outro número coloca o menor em primeiro.
 
 ## RANK.EQ
 
 `RANK.EQ(number, ref, [order])`
 
-Devolve a posição de um número numa lista, e a posição mais alta quando há empates.
+Devolve a posição de um número numa lista e a posição mais alta quando há empates.
 
 - `number`: O número a processar.
 - `ref`: Uma célula ou bloco de células.
-- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior em primeiro; qualquer outro número coloca o menor em primeiro.
 
 ## RSQ
 
@@ -1062,19 +1097,19 @@ Devolve o grau de ajuste de uma reta a dois conjuntos de números.
 
 `SKEW(number1, ...)`
 
-Devolve o grau de assimetria de um conjunto de números em torno da sua média, para uma amostra.
+Devolve o grau de assimetria de um conjunto de números em relação à sua média, para uma amostra.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## SKEW.P
 
 `SKEW.P(number1, ...)`
 
-Devolve o grau de assimetria de um conjunto de números em torno da sua média, para uma população inteira.
+Devolve o grau de assimetria de um conjunto de números em relação à sua média, para uma população inteira.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## SLOPE
 
@@ -1092,17 +1127,17 @@ Devolve o declive da reta que melhor se ajusta a dois conjuntos de números.
 Devolve o k-ésimo menor número de um conjunto.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `k`: A posição a devolver, contando a partir do menor: 1 é o menor.
+- `k`: Que posição devolver, contando a partir do menor: 1 é o menor.
 
 ## STANDARDIZE
 
 `STANDARDIZE(x, mean, standard_dev)`
 
-Devolve a quantos desvios padrão um valor está da média.
+Devolve a distância de um valor à média, em número de desvios-padrão.
 
 - `x`: O valor de x a utilizar.
 - `mean`: A média da distribuição.
-- `standard_dev`: O desvio padrão da distribuição.
+- `standard_dev`: O desvio-padrão da distribuição.
 
 ## STDEV
 
@@ -1111,7 +1146,7 @@ Devolve a quantos desvios padrão um valor está da média.
 Estima a dispersão de um grupo inteiro a partir de uma amostra dele.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STDEV.P
 
@@ -1120,7 +1155,7 @@ Estima a dispersão de um grupo inteiro a partir de uma amostra dele.
 Devolve a dispersão de um grupo inteiro.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STDEV.S
 
@@ -1129,16 +1164,16 @@ Devolve a dispersão de um grupo inteiro.
 Estima a dispersão de um grupo inteiro a partir de uma amostra dele.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STDEVA
 
 `STDEVA(value1, ...)`
 
-Devolve o desvio padrão de uma amostra, contando o texto como 0 e o verdadeiro como 1.
+Devolve o desvio-padrão de uma amostra, contando o texto como 0 e o verdadeiro como 1.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STDEVP
 
@@ -1147,22 +1182,22 @@ Devolve o desvio padrão de uma amostra, contando o texto como 0 e o verdadeiro 
 Devolve a dispersão de um grupo inteiro.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STDEVPA
 
 `STDEVPA(value1, ...)`
 
-Devolve o desvio padrão de uma população, contando o texto como 0 e o verdadeiro como 1.
+Devolve o desvio-padrão de uma população, contando o texto como 0 e o verdadeiro como 1.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## STEYX
 
 `STEYX(known_y's, known_x's)`
 
-Devolve o erro padrão dos valores de y previstos de uma reta ajustada.
+Devolve o erro-padrão dos valores de y previstos por uma reta ajustada.
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's`: O bloco de células que contém os valores de x que já tem.
@@ -1174,7 +1209,7 @@ Devolve o erro padrão dos valores de y previstos de uma reta ajustada.
 Soma as células que cumprem uma condição.
 
 - `range`: O bloco de células a testar.
-- `criteria`: O que procurar: um número, um texto, ou um teste como ">5".
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
 - `sum_range` (opcional): As células a somar (as células testadas, se for omitido).
 
 ## SUMIFS
@@ -1185,8 +1220,8 @@ Soma as células que cumprem várias condições.
 
 - `sum_range`: As células a somar (as células testadas, se for omitido).
 - `criteria_range1`: O primeiro bloco de células a testar.
-- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto, ou um teste como ">5".
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `criteria1`: O que procurar no primeiro bloco de células: um número, um texto ou um teste, como ">5".
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## T.DIST
 
@@ -1202,7 +1237,7 @@ Devolve o valor ou a percentagem acumulada da curva t de Student em x.
 
 `T.DIST.2T(x, deg_freedom)`
 
-Devolve a percentagem da curva t de Student fora do intervalo entre -x e x.
+Devolve a percentagem da curva t de Student fora de menos x e de x.
 
 - `x`: O valor de x a utilizar.
 - `deg_freedom`: Os graus de liberdade, um número inteiro igual ou superior a 1.
@@ -1242,18 +1277,18 @@ Devolve a probabilidade de as médias de dois conjuntos de números serem iguais
 
 - `array1`: O primeiro bloco de células ou lista de valores.
 - `array2`: O segundo bloco de células ou lista de valores, do mesmo tamanho do primeiro.
-- `tails`: 1 para uma cauda da curva, 2 para as duas.
+- `tails`: 1 para uma cauda da curva, 2 para ambas.
 - `type`: Quando são feitos os pagamentos: 0 ou omitido no fim de cada período, 1 no início.
 
 ## TDIST
 
 `TDIST(x, deg_freedom, tails)`
 
-Devolve a percentagem da curva t de Student numa cauda ou nas duas.
+Devolve a percentagem da curva t de Student numa cauda ou em ambas.
 
 - `x`: O valor de x a utilizar.
 - `deg_freedom`: Os graus de liberdade, um número inteiro igual ou superior a 1.
-- `tails`: 1 para uma cauda da curva, 2 para as duas.
+- `tails`: 1 para uma cauda da curva, 2 para ambas.
 
 ## TINV
 
@@ -1268,21 +1303,21 @@ Devolve o valor de x correspondente a uma percentagem da curva t de Student, rep
 
 `TREND(known_y's, [known_x's], [new_x's], [const])`
 
-Devolve os valores ao longo da reta de melhor ajuste para novos valores de x.
+Devolve os valores ao longo da reta que melhor se ajusta, para novos valores de x.
 
 - `known_y's`: O bloco de células que contém os valores de y que já tem.
 - `known_x's` (opcional): O bloco de células que contém os valores de x que já tem.
-- `new_x's` (opcional): Os valores de x para os quais devolver os valores de y (os valores de x conhecidos, se for omitido).
-- `const` (opcional): Verdadeiro ou omitido para ajustar uma linha que não tem de passar por zero; falso para a fazer passar por zero.
+- `new_x's` (opcional): Os valores de x para os quais devolver valores de y (os valores de x conhecidos, se for omitido).
+- `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não tem de passar por zero; falso para que passe por zero.
 
 ## TRIMMEAN
 
 `TRIMMEAN(array, percent)`
 
-Devolve a média de um conjunto de números depois de cortar uma percentagem dos valores mais altos e mais baixos.
+Devolve a média de um conjunto de números depois de retirar uma percentagem dos valores mais altos e mais baixos.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
-- `percent`: A percentagem dos valores, de 0 até, mas sem incluir, 1, a excluir nas duas extremidades.
+- `percent`: A percentagem dos valores, de 0 a menos de 1, a excluir nos dois extremos.
 
 ## TTEST
 
@@ -1292,7 +1327,7 @@ Devolve a probabilidade de as médias de dois conjuntos de números serem iguais
 
 - `array1`: O primeiro bloco de células ou lista de valores.
 - `array2`: O segundo bloco de células ou lista de valores, do mesmo tamanho do primeiro.
-- `tails`: 1 para uma cauda da curva, 2 para as duas.
+- `tails`: 1 para uma cauda da curva, 2 para ambas.
 - `type`: Quando são feitos os pagamentos: 0 ou omitido no fim de cada período, 1 no início.
 
 ## VAR
@@ -1302,7 +1337,7 @@ Devolve a probabilidade de as médias de dois conjuntos de números serem iguais
 Estima a variância de um grupo inteiro a partir de uma amostra dele.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## VAR.P
 
@@ -1311,7 +1346,7 @@ Estima a variância de um grupo inteiro a partir de uma amostra dele.
 Devolve a variância de um grupo inteiro.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## VAR.S
 
@@ -1320,7 +1355,7 @@ Devolve a variância de um grupo inteiro.
 Estima a variância de um grupo inteiro a partir de uma amostra dele.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## VARA
 
@@ -1329,7 +1364,7 @@ Estima a variância de um grupo inteiro a partir de uma amostra dele.
 Devolve a variância de uma amostra, contando o texto como 0 e o verdadeiro como 1.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## VARP
 
@@ -1338,7 +1373,7 @@ Devolve a variância de uma amostra, contando o texto como 0 e o verdadeiro como
 Devolve a variância de um grupo inteiro.
 
 - `number1`: O primeiro número, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## VARPA
 
@@ -1347,7 +1382,7 @@ Devolve a variância de um grupo inteiro.
 Devolve a variância de uma população, contando o texto como 0 e o verdadeiro como 1.
 
 - `value1`: O primeiro valor, ou bloco de células.
-- `...`: Tantos mais quantos precisar, do mesmo tipo do anterior.
+- `...`: Tantos outros quantos precisar, do mesmo tipo do anterior.
 
 ## WEIBULL
 
@@ -1357,7 +1392,7 @@ Devolve o valor ou a percentagem acumulada da curva de Weibull em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## WEIBULL.DIST
@@ -1368,25 +1403,25 @@ Devolve o valor ou a percentagem acumulada da curva de Weibull em x.
 
 - `x`: O valor de x a utilizar.
 - `alpha`: A probabilidade de erro que aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `beta`: Um número que molda a curva (a escala da curva para as curvas gama e Weibull).
+- `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `cumulative`: Verdadeiro para devolver o total acumulado até este ponto; falso para devolver apenas o valor neste ponto.
 
 ## Z.TEST
 
 `Z.TEST(array, x, [sigma])`
 
-Devolve a probabilidade, numa só cauda, de a média de uma amostra ser superior a um valor.
+Devolve a probabilidade, num só sentido, de a média de uma amostra ser superior a um valor.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
 - `x`: O valor de x a utilizar.
-- `sigma` (opcional): O desvio padrão de toda a população (o da amostra, se for omitido).
+- `sigma` (opcional): O desvio-padrão de toda a população (o da amostra, se for omitido).
 
 ## ZTEST
 
 `ZTEST(array, x, [sigma])`
 
-Devolve a probabilidade, numa só cauda, de a média de uma amostra ser superior a um valor.
+Devolve a probabilidade, num só sentido, de a média de uma amostra ser superior a um valor.
 
 - `array`: Um bloco de células, ou uma lista de valores escrita entre chavetas.
 - `x`: O valor de x a utilizar.
-- `sigma` (opcional): O desvio padrão de toda a população (o da amostra, se for omitido).
+- `sigma` (opcional): O desvio-padrão de toda a população (o da amostra, se for omitido).

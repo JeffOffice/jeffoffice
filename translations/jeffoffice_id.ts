@@ -4871,7 +4871,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+7"/>
         <source>Show Mini Toolbar on selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan Bilah Alat Mini saat Memilih</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -12947,27 +12947,27 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-75"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ganti Grafis</translation>
     </message>
     <message>
         <location line="+44"/>
         <source>Graphics Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Efek Grafis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Grafis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya Grafis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alat Grafis</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -14613,7 +14613,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+2"/>
         <location line="+197"/>
         <source>trendlines of charts past the %1 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">garis tren bagan melebihi %1 yang boleh dimiliki sebuah seri</translation>
     </message>
     <message>
         <location line="-196"/>
@@ -14648,17 +14648,17 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+143"/>
         <source>trendlines of a kind the format does not have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">garis tren dengan jenis yang tidak dimiliki format ini</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>error bars of charts past the 2 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bilah kesalahan bagan melebihi 2 yang boleh dimiliki sebuah seri</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>error bars of charts whose amounts are typed in, not read from cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bilah kesalahan bagan yang nilainya diketik langsung, bukan dibaca dari sel</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -14673,7 +14673,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+288"/>
         <source>error bars of charts that run by the variance</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bilah kesalahan bagan yang dihitung berdasarkan varians</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odsdraw_write.cpp" line="+74"/>
@@ -23830,22 +23830,22 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="+74"/>
         <source>Link to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautkan ke Sel</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A link starts with =, as in =A1. Clear the box to take the link off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan diawali dengan =, misalnya =A1. Kosongkan kotak untuk menghapus tautan.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Remove Shape Link</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Tautan Bentuk</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Link Shape to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautkan Bentuk ke Sel</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -29916,28 +29916,28 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_forecast.cpp" line="+78"/>
         <source>The workbook is not open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja belum dibuka.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values. Select two columns first (the timeline, then the values), or write the ranges here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih sel yang berisi lini masa dan sel yang berisi nilai. Pilih dua kolom terlebih dahulu (lini masa, lalu nilai), atau tulis rentangnya di sini.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 is not a range of cells. Write it as A2:A40, or Sheet2!A2:A40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 bukan rentang sel. Tulis sebagai A2:A40, atau Sheet2!A2:A40 untuk lembar lain.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 is not a range of cells. Write it as B2:B40, or Sheet2!B2:B40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 bukan rentang sel. Tulis sebagai B2:B40, atau Sheet2!B2:B40 untuk lembar lain.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar Prakiraan</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -29947,7 +29947,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Forecast %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prakiraan %1</translation>
     </message>
 </context>
 <context>
@@ -33516,27 +33516,27 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Dissolve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Larut</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Blinds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jalusi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Checkerboard</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Papan Catur</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comb</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisir</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Batang Acak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33556,12 +33556,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Wedge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baji</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wheel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Roda</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33571,22 +33571,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Flash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kilat</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Newsflash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kilat Berita</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Strips</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jalur</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Acak</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -33621,22 +33621,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>From Bottom Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Kiri Bawah</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Bottom Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Kanan Bawah</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Kiri Atas</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Kanan Atas</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -33656,42 +33656,42 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>1 Spoke</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 Jari-Jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>2 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">2 Jari-Jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>3 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Jari-Jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>4 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 Jari-Jari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>8 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">8 Jari-Jari</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shape: Circle</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk: Lingkaran</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Diamond</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk: Berlian</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Plus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk: Plus</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -37276,83 +37276,83 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/forecastdialog.cpp" line="+133"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar Prakiraan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes a new sheet with a table and a chart of future values, from a timeline and a series of values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Membuat lembar baru dengan tabel dan bagan nilai mendatang, dari sebuah lini masa dan serangkaian nilai.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Chart type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jenis bagan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan garis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagan kolom</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>What is wrong</source>
-        <translation type="unfinished">Yang salah</translation>
+        <translation type="unfinished">Apa yang salah</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+1"/>
         <source>Timeline range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rentang lini masa</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Values range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rentang nilai</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Forecast start</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Awal prakiraan</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>After the last point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Setelah titik terakhir</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+1"/>
         <source>Forecast end</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Akhir prakiraan</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Confidence interval</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interval kepercayaan</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+12"/>
         <source>Seasonality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Musiman</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>Detect automatically</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deteksi otomatis</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set manually</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur secara manual</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37362,29 +37362,29 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+3"/>
         <source>Length of the season</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Panjang musim</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+3"/>
         <source>Fill missing points using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isi titik yang hilang dengan</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Interpolation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interpolasi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Zeros</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nol</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+8"/>
         <source>Aggregate duplicates using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan duplikat dengan</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -37399,7 +37399,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>CountA</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">CountA</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37409,7 +37409,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Median</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Median</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37424,7 +37424,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+3"/>
         <source>Include forecast statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sertakan statistik prakiraan</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37434,17 +37434,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+86"/>
         <source>The picture follows the last %1 points of the data. The sheet is made from all of them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar mengikuti %1 titik terakhir dari data. Lembar dibuat dari semuanya.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Write the forecast start as a date or number, or leave it empty to start after the last point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tulis awal prakiraan sebagai tanggal atau angka, atau biarkan kosong untuk mulai setelah titik terakhir.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Write the forecast end as a date or number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tulis akhir prakiraan sebagai tanggal atau angka.</translation>
     </message>
 </context>
 <context>
@@ -37452,7 +37452,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="-303"/>
         <source>Preview of the forecast</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pratinjau prakiraan</translation>
     </message>
 </context>
 <context>
@@ -58092,27 +58092,27 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="-124"/>
         <source>From a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Berkas…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From Icons…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Ikon…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah ke Bentuk</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Graphic Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya Grafis</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Graphics Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isian Grafis</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -58124,57 +58124,57 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+0"/>
         <source>Graphics Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Tepi Grafis</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Graphic height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tinggi grafis</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Graphic width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lebar grafis</translation>
     </message>
     <message>
         <location line="+62"/>
         <source>That icon can&apos;t be put here.</source>
-        <translation type="unfinished">Ikon itu tidak dapat ditempatkan di sini.</translation>
+        <translation type="unfinished">Ikon itu tidak dapat dimasukkan di sini.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>SVG graphics (*.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafis SVG (*.svg)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah Grafis</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafis itu terlalu besar untuk dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>%1 can&apos;t be opened as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 tidak dapat dibuka sebagai grafis.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>That can&apos;t be used as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itu tidak dapat digunakan sebagai grafis.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Text and pictures inside this drawing can&apos;t become shapes, so they were left out. Undo brings the picture back.</source>
-        <translation type="unfinished">Teks dan gambar di dalam gambar ini tidak dapat menjadi bentuk, jadi dilewati. Urungkan akan mengembalikan gambar.</translation>
+        <translation type="unfinished">Teks dan gambar di dalam grafis ini tidak dapat menjadi bentuk, sehingga dikeluarkan. Urungkan untuk mengembalikan gambar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafis ini tidak dapat diubah menjadi bentuk di sini.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-100"/>
@@ -62097,88 +62097,88 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/crunch/core/forecastsheet.cpp" line="+26"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih sel yang berisi lini masa dan sel yang berisi nilai.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The timeline and the values must each be one column or one row of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini masa dan nilai masing-masing harus berupa satu kolom atau satu baris sel.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The timeline and the values need the same number of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini masa dan nilai memerlukan jumlah sel yang sama.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The data has more than 1,000,000 points. A forecast is not made from so many; choose a smaller range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Data memiliki lebih dari 1.000.000 titik. Prakiraan tidak dibuat dari sebanyak itu; pilih rentang yang lebih kecil.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>The timeline needs dates or numbers, and %1 holds something else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini masa memerlukan tanggal atau angka, sedangkan %1 berisi hal lain.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The values need numbers, and %1 holds text or an error. Change it to a number, or empty the cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nilai memerlukan angka, sedangkan %1 berisi teks atau kesalahan. Ubah menjadi angka, atau kosongkan sel.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Write the time the forecast ends.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tulis waktu berakhirnya prakiraan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>There are too few points to make a forecast from. Use at least 3 points with values, each at its own time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Titik terlalu sedikit untuk membuat prakiraan. Gunakan setidaknya 3 titik dengan nilai, masing-masing pada waktunya sendiri.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline is not evenly spaced. The steps between its dates or numbers must be the same size (or whole months apart, on the same day of each month). Duplicate times are combined; make the other steps equal.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini masa tidak berjarak merata. Selisih antara tanggal atau angkanya harus sama besar (atau berjarak tepat beberapa bulan, pada tanggal yang sama setiap bulan). Waktu yang sama digabungkan; buat langkah lainnya sama.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline spans more than 1,000,000 steps, which is too many to make a forecast from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini masa mencakup lebih dari 1.000.000 langkah, terlalu banyak untuk membuat prakiraan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The season is too long. The data must hold at least two whole seasons.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Musim terlalu panjang. Data harus memuat setidaknya dua musim penuh.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The confidence interval must be more than 0% and less than 100%.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interval kepercayaan harus lebih dari 0% dan kurang dari 100%.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+25"/>
         <source>A forecast could not be made from this data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prakiraan tidak dapat dibuat dari data ini.</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prakiraan akan melampaui lebih dari 100.000 langkah setelah titik terakhir, terlalu jauh. Pilih akhir yang lebih awal.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The forecast must end after the last point it is made from. Choose a later end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prakiraan harus berakhir setelah titik terakhir tempat prakiraan dibuat. Pilih akhir yang lebih lambat.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The forecast would be longer than 10,000 points. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prakiraan akan lebih dari 10.000 titik. Pilih akhir yang lebih awal.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Timeline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lini Masa</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -62193,52 +62193,52 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+0"/>
         <source>Lower Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Batas Kepercayaan Bawah</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Upper Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Batas Kepercayaan Atas</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Alpha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alfa</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Beta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beta</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Gamma</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gama</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MASE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MASE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>SMAPE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SMAPE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MAE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MAE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>RMSE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">RMSE</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Forecast Statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Statistik Prakiraan</translation>
     </message>
 </context>
 <context>
@@ -63761,22 +63761,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Predicts a future value of a series that has a trend and a season, by exponential smoothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memprediksi nilai masa depan dari suatu deret yang memiliki tren dan musim, dengan pemulusan eksponensial.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives how far above and below a smoothed forecast the value is likely to lie.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memberikan seberapa jauh di atas dan di bawah prakiraan yang dihaluskan nilai tersebut kemungkinan berada.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives the length of the repeating season found in a series.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memberikan panjang musim yang berulang yang ditemukan dalam suatu deret.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives one of the smoothing constants or measures of fit of a smoothed forecast.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memberikan salah satu konstanta pemulusan atau ukuran kecocokan dari prakiraan yang dihaluskan.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -64639,7 +64639,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+1"/>
         <location line="+5"/>
         <source>The time to predict a value for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Waktu yang akan diprediksi nilainya.</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -64647,14 +64647,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+5"/>
         <location line="+3"/>
         <source>The dates or numbers of the values, the same distance apart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanggal atau angka dari nilai-nilai, dengan jarak yang sama.</translation>
     </message>
     <message>
         <location line="-12"/>
         <location line="+6"/>
         <location line="+8"/>
         <source>1 to find the season from the values, 0 for none, or the length of the season in points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 untuk mencari musim dari nilai-nilai, 0 jika tidak ada, atau panjang musim dalam titik.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64662,7 +64662,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 untuk mengisi titik yang hilang dengan garis di antara tetangganya, 0 untuk mengisinya dengan nol.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64670,17 +64670,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>How values at the same time are combined: 1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cara nilai pada waktu yang sama digabungkan: 1 rata-rata, 2 hitung, 3 counta, 4 maks, 5 median, 6 min, 7 jumlah.</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>A number above 0 and below 1 for how sure the interval is (0.95 if left out).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka di atas 0 dan di bawah 1 untuk tingkat keyakinan interval (0,95 jika dihilangkan).</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Which to give: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 the step of the timeline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mana yang diberikan: 1 Alfa, 2 Beta, 3 Gama, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 langkah dari lini masa.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -66663,32 +66663,32 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+548"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bentuk yang tautannya ke sel tidak dapat digunakan (harus satu sel)</translation>
     </message>
     <message>
         <location line="+255"/>
         <source>The workbook is not ready yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja belum siap.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type a cell, such as =A1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ketik sel, misalnya =A1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape can show one cell: type a reference such as =A1, =Sheet2!B3, or the name of a cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk dapat menampilkan satu sel: ketik referensi seperti =A1, =Lembar2!B3, atau nama sel.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a cell, or the name of one, in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itu bukan sel, atau nama sel, di buku kerja ini.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A shape can show one cell, not a range of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk hanya dapat menampilkan satu sel, bukan rentang sel.</translation>
     </message>
     <message>
         <location line="+202"/>
@@ -73583,53 +73583,53 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+2210"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar itu terlalu rumit untuk digambar, sehingga tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic can&apos;t be drawn.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar itu tidak dapat digambar.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar itu terlalu besar untuk dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic has too much to draw, so it is not put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar itu terlalu rumit untuk digambar, sehingga tidak dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn&apos;t open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar itu merujuk ke berkas atau alamat di luar dirinya, atau memuat gambar, yang tidak dibuka oleh JeffWrite.</translation>
     </message>
     <message>
         <location line="+165"/>
         <source>The colors of this graphic can&apos;t be changed: it is too large, too deeply nested, or refers outside itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Warna gambar ini tidak dapat diubah: gambar terlalu besar, terlalu dalam bersarang, atau merujuk ke luar dirinya.</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>This graphic is too large or refers to files or addresses outside itself, so it isn&apos;t turned into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar ini terlalu besar atau merujuk ke berkas atau alamat di luar dirinya, sehingga tidak diubah menjadi bentuk.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This graphic has too many parts to turn into shapes (the most is %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar ini memiliki terlalu banyak bagian untuk diubah menjadi bentuk (paling banyak %1).</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+7"/>
         <source>This graphic has no lines or areas to turn into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar ini tidak memiliki garis atau area untuk diubah menjadi bentuk.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar ini tidak dapat diubah menjadi bentuk di sini.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
@@ -74381,23 +74381,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+38"/>
         <source>charts the file does not hold</source>
-        <translation type="unfinished">bagan yang tidak dimuat file</translation>
+        <translation type="unfinished">bagan yang tidak dimuat dalam berkas</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>charts larger than a chart may be</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagan lebih besar dari ukuran maksimum sebuah bagan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>charts past the size all the charts of a document may come to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagan melampaui ukuran total yang dapat dimiliki semua bagan dalam dokumen</translation>
     </message>
     <message>
         <location line="+5"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+787"/>
         <source>charts past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagan melampaui %1 yang dapat dimiliki dokumen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -74410,7 +74410,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+4"/>
         <source>charts past the number of points all the charts of a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagan melampaui jumlah titik yang dapat dimiliki semua bagan dalam dokumen</translation>
     </message>
     <message>
         <location line="+331"/>

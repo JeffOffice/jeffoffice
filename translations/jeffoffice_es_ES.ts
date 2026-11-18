@@ -1949,6 +1949,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
         <translation type="unfinished">Arrastre un punto para cambiar la forma. Ctrl+clic en un punto para eliminarlo, o en el contorno para añadir uno. Pulse Esc al terminar.</translation>
     </message>
     <message>
+        <source>From a File…</source>
+        <translation type="unfinished">Desde un fichero…</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
@@ -2851,6 +2855,14 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>That SVG picture refers to files outside itself, so JeffWrite does not put it in a document.</source>
         <translation type="unfinished">Esa imagen SVG hace referencia a ficheros externos, por lo que JeffWrite no la inserta en un documento.</translation>
+    </message>
+    <message>
+        <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn't open.</source>
+        <translation type="unfinished">Esta imagen hace referencia a ficheros o direcciones externos a sí misma, o contiene imágenes, que JeffWrite no abre.</translation>
+    </message>
+    <message>
+        <source>This graphic is too large or refers to files or addresses outside itself, so it isn't turned into shapes.</source>
+        <translation type="unfinished">Esta imagen es demasiado grande o hace referencia a ficheros o direcciones externos a sí misma, así que no se convierte en formas.</translation>
     </message>
 </context>
 <context>

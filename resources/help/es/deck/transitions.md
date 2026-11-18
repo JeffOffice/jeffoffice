@@ -1,84 +1,113 @@
 # Transiciones entre diapositivas
-<!-- keywords: transición, transiciones, transformación, desvanecer, empujar, barrido, dividir, revelar, cubrir, descubrir, zoom, corte, opciones de efectos, objetos, palabras, caracteres, coincidir, emparejar, nombre, dirección, duración, avance de diapositivas, al hacer clic con el mouse, después de, automático, intervalos, aplicar a todo, vista previa, estrella -->
+<!-- keywords: transición, transiciones, morph, fundido, empujar, barrido, dividir, revelar, cubrir, descubrir, zoom, corte, disolver, persianas, tablero de ajedrez, peine, barras aleatorias, círculo, rombo, cruz, cuña, rueda, radios, forma, destello, noticia, tiras, aleatoria, opciones de efecto, objetos, palabras, caracteres, emparejar, par, nombre, dirección, duración, avanzar diapositiva, al hacer clic, después, automática, intervalos, aplicar a todas, vista previa, estrella -->
 
-Una **transición** es el efecto que se reproduce cuando la presentación con diapositivas pasa de una diapositiva a la siguiente. La transición pertenece a la diapositiva a la que se llega. La presentación la reproduce al avanzar hasta esa diapositiva.
+Una **transición** es el efecto que se reproduce cuando la presentación con diapositivas pasa de una diapositiva a la siguiente. Una transición pertenece a la diapositiva a la que entra. La presentación la reproduce cuando avanza a esa diapositiva.
 
 ## Agregar una transición
 
-1. Haga clic en la diapositiva en el panel de diapositivas.
-2. Haga clic en la pestaña **Transiciones**. En la galería **Transición a esta diapositiva**, haga clic en un efecto: **Ninguna**, **Transformación**, **Desvanecer**, **Empujar**, **Barrido**, **Dividir**, **Revelar**, **Cubrir**, **Descubrir**, **Zoom** o **Cortar**. La miniatura de la diapositiva en el panel de diapositivas muestra una pequeña estrella para indicar que tiene una transición.
-3. Haga clic en **Transiciones > Vista previa > Vista previa** para verla reproducida al entrar en la diapositiva, sobre el área de la diapositiva. Presione Esc para detenerla.
+1. Haga clic en la diapositiva del panel de diapositivas.
+2. Haga clic en la pestaña **Transiciones**. En la galería **Transición a esta diapositiva**, haga clic en un efecto: **Ninguna**, **Morph**, **Fundido**, **Empujar**, **Barrido**, **Dividir**, **Revelar**, **Cubrir**, **Descubrir**, **Zoom**, **Corte**, **Disolver**, **Persianas**, **Tablero de ajedrez**, **Peine**, **Barras aleatorias**, **Círculo**, **Rombo**, **Cruz**, **Cuña**, **Rueda**, **Forma**, **Destello**, **Noticia**, **Tiras** o **Aleatoria**. La imagen de la diapositiva en el panel de diapositivas muestra una pequeña estrella para indicar que tiene una transición.
+3. Haga clic en **Transiciones > Vista previa > Vista previa** para ver la transición reproducida en la diapositiva, en el área de la diapositiva. Presione Esc para detenerla.
 
 Elija **Ninguna** para quitar una transición.
 
-## Elegir cómo se reproduce
+## Elegir cómo se produce
 
-Haga clic en **Opciones de efectos** para ver las opciones del efecto:
+Haga clic en **Opciones de efecto** para ver las opciones del efecto:
 
 - **Empujar**, **Barrido**, **Revelar**, **Cubrir** y **Descubrir** tienen una dirección: **Desde la derecha**, **Desde la izquierda**, **Desde abajo** o **Desde arriba**.
 - **Dividir** y **Zoom** van **Hacia fuera** o **Hacia dentro**.
-- **Transformación** mueve **Objetos**, **Palabras** o **Caracteres**. Consulte más abajo.
-- **Desvanecer** y **Cortar** no tienen opciones. Un corte pasa por negro.
+- **Persianas**, **Tablero de ajedrez**, **Peine** y **Barras aleatorias** se ejecutan **Horizontal** o **Vertical**.
+- **Tiras** empieza en una esquina: **Desde abajo a la izquierda**, **Desde abajo a la derecha**, **Desde arriba a la izquierda** o **Desde arriba a la derecha**.
+- **Rueda** tiene **1 radio**, **2 radios**, **3 radios**, **4 radios** u **8 radios**.
+- **Forma** es un **Círculo**, un **Rombo** o una **Cruz**.
+- **Morph** mueve **Objetos**, **Palabras** o **Caracteres**. Véase más abajo.
+- **Fundido**, **Corte**, **Disolver**, **Círculo**, **Rombo**, **Cruz**, **Cuña**, **Destello**, **Noticia** y **Aleatoria** no tienen opciones. Un corte pasa por negro.
 
-## Transformación
+Lo que hacen los efectos más recientes:
 
-**Transformación** mueve lo que dos diapositivas tienen en común. Un **objeto** es un elemento de una diapositiva: una forma, una imagen, un cuadro de texto, una línea o una tabla. La presentación pasa de una diapositiva a la siguiente. Cada objeto que está en ambas diapositivas se desliza desde donde lo tiene la primera diapositiva hasta donde lo tiene la segunda. Por el camino aumenta o disminuye de tamaño, gira y cambia de color. Un objeto que solo está en la primera diapositiva desaparece gradualmente. Un objeto que solo está en la segunda aparece gradualmente.
+- **Disolver**: pequeños bloques de la nueva diapositiva aparecen por toda la anterior, uno a uno.
+- **Persianas**: la diapositiva se divide en seis franjas, y la nueva diapositiva se abre en cada franja como las lamas de una persiana.
+- **Tablero de ajedrez**: la diapositiva es un tablero de ajedrez, y la nueva diapositiva llena un color de cuadros, después el otro.
+- **Peine**: tiras de la nueva diapositiva entran deslizándose desde lados alternos.
+- **Barras aleatorias**: finas barras de la nueva diapositiva aparecen en un orden que parece aleatorio.
+- **Círculo**, **Rombo**, **Cruz** y **Forma**: la nueva diapositiva se muestra a través de una forma que crece desde el centro.
+- **Cuña**: la nueva diapositiva se abre desde arriba, hacia ambos lados.
+- **Rueda**: la nueva diapositiva barre en sentido horario, como las agujas de un reloj, con 1, 2, 3, 4 u 8 radios a la vez.
+- **Destello**: la diapositiva se vuelve blanca, y la nueva diapositiva surge de ese blanco.
+- **Noticia**: la nueva diapositiva gira y entra desde un tamaño pequeño sobre la anterior.
+- **Tiras**: escalones diagonales de la nueva diapositiva llenan la diapositiva desde una esquina.
+- **Aleatoria**: la presentación elige uno de estos efectos cada vez que reproduce la transición.
 
-Para crear una transformación:
+Algunos de estos efectos están en el formato de presentación de otros programas, y otros en el formato de documento abierto. En una presentación de documento abierto, JeffDeck conserva la transición que eligió, y otros programas muestran el efecto más parecido que tengan. Se muestran de estas formas:
+
+- **Cruz** se muestra como cuatro cuadros que crecen desde el centro.
+- **Peine** se muestra como **Persianas**.
+- **Tiras** se muestra como un barrido diagonal desde la misma esquina.
+- **Noticia** se muestra como **Zoom**.
+- **Destello** se muestra como un fundido a través del blanco.
+- **Forma** con **Cruz** se muestra como cuatro cuadros que crecen desde el centro. **Forma** con **Círculo** o **Rombo** se muestra como esa forma.
+- **Aleatoria** es el efecto "aleatorio" estándar, y el otro programa elige el suyo.
+
+## Morph
+
+**Morph** mueve lo que dos diapositivas tienen en común. Un **objeto** es una cosa de una diapositiva: una forma, una imagen, un cuadro de texto, una línea o una tabla. La presentación pasa de una diapositiva a la siguiente. Cada objeto que está en ambas diapositivas se desliza desde donde lo tiene la primera diapositiva hasta donde lo tiene la segunda. Por el camino crece o se encoge, gira y cambia de color. Un objeto que está solo en la primera diapositiva se desvanece. Un objeto que está solo en la segunda diapositiva aparece poco a poco.
+
+Para crear un morph:
 
 1. Haga clic con el botón derecho en una diapositiva del panel de diapositivas y elija **Duplicar diapositiva**. La copia tiene los mismos objetos.
-2. En la copia, mueva un objeto, agrándelo, gírelo o cambie su color. También puede cambiar su texto, o agregar y eliminar objetos.
-3. Haga clic en la copia y, después, en **Transiciones > Transición a esta diapositiva > Transformación**. Una transformación dura 2 segundos. Puede cambiarlo con **Duración**.
-4. Haga clic en **Vista previa** para verla, o inicie la presentación con diapositivas.
+2. En la copia, mueva un objeto, hágalo más grande, gírelo o cambie su color. También puede cambiar su texto, o agregar y eliminar objetos.
+3. Haga clic en la copia y luego en **Transiciones > Transición a esta diapositiva > Morph**. Un morph dura 2 segundos. Puede cambiarlo con **Duración**.
+4. Haga clic en **Vista previa** para verlo, o inicie la presentación con diapositivas.
 
-### Qué objetos van juntos
+### Qué objetos forman pareja
 
-JeffDeck empareja un objeto de la primera diapositiva con un objeto de la segunda. Lo intenta de estas formas, en este orden. Cada objeto forma parte de una pareja como máximo.
+JeffDeck empareja un objeto de la primera diapositiva con un objeto de la segunda. Prueba estas formas, en este orden. Cada objeto forma parte de una pareja como máximo.
 
-1. **Un nombre que empieza por !!.** Dos objetos con el mismo nombre, si el nombre empieza por dos signos de exclamación, siempre forman pareja. Pueden ser dos objetos cualesquiera, incluso un círculo y una estrella.
+1. **Un nombre que empieza por !!.** Dos objetos con el mismo nombre, y el nombre empieza por dos signos de admiración, siempre forman pareja. Pueden ser dos objetos cualesquiera, incluso un círculo y una estrella.
 2. **El mismo nombre.** Dos objetos del mismo tipo con el mismo nombre forman pareja. Un cuadro de texto y una forma son tipos distintos.
 3. **El mismo texto.** Dos cuadros de texto con las mismas palabras forman pareja, sean cuales sean sus nombres. También dos formas con las mismas palabras.
-4. **La misma imagen.** Dos imágenes de la misma imagen forman pareja, aunque tengan otro nombre u otro tamaño.
-5. **El mismo tipo de forma.** Dos círculos forman pareja. También dos líneas o dos tablas.
+4. **La misma imagen.** Dos imágenes de la misma figura forman pareja, aunque tengan otro nombre o otro tamaño.
+5. **El mismo tipo de forma.** Dos círculos forman pareja. También dos líneas, o dos tablas.
 
-Cuando varios objetos pueden formar pareja, se emparejan primero los que están más cerca entre sí.
+Cuando varios objetos podrían formar pareja, primero se unen los que están más cerca unos de otros.
 
-Los nombres de los objetos proceden del archivo de presentación. Una presentación creada en otro programa conserva los nombres que este dio a sus objetos, y JeffDeck los usa.
+Los nombres de los objetos vienen del archivo de la presentación. Una presentación hecha en otro programa conserva los nombres que dio a sus objetos, y JeffDeck los usa.
 
 ### Cómo se mueve una pareja
 
-- Dos objetos con la misma forma son un único objeto que se mueve. Su posición, tamaño, giro, color de relleno, color de línea y grado de transparencia cambian poco a poco. El recorte de una imagen también cambia.
-- Dos objetos que no tienen la misma forma, como un círculo y un cuadrado, se mueven a las mismas posiciones mientras uno se funde en el otro.
-- Si el texto de una pareja no es el mismo, el texto antiguo se funde en el nuevo.
-- Los objetos que oculta una animación se omiten. Un objeto que una animación ha movido se toma desde donde terminó.
+- Dos objetos de la misma forma son un único objeto que se mueve. Su posición, tamaño, giro, color de relleno, color de línea y cantidad de transparencia cambian poco a poco. El recorte de una imagen también cambia.
+- Dos objetos que no son la misma forma, como un círculo y un cuadrado, se desplazan a los mismos lugares mientras uno se funde con el otro.
+- Si el texto de una pareja no es igual, el texto antiguo se funde con el texto nuevo.
+- Los objetos que una animación oculta se dejan fuera. Un objeto que una animación ha movido se toma desde donde terminó.
 
 ### Qué se mueve: Objetos, Palabras o Caracteres
 
-Haga clic en **Opciones de efectos** para elegir:
+Haga clic en **Opciones de efecto** para elegir:
 
-- **Objetos.** El texto de una pareja permanece en su objeto. El texto antiguo se funde en el nuevo.
-- **Palabras.** Una palabra que tienen ambos textos se mueve de su posición antigua a la nueva. Las demás palabras desaparecen y aparecen gradualmente. Un signo como la coma cuenta como una palabra independiente.
-- **Caracteres.** Lo mismo, pero letra a letra o cifra a cifra.
+- **Objetos.** El texto de una pareja se queda en su objeto. El texto antiguo se funde con el nuevo.
+- **Palabras.** Una palabra que ambos textos tienen se mueve de su lugar antiguo a su lugar nuevo. Las demás palabras se desvanecen y aparecen. Un signo como una coma cuenta como una palabra propia.
+- **Caracteres.** Lo mismo, una letra o un número cada vez.
 
-**Palabras** y **Caracteres** funcionan en cuadros de texto y formas. Un texto de más de 16 000 caracteres, el texto vertical y el texto de una forma volteada se reproducen como **Objetos**. También una pareja que no tiene ninguna palabra ni carácter en común.
+**Palabras** y **Caracteres** funcionan con cuadros de texto y formas. Un texto de más de 16 000 caracteres, un texto con las líneas inclinadas hacia arriba o hacia abajo, y un texto en una forma volteada se reproducen como **Objetos**. También una pareja que no tiene ninguna palabra ni carácter en común.
 
-Transformación también es una transición en otros programas de presentaciones (las versiones de 2019 y posteriores). JeffDeck la lee y la guarda como ellos. Los programas más antiguos reproducen una transformación como un desvanecimiento.
+Morph también es una transición en otros programas de presentaciones (versiones 2019 y posteriores). JeffDeck la lee y la guarda igual que ellos. Los programas más antiguos reproducen un morph como un fundido.
 
-## Establecer los intervalos
+## Establecer la duración
 
-El grupo **Intervalos** establece cuánto dura la transición y cómo sale la presentación de la diapositiva.
+El grupo **Intervalos** establece cuánto tarda y cómo sale la presentación de la diapositiva.
 
-- **Duración** es el número de segundos que tarda el efecto. Una transición nueva dura 0,7 segundos. Puede escribir de 0,01 a 59.
-- **Al hacer clic con el mouse** está activado de forma predeterminada. La presentación avanza desde esta diapositiva cuando el orador hace clic. Desactívelo para avanzar con una tecla, como Espacio o Flecha derecha. Las animaciones de la diapositiva se siguen reproduciendo al hacer clic.
-- **Después de** hace que la presentación avance sola tras el número de segundos que escriba. Puede usar **Después de** junto con **Al hacer clic con el mouse**: la presentación avanza con lo que ocurra primero.
+- **Duración** es cuántos segundos tarda el efecto. Una transición nueva dura 0,7 segundos. Puede escribir de 0,01 a 59.
+- **Al hacer clic** está activado de forma predeterminada. La presentación pasa a la siguiente diapositiva cuando el orador hace clic. Desactívelo para avanzar con una tecla como Espacio o la flecha Derecha. Las animaciones de la diapositiva siguen reproduciéndose con un clic.
+- **Después** hace que la presentación pase a la siguiente diapositiva sola, tras los segundos que escriba. Puede usar **Después** junto con **Al hacer clic**: la presentación avanza con lo que ocurra primero.
 
-**Aplicar a todo** asigna a todas las diapositivas la transición y los intervalos de la diapositiva en la que se encuentra.
+**Aplicar a todas** asigna a todas las diapositivas la transición y los intervalos de la diapositiva en la que está.
 
-Cada una de estas acciones es un paso que Ctrl+Z deshace.
+Cada una de estas acciones se puede deshacer con Ctrl+Z.
 
 ## Transiciones de otros archivos
 
-Una presentación creada en otro programa puede tener una transición para la que JeffDeck no tiene efecto. Se reproduce como un desvanecimiento y se guarda tal como estaba, por lo que sigue funcionando en el programa de origen.
+Una presentación hecha en otro programa puede tener una transición para la que JeffDeck no tiene efecto. Se reproduce como un fundido, y se guarda tal como estaba, para que siga funcionando donde se creó.
 
 ## Temas relacionados
 

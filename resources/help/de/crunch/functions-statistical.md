@@ -1,1392 +1,1427 @@
 # Statistische Funktionen
-<!-- keywords: Funktionen, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST -->
+<!-- keywords: Funktionen, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.ETS, FORECAST.ETS.CONFINT, FORECAST.ETS.SEASONALITY, FORECAST.ETS.STAT, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST -->
 
-Dies sind die statistischen Funktionen, die JeffCrunch berechnen kann. Jede zeigt, wie sie geschrieben wird, was sie tut und was jedes ihrer Argumente bedeutet. Ein Argument in eckigen Klammern ist optional, und „...“ bedeutet, dass Sie beliebig viele weitere des letzten Arguments angeben können. Zum Ausprobieren siehe [Funktion auswählen](insert-function). Während Sie in einer Zelle eine Funktion eingeben, zeigt ein kleiner Tipp unter der Zelle ihre Argumente an. Ein Klick auf den Funktionsnamen im Tipp öffnet ihren Eintrag hier.
+Dies sind die statistischen Funktionen, die JeffCrunch berechnen kann. Jede zeigt, wie sie geschrieben wird, was sie tut und was jedes ihrer Argumente bedeutet. Ein Argument in eckigen Klammern ist optional, und „...“ bedeutet, dass Sie beliebig viele weitere des letzten Arguments angeben können. Um eine Funktion auszuprobieren, siehe [Funktion auswählen](insert-function). Während Sie in einer Zelle eine Funktion eingeben, zeigt ein kleiner Tipp unter der Zelle ihre Argumente an. Ein Klick auf den Namen der Funktion im Tipp öffnet ihren Eintrag hier.
 
 ## AVEDEV
 
-`AVEDEV(number1, ...)`
+`AVEDEV(Zahl1, ...)`
 
-Gibt den Mittelwert der Abstände der Zahlen von ihrem Mittelwert zurück.
+Gibt den Mittelwert der Abstände an, die Zahlen von ihrem Mittelwert haben.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## AVERAGE
 
-`AVERAGE(number1, ...)`
+`AVERAGE(Zahl1, ...)`
 
-Gibt den Mittelwert von Zahlen zurück.
+Gibt den Mittelwert von Zahlen an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## AVERAGEA
 
-`AVERAGEA(value1, ...)`
+`AVERAGEA(Wert1, ...)`
 
-Gibt den Mittelwert von Werten zurück, wobei Text als null und WAHR als eins gezählt wird.
+Gibt den Mittelwert von Werten an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## AVERAGEIF
 
-`AVERAGEIF(range, criteria, [average_range])`
+`AVERAGEIF(Bereich, Kriterien, [Mittelwertbereich])`
 
 Bildet den Mittelwert der Zellen, die eine Bedingung erfüllen.
 
-- `range`: Der zu prüfende Zellbereich.
-- `criteria`: Wonach gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `average_range` (optional): Die Zellen, deren Mittelwert gebildet wird (wenn weggelassen, die Zellen, in denen gesucht wird).
+- `Bereich`: Der zu prüfende Zellbereich.
+- `Kriterien`: Wonach gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `Mittelwertbereich` (optional): Die Zellen, deren Mittelwert gebildet wird (ohne Angabe die Zellen, die geprüft werden).
 
 ## AVERAGEIFS
 
-`AVERAGEIFS(average_range, criteria_range1, criteria1, ...)`
+`AVERAGEIFS(Mittelwertbereich, Kriterienbereich1, Kriterien1, ...)`
 
 Bildet den Mittelwert der Zellen, die mehrere Bedingungen erfüllen.
 
-- `average_range`: Die Zellen, deren Mittelwert gebildet wird (wenn weggelassen, die Zellen, in denen gesucht wird).
-- `criteria_range1`: Der erste zu prüfende Zellbereich.
-- `criteria1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Mittelwertbereich`: Die Zellen, deren Mittelwert gebildet wird (ohne Angabe die Zellen, die geprüft werden).
+- `Kriterienbereich1`: Der erste zu prüfende Zellbereich.
+- `Kriterien1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## BETA.DIST
 
-`BETA.DIST(x, alpha, beta, cumulative, [A], [B])`
+`BETA.DIST(x, Alpha, Beta, Kumuliert, [A], [B])`
 
-Gibt den Wert oder den kumulierten Anteil der Beta-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Betaverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
-- `A` (optional): Die untere Grenze von x (wenn weggelassen, 0).
-- `B` (optional): Die obere Grenze von x (wenn weggelassen, 1).
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `A` (optional): Die untere Grenze von x (ohne Angabe 0).
+- `B` (optional): Die obere Grenze von x (ohne Angabe 1).
 
 ## BETA.INV
 
-`BETA.INV(probability, alpha, beta, [A], [B])`
+`BETA.INV(Wahrscheinlichkeit, Alpha, Beta, [A], [B])`
 
-Gibt den x-Wert für einen Anteil der Beta-Kurve zurück.
+Gibt den x-Wert für einen Anteil einer Betaverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `A` (optional): Die untere Grenze von x (wenn weggelassen, 0).
-- `B` (optional): Die obere Grenze von x (wenn weggelassen, 1).
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `A` (optional): Die untere Grenze von x (ohne Angabe 0).
+- `B` (optional): Die obere Grenze von x (ohne Angabe 1).
 
 ## BETADIST
 
-`BETADIST(x, alpha, beta, [A], [B])`
+`BETADIST(x, Alpha, Beta, [A], [B])`
 
-Gibt den kumulierten Anteil der Beta-Kurve an x zurück.
+Gibt den kumulierten Anteil der Betaverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `A` (optional): Die untere Grenze von x (wenn weggelassen, 0).
-- `B` (optional): Die obere Grenze von x (wenn weggelassen, 1).
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `A` (optional): Die untere Grenze von x (ohne Angabe 0).
+- `B` (optional): Die obere Grenze von x (ohne Angabe 1).
 
 ## BETAINV
 
-`BETAINV(probability, alpha, beta, [A], [B])`
+`BETAINV(Wahrscheinlichkeit, Alpha, Beta, [A], [B])`
 
-Gibt den x-Wert für einen Anteil der Beta-Kurve zurück.
+Gibt den x-Wert für einen Anteil einer Betaverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `A` (optional): Die untere Grenze von x (wenn weggelassen, 0).
-- `B` (optional): Die obere Grenze von x (wenn weggelassen, 1).
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `A` (optional): Die untere Grenze von x (ohne Angabe 0).
+- `B` (optional): Die obere Grenze von x (ohne Angabe 1).
 
 ## BINOM.DIST
 
-`BINOM.DIST(number_s, trials, probability_s, cumulative)`
+`BINOM.DIST(Anzahl_Erfolge, Versuche, Wahrscheinlichkeit_Erfolg, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Erfolgen bei einer Anzahl von Versuchen zurück.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Erfolgen bei einer Anzahl von Versuchen an.
 
-- `number_s`: Die Anzahl der Erfolge.
-- `trials`: Die Anzahl der Versuche.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `Anzahl_Erfolge`: Die Anzahl der Erfolge.
+- `Versuche`: Die Anzahl der Versuche.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## BINOM.DIST.RANGE
 
-`BINOM.DIST.RANGE(trials, probability_s, number_s, [number_s2])`
+`BINOM.DIST.RANGE(Versuche, Wahrscheinlichkeit_Erfolg, Anzahl_Erfolge, [Anzahl_Erfolge2])`
 
-Gibt die Wahrscheinlichkeit zurück, dass die Erfolge in einen Bereich fallen.
+Gibt die Wahrscheinlichkeit an, dass die Erfolge in einen Bereich fallen.
 
-- `trials`: Die Anzahl der Versuche.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `number_s`: Die Anzahl der Erfolge.
-- `number_s2` (optional): Die höchste zu zählende Anzahl an Erfolgen (wenn weggelassen, dieselbe wie die niedrigste).
+- `Versuche`: Die Anzahl der Versuche.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Anzahl_Erfolge`: Die Anzahl der Erfolge.
+- `Anzahl_Erfolge2` (optional): Die höchste zu zählende Anzahl an Erfolgen (ohne Angabe dieselbe wie die niedrigste).
 
 ## BINOM.INV
 
-`BINOM.INV(trials, probability_s, alpha)`
+`BINOM.INV(Versuche, Wahrscheinlichkeit_Erfolg, Alpha)`
 
-Gibt die kleinste Anzahl von Erfolgen zurück, deren kumulierte Wahrscheinlichkeit einen Wert erreicht.
+Gibt die kleinste Anzahl von Erfolgen an, deren kumulierte Wahrscheinlichkeit einen Wert erreicht.
 
-- `trials`: Die Anzahl der Versuche.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Versuche`: Die Anzahl der Versuche.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
 
 ## BINOMDIST
 
-`BINOMDIST(number_s, trials, probability_s, cumulative)`
+`BINOMDIST(Anzahl_Erfolge, Versuche, Wahrscheinlichkeit_Erfolg, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Erfolgen bei einer Anzahl von Versuchen zurück.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Erfolgen bei einer Anzahl von Versuchen an.
 
-- `number_s`: Die Anzahl der Erfolge.
-- `trials`: Die Anzahl der Versuche.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `Anzahl_Erfolge`: Die Anzahl der Erfolge.
+- `Versuche`: Die Anzahl der Versuche.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## CHIDIST
 
-`CHIDIST(x, deg_freedom)`
+`CHIDIST(x, Freiheitsgrade)`
 
-Gibt den Anteil der Chi-Quadrat-Kurve oberhalb von x zurück.
+Gibt den Anteil der Chi-Quadrat-Verteilung oberhalb von x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## CHIINV
 
-`CHIINV(probability, deg_freedom)`
+`CHIINV(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der Chi-Quadrat-Kurve zurück, von rechts gezählt.
+Gibt den x-Wert für einen Anteil der Chi-Quadrat-Verteilung an, von rechts gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## CHISQ.DIST
 
-`CHISQ.DIST(x, deg_freedom, cumulative)`
+`CHISQ.DIST(x, Freiheitsgrade, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Chi-Quadrat-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Chi-Quadrat-Verteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## CHISQ.DIST.RT
 
-`CHISQ.DIST.RT(x, deg_freedom)`
+`CHISQ.DIST.RT(x, Freiheitsgrade)`
 
-Gibt den Anteil der Chi-Quadrat-Kurve oberhalb von x zurück.
+Gibt den Anteil der Chi-Quadrat-Verteilung oberhalb von x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## CHISQ.INV
 
-`CHISQ.INV(probability, deg_freedom)`
+`CHISQ.INV(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der Chi-Quadrat-Kurve zurück, von links gezählt.
+Gibt den x-Wert für einen Anteil der Chi-Quadrat-Verteilung an, von links gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## CHISQ.INV.RT
 
-`CHISQ.INV.RT(probability, deg_freedom)`
+`CHISQ.INV.RT(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der Chi-Quadrat-Kurve zurück, von rechts gezählt.
+Gibt den x-Wert für einen Anteil der Chi-Quadrat-Verteilung an, von rechts gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## CHISQ.TEST
 
-`CHISQ.TEST(actual_range, expected_range)`
+`CHISQ.TEST(Istbereich, Erwartungsbereich)`
 
-Gibt die Wahrscheinlichkeit zurück, dass die Anzahlen nur zufällig von den erwarteten Anzahlen abweichen.
+Gibt die Wahrscheinlichkeit an, dass die Anzahlen von den erwarteten Anzahlen nur durch Zufall abweichen.
 
-- `actual_range`: Der Zellbereich mit den beobachteten Anzahlen.
-- `expected_range`: Der Zellbereich mit den erwarteten Anzahlen, genauso groß wie der Bereich mit den beobachteten Anzahlen.
+- `Istbereich`: Der Zellbereich mit den tatsächlich erhaltenen Anzahlen.
+- `Erwartungsbereich`: Der Zellbereich mit den erwarteten Anzahlen, in derselben Größe wie die tatsächlich erhaltenen Anzahlen.
 
 ## CHITEST
 
-`CHITEST(actual_range, expected_range)`
+`CHITEST(Istbereich, Erwartungsbereich)`
 
-Gibt die Wahrscheinlichkeit zurück, dass die Anzahlen nur zufällig von den erwarteten Anzahlen abweichen.
+Gibt die Wahrscheinlichkeit an, dass die Anzahlen von den erwarteten Anzahlen nur durch Zufall abweichen.
 
-- `actual_range`: Der Zellbereich mit den beobachteten Anzahlen.
-- `expected_range`: Der Zellbereich mit den erwarteten Anzahlen, genauso groß wie der Bereich mit den beobachteten Anzahlen.
+- `Istbereich`: Der Zellbereich mit den tatsächlich erhaltenen Anzahlen.
+- `Erwartungsbereich`: Der Zellbereich mit den erwarteten Anzahlen, in derselben Größe wie die tatsächlich erhaltenen Anzahlen.
 
 ## CONFIDENCE
 
-`CONFIDENCE(alpha, standard_dev, size)`
+`CONFIDENCE(Alpha, Standardabw, Umfang)`
 
-Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert zurück, mit der Normalverteilungskurve.
+Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert an, mit der Normalverteilung.
 
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `size`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Umfang`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
 
 ## CONFIDENCE.NORM
 
-`CONFIDENCE.NORM(alpha, standard_dev, size)`
+`CONFIDENCE.NORM(Alpha, Standardabw, Umfang)`
 
-Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert zurück, mit der Normalverteilungskurve.
+Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert an, mit der Normalverteilung.
 
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `size`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Umfang`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
 
 ## CONFIDENCE.T
 
-`CONFIDENCE.T(alpha, standard_dev, size)`
+`CONFIDENCE.T(Alpha, Standardabw, Umfang)`
 
-Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert zurück, mit der t-Verteilung nach Student.
+Gibt die Spanne eines Konfidenzintervalls für einen Mittelwert an, mit der t-Verteilung nach Student.
 
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `size`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Umfang`: Der Umfang der Stichprobe, eine ganze Zahl von 1 oder mehr.
 
 ## CORREL
 
-`CORREL(array1, array2)`
+`CORREL(Matrix1, Matrix2)`
 
-Gibt zurück, wie stark sich zwei Zahlenreihen gemeinsam bewegen, von -1 bis 1.
+Gibt an, wie eng sich zwei Zahlenreihen gemeinsam bewegen, von -1 bis 1.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## COUNT
 
-`COUNT(value1, ...)`
+`COUNT(Wert1, ...)`
 
 Zählt die Zahlen in einer Liste oder einem Zellbereich.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## COUNTA
 
-`COUNTA(value1, ...)`
+`COUNTA(Wert1, ...)`
 
 Zählt die Zellen, die nicht leer sind.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## COUNTBLANK
 
-`COUNTBLANK(range)`
+`COUNTBLANK(Bereich)`
 
 Zählt die leeren Zellen in einem Bereich.
 
-- `range`: Der zu prüfende Zellbereich.
+- `Bereich`: Der zu prüfende Zellbereich.
 
 ## COUNTIF
 
-`COUNTIF(range, criteria)`
+`COUNTIF(Bereich, Kriterien)`
 
 Zählt die Zellen, die eine Bedingung erfüllen.
 
-- `range`: Der zu prüfende Zellbereich.
-- `criteria`: Wonach gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
+- `Bereich`: Der zu prüfende Zellbereich.
+- `Kriterien`: Wonach gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
 
 ## COUNTIFS
 
-`COUNTIFS(criteria_range1, criteria1, ...)`
+`COUNTIFS(Kriterienbereich1, Kriterien1, ...)`
 
 Zählt die Zeilen, in denen mehrere Bedingungen gleichzeitig erfüllt sind.
 
-- `criteria_range1`: Der erste zu prüfende Zellbereich.
-- `criteria1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Kriterienbereich1`: Der erste zu prüfende Zellbereich.
+- `Kriterien1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## COVAR
 
-`COVAR(array1, array2)`
+`COVAR(Matrix1, Matrix2)`
 
-Gibt zurück, wie stark sich zwei Zahlenreihen gemeinsam verändern.
+Gibt an, wie stark zwei Zahlenreihen gemeinsam variieren.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## COVARIANCE.P
 
-`COVARIANCE.P(array1, array2)`
+`COVARIANCE.P(Matrix1, Matrix2)`
 
-Gibt zurück, wie stark sich zwei Zahlenreihen für eine Grundgesamtheit gemeinsam verändern.
+Gibt an, wie stark zwei Zahlenreihen gemeinsam variieren, für eine Grundgesamtheit.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## COVARIANCE.S
 
-`COVARIANCE.S(array1, array2)`
+`COVARIANCE.S(Matrix1, Matrix2)`
 
-Gibt zurück, wie stark sich zwei Zahlenreihen für eine Stichprobe gemeinsam verändern.
+Gibt an, wie stark zwei Zahlenreihen gemeinsam variieren, für eine Stichprobe.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## CRITBINOM
 
-`CRITBINOM(trials, probability_s, alpha)`
+`CRITBINOM(Versuche, Wahrscheinlichkeit_Erfolg, Alpha)`
 
-Gibt die kleinste Anzahl von Erfolgen zurück, deren kumulierte Wahrscheinlichkeit einen Wert erreicht.
+Gibt die kleinste Anzahl von Erfolgen an, deren kumulierte Wahrscheinlichkeit einen Wert erreicht.
 
-- `trials`: Die Anzahl der Versuche.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Versuche`: Die Anzahl der Versuche.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
 
 ## DEVSQ
 
-`DEVSQ(number1, ...)`
+`DEVSQ(Zahl1, ...)`
 
-Gibt die Summe der Quadrate der Abstände der Zahlen von ihrem Mittelwert zurück.
+Gibt die Summe der Quadrate der Abstände an, die Zahlen von ihrem Mittelwert haben.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## EXPON.DIST
 
-`EXPON.DIST(x, lambda, cumulative)`
+`EXPON.DIST(x, Lambda, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Exponentialkurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Exponentialverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `lambda`: Die Rate der Kurve, größer als 0.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Lambda`: Die Rate der Kurve, größer als 0.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## EXPONDIST
 
-`EXPONDIST(x, lambda, cumulative)`
+`EXPONDIST(x, Lambda, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Exponentialkurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Exponentialverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `lambda`: Die Rate der Kurve, größer als 0.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Lambda`: Die Rate der Kurve, größer als 0.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## F.DIST
 
-`F.DIST(x, deg_freedom1, deg_freedom2, cumulative)`
+`F.DIST(x, Freiheitsgrad1, Freiheitsgrad2, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der F-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der F-Verteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## F.DIST.RT
 
-`F.DIST.RT(x, deg_freedom1, deg_freedom2)`
+`F.DIST.RT(x, Freiheitsgrad1, Freiheitsgrad2)`
 
-Gibt den Anteil der F-Kurve oberhalb von x zurück.
+Gibt den Anteil der F-Verteilung oberhalb von x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
 
 ## F.INV
 
-`F.INV(probability, deg_freedom1, deg_freedom2)`
+`F.INV(Wahrscheinlichkeit, Freiheitsgrad1, Freiheitsgrad2)`
 
-Gibt den x-Wert für einen Anteil der F-Kurve zurück, von links gezählt.
+Gibt den x-Wert für einen Anteil der F-Verteilung an, von links gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
 
 ## F.INV.RT
 
-`F.INV.RT(probability, deg_freedom1, deg_freedom2)`
+`F.INV.RT(Wahrscheinlichkeit, Freiheitsgrad1, Freiheitsgrad2)`
 
-Gibt den x-Wert für einen Anteil der F-Kurve zurück, von rechts gezählt.
+Gibt den x-Wert für einen Anteil der F-Verteilung an, von rechts gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
 
 ## F.TEST
 
-`F.TEST(array1, array2)`
+`F.TEST(Matrix1, Matrix2)`
 
-Gibt die Wahrscheinlichkeit zurück, dass zwei Zahlenreihen dieselbe Varianz haben.
+Gibt die Wahrscheinlichkeit an, dass zwei Zahlenreihen dieselbe Varianz haben.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## FDIST
 
-`FDIST(x, deg_freedom1, deg_freedom2)`
+`FDIST(x, Freiheitsgrad1, Freiheitsgrad2)`
 
-Gibt den Anteil der F-Kurve oberhalb von x zurück.
+Gibt den Anteil der F-Verteilung oberhalb von x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
 
 ## FINV
 
-`FINV(probability, deg_freedom1, deg_freedom2)`
+`FINV(Wahrscheinlichkeit, Freiheitsgrad1, Freiheitsgrad2)`
 
-Gibt den x-Wert für einen Anteil der F-Kurve zurück, von rechts gezählt.
+Gibt den x-Wert für einen Anteil der F-Verteilung an, von rechts gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
-- `deg_freedom2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrad1`: Die Freiheitsgrade des Zählers, eine ganze Zahl von 1 oder mehr.
+- `Freiheitsgrad2`: Die Freiheitsgrade des Nenners, eine ganze Zahl von 1 oder mehr.
 
 ## FISHER
 
 `FISHER(x)`
 
-Gibt die Fisher-Transformation einer Zahl zwischen -1 und 1 zurück.
+Gibt die Fisher-Transformation einer Zahl zwischen -1 und 1 an.
 
-- `x`: Der zu verwendende x-Wert.
+- `x`: Der x-Wert, mit dem gerechnet wird.
 
 ## FISHERINV
 
 `FISHERINV(y)`
 
-Gibt die Umkehrung der Fisher-Transformation zurück.
+Gibt die Umkehrung der Fisher-Transformation an.
 
 - `y`: Die Zahl, zu der die Umkehrung der Fisher-Transformation gesucht wird.
 
 ## FORECAST
 
-`FORECAST(x, known_y's, known_x's)`
+`FORECAST(x, Bekannte_y-Werte, Bekannte_x-Werte)`
 
 Sagt einen Wert entlang der am besten passenden Geraden voraus.
 
 - `x`: Der x-Wert, für den ein y-Wert vorhergesagt werden soll.
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
+
+## FORECAST.ETS
+
+`FORECAST.ETS(Zieldatum, Werte, Zeitachse, [Saisonalität], [Datenergänzung], [Aggregation])`
+
+Sagt einen künftigen Wert einer Reihe mit Trend und Saison voraus, durch exponentielle Glättung.
+
+- `Zieldatum`: Der Zeitpunkt, für den ein Wert vorhergesagt werden soll.
+- `Werte`: Die Werte, die Sie bereits haben.
+- `Zeitachse`: Die Datumsangaben oder Zahlen der Werte, in gleichen Abständen.
+- `Saisonalität`: 1, um die Saison aus den Werten zu ermitteln, 0 für keine, oder die Länge der Saison.
+- `Datenergänzung`: 1, um einen fehlenden Punkt durch eine Linie zwischen seinen Nachbarn zu füllen, 0, um ihn mit null zu füllen.
+- `Aggregation`: Wie Werte zum selben Zeitpunkt zusammengefasst werden: 1 Mittelwert, 2 Anzahl, 3 Anzahl (nicht leer), 4 Maximum, 5 Median, 6 Minimum, 7 Summe.
+
+## FORECAST.ETS.CONFINT
+
+`FORECAST.ETS.CONFINT(Zieldatum, Werte, Zeitachse, [Konfidenzniveau], [Saisonalität], [Datenergänzung], [Aggregation])`
+
+Gibt an, wie weit der Wert über und unter einer geglätteten Prognose wahrscheinlich liegt.
+
+- `Konfidenzniveau`: Eine Zahl über 0 und unter 1, ohne Angabe 0,95.
+
+## FORECAST.ETS.SEASONALITY
+
+`FORECAST.ETS.SEASONALITY(Werte, Zeitachse, [Datenergänzung], [Aggregation])`
+
+Gibt die Länge der sich wiederholenden Saison an, die in einer Reihe gefunden wird, oder 1, wenn es keine gibt.
+
+## FORECAST.ETS.STAT
+
+`FORECAST.ETS.STAT(Werte, Zeitachse, Statistiktyp, [Saisonalität], [Datenergänzung], [Aggregation])`
+
+Gibt eine der Glättungskonstanten oder Anpassungsmaße einer geglätteten Prognose an.
+
+- `Statistiktyp`: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 der Schritt der Zeitachse.
 
 ## FORECAST.LINEAR
 
-`FORECAST.LINEAR(x, known_y's, known_x's)`
+`FORECAST.LINEAR(x, Bekannte_y-Werte, Bekannte_x-Werte)`
 
 Sagt einen Wert entlang der am besten passenden Geraden voraus.
 
 - `x`: Der zu verwendende x-Wert.
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
 
 ## FREQUENCY
 
-`FREQUENCY(data_array, bins_array)`
+`FREQUENCY(Datenfeld, Klassenfeld)`
 
-Zählt, wie viele Werte in jeden Bereich fallen, und gibt die Anzahlen als Spalte zurück.
+Zählt, wie viele Werte in jeden Bereich fallen, und gibt die Anzahlen als Spalte aus.
 
-- `data_array`: Der Zellbereich mit den zu zählenden Werten.
-- `bins_array`: Der Zellbereich mit den Grenzen der Bereiche, in denen gezählt wird.
+- `Datenfeld`: Der Zellbereich mit den zu zählenden Werten.
+- `Klassenfeld`: Der Zellbereich mit den Grenzen der Bereiche, in denen gezählt wird.
 
 ## FTEST
 
-`FTEST(array1, array2)`
+`FTEST(Matrix1, Matrix2)`
 
-Gibt die Wahrscheinlichkeit zurück, dass zwei Zahlenreihen dieselbe Varianz haben.
+Gibt die Wahrscheinlichkeit an, dass zwei Zahlenreihen dieselbe Varianz haben.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## GAMMA
 
 `GAMMA(x)`
 
-Gibt die Gammafunktion einer Zahl zurück.
+Gibt die Gammafunktion einer Zahl an.
 
-- `x`: Der zu verwendende x-Wert.
+- `x`: Der x-Wert, mit dem gerechnet wird.
 
 ## GAMMA.DIST
 
-`GAMMA.DIST(x, alpha, beta, cumulative)`
+`GAMMA.DIST(x, Alpha, Beta, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Gamma-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Gammaverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## GAMMA.INV
 
-`GAMMA.INV(probability, alpha, beta)`
+`GAMMA.INV(Wahrscheinlichkeit, Alpha, Beta)`
 
-Gibt den x-Wert für einen Anteil der Gamma-Kurve zurück.
+Gibt den x-Wert für einen Anteil einer Gammaverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
 
 ## GAMMADIST
 
-`GAMMADIST(x, alpha, beta, cumulative)`
+`GAMMADIST(x, Alpha, Beta, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Gamma-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Gammaverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## GAMMAINV
 
-`GAMMAINV(probability, alpha, beta)`
+`GAMMAINV(Wahrscheinlichkeit, Alpha, Beta)`
 
-Gibt den x-Wert für einen Anteil der Gamma-Kurve zurück.
+Gibt den x-Wert für einen Anteil einer Gammaverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
 
 ## GAMMALN
 
 `GAMMALN(x)`
 
-Gibt den natürlichen Logarithmus der Gammafunktion zurück.
+Gibt den natürlichen Logarithmus der Gammafunktion an.
 
-- `x`: Der zu verwendende x-Wert.
+- `x`: Der x-Wert, mit dem gerechnet wird.
 
 ## GAMMALN.PRECISE
 
 `GAMMALN.PRECISE(x)`
 
-Gibt den natürlichen Logarithmus der Gammafunktion zurück.
+Gibt den natürlichen Logarithmus der Gammafunktion an.
 
-- `x`: Der zu verwendende x-Wert.
+- `x`: Der x-Wert, mit dem gerechnet wird.
 
 ## GAUSS
 
 `GAUSS(z)`
 
-Gibt den Anteil der Standardnormalverteilungskurve zwischen dem Mittelwert und z zurück.
+Gibt den Anteil der Standardnormalverteilung zwischen dem Mittelwert und z an.
 
 - `z`: Der z-Wert.
 
 ## GEOMEAN
 
-`GEOMEAN(number1, ...)`
+`GEOMEAN(Zahl1, ...)`
 
-Gibt das geometrische Mittel positiver Zahlen zurück.
+Gibt das geometrische Mittel positiver Zahlen an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## GROWTH
 
-`GROWTH(known_y's, [known_x's], [new_x's], [const])`
+`GROWTH(Bekannte_y-Werte, [Bekannte_x-Werte], [Neue_x-Werte], [Konstante])`
 
-Gibt die Werte entlang der am besten passenden Exponentialkurve für neue x-Werte zurück.
+Gibt die Werte entlang der am besten passenden Exponentialkurve für neue x-Werte an.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's` (optional): Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
-- `new_x's` (optional): Die x-Werte, für die die y-Werte ermittelt werden (wenn weggelassen, die bekannten x-Werte).
-- `const` (optional): WAHR oder weggelassen, um eine Gerade anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte` (optional): Der Zellbereich mit den x-Werten, die Sie bereits haben.
+- `Neue_x-Werte` (optional): Die x-Werte, für die die y-Werte angegeben werden (ohne Angabe die bekannten x-Werte).
+- `Konstante` (optional): WAHR oder keine Angabe, um eine Linie anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
 
 ## HARMEAN
 
-`HARMEAN(number1, ...)`
+`HARMEAN(Zahl1, ...)`
 
-Gibt das harmonische Mittel positiver Zahlen zurück.
+Gibt das harmonische Mittel positiver Zahlen an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## HYPGEOM.DIST
 
-`HYPGEOM.DIST(sample_s, number_sample, population_s, number_pop, cumulative)`
+`HYPGEOM.DIST(Stichprobe_Erfolge, Anzahl_Stichprobe, Grundgesamtheit_Erfolge, Anzahl_Grundgesamtheit, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit zurück, eine Anzahl von Erfolgen zu ziehen, ohne die Elemente zurückzulegen.
+Gibt die Wahrscheinlichkeit an, eine Anzahl von Erfolgen zu ziehen, ohne die Elemente zurückzulegen.
 
-- `sample_s`: Die Anzahl der Erfolge in der Stichprobe.
-- `number_sample`: Die Anzahl der gezogenen Elemente.
-- `population_s`: Die Anzahl der Erfolge in der gesamten Grundgesamtheit.
-- `number_pop`: Die Anzahl der Elemente in der gesamten Grundgesamtheit.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `Stichprobe_Erfolge`: Die Anzahl der Erfolge in der Stichprobe.
+- `Anzahl_Stichprobe`: Die Anzahl der gezogenen Elemente.
+- `Grundgesamtheit_Erfolge`: Die Anzahl der Erfolge in der gesamten Grundgesamtheit.
+- `Anzahl_Grundgesamtheit`: Die Anzahl der Elemente in der gesamten Grundgesamtheit.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## HYPGEOMDIST
 
-`HYPGEOMDIST(sample_s, number_sample, population_s, number_pop)`
+`HYPGEOMDIST(Stichprobe_Erfolge, Anzahl_Stichprobe, Grundgesamtheit_Erfolge, Anzahl_Grundgesamtheit)`
 
-Gibt die Wahrscheinlichkeit zurück, eine Anzahl von Erfolgen zu ziehen, ohne die Elemente zurückzulegen.
+Gibt die Wahrscheinlichkeit an, eine Anzahl von Erfolgen zu ziehen, ohne die Elemente zurückzulegen.
 
-- `sample_s`: Die Anzahl der Erfolge in der Stichprobe.
-- `number_sample`: Die Anzahl der gezogenen Elemente.
-- `population_s`: Die Anzahl der Erfolge in der gesamten Grundgesamtheit.
-- `number_pop`: Die Anzahl der Elemente in der gesamten Grundgesamtheit.
+- `Stichprobe_Erfolge`: Die Anzahl der Erfolge in der Stichprobe.
+- `Anzahl_Stichprobe`: Die Anzahl der gezogenen Elemente.
+- `Grundgesamtheit_Erfolge`: Die Anzahl der Erfolge in der gesamten Grundgesamtheit.
+- `Anzahl_Grundgesamtheit`: Die Anzahl der Elemente in der gesamten Grundgesamtheit.
 
 ## INTERCEPT
 
-`INTERCEPT(known_y's, known_x's)`
+`INTERCEPT(Bekannte_y-Werte, Bekannte_x-Werte)`
 
 Gibt an, wo die am besten passende Gerade die senkrechte Achse schneidet.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
 
 ## KURT
 
-`KURT(number1, ...)`
+`KURT(Zahl1, ...)`
 
-Gibt zurück, wie spitz oder flach eine Zahlenreihe im Vergleich zu einer Normalverteilungskurve ist.
+Gibt an, wie spitz oder flach eine Zahlenreihe im Vergleich zu einer Normalverteilung ist.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## LARGE
 
-`LARGE(array, k)`
+`LARGE(Matrix, K)`
 
-Gibt die k-größte Zahl einer Menge zurück.
+Gibt die k-größte Zahl einer Reihe an.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `k`: Welcher Rangplatz ausgegeben wird, von der größten Zahl aus gezählt: 1 ist die größte.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `K`: Welcher Platz ausgegeben wird, von der größten Zahl an gezählt: 1 ist die größte.
 
 ## LINEST
 
-`LINEST(known_y's, [known_x's], [const], [stats])`
+`LINEST(Bekannte_y-Werte, [Bekannte_x-Werte], [Konstante], [Statistik])`
 
-Passt eine Gerade oder Ebene nach der Methode der kleinsten Quadrate an die Daten an und gibt deren Kennzahlen als Zeile zurück.
+Passt der Daten eine Gerade oder Ebene nach der Methode der kleinsten Quadrate an und gibt ihre Zahlen als Zeile aus.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's` (optional): Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
-- `const` (optional): WAHR oder weggelassen, um eine Gerade anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
-- `stats` (optional): WAHR, um zusätzlich weitere Kennzahlen zur Anpassung zu erhalten; FALSCH oder weggelassen, um nur die Gerade zu erhalten.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte` (optional): Der Zellbereich mit den x-Werten, die Sie bereits haben.
+- `Konstante` (optional): WAHR oder keine Angabe, um eine Linie anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
+- `Statistik` (optional): WAHR, um zusätzlich weitere Zahlen zur Anpassung auszugeben; FALSCH oder keine Angabe, um nur die Gerade auszugeben.
 
 ## LOGEST
 
-`LOGEST(known_y's, [known_x's], [const], [stats])`
+`LOGEST(Bekannte_y-Werte, [Bekannte_x-Werte], [Konstante], [Statistik])`
 
-Passt eine Exponentialkurve an die Daten an und gibt deren Kennzahlen als Zeile zurück.
+Passt den Daten eine Exponentialkurve an und gibt ihre Zahlen als Zeile aus.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's` (optional): Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
-- `const` (optional): WAHR oder weggelassen, um eine Gerade anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
-- `stats` (optional): WAHR, um zusätzlich weitere Kennzahlen zur Anpassung zu erhalten; FALSCH oder weggelassen, um nur die Gerade zu erhalten.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte` (optional): Der Zellbereich mit den x-Werten, die Sie bereits haben.
+- `Konstante` (optional): WAHR oder keine Angabe, um eine Linie anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
+- `Statistik` (optional): WAHR, um zusätzlich weitere Zahlen zur Anpassung auszugeben; FALSCH oder keine Angabe, um nur die Linie auszugeben.
 
 ## LOGINV
 
-`LOGINV(probability, mean, standard_dev)`
+`LOGINV(Wahrscheinlichkeit, Mittelwert, Standardabw)`
 
-Gibt den x-Wert für einen Anteil der logarithmischen Normalverteilungskurve zurück.
+Gibt den x-Wert für einen Anteil einer logarithmischen Normalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## LOGNORM.DIST
 
-`LOGNORM.DIST(x, mean, standard_dev, cumulative)`
+`LOGNORM.DIST(x, Mittelwert, Standardabw, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der logarithmischen Normalverteilungskurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der logarithmischen Normalverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## LOGNORM.INV
 
-`LOGNORM.INV(probability, mean, standard_dev)`
+`LOGNORM.INV(Wahrscheinlichkeit, Mittelwert, Standardabw)`
 
-Gibt den x-Wert für einen Anteil der logarithmischen Normalverteilungskurve zurück.
+Gibt den x-Wert für einen Anteil einer logarithmischen Normalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## LOGNORMDIST
 
-`LOGNORMDIST(x, mean, standard_dev)`
+`LOGNORMDIST(x, Mittelwert, Standardabw)`
 
-Gibt den kumulierten Anteil der logarithmischen Normalverteilungskurve an x zurück.
+Gibt den kumulierten Anteil der logarithmischen Normalverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## MAXA
 
-`MAXA(value1, ...)`
+`MAXA(Wert1, ...)`
 
-Gibt den größten Wert zurück, wobei Text als null und WAHR als eins gezählt wird.
+Gibt den größten Wert an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MAXIFS
 
-`MAXIFS(max_range, criteria_range1, criteria1, ...)`
+`MAXIFS(Maximalbereich, Kriterienbereich1, Kriterien1, ...)`
 
-Gibt die größte Zahl unter den Zellen zurück, die mehrere Bedingungen erfüllen.
+Gibt die größte Zahl unter den Zellen an, die mehrere Bedingungen erfüllen.
 
-- `max_range`: Die Zellen, aus denen der größte Wert ermittelt wird.
-- `criteria_range1`: Der erste zu prüfende Zellbereich.
-- `criteria1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Maximalbereich`: Die Zellen, aus denen der größte Wert ermittelt wird.
+- `Kriterienbereich1`: Der erste zu prüfende Zellbereich.
+- `Kriterien1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MEDIAN
 
-`MEDIAN(number1, ...)`
+`MEDIAN(Zahl1, ...)`
 
-Gibt den Median einer Zahlenreihe zurück.
+Gibt die mittlere Zahl einer Reihe an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MINA
 
-`MINA(value1, ...)`
+`MINA(Wert1, ...)`
 
-Gibt den kleinsten Wert zurück, wobei Text als null und WAHR als eins gezählt wird.
+Gibt den kleinsten Wert an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MINIFS
 
-`MINIFS(min_range, criteria_range1, criteria1, ...)`
+`MINIFS(Minimalbereich, Kriterienbereich1, Kriterien1, ...)`
 
-Gibt die kleinste Zahl unter den Zellen zurück, die mehrere Bedingungen erfüllen.
+Gibt die kleinste Zahl unter den Zellen an, die mehrere Bedingungen erfüllen.
 
-- `min_range`: Die Zellen, aus denen der kleinste Wert ermittelt wird.
-- `criteria_range1`: Der erste zu prüfende Zellbereich.
-- `criteria1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Minimalbereich`: Die Zellen, aus denen der kleinste Wert ermittelt wird.
+- `Kriterienbereich1`: Der erste zu prüfende Zellbereich.
+- `Kriterien1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MODE
 
-`MODE(number1, ...)`
+`MODE(Zahl1, ...)`
 
-Gibt die Zahl zurück, die am häufigsten vorkommt.
+Gibt die Zahl an, die am häufigsten vorkommt.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MODE.MULT
 
-`MODE.MULT(number1, ...)`
+`MODE.MULT(Zahl1, ...)`
 
-Gibt eine Spalte mit den Zahlen zurück, die in einer Reihe am häufigsten vorkommen.
+Gibt eine Spalte mit den Zahlen aus, die in einer Reihe am häufigsten vorkommen.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## MODE.SNGL
 
-`MODE.SNGL(number1, ...)`
+`MODE.SNGL(Zahl1, ...)`
 
-Gibt die Zahl zurück, die in einer Reihe am häufigsten vorkommt.
+Gibt die Zahl an, die in einer Reihe am häufigsten vorkommt.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## NEGBINOM.DIST
 
-`NEGBINOM.DIST(number_f, number_s, probability_s, cumulative)`
+`NEGBINOM.DIST(Anzahl_Misserfolge, Anzahl_Erfolge, Wahrscheinlichkeit_Erfolg, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Misserfolgen vor einer Anzahl von Erfolgen zurück.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Misserfolgen vor einer Anzahl von Erfolgen an.
 
-- `number_f`: Die Anzahl der Misserfolge.
-- `number_s`: Die Anzahl der Erfolge.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `Anzahl_Misserfolge`: Die Anzahl der Misserfolge.
+- `Anzahl_Erfolge`: Die Anzahl der Erfolge.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## NEGBINOMDIST
 
-`NEGBINOMDIST(number_f, number_s, probability_s)`
+`NEGBINOMDIST(Anzahl_Misserfolge, Anzahl_Erfolge, Wahrscheinlichkeit_Erfolg)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Misserfolgen vor einer Anzahl von Erfolgen zurück.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Misserfolgen vor einer Anzahl von Erfolgen an.
 
-- `number_f`: Die Anzahl der Misserfolge.
-- `number_s`: Die Anzahl der Erfolge.
-- `probability_s`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
+- `Anzahl_Misserfolge`: Die Anzahl der Misserfolge.
+- `Anzahl_Erfolge`: Die Anzahl der Erfolge.
+- `Wahrscheinlichkeit_Erfolg`: Die Wahrscheinlichkeit eines Erfolgs bei jedem Versuch, von 0 bis 1.
 
 ## NORM.DIST
 
-`NORM.DIST(x, mean, standard_dev, cumulative)`
+`NORM.DIST(x, Mittelwert, Standardabw, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Normalverteilungskurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Normalverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## NORM.INV
 
-`NORM.INV(probability, mean, standard_dev)`
+`NORM.INV(Wahrscheinlichkeit, Mittelwert, Standardabw)`
 
-Gibt den x-Wert für einen Anteil einer Normalverteilungskurve zurück.
+Gibt den x-Wert für einen Anteil einer Normalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## NORM.S.DIST
 
-`NORM.S.DIST(z, cumulative)`
+`NORM.S.DIST(z, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Standardnormalverteilungskurve an z zurück.
+Gibt den Wert oder den kumulierten Anteil der Standardnormalverteilung an der Stelle z an.
 
 - `z`: Der z-Wert.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## NORM.S.INV
 
-`NORM.S.INV(probability)`
+`NORM.S.INV(Wahrscheinlichkeit)`
 
-Gibt den z-Wert für einen Anteil der Standardnormalverteilungskurve zurück.
+Gibt den z-Wert für einen Anteil der Standardnormalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
 
 ## NORMDIST
 
-`NORMDIST(x, mean, standard_dev, cumulative)`
+`NORMDIST(x, Mittelwert, Standardabw, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Normalverteilungskurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Normalverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## NORMINV
 
-`NORMINV(probability, mean, standard_dev)`
+`NORMINV(Wahrscheinlichkeit, Mittelwert, Standardabw)`
 
-Gibt den x-Wert für einen Anteil einer Normalverteilungskurve zurück.
+Gibt den x-Wert für einen Anteil einer Normalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## NORMSDIST
 
 `NORMSDIST(z)`
 
-Gibt den kumulierten Anteil der Standardnormalverteilungskurve bis z zurück.
+Gibt den kumulierten Anteil der Standardnormalverteilung bis z an.
 
 - `z`: Der z-Wert.
 
 ## NORMSINV
 
-`NORMSINV(probability)`
+`NORMSINV(Wahrscheinlichkeit)`
 
-Gibt den z-Wert für einen Anteil der Standardnormalverteilungskurve zurück.
+Gibt den z-Wert für einen Anteil der Standardnormalverteilung an.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
 
 ## PEARSON
 
-`PEARSON(array1, array2)`
+`PEARSON(Matrix1, Matrix2)`
 
-Gibt zurück, wie stark sich zwei Zahlenreihen gemeinsam bewegen, von -1 bis 1.
+Gibt an, wie eng sich zwei Zahlenreihen gemeinsam bewegen, von -1 bis 1.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
 
 ## PERCENTILE
 
-`PERCENTILE(array, k)`
+`PERCENTILE(Matrix, K)`
 
-Gibt den Wert zurück, unterhalb dessen ein Anteil k der Zahlen liegt, von 0 bis 1.
+Gibt den Wert an, unterhalb dessen ein Anteil k der Zahlen liegt.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `k`: Der Anteil der Werte, von 0 bis 1, für den der Wert ausgegeben wird.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `K`: Der Anteil der Werte, von 0 bis 1, für den der Wert ausgegeben wird.
 
 ## PERCENTILE.EXC
 
-`PERCENTILE.EXC(array, k)`
+`PERCENTILE.EXC(Matrix, K)`
 
-Gibt den Wert zurück, unterhalb dessen ein Anteil k der Zahlen liegt, ohne 0 und 1.
+Gibt den Wert an, unterhalb dessen ein Anteil k der Zahlen liegt, wobei 0 und 1 ausgeschlossen sind.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `k`: Der Rangplatz in der Reihenfolge, von 1 an gezählt.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `K`: Die Position in der Reihenfolge, von 1 an gezählt.
 
 ## PERCENTILE.INC
 
-`PERCENTILE.INC(array, k)`
+`PERCENTILE.INC(Matrix, K)`
 
-Gibt den Wert zurück, unterhalb dessen ein Anteil k der Zahlen liegt, von 0 bis 1.
+Gibt den Wert an, unterhalb dessen ein Anteil k der Zahlen liegt, von 0 bis 1.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `k`: Der Rangplatz in der Reihenfolge, von 1 an gezählt.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `K`: Die Position in der Reihenfolge, von 1 an gezählt.
 
 ## PERCENTRANK
 
-`PERCENTRANK(array, x, [significance])`
+`PERCENTRANK(Matrix, x, [Stellen])`
 
-Gibt den Rang eines Wertes in einer Zahlenreihe als Anteil von 0 bis 1 zurück.
+Gibt den Rang eines Werts in einer Reihe von Zahlen als Anteil von 0 bis 1 an.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `x`: Der zu verwendende x-Wert.
-- `significance` (optional): Die Zahl, auf deren Vielfache gerundet wird.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Stellen` (optional): Die Anzahl der Nachkommastellen des Ergebnisses (ohne Angabe 3).
 
 ## PERCENTRANK.EXC
 
-`PERCENTRANK.EXC(array, x, [significance])`
+`PERCENTRANK.EXC(Matrix, x, [Stellen])`
 
-Gibt den Rang eines Wertes in einer Zahlenreihe als Anteil zurück, ohne 0 und 1.
+Gibt den Rang eines Werts in einer Reihe von Zahlen als Anteil an, wobei 0 und 1 ausgeschlossen sind.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `x`: Der zu verwendende x-Wert.
-- `significance` (optional): Die Zahl, auf deren Vielfache gerundet wird.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Stellen` (optional): Die Anzahl der Nachkommastellen des Ergebnisses (ohne Angabe 3).
 
 ## PERCENTRANK.INC
 
-`PERCENTRANK.INC(array, x, [significance])`
+`PERCENTRANK.INC(Matrix, x, [Stellen])`
 
-Gibt den Rang eines Wertes in einer Zahlenreihe als Anteil von 0 bis 1 zurück.
+Gibt den Rang eines Werts in einer Reihe von Zahlen als Anteil von 0 bis 1 an.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `x`: Der zu verwendende x-Wert.
-- `significance` (optional): Die Zahl, auf deren Vielfache gerundet wird.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Stellen` (optional): Die Anzahl der Nachkommastellen des Ergebnisses (ohne Angabe 3).
 
 ## PERMUTATIONA
 
-`PERMUTATIONA(number, number_chosen)`
+`PERMUTATIONA(Anzahl, Anzahl_Auswahl)`
 
-Gibt die Anzahl der geordneten Auswahlen zurück, wenn ein Element mehrmals gewählt werden kann.
+Gibt die Anzahl der geordneten Auswahlen an, wenn ein Element mehrfach gewählt werden kann.
 
-- `number`: Die zu verarbeitende Zahl.
-- `number_chosen`: Wie viele Elemente in jeder Gruppe ausgewählt werden.
+- `Anzahl`: Die zu verarbeitende Zahl.
+- `Anzahl_Auswahl`: Wie viele Elemente in jeder Gruppe ausgewählt werden.
 
 ## PHI
 
 `PHI(x)`
 
-Gibt die Höhe der Standardnormalverteilungskurve an x zurück.
+Gibt die Höhe der Standardnormalverteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
+- `x`: Der x-Wert, mit dem gerechnet wird.
 
 ## POISSON
 
-`POISSON(x, mean, cumulative)`
+`POISSON(x, Mittelwert, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Ereignissen zurück, ausgehend von der erwarteten Anzahl.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Ereignissen an, ausgehend von der erwarteten Anzahl.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## POISSON.DIST
 
-`POISSON.DIST(x, mean, cumulative)`
+`POISSON.DIST(x, Mittelwert, Kumuliert)`
 
-Gibt die Wahrscheinlichkeit einer Anzahl von Ereignissen zurück, ausgehend von der erwarteten Anzahl.
+Gibt die Wahrscheinlichkeit für eine Anzahl von Ereignissen an, ausgehend von der erwarteten Anzahl.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## PROB
 
-`PROB(x_range, prob_range, lower_limit, [upper_limit])`
+`PROB(x_Bereich, Wahrscheinlichkeitsbereich, Untergrenze, [Obergrenze])`
 
-Gibt die Wahrscheinlichkeit zurück, dass Werte zwischen zwei Grenzen liegen.
+Gibt die Wahrscheinlichkeit an, dass Werte zwischen zwei Grenzen liegen.
 
-- `x_range`: Der Zellbereich mit den x-Werten.
-- `prob_range`: Die Wahrscheinlichkeiten zu jedem x-Wert, jeweils von 0 bis 1, zusammen 1.
-- `lower_limit`: Die untere Grenze des Bereichs.
-- `upper_limit` (optional): Die obere Grenze des Bereichs (wenn weggelassen, nur die untere Grenze).
+- `x_Bereich`: Der Zellbereich mit den x-Werten.
+- `Wahrscheinlichkeitsbereich`: Die Wahrscheinlichkeiten zu jedem x-Wert, jeweils von 0 bis 1, die zusammen 1 ergeben.
+- `Untergrenze`: Die untere Grenze des Bereichs.
+- `Obergrenze` (optional): Die obere Grenze des Bereichs (ohne Angabe nur die Untergrenze).
 
 ## QUARTILE
 
-`QUARTILE(array, quart)`
+`QUARTILE(Matrix, Quartil)`
 
-Gibt die Quartilswerte einer Zahlenreihe zurück.
+Gibt die Quartilswerte einer Reihe von Zahlen an.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `quart`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `Quartil`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
 
 ## QUARTILE.EXC
 
-`QUARTILE.EXC(array, quart)`
+`QUARTILE.EXC(Matrix, Quartil)`
 
-Gibt die Quartilswerte einer Zahlenreihe zurück, ohne die Enden.
+Gibt die Quartilswerte einer Reihe von Zahlen an, ohne die Enden.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `quart`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `Quartil`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
 
 ## QUARTILE.INC
 
-`QUARTILE.INC(array, quart)`
+`QUARTILE.INC(Matrix, Quartil)`
 
-Gibt die Quartilswerte einer Zahlenreihe zurück, vom niedrigsten bis zum höchsten Wert.
+Gibt die Quartilswerte einer Reihe von Zahlen an, vom niedrigsten bis zum höchsten Wert.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `quart`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `Quartil`: Welches Quartil: 0 kleinster Wert, 1 erstes Quartil, 2 Median, 3 drittes Quartil, 4 größter Wert.
 
 ## RANK
 
-`RANK(number, ref, [order])`
+`RANK(Zahl, Bezug, [Reihenfolge])`
 
-Gibt den Rangplatz einer Zahl in einer Liste zurück, wenn die Liste sortiert wird.
+Gibt den Platz einer Zahl in einer Liste an, wenn die Liste sortiert wird.
 
-- `number`: Die zu verarbeitende Zahl.
-- `ref`: Eine Zelle oder ein Zellbereich.
-- `order` (optional): 0 oder weggelassen setzt die größte Zahl zuerst; jede andere Zahl setzt die kleinste zuerst.
+- `Zahl`: Die zu verarbeitende Zahl.
+- `Bezug`: Eine Zelle oder ein Zellbereich.
+- `Reihenfolge` (optional): 0 oder keine Angabe setzt die größte zuerst; jede andere Zahl setzt die kleinste zuerst.
 
 ## RANK.AVG
 
-`RANK.AVG(number, ref, [order])`
+`RANK.AVG(Zahl, Bezug, [Reihenfolge])`
 
-Gibt den Rang einer Zahl in einer Liste zurück, bei Gleichstand den mittleren Rang.
+Gibt den Rang einer Zahl in einer Liste an und bei Gleichstand den mittleren Rang.
 
-- `number`: Die zu verarbeitende Zahl.
-- `ref`: Eine Zelle oder ein Zellbereich.
-- `order` (optional): 0 oder weggelassen setzt die größte Zahl zuerst; jede andere Zahl setzt die kleinste zuerst.
+- `Zahl`: Die zu verarbeitende Zahl.
+- `Bezug`: Eine Zelle oder ein Zellbereich.
+- `Reihenfolge` (optional): 0 oder keine Angabe setzt die größte zuerst; jede andere Zahl setzt die kleinste zuerst.
 
 ## RANK.EQ
 
-`RANK.EQ(number, ref, [order])`
+`RANK.EQ(Zahl, Bezug, [Reihenfolge])`
 
-Gibt den Rang einer Zahl in einer Liste zurück, bei Gleichstand den höchsten Rang.
+Gibt den Rang einer Zahl in einer Liste an und bei Gleichstand den oberen Rang.
 
-- `number`: Die zu verarbeitende Zahl.
-- `ref`: Eine Zelle oder ein Zellbereich.
-- `order` (optional): 0 oder weggelassen setzt die größte Zahl zuerst; jede andere Zahl setzt die kleinste zuerst.
+- `Zahl`: Die zu verarbeitende Zahl.
+- `Bezug`: Eine Zelle oder ein Zellbereich.
+- `Reihenfolge` (optional): 0 oder keine Angabe setzt die größte zuerst; jede andere Zahl setzt die kleinste zuerst.
 
 ## RSQ
 
-`RSQ(known_y's, known_x's)`
+`RSQ(Bekannte_y-Werte, Bekannte_x-Werte)`
 
 Gibt an, wie gut eine Gerade zwei Zahlenreihen anpasst.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
 
 ## SKEW
 
-`SKEW(number1, ...)`
+`SKEW(Zahl1, ...)`
 
-Gibt zurück, wie unsymmetrisch eine Zahlenreihe um ihren Mittelwert verteilt ist, für eine Stichprobe.
+Gibt an, wie schief eine Zahlenreihe um ihren Mittelwert verteilt ist, für eine Stichprobe.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## SKEW.P
 
-`SKEW.P(number1, ...)`
+`SKEW.P(Zahl1, ...)`
 
-Gibt zurück, wie unsymmetrisch eine Zahlenreihe um ihren Mittelwert verteilt ist, für eine ganze Grundgesamtheit.
+Gibt an, wie schief eine Zahlenreihe um ihren Mittelwert verteilt ist, für eine ganze Grundgesamtheit.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## SLOPE
 
-`SLOPE(known_y's, known_x's)`
+`SLOPE(Bekannte_y-Werte, Bekannte_x-Werte)`
 
-Gibt die Steigung der Geraden zurück, die zwei Zahlenreihen am besten anpasst.
+Gibt die Steigung der Geraden an, die zwei Zahlenreihen am besten anpasst.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
 
 ## SMALL
 
-`SMALL(array, k)`
+`SMALL(Matrix, K)`
 
-Gibt die k-kleinste Zahl einer Menge zurück.
+Gibt die k-kleinste Zahl einer Reihe an.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `k`: Welcher Rangplatz ausgegeben wird, von der kleinsten Zahl aus gezählt: 1 ist die kleinste.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `K`: Welcher Platz ausgegeben wird, vom kleinsten an gezählt: 1 ist der kleinste.
 
 ## STANDARDIZE
 
-`STANDARDIZE(x, mean, standard_dev)`
+`STANDARDIZE(x, Mittelwert, Standardabw)`
 
-Gibt zurück, wie viele Standardabweichungen ein Wert vom Mittelwert entfernt ist.
+Gibt an, wie viele Standardabweichungen ein Wert vom Mittelwert entfernt ist.
 
-- `x`: Der zu verwendende x-Wert.
-- `mean`: Der Mittelwert der Verteilung.
-- `standard_dev`: Die Standardabweichung der Verteilung.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Mittelwert`: Der Mittelwert der Verteilung.
+- `Standardabw`: Die Standardabweichung der Verteilung.
 
 ## STDEV
 
-`STDEV(number1, ...)`
+`STDEV(Zahl1, ...)`
 
 Schätzt die Streuung einer Grundgesamtheit anhand einer Stichprobe daraus.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STDEV.P
 
-`STDEV.P(number1, ...)`
+`STDEV.P(Zahl1, ...)`
 
-Gibt die Streuung einer ganzen Grundgesamtheit zurück.
+Gibt die Streuung einer ganzen Grundgesamtheit an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STDEV.S
 
-`STDEV.S(number1, ...)`
+`STDEV.S(Zahl1, ...)`
 
 Schätzt die Streuung einer Grundgesamtheit anhand einer Stichprobe daraus.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STDEVA
 
-`STDEVA(value1, ...)`
+`STDEVA(Wert1, ...)`
 
-Gibt die Standardabweichung einer Stichprobe zurück, wobei Text als 0 und WAHR als 1 gezählt wird.
+Gibt die Standardabweichung einer Stichprobe an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STDEVP
 
-`STDEVP(number1, ...)`
+`STDEVP(Zahl1, ...)`
 
-Gibt die Streuung einer ganzen Grundgesamtheit zurück.
+Gibt die Streuung einer ganzen Grundgesamtheit an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STDEVPA
 
-`STDEVPA(value1, ...)`
+`STDEVPA(Wert1, ...)`
 
-Gibt die Standardabweichung einer Grundgesamtheit zurück, wobei Text als 0 und WAHR als 1 gezählt wird.
+Gibt die Standardabweichung einer Grundgesamtheit an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## STEYX
 
-`STEYX(known_y's, known_x's)`
+`STEYX(Bekannte_y-Werte, Bekannte_x-Werte)`
 
-Gibt den Standardfehler der geschätzten y-Werte einer angepassten Geraden zurück.
+Gibt den Standardfehler der vorhergesagten y-Werte einer angepassten Geraden an.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's`: Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte`: Der Zellbereich mit den x-Werten, die Sie bereits haben.
 
 ## SUMIF
 
-`SUMIF(range, criteria, [sum_range])`
+`SUMIF(Bereich, Kriterien, [Summenbereich])`
 
 Addiert die Zellen, die eine Bedingung erfüllen.
 
-- `range`: Der zu prüfende Zellbereich.
-- `criteria`: Wonach gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `sum_range` (optional): Die Zellen, die addiert werden (wenn weggelassen, die Zellen, die geprüft werden).
+- `Bereich`: Der zu prüfende Zellbereich.
+- `Kriterien`: Wonach gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `Summenbereich` (optional): Die Zellen, die addiert werden (ohne Angabe die Zellen, die geprüft werden).
 
 ## SUMIFS
 
-`SUMIFS(sum_range, criteria_range1, criteria1, ...)`
+`SUMIFS(Summenbereich, Kriterienbereich1, Kriterien1, ...)`
 
 Addiert die Zellen, die mehrere Bedingungen erfüllen.
 
-- `sum_range`: Die Zellen, die addiert werden (wenn weggelassen, die Zellen, die geprüft werden).
-- `criteria_range1`: Der erste zu prüfende Zellbereich.
-- `criteria1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Prüfung wie ">5".
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Summenbereich`: Die Zellen, die addiert werden (ohne Angabe die Zellen, die geprüft werden).
+- `Kriterienbereich1`: Der erste zu prüfende Zellbereich.
+- `Kriterien1`: Wonach im ersten Zellbereich gesucht wird: eine Zahl, ein Text oder eine Vergleichsangabe wie ">5".
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## T.DIST
 
-`T.DIST(x, deg_freedom, cumulative)`
+`T.DIST(x, Freiheitsgrade, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der t-Verteilung nach Student an x zurück.
+Gibt den Wert oder den kumulierten Anteil der t-Verteilung nach Student an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## T.DIST.2T
 
-`T.DIST.2T(x, deg_freedom)`
+`T.DIST.2T(x, Freiheitsgrade)`
 
-Gibt den Anteil der t-Verteilung nach Student außerhalb von minus x und x zurück.
+Gibt den Anteil der t-Verteilung nach Student außerhalb von minus x und x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## T.DIST.RT
 
-`T.DIST.RT(x, deg_freedom)`
+`T.DIST.RT(x, Freiheitsgrade)`
 
-Gibt den Anteil der t-Verteilung nach Student oberhalb von x zurück.
+Gibt den Anteil der t-Verteilung nach Student oberhalb von x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## T.INV
 
-`T.INV(probability, deg_freedom)`
+`T.INV(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der t-Verteilung nach Student zurück, von links gezählt.
+Gibt den x-Wert für einen Anteil der t-Verteilung nach Student an, von links gezählt.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## T.INV.2T
 
-`T.INV.2T(probability, deg_freedom)`
+`T.INV.2T(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der t-Verteilung nach Student zurück, auf beide Enden verteilt.
+Gibt den x-Wert für einen Anteil der t-Verteilung nach Student an, aufgeteilt auf beide Enden.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## T.TEST
 
-`T.TEST(array1, array2, tails, type)`
+`T.TEST(Matrix1, Matrix2, Seiten, Typ)`
 
-Gibt die Wahrscheinlichkeit zurück, dass die Mittelwerte zweier Zahlenreihen gleich sind.
+Gibt die Wahrscheinlichkeit an, dass die Mittelwerte zweier Zahlenreihen gleich sind.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
-- `tails`: 1 für eine Seite der Kurve, 2 für beide.
-- `type`: Wann Zahlungen geleistet werden: 0 oder weggelassen am Ende jeder Periode, 1 am Anfang.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
+- `Seiten`: 1 für eine Seite der Kurve, 2 für beide.
+- `Typ`: Wann Zahlungen geleistet werden: 0 oder keine Angabe am Ende jeder Periode, 1 am Anfang.
 
 ## TDIST
 
-`TDIST(x, deg_freedom, tails)`
+`TDIST(x, Freiheitsgrade, Seiten)`
 
-Gibt den Anteil der t-Verteilung nach Student in einer Seite oder in beiden Seiten zurück.
+Gibt den Anteil der t-Verteilung nach Student in einer Seite oder in beiden an.
 
-- `x`: Der zu verwendende x-Wert.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
-- `tails`: 1 für eine Seite der Kurve, 2 für beide.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Seiten`: 1 für eine Seite der Kurve, 2 für beide.
 
 ## TINV
 
-`TINV(probability, deg_freedom)`
+`TINV(Wahrscheinlichkeit, Freiheitsgrade)`
 
-Gibt den x-Wert für einen Anteil der t-Verteilung nach Student zurück, auf beide Enden verteilt.
+Gibt den x-Wert für einen Anteil der t-Verteilung nach Student an, aufgeteilt auf beide Enden.
 
-- `probability`: Eine Wahrscheinlichkeit, von 0 bis 1.
-- `deg_freedom`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
+- `Wahrscheinlichkeit`: Eine Wahrscheinlichkeit, von 0 bis 1.
+- `Freiheitsgrade`: Die Freiheitsgrade, eine ganze Zahl von 1 oder mehr.
 
 ## TREND
 
-`TREND(known_y's, [known_x's], [new_x's], [const])`
+`TREND(Bekannte_y-Werte, [Bekannte_x-Werte], [Neue_x-Werte], [Konstante])`
 
-Gibt die Werte entlang der am besten passenden Geraden für neue x-Werte zurück.
+Gibt die Werte entlang der am besten passenden Geraden für neue x-Werte an.
 
-- `known_y's`: Der Zellbereich, der die y-Werte enthält, die Sie bereits haben.
-- `known_x's` (optional): Der Zellbereich, der die x-Werte enthält, die Sie bereits haben.
-- `new_x's` (optional): Die x-Werte, für die die y-Werte ermittelt werden (wenn weggelassen, die bekannten x-Werte).
-- `const` (optional): WAHR oder weggelassen, um eine Gerade anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
+- `Bekannte_y-Werte`: Der Zellbereich mit den y-Werten, die Sie bereits haben.
+- `Bekannte_x-Werte` (optional): Der Zellbereich mit den x-Werten, die Sie bereits haben.
+- `Neue_x-Werte` (optional): Die x-Werte, für die die y-Werte angegeben werden (ohne Angabe die bekannten x-Werte).
+- `Konstante` (optional): WAHR oder keine Angabe, um eine Linie anzupassen, die nicht durch null gehen muss; FALSCH, damit sie durch null geht.
 
 ## TRIMMEAN
 
-`TRIMMEAN(array, percent)`
+`TRIMMEAN(Matrix, Anteil)`
 
-Gibt den Mittelwert einer Zahlenreihe zurück, nachdem ein Anteil der höchsten und niedrigsten Werte entfernt wurde.
+Gibt den Mittelwert einer Reihe von Zahlen an, nachdem ein Anteil der höchsten und niedrigsten Werte entfernt wurde.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `percent`: Der Anteil der Werte, von 0 bis unter 1, der an beiden Enden weggelassen wird.
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `Anteil`: Der Anteil der Werte, von 0 bis unter 1, der an beiden Enden ausgelassen wird.
 
 ## TTEST
 
-`TTEST(array1, array2, tails, type)`
+`TTEST(Matrix1, Matrix2, Seiten, Typ)`
 
-Gibt die Wahrscheinlichkeit zurück, dass die Mittelwerte zweier Zahlenreihen gleich sind.
+Gibt die Wahrscheinlichkeit an, dass die Mittelwerte zweier Zahlenreihen gleich sind.
 
-- `array1`: Der erste Zellbereich oder die erste Werteliste.
-- `array2`: Der zweite Zellbereich oder die zweite Werteliste, genauso groß wie die erste.
-- `tails`: 1 für eine Seite der Kurve, 2 für beide.
-- `type`: Wann Zahlungen geleistet werden: 0 oder weggelassen am Ende jeder Periode, 1 am Anfang.
+- `Matrix1`: Der erste Zellbereich oder die erste Werteliste.
+- `Matrix2`: Der zweite Zellbereich oder die zweite Werteliste, in derselben Größe wie der erste.
+- `Seiten`: 1 für eine Seite der Kurve, 2 für beide.
+- `Typ`: Wann Zahlungen geleistet werden: 0 oder keine Angabe am Ende jeder Periode, 1 am Anfang.
 
 ## VAR
 
-`VAR(number1, ...)`
+`VAR(Zahl1, ...)`
 
 Schätzt die Varianz einer Grundgesamtheit anhand einer Stichprobe daraus.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## VAR.P
 
-`VAR.P(number1, ...)`
+`VAR.P(Zahl1, ...)`
 
-Gibt die Varianz einer ganzen Grundgesamtheit zurück.
+Gibt die Varianz einer ganzen Grundgesamtheit an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## VAR.S
 
-`VAR.S(number1, ...)`
+`VAR.S(Zahl1, ...)`
 
 Schätzt die Varianz einer Grundgesamtheit anhand einer Stichprobe daraus.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## VARA
 
-`VARA(value1, ...)`
+`VARA(Wert1, ...)`
 
-Gibt die Varianz einer Stichprobe zurück, wobei Text als 0 und WAHR als 1 gezählt wird.
+Gibt die Varianz einer Stichprobe an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## VARP
 
-`VARP(number1, ...)`
+`VARP(Zahl1, ...)`
 
-Gibt die Varianz einer ganzen Grundgesamtheit zurück.
+Gibt die Varianz einer ganzen Grundgesamtheit an.
 
-- `number1`: Die erste Zahl oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Zahl1`: Die erste Zahl oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## VARPA
 
-`VARPA(value1, ...)`
+`VARPA(Wert1, ...)`
 
-Gibt die Varianz einer Grundgesamtheit zurück, wobei Text als 0 und WAHR als 1 gezählt wird.
+Gibt die Varianz einer Grundgesamtheit an; Text zählt als 0 und WAHR als 1.
 
-- `value1`: Der erste Wert oder der erste Zellbereich.
-- `...`: Beliebig viele weitere derselben Art wie die davor.
+- `Wert1`: Der erste Wert oder der erste Zellbereich.
+- `...`: Beliebig viele weitere derselben Art wie das vorangehende Argument.
 
 ## WEIBULL
 
-`WEIBULL(x, alpha, beta, cumulative)`
+`WEIBULL(x, Alpha, Beta, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Weibull-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Weibull-Verteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## WEIBULL.DIST
 
-`WEIBULL.DIST(x, alpha, beta, cumulative)`
+`WEIBULL.DIST(x, Alpha, Beta, Kumuliert)`
 
-Gibt den Wert oder den kumulierten Anteil der Weibull-Kurve an x zurück.
+Gibt den Wert oder den kumulierten Anteil der Weibull-Verteilung an der Stelle x an.
 
-- `x`: Der zu verwendende x-Wert.
-- `alpha`: Die akzeptierte Irrtumswahrscheinlichkeit, etwa 0,05 für ein Konfidenzniveau von 95 Prozent.
-- `beta`: Eine Zahl, die die Form der Kurve bestimmt (bei der Gamma- und der Weibull-Kurve der Maßstab der Kurve).
-- `cumulative`: WAHR, um die laufende Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Alpha`: Die Irrtumswahrscheinlichkeit, die Sie akzeptieren, z. B. 0,05 für ein Konfidenzniveau von 95 Prozent.
+- `Beta`: Eine Zahl, die die Kurve formt (bei der Gamma- und der Weibull-Verteilung der Maßstab der Kurve).
+- `Kumuliert`: WAHR, um die Summe bis zu diesem Punkt zu erhalten; FALSCH, um nur den Wert an diesem Punkt zu erhalten.
 
 ## Z.TEST
 
-`Z.TEST(array, x, [sigma])`
+`Z.TEST(Matrix, x, [Sigma])`
 
-Gibt die einseitige Wahrscheinlichkeit zurück, dass der Mittelwert einer Stichprobe über einem Wert liegt.
+Gibt die einseitige Wahrscheinlichkeit an, dass der Mittelwert einer Stichprobe über einem Wert liegt.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `x`: Der zu verwendende x-Wert.
-- `sigma` (optional): Die Standardabweichung der gesamten Grundgesamtheit (wenn weggelassen, die der Stichprobe).
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Sigma` (optional): Die Standardabweichung der gesamten Grundgesamtheit (ohne Angabe die der Stichprobe).
 
 ## ZTEST
 
-`ZTEST(array, x, [sigma])`
+`ZTEST(Matrix, x, [Sigma])`
 
-Gibt die einseitige Wahrscheinlichkeit zurück, dass der Mittelwert einer Stichprobe über einem Wert liegt.
+Gibt die einseitige Wahrscheinlichkeit an, dass der Mittelwert einer Stichprobe über einem Wert liegt.
 
-- `array`: Ein Zellbereich oder eine in geschweiften Klammern geschriebene Werteliste.
-- `x`: Der zu verwendende x-Wert.
-- `sigma` (optional): Die Standardabweichung der gesamten Grundgesamtheit (wenn weggelassen, die der Stichprobe).
+- `Matrix`: Ein Zellbereich oder eine in geschweifte Klammern geschriebene Werteliste.
+- `x`: Der x-Wert, mit dem gerechnet wird.
+- `Sigma` (optional): Die Standardabweichung der gesamten Grundgesamtheit (ohne Angabe die der Stichprobe).

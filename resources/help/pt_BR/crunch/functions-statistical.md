@@ -1,440 +1,440 @@
 # Funções estatísticas
-<!-- keywords: funções, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST, funções estatísticas, média, desvio padrão, variância, distribuição, probabilidade, regressão -->
+<!-- keywords: funções, estatística, probabilidade, média, desvio padrão, variância, previsão, regressão, AVEDEV, AVERAGE, AVERAGEA, AVERAGEIF, AVERAGEIFS, BETA.DIST, BETA.INV, BETADIST, BETAINV, BINOM.DIST, BINOM.DIST.RANGE, BINOM.INV, BINOMDIST, CHIDIST, CHIINV, CHISQ.DIST, CHISQ.DIST.RT, CHISQ.INV, CHISQ.INV.RT, CHISQ.TEST, CHITEST, CONFIDENCE, CONFIDENCE.NORM, CONFIDENCE.T, CORREL, COUNT, COUNTA, COUNTBLANK, COUNTIF, COUNTIFS, COVAR, COVARIANCE.P, COVARIANCE.S, CRITBINOM, DEVSQ, EXPON.DIST, EXPONDIST, F.DIST, F.DIST.RT, F.INV, F.INV.RT, F.TEST, FDIST, FINV, FISHER, FISHERINV, FORECAST, FORECAST.ETS, FORECAST.ETS.CONFINT, FORECAST.ETS.SEASONALITY, FORECAST.ETS.STAT, FORECAST.LINEAR, FREQUENCY, FTEST, GAMMA, GAMMA.DIST, GAMMA.INV, GAMMADIST, GAMMAINV, GAMMALN, GAMMALN.PRECISE, GAUSS, GEOMEAN, GROWTH, HARMEAN, HYPGEOM.DIST, HYPGEOMDIST, INTERCEPT, KURT, LARGE, LINEST, LOGEST, LOGINV, LOGNORM.DIST, LOGNORM.INV, LOGNORMDIST, MAXA, MAXIFS, MEDIAN, MINA, MINIFS, MODE, MODE.MULT, MODE.SNGL, NEGBINOM.DIST, NEGBINOMDIST, NORM.DIST, NORM.INV, NORM.S.DIST, NORM.S.INV, NORMDIST, NORMINV, NORMSDIST, NORMSINV, PEARSON, PERCENTILE, PERCENTILE.EXC, PERCENTILE.INC, PERCENTRANK, PERCENTRANK.EXC, PERCENTRANK.INC, PERMUTATIONA, PHI, POISSON, POISSON.DIST, PROB, QUARTILE, QUARTILE.EXC, QUARTILE.INC, RANK, RANK.AVG, RANK.EQ, RSQ, SKEW, SKEW.P, SLOPE, SMALL, STANDARDIZE, STDEV, STDEV.P, STDEV.S, STDEVA, STDEVP, STDEVPA, STEYX, SUMIF, SUMIFS, T.DIST, T.DIST.2T, T.DIST.RT, T.INV, T.INV.2T, T.TEST, TDIST, TINV, TREND, TRIMMEAN, TTEST, VAR, VAR.P, VAR.S, VARA, VARP, VARPA, WEIBULL, WEIBULL.DIST, Z.TEST, ZTEST -->
 
-Estas são as funções estatísticas que o JeffCrunch pode calcular. Cada uma mostra como é escrita, o que faz e o que é cada um de seus argumentos. Um argumento entre colchetes é opcional, e "..." significa que você pode informar quantos outros do último tipo forem necessários. Para experimentar uma delas, veja [Escolher uma função](insert-function). Enquanto você digita uma função em uma célula, uma pequena dica abaixo da célula mostra os argumentos dela, e um clique no nome da função na dica abre a sua entrada aqui.
+Estas são as funções estatísticas que o JeffCrunch pode calcular. Cada uma mostra como é escrita, o que faz e o que é cada um de seus argumentos. Um argumento entre colchetes é opcional, e "..." significa que você pode informar quantos outros forem necessários após o último. Para experimentar uma delas, veja [Escolher uma função](insert-function). Enquanto você digita uma função em uma célula, uma pequena dica aparece sob a célula mostrando os argumentos dela, e um clique no nome da função na dica abre a entrada correspondente aqui.
 
 ## AVEDEV
 
-`AVEDEV(número1, ...)`
+`AVEDEV(number1, ...)`
 
-Retorna a média dos desvios absolutos dos números em relação à média deles.
+Retorna a média das distâncias dos números em relação à média deles.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## AVERAGE
 
-`AVERAGE(número1, ...)`
+`AVERAGE(number1, ...)`
 
 Retorna a média dos números.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## AVERAGEA
 
-`AVERAGEA(valor1, ...)`
+`AVERAGEA(value1, ...)`
 
 Retorna a média dos valores, contando texto como zero e verdadeiro como um.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## AVERAGEIF
 
-`AVERAGEIF(intervalo; critérios; [intervalo_média])`
+`AVERAGEIF(range, criteria, [average_range])`
 
 Calcula a média das células que atendem a uma condição.
 
-- `intervalo`: O intervalo de células a testar.
-- `critérios`: O que procurar: um número, um texto ou um teste, como ">5".
-- `intervalo_média` (opcional): As células cuja média será calculada (as células testadas, se omitido).
+- `range`: O intervalo de células a testar.
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
+- `average_range` (opcional): As células cuja média será calculada (as células testadas, se omitido).
 
 ## AVERAGEIFS
 
-`AVERAGEIFS(intervalo_média; intervalo_critérios1; critérios1; ...)`
+`AVERAGEIFS(average_range, criteria_range1, criteria1, ...)`
 
 Calcula a média das células que atendem a várias condições.
 
-- `intervalo_média`: As células cuja média será calculada (as células testadas, se omitido).
-- `intervalo_critérios1`: O primeiro intervalo de células a testar.
-- `critérios1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
+- `average_range`: As células cuja média será calculada (as células testadas, se omitido).
+- `criteria_range1`: O primeiro intervalo de células a testar.
+- `criteria1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## BETA.DIST
 
-`BETA.DIST(x; alfa; beta; cumulativo; [A]; [B])`
+`BETA.DIST(x, alpha, beta, cumulative, [A], [B])`
 
-Retorna o valor da curva beta em x ou a proporção acumulada até x.
+Retorna o valor da curva beta em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 - `A` (opcional): O limite inferior de x (0, se omitido).
 - `B` (opcional): O limite superior de x (1, se omitido).
 
 ## BETA.INV
 
-`BETA.INV(probabilidade; alfa; beta; [A]; [B])`
+`BETA.INV(probability, alpha, beta, [A], [B])`
 
-Retorna o valor de x correspondente a uma proporção de uma curva beta.
+Retorna o valor de x para uma proporção de uma curva beta.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0, se omitido).
 - `B` (opcional): O limite superior de x (1, se omitido).
 
 ## BETADIST
 
-`BETADIST(x; alfa; beta; [A]; [B])`
+`BETADIST(x, alpha, beta, [A], [B])`
 
 Retorna a proporção acumulada da curva beta até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0, se omitido).
 - `B` (opcional): O limite superior de x (1, se omitido).
 
 ## BETAINV
 
-`BETAINV(probabilidade; alfa; beta; [A]; [B])`
+`BETAINV(probability, alpha, beta, [A], [B])`
 
-Retorna o valor de x correspondente a uma proporção de uma curva beta.
+Retorna o valor de x para uma proporção de uma curva beta.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 - `A` (opcional): O limite inferior de x (0, se omitido).
 - `B` (opcional): O limite superior de x (1, se omitido).
 
 ## BINOM.DIST
 
-`BINOM.DIST(núm_sucessos; tentativas; probabilidade_sucesso; cumulativo)`
+`BINOM.DIST(number_s, trials, probability_s, cumulative)`
 
 Retorna a chance de um número de sucessos em um número de tentativas.
 
-- `núm_sucessos`: O número de sucessos.
-- `tentativas`: O número de tentativas.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `number_s`: O número de sucessos.
+- `trials`: O número de tentativas.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## BINOM.DIST.RANGE
 
-`BINOM.DIST.RANGE(tentativas; probabilidade_sucesso; núm_sucessos; [núm_sucessos2])`
+`BINOM.DIST.RANGE(trials, probability_s, number_s, [number_s2])`
 
 Retorna a chance de os sucessos caírem em um intervalo.
 
-- `tentativas`: O número de tentativas.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `núm_sucessos`: O número de sucessos.
-- `núm_sucessos2` (opcional): O maior número de sucessos a contar (igual ao menor, se omitido).
+- `trials`: O número de tentativas.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `number_s`: O número de sucessos.
+- `number_s2` (opcional): O maior número de sucessos a contar (o mesmo que o menor, se omitido).
 
 ## BINOM.INV
 
-`BINOM.INV(tentativas; probabilidade_sucesso; alfa)`
+`BINOM.INV(trials, probability_s, alpha)`
 
 Retorna o menor número de sucessos cuja chance acumulada atinge um valor.
 
-- `tentativas`: O número de tentativas.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `trials`: O número de tentativas.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 
 ## BINOMDIST
 
-`BINOMDIST(núm_sucessos; tentativas; probabilidade_sucesso; cumulativo)`
+`BINOMDIST(number_s, trials, probability_s, cumulative)`
 
 Retorna a chance de um número de sucessos em um número de tentativas.
 
-- `núm_sucessos`: O número de sucessos.
-- `tentativas`: O número de tentativas.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `number_s`: O número de sucessos.
+- `trials`: O número de tentativas.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## CHIDIST
 
-`CHIDIST(x; gl)`
+`CHIDIST(x, deg_freedom)`
 
 Retorna a proporção da curva qui-quadrado acima de x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## CHIINV
 
-`CHIINV(probabilidade; gl)`
+`CHIINV(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva qui-quadrado, contada a partir da direita.
+Retorna o valor de x para uma proporção da curva qui-quadrado, contada a partir da direita.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## CHISQ.DIST
 
-`CHISQ.DIST(x; gl; cumulativo)`
+`CHISQ.DIST(x, deg_freedom, cumulative)`
 
-Retorna o valor da curva qui-quadrado em x ou a proporção acumulada até x.
+Retorna o valor da curva qui-quadrado em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## CHISQ.DIST.RT
 
-`CHISQ.DIST.RT(x; gl)`
+`CHISQ.DIST.RT(x, deg_freedom)`
 
 Retorna a proporção da curva qui-quadrado acima de x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## CHISQ.INV
 
-`CHISQ.INV(probabilidade; gl)`
+`CHISQ.INV(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva qui-quadrado, contada a partir da esquerda.
+Retorna o valor de x para uma proporção da curva qui-quadrado, contada a partir da esquerda.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## CHISQ.INV.RT
 
-`CHISQ.INV.RT(probabilidade; gl)`
+`CHISQ.INV.RT(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva qui-quadrado, contada a partir da direita.
+Retorna o valor de x para uma proporção da curva qui-quadrado, contada a partir da direita.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## CHISQ.TEST
 
-`CHISQ.TEST(intervalo_real; intervalo_esperado)`
+`CHISQ.TEST(actual_range, expected_range)`
 
 Retorna a chance de as contagens diferirem das contagens esperadas apenas por acaso.
 
-- `intervalo_real`: O intervalo de células com as contagens obtidas.
-- `intervalo_esperado`: O intervalo de células com as contagens esperadas, do mesmo tamanho das contagens obtidas.
+- `actual_range`: O intervalo de células com as contagens obtidas.
+- `expected_range`: O intervalo de células com as contagens esperadas, do mesmo tamanho das contagens obtidas.
 
 ## CHITEST
 
-`CHITEST(intervalo_real; intervalo_esperado)`
+`CHITEST(actual_range, expected_range)`
 
 Retorna a chance de as contagens diferirem das contagens esperadas apenas por acaso.
 
-- `intervalo_real`: O intervalo de células com as contagens obtidas.
-- `intervalo_esperado`: O intervalo de células com as contagens esperadas, do mesmo tamanho das contagens obtidas.
+- `actual_range`: O intervalo de células com as contagens obtidas.
+- `expected_range`: O intervalo de células com as contagens esperadas, do mesmo tamanho das contagens obtidas.
 
 ## CONFIDENCE
 
-`CONFIDENCE(alfa; desv_padrão; tamanho)`
+`CONFIDENCE(alpha, standard_dev, size)`
 
 Retorna a margem de um intervalo de confiança para uma média, usando a curva normal.
 
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `tamanho`: O tamanho da amostra, um número inteiro igual ou maior que 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `standard_dev`: O desvio padrão da distribuição.
+- `size`: O tamanho da amostra, um número inteiro de 1 ou mais.
 
 ## CONFIDENCE.NORM
 
-`CONFIDENCE.NORM(alfa; desv_padrão; tamanho)`
+`CONFIDENCE.NORM(alpha, standard_dev, size)`
 
 Retorna a margem de um intervalo de confiança para uma média, usando a curva normal.
 
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `tamanho`: O tamanho da amostra, um número inteiro igual ou maior que 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `standard_dev`: O desvio padrão da distribuição.
+- `size`: O tamanho da amostra, um número inteiro de 1 ou mais.
 
 ## CONFIDENCE.T
 
-`CONFIDENCE.T(alfa; desv_padrão; tamanho)`
+`CONFIDENCE.T(alpha, standard_dev, size)`
 
 Retorna a margem de um intervalo de confiança para uma média, usando a curva t de Student.
 
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `tamanho`: O tamanho da amostra, um número inteiro igual ou maior que 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `standard_dev`: O desvio padrão da distribuição.
+- `size`: O tamanho da amostra, um número inteiro de 1 ou mais.
 
 ## CORREL
 
-`CORREL(matriz1; matriz2)`
+`CORREL(array1, array2)`
 
 Retorna o quanto dois conjuntos de números variam juntos, de -1 a 1.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## COUNT
 
-`COUNT(valor1; ...)`
+`COUNT(value1, ...)`
 
 Conta os números em uma lista ou em um intervalo de células.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## COUNTA
 
-`COUNTA(valor1; ...)`
+`COUNTA(value1, ...)`
 
 Conta as células que não estão vazias.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## COUNTBLANK
 
-`COUNTBLANK(intervalo)`
+`COUNTBLANK(range)`
 
-Conta as células vazias de um intervalo.
+Conta as células vazias em um intervalo.
 
-- `intervalo`: O intervalo de células a testar.
+- `range`: O intervalo de células a testar.
 
 ## COUNTIF
 
-`COUNTIF(intervalo; critérios)`
+`COUNTIF(range, criteria)`
 
 Conta as células que atendem a uma condição.
 
-- `intervalo`: O intervalo de células a testar.
-- `critérios`: O que procurar: um número, um texto ou um teste, como ">5".
+- `range`: O intervalo de células a testar.
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
 
 ## COUNTIFS
 
-`COUNTIFS(intervalo_critérios1; critérios1; ...)`
+`COUNTIFS(criteria_range1, criteria1, ...)`
 
 Conta as linhas em que várias condições são todas atendidas.
 
-- `intervalo_critérios1`: O primeiro intervalo de células a testar.
-- `critérios1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
+- `criteria_range1`: O primeiro intervalo de células a testar.
+- `criteria1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## COVAR
 
-`COVAR(matriz1; matriz2)`
+`COVAR(array1, array2)`
 
 Retorna o quanto dois conjuntos de números variam juntos.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## COVARIANCE.P
 
-`COVARIANCE.P(matriz1; matriz2)`
+`COVARIANCE.P(array1, array2)`
 
 Retorna o quanto dois conjuntos de números variam juntos, para uma população.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## COVARIANCE.S
 
-`COVARIANCE.S(matriz1; matriz2)`
+`COVARIANCE.S(array1, array2)`
 
 Retorna o quanto dois conjuntos de números variam juntos, para uma amostra.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## CRITBINOM
 
-`CRITBINOM(tentativas; probabilidade_sucesso; alfa)`
+`CRITBINOM(trials, probability_s, alpha)`
 
 Retorna o menor número de sucessos cuja chance acumulada atinge um valor.
 
-- `tentativas`: O número de tentativas.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `trials`: O número de tentativas.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 
 ## DEVSQ
 
-`DEVSQ(número1; ...)`
+`DEVSQ(number1, ...)`
 
-Retorna a soma dos quadrados dos desvios dos números em relação à média deles.
+Retorna a soma dos quadrados das distâncias dos números em relação à média deles.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## EXPON.DIST
 
-`EXPON.DIST(x; lambda; cumulativo)`
+`EXPON.DIST(x, lambda, cumulative)`
 
-Retorna o valor da curva exponencial em x ou a proporção acumulada até x.
+Retorna o valor da curva exponencial em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 - `lambda`: A taxa da curva, maior que 0.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## EXPONDIST
 
-`EXPONDIST(x; lambda; cumulativo)`
+`EXPONDIST(x, lambda, cumulative)`
 
-Retorna o valor da curva exponencial em x ou a proporção acumulada até x.
+Retorna o valor da curva exponencial em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 - `lambda`: A taxa da curva, maior que 0.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## F.DIST
 
-`F.DIST(x; gl1; gl2; cumulativo)`
+`F.DIST(x, deg_freedom1, deg_freedom2, cumulative)`
 
-Retorna o valor da curva F em x ou a proporção acumulada até x.
+Retorna o valor da curva F em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## F.DIST.RT
 
-`F.DIST.RT(x; gl1; gl2)`
+`F.DIST.RT(x, deg_freedom1, deg_freedom2)`
 
 Retorna a proporção da curva F acima de x.
 
-- `x`: O valor de x a usar.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
 
 ## F.INV
 
-`F.INV(probabilidade; gl1; gl2)`
+`F.INV(probability, deg_freedom1, deg_freedom2)`
 
-Retorna o valor de x correspondente a uma proporção da curva F, contada a partir da esquerda.
+Retorna o valor de x para uma proporção da curva F, contada a partir da esquerda.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
 
 ## F.INV.RT
 
-`F.INV.RT(probabilidade; gl1; gl2)`
+`F.INV.RT(probability, deg_freedom1, deg_freedom2)`
 
-Retorna o valor de x correspondente a uma proporção da curva F, contada a partir da direita.
+Retorna o valor de x para uma proporção da curva F, contada a partir da direita.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
 
 ## F.TEST
 
-`F.TEST(matriz1; matriz2)`
+`F.TEST(array1, array2)`
 
 Retorna a chance de dois conjuntos de números terem a mesma variância.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## FDIST
 
-`FDIST(x; gl1; gl2)`
+`FDIST(x, deg_freedom1, deg_freedom2)`
 
 Retorna a proporção da curva F acima de x.
 
-- `x`: O valor de x a usar.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
 
 ## FINV
 
-`FINV(probabilidade; gl1; gl2)`
+`FINV(probability, deg_freedom1, deg_freedom2)`
 
-Retorna o valor de x correspondente a uma proporção da curva F, contada a partir da direita.
+Retorna o valor de x para uma proporção da curva F, contada a partir da direita.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl1`: Os graus de liberdade do numerador, um número inteiro igual ou maior que 1.
-- `gl2`: Os graus de liberdade do denominador, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom1`: Os graus de liberdade do numerador, um número inteiro de 1 ou mais.
+- `deg_freedom2`: Os graus de liberdade do denominador, um número inteiro de 1 ou mais.
 
 ## FISHER
 
@@ -442,7 +442,7 @@ Retorna o valor de x correspondente a uma proporção da curva F, contada a part
 
 Retorna a transformação de Fisher de um número entre -1 e 1.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 
 ## FISHERINV
 
@@ -454,41 +454,76 @@ Retorna a inversa da transformação de Fisher.
 
 ## FORECAST
 
-`FORECAST(x; valores_conhecidos_y; valores_conhecidos_x)`
+`FORECAST(x, known_y's, known_x's)`
 
-Prevê um valor ao longo da reta de melhor ajuste.
+Prevê um valor ao longo da reta que melhor se ajusta aos dados.
 
-- `x`: O valor de x para o qual será previsto um valor de y.
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `x`: O valor de x para o qual prever um valor de y.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
+
+## FORECAST.ETS
+
+`FORECAST.ETS(target_date, values, timeline, [seasonality], [data_completion], [aggregation])`
+
+Prevê um valor futuro de uma série que tem tendência e sazonalidade, por suavização exponencial.
+
+- `target_date`: O momento para o qual prever um valor.
+- `values`: Os valores que você já tem.
+- `timeline`: As datas ou números dos valores, espaçados igualmente.
+- `seasonality`: 1 para descobrir a sazonalidade a partir dos valores, 0 para nenhuma, ou a duração da sazonalidade.
+- `data_completion`: 1 para preencher um ponto ausente com uma reta entre os vizinhos, 0 para preenchê-lo com zero.
+- `aggregation`: Como os valores no mesmo momento são combinados: 1 média, 2 contagem, 3 CONTARA, 4 máx, 5 mediana, 6 mín, 7 soma.
+
+## FORECAST.ETS.CONFINT
+
+`FORECAST.ETS.CONFINT(target_date, values, timeline, [confidence_level], [seasonality], [data_completion], [aggregation])`
+
+Retorna o quanto acima e abaixo de uma previsão suavizada o valor provavelmente estará.
+
+- `confidence_level`: Um número maior que 0 e menor que 1; 0,95, se omitido.
+
+## FORECAST.ETS.SEASONALITY
+
+`FORECAST.ETS.SEASONALITY(values, timeline, [data_completion], [aggregation])`
+
+Retorna a duração da sazonalidade que se repete em uma série, ou 1 se não houver nenhuma.
+
+## FORECAST.ETS.STAT
+
+`FORECAST.ETS.STAT(values, timeline, statistic_type, [seasonality], [data_completion], [aggregation])`
+
+Retorna uma das constantes de suavização ou medidas de ajuste de uma previsão suavizada.
+
+- `statistic_type`: 1 Alfa, 2 Beta, 3 Gama, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 o passo da linha do tempo.
 
 ## FORECAST.LINEAR
 
-`FORECAST.LINEAR(x; valores_conhecidos_y; valores_conhecidos_x)`
+`FORECAST.LINEAR(x, known_y's, known_x's)`
 
-Prevê um valor ao longo da reta de melhor ajuste.
+Prevê um valor ao longo da reta que melhor se ajusta aos dados.
 
-- `x`: O valor de x a usar.
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `x`: O valor de x com o qual trabalhar.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
 
 ## FREQUENCY
 
-`FREQUENCY(matriz_dados; matriz_bins)`
+`FREQUENCY(data_array, bins_array)`
 
-Conta quantos valores caem em cada intervalo e retorna as contagens em uma coluna.
+Conta quantos valores caem em cada intervalo e retorna as contagens como uma coluna.
 
-- `matriz_dados`: O intervalo de células com os valores a contar.
-- `matriz_bins`: O intervalo de células com os limites dos intervalos em que a contagem será feita.
+- `data_array`: O intervalo de células com os valores a contar.
+- `bins_array`: O intervalo de células com os limites dos intervalos em que contar.
 
 ## FTEST
 
-`FTEST(matriz1; matriz2)`
+`FTEST(array1, array2)`
 
 Retorna a chance de dois conjuntos de números terem a mesma variância.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## GAMMA
 
@@ -496,48 +531,48 @@ Retorna a chance de dois conjuntos de números terem a mesma variância.
 
 Retorna a função gama de um número.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 
 ## GAMMA.DIST
 
-`GAMMA.DIST(x; alfa; beta; cumulativo)`
+`GAMMA.DIST(x, alpha, beta, cumulative)`
 
-Retorna o valor da curva gama em x ou a proporção acumulada até x.
+Retorna o valor da curva gama em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## GAMMA.INV
 
-`GAMMA.INV(probabilidade; alfa; beta)`
+`GAMMA.INV(probability, alpha, beta)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva gama.
+Retorna o valor de x para uma proporção de uma curva gama.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 
 ## GAMMADIST
 
-`GAMMADIST(x; alfa; beta; cumulativo)`
+`GAMMADIST(x, alpha, beta, cumulative)`
 
-Retorna o valor da curva gama em x ou a proporção acumulada até x.
+Retorna o valor da curva gama em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## GAMMAINV
 
-`GAMMAINV(probabilidade; alfa; beta)`
+`GAMMAINV(probability, alpha, beta)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva gama.
+Retorna o valor de x para uma proporção de uma curva gama.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
 
 ## GAMMALN
@@ -546,7 +581,7 @@ Retorna o valor de x correspondente a uma proporção de uma curva gama.
 
 Retorna o logaritmo natural da função gama.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 
 ## GAMMALN.PRECISE
 
@@ -554,7 +589,7 @@ Retorna o logaritmo natural da função gama.
 
 Retorna o logaritmo natural da função gama.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 
 ## GAUSS
 
@@ -566,301 +601,301 @@ Retorna a proporção da curva normal padrão entre a média e z.
 
 ## GEOMEAN
 
-`GEOMEAN(número1; ...)`
+`GEOMEAN(number1, ...)`
 
 Retorna a média geométrica de números positivos.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## GROWTH
 
-`GROWTH(valores_conhecidos_y; [valores_conhecidos_x]; [novos_valores_x]; [const])`
+`GROWTH(known_y's, [known_x's], [new_x's], [const])`
 
-Retorna os valores ao longo da curva exponencial de melhor ajuste para novos valores de x.
+Retorna os valores ao longo da curva exponencial que melhor se ajusta aos dados, para novos valores de x.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x` (opcional): O intervalo de células que contém os valores de x que você já tem.
-- `novos_valores_x` (opcional): Os valores de x para os quais serão retornados os valores de y (os valores de x conhecidos, se omitido).
-- `const` (opcional): Verdadeiro ou omitido para ajustar uma linha que não precisa passar por zero; falso para fazê-la passar por zero.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's` (opcional): O intervalo de células que contém os valores de x que você já tem.
+- `new_x's` (opcional): Os valores de x para os quais retornar os valores de y (os valores de x conhecidos, se omitido).
+- `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não precisa passar por zero; falso para fazê-la passar por zero.
 
 ## HARMEAN
 
-`HARMEAN(número1; ...)`
+`HARMEAN(number1, ...)`
 
 Retorna a média harmônica de números positivos.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## HYPGEOM.DIST
 
-`HYPGEOM.DIST(amostra_sucessos; núm_amostra; população_sucessos; núm_população; cumulativo)`
+`HYPGEOM.DIST(sample_s, number_sample, population_s, number_pop, cumulative)`
 
-Retorna a chance de tirar um número de sucessos sem devolver os itens.
+Retorna a chance de, ao sortear itens sem devolvê-los, obter um número de sucessos.
 
-- `amostra_sucessos`: O número de sucessos na amostra.
-- `núm_amostra`: O número de itens sorteados.
-- `população_sucessos`: O número de sucessos em toda a população.
-- `núm_população`: O número de itens em toda a população.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `sample_s`: O número de sucessos na amostra.
+- `number_sample`: O número de itens sorteados.
+- `population_s`: O número de sucessos em toda a população.
+- `number_pop`: O número de itens em toda a população.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## HYPGEOMDIST
 
-`HYPGEOMDIST(amostra_sucessos; núm_amostra; população_sucessos; núm_população)`
+`HYPGEOMDIST(sample_s, number_sample, population_s, number_pop)`
 
-Retorna a chance de tirar um número de sucessos sem devolver os itens.
+Retorna a chance de, ao sortear itens sem devolvê-los, obter um número de sucessos.
 
-- `amostra_sucessos`: O número de sucessos na amostra.
-- `núm_amostra`: O número de itens sorteados.
-- `população_sucessos`: O número de sucessos em toda a população.
-- `núm_população`: O número de itens em toda a população.
+- `sample_s`: O número de sucessos na amostra.
+- `number_sample`: O número de itens sorteados.
+- `population_s`: O número de sucessos em toda a população.
+- `number_pop`: O número de itens em toda a população.
 
 ## INTERCEPT
 
-`INTERCEPT(valores_conhecidos_y; valores_conhecidos_x)`
+`INTERCEPT(known_y's, known_x's)`
 
-Retorna o ponto em que a reta de melhor ajuste cruza o eixo vertical.
+Retorna o ponto em que a reta que melhor se ajusta aos dados cruza o eixo vertical.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
 
 ## KURT
 
-`KURT(número1; ...)`
+`KURT(number1, ...)`
 
-Retorna o quanto um conjunto de números é pontiagudo ou achatado em comparação com uma curva normal.
+Retorna o quanto um conjunto de números é pontudo ou achatado em comparação com uma curva normal.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## LARGE
 
-`LARGE(matriz; k)`
+`LARGE(array, k)`
 
 Retorna o k-ésimo maior número de um conjunto.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `k`: A posição a retornar, contando a partir do maior: 1 é o maior.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `k`: Qual posição retornar, contando a partir do maior: 1 é o maior.
 
 ## LINEST
 
-`LINEST(valores_conhecidos_y; [valores_conhecidos_x]; [const]; [estatística])`
+`LINEST(known_y's, [known_x's], [const], [stats])`
 
-Ajusta uma reta ou um plano aos dados pelo método dos mínimos quadrados e retorna os números como uma linha.
+Ajusta uma reta ou um plano aos dados pelo método dos mínimos quadrados e retorna os seus números como uma linha.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x` (opcional): O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's` (opcional): O intervalo de células que contém os valores de x que você já tem.
 - `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não precisa passar por zero; falso para fazê-la passar por zero.
-- `estatística` (opcional): Verdadeiro para retornar também mais números sobre o ajuste; falso ou omitido para retornar somente a reta.
+- `stats` (opcional): Verdadeiro para retornar também mais números sobre o ajuste; falso ou omitido para retornar somente a reta.
 
 ## LOGEST
 
-`LOGEST(valores_conhecidos_y; [valores_conhecidos_x]; [const]; [estatística])`
+`LOGEST(known_y's, [known_x's], [const], [stats])`
 
-Ajusta uma curva exponencial aos dados e retorna os números como uma linha.
+Ajusta uma curva exponencial aos dados e retorna os seus números como uma linha.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x` (opcional): O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's` (opcional): O intervalo de células que contém os valores de x que você já tem.
 - `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não precisa passar por zero; falso para fazê-la passar por zero.
-- `estatística` (opcional): Verdadeiro para retornar também mais números sobre o ajuste; falso ou omitido para retornar somente a curva.
+- `stats` (opcional): Verdadeiro para retornar também mais números sobre o ajuste; falso ou omitido para retornar somente a linha.
 
 ## LOGINV
 
-`LOGINV(probabilidade; média; desv_padrão)`
+`LOGINV(probability, mean, standard_dev)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva lognormal.
+Retorna o valor de x para uma proporção de uma curva log-normal.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## LOGNORM.DIST
 
-`LOGNORM.DIST(x; média; desv_padrão; cumulativo)`
+`LOGNORM.DIST(x, mean, standard_dev, cumulative)`
 
-Retorna o valor da curva lognormal em x ou a proporção acumulada até x.
+Retorna o valor da curva log-normal em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## LOGNORM.INV
 
-`LOGNORM.INV(probabilidade; média; desv_padrão)`
+`LOGNORM.INV(probability, mean, standard_dev)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva lognormal.
+Retorna o valor de x para uma proporção de uma curva log-normal.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## LOGNORMDIST
 
-`LOGNORMDIST(x; média; desv_padrão)`
+`LOGNORMDIST(x, mean, standard_dev)`
 
-Retorna a proporção acumulada da curva lognormal até x.
+Retorna a proporção acumulada da curva log-normal até x.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## MAXA
 
-`MAXA(valor1; ...)`
+`MAXA(value1, ...)`
 
 Retorna o maior valor, contando texto como zero e verdadeiro como um.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MAXIFS
 
-`MAXIFS(intervalo_máximo; intervalo_critérios1; critérios1; ...)`
+`MAXIFS(max_range, criteria_range1, criteria1, ...)`
 
 Retorna o maior número entre as células que atendem a várias condições.
 
-- `intervalo_máximo`: As células das quais será obtido o maior valor.
-- `intervalo_critérios1`: O primeiro intervalo de células a testar.
-- `critérios1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
+- `max_range`: As células das quais obter o maior valor.
+- `criteria_range1`: O primeiro intervalo de células a testar.
+- `criteria1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MEDIAN
 
-`MEDIAN(número1; ...)`
+`MEDIAN(number1, ...)`
 
 Retorna o número central de um conjunto.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MINA
 
-`MINA(valor1; ...)`
+`MINA(value1, ...)`
 
 Retorna o menor valor, contando texto como zero e verdadeiro como um.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MINIFS
 
-`MINIFS(intervalo_mínimo; intervalo_critérios1; critérios1; ...)`
+`MINIFS(min_range, criteria_range1, criteria1, ...)`
 
 Retorna o menor número entre as células que atendem a várias condições.
 
-- `intervalo_mínimo`: As células das quais será obtido o menor valor.
-- `intervalo_critérios1`: O primeiro intervalo de células a testar.
-- `critérios1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
+- `min_range`: As células das quais obter o menor valor.
+- `criteria_range1`: O primeiro intervalo de células a testar.
+- `criteria1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MODE
 
-`MODE(número1; ...)`
+`MODE(number1, ...)`
 
-Retorna o número que aparece com mais frequência.
+Retorna o número que mais se repete.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MODE.MULT
 
-`MODE.MULT(número1; ...)`
+`MODE.MULT(number1, ...)`
 
-Retorna uma coluna com os números que aparecem com mais frequência em um conjunto.
+Retorna uma coluna com os números que mais se repetem em um conjunto.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## MODE.SNGL
 
-`MODE.SNGL(número1; ...)`
+`MODE.SNGL(number1, ...)`
 
-Retorna o número que aparece com mais frequência em um conjunto.
+Retorna o número que mais se repete em um conjunto.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## NEGBINOM.DIST
 
-`NEGBINOM.DIST(núm_falhas; núm_sucessos; probabilidade_sucesso; cumulativo)`
+`NEGBINOM.DIST(number_f, number_s, probability_s, cumulative)`
 
-Retorna a chance de um número de falhas antes de um número de sucessos.
+Retorna a chance de um número de falhas ocorrer antes de um número de sucessos.
 
-- `núm_falhas`: O número de falhas.
-- `núm_sucessos`: O número de sucessos.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `number_f`: O número de falhas.
+- `number_s`: O número de sucessos.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## NEGBINOMDIST
 
-`NEGBINOMDIST(núm_falhas; núm_sucessos; probabilidade_sucesso)`
+`NEGBINOMDIST(number_f, number_s, probability_s)`
 
-Retorna a chance de um número de falhas antes de um número de sucessos.
+Retorna a chance de um número de falhas ocorrer antes de um número de sucessos.
 
-- `núm_falhas`: O número de falhas.
-- `núm_sucessos`: O número de sucessos.
-- `probabilidade_sucesso`: A chance de sucesso em cada tentativa, de 0 a 1.
+- `number_f`: O número de falhas.
+- `number_s`: O número de sucessos.
+- `probability_s`: A chance de sucesso em cada tentativa, de 0 a 1.
 
 ## NORM.DIST
 
-`NORM.DIST(x; média; desv_padrão; cumulativo)`
+`NORM.DIST(x, mean, standard_dev, cumulative)`
 
-Retorna o valor da curva normal em x ou a proporção acumulada até x.
+Retorna o valor da curva normal em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## NORM.INV
 
-`NORM.INV(probabilidade; média; desv_padrão)`
+`NORM.INV(probability, mean, standard_dev)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva normal.
+Retorna o valor de x para uma proporção de uma curva normal.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## NORM.S.DIST
 
-`NORM.S.DIST(z; cumulativo)`
+`NORM.S.DIST(z, cumulative)`
 
-Retorna o valor da curva normal padrão em z ou a proporção acumulada até z.
+Retorna o valor da curva normal padrão em z, ou a proporção acumulada até z.
 
 - `z`: O valor de z.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## NORM.S.INV
 
-`NORM.S.INV(probabilidade)`
+`NORM.S.INV(probability)`
 
-Retorna o valor de z correspondente a uma proporção da curva normal padrão.
+Retorna o valor de z para uma proporção da curva normal padrão.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
+- `probability`: Uma probabilidade, de 0 a 1.
 
 ## NORMDIST
 
-`NORMDIST(x; média; desv_padrão; cumulativo)`
+`NORMDIST(x, mean, standard_dev, cumulative)`
 
-Retorna o valor da curva normal em x ou a proporção acumulada até x.
+Retorna o valor da curva normal em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## NORMINV
 
-`NORMINV(probabilidade; média; desv_padrão)`
+`NORMINV(probability, mean, standard_dev)`
 
-Retorna o valor de x correspondente a uma proporção de uma curva normal.
+Retorna o valor de x para uma proporção de uma curva normal.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## NORMSDIST
 
@@ -872,86 +907,86 @@ Retorna a proporção acumulada da curva normal padrão até z.
 
 ## NORMSINV
 
-`NORMSINV(probabilidade)`
+`NORMSINV(probability)`
 
-Retorna o valor de z correspondente a uma proporção da curva normal padrão.
+Retorna o valor de z para uma proporção da curva normal padrão.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
+- `probability`: Uma probabilidade, de 0 a 1.
 
 ## PEARSON
 
-`PEARSON(matriz1; matriz2)`
+`PEARSON(array1, array2)`
 
 Retorna o quanto dois conjuntos de números variam juntos, de -1 a 1.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
 
 ## PERCENTILE
 
-`PERCENTILE(matriz; k)`
+`PERCENTILE(array, k)`
 
 Retorna o valor abaixo do qual cai uma proporção k dos números.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `k`: A proporção dos valores, de 0 a 1, para a qual será retornado o valor.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `k`: A proporção dos valores, de 0 a 1, para a qual retornar o valor.
 
 ## PERCENTILE.EXC
 
-`PERCENTILE.EXC(matriz; k)`
+`PERCENTILE.EXC(array, k)`
 
-Retorna o valor abaixo do qual cai uma proporção k dos números, excluindo 0 e 1.
+Retorna o valor abaixo do qual cai uma proporção k dos números, sem contar 0 e 1.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
 - `k`: A posição na ordem, contando a partir de 1.
 
 ## PERCENTILE.INC
 
-`PERCENTILE.INC(matriz; k)`
+`PERCENTILE.INC(array, k)`
 
 Retorna o valor abaixo do qual cai uma proporção k dos números, de 0 a 1.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
 - `k`: A posição na ordem, contando a partir de 1.
 
 ## PERCENTRANK
 
-`PERCENTRANK(matriz; x; [precisão])`
+`PERCENTRANK(array, x, [significance])`
 
 Retorna a posição de um valor em um conjunto de números como uma proporção de 0 a 1.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `x`: O valor de x a usar.
-- `precisão` (opcional): O número cujos múltiplos serão usados no arredondamento.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `x`: O valor de x com o qual trabalhar.
+- `significance` (opcional): O número cujos múltiplos serão usados no arredondamento.
 
 ## PERCENTRANK.EXC
 
-`PERCENTRANK.EXC(matriz; x; [precisão])`
+`PERCENTRANK.EXC(array, x, [significance])`
 
-Retorna a posição de um valor em um conjunto de números como uma proporção, excluindo 0 e 1.
+Retorna a posição de um valor em um conjunto de números como uma proporção, sem contar 0 e 1.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `x`: O valor de x a usar.
-- `precisão` (opcional): O número cujos múltiplos serão usados no arredondamento.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `x`: O valor de x com o qual trabalhar.
+- `significance` (opcional): O número cujos múltiplos serão usados no arredondamento.
 
 ## PERCENTRANK.INC
 
-`PERCENTRANK.INC(matriz; x; [precisão])`
+`PERCENTRANK.INC(array, x, [significance])`
 
 Retorna a posição de um valor em um conjunto de números como uma proporção de 0 a 1.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `x`: O valor de x a usar.
-- `precisão` (opcional): O número cujos múltiplos serão usados no arredondamento.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `x`: O valor de x com o qual trabalhar.
+- `significance` (opcional): O número cujos múltiplos serão usados no arredondamento.
 
 ## PERMUTATIONA
 
-`PERMUTATIONA(número; número_escolhido)`
+`PERMUTATIONA(number, number_chosen)`
 
 Retorna o número de escolhas ordenadas quando um item pode ser escolhido mais de uma vez.
 
-- `número`: O número a ser processado.
-- `número_escolhido`: Quantos itens escolher em cada grupo.
+- `number`: O número com o qual trabalhar.
+- `number_chosen`: Quantos itens escolher em cada grupo.
 
 ## PHI
 
@@ -959,434 +994,434 @@ Retorna o número de escolhas ordenadas quando um item pode ser escolhido mais d
 
 Retorna a altura da curva normal padrão em x.
 
-- `x`: O valor de x a usar.
+- `x`: O valor de x com o qual trabalhar.
 
 ## POISSON
 
-`POISSON(x; média; cumulativo)`
+`POISSON(x, mean, cumulative)`
 
-Retorna a chance de um número de eventos, a partir de quantos se espera.
+Retorna a chance de um número de eventos, a partir de quantos são esperados.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## POISSON.DIST
 
-`POISSON.DIST(x; média; cumulativo)`
+`POISSON.DIST(x, mean, cumulative)`
 
-Retorna a chance de um número de eventos, a partir de quantos se espera.
+Retorna a chance de um número de eventos, a partir de quantos são esperados.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## PROB
 
-`PROB(intervalo_x; intervalo_prob; limite_inferior; [limite_superior])`
+`PROB(x_range, prob_range, lower_limit, [upper_limit])`
 
 Retorna a chance de os valores caírem entre dois limites.
 
-- `intervalo_x`: O intervalo de células com os valores de x.
-- `intervalo_prob`: As chances correspondentes a cada valor de x, cada uma de 0 a 1, com soma igual a 1.
-- `limite_inferior`: O limite inferior do intervalo.
-- `limite_superior` (opcional): O limite superior do intervalo (somente o limite inferior, se omitido).
+- `x_range`: O intervalo de células com os valores de x.
+- `prob_range`: As chances correspondentes a cada valor de x, cada uma de 0 a 1, cuja soma é 1.
+- `lower_limit`: O limite inferior do intervalo.
+- `upper_limit` (opcional): O limite superior do intervalo (somente o limite inferior, se omitido).
 
 ## QUARTILE
 
-`QUARTILE(matriz; quarto)`
+`QUARTILE(array, quart)`
 
 Retorna os pontos de quartil de um conjunto de números.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `quarto`: Qual quartil: 0 o menor, 1 o primeiro quarto, 2 a mediana, 3 o terceiro quarto, 4 o maior.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `quart`: Qual quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## QUARTILE.EXC
 
-`QUARTILE.EXC(matriz; quarto)`
+`QUARTILE.EXC(array, quart)`
 
-Retorna os pontos de quartil de um conjunto de números, sem considerar as extremidades.
+Retorna os pontos de quartil de um conjunto de números, sem contar as extremidades.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `quarto`: Qual quartil: 0 o menor, 1 o primeiro quarto, 2 a mediana, 3 o terceiro quarto, 4 o maior.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `quart`: Qual quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## QUARTILE.INC
 
-`QUARTILE.INC(matriz; quarto)`
+`QUARTILE.INC(array, quart)`
 
 Retorna os pontos de quartil de um conjunto de números, do menor ao maior.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `quarto`: Qual quartil: 0 o menor, 1 o primeiro quarto, 2 a mediana, 3 o terceiro quarto, 4 o maior.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `quart`: Qual quartil: 0 o menor, 1 o primeiro quartil, 2 a mediana, 3 o terceiro quartil, 4 o maior.
 
 ## RANK
 
-`RANK(número; ref; [ordem])`
+`RANK(number, ref, [order])`
 
-Retorna a posição de um número em uma lista quando a lista é ordenada.
+Retorna a posição de um número em uma lista quando a lista é colocada em ordem.
 
-- `número`: O número a ser processado.
+- `number`: O número com o qual trabalhar.
 - `ref`: Uma célula ou intervalo de células.
-- `ordem` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
 
 ## RANK.AVG
 
-`RANK.AVG(número; ref; [ordem])`
+`RANK.AVG(number, ref, [order])`
 
-Retorna a posição de um número em uma lista e a média das posições quando há empates.
+Retorna a posição de um número em uma lista, e a posição média quando há empates.
 
-- `número`: O número a ser processado.
+- `number`: O número com o qual trabalhar.
 - `ref`: Uma célula ou intervalo de células.
-- `ordem` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
 
 ## RANK.EQ
 
-`RANK.EQ(número; ref; [ordem])`
+`RANK.EQ(number, ref, [order])`
 
-Retorna a posição de um número em uma lista e a melhor posição quando há empates.
+Retorna a posição de um número em uma lista, e a posição mais alta quando há empates.
 
-- `número`: O número a ser processado.
+- `number`: O número com o qual trabalhar.
 - `ref`: Uma célula ou intervalo de células.
-- `ordem` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
+- `order` (opcional): 0 ou omitido coloca o maior primeiro; qualquer outro número coloca o menor primeiro.
 
 ## RSQ
 
-`RSQ(valores_conhecidos_y; valores_conhecidos_x)`
+`RSQ(known_y's, known_x's)`
 
-Retorna o quanto uma reta se ajusta bem a dois conjuntos de números.
+Retorna o quanto bem uma reta se ajusta a dois conjuntos de números.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
 
 ## SKEW
 
-`SKEW(número1; ...)`
+`SKEW(number1, ...)`
 
 Retorna o quanto um conjunto de números é assimétrico em torno da média, para uma amostra.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## SKEW.P
 
-`SKEW.P(número1; ...)`
+`SKEW.P(number1, ...)`
 
 Retorna o quanto um conjunto de números é assimétrico em torno da média, para uma população inteira.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## SLOPE
 
-`SLOPE(valores_conhecidos_y; valores_conhecidos_x)`
+`SLOPE(known_y's, known_x's)`
 
 Retorna a inclinação da reta que melhor se ajusta a dois conjuntos de números.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
 
 ## SMALL
 
-`SMALL(matriz; k)`
+`SMALL(array, k)`
 
 Retorna o k-ésimo menor número de um conjunto.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `k`: A posição a retornar, contando a partir do menor: 1 é o menor.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `k`: Qual posição retornar, contando a partir do menor: 1 é o menor.
 
 ## STANDARDIZE
 
-`STANDARDIZE(x; média; desv_padrão)`
+`STANDARDIZE(x, mean, standard_dev)`
 
 Retorna a quantos desvios padrão um valor está da média.
 
-- `x`: O valor de x a usar.
-- `média`: A média da distribuição.
-- `desv_padrão`: O desvio padrão da distribuição.
+- `x`: O valor de x com o qual trabalhar.
+- `mean`: A média da distribuição.
+- `standard_dev`: O desvio padrão da distribuição.
 
 ## STDEV
 
-`STDEV(número1; ...)`
+`STDEV(number1, ...)`
 
 Estima a dispersão de um grupo inteiro a partir de uma amostra dele.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STDEV.P
 
-`STDEV.P(número1; ...)`
+`STDEV.P(number1, ...)`
 
 Retorna a dispersão de um grupo inteiro.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STDEV.S
 
-`STDEV.S(número1; ...)`
+`STDEV.S(number1, ...)`
 
 Estima a dispersão de um grupo inteiro a partir de uma amostra dele.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STDEVA
 
-`STDEVA(valor1; ...)`
+`STDEVA(value1, ...)`
 
 Retorna o desvio padrão de uma amostra, contando texto como 0 e verdadeiro como 1.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STDEVP
 
-`STDEVP(número1; ...)`
+`STDEVP(number1, ...)`
 
 Retorna a dispersão de um grupo inteiro.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STDEVPA
 
-`STDEVPA(valor1; ...)`
+`STDEVPA(value1, ...)`
 
 Retorna o desvio padrão de uma população, contando texto como 0 e verdadeiro como 1.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## STEYX
 
-`STEYX(valores_conhecidos_y; valores_conhecidos_x)`
+`STEYX(known_y's, known_x's)`
 
-Retorna o erro padrão dos valores de y previstos pela reta ajustada.
+Retorna o erro padrão dos valores de y previstos por uma reta ajustada.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x`: O intervalo de células que contém os valores de x que você já tem.
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's`: O intervalo de células que contém os valores de x que você já tem.
 
 ## SUMIF
 
-`SUMIF(intervalo; critérios; [intervalo_soma])`
+`SUMIF(range, criteria, [sum_range])`
 
 Soma as células que atendem a uma condição.
 
-- `intervalo`: O intervalo de células a testar.
-- `critérios`: O que procurar: um número, um texto ou um teste, como ">5".
-- `intervalo_soma` (opcional): As células a somar (as células testadas, se omitido).
+- `range`: O intervalo de células a testar.
+- `criteria`: O que procurar: um número, um texto ou um teste, como ">5".
+- `sum_range` (opcional): As células a somar (as células testadas, se omitido).
 
 ## SUMIFS
 
-`SUMIFS(intervalo_soma; intervalo_critérios1; critérios1; ...)`
+`SUMIFS(sum_range, criteria_range1, criteria1, ...)`
 
 Soma as células que atendem a várias condições.
 
-- `intervalo_soma`: As células a somar (as células testadas, se omitido).
-- `intervalo_critérios1`: O primeiro intervalo de células a testar.
-- `critérios1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
+- `sum_range`: As células a somar (as células testadas, se omitido).
+- `criteria_range1`: O primeiro intervalo de células a testar.
+- `criteria1`: O que procurar no primeiro intervalo de células: um número, um texto ou um teste, como ">5".
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## T.DIST
 
-`T.DIST(x; gl; cumulativo)`
+`T.DIST(x, deg_freedom, cumulative)`
 
-Retorna o valor da curva t de Student em x ou a proporção acumulada até x.
+Retorna o valor da curva t de Student em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## T.DIST.2T
 
-`T.DIST.2T(x; gl)`
+`T.DIST.2T(x, deg_freedom)`
 
-Retorna a proporção da curva t de Student fora do intervalo entre -x e x.
+Retorna a proporção da curva t de Student fora de -x e x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## T.DIST.RT
 
-`T.DIST.RT(x; gl)`
+`T.DIST.RT(x, deg_freedom)`
 
 Retorna a proporção da curva t de Student acima de x.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## T.INV
 
-`T.INV(probabilidade; gl)`
+`T.INV(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva t de Student, contada a partir da esquerda.
+Retorna o valor de x para uma proporção da curva t de Student, contada a partir da esquerda.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## T.INV.2T
 
-`T.INV.2T(probabilidade; gl)`
+`T.INV.2T(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva t de Student, dividida entre as duas caudas.
+Retorna o valor de x para uma proporção da curva t de Student, dividida entre as duas caudas.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## T.TEST
 
-`T.TEST(matriz1; matriz2; caudas; tipo)`
+`T.TEST(array1, array2, tails, type)`
 
 Retorna a chance de as médias de dois conjuntos de números serem iguais.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
-- `caudas`: 1 para uma cauda da curva, 2 para as duas.
-- `tipo`: Quando os pagamentos são feitos: 0 ou omitido no fim de cada período, 1 no início.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `tails`: 1 para uma cauda da curva, 2 para as duas.
+- `type`: Quando os pagamentos são feitos: 0 ou omitido no fim de cada período, 1 no início.
 
 ## TDIST
 
-`TDIST(x; gl; caudas)`
+`TDIST(x, deg_freedom, tails)`
 
 Retorna a proporção da curva t de Student em uma cauda ou nas duas.
 
-- `x`: O valor de x a usar.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
-- `caudas`: 1 para uma cauda da curva, 2 para as duas.
+- `x`: O valor de x com o qual trabalhar.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
+- `tails`: 1 para uma cauda da curva, 2 para as duas.
 
 ## TINV
 
-`TINV(probabilidade; gl)`
+`TINV(probability, deg_freedom)`
 
-Retorna o valor de x correspondente a uma proporção da curva t de Student, dividida entre as duas caudas.
+Retorna o valor de x para uma proporção da curva t de Student, dividida entre as duas caudas.
 
-- `probabilidade`: Uma probabilidade, de 0 a 1.
-- `gl`: Os graus de liberdade, um número inteiro igual ou maior que 1.
+- `probability`: Uma probabilidade, de 0 a 1.
+- `deg_freedom`: Os graus de liberdade, um número inteiro de 1 ou mais.
 
 ## TREND
 
-`TREND(valores_conhecidos_y; [valores_conhecidos_x]; [novos_valores_x]; [const])`
+`TREND(known_y's, [known_x's], [new_x's], [const])`
 
-Retorna os valores ao longo da reta de melhor ajuste para novos valores de x.
+Retorna os valores ao longo da reta que melhor se ajusta aos dados, para novos valores de x.
 
-- `valores_conhecidos_y`: O intervalo de células que contém os valores de y que você já tem.
-- `valores_conhecidos_x` (opcional): O intervalo de células que contém os valores de x que você já tem.
-- `novos_valores_x` (opcional): Os valores de x para os quais serão retornados os valores de y (os valores de x conhecidos, se omitido).
+- `known_y's`: O intervalo de células que contém os valores de y que você já tem.
+- `known_x's` (opcional): O intervalo de células que contém os valores de x que você já tem.
+- `new_x's` (opcional): Os valores de x para os quais retornar os valores de y (os valores de x conhecidos, se omitido).
 - `const` (opcional): Verdadeiro ou omitido para ajustar uma reta que não precisa passar por zero; falso para fazê-la passar por zero.
 
 ## TRIMMEAN
 
-`TRIMMEAN(matriz; percentual)`
+`TRIMMEAN(array, percent)`
 
-Retorna a média de um conjunto de números depois de descartar uma proporção dos valores mais altos e mais baixos.
+Retorna a média de um conjunto de números depois de descartar uma proporção dos valores mais altos e dos mais baixos.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `percentual`: A proporção dos valores, de 0 até menos de 1, a excluir nas duas extremidades.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `percent`: A proporção dos valores, de 0 até menos de 1, a deixar de fora nas duas extremidades.
 
 ## TTEST
 
-`TTEST(matriz1; matriz2; caudas; tipo)`
+`TTEST(array1, array2, tails, type)`
 
 Retorna a chance de as médias de dois conjuntos de números serem iguais.
 
-- `matriz1`: O primeiro intervalo de células ou lista de valores.
-- `matriz2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
-- `caudas`: 1 para uma cauda da curva, 2 para as duas.
-- `tipo`: Quando os pagamentos são feitos: 0 ou omitido no fim de cada período, 1 no início.
+- `array1`: O primeiro intervalo de células ou lista de valores.
+- `array2`: O segundo intervalo de células ou lista de valores, do mesmo tamanho do primeiro.
+- `tails`: 1 para uma cauda da curva, 2 para as duas.
+- `type`: Quando os pagamentos são feitos: 0 ou omitido no fim de cada período, 1 no início.
 
 ## VAR
 
-`VAR(número1; ...)`
+`VAR(number1, ...)`
 
 Estima a variância de um grupo inteiro a partir de uma amostra dele.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## VAR.P
 
-`VAR.P(número1; ...)`
+`VAR.P(number1, ...)`
 
 Retorna a variância de um grupo inteiro.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## VAR.S
 
-`VAR.S(número1; ...)`
+`VAR.S(number1, ...)`
 
 Estima a variância de um grupo inteiro a partir de uma amostra dele.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## VARA
 
-`VARA(valor1; ...)`
+`VARA(value1, ...)`
 
 Retorna a variância de uma amostra, contando texto como 0 e verdadeiro como 1.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## VARP
 
-`VARP(número1; ...)`
+`VARP(number1, ...)`
 
 Retorna a variância de um grupo inteiro.
 
-- `número1`: O primeiro número ou intervalo de células.
+- `number1`: O primeiro número, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## VARPA
 
-`VARPA(valor1; ...)`
+`VARPA(value1, ...)`
 
 Retorna a variância de uma população, contando texto como 0 e verdadeiro como 1.
 
-- `valor1`: O primeiro valor ou intervalo de células.
+- `value1`: O primeiro valor, ou intervalo de células.
 - `...`: Quantos outros forem necessários, do mesmo tipo do anterior.
 
 ## WEIBULL
 
-`WEIBULL(x; alfa; beta; cumulativo)`
+`WEIBULL(x, alpha, beta, cumulative)`
 
-Retorna o valor da curva de Weibull em x ou a proporção acumulada até x.
+Retorna o valor da curva de Weibull em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## WEIBULL.DIST
 
-`WEIBULL.DIST(x; alfa; beta; cumulativo)`
+`WEIBULL.DIST(x, alpha, beta, cumulative)`
 
-Retorna o valor da curva de Weibull em x ou a proporção acumulada até x.
+Retorna o valor da curva de Weibull em x, ou a proporção acumulada até x.
 
-- `x`: O valor de x a usar.
-- `alfa`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
+- `x`: O valor de x com o qual trabalhar.
+- `alpha`: A chance de erro que você aceita, como 0,05 para um nível de confiança de 95 por cento.
 - `beta`: Um número que molda a curva (a escala da curva, nas curvas gama e Weibull).
-- `cumulativo`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar o valor somente neste ponto.
+- `cumulative`: Verdadeiro para retornar o total acumulado até este ponto; falso para retornar apenas o valor neste ponto.
 
 ## Z.TEST
 
-`Z.TEST(matriz; x; [sigma])`
+`Z.TEST(array, x, [sigma])`
 
-Retorna a chance unilateral de a média de uma amostra estar acima de um valor.
+Retorna a chance, em uma cauda, de a média de uma amostra estar acima de um valor.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `x`: O valor de x a usar.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `x`: O valor de x com o qual trabalhar.
 - `sigma` (opcional): O desvio padrão de toda a população (o da amostra, se omitido).
 
 ## ZTEST
 
-`ZTEST(matriz; x; [sigma])`
+`ZTEST(array, x, [sigma])`
 
-Retorna a chance unilateral de a média de uma amostra estar acima de um valor.
+Retorna a chance, em uma cauda, de a média de uma amostra estar acima de um valor.
 
-- `matriz`: Um intervalo de células ou uma lista de valores entre chaves.
-- `x`: O valor de x a usar.
+- `array`: Um intervalo de células, ou uma lista de valores escrita entre chaves.
+- `x`: O valor de x com o qual trabalhar.
 - `sigma` (opcional): O desvio padrão de toda a população (o da amostra, se omitido).

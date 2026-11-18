@@ -1,84 +1,113 @@
-# Transitions entre les diapositives
-<!-- keywords: transition, transitions, morphose, fondu, pousser, effacer, balayer, fractionner, révéler, couvrir, découvrir, zoom, couper, options d'effet, objets, mots, caractères, correspondance, paire, nom, direction, durée, défilement des diapositives, manuellement, après, automatique, minutage, appliquer partout, aperçu, étoile, enchaînement -->
+# Transitions entre diapositives
+<!-- keywords: transition, transitions, morph, fondu, poussée, balayage, fractionner, révéler, couvrir, découvrir, zoom, coupure, dissolution, stores, damier, peigne, barres aléatoires, cercle, losange, croix, coin, roue, rayons, forme, flash, flash d'information, bandes, aléatoire, options d'effet, objets, mots, caractères, correspondance, paire, nom, direction, durée, passer à la diapositive suivante, au clic, après, automatique, minutage, appliquer à toutes, aperçu, étoile -->
 
-Une **transition** est l'effet qui s'exécute lorsque le diaporama passe d'une diapositive à la suivante. Une transition appartient à la diapositive vers laquelle elle mène. Le diaporama l'exécute lorsqu'il avance vers cette diapositive.
+Une **transition** est l'effet qui se joue lorsque le diaporama passe d'une diapositive à la suivante. Une transition appartient à la diapositive dans laquelle elle entre. Le diaporama la joue lorsqu'il avance vers cette diapositive.
 
 ## Ajouter une transition
 
-1. Cliquez sur la diapositive dans le volet des diapositives.
-2. Cliquez sur l'onglet **Transitions**. Dans la galerie **Transition vers cette diapositive**, cliquez sur un effet : **Aucune**, **Morphose**, **Fondu**, **Pousser**, **Effacer**, **Fractionner**, **Révéler**, **Couvrir**, **Découvrir**, **Zoom** ou **Couper**. La miniature de la diapositive dans le volet des diapositives reçoit une petite étoile indiquant qu'elle en possède une.
-3. Cliquez sur **Transitions > Aperçu > Aperçu** pour la voir s'exécuter vers la diapositive, dans la zone de la diapositive. Appuyez sur Échap pour l'arrêter.
+1. Cliquez sur la diapositive dans le volet Diapositives.
+2. Cliquez sur l'onglet **Transitions**. Dans la galerie **Transition vers cette diapositive**, cliquez sur un effet : **Aucun**, **Morph**, **Fondu**, **Poussée**, **Balayage**, **Fractionner**, **Révéler**, **Couvrir**, **Découvrir**, **Zoom**, **Coupure**, **Dissolution**, **Stores**, **Damier**, **Peigne**, **Barres aléatoires**, **Cercle**, **Losange**, **Croix**, **Coin**, **Roue**, **Forme**, **Flash**, **Flash d'information**, **Bandes** ou **Aléatoire**. La miniature de la diapositive dans le volet Diapositives reçoit une petite étoile pour indiquer qu'elle possède une transition.
+3. Cliquez sur **Transitions > Aperçu > Aperçu** pour voir la transition jouée dans la zone de la diapositive. Appuyez sur Échap pour l'arrêter.
 
-Choisissez **Aucune** pour supprimer une transition.
+Choisissez **Aucun** pour supprimer une transition.
 
-## Choisir son déroulement
+## Régler le déroulement
 
-Cliquez sur **Options d'effet** pour afficher les choix de l'effet :
+Cliquez sur **Options d'effet** pour les choix propres à l'effet :
 
-- **Pousser**, **Effacer**, **Révéler**, **Couvrir** et **Découvrir** ont une direction : **À partir de la droite**, **À partir de la gauche**, **À partir du bas** ou **À partir du haut**.
-- **Fractionner** et **Zoom** vont vers l'extérieur (**Sortant**) ou vers l'intérieur (**Entrant**).
-- **Morphose** déplace des **Objets**, des **Mots** ou des **Caractères**. Voir ci-dessous.
-- **Fondu** et **Couper** n'ont pas de choix. L'effet Couper passe par le noir.
+- **Poussée**, **Balayage**, **Révéler**, **Couvrir** et **Découvrir** ont une direction : **Depuis la droite**, **Depuis la gauche**, **Depuis le bas** ou **Depuis le haut**.
+- **Fractionner** et **Zoom** se font **Vers l'extérieur** ou **Vers l'intérieur**.
+- **Stores**, **Damier**, **Peigne** et **Barres aléatoires** se font **Horizontalement** ou **Verticalement**.
+- **Bandes** part d'un coin : **Depuis le bas à gauche**, **Depuis le bas à droite**, **Depuis le haut à gauche** ou **Depuis le haut à droite**.
+- **Roue** propose **1 rayon**, **2 rayons**, **3 rayons**, **4 rayons** ou **8 rayons**.
+- **Forme** est un **Cercle**, un **Losange** ou une **Croix**.
+- **Morph** déplace des **Objets**, des **Mots** ou des **Caractères**. Voir ci-dessous.
+- **Fondu**, **Coupure**, **Dissolution**, **Cercle**, **Losange**, **Croix**, **Coin**, **Flash**, **Flash d'information** et **Aléatoire** n'ont aucun choix. Une coupure passe par le noir.
 
-## Morphose
+Ce que font les effets plus récents :
 
-**Morphose** déplace ce que deux diapositives ont en commun. Un **objet** est un élément d'une diapositive : une forme, une image, une zone de texte, un trait ou un tableau. Le diaporama passe d'une diapositive à la suivante. Chaque objet présent sur les deux diapositives glisse de sa position sur la première diapositive vers sa position sur la seconde. En chemin, il s'agrandit ou rétrécit, pivote et change de couleur. Un objet présent uniquement sur la première diapositive disparaît en fondu. Un objet présent uniquement sur la seconde apparaît en fondu.
+- **Dissolution** : de minuscules blocs de la nouvelle diapositive apparaissent partout sur l'ancienne, un à un.
+- **Stores** : la diapositive est découpée en six bandes, et la nouvelle diapositive s'ouvre dans chaque bande comme des lames de store.
+- **Damier** : la diapositive devient un damier, et la nouvelle diapositive remplit d'abord les carrés d'une couleur, puis ceux de l'autre.
+- **Peigne** : des bandes de la nouvelle diapositive glissent en alternance depuis des côtés opposés.
+- **Barres aléatoires** : de fines barres de la nouvelle diapositive apparaissent dans un ordre qui semble aléatoire.
+- **Cercle**, **Losange**, **Croix** et **Forme** : la nouvelle diapositive apparaît à travers une forme qui grandit depuis le centre.
+- **Coin** : la nouvelle diapositive s'ouvre depuis le haut, vers les deux côtés.
+- **Roue** : la nouvelle diapositive balaie l'écran dans le sens horaire, comme les aiguilles d'une horloge, avec 1, 2, 3, 4 ou 8 rayons à la fois.
+- **Flash** : la diapositive passe au blanc, et la nouvelle diapositive en émerge.
+- **Flash d'information** : la nouvelle diapositive tourne en grandissant depuis une petite taille par-dessus l'ancienne.
+- **Bandes** : des marches en diagonale de la nouvelle diapositive remplissent la diapositive depuis un coin.
+- **Aléatoire** : le diaporama choisit l'un de ces effets chaque fois qu'il joue la transition.
 
-Pour créer une morphose :
+Certains de ces effets existent dans le format de fichier d'une présentation réalisée ailleurs, et d'autres dans le format de document ouvert. Dans une présentation au format de document ouvert, JeffDeck conserve la transition choisie, et les autres programmes affichent l'effet le plus proche qu'ils possèdent. Ils les affichent différemment :
 
-1. Cliquez avec le bouton droit sur une diapositive dans le volet des diapositives et choisissez **Dupliquer la diapositive**. La copie contient les mêmes objets.
+- **Croix** est affiché sous la forme de quatre cases qui grandissent depuis le centre.
+- **Peigne** est affiché sous la forme de **Stores**.
+- **Bandes** est affiché sous la forme d'un balayage diagonal depuis le même coin.
+- **Flash d'information** est affiché sous la forme de **Zoom**.
+- **Flash** est affiché sous la forme d'un fondu passant par le blanc.
+- **Forme** avec **Croix** est affiché sous la forme de quatre cases qui grandissent depuis le centre. **Forme** avec **Cercle** ou **Losange** est affiché sous la forme de cette figure.
+- **Aléatoire** est l'effet « aléatoire » standard, et l'autre programme choisit le sien.
+
+## Morph
+
+**Morph** déplace ce que deux diapositives ont en commun. Un **objet** est un élément d'une diapositive : une forme, une image, une zone de texte, un trait ou un tableau. Le diaporama passe d'une diapositive à la suivante. Chaque objet présent sur les deux diapositives glisse depuis sa position sur la première jusqu'à sa position sur la seconde. Au passage, il grandit ou rétrécit, pivote et change de couleur. Un objet présent uniquement sur la première diapositive disparaît en fondu. Un objet présent uniquement sur la seconde apparaît en fondu.
+
+Pour créer un morph :
+
+1. Faites un clic droit sur une diapositive dans le volet Diapositives et choisissez **Dupliquer la diapositive**. La copie contient les mêmes objets.
 2. Sur la copie, déplacez un objet, agrandissez-le, faites-le pivoter ou changez sa couleur. Vous pouvez aussi modifier son texte, ou ajouter et supprimer des objets.
-3. Cliquez sur la copie, puis sur **Transitions > Transition vers cette diapositive > Morphose**. Une morphose dure 2 secondes. Vous pouvez modifier cette valeur avec **Durée**.
-4. Cliquez sur **Aperçu** pour la regarder, ou lancez le diaporama.
+3. Cliquez sur la copie, puis cliquez sur **Transitions > Transition vers cette diapositive > Morph**. Un morph dure 2 secondes. Vous pouvez modifier cette durée avec **Durée**.
+4. Cliquez sur **Aperçu** pour le visualiser, ou lancez le diaporama.
 
 ### Quels objets vont ensemble
 
-JeffDeck associe un objet de la première diapositive à un objet de la seconde. Il essaie les méthodes suivantes, dans cet ordre. Chaque objet fait partie d'une paire au plus.
+JeffDeck associe un objet de la première diapositive à un objet de la seconde. Il essaie ces méthodes, dans cet ordre. Chaque objet ne fait partie d'une paire au maximum.
 
-1. **Un nom qui commence par !!.** Deux objets portant le même nom, ce nom commençant par deux points d'exclamation, forment toujours une paire. Il peut s'agir de deux objets quelconques, même un cercle et une étoile.
-2. **Le même nom.** Deux objets du même type portant le même nom forment une paire. Une zone de texte et une forme sont de types différents.
+1. **Un nom qui commence par !!.** Deux objets portant le même nom, qui commence par deux points d'exclamation, forment toujours une paire. Ce peut être deux objets quelconques, même un cercle et une étoile.
+2. **Le même nom.** Deux objets de même nature portant le même nom forment une paire. Une zone de texte et une forme sont de natures différentes.
 3. **Le même texte.** Deux zones de texte contenant les mêmes mots forment une paire, quels que soient leurs noms. Il en va de même pour deux formes contenant les mêmes mots.
-4. **La même image.** Deux images de la même illustration forment une paire, même si elles ont un autre nom ou une autre taille.
-5. **Le même type de forme.** Deux cercles forment une paire. De même pour deux traits ou deux tableaux.
+4. **La même image.** Deux images représentant le même visuel forment une paire, même si elles portent un autre nom ou ont une autre taille.
+5. **La même sorte de forme.** Deux cercles forment une paire. Il en va de même pour deux traits ou deux tableaux.
 
-Lorsque plusieurs objets peuvent former une paire, les plus proches les uns des autres sont associés en premier.
+Lorsque plusieurs objets pourraient former une paire, ceux qui sont les plus proches l'un de l'autre sont associés en premier.
 
-Les noms des objets proviennent du fichier de présentation. Une présentation créée dans un autre programme conserve les noms qu'elle a donnés à ses objets, et JeffDeck les utilise.
+Les noms des objets proviennent du fichier de présentation. Une présentation réalisée ailleurs conserve les noms donnés à ses objets, et JeffDeck les utilise.
 
 ### Comment se déplace une paire
 
-- Deux objets de même forme deviennent un seul objet qui se déplace. Sa position, sa taille, sa rotation, sa couleur de remplissage, sa couleur de trait et sa transparence changent progressivement. Le rognage d'une image change aussi.
-- Deux objets de formes différentes, comme un cercle et un carré, se déplacent vers les mêmes positions tandis que l'un se fond dans l'autre.
+- Deux objets de même forme ne forment qu'un seul objet qui se déplace. Sa position, sa taille, sa rotation, sa couleur de remplissage, sa couleur de trait et son degré de transparence changent progressivement. Le recadrage d'une image change également.
+- Deux objets de formes différentes, comme un cercle et un carré, se déplacent vers les mêmes positions pendant que l'un se fond dans l'autre.
 - Si le texte d'une paire n'est pas identique, l'ancien texte se fond dans le nouveau.
-- Les objets masqués par une animation sont ignorés. Un objet déplacé par une animation est pris à l'endroit où il se trouve à la fin de celle-ci.
+- Les objets qu'une animation masque sont exclus. Un objet qu'une animation a déplacé est repris à la position où il se trouve à la fin de cette animation.
 
 ### Ce qui se déplace : Objets, Mots ou Caractères
 
 Cliquez sur **Options d'effet** pour choisir :
 
 - **Objets.** Le texte d'une paire reste dans son objet. L'ancien texte se fond dans le nouveau.
-- **Mots.** Un mot présent dans les deux textes se déplace de son ancienne position vers sa nouvelle position. Les autres mots disparaissent et apparaissent en fondu. Un signe comme une virgule compte comme un mot à part entière.
+- **Mots.** Un mot présent dans les deux textes se déplace de son ancienne place vers sa nouvelle place. Les autres mots apparaissent et disparaissent en fondu. Un signe de ponctuation, comme une virgule, compte comme un mot à part entière.
 - **Caractères.** Même principe, une lettre ou un chiffre à la fois.
 
-**Mots** et **Caractères** fonctionnent sur les zones de texte et les formes. Un texte de plus de 16 000 caractères, un texte orienté verticalement et un texte dans une forme retournée sont traités comme **Objets**. C'est aussi le cas d'une paire qui n'a aucun mot ni caractère en commun.
+Les options **Mots** et **Caractères** s'appliquent aux zones de texte et aux formes. Un texte de plus de 16 000 caractères, un texte disposé verticalement ou en rotation, ainsi qu'un texte dans une forme retournée, s'affichent comme avec **Objets**. Il en va de même pour une paire qui ne partage aucun mot ni aucun caractère.
 
-La morphose est également une transition dans d'autres programmes de présentation (versions 2019 et ultérieures). JeffDeck la lit et l'enregistre de la même manière qu'eux. Les programmes plus anciens exécutent une morphose sous forme de fondu.
+Morph est également une transition dans d'autres programmes de présentation (versions 2019 et ultérieures). JeffDeck le lit et l'enregistre comme eux. Les anciens programmes affichent un morph sous forme de fondu.
 
-## Définir le minutage
+## Régler le minutage
 
-Le groupe **Minutage** définit la durée de l'effet et la manière dont le diaporama quitte la diapositive.
+Le groupe **Minutage** définit la durée de la transition et la manière dont le diaporama quitte la diapositive.
 
 - **Durée** correspond au nombre de secondes que dure l'effet. Une nouvelle transition dure 0,7 seconde. Vous pouvez saisir une valeur de 0,01 à 59.
-- **Manuellement** est activé par défaut. Le diaporama quitte cette diapositive lorsque le présentateur clique. Désactivez cette option pour passer à la suite avec une touche comme Espace ou Flèche droite. Les animations de la diapositive s'exécutent toujours au clic.
-- **Après** fait avancer le diaporama automatiquement au bout du nombre de secondes indiqué. Vous pouvez utiliser **Après** en même temps que **Manuellement** : le diaporama avance dès que l'une des deux conditions est remplie.
+- **Au clic de souris** est activé par défaut. Le diaporama passe à la diapositive suivante lorsque le présentateur clique. Désactivez cette option pour passer à la suivante avec une touche comme Espace ou Droite. Les animations de la diapositive se jouent toujours au clic.
+- **Après** fait passer le diaporama à la diapositive suivante automatiquement, après le nombre de secondes que vous saisissez. Vous pouvez utiliser **Après** avec **Au clic de souris** : le diaporama passe à la suivante selon le premier des deux événements qui survient.
 
-**Appliquer partout** donne à toutes les diapositives la transition et le minutage de la diapositive active.
+**Appliquer à toutes** attribue à chaque diapositive la transition et le minutage de la diapositive sur laquelle vous vous trouvez.
 
-Chacune de ces actions constitue une étape que Ctrl+Z permet d'annuler.
+Chacune de ces actions peut être annulée en une seule étape avec Ctrl+Z.
 
-## Transitions provenant d'autres fichiers
+## Transitions issues d'autres fichiers
 
-Une présentation créée dans un autre programme peut contenir une transition pour laquelle JeffDeck ne dispose d'aucun effet. Elle s'exécute sous forme de fondu et est enregistrée telle quelle, de sorte qu'elle fonctionne toujours dans le programme d'origine.
+Une présentation réalisée ailleurs peut contenir une transition pour laquelle JeffDeck n'a pas d'effet. Elle se joue alors en fondu, et elle est enregistrée telle qu'elle était, de sorte qu'elle fonctionne toujours là où elle a été créée.
 
 ## Voir aussi
 

@@ -4872,7 +4872,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="+7"/>
         <source>Show Mini Toolbar on selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostra la Mini barra degli strumenti alla selezione</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -12735,7 +12735,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+4"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cambia grafica</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -12903,22 +12903,22 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+1"/>
         <source>Graphics Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effetti grafica</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato grafica</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stili grafica</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Strumenti grafica</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -14623,7 +14623,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+2"/>
         <location line="+197"/>
         <source>trendlines of charts past the %1 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">linee di tendenza dei grafici oltre il %1 che una serie può avere</translation>
     </message>
     <message>
         <location line="-196"/>
@@ -14658,17 +14658,17 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+143"/>
         <source>trendlines of a kind the format does not have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">linee di tendenza di un tipo che il formato non supporta</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>error bars of charts past the 2 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">barre di errore dei grafici oltre le 2 che una serie può avere</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>error bars of charts whose amounts are typed in, not read from cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">barre di errore dei grafici i cui valori sono digitati e non letti dalle celle</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -14683,7 +14683,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+288"/>
         <source>error bars of charts that run by the variance</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">barre di errore dei grafici calcolate in base alla varianza</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odsdraw_write.cpp" line="+74"/>
@@ -25322,22 +25322,22 @@ Il file esistente non è stato modificato.</translation>
     <message>
         <location line="+74"/>
         <source>Link to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Collega a cella</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A link starts with =, as in =A1. Clear the box to take the link off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un collegamento inizia con =, come in =A1. Deseleziona la casella per rimuovere il collegamento.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Remove Shape Link</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rimuovi collegamento forma</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Link Shape to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Collega forma a cella</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -29939,28 +29939,28 @@ Impossibile leggere il file.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_forecast.cpp" line="+78"/>
         <source>The workbook is not open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La cartella di lavoro non è aperta.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values. Select two columns first (the timeline, then the values), or write the ranges here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scegli le celle che contengono la sequenza temporale e le celle che contengono i valori. Seleziona prima due colonne (la sequenza temporale, poi i valori), oppure scrivi qui gli intervalli.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 is not a range of cells. Write it as A2:A40, or Sheet2!A2:A40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 non è un intervallo di celle. Scrivilo come A2:A40, oppure come Foglio2!A2:A40 per un altro foglio.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 is not a range of cells. Write it as B2:B40, or Sheet2!B2:B40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 non è un intervallo di celle. Scrivilo come B2:B40, oppure come Foglio2!B2:B40 per un altro foglio.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foglio di previsione</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -29970,7 +29970,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+7"/>
         <source>Forecast %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Previsione %1</translation>
     </message>
 </context>
 <context>
@@ -33534,27 +33534,27 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Dissolve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dissolvenza</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Blinds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Persiane</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Checkerboard</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scacchiera</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comb</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pettine</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barre casuali</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33574,12 +33574,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+0"/>
         <source>Wedge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cuneo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wheel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ruota</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33589,22 +33589,22 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Flash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lampo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Newsflash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notiziario</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Strips</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Strisce</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Casuale</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -33639,22 +33639,22 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>From Bottom Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da in basso a sinistra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Bottom Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da in basso a destra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da in alto a sinistra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da in alto a destra</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -33674,42 +33674,42 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>1 Spoke</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 raggio</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>2 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">2 raggi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>3 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 raggi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>4 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 raggi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>8 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">8 raggi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shape: Circle</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Forma: Cerchio</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Diamond</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Forma: Rombo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Plus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Forma: Più</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -37304,83 +37304,83 @@ Impossibile leggere il file.</translation>
     <message>
         <location filename="../apps/crunch/app/forecastdialog.cpp" line="+133"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foglio di previsione</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes a new sheet with a table and a chart of future values, from a timeline and a series of values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Crea un nuovo foglio con una tabella e un grafico di valori futuri, a partire da una sequenza temporale e da una serie di valori.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Chart type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tipo di grafico</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafico a linee</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafico a colonne</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>What is wrong</source>
-        <translation type="unfinished">Problema rilevato</translation>
+        <translation type="unfinished">Cosa non va</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+1"/>
         <source>Timeline range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intervallo sequenza temporale</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Values range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intervallo valori</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Forecast start</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inizio previsione</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>After the last point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dopo l&apos;ultimo punto</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+1"/>
         <source>Forecast end</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fine previsione</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Confidence interval</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Intervallo di confidenza</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+12"/>
         <source>Seasonality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stagionalità</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>Detect automatically</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rileva automaticamente</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set manually</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imposta manualmente</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37390,29 +37390,29 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+3"/>
         <source>Length of the season</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lunghezza della stagione</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+3"/>
         <source>Fill missing points using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riempi i punti mancanti con</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Interpolation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interpolazione</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Zeros</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zeri</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+8"/>
         <source>Aggregate duplicates using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aggrega i duplicati usando</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -37427,7 +37427,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>CountA</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">CountA</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37437,7 +37437,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Median</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mediana</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37452,7 +37452,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+3"/>
         <source>Include forecast statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Includi statistiche di previsione</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37462,17 +37462,17 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+86"/>
         <source>The picture follows the last %1 points of the data. The sheet is made from all of them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">L&apos;immagine segue gli ultimi %1 punti dei dati. Il foglio è creato da tutti i punti.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Write the forecast start as a date or number, or leave it empty to start after the last point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scrivi l&apos;inizio della previsione come data o numero, oppure lascialo vuoto per iniziare dopo l&apos;ultimo punto.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Write the forecast end as a date or number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scrivi la fine della previsione come data o numero.</translation>
     </message>
 </context>
 <context>
@@ -37480,7 +37480,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="-303"/>
         <source>Preview of the forecast</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Anteprima della previsione</translation>
     </message>
 </context>
 <context>
@@ -55143,27 +55143,27 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+46"/>
         <source>From a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da un file…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From Icons…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Da icone…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in forma</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Graphic Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stili grafica</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Graphics Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riempimento grafica</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -55175,57 +55175,57 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+0"/>
         <source>Graphics Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contorno grafica</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Graphic height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Altezza grafica</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Graphic width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Larghezza grafica</translation>
     </message>
     <message>
         <location line="+62"/>
         <source>That icon can&apos;t be put here.</source>
-        <translation type="unfinished">Impossibile inserire qui quell&apos;icona.</translation>
+        <translation type="unfinished">Quell&apos;icona non può essere inserita qui.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>SVG graphics (*.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafica SVG (*.svg)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cambia grafica</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quella grafica è troppo grande per essere inserita in un documento.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>%1 can&apos;t be opened as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile aprire %1 come grafica.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>That can&apos;t be used as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non può essere usato come grafica.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Text and pictures inside this drawing can&apos;t become shapes, so they were left out. Undo brings the picture back.</source>
-        <translation type="unfinished">Il testo e le immagini contenuti in questo disegno non possono diventare forme e sono stati esclusi. Con Annulla si ripristina l&apos;immagine.</translation>
+        <translation type="unfinished">Il testo e le immagini presenti in questo disegno non possono diventare forme, quindi sono stati esclusi. Annulla riporta l&apos;immagine.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica non può essere convertita in forme qui.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-100"/>
@@ -62138,88 +62138,88 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../apps/crunch/core/forecastsheet.cpp" line="+26"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scegli le celle che contengono la linea temporale e le celle che contengono i valori.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The timeline and the values must each be one column or one row of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La linea temporale e i valori devono essere ciascuno una sola colonna o una sola riga di celle.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The timeline and the values need the same number of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La linea temporale e i valori devono avere lo stesso numero di celle.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The data has more than 1,000,000 points. A forecast is not made from so many; choose a smaller range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I dati contengono più di 1.000.000 di punti. Una previsione non viene creata da così tanti; scegli un intervallo più piccolo.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>The timeline needs dates or numbers, and %1 holds something else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La linea temporale richiede date o numeri, mentre %1 contiene altro.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The values need numbers, and %1 holds text or an error. Change it to a number, or empty the cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I valori richiedono numeri, mentre %1 contiene testo o un errore. Cambialo in un numero oppure svuota la cella.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Write the time the forecast ends.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Scrivi l&apos;ora in cui termina la previsione.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>There are too few points to make a forecast from. Use at least 3 points with values, each at its own time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ci sono troppo pochi punti per creare una previsione. Usa almeno 3 punti con valori, ciascuno con un proprio orario.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline is not evenly spaced. The steps between its dates or numbers must be the same size (or whole months apart, on the same day of each month). Duplicate times are combined; make the other steps equal.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La linea temporale non è distribuita in modo uniforme. Gli intervalli tra le sue date o i suoi numeri devono avere la stessa ampiezza (oppure essere mesi interi di distanza, nello stesso giorno di ogni mese). Gli orari duplicati vengono combinati; rendi uguali gli altri intervalli.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline spans more than 1,000,000 steps, which is too many to make a forecast from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La linea temporale comprende più di 1.000.000 di passi, troppi per creare una previsione.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The season is too long. The data must hold at least two whole seasons.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La stagione è troppo lunga. I dati devono contenere almeno due stagioni complete.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The confidence interval must be more than 0% and less than 100%.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">L&apos;intervallo di confidenza deve essere maggiore di 0% e minore di 100%.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+25"/>
         <source>A forecast could not be made from this data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non è stato possibile creare una previsione con questi dati.</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La previsione andrebbe oltre 100.000 passi dall&apos;ultimo punto, un limite troppo lontano. Scegli una fine anticipata.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The forecast must end after the last point it is made from. Choose a later end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La previsione deve terminare dopo l&apos;ultimo punto da cui è creata. Scegli una fine posticipata.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The forecast would be longer than 10,000 points. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La previsione sarebbe più lunga di 10.000 punti. Scegli una fine anticipata.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Timeline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Linea temporale</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -62234,52 +62234,52 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+0"/>
         <source>Lower Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limite di confidenza inferiore</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Upper Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limite di confidenza superiore</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Alpha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alfa</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Beta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beta</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Gamma</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gamma</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MASE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MASE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>SMAPE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SMAPE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MAE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MAE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>RMSE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">RMSE</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Forecast Statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Statistiche di previsione</translation>
     </message>
 </context>
 <context>
@@ -63802,22 +63802,22 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+1"/>
         <source>Predicts a future value of a series that has a trend and a season, by exponential smoothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prevede un valore futuro di una serie che ha un andamento e una stagionalità, mediante lisciamento esponenziale.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives how far above and below a smoothed forecast the value is likely to lie.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indica di quanto il valore è probabilmente superiore o inferiore a una previsione lisciata.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives the length of the repeating season found in a series.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indica la lunghezza della stagione ripetuta trovata in una serie.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives one of the smoothing constants or measures of fit of a smoothed forecast.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indica una delle costanti di lisciamento o una misura di adattamento di una previsione lisciata.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -64680,7 +64680,7 @@ Impossibile applicare la password al file.</translation>
         <location line="+1"/>
         <location line="+5"/>
         <source>The time to predict a value for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il momento per cui prevedere un valore.</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -64688,14 +64688,14 @@ Impossibile applicare la password al file.</translation>
         <location line="+5"/>
         <location line="+3"/>
         <source>The dates or numbers of the values, the same distance apart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le date o i numeri dei valori, alla stessa distanza tra loro.</translation>
     </message>
     <message>
         <location line="-12"/>
         <location line="+6"/>
         <location line="+8"/>
         <source>1 to find the season from the values, 0 for none, or the length of the season in points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 per trovare la stagione dai valori, 0 per nessuna, oppure la lunghezza della stagione in punti.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64703,7 +64703,7 @@ Impossibile applicare la password al file.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 per riempire un punto mancante con una linea tra i suoi vicini, 0 per riempirlo con zero.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64711,17 +64711,17 @@ Impossibile applicare la password al file.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>How values at the same time are combined: 1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Come vengono combinati i valori allo stesso orario: 1 media, 2 conteggio, 3 counta, 4 max, 5 mediana, 6 min, 7 somma.</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>A number above 0 and below 1 for how sure the interval is (0.95 if left out).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un numero maggiore di 0 e minore di 1 per indicare la sicurezza dell&apos;intervallo (0,95 se omesso).</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Which to give: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 the step of the timeline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quale restituire: 1 Alfa, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 il passo della linea temporale.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -66705,32 +66705,32 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+548"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">una forma il cui collegamento a una cella non può essere usato (deve corrispondere a una sola cella)</translation>
     </message>
     <message>
         <location line="+255"/>
         <source>The workbook is not ready yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La cartella di lavoro non è ancora pronta.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type a cell, such as =A1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Digita una cella, ad esempio =A1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape can show one cell: type a reference such as =A1, =Sheet2!B3, or the name of a cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una forma può mostrare una sola cella: digita un riferimento come =A1, =Foglio2!B3 oppure il nome di una cella.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a cell, or the name of one, in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa non è una cella, né il nome di una cella, in questa cartella di lavoro.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A shape can show one cell, not a range of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una forma può mostrare una sola cella, non un intervallo di celle.</translation>
     </message>
     <message>
         <location line="+202"/>
@@ -73637,53 +73637,53 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+2210"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica contiene troppi elementi da disegnare, quindi resta com&apos;era.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic can&apos;t be drawn.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica non può essere disegnata.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica è troppo grande per essere inserita in un documento.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic has too much to draw, so it is not put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica contiene troppi elementi da disegnare, quindi non viene inserita nel documento.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn&apos;t open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica fa riferimento a file o indirizzi esterni a se stessa, oppure contiene immagini, che JeffWrite non apre.</translation>
     </message>
     <message>
         <location line="+165"/>
         <source>The colors of this graphic can&apos;t be changed: it is too large, too deeply nested, or refers outside itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I colori di questa grafica non possono essere modificati: è troppo grande, troppo annidata o fa riferimento a elementi esterni a se stessa.</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>This graphic is too large or refers to files or addresses outside itself, so it isn&apos;t turned into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica è troppo grande o fa riferimento a file o indirizzi esterni a se stessa, quindi non viene convertita in forme.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This graphic has too many parts to turn into shapes (the most is %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica contiene troppi elementi per essere convertita in forme (il massimo è %1).</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+7"/>
         <source>This graphic has no lines or areas to turn into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica non contiene linee o aree da convertire in forme.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa grafica non può essere convertita in forme qui.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
@@ -74440,18 +74440,18 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+3"/>
         <source>charts larger than a chart may be</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafici più grandi di quanto un grafico possa essere</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>charts past the size all the charts of a document may come to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafici che superano la dimensione complessiva consentita per tutti i grafici di un documento</translation>
     </message>
     <message>
         <location line="+5"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+787"/>
         <source>charts past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafici che superano il %1 consentito per un documento</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -74464,7 +74464,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+4"/>
         <source>charts past the number of points all the charts of a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafici che superano il numero di punti consentito per tutti i grafici di un documento</translation>
     </message>
     <message>
         <location line="+331"/>

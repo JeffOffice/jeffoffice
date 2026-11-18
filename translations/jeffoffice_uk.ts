@@ -2542,7 +2542,7 @@ Back page story	4</source>
     <message>
         <location line="+7"/>
         <source>Show Mini Toolbar on selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показувати міні-панель інструментів під час вибору</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -12845,7 +12845,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+4"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Змінити малюнок</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -12950,22 +12950,22 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Graphics Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти графіки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формат графіки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стилі графіки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Засоби роботи з графікою</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -13732,7 +13732,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+2"/>
         <location line="+197"/>
         <source>trendlines of charts past the %1 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">тренди діаграм понад %1, які може мати ряд</translation>
     </message>
     <message>
         <location line="-196"/>
@@ -13767,17 +13767,17 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+143"/>
         <source>trendlines of a kind the format does not have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">тренди виду, якого не має цей формат</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>error bars of charts past the 2 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">планки похибок діаграм понад 2, які може мати ряд</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>error bars of charts whose amounts are typed in, not read from cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">планки похибок діаграм, чиї значення введено вручну, а не взято з комірок</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -13792,7 +13792,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+288"/>
         <source>error bars of charts that run by the variance</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">планки похибок діаграм, які обчислюються за дисперсією</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odsdraw_write.cpp" line="+74"/>
@@ -24172,22 +24172,22 @@ The file that was there is as it was.</source>
     <message>
         <location line="+74"/>
         <source>Link to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пов&apos;язати з коміркою</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A link starts with =, as in =A1. Clear the box to take the link off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Посилання починається з =, наприклад =A1. Щоб зняти посилання, очистіть поле.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Remove Shape Link</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити зв&apos;язок фігури</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Link Shape to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пов&apos;язати фігуру з коміркою</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -29962,28 +29962,28 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_forecast.cpp" line="+78"/>
         <source>The workbook is not open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книгу не відкрито.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values. Select two columns first (the timeline, then the values), or write the ranges here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть комірки з часовою шкалою та комірки зі значеннями. Спочатку виберіть два стовпці (часову шкалу, потім значення) або введіть діапазони тут.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 is not a range of cells. Write it as A2:A40, or Sheet2!A2:A40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не є діапазоном комірок. Запишіть його як A2:A40 або Аркуш2!A2:A40 для іншого аркуша.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 is not a range of cells. Write it as B2:B40, or Sheet2!B2:B40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не є діапазоном комірок. Запишіть його як B2:B40 або Аркуш2!B2:B40 для іншого аркуша.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Аркуш прогнозу</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -29993,7 +29993,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Forecast %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прогноз %1</translation>
     </message>
 </context>
 <context>
@@ -34554,27 +34554,27 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Dissolve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розчинення</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Blinds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Жалюзі</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Checkerboard</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шахівниця</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comb</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гребінець</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Випадкові смуги</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -34594,12 +34594,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <source>Wedge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Клин</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wheel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колесо</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -34609,22 +34609,22 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Flash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Спалах</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Newsflash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Новинний спалах</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Strips</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Смуги</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Випадково</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -34659,22 +34659,22 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>From Bottom Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знизу ліворуч</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Bottom Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Знизу праворуч</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зверху ліворуч</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зверху праворуч</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -34694,42 +34694,42 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>1 Spoke</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 промінь</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>2 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">2 промені</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>3 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 промені</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>4 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 промені</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>8 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">8 променів</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shape: Circle</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фігура: коло</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Diamond</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фігура: ромб</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Plus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фігура: плюс</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -37332,27 +37332,27 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/crunch/app/forecastdialog.cpp" line="+133"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Аркуш прогнозу</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes a new sheet with a table and a chart of future values, from a timeline and a series of values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створює новий аркуш із таблицею та діаграмою майбутніх значень за часовою шкалою та рядом значень.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Chart type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тип діаграми</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лінійна діаграма</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стовпчаста діаграма</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -37363,52 +37363,52 @@ The file can&apos;t be read.</source>
         <location line="+11"/>
         <location line="+1"/>
         <source>Timeline range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діапазон часової шкали</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Values range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діапазон значень</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Forecast start</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Початок прогнозу</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>After the last point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Після останньої точки</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+1"/>
         <source>Forecast end</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кінець прогнозу</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Confidence interval</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Довірчий інтервал</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+12"/>
         <source>Seasonality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сезонність</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>Detect automatically</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Визначати автоматично</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set manually</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Задати вручну</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37418,29 +37418,29 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+3"/>
         <source>Length of the season</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Довжина сезону</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+3"/>
         <source>Fill missing points using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заповнити відсутні точки за допомогою</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Interpolation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інтерполяція</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Zeros</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нулі</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+8"/>
         <source>Aggregate duplicates using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Агрегувати дублікати за допомогою</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -37455,7 +37455,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>CountA</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">CountA</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37465,7 +37465,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Median</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Медіана</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37480,7 +37480,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+3"/>
         <source>Include forecast statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Включити статистику прогнозу</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37490,17 +37490,17 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+86"/>
         <source>The picture follows the last %1 points of the data. The sheet is made from all of them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнок відтворює останні %1 точок даних. Аркуш створено з усіх них.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Write the forecast start as a date or number, or leave it empty to start after the last point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажіть початок прогнозу як дату або число чи залиште поле порожнім, щоб почати після останньої точки.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Write the forecast end as a date or number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажіть кінець прогнозу як дату або число.</translation>
     </message>
 </context>
 <context>
@@ -37508,7 +37508,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-303"/>
         <source>Preview of the forecast</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Попередній перегляд прогнозу</translation>
     </message>
 </context>
 <context>
@@ -58057,27 +58057,27 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="-124"/>
         <source>From a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З файлу…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From Icons…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З піктограм…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетворити на фігуру</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Graphic Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стилі графіки</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Graphics Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заливка графіки</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -58089,57 +58089,57 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+0"/>
         <source>Graphics Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Контур графіки</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Graphic height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Висота графіки</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Graphic width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ширина графіки</translation>
     </message>
     <message>
         <location line="+62"/>
         <source>That icon can&apos;t be put here.</source>
-        <translation type="unfinished">Цю піктограму не можна вставити сюди.</translation>
+        <translation type="unfinished">Цю піктограму не можна розмістити тут.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>SVG graphics (*.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Графіка SVG (*.svg)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Змінити графіку</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ця графіка завелика, щоб вставити її в документ.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>%1 can&apos;t be opened as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося відкрити %1 як графіку.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>That can&apos;t be used as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не можна використати як графіку.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Text and pictures inside this drawing can&apos;t become shapes, so they were left out. Undo brings the picture back.</source>
-        <translation type="unfinished">Текст і малюнки всередині цього малюнка не можуть стати фігурами, тому їх було пропущено. Скасування поверне малюнок.</translation>
+        <translation type="unfinished">Текст і малюнки всередині цього креслення не можна перетворити на фігури, тому їх пропущено. Скасування поверне малюнок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цю графіку не можна перетворити на фігури тут.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-100"/>
@@ -62179,88 +62179,88 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/crunch/core/forecastsheet.cpp" line="+26"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть комірки з часовою шкалою та комірки зі значеннями.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The timeline and the values must each be one column or one row of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала і значення мають бути кожне одним стовпцем або одним рядком комірок.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The timeline and the values need the same number of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала і значення мають містити однакову кількість комірок.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The data has more than 1,000,000 points. A forecast is not made from so many; choose a smaller range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дані містять понад 1 000 000 точок. Прогноз із такої кількості не створюється; виберіть менший діапазон.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>The timeline needs dates or numbers, and %1 holds something else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала має містити дати або числа, а %1 містить щось інше.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The values need numbers, and %1 holds text or an error. Change it to a number, or empty the cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Значення мають бути числами, а %1 містить текст або помилку. Змініть його на число або очистіть комірку.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Write the time the forecast ends.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Укажіть час, коли закінчується прогноз.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>There are too few points to make a forecast from. Use at least 3 points with values, each at its own time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Для прогнозу точок замало. Використайте щонайменше 3 точки зі значеннями, кожна в певний час.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline is not evenly spaced. The steps between its dates or numbers must be the same size (or whole months apart, on the same day of each month). Duplicate times are combined; make the other steps equal.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала нерівномірна. Кроки між її датами або числами мають бути однаковими (або цілими місяцями, на те саме число кожного місяця). Повторювані часи об&apos;єднуються; зробіть інші кроки рівними.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline spans more than 1,000,000 steps, which is too many to make a forecast from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала охоплює понад 1 000 000 кроків, що забагато для прогнозу.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The season is too long. The data must hold at least two whole seasons.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сезон занадто довгий. Дані мають містити щонайменше два повних сезони.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The confidence interval must be more than 0% and less than 100%.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Довірчий інтервал має бути більшим за 0% і меншим за 100%.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+25"/>
         <source>A forecast could not be made from this data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Із цих даних не вдалося створити прогноз.</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прогноз виходив би більш як на 100 000 кроків за останню точку, що занадто далеко. Виберіть раніший кінець.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The forecast must end after the last point it is made from. Choose a later end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прогноз має закінчуватися після останньої точки, з якої він створюється. Виберіть пізніший кінець.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The forecast would be longer than 10,000 points. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прогноз був би довший за 10 000 точок. Виберіть раніший кінець.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Timeline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часова шкала</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -62275,52 +62275,52 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+0"/>
         <source>Lower Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижня межа довірчого інтервалу</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Upper Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Верхня межа довірчого інтервалу</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Alpha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Альфа</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Beta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Бета</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Gamma</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гамма</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MASE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MASE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>SMAPE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SMAPE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MAE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MAE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>RMSE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">RMSE</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Forecast Statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Статистика прогнозу</translation>
     </message>
 </context>
 <context>
@@ -63843,22 +63843,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Predicts a future value of a series that has a trend and a season, by exponential smoothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Передбачає майбутнє значення ряду, що має тренд і сезонність, методом експоненційного згладжування.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives how far above and below a smoothed forecast the value is likely to lie.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показує, наскільки значення ймовірно відхиляється вгору і вниз від згладженого прогнозу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives the length of the repeating season found in a series.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повертає довжину періоду, що повторюється в ряді.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives one of the smoothing constants or measures of fit of a smoothed forecast.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повертає одну з констант згладжування або показників точності згладженого прогнозу.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -64721,7 +64721,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <location line="+5"/>
         <source>The time to predict a value for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Час, для якого потрібно передбачити значення.</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -64729,14 +64729,14 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+5"/>
         <location line="+3"/>
         <source>The dates or numbers of the values, the same distance apart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дати або числа значень, розташовані на однаковій відстані одне від одного.</translation>
     </message>
     <message>
         <location line="-12"/>
         <location line="+6"/>
         <location line="+8"/>
         <source>1 to find the season from the values, 0 for none, or the length of the season in points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1, щоб знайти сезон за значеннями, 0 — без сезону, або довжина сезону в точках.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64744,7 +64744,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+3"/>
         <location line="+5"/>
         <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1, щоб заповнити пропущену точку лінією між сусідніми, 0 — щоб заповнити її нулем.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64752,17 +64752,17 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+3"/>
         <location line="+5"/>
         <source>How values at the same time are combined: 1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як об&apos;єднуються значення в один і той самий час: 1 — середнє, 2 — кількість, 3 — CountA, 4 — максимум, 5 — медіана, 6 — мінімум, 7 — сума.</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>A number above 0 and below 1 for how sure the interval is (0.95 if left out).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Число більше 0 і менше 1, що визначає рівень впевненості інтервалу (якщо не вказано, 0,95).</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Which to give: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 the step of the timeline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Що повернути: 1 — Альфа, 2 — Бета, 3 — Гамма, 4 — MASE, 5 — SMAPE, 6 — MAE, 7 — RMSE, 8 — крок часової шкали.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -66708,32 +66708,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+192"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">фігура, посилання якої на комірку неможливе (має бути одна комірка)</translation>
     </message>
     <message>
         <location line="+255"/>
         <source>The workbook is not ready yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книга ще не готова.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type a cell, such as =A1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Введіть комірку, наприклад =A1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape can show one cell: type a reference such as =A1, =Sheet2!B3, or the name of a cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фігура може показувати одну комірку: введіть посилання, наприклад =A1, =Sheet2!B3, або назву комірки.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a cell, or the name of one, in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не комірка і не її назва в цій книзі.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A shape can show one cell, not a range of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фігура може показувати одну комірку, а не діапазон комірок.</translation>
     </message>
     <message>
         <location line="+86"/>
@@ -73732,53 +73732,53 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+198"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок містить забагато елементів для малювання, тому його залишено без змін.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic can&apos;t be drawn.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок неможливо намалювати.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок занадто великий, щоб вставити його в документ.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic has too much to draw, so it is not put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок містить забагато елементів для малювання, тому його не вставлено в документ.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn&apos;t open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок посилається на файли або адреси поза собою чи містить зображення, які JeffWrite не відкриває.</translation>
     </message>
     <message>
         <location line="+165"/>
         <source>The colors of this graphic can&apos;t be changed: it is too large, too deeply nested, or refers outside itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кольори цього малюнка неможливо змінити: він занадто великий, занадто глибоко вкладений або посилається за своїми межами.</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>This graphic is too large or refers to files or addresses outside itself, so it isn&apos;t turned into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок занадто великий або посилається на файли чи адреси поза собою, тому його не перетворено на фігури.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This graphic has too many parts to turn into shapes (the most is %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок має забагато частин, щоб перетворити їх на фігури (максимум %1).</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+7"/>
         <source>This graphic has no lines or areas to turn into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок не містить ліній або областей для перетворення на фігури.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок тут неможливо перетворити на фігури.</translation>
     </message>
 </context>
 <context>
@@ -74494,18 +74494,18 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+3"/>
         <source>charts larger than a chart may be</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">діаграми більші за допустимий розмір діаграми</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>charts past the size all the charts of a document may come to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">діаграми перевищують розмір, який можуть займати всі діаграми документа</translation>
     </message>
     <message>
         <location line="+5"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+787"/>
         <source>charts past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">діаграми перевищують %1, які може мати документ</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -74518,7 +74518,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+4"/>
         <source>charts past the number of points all the charts of a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">діаграми перевищують кількість точок, яку можуть мати всі діаграми документа</translation>
     </message>
     <message>
         <location line="+331"/>

@@ -4872,7 +4872,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+7"/>
         <source>Show Mini Toolbar on selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minibalk weergeven bij selectie</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -7909,7 +7909,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../libs/shell/app/minitoolbar.cpp" line="+103"/>
         <source>Fill Color</source>
-        <translation type="unfinished">Opvulkleur</translation>
+        <translation type="unfinished">Vulkleur</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -12735,7 +12735,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+4"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeelding wijzigen</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -12903,22 +12903,22 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <source>Graphics Effects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingseffecten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsindeling</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsstijlen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Graphics Tools</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingshulpmiddelen</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -14623,7 +14623,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+2"/>
         <location line="+197"/>
         <source>trendlines of charts past the %1 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafieken met meer trendlijnen dan de %1 die een reeks mag hebben</translation>
     </message>
     <message>
         <location line="-196"/>
@@ -14658,17 +14658,17 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+143"/>
         <source>trendlines of a kind the format does not have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trendlijnen van een soort die het formaat niet heeft</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>error bars of charts past the 2 a series may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foutbalken van grafieken met meer dan 2 per reeks</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>error bars of charts whose amounts are typed in, not read from cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foutbalken van grafieken waarvan de waarden zijn ingetypt en niet uit cellen worden gelezen</translation>
     </message>
     <message>
         <location line="+192"/>
@@ -14683,7 +14683,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+288"/>
         <source>error bars of charts that run by the variance</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Foutbalken van grafieken die op de variantie zijn gebaseerd</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odsdraw_write.cpp" line="+74"/>
@@ -25322,22 +25322,22 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     <message>
         <location line="+74"/>
         <source>Link to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Koppelen aan cel</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A link starts with =, as in =A1. Clear the box to take the link off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een koppeling begint met =, bijvoorbeeld =A1. Wis het vak om de koppeling te verwijderen.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Remove Shape Link</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vormkoppeling verwijderen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Link Shape to Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorm aan cel koppelen</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -29939,28 +29939,28 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_forecast.cpp" line="+78"/>
         <source>The workbook is not open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De werkmap is niet geopend.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values. Select two columns first (the timeline, then the values), or write the ranges here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies de cellen met de tijdlijn en de cellen met de waarden. Selecteer eerst twee kolommen (de tijdlijn, dan de waarden), of typ de bereiken hier.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 is not a range of cells. Write it as A2:A40, or Sheet2!A2:A40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is geen celbereik. Schrijf het als A2:A40, of Blad2!A2:A40 voor een ander blad.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 is not a range of cells. Write it as B2:B40, or Sheet2!B2:B40 for another sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is geen celbereik. Schrijf het als B2:B40, of Blad2!B2:B40 voor een ander blad.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="-967"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prognoseblad</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -29970,7 +29970,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+7"/>
         <source>Forecast %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prognose %1</translation>
     </message>
 </context>
 <context>
@@ -33534,27 +33534,27 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Dissolve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Oplossen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Blinds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jaloezie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Checkerboard</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dambord</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comb</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kam</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Willekeurige balken</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33574,12 +33574,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>Wedge</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wig</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Wheel</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wiel</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -33589,22 +33589,22 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Flash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Flits</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Newsflash</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwsflits</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Strips</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stroken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Random</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Willekeurig</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -33639,22 +33639,22 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>From Bottom Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Van linksonder</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Bottom Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Van rechtsonder</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Van linksboven</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>From Top Right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Van rechtsboven</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -33674,42 +33674,42 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>1 Spoke</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 spaak</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>2 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">2 spaken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>3 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 spaken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>4 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 spaken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>8 Spokes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">8 spaken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shape: Circle</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorm: cirkel</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Diamond</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorm: ruit</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Shape: Plus</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorm: plus</translation>
     </message>
     <message>
         <location line="+134"/>
@@ -37304,83 +37304,83 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/forecastdialog.cpp" line="+133"/>
         <source>Forecast Sheet</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prognoseblad</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes a new sheet with a table and a chart of future values, from a timeline and a series of values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Maakt een nieuw blad met een tabel en een grafiek van toekomstige waarden, op basis van een tijdlijn en een reeks waarden.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Chart type</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafiektype</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Line chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lijngrafiek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolomgrafiek</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>What is wrong</source>
-        <translation type="unfinished">Wat er mis is</translation>
+        <translation type="unfinished">Wat er niet klopt</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+1"/>
         <source>Timeline range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bereik tijdlijn</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+1"/>
         <source>Values range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bereik waarden</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+2"/>
         <source>Forecast start</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Begin prognose</translation>
     </message>
     <message>
         <location line="-1"/>
         <source>After the last point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Na het laatste punt</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+1"/>
         <source>Forecast end</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Einde prognose</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+4"/>
         <source>Confidence interval</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Betrouwbaarheidsinterval</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+12"/>
         <source>Seasonality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seizoensinvloed</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>Detect automatically</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Automatisch detecteren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Set manually</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Handmatig instellen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37390,29 +37390,29 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Length of the season</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lengte van het seizoen</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+3"/>
         <source>Fill missing points using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ontbrekende punten aanvullen met</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Interpolation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interpolatie</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Zeros</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nullen</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+8"/>
         <source>Aggregate duplicates using</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dubbele waarden samenvoegen met</translation>
     </message>
     <message>
         <location line="-7"/>
@@ -37427,7 +37427,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>CountA</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AantalA</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37437,7 +37437,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Median</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mediaan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -37452,7 +37452,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+3"/>
         <source>Include forecast statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prognosestatistieken opnemen</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37462,17 +37462,17 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+86"/>
         <source>The picture follows the last %1 points of the data. The sheet is made from all of them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De afbeelding volgt de laatste %1 punten van de gegevens. Het werkblad wordt uit al die punten gemaakt.</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Write the forecast start as a date or number, or leave it empty to start after the last point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geef het begin van de prognose op als datum of getal, of laat dit leeg om na het laatste punt te beginnen.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Write the forecast end as a date or number.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geef het einde van de prognose op als datum of getal.</translation>
     </message>
 </context>
 <context>
@@ -37480,7 +37480,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="-303"/>
         <source>Preview of the forecast</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Voorbeeld van de prognose</translation>
     </message>
 </context>
 <context>
@@ -55143,27 +55143,27 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+46"/>
         <source>From a File…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uit een bestand…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From Icons…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uit pictogrammen…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Omzetten naar vorm</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Graphic Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsstijlen</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Graphics Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsvulling</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -55175,17 +55175,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+0"/>
         <source>Graphics Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsomtrek</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Graphic height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingshoogte</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Graphic width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingsbreedte</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -55195,37 +55195,37 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+9"/>
         <source>SVG graphics (*.svg)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SVG-afbeeldingen (*.svg)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Change Graphic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeelding wijzigen</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die afbeelding is te groot om in een document te plaatsen.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>%1 can&apos;t be opened as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 kan niet als afbeelding worden geopend.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>That can&apos;t be used as a graphic.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat kan niet als afbeelding worden gebruikt.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Text and pictures inside this drawing can&apos;t become shapes, so they were left out. Undo brings the picture back.</source>
-        <translation type="unfinished">Tekst en afbeeldingen in deze tekening kunnen geen vormen worden en zijn daarom weggelaten. Met Ongedaan maken krijgt u de afbeelding terug.</translation>
+        <translation type="unfinished">Tekst en afbeeldingen in deze tekening kunnen geen vormen worden, dus zijn ze weggelaten. Ongedaan maken herstelt de afbeelding.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding kan hier niet in vormen worden omgezet.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-100"/>
@@ -62138,88 +62138,88 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/crunch/core/forecastsheet.cpp" line="+26"/>
         <source>Choose the cells that hold the timeline and the cells that hold the values.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies de cellen met de tijdlijn en de cellen met de waarden.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The timeline and the values must each be one column or one row of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tijdlijn en de waarden moeten elk uit één kolom of één rij cellen bestaan.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The timeline and the values need the same number of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tijdlijn en de waarden hebben evenveel cellen nodig.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The data has more than 1,000,000 points. A forecast is not made from so many; choose a smaller range.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De gegevens bevatten meer dan 1.000.000 punten. Van zoveel punten wordt geen prognose gemaakt; kies een kleiner bereik.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>The timeline needs dates or numbers, and %1 holds something else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tijdlijn heeft datums of getallen nodig, en %1 bevat iets anders.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The values need numbers, and %1 holds text or an error. Change it to a number, or empty the cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De waarden hebben getallen nodig, en %1 bevat tekst of een fout. Wijzig het in een getal of maak de cel leeg.</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Write the time the forecast ends.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geef het tijdstip op waarop de prognose eindigt.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>There are too few points to make a forecast from. Use at least 3 points with values, each at its own time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn te weinig punten om een prognose op te baseren. Gebruik minstens 3 punten met waarden, elk op een eigen tijdstip.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline is not evenly spaced. The steps between its dates or numbers must be the same size (or whole months apart, on the same day of each month). Duplicate times are combined; make the other steps equal.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tijdlijn heeft geen gelijke tussenafstanden. De stappen tussen de datums of getallen moeten even groot zijn (of precies hele maanden, op dezelfde dag van elke maand). Dubbele tijdstippen worden samengevoegd; maak de andere stappen gelijk.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The timeline spans more than 1,000,000 steps, which is too many to make a forecast from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tijdlijn omvat meer dan 1.000.000 stappen, te veel om een prognose op te baseren.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The season is too long. The data must hold at least two whole seasons.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het seizoen is te lang. De gegevens moeten minstens twee volledige seizoenen bevatten.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The confidence interval must be more than 0% and less than 100%.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het betrouwbaarheidsinterval moet meer dan 0% en minder dan 100% zijn.</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+25"/>
         <source>A forecast could not be made from this data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Op basis van deze gegevens kon geen prognose worden gemaakt.</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>The forecast would reach more than 100,000 steps past the last point, which is too far. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De prognose zou meer dan 100.000 stappen na het laatste punt reiken, en dat is te ver. Kies een eerder einde.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The forecast must end after the last point it is made from. Choose a later end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De prognose moet eindigen na het laatste punt waarop hij is gebaseerd. Kies een later einde.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The forecast would be longer than 10,000 points. Choose an earlier end.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De prognose zou langer worden dan 10.000 punten. Kies een eerder einde.</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Timeline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tijdlijn</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -62234,52 +62234,52 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+0"/>
         <source>Lower Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ondergrens betrouwbaarheidsinterval</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Upper Confidence Bound</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovengrens betrouwbaarheidsinterval</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Alpha</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alfa</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Beta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bèta</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Gamma</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gamma</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MASE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MASE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>SMAPE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">SMAPE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>MAE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">MAE</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>RMSE</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">RMSE</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Forecast Statistics</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prognosestatistieken</translation>
     </message>
 </context>
 <context>
@@ -63802,22 +63802,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Predicts a future value of a series that has a trend and a season, by exponential smoothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Voorspelt een toekomstige waarde van een reeks met een trend en een seizoen, met exponentiële afvlakking.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives how far above and below a smoothed forecast the value is likely to lie.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geeft aan hoeveel de waarde waarschijnlijk boven en onder een afgevlakte prognose ligt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives the length of the repeating season found in a series.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geeft de lengte van het zich herhalende seizoen in een reeks.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Gives one of the smoothing constants or measures of fit of a smoothed forecast.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geeft een van de afvlakkingsconstanten of een maat voor de nauwkeurigheid van een afgevlakte prognose.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -64680,7 +64680,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+1"/>
         <location line="+5"/>
         <source>The time to predict a value for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het tijdstip waarvoor een waarde moet worden voorspeld.</translation>
     </message>
     <message>
         <location line="-4"/>
@@ -64688,14 +64688,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+5"/>
         <location line="+3"/>
         <source>The dates or numbers of the values, the same distance apart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De datums of getallen van de waarden, op gelijke afstanden.</translation>
     </message>
     <message>
         <location line="-12"/>
         <location line="+6"/>
         <location line="+8"/>
         <source>1 to find the season from the values, 0 for none, or the length of the season in points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 om het seizoen uit de waarden te bepalen, 0 voor geen seizoen, of de lengte van het seizoen in punten.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64703,7 +64703,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>1 to fill a missing point with a line between its neighbors, 0 to fill it with zero.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">1 om een ontbrekend punt op te vullen met een lijn tussen de buurpunten, 0 om het met nul op te vullen.</translation>
     </message>
     <message>
         <location line="-13"/>
@@ -64711,17 +64711,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>How values at the same time are combined: 1 average, 2 count, 3 counta, 4 max, 5 median, 6 min, 7 sum.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoe waarden op hetzelfde tijdstip worden gecombineerd: 1 gemiddelde, 2 aantal, 3 aantalA, 4 max, 5 mediaan, 6 min, 7 som.</translation>
     </message>
     <message>
         <location line="-11"/>
         <source>A number above 0 and below 1 for how sure the interval is (0.95 if left out).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een getal boven 0 en onder 1 voor de mate van zekerheid van het interval (0,95 als weggelaten).</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Which to give: 1 Alpha, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 the step of the timeline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Welke te gebruiken: 1 Alfa, 2 Beta, 3 Gamma, 4 MASE, 5 SMAPE, 6 MAE, 7 RMSE, 8 de stap van de tijdlijn.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -66705,32 +66705,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+548"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">een vorm waarvan de koppeling naar een cel niet gebruikt kan worden (het moet één cel zijn)</translation>
     </message>
     <message>
         <location line="+255"/>
         <source>The workbook is not ready yet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De werkmap is nog niet gereed.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Type a cell, such as =A1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Typ een cel, zoals =A1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape can show one cell: type a reference such as =A1, =Sheet2!B3, or the name of a cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een vorm kan één cel tonen: typ een verwijzing zoals =A1, =Blad2!B3, of de naam van een cel.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>That is not a cell, or the name of one, in this workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat is geen cel, en ook geen naam van een cel, in deze werkmap.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>A shape can show one cell, not a range of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een vorm kan één cel tonen, geen bereik van cellen.</translation>
     </message>
     <message>
         <location line="+202"/>
@@ -73637,53 +73637,53 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2210"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding bevat te veel om te tekenen, dus blijft ze zoals ze was.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic can&apos;t be drawn.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding kan niet worden getekend.</translation>
     </message>
     <message>
         <location line="+66"/>
         <source>That graphic is too large to put in a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding is te groot om in een document te plaatsen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic has too much to draw, so it is not put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding bevat te veel om te tekenen, dus wordt ze niet in het document geplaatst.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>That graphic refers to files or addresses outside itself, or holds pictures, which JeffWrite doesn&apos;t open.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding verwijst naar bestanden of adressen buiten zichzelf, of bevat afbeeldingen, die JeffWrite niet opent.</translation>
     </message>
     <message>
         <location line="+165"/>
         <source>The colors of this graphic can&apos;t be changed: it is too large, too deeply nested, or refers outside itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De kleuren van deze afbeelding kunnen niet worden gewijzigd: ze is te groot, te diep genest, of verwijst naar buiten zichzelf.</translation>
     </message>
     <message>
         <location line="+58"/>
         <source>This graphic is too large or refers to files or addresses outside itself, so it isn&apos;t turned into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding is te groot of verwijst naar bestanden of adressen buiten zichzelf, dus wordt ze niet omgezet in vormen.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This graphic has too many parts to turn into shapes (the most is %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding heeft te veel onderdelen om in vormen om te zetten (het maximum is %1).</translation>
     </message>
     <message>
         <location line="+5"/>
         <location line="+7"/>
         <source>This graphic has no lines or areas to turn into shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding heeft geen lijnen of vlakken om in vormen om te zetten.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>This graphic can&apos;t be turned into shapes here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding kan hier niet in vormen worden omgezet.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartops.cpp" line="-267"/>
@@ -74440,18 +74440,18 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+3"/>
         <source>charts larger than a chart may be</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafieken groter dan een grafiek mag zijn</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>charts past the size all the charts of a document may come to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafieken die de maximale grootte overschrijden die alle grafieken van een document samen mogen hebben</translation>
     </message>
     <message>
         <location line="+5"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+787"/>
         <source>charts past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafieken die het maximum van %1 overschrijden dat een document mag hebben</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -74464,7 +74464,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+4"/>
         <source>charts past the number of points all the charts of a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">grafieken die het aantal punten overschrijden dat alle grafieken van een document samen mogen hebben</translation>
     </message>
     <message>
         <location line="+331"/>

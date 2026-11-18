@@ -1,15 +1,16 @@
 # Scheda Transizioni
-<!-- keywords: scheda transizioni, barra multifunzione, anteprima, transizione a questa diapositiva, opzioni effetto, durata, al clic del mouse, dopo, applica a tutte, morphing, oggetti, parole, caratteri, dissolvenza, spinta, apparizione, tendina, divisione, rivela, copri, scopri, zoom, taglio, effetti di transizione, passaggio tra diapositive -->
 
-La scheda **Transizioni** consente di impostare il modo in cui la presentazione passa alla diapositiva corrente.
+<!-- keywords: scheda transizioni, barra multifunzione, anteprima, transizione a questa diapositiva, opzioni effetto, durata, al clic del mouse, dopo, applica a tutte, morphing, oggetti, parole, caratteri, dissolvenza, spinta, tendina, dividi, rivela, copri, scopri, zoom, taglia, dissolvenza, persiane, scacchiera, pettine, barre casuali, cerchio, rombo, più, cuneo, ruota, forma, lampo, notiziario, strisce, casuale -->
 
-- Il gruppo **Anteprima** contiene **Anteprima**, che riproduce la transizione verso la diapositiva per mostrarne l'effetto.
-- **Transizione a questa diapositiva** è una raccolta di effetti: **Nessuna**, **Morphing**, **Dissolvenza**, **Spinta**, **Tendina**, **Divisione**, **Rivela**, **Copri**, **Scopri**, **Zoom** e **Taglia**. **Opzioni effetto** consente di scegliere la direzione, oppure **Verso l'esterno** e **Verso l'interno**, per gli effetti che le prevedono. Per **Morphing** consente di scegliere **Oggetti**, **Parole** o **Caratteri**.
-- Il gruppo **Intervallo** contiene **Durata**, **Al clic del mouse**, **Dopo** con il relativo numero di secondi e **Applica a tutte**. Quando si sceglie il morphing, la durata è di 2 secondi. Gli altri effetti durano 0,7 secondi.
+La scheda **Transizioni** imposta il modo in cui la presentazione passa alla diapositiva selezionata.
 
-Vedere [Transizioni tra diapositive](transitions).
+- **Anteprima** contiene **Anteprima**, che riproduce la transizione verso la diapositiva così da poterla vedere.
+- **Transizione a questa diapositiva** è una raccolta di effetti: **Nessuna**, **Morphing**, **Dissolvenza**, **Spinta**, **Tendina**, **Dividi**, **Rivela**, **Copri**, **Scopri**, **Zoom**, **Taglia**, **Dissolvenza**, **Persiane**, **Scacchiera**, **Pettine**, **Barre casuali**, **Cerchio**, **Rombo**, **Più**, **Cuneo**, **Ruota**, **Forma**, **Lampo**, **Notiziario**, **Strisce** e **Casuale**. **Opzioni effetto** permette di scegliere la direzione, **All'esterno** e **All'interno**, orizzontale o verticale, i raggi di una ruota o la forma di una figura, per gli effetti che le prevedono. Per **Morphing** permette di scegliere **Oggetti**, **Parole** o **Caratteri**.
+- **Intervallo** contiene **Durata**, **Al clic del mouse**, **Dopo** con i relativi secondi, e **Applica a tutte**. Un morphing dura 2 secondi quando lo si sceglie. Gli altri effetti durano 0,7 secondi.
 
-## Argomenti correlati
+Vedi [Transizioni tra diapositive](transitions).
+
+## Collegamenti correlati
 
 - [Transizioni tra diapositive](transitions)
 - [Animazioni](animations)

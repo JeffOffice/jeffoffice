@@ -1,16 +1,16 @@
-# Registerkarte „Übergänge“
-<!-- keywords: Registerkarte Übergänge, Menüband, Vorschau, Übergang zu dieser Folie, Effektoptionen, Dauer, Bei Mausklick, Nach, Auf alle anwenden, Morphen, Objekte, Wörter, Zeichen, Verblassen, Schieben, Wischen, Teilen, Enthüllen, Bedecken, Aufdecken, Zoom, Schnitt -->
+# Registerkarte Übergänge
+<!-- keywords: Übergänge, Registerkarte Übergänge, Menüband, Vorschau, Übergang zu dieser Folie, Effektoptionen, Dauer, Bei Mausklick, Nach, Auf alle anwenden, Morph, Objekte, Wörter, Zeichen, Verblassen, Schieben, Wischen, Teilen, Aufdecken, Abdecken, Zoom, Schneiden, Auflösen, Jalousie, Schachbrett, Kamm, Zufällige Streifen, Kreis, Raute, Plus, Keil, Rad, Form, Blitz, Neuigkeitsblitz, Streifen, Zufällig -->
 
-Auf der Registerkarte **Übergänge** legen Sie fest, wie die Bildschirmpräsentation zur aktuellen Folie wechselt.
+Die Registerkarte **Übergänge** legt fest, wie die Bildschirmpräsentation zu der Folie übergeht, auf der Sie sich gerade befinden.
 
-- Die Gruppe **Vorschau** enthält **Vorschau**. Damit wird der Übergang zur Folie abgespielt, sodass Sie ihn sehen können.
-- **Übergang zu dieser Folie** ist ein Katalog mit Effekten: **Ohne**, **Morphen**, **Verblassen**, **Schieben**, **Wischen**, **Teilen**, **Enthüllen**, **Bedecken**, **Aufdecken**, **Zoom** und **Schnitt**. Mit **Effektoptionen** wählen Sie bei den Effekten, die dies anbieten, die Richtung oder **Heraus** und **Hinein**. Bei **Morphen** wählen Sie **Objekte**, **Wörter** oder **Zeichen**.
-- Die Gruppe **Anzeigedauer** enthält **Dauer**, **Bei Mausklick**, **Nach** mit der Anzahl der Sekunden sowie **Auf alle anwenden**. Wenn Sie **Morphen** wählen, dauert der Übergang 2 Sekunden. Die anderen Effekte dauern 0,7 Sekunden.
+- **Vorschau** enthält **Vorschau**. Damit wird der Übergang zu der Folie abgespielt, damit Sie ihn sehen können.
+- **Übergang zu dieser Folie** ist eine Galerie mit Effekten: **Ohne**, **Morph**, **Verblassen**, **Schieben**, **Wischen**, **Teilen**, **Aufdecken**, **Abdecken**, **Zoom**, **Schneiden**, **Auflösen**, **Jalousie**, **Schachbrett**, **Kamm**, **Zufällige Streifen**, **Kreis**, **Raute**, **Plus**, **Keil**, **Rad**, **Form**, **Blitz**, **Neuigkeitsblitz**, **Streifen** und **Zufällig**. Mit **Effektoptionen** wählen Sie bei den Effekten, die sie besitzen, die Richtung (**Heraus** und **Hinein**, horizontal oder vertikal), die Speichen eines Rades oder die Form einer Form. Bei **Morph** wählen Sie **Objekte**, **Wörter** oder **Zeichen**.
+- **Anzeigedauer** enthält **Dauer**, **Bei Mausklick**, **Nach** mit der Angabe in Sekunden sowie **Auf alle anwenden**. Ein Morph dauert bei der Auswahl 2 Sekunden. Die übrigen Effekte dauern 0,7 Sekunden.
 
-Siehe [Übergänge zwischen Folien](transitions).
+Siehe [Folienübergänge](transitions).
 
 ## Verwandte Themen
 
-- [Übergänge zwischen Folien](transitions)
+- [Folienübergänge](transitions)
 - [Animationen](animations)
-- [Registerkarte „Bildschirmpräsentation“](tab-slide-show)
+- [Registerkarte Bildschirmpräsentation](tab-slide-show)
