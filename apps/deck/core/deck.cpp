@@ -704,6 +704,64 @@ int addSlide(Document &d, const MasterPage &layout, int at)
     return index;
 }
 
+namespace {
+
+// The size of the picture an item shows, by the item's id, for the pictures of `items`.
+QHash<QString, qint64> pictureBytesOf(const Document &d, const ItemList &items)
+{
+    QHash<QString, qint64> out;
+    walkItems(items, [&](const ItemPtr &it) {
+        if (it->type() != ItemType::Picture) return;
+        const auto image = d.images.constFind(static_cast<const PictureItem &>(*it).imageId);
+        out.insert(it->id, image == d.images.cend() ? 0 : image->bytes.size());
+    });
+    return out;
+}
+
+bool isObjectEntry(const QJsonObject &e) { return e.value(QStringLiteral("kind")).toString() == QLatin1String("object"); }
+
+qint64 objectBytesOf(const QJsonObject &e) { return e.value(QStringLiteral("data")).toString().size() / 4 * 3; }
+
+} // namespace
+
+bool objectBudgetOf(const Document &d, const QString &leave, office::ole::ObjectBudget *budget)
+{
+    auto page = [&](const PageBase &p) {
+        const QJsonArray charts = p.props.value(QStringLiteral("charts")).toArray();
+        if (charts.isEmpty()) return true;
+        const QHash<QString, qint64> pictures = pictureBytesOf(d, p.items);
+        for (const QJsonValue &v : charts) {
+            const QJsonObject e = v.toObject();
+            const QString item = e.value(QStringLiteral("item")).toString();
+            if (!isObjectEntry(e) || item == leave) continue;
+            if (!budget->admit(objectBytesOf(e), pictures.value(item))) return false;
+        }
+        return true;
+    };
+    for (const auto &p : d.pages)
+        if (!page(*p)) return false;
+    for (const auto &m : d.masters)
+        if (!page(*m)) return false;
+    return true;
+}
+
+void keepObjectsThatFit(const Document &d, const ItemList &items, QJsonArray *charts)
+{
+    office::ole::ObjectBudget budget;
+    bool room = objectBudgetOf(d, QString(), &budget);
+    const QHash<QString, qint64> pictures = pictureBytesOf(d, items);
+    QJsonArray kept;
+    for (const QJsonValue &v : *charts) {
+        const QJsonObject e = v.toObject();
+        if (isObjectEntry(e) && (!room || !budget.admit(objectBytesOf(e), pictures.value(e.value(QStringLiteral("item")).toString())))) {
+            room = false;
+            continue;
+        }
+        kept.append(v);
+    }
+    *charts = kept;
+}
+
 int duplicateSlide(Document &d, int index)
 {
     if (index < 0 || index >= d.pages.size()) return -1;
@@ -735,7 +793,9 @@ int duplicateSlide(Document &d, int index)
             c[QStringLiteral("item")] = ids.value(c.value(QStringLiteral("item")).toString());
             charts[i] = c;
         }
+        keepObjectsThatFit(d, slide->items, &charts);
         if (!charts.isEmpty()) slide->props[QStringLiteral("charts")] = charts;
+        else slide->props.remove(QStringLiteral("charts"));
     }
     slide->notesStoryId = from.notesStoryId.isEmpty() ? d.createStory() : d.copyStory(from.notesStoryId);
     d.pages.insert(index + 1, slide);

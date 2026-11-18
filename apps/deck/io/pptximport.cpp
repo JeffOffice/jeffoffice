@@ -729,6 +729,8 @@ private:
     bool keepXml(const QDomElement &e, QString *out);
     QHash<QString, std::optional<QJsonObject>> m_chartParts;
     office::ole::ObjectBudget m_objectBudget;     // the embedded objects kept so far (their packages), against what a file may keep
+    QHash<QString, QByteArray> m_objectParts;     // the packages and pictures of the objects kept, by part: a part many frames name is inflated once
+    QSet<QString> m_objectRefused;                // the packages that were refused (over a cap, or not bytes to keep): not inflated again for the next frame that names them
     int m_objectsPastLimit = 0;                   // objects kept as their pictures only: over a cap, or with a package that is missing or outside the file
     qint64 m_diagramBytes = 0;                    // what the diagrams' kept parts come to, in all
     int m_diagramsDrawn = 0;                      // the diagrams drawn so far, and what their drawings come to
@@ -1789,12 +1791,35 @@ bool Importer::readFrameObject(const QDomElement &frame, Scope &sc)
     auto emuOf = [](const QDomElement &e, const char *name) { return office::parseInt(office::attr(e, QLatin1String(name))); };
     const QDomElement ext = aChild(xfrm, "ext");
     const office::Relationship rel = m_pkg.relationship(sc.ctx.part, office::attrNs(object, office::ns::R, QStringLiteral("id")));
-    // (A link that goes outside the package is resolved to nothing by the package, and a part it names that the file does not hold is no part.)
-    const bool usable = !rel.id.isEmpty() && !rel.external && !rel.target.isEmpty() && m_pkg.hasPart(rel.target);
+    // (A link that goes outside the package is resolved to nothing by the package, and a part it names that the file does not hold is no part. Only a link of the kind an object has, to a part
+    // under the embeddings, is an object's: a link to a layout or the presentation itself is not, and the frame is read as its picture.)
+    const bool objectLink = rel.type.endsWith(QLatin1String("/package")) || rel.type.endsWith(QLatin1String("/oleObject"));
+    const bool usable = objectLink && !rel.id.isEmpty() && !rel.external && !rel.target.isEmpty() && rel.target.startsWith(QLatin1String("/ppt/embeddings/"), Qt::CaseInsensitive) && m_pkg.hasPart(rel.target);
     std::optional<office::ole::EmbeddedObject> kept;
     if (usable) {
-        const QByteArray bytes = m_pkg.part(rel.target);
-        kept = office::ole::keepObject(office::attr(object, QStringLiteral("progId")), bytes, QByteArray(), std::clamp<qint64>(emuOf(ext, "cx"), 0, office::ole::kMaxEmu), std::clamp<qint64>(emuOf(ext, "cy"), 0, office::ole::kMaxEmu), m_objectBudget, rel.target);
+        // (What a part comes to is asked of the package before it is inflated, and a part many frames name is inflated once.)
+        const office::Relationship image = m_pkg.relationship(sc.ctx.part, office::attrNs(aChild(pChild(pic, "blipFill"), "blip"), office::ns::R, QStringLiteral("embed")));
+        const bool pictureUsable = !image.id.isEmpty() && !image.external && !image.target.isEmpty() && m_pkg.hasPart(image.target);
+        const qint64 size = m_pkg.partSize(rel.target), pictureSize = pictureUsable ? m_pkg.partSize(image.target) : 0;
+        const bool pictureFits = pictureUsable && pictureSize >= 0 && pictureSize <= office::ole::limits().pictureBytes;
+        if (size < 0 || size > office::ole::limits().objectBytes || m_objectRefused.contains(rel.target) || !m_objectBudget.fits(size, pictureFits ? pictureSize : 0)) {
+            ++m_objectsPastLimit;
+            return false;
+        }
+        QByteArray bytes = m_objectParts.value(rel.target);
+        if (bytes.isEmpty()) bytes = m_pkg.part(rel.target);
+        QByteArray preview;
+        if (pictureFits) {
+            preview = m_objectParts.value(image.target);
+            if (preview.isEmpty()) preview = m_pkg.part(image.target);
+        }
+        kept = office::ole::keepObject(office::attr(object, QStringLiteral("progId")), bytes, preview, std::clamp<qint64>(emuOf(ext, "cx"), 0, office::ole::kMaxEmu), std::clamp<qint64>(emuOf(ext, "cy"), 0, office::ole::kMaxEmu), m_objectBudget, rel.target);
+        if (kept) {
+            m_objectParts.insert(rel.target, bytes);
+            if (pictureFits) m_objectParts.insert(image.target, preview);
+        } else {
+            m_objectRefused.insert(rel.target);
+        }
     }
     if (!kept) {
         // (A package that is missing or outside the file is no object to keep, and the picture is read as it always was; one over a cap is told of.)
@@ -1805,8 +1830,13 @@ bool Importer::readFrameObject(const QDomElement &frame, Scope &sc)
     if (!it) return false;
     if (const int number = frameNumber(frame); number > 0) it->sourceId = number;
     sc.page->items.push_back(it);
-    sc.charts.append(QJsonObject{{"item", it->id}, {"kind", "object"}, {"progId", kept->progId}, {"name", office::attr(object, QStringLiteral("name"))}, {"part", rel.target},
-                                 {"type", m_pkg.contentType(rel.target)}, {"relType", rel.type}, {"data", QString::fromLatin1(kept->partBytes.toBase64())}});
+    // (The element as the file had it, with its picture, so that saving writes it again as it was, but for the links; kept unless the file's kept settings are used up.)
+    QString element;
+    keepXml(object, &element);
+    QJsonObject entry{{"item", it->id}, {"kind", "object"}, {"progId", kept->progId}, {"name", office::attr(object, QStringLiteral("name"))}, {"part", rel.target},
+                      {"type", m_pkg.contentType(rel.target)}, {"relType", rel.type}, {"data", QString::fromLatin1(kept->partBytes.toBase64())}};
+    if (!element.isEmpty()) entry[QStringLiteral("oleXml")] = element;
+    sc.charts.append(entry);
     return true;
 }
 
@@ -2148,6 +2178,8 @@ std::unique_ptr<Document> importPresentation(const QByteArray &bytes, QString *e
     if (!pkg.read(bytes, error)) return nullptr;
     return importPackage(pkg, error);
 }
+
+std::unique_ptr<Document> importPresentationPackage(const office::Package &pkg, QString *error) { return importPackage(pkg, error); }
 
 std::unique_ptr<Document> importPresentationFile(const QString &path, QString *error)
 {

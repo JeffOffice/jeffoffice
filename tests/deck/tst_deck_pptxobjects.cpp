@@ -51,6 +51,36 @@ QStringList embeddingParts(const Exported &e)
     return out;
 }
 
+// Puts the caps back however a check ends.
+struct LimitsGuard {
+    ~LimitsGuard() { office::ole::resetLimits(); }
+};
+
+// The pictures of a slide: how many.
+int picturesOf(const Page &page)
+{
+    int n = 0;
+    walkItems(page.items, [&](const ItemPtr &it) { n += it->type() == ItemType::Picture ? 1 : 0; });
+    return n;
+}
+
+// The id of the picture of the first kept object of a slide.
+QString firstObjectId(const Page &page)
+{
+    for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray())
+        if (v.toObject().value(QStringLiteral("kind")).toString() == QLatin1String("object")) return v.toObject().value(QStringLiteral("item")).toString();
+    return QString();
+}
+
+// The same file with every object frame linked to the first one's package (so they name one part), the others' parts dropped.
+Parts sharingOnePackage(Parts p, int count)
+{
+    for (Rel &r : p.rels)
+        if (r.type == QLatin1String("oleObject")) r.target = QStringLiteral("/ppt/embeddings/object1.bin");
+    for (int i = 2; i <= count; ++i) p.data.remove(QStringLiteral("/ppt/embeddings/object%1.bin").arg(i));
+    return p;
+}
+
 } // namespace
 
 class DeckPptxObjectsTests : public QObject {
@@ -1216,26 +1246,58 @@ private Q_SLOTS:
     }
 
     // The caps: at most so many objects in a file, and their packages and pictures together at most so many bytes; one over a cap, or whose package is missing or leaves the file, is read as its picture.
+    // Each cap is checked alone: the size of one object, the count, and the total (the picture of an object is counted in it).
     void hostileObjectsAreKeptAsPictures()
     {
         QString err;
         const QByteArray big(300, 'b'), small(50, 's');
-        office::ole::Limits l;
-        l.objects = 2;
-        l.objectBytes = 200;
-        l.totalBytes = 120;
-        office::ole::setLimits(l);
-        // The first is over the size of one, the next two fit, and the third is over the count; the picture of each is read all the same.
-        auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B"), QStringLiteral("Foo.C"), QStringLiteral("Foo.D")}, {big, small, small, small})), &err);
-        office::ole::resetLimits();
-        QVERIFY2(d, qPrintable(err));
-        // (the sum of the two that fit is 100 bytes, under the total; a third would make 150)
-        QCOMPARE(int(keptObjects(*d->pages[0]).size()), 2);
-        int pictures = 0;
-        walkItems(d->pages[0]->items, [&](const ItemPtr &it) { pictures += it->type() == ItemType::Picture ? 1 : 0; });
-        QVERIFY(pictures >= 4);
+        const QStringList programs{QStringLiteral("Foo.A"), QStringLiteral("Foo.B"), QStringLiteral("Foo.C"), QStringLiteral("Foo.D")};
+        const QByteArray file = pack(objectPptx(programs, {big, small, small, small}));
+        const qint64 unit = small.size() + tinyPng().size();
+        // The size of one: the first is over it, the other three are kept, and the picture of each is read all the same.
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.objectBytes = 200;
+            office::ole::setLimits(l);
+            auto d = deck::importPresentation(file, &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 3);
+            QVERIFY(picturesOf(*d->pages[0]) >= 4);
+        }
+        // The count: two of the four small ones (the first is over the size of one).
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.objects = 2;
+            office::ole::setLimits(l);
+            auto d = deck::importPresentation(file, &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 2);
+            QVERIFY(picturesOf(*d->pages[0]) >= 4);
+        }
+        // The total: room for two small ones with their pictures, and the third is over it (the first is over the total alone).
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.totalBytes = unit * 2 + 10;
+            office::ole::setLimits(l);
+            auto d = deck::importPresentation(file, &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 2);
+        }
+        // The picture counts in the total: room for the package alone is none.
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.totalBytes = small.size() + tinyPng().size() - 1;
+            office::ole::setLimits(l);
+            auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {small})), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 0);
+        }
         // The same file with the real caps keeps all four.
-        auto all = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B"), QStringLiteral("Foo.C"), QStringLiteral("Foo.D")}, {big, small, small, small})), &err);
+        auto all = deck::importPresentation(file, &err);
         QVERIFY2(all, qPrintable(err));
         QCOMPARE(int(keptObjects(*all->pages[0]).size()), 4);
         // A link to a part the file does not hold is no object; the picture is still there.
@@ -1246,6 +1308,262 @@ private Q_SLOTS:
         auto outside = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {small}, QStringLiteral("/../../outside.bin"))), &err);
         QVERIFY2(outside, qPrintable(err));
         QCOMPARE(int(keptObjects(*outside->pages[0]).size()), 0);
+    }
+
+    // A frame's link is an object's only if it is of an object's kind and names a part under the embeddings: a link to the slide's layout, or to the presentation itself, is no object.
+    void anObjectLinkIsOfAnObjectsKindAndPlace()
+    {
+        QString err;
+        auto plain = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(plain, qPrintable(err));
+        Exported base;
+        QVERIFY2(unpack(deck::exportPresentation(*plain, &err), &base, &err), qPrintable(err));
+        struct Case {
+            QString relType, target;
+        };
+        for (const Case &c : {Case{QStringLiteral("slideLayout"), QStringLiteral("/ppt/slideLayouts/slideLayout1.xml")}, Case{QStringLiteral("oleObject"), QStringLiteral("/ppt/presentation.xml")},
+                              Case{QStringLiteral("oleObject"), QStringLiteral("/ppt/slides/slide2.xml")}}) {
+            auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {QByteArray("x")}, c.target, c.relType)), &err);
+            QVERIFY2(d, qPrintable(err));
+            QVERIFY2(keptObjects(*d->pages[0]).isEmpty(), qPrintable(c.target));
+            QVERIFY(picturesOf(*d->pages[0]) >= 1);
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+            QVERIFY2(embeddingParts(e).isEmpty(), qPrintable(c.target));
+            QCOMPARE(e.pkg.partNames().size(), base.pkg.partNames().size());
+        }
+        // The same links under the embeddings, of an object's kind, are objects (the kinds a file says are the package's and the object's).
+        for (const QString &type : {QStringLiteral("oleObject"), QStringLiteral("package")}) {
+            auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {QByteArray("x")}, QString(), type)), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 1);
+        }
+    }
+
+    // A replaced object is the new one in every field: its program, the kind of its package, and its name in the file; and an object of another program is not replaced.
+    void aReplacedObjectIsTheNewOne()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(d, qPrintable(err));
+        office::ole::ObjectBudget budget;
+        const auto sheet = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Sheet), objectPackage("cells"), odptest::png(10, 10, Qt::red), 1270000, 1270000, budget);
+        const auto page = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("a page of text"), odptest::png(12, 12, Qt::green), 1270000, 1270000, budget);
+        QVERIFY(sheet && page);
+        const ItemPtr item = deck::addPageObject(*d, *d->pages[0], *sheet, QRectF(50, 50, 100, 100));
+        QVERIFY(item);
+        QVERIFY(deck::setPageObject(*d, *d->pages[0], item->id, *page));
+        // Saved and read again, it is replaced once more: an object that came from a file has the name the file gave it.
+        const QByteArray saved = deck::exportPresentation(*d, &err);
+        auto again = deck::importPresentation(saved, &err);
+        QVERIFY2(again, qPrintable(err));
+        const QString id = firstObjectId(*again->pages[0]);
+        QVERIFY(!id.isEmpty());
+        QVERIFY(deck::setPageObject(*again, *again->pages[0], id, *sheet));
+        for (const auto &deckAndObject : {qMakePair(d.get(), page), qMakePair(again.get(), sheet)}) {
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*deckAndObject.first, &err), &e, &err), qPrintable(err));
+            const QStringList kept = embeddingParts(e);
+            QCOMPARE(int(kept.size()), 1);
+            const bool isSheet = deckAndObject.second->kind() == office::ole::Kind::Sheet;
+            QVERIFY2(kept[0].endsWith(isSheet ? QLatin1String(".xlsx") : QLatin1String(".docx")), qPrintable(kept[0]));
+            QCOMPARE(e.pkg.contentType(kept[0]), QStringLiteral("application/vnd.openxmlformats-officedocument.%1").arg(isSheet ? QStringLiteral("spreadsheetml.sheet") : QStringLiteral("wordprocessingml.document")));
+            const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+            QVERIFY(slide.contains(QStringLiteral("progId=\"%1\"").arg(deckAndObject.second->progId)));
+            QVERIFY(!slide.contains(QStringLiteral("progId=\"%1\"").arg(isSheet ? page->progId : sheet->progId)));
+        }
+        // An object of another program is kept as it is: ours does not take its place.
+        auto foreign = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.Widget.1")}, {QByteArray("not ours")})), &err);
+        QVERIFY2(foreign, qPrintable(err));
+        const QString foreignId = firstObjectId(*foreign->pages[0]);
+        QVERIFY(!foreignId.isEmpty());
+        QVERIFY(!deck::setPageObject(*foreign, *foreign->pages[0], foreignId, *page));
+        QCOMPARE(keptObjects(*foreign->pages[0]), QList<QByteArray>{QByteArray("not ours")});
+    }
+
+    // Copies are held to the caps too: a duplicate of a slide, and a slide taken from another presentation, keep an object only where the caps have room (else its picture).
+    void copiesOfObjectsAreHeldToTheCaps()
+    {
+        QString err;
+        const QByteArray small(50, 's');
+        auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {small})), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto other = deck::importPresentation(pack(samplePptx()), &err);
+        QVERIFY2(other, qPrintable(err));
+        const int pictures = picturesOf(*d->pages[0]);
+        const qint64 unit = small.size() + tinyPng().size();
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.totalBytes = unit + 10;   // room for the one object, not two
+            office::ole::setLimits(l);
+            const int copy = deck::duplicateSlide(*d, 0);
+            QVERIFY(copy >= 1);
+            QCOMPARE(int(keptObjects(*d->pages[copy]).size()), 0);
+            QCOMPARE(picturesOf(*d->pages[copy]), pictures);
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 1);
+        }
+        // With the real caps the copies keep it.
+        const int again = deck::duplicateSlide(*d, 0);
+        QCOMPARE(int(keptObjects(*d->pages[again]).size()), 1);
+        // From another presentation, with room for no object at all.
+        auto source = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A")}, {small})), &err);
+        QVERIFY2(source, qPrintable(err));
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.objects = 0;
+            office::ole::setLimits(l);
+            const int at = deck::insertSlideFrom(*other, 1, *source, 0, true);
+            QVERIFY(at >= 0);
+            QCOMPARE(int(keptObjects(*other->pages[at]).size()), 0);
+            QVERIFY(picturesOf(*other->pages[at]) >= 1);
+        }
+        const int at = deck::insertSlideFrom(*other, 1, *source, 0, true);
+        QCOMPARE(int(keptObjects(*other->pages[at]).size()), 1);
+    }
+
+    // Saving holds the objects of the whole presentation to the caps: what is past them is written as its picture, with a note.
+    void saveHoldsTheObjectsToTheCaps()
+    {
+        QString err;
+        const QByteArray small(50, 's');
+        auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B"), QStringLiteral("Foo.C")}, {small, small, small})), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(keptObjects(*d->pages[0]).size()), 3);
+        const qint64 unit = small.size() + tinyPng().size();
+        QByteArray saved;
+        QStringList said;
+        {
+            LimitsGuard guard;
+            office::ole::Limits l;
+            l.totalBytes = unit * 2 + 10;
+            office::ole::setLimits(l);
+            saved = deck::exportPresentation(*d, &err, &said);
+        }
+        QVERIFY(!saved.isEmpty());
+        QVERIFY2(said.join(QLatin1Char(' ')).contains(QStringLiteral("more embedded objects than a file can keep")), qPrintable(said.join(';')));
+        Exported e;
+        QVERIFY2(unpack(saved, &e, &err), qPrintable(err));
+        QCOMPARE(int(embeddingParts(e).size()), 2);
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        auto back = deck::importPresentation(saved, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(keptObjects(*back->pages[0]).size()), 2);
+        QVERIFY(picturesOf(*back->pages[0]) >= picturesOf(*d->pages[0]));
+        // Under the real caps all three are written.
+        Exported all;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &all, &err), qPrintable(err));
+        QCOMPARE(int(embeddingParts(all).size()), 3);
+    }
+
+    // A package many frames name is inflated once, not once for each frame; and the size of a part is asked before it is inflated.
+    void aPackageManyFramesNameIsInflatedOnce()
+    {
+        QString err;
+        const int frames = 20;
+        const QByteArray body(200 * 1024, 'a');
+        QStringList programs;
+        QList<QByteArray> bytes;
+        for (int i = 0; i < frames; ++i) {
+            programs << QStringLiteral("Foo.W");
+            bytes << body;
+        }
+        const QByteArray file = pack(sharingOnePackage(objectPptx(programs, bytes), frames));
+        office::Package pkg;
+        QVERIFY(pkg.readLazy(file));
+        const qint64 before = pkg.inflatedBytes();
+        auto d = deck::importPresentationPackage(pkg, &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(keptObjects(*d->pages[0]).size()), frames);
+        QVERIFY2(pkg.inflatedBytes() - before < qint64(body.size()) * 3, qPrintable(QString::number(pkg.inflatedBytes() - before)));
+        // Over the size of one, the part is not inflated at all.
+        LimitsGuard guard;
+        office::ole::Limits l;
+        l.objectBytes = 1024;
+        office::ole::setLimits(l);
+        office::Package second;
+        QVERIFY(second.readLazy(file));
+        const qint64 start = second.inflatedBytes();
+        auto none = deck::importPresentationPackage(second, &err);
+        QVERIFY2(none, qPrintable(err));
+        QCOMPARE(int(keptObjects(*none->pages[0]).size()), 0);
+        QVERIFY2(second.inflatedBytes() - start < qint64(body.size()), qPrintable(QString::number(second.inflatedBytes() - start)));
+    }
+
+    // Two frames that name one package, and two that name one link, are two objects each, written as two parts that open.
+    void framesThatShareAPackageOrALink()
+    {
+        QString err;
+        const QByteArray bytes("shared package bytes");
+        Parts same = sharingOnePackage(objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B")}, {bytes, bytes}), 2);
+        Parts link = objectPptx({QStringLiteral("Foo.A"), QStringLiteral("Foo.B")}, {bytes, bytes});
+        // (the second frame names the first's link: the file has one relationship for both)
+        QString xml = QString::fromUtf8(link.data["/ppt/slides/slide1.xml"].xml);
+        xml.replace(QStringLiteral("r:id=\"rId5\""), QStringLiteral("r:id=\"rId4\""));
+        link.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        for (const Parts &p : {same, link}) {
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY2(d, qPrintable(err));
+            QCOMPARE(int(keptObjects(*d->pages[0]).size()), 2);
+            Exported e;
+            QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+            QCOMPARE(int(embeddingParts(e).size()), 2);
+            for (const QString &name : embeddingParts(e)) QCOMPARE(e.pkg.part(name), bytes);
+            auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(keptObjects(*back->pages[0]), (QList<QByteArray>{bytes, bytes}));
+        }
+    }
+
+    // An object of another program keeps how its frame shows it: an icon, the element's other attributes and children, and its picture's crop.
+    void aForeignObjectKeepsItsLook()
+    {
+        QString err;
+        Parts p = objectPptx({QStringLiteral("Foo.Widget.1")}, {QByteArray("foreign bytes")});
+        QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+        const int at = xml.indexOf(QStringLiteral("<p:oleObj"));
+        QVERIFY(at > 0);
+        QString ole = xml.mid(at);
+        ole.replace(QStringLiteral("progId=\"Foo.Widget.1\"><p:embed/>"), QStringLiteral("progId=\"Foo.Widget.1\" showAsIcon=\"1\" spid=\"_x0000_s1026\"><p:embed followColorScheme=\"full\"/>"));
+        ole.replace(QStringLiteral("<a:blip r:embed=\"rId2\"/>"), QStringLiteral("<a:blip r:embed=\"rId2\"/><a:srcRect l=\"10000\" t=\"20000\"/>"));
+        xml = xml.left(at) + ole;
+        p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+        auto d = deck::importPresentation(pack(p), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(keptObjects(*d->pages[0]).size()), 1);
+        Exported e;
+        QVERIFY2(unpack(deck::exportPresentation(*d, &err), &e, &err), qPrintable(err));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY(slide.contains(QStringLiteral("showAsIcon=\"1\"")));
+        QVERIFY(slide.contains(QStringLiteral("spid=\"_x0000_s1026\"")));
+        QVERIFY(slide.contains(QStringLiteral("followColorScheme=\"full\"")));
+        QVERIFY(slide.contains(QRegularExpression(QStringLiteral("<a:srcRect\\b[^>]* l=\"10000\"[^>]* t=\"20000\""))));
+        QCOMPARE(slide.count(QStringLiteral("<p:oleObj")), 1);
+        // The links are the file's new ones: the package is there, and the picture's link names the picture.
+        QCOMPARE(int(embeddingParts(e).size()), 1);
+        QCOMPARE(relationshipTargets(e, QStringLiteral("/ppt/slides/slide1.xml"), QStringLiteral("/oleObject")), embeddingParts(e));
+        // Written and read again, it is the same once more.
+        auto twice = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+        QVERIFY2(twice, qPrintable(err));
+        QCOMPARE(keptObjects(*twice->pages[0]), QList<QByteArray>{QByteArray("foreign bytes")});
+        QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")) == slide);
+    }
+
+    // A .odp keeps an object as its picture, and says so in words of its own, not a chart's.
+    void anOdpSavesAnObjectAsItsPicture()
+    {
+        QString err;
+        auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.Widget.1")}, {QByteArray("foreign bytes")})), &err);
+        QVERIFY2(d, qPrintable(err));
+        QStringList said;
+        const QByteArray odp = deck::exportOdp(*d, false, &err, &said);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        const QString all = said.join(QLatin1Char(' '));
+        QVERIFY2(all.contains(QStringLiteral("Embedded objects are saved as their pictures")), qPrintable(said.join(';')));
+        QVERIFY2(!all.contains(QStringLiteral("Charts are saved as pictures")), qPrintable(said.join(';')));
     }
 };
 

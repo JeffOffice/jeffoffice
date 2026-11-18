@@ -11,8 +11,10 @@
 // "objTx", "picTx"). The theme is the document's appData "theme".
 
 #include "core/document.h"
+#include "ole/embedobj.h"
 
 #include <QColor>
+#include <QJsonArray>
 #include <QSet>
 #include <functional>
 #include <QString>
@@ -94,6 +96,12 @@ int addSlide(Document &d, const MasterPage &layout, int at = -1);
 // A copy of slide `index` right after it, notes included: its objects keep
 // their shape numbers, so its animations and charts stay theirs. Returns its index.
 int duplicateSlide(Document &d, int index);
+// What the embedded objects of the presentation's slides and masters (kept in each page's "charts") come to, taken in as a budget: their packages and their pictures. `leave` is the picture
+// whose object a new one takes the place of, which is not counted. False if they are over the caps already.
+bool objectBudgetOf(const Document &d, const QString &leave, office::ole::ObjectBudget *budget);
+// Takes out of `charts` (a page's entries, for the copy `items` of a page of `d` that is not in it yet) the objects the caps do not take in on top of what `d` holds: the copy keeps their
+// pictures only.
+void keepObjectsThatFit(const Document &d, const ItemList &items, QJsonArray *charts);
 // Gives the slide another layout: its placeholders take the new layout's
 // places and formatting by type (title to title, body to body...), the text
 // staying; placeholders the new layout has no place for stay where they were.

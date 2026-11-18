@@ -601,6 +601,8 @@ private:
     office::PackageWriter m_pkg;
     QHash<QString, QString> m_media;
     QHash<QString, QByteArray> m_equationPictures;   // the pictures equations are written with, by "equation:" and a fingerprint of the math, color, and pixel size (what imageBytes gives for them)
+    office::ole::ObjectBudget m_objects;             // the embedded objects written so far, against what a file may hold; past it an object is written as its picture
+    bool m_objectsPastCap = false;
     qint64 m_equationPixels = 0;                     // the pixels of all of them so far, held to kMostEquationPixels
     std::deque<MasterPage> m_synthesized;
     std::vector<MasterOut> m_masters;
@@ -975,6 +977,55 @@ QString Exporter::chartFrame(const QJsonObject &kept, const Item &item, const QS
     return withFrameNames(frame, item.name, item.altText, item.hidden);
 }
 
+// The oleObj element a reader kept (`xml`, as the file had it), with its link and its picture's link and number set and the picture put where the frame is; empty if it is not a whole
+// oleObj with one picture and no link but those two (then the frame is written from what is known of the object).
+QString keptObjectElement(const QString &xml, const QString &link, const QString &image, int pictureId, const QString &place)
+{
+    if (xml.isEmpty()) return QString();
+    QDomDocument dom;
+    if (!parsesAlone(xml, &dom)) return QString();
+    QDomElement root = dom.documentElement();
+    const QString kR = office::ns::R;
+    if (!office::isElement(root, office::ns::P, QStringLiteral("oleObj"))) return QString();
+    QDomAttr own = root.attributeNodeNS(kR, QStringLiteral("id"));
+    QDomElement blip, pic;
+    int pictures = 0;
+    bool sound = !own.isNull();
+    QVector<QDomElement> stack{root};
+    while (!stack.isEmpty() && sound) {
+        const QDomElement e = stack.takeLast();
+        const QDomNamedNodeMap attrs = e.attributes();
+        for (int i = 0; i < attrs.size(); ++i) {
+            const QDomAttr a = attrs.item(i).toAttr();
+            if (a.namespaceURI() == kR && !(e == root && a.localName() == QLatin1String("id")) && !(office::isElement(e, office::ns::A, QStringLiteral("blip")) && a.localName() == QLatin1String("embed"))) sound = false;
+        }
+        if (office::isElement(e, office::ns::P, QStringLiteral("pic"))) {
+            pic = e;
+            ++pictures;
+        } else if (office::isElement(e, office::ns::A, QStringLiteral("blip"))) {
+            blip = e;
+        }
+        for (QDomElement c = e.firstChildElement(); !c.isNull(); c = c.nextSiblingElement()) stack << c;
+    }
+    QDomAttr embed = blip.isNull() ? QDomAttr() : blip.attributeNodeNS(kR, QStringLiteral("embed"));
+    if (!sound || pictures != 1 || embed.isNull()) return QString();
+    own.setValue(link);
+    embed.setValue(image);
+    const QDomElement nv = office::child(pic, office::ns::P, QStringLiteral("nvPicPr"));
+    if (QDomElement cNvPr = office::child(nv, office::ns::P, QStringLiteral("cNvPr")); !cNvPr.isNull()) cNvPr.setAttribute(QStringLiteral("id"), pictureId);
+    // The picture stands where the frame does.
+    QDomElement xfrm = office::child(office::child(pic, office::ns::P, QStringLiteral("spPr")), office::ns::A, QStringLiteral("xfrm"));
+    if (!xfrm.isNull()) {
+        QDomDocument parts;
+        if (office::parseXml(QStringLiteral("<a:xfrm xmlns:a=\"%1\">%2</a:xfrm>").arg(office::ns::A, place).toUtf8(), &parts)) {
+            QDomElement fresh = dom.importNode(parts.documentElement(), true).toElement();
+            for (QDomNode c = xfrm.firstChild(); !c.isNull(); c = xfrm.firstChild()) xfrm.removeChild(c);
+            for (QDomNode c = fresh.firstChild(); !c.isNull(); c = fresh.firstChild()) xfrm.appendChild(c);
+        }
+    }
+    return office::standaloneXml(root);
+}
+
 // The frame for a picture that stands for an embedded object, and the object's package in the package: its bytes exactly as the reader kept them (or as they were put on the page),
 // under their own name where it is free, linked from the slide as the kept entry says; the picture is the one the item shows. The frame has the number the object's frame had, when it is
 // free. Empty, with a note, if the package can't be written.
@@ -1017,12 +1068,17 @@ QString Exporter::objectFrame(const QJsonObject &kept, const Item &item, const Q
     const QString hidden = item.hidden ? QStringLiteral(" hidden=\"1\"") : QString();
     const QString title = esc(kept.value(QStringLiteral("name")).toString().isEmpty() ? item.name : kept.value(QStringLiteral("name")).toString());
     const QString place = QStringLiteral("<a:off x=\"%1\" y=\"%2\"/><a:ext cx=\"%3\" cy=\"%4\"/>").arg(emu(item.rect.x()), emu(item.rect.y()), emu(w), emu(h));
+    // The element the file had, with its attributes and children (how it is shown, its picture's crop and effects), when it is whole; else one made here.
+    QString element = keptObjectElement(kept.value(QStringLiteral("oleXml")).toString(), link, image, pictureId, place);
+    if (element.isEmpty())
+        element = QStringLiteral("<p:oleObj name=\"%1\" r:id=\"%2\" imgW=\"%3\" imgH=\"%4\" progId=\"%5\"><p:embed/>"
+                                 "<p:pic><p:nvPicPr><p:cNvPr id=\"%6\" name=\"\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"%7\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>"
+                                 "<p:spPr><a:xfrm>%8</a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:oleObj>")
+                      .arg(title, link, emu(w), emu(h), esc(progId)).arg(pictureId).arg(image, place);
     return QStringLiteral("<p:graphicFrame xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
                           "xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><p:nvGraphicFramePr><p:cNvPr id=\"%1\" name=\"%2\"%3%4/><p:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></p:cNvGraphicFramePr><p:nvPr/></p:nvGraphicFramePr>"
-                          "<p:xfrm%5>%6</p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/presentationml/2006/ole\"><p:oleObj name=\"%7\" r:id=\"%8\" imgW=\"%9\" imgH=\"%10\" progId=\"%11\"><p:embed/>"
-                          "<p:pic><p:nvPicPr><p:cNvPr id=\"%12\" name=\"\"/><p:cNvPicPr/><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"%13\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>"
-                          "<p:spPr><a:xfrm>%6</a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic></p:oleObj></a:graphicData></a:graphic></p:graphicFrame>")
-        .arg(id).arg(esc(item.name), descr, hidden, turn, place, title, link, emu(w), emu(h), esc(progId)).arg(pictureId).arg(image);
+                          "<p:xfrm%5>%6</p:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/presentationml/2006/ole\">%7</a:graphicData></a:graphic></p:graphicFrame>")
+        .arg(id).arg(esc(item.name), descr, hidden, turn, place, element);
 }
 
 // The frame for a picture that stands for a diagram, and the diagram's parts in the package: what the reader kept, under their own names where they
@@ -1329,8 +1385,16 @@ QString Exporter::tree(const PageBase &page, const QString &part, const QString 
         if (!topLevel.contains(it->id) && !kind.isEmpty()) return;
         // (An object's frame is written after the shapes are numbered, as it takes a number of its own and one for its picture.)
         if (kind == QLatin1String("object")) {
-            if (it->type() == ItemType::Picture && topLevel.contains(it->id) && !kept.value(QStringLiteral("data")).toString().isEmpty() && !office::dmlwrite::relatePicture(ctx, static_cast<const PictureItem &>(*it).imageId).isEmpty())
-                chartFrames.insert(it->id, QString());
+            if (it->type() == ItemType::Picture && topLevel.contains(it->id) && !kept.value(QStringLiteral("data")).toString().isEmpty() && !office::dmlwrite::relatePicture(ctx, static_cast<const PictureItem &>(*it).imageId).isEmpty()) {
+                const auto image = m_doc.images.constFind(static_cast<const PictureItem &>(*it).imageId);
+                if (m_objects.admit(kept.value(QStringLiteral("data")).toString().size() / 4 * 3, image == m_doc.images.cend() ? 0 : image->bytes.size())) {
+                    chartFrames.insert(it->id, QString());
+                } else if (!m_objectsPastCap) {
+                    // (The picture is written as a picture, as any is.)
+                    m_objectsPastCap = true;
+                    note(QCoreApplication::translate("PptxExport", "%1: the presentation holds more embedded objects than a file can keep, so the rest are saved as their pictures.").arg(where));
+                }
+            }
             return;
         }
         const QString xml = kind == QLatin1String("diagram") ? diagramFrame(kept, *it, part, where)
@@ -2370,16 +2434,12 @@ ItemPtr itemOfPage(const PageBase &page, const QString &itemId)
     return found;
 }
 
-// What the objects of every slide come to, taken in as a budget; `leave` is the picture whose object a new one takes the place of. False if they are over it already.
-bool objectBudgetOf(const Document &doc, const QString &leave, office::ole::ObjectBudget *budget)
+// The entry for an object of ours put on a page: all of its fields are the object's.
+QJsonObject newObjectEntry(const QString &itemId, const office::ole::EmbeddedObject &object)
 {
-    for (const auto &page : doc.pages)
-        for (const QJsonValue &v : page->props.value(QStringLiteral("charts")).toArray()) {
-            const QJsonObject e = v.toObject();
-            if (e.value(QStringLiteral("kind")).toString() != QLatin1String("object") || e.value(QStringLiteral("item")).toString() == leave) continue;
-            if (!budget->admit(e.value(QStringLiteral("data")).toString().size() / 4 * 3)) return false;
-        }
-    return true;
+    const QString type = object.kind() == office::ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    return QJsonObject{{"item", itemId}, {"kind", "object"}, {"progId", object.progId}, {"ext", office::ole::extensionOf(object.kind())}, {"type", type},
+                       {"relType", kRelBase + QStringLiteral("package")}, {"data", QString::fromLatin1(object.partBytes.toBase64())}};
 }
 
 } // namespace
@@ -2398,9 +2458,7 @@ ItemPtr addPageObject(Document &doc, PageBase &page, const office::ole::Embedded
     pic->imageId = image;
     page.items.push_back(pic);
     QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
-    const QString type = object.kind() == office::ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    charts.append(QJsonObject{{"item", pic->id}, {"kind", "object"}, {"progId", object.progId}, {"ext", office::ole::extensionOf(object.kind())}, {"type", type},
-                              {"relType", kRelBase + QStringLiteral("package")}, {"data", QString::fromLatin1(object.partBytes.toBase64())}});
+    charts.append(newObjectEntry(pic->id, object));
     page.props[QStringLiteral("charts")] = charts;
     return pic;
 }
@@ -2425,15 +2483,16 @@ bool setPageObject(Document &doc, PageBase &page, const QString &itemId, const o
     const int at = objectEntryOf(page, itemId);
     const ItemPtr item = itemOfPage(page, itemId);
     if (at < 0 || !item || item->type() != ItemType::Picture || !object.isOurs || object.previewPng.isEmpty() || object.partBytes.isEmpty()) return false;
+    // (Only an object of ours is changed: another program's is kept as it is.)
+    if (const auto now = pageObjectOf(doc, page, itemId); !now || !now->isOurs) return false;
     office::ole::ObjectBudget budget;
     if (!objectBudgetOf(doc, itemId, &budget) || !budget.admit(object.partBytes.size(), object.previewPng.size())) return false;
     const QString image = doc.addImage(object.previewPng, QStringLiteral("png"));
     if (image.isEmpty()) return false;
     static_cast<PictureItem &>(*item).imageId = image;
+    // (The entry is the new object's in every field: its program, kind of package, and name in the file are not the old one's.)
     QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
-    QJsonObject e = charts[at].toObject();
-    e[QStringLiteral("data")] = QString::fromLatin1(object.partBytes.toBase64());
-    charts[at] = e;
+    charts[at] = newObjectEntry(itemId, object);
     page.props[QStringLiteral("charts")] = charts;
     return true;
 }

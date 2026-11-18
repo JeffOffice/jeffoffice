@@ -220,8 +220,9 @@ QByteArray themeXmlOf(const Document &d, const MasterPage &master)
     return office::writeTheme(theme);
 }
 
-// The charts a page keeps name the objects they are the picture of: the copies.
-void remapCharts(QJsonObject *props, const QHash<QString, QString> &ids)
+// The charts a page keeps name the objects they are the picture of: the copies. The embedded objects among them are kept only as far as `to` can hold them (the copy of one past that is its
+// picture alone).
+void remapCharts(QJsonObject *props, const QHash<QString, QString> &ids, const Document &to, const ItemList &items)
 {
     QJsonArray charts = props->value(QStringLiteral("charts")).toArray();
     for (int i = 0; i < charts.size(); ++i) {
@@ -229,7 +230,9 @@ void remapCharts(QJsonObject *props, const QHash<QString, QString> &ids)
         c[QStringLiteral("item")] = ids.value(c.value(QStringLiteral("item")).toString());
         charts[i] = c;
     }
+    keepObjectsThatFit(to, items, &charts);
     if (!charts.isEmpty()) props->insert(QStringLiteral("charts"), charts);
+    else props->remove(QStringLiteral("charts"));
 }
 
 // A copy of a layout or slide master of `from` in `to` (its theme too, for a slide master), the pages it stands on not yet looked at.
@@ -250,7 +253,7 @@ std::shared_ptr<MasterPage> copyMasterPage(Document &to, const Document &from, c
     QHash<QString, QString> ids;
     page->items = carry.items(src.items, &ids);
     fitPageToSize(to, *page, from.pageSize(), to.pageSize(), false);
-    remapCharts(&page->props, ids);
+    remapCharts(&page->props, ids, to, page->items);
     page->props[QStringLiteral("reuseKey")] = key;
     if (isSlideMaster(src)) page->props[QStringLiteral("themeXml")] = QString::fromLatin1(themeXmlOf(from, src).toBase64());
     return page;
@@ -392,7 +395,7 @@ int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool 
     QHash<QString, QString> ids;
     page->items = carry.items(src.items, &ids);
     fitPageToSize(to, *page, from.pageSize(), to.pageSize(), true);
-    remapCharts(&page->props, ids);
+    remapCharts(&page->props, ids, to, page->items);
     page->notesStoryId = src.notesStoryId.isEmpty() ? to.createStory() : carry.story(src.notesStoryId);
     to.pages.insert(index, page);
     slideInserted(to, index);
