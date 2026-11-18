@@ -720,6 +720,8 @@ private Q_SLOTS:
     // A file has no Linear form: the picture is the built-up equation, in a frame of the built-up layout's proportions (not the Linear line's), the math unchanged.
     void aLinearEquationIsSavedBuiltUpInPptxAndOdp()
     {
+        const bool linearBefore = jp::equationLinearSetting();
+        const auto restore = qScopeGuard([&] { jp::setEquationLinearSetting(linearBefore); });
         DeckWindow w;
         Editor *ed = w.editor();
         insertLine(w, QStringLiteral("(a+b)/c"));
