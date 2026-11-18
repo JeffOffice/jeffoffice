@@ -9,7 +9,7 @@ A text box is a rectangle on the page that holds text.
 2. Drag on the page to draw the box. Or click the page once for a box 2 inches wide and 1 inch tall.
 3. Type. The blinking line (the caret) is already inside the box.
 
-After one box, the pointer goes back to normal.
+Drag at least a few points to set the size. A box is never smaller than 0.25 inch (18 points) on a side, and a click of less than 4 points gives the usual size. Hold **Shift** while you drag to keep the box square. Press **Esc**, or pick another tool, to put the box tool down. After one box, the pointer goes back to normal.
 
 ## Select the text or select the box
 
@@ -42,7 +42,7 @@ Choose **Text Box > Text > Text Fit**, or right-click the box and choose **Text 
 
 ## Turn text sideways
 
-Click **Text Box > Text > Text Direction**. Lines of text now run from top to bottom. Click it again to undo.
+Click **Text Box > Text > Text Direction** and choose **Horizontal**, **Rotate all text 90°**, or **Rotate all text 270°**. At 90° the lines run from top to bottom, and at 270° from bottom to top. The box keeps its size, and you can type in the turned words as they are. Each choice is one step you can undo. A .pub file keeps all three.
 
 ## When the text does not fit
 
