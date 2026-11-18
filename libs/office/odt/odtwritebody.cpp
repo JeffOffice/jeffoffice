@@ -824,7 +824,10 @@ QByteArray Writer::formulaFrame(const T &t, int math)
     if (int(m_formulas.size()) >= kMostMathObjects) return QByteArray();
     QByteArray markup = wml::equationMarkupDeclared(t.raw(math));
     // (the letters' size and color are the document's own w: properties: that prefix is declared with the other, if the equation uses it)
-    if (markup.contains("<w:") && !markup.contains("xmlns:w=")) markup.insert(markup.indexOf(" xmlns:m="), " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"");
+    if (markup.contains("<w:") && !markup.contains("xmlns:w=")) {
+        const auto at = markup.indexOf(" xmlns:m=");
+        if (at >= 0) markup.insert(at, " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"");
+    }
     const QByteArray content = mathObjectFromOmml(markup);
     if (content.isEmpty() || m_formulaBytes + content.size() > kMostMathObjectBytes) return QByteArray();
     // (as large as it lays out at the size of the letters the equation's own run has, 12 points if it names none, and in its color)
