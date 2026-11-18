@@ -744,8 +744,12 @@ private Q_SLOTS:
         QVERIFY(c.author.size() <= 200);
         QVERIFY(c.initials.size() <= 8);
         // (a window that opens it holds up as well)
+        // (and says what it left out)
         jp::MainWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
         QVERIFY(w.openFile(path));
+        QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("more comments than JeffPub keeps")), qPrintable(told.join(QLatin1Char('|'))));
     }
 
     // Inspect Publication lists the comments (their authors are names of people) and Remove All takes them out as one undo step.
