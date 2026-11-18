@@ -6,6 +6,7 @@
 #include "office/drawingml_write.h"
 #include "wml/xmltree.h"
 #include "office/xml.h"
+#include "render/shapes.h"
 
 #include <QBuffer>
 #include <QColor>
@@ -294,6 +295,11 @@ void applyDrawnLook(TextItem &box, const Item &ref, const Shape &s)
         // (A file's own outline names its text area: the shared reader added it to the insets it read, which are the body's own beside it.)
         box.textArea = QMarginsF(std::max(0.0, from.insets.left() - s.inset[0]), std::max(0.0, from.insets.top() - s.inset[1]), std::max(0.0, from.insets.right() - s.inset[2]),
                                  std::max(0.0, from.insets.bottom() - s.inset[3]));
+        // (A preset's edited outline that names no area of its own keeps the preset's text rectangle.)
+        if (!box.customPath.isEmpty() && box.textArea.isNull() && shapeDef(from.shape)) {
+            const QRectF tr = shapeTextRect(from.shape, from.rect.size(), from.adj);
+            box.textArea = QMarginsF(tr.left(), tr.top(), from.rect.width() - tr.right(), from.rect.height() - tr.bottom());
+        }
         box.valign = from.valign;
         box.noWrap = from.noWrap;
     } else if (ref.type() == ItemType::Text) {

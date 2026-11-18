@@ -7518,7 +7518,7 @@ private Q_SLOTS:
             const auto &box = static_cast<const TextItem &>(*items[i]);
             QVERIFY2(i == 1 ? !box.shape.isEmpty() || !box.customPath.isEmpty() : box.shape == names[i], qPrintable(box.shape));
             // The words are in the outline's text area, inside the insets: the red of the letters on the page is within it.
-            const QRectF area = box.customPath.isEmpty() || box.textArea.isNull() ? shapeTextRect(box.shape, box.rect.size(), box.adj) : QRectF(QPointF(0, 0), box.rect.size()).marginsRemoved(box.textArea);
+            const QRectF area = box.customPath.isEmpty() && box.textArea.isNull() ? shapeTextRect(box.shape, box.rect.size(), box.adj) : QRectF(QPointF(0, 0), box.rect.size()).marginsRemoved(box.textArea);
             QVERIFY2(area.width() < box.rect.width() - 10, qPrintable(QStringLiteral("shape %1 has no smaller text area").arg(i)));
             const QRectF inside = area.marginsRemoved(box.insets).translated(box.rect.topLeft());
             const QRect band(0, int((box.rect.top() - 5) * scale), page.width(), int((box.rect.height() + 10) * scale));
