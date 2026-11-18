@@ -6304,7 +6304,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "da98e867f784a53493a241dcf58902e9bb46436e247d393ec682c810d1b5a29c"
+         "text": "cb1918004f1fcfac5d072c7333a0f75831a8a2061baed34df8f3fe5126be9c22"
         },
         {
          "status": "partly",
@@ -6423,7 +6423,7 @@
         },
         {
          "status": "partly",
-         "text": "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6"
+         "text": "01da7f516424cc5b59761ae90de1d46c4c10cc58d2fc17e87670e6357806d057"
         },
         {
          "hide_soon": true,
@@ -7672,6 +7672,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "01da7f516424cc5b59761ae90de1d46c4c10cc58d2fc17e87670e6357806d057": {
+   "drop": false,
+   "en": "Set margins with a gutter on the left, orientation, paper size, section start, a different first page, different odd and even pages, and header and footer distances, for a section or the whole document. Apply changes from this point forward, and set the vertical alignment of the page (top, center, justified, or bottom). Line numbers are set in Layout > Line Numbers and page borders in Design.",
+   "es": "Defina márgenes con medianil a la izquierda, orientación, tamaño del papel, inicio de sección, primera página distinta, páginas pares e impares distintas y distancias del encabezado y del pie de página, para una sección o todo el documento. Aplique los cambios desde este punto en adelante y defina la alineación vertical de la página (superior, centrada, justificada o inferior). Los números de línea se definen en Diseño de página > Números de línea y los bordes de página en Diseño.",
+   "fr": "Définissez les marges avec une reliure à gauche, l’orientation, le format du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou tout le document. Appliquez les changements à partir de ce point et définissez l’alignement vertical de la page (haut, centré, justifié ou bas). Les numéros de ligne se définissent dans Mise en page > Numéros de ligne et les bordures de page dans Création.",
+   "soon": {
+    "drop": false,
+    "en": "Page Setup: paper source and a gutter at the top",
+    "es": "Configurar página: origen del papel y medianil en la parte superior",
+    "fr": "Mise en page : source du papier et reliure en haut"
    }
   },
   "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862": {
@@ -17046,18 +17058,6 @@
     "fr": ""
    }
   },
-  "7c51ef92f411b9f7e50cd3168b36c429a15072662eb5a4c41849a07fcf2b73d6": {
-   "drop": false,
-   "en": "The Page Setup dialog sets margins, a left gutter, orientation, paper size, section start, a different first page, different odd and even pages, and the header and footer distances, for a section or the whole document.",
-   "es": "El cuadro de diálogo Configurar página permite definir márgenes, un medianil a la izquierda, orientación, tamaño de papel, inicio de sección, primera página distinta, páginas pares e impares distintas y las distancias del encabezado y del pie de página, para una sección o todo el documento.",
-   "fr": "La boîte de dialogue Mise en page permet de définir les marges, une reliure à gauche, l’orientation, la taille du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou pour tout le document.",
-   "soon": {
-    "drop": false,
-    "en": "Paper source, vertical page alignment, and a top gutter in Page Setup",
-    "es": "Origen del papel, alineación vertical de la página y medianil superior en Configurar página",
-    "fr": "Source du papier, alignement vertical de la page et reliure en haut dans Mise en page"
-   }
-  },
   "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad": {
    "drop": false,
    "en": "Insert hyperlinks (web, email, place in this document, new document) and bookmarks.",
@@ -22170,6 +22170,18 @@
     "fr": ""
    }
   },
+  "cb1918004f1fcfac5d072c7333a0f75831a8a2061baed34df8f3fe5126be9c22": {
+   "drop": false,
+   "en": "Insert a text box at the caret with its fill, outline, insets, and wrap, and change its words, fill, outline, wrap, and size from the Shape Format tab. Text boxes in a file are drawn with their fill, outline, and insets, and shapes with words keep their shape, anchoring, and text direction.",
+   "es": "Inserte un cuadro de texto en el punto de inserción con su relleno, contorno, márgenes interiores y ajuste, y cambie sus palabras, relleno, contorno, ajuste y tamaño desde la pestaña Formato de forma. Los cuadros de texto de un archivo se dibujan con su relleno, contorno y márgenes interiores, y las formas con texto conservan su forma, anclaje y dirección del texto.",
+   "fr": "Insérez une zone de texte au point d’insertion avec son remplissage, son contour, ses marges internes et son habillage, puis modifiez ses mots, son remplissage, son contour, son habillage et sa taille depuis l’onglet Format de la forme. Les zones de texte d’un fichier sont dessinées avec leur remplissage, leur contour et leurs marges internes, et les formes contenant du texte conservent leur forme, leur ancrage et leur direction du texte.",
+   "soon": {
+    "drop": false,
+    "en": "Text boxes: draw with the mouse, set a vertical direction, and link boxes",
+    "es": "Cuadros de texto: dibujar con el ratón, definir dirección vertical y vincular cuadros",
+    "fr": "Zones de texte : dessiner à la souris, définir une direction verticale et lier des zones"
+   }
+  },
   "cb853a0d5adab0f0922757bab82aa5d49b4eb2f7d12bae03ef8b1885772e7fbb": {
    "drop": false,
    "en": "Get & Transform Data and Connections",
@@ -23260,18 +23272,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "da98e867f784a53493a241dcf58902e9bb46436e247d393ec682c810d1b5a29c": {
-   "drop": false,
-   "en": "Insert a text box at the cursor with fill, outline, insets, and wrap, in one step. Change the words of a box that holds only text, and set fill, outline, wrap, and size. Text boxes in files are drawn with their fill, outline, and insets.",
-   "es": "Inserte un cuadro de texto en el cursor con relleno, contorno, márgenes internos y ajuste, en un solo paso. Cambie el texto de un cuadro que solo contiene texto, y defina relleno, contorno, ajuste y tamaño. Los cuadros de texto de los ficheros se dibujan con su relleno, contorno y márgenes internos.",
-   "fr": "Insérez une zone de texte au curseur avec remplissage, contour, marges internes et habillage, en une seule étape. Modifiez le texte d’une zone qui ne contient que du texte, et définissez remplissage, contour, habillage et taille. Les zones de texte des fichiers sont affichées avec leur remplissage, contour et marges internes.",
-   "soon": {
-    "drop": false,
-    "en": "Text boxes: draw with the mouse, vertical direction, and linked boxes",
-    "es": "Cuadros de texto: dibujar con el ratón, dirección vertical y cuadros vinculados",
-    "fr": "Zones de texte : dessin à la souris, orientation verticale et zones liées"
    }
   },
   "dabc607dc1e6797ac11dae7e11524356fbde0ca0663318ff8aaf28b4d002c11f": {
