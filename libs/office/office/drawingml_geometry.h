@@ -1,12 +1,12 @@
 #pragma once
 // The outline of a DrawingML shape (ECMA-376 20.1.9): guides, which are named
 // values that formulas make from the shape's size and its adjustments, and
-// the paths drawn with them. A custom shape (a:custGeom) carries its own
-// definition; a preset shape (a:prstGeom) is one the standard names, and
-// drawingml_geometry.cpp holds definitions in the same form for those the
-// shape library (render/shapes) cannot draw as the standard does.
+// the paths drawn with them, evaluated by core/presetgeom.h. A custom shape
+// (a:custGeom) carries its own definition; a preset shape (a:prstGeom) is one
+// the standard names, defined by the table of core/presetgeom.h.
 
 #include "core/guideevaluator.h"
+#include "core/presetgeom.h"
 
 #include <QByteArray>
 #include <QDomElement>
@@ -23,22 +23,8 @@ namespace jp::office {
 
 using jp::GuideEvaluator;
 
-// One a:path, in points relative to the shape's frame.
-struct GeometryPath {
-    // How the path is filled: not at all, or as the shape's fill, or with that
-    // fill lightened or darkened (the shaded faces of a cube).
-    enum Fill { Normal, None, Lighten, LightenLess, Darken, DarkenLess };
-    QPainterPath path;
-    Fill fill = Normal;
-    bool stroke = true;
-};
-
-struct Geometry {
-    QVector<GeometryPath> paths;
-    // Where the shape's text sits when the geometry says so; null for the whole frame.
-    QRectF textRect;
-    bool isEmpty() const { return paths.isEmpty(); }
-};
+using jp::Geometry;
+using jp::GeometryPath;
 
 // The adjustments a:avLst gives, by name, as numbers ("val 25000" is 25000).
 QHash<QString, double> readAdjustments(const QDomElement &avLst);

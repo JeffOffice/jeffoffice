@@ -1201,9 +1201,23 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
     const QRectF r(QPointF(0, 0), s.rect.size());
     const ColorScheme &cs = ctx.doc->colors;
     const ShapeDef *def = shapeDef(s.shape);
-    const QPainterPath path = s.customPath.isEmpty() ? shapePath(s.shape, r.size(), s.adj) : s.customPath;
-    if (!(def && def->open) && !s.fill.isNone()) p->fillPath(path, s.fill.brush(path.boundingRect(), cs, lookupFor(*ctx.doc)));
-    Renderer::strokePath(p, path, s.stroke, cs);
+    if (def && !def->preset.isEmpty() && s.customPath.isEmpty()) {
+        // A shape of the standard's: each of its paths is filled or not, shaded or not, and stroked or not, as its definition says.
+        const QVector<GeometryPath> parts = shapeParts(s.shape, r.size(), s.adj);
+        const QRectF bounds = shapePath(s.shape, r.size(), s.adj).boundingRect();
+        for (const GeometryPath &part : parts) {
+            if (s.fill.isNone() || part.fill == GeometryPath::None) continue;
+            p->fillPath(part.path, s.fill.brush(bounds, cs, lookupFor(*ctx.doc)));
+            if (part.fill == GeometryPath::Lighten || part.fill == GeometryPath::LightenLess) p->fillPath(part.path, QColor(255, 255, 255, part.fill == GeometryPath::Lighten ? 120 : 60));
+            if (part.fill == GeometryPath::Darken || part.fill == GeometryPath::DarkenLess) p->fillPath(part.path, QColor(0, 0, 0, part.fill == GeometryPath::Darken ? 90 : 45));
+        }
+        for (const GeometryPath &part : parts)
+            if (part.stroke) Renderer::strokePath(p, part.path, s.stroke, cs);
+    } else {
+        const QPainterPath path = s.customPath.isEmpty() ? shapePath(s.shape, r.size(), s.adj) : s.customPath;
+        if (!(def && def->open) && !s.fill.isNone()) p->fillPath(path, s.fill.brush(path.boundingRect(), cs, lookupFor(*ctx.doc)));
+        Renderer::strokePath(p, path, s.stroke, cs);
+    }
     if (!s.storyId.isEmpty()) {
         QPointF origin;
         const StoryLayout *lay = Renderer::shapeTextLayout(ctx, s, &origin);

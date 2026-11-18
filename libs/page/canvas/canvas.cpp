@@ -2108,7 +2108,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
         if (!sd || m_hit.index >= sd->handles.size()) return;
         s->adj = shapeAdj(s->shape, s->adj);
         const QPointF local = s->transform().inverted().map(page);
-        s->adj[sd->handles[m_hit.index].index] = adjFromPoint(sd->handles[m_hit.index], s->rect.size(), local);
+        adjDrag(sd->handles[m_hit.index], s->rect.size(), s->adj, local);
         m_ed->notifyLive();
         return;
     }

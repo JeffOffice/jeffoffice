@@ -2306,7 +2306,7 @@ bool setShapeAdjustment(WriteDoc &doc, int position, int index, const QPointF &a
             for (const AdjHandle &h : *defs)
                 if (h.index == index) handle = &h;
         if (!handle) return false;
-        adj[index] = adjFromPoint(*handle, g.size, at);
+        adjDrag(*handle, g.size, adj, at);
         const QVector<QPair<QString, double>> values = office::presetAdjustments(g.prst, adj, g.size);
         QByteArray list;
         for (const auto &v : values) list += "<a:gd name=\"" + attribute(v.first, 16) + "\" fmla=\"val " + QByteArray::number(qint64(std::llround(v.second))) + "\"/>";
