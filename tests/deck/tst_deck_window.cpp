@@ -3,6 +3,7 @@
 #include <QScopeGuard>
 // JeffDeck's tests of the window: ribbon, help, status bar, headers and footers, backgrounds, the slide menu, and find.
 #include "deckhelpers.h"
+#include "office/connectionsites.h"
 #include "../withdialog.h"
 #include <QInputMethodEvent>
 #include <QLabel>
@@ -2896,6 +2897,62 @@ private Q_SLOTS:
             QVERIFY(!d->findChild<QPushButton *>(QStringLiteral("addVertical"))->isEnabled());
             QVERIFY(d->findChild<QPushButton *>(QStringLiteral("addHorizontal"))->isEnabled());
         }, false);
+    }
+
+    // A connector drawn to a triangle's foot is glued to the nearest of the triangle's real sites, as in the other programs: the bottom left corner is its third site (number 2), the bottom
+    // right its fifth (number 4), and a heart, which has two, offers its top and bottom only.
+    void aConnectorDrawnInTheDeckGluesToTheNearestRealSite()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto triangle = std::make_shared<ShapeItem>(), heart = std::make_shared<ShapeItem>(), box = std::make_shared<ShapeItem>();
+        triangle->shape = QStringLiteral("triangle");
+        triangle->rect = QRectF(100, 100, 400, 100);
+        heart->shape = QStringLiteral("heart");
+        heart->rect = QRectF(100, 300, 100, 100);
+        box->rect = QRectF(700, 100, 100, 60);
+        for (const auto &s : {triangle, heart, box}) ed->addItem(s, false);
+        Canvas *c = w.canvas();
+        QWidget *vp = c->viewport();
+        const auto view = [&](QPointF page) { return c->pageToView(page).toPoint(); };
+        const auto drag = [&](QPointF from, QPointF to) {
+            QTest::qWait(QApplication::doubleClickInterval() + 50);
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, view(from));
+            for (const QPointF at : {(from + to) / 2, to}) {
+                const QPoint v = view(at);
+                QMouseEvent mv(QEvent::MouseMove, v, vp->mapToGlobal(v), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+                QApplication::sendEvent(vp, &mv);
+            }
+            QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, view(to));
+        };
+        const auto lastLine = [&]() { return std::dynamic_pointer_cast<LineItem>(ed->surfaceItems().back()); };
+        ed->setTool(Tool::Arrow, QString());
+        // From a few points left of the triangle's bottom left corner (100, 200) to the box's left side.
+        drag(QPointF(104, 197), QPointF(698, 130));
+        auto line = lastLine();
+        QVERIFY(line);
+        QCOMPARE(line->start.id, triangle->id);
+        QCOMPARE(line->start.site, 2);
+        QVERIFY(std::abs(line->p1.x() - 100) < 1e-6 && std::abs(line->p1.y() - 200) < 1e-6);
+        ed->setTool(Tool::Arrow, QString());
+        drag(QPointF(496, 197), QPointF(698, 130));
+        line = lastLine();
+        QCOMPARE(line->start.id, triangle->id);
+        QCOMPARE(line->start.site, 4);
+        QVERIFY(std::abs(line->p1.x() - 500) < 1e-6 && std::abs(line->p1.y() - 200) < 1e-6);
+        // The heart's bottom is its second site, and it has no site on its left side to be near.
+        ed->setTool(Tool::Arrow, QString());
+        drag(QPointF(150, 396), QPointF(698, 130));
+        line = lastLine();
+        QCOMPARE(line->start.id, heart->id);
+        QCOMPARE(line->start.site, 1);
+        QCOMPARE(connectionSiteCount(*heart), 2);
+        QCOMPARE(connectionSiteCount(*triangle), 6);
+        QCOMPARE(connectionSiteCount(*box), 4);
     }
 
     // An object dragged on a grid lands on it (its edge on a multiple of the spacing, worked out from the grid, not from pixels); Alt leaves snapping off.

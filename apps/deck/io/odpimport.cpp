@@ -1,4 +1,5 @@
 #include "io/odpimport.h"
+#include "office/connectionsites.h"
 #include "io/pptxreview.h"
 #include "core/items.h"
 
@@ -336,8 +337,9 @@ void Reader::readMasterPage(MasterInfo &m, int number)
         auto glue = [&](const QString &id, double site, LineItem::Glue *end) {
             const auto it = sc.byId.constFind(id);
             if (it == sc.byId.constEnd() || site < 0 || site > 3) return;
-            static const int sites[4] = {0, 3, 2, 1};   // top, right, bottom, left
-            *end = LineItem::Glue{(*it)->id, sites[int(site)]};
+            static const int sides[4] = {0, 3, 2, 1};   // top, right, bottom, left
+            const int own = connectionSiteOnSide(**it, sides[int(site)]);
+            if (own >= 0) *end = LineItem::Glue{(*it)->id, own};
         };
         glue(p.startId, p.startSite, &p.line->start);
         glue(p.endId, p.endSite, &p.line->end);
@@ -716,8 +718,9 @@ bool Reader::readSlide(const QDomElement &pageElement, int number)
         auto glue = [&](const QString &id, double site, LineItem::Glue *end) {
             const auto it = sc.byId.constFind(id);
             if (it == sc.byId.constEnd() || site < 0 || site > 3) return;
-            static const int sites[4] = {0, 3, 2, 1};
-            *end = LineItem::Glue{(*it)->id, sites[int(site)]};
+            static const int sides[4] = {0, 3, 2, 1};
+            const int own = connectionSiteOnSide(**it, sides[int(site)]);
+            if (own >= 0) *end = LineItem::Glue{(*it)->id, own};
         };
         glue(p.startId, p.startSite, &p.line->start);
         glue(p.endId, p.endSite, &p.line->end);

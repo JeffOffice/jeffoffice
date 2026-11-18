@@ -5,6 +5,7 @@
 // as not saved yet.
 
 #include "io/importers.h"
+#include "office/connectionsites.h"
 
 #include "core/comments.h"
 #include "core/document.h"
@@ -1505,6 +1506,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int textId = 2;
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
+    QHash<QString, const Item *> itemOfId;   // and the item itself (a connector rule names the side of it that an end is on)
     int skippedCount = 0, equationsAsPictures = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
@@ -1759,6 +1761,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                 pageShapes[pi] << seq;
                 seqOf.insert(it->id, seq);
                 spidOf.insert(it->id, quint32(spid));
+                itemOfId.insert(it->id, it.get());
                 ++spid;
             };
             if (it->type() == ItemType::Text) {
@@ -3056,7 +3059,13 @@ QByteArray PubWriter::write(QStringList *skipped)
                     const auto *l = static_cast<const LineItem *>(it.get());
                     const quint32 a = l->start.id.isEmpty() ? 0 : spidOf.value(l->start.id), b = l->end.id.isEmpty() ? 0 : spidOf.value(l->end.id);
                     QByteArray r;
-                    for (quint32 v : {++ruleCount, a, b, spidOf.value(it->id), a ? quint32(l->start.site) : 0xffffffffu, b ? quint32(l->end.site) : 0xffffffffu})
+                    // (Publisher numbers a rectangle's sites as the sides, so a shape's own sites are written as the side each leaves by.)
+                    const auto sideOf = [&](const LineItem::Glue &g) {
+                        const Item *o = itemOfId.value(g.id);
+                        const int side = o ? sideOfConnectionSite(*o, g.site) : g.site;
+                        return side < 0 ? 0xffffffffu : quint32(side);
+                    };
+                    for (quint32 v : {++ruleCount, a, b, spidOf.value(it->id), a ? sideOf(l->start) : 0xffffffffu, b ? sideOf(l->end) : 0xffffffffu})
                         putU32(r, v);
                     rules += escherRecord(0x1, 0, 0xf012, r);
                 });

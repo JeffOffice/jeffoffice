@@ -1,5 +1,6 @@
 // JeffPub's tests of objects on the page: wrapping, inline objects, shapes, connectors, footnotes, and editing text.
 #include "pubhelpers.h"
+#include "office/connectionsites.h"
 #include <QAbstractItemModel>
 #include <QAbstractButton>
 #include <QListWidget>

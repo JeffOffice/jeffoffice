@@ -130,6 +130,8 @@ ItemPtr readShape(const QDomElement &e, const DrawingContext &ctx, const TextSty
 // Every shape in a shape tree (p:spTree, or a group's children), in drawing
 // order, without placeholder inheritance.
 ItemList readShapeTree(const QDomElement &tree, const DrawingContext &ctx, const TextStyleStack &styles = {});
+// For shapes read one at a time (readShape): attaches the connectors among `items` to what the file says they join, once all the shapes are in the list.
+void joinConnectors(const ItemList &items);
 
 // A text body (p:txBody, a:txBody, wps:txbx's content) into `doc`, replacing
 // its text: paragraphs (alignment, indents, spacing, bullets and numbering,

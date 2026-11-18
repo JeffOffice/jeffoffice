@@ -267,10 +267,16 @@ public:
     double bend = 0.5;           // where the middle of the route sits between the ends
     struct Glue {
         QString id;              // the object the end is attached to, or empty
-        int site = -1;
+        int site = -1;           // which of the object's connection sites, in the order office/connectionsites.h gives them
+        bool sideNumber = false; // (not saved) set when read from an older save, where the number is a side (0 top, 1 left, 2 bottom, 3 right) of the object
         bool operator==(const Glue &o) const { return id == o.id && site == o.site; }
     };
     Glue start, end;
+    // What a file says each end is attached to (the shape's number in the file, and the site's), until all of its shapes are read (office::joinConnectors); not saved.
+    struct FileEnd {
+        qint64 shape = -1, site = -1;
+    };
+    FileEnd fileStart, fileEnd;
     bool startVertical = false;  // the route leaves p1 (arrives at p2) vertically
     bool endVertical = false;
     // The route's points: [p1, p2] when straight, the corners of an elbow,
@@ -430,11 +436,8 @@ void walkItems(const ItemList &list, F &&fn)
 
 QRectF unionBounds(const ItemList &items);
 
-// Where a connector attaches to an object: the middle of each side of its
-// frame (0 top, 1 left, 2 bottom, 3 right), in page coordinates, turned and
-// flipped with it. `vertical` says whether a line leaves that side upright.
+// The sides' count: what an object that has no sites of its own has (office/connectionsites.h counts and places the others).
 constexpr int kConnectionSites = 4;
-QPointF connectionSite(const Item &it, int site, bool *vertical = nullptr);
 // After copying objects (old id -> new id in `ids`): connectors among the
 // copies attach to the copies; ends attached to anything else come loose.
 void remapGlue(const ItemList &items, const QHash<QString, QString> &ids);

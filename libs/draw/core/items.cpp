@@ -1,6 +1,5 @@
 #include "core/items.h"
 #include "core/blipeffects.h"
-#include "core/connsites.h"
 
 #include <algorithm>
 #include <cmath>
@@ -679,7 +678,7 @@ QJsonObject LineItem::toJson() const
     if (startVertical) o["startVertical"] = true;
     if (endVertical) o["endVertical"] = true;
     auto glue = [&](const char *key, const Glue &g) {
-        if (!g.id.isEmpty()) o[QLatin1String(key)] = QJsonObject{{"id", g.id}, {"site", g.site}};
+        if (!g.id.isEmpty()) o[QLatin1String(key)] = QJsonObject{{"id", g.id}, {"site", g.site}, {"model", 2}};
     };
     glue("startGlue", start);
     glue("endGlue", end);
@@ -699,7 +698,8 @@ void LineItem::fromJson(const QJsonObject &o)
     endVertical = o["endVertical"].toBool();
     auto glue = [&](const char *key) {
         const QJsonObject g = o[QLatin1String(key)].toObject();
-        return Glue{g["id"].toString(), g["site"].toInt(-1)};
+        // (A save from before the sites were counted the standard's way has no "model": its number is a side.)
+        return Glue{g["id"].toString(), g["site"].toInt(-1), !g.contains(QLatin1String("model"))};
     };
     start = glue("startGlue");
     end = glue("endGlue");
@@ -1051,41 +1051,6 @@ void GroupItem::fromJson(const QJsonObject &o)
         if (auto it = Item::fromJsonAny(v.toObject())) children.push_back(it);
     barcode = o["barcode"].toObject();
     syncRect();
-}
-
-QPointF connectionSite(const Item &it, int site, bool *vertical)
-{
-    const bool group = it.type() == ItemType::Group;
-    const QSizeF sz = group ? it.bounds().size() : it.rect.size();
-    const QTransform t = group ? QTransform::fromTranslate(it.bounds().left(), it.bounds().top()) : it.transform();
-    static const QPointF at[kConnectionSites] = {{0.5, 0}, {0, 0.5}, {0.5, 1}, {1, 0.5}};
-    static const QPointF out[kConnectionSites] = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
-    site = std::clamp(site, 0, kConnectionSites - 1);
-    QPointF l(at[site].x() * sz.width(), at[site].y() * sz.height());
-    // A shape with sites of its own is glued where the standard puts the one on that side.
-    QString preset;
-    if (it.type() == ItemType::Shape && static_cast<const ShapeItem &>(it).customPath.isEmpty()) {
-        preset = static_cast<const ShapeItem &>(it).shape;
-    } else if (it.type() == ItemType::Text && static_cast<const TextItem &>(it).customPath.isEmpty()) {
-        preset = static_cast<const TextItem &>(it).shape;
-    }
-    double angle = 0;
-    bool real = false;
-    if (!preset.isEmpty() && hasConnectionSites(preset)) {
-        const int index = sideConnectionSite(preset, sz, {}, site);
-        const QVector<ConnectionSite> sites = connectionSites(preset, sz);
-        if (index >= 0 && index < sites.size()) {
-            l = sites[index].at;
-            angle = sites[index].angle * M_PI / 180;
-            real = true;
-        }
-    }
-    const QPointF p = t.map(l);
-    if (vertical) {
-        const QPointF n = t.map(l + (real ? QPointF(std::cos(angle), std::sin(angle)) : out[site])) - p;
-        *vertical = std::abs(n.y()) > std::abs(n.x());
-    }
-    return p;
 }
 
 void remapGlue(const ItemList &items, const QHash<QString, QString> &ids)

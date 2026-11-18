@@ -1,5 +1,6 @@
 #include "core/pathpoints.h"
 #include "canvas/canvas.h"
+#include "office/connectionsites.h"
 #include "canvas/canvasaccessible.h"
 
 #include <QAccessible>
@@ -1034,7 +1035,7 @@ void Canvas::paintOverlay(QPainter &p)
     // Connection sites of the object a line is being drawn or dragged to.
     if (!m_siteHover.over.isEmpty() && (m_drag == Drag::None || m_drag == Drag::Draw || m_drag == Drag::LineEnd))
         if (const Item *o = d->item(m_siteHover.over)) {
-            for (int i = 0; i < kConnectionSites; ++i) {
+            for (int i = 0, n = connectionSiteCount(*o); i < n; ++i) {
                 const QPointF c = pageToView(connectionSite(*o, i));
                 const bool on = m_siteHover.id == o->id && m_siteHover.site == i;
                 p.setPen(QPen(on ? QColor(200, 40, 40) : QColor(70, 120, 200), 1));
@@ -2469,7 +2470,7 @@ Canvas::SiteHit Canvas::siteNear(const QPointF &page, const QSet<QString> &exclu
         if (!frame.adjusted(-pad, -pad, pad, pad).contains(local)) continue;
         out.over = o->id;
         double best = snap;
-        for (int i = 0; i < kConnectionSites; ++i) {
+        for (int i = 0, n = connectionSiteCount(*o); i < n; ++i) {
             const QPointF at = connectionSite(*o, i);
             const double dd = QLineF(at, page).length();
             if (dd <= best) {

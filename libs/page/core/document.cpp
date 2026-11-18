@@ -1,4 +1,5 @@
 #include "core/document.h"
+#include "office/connectionsites.h"
 #include "core/remotepath.h"
 #include <QSet>
 #include "core/chartobject.h"
@@ -1645,7 +1646,13 @@ bool Document::routeConnectors()
         auto follow = [&](LineItem::Glue &g, QPointF &pt, bool &vertical) {
             if (g.id.isEmpty()) return;
             const Item *o = byId.value(g.id);
-            if (!o || o == l || o->type() == ItemType::Line || g.site < 0 || g.site >= kConnectionSites) {
+            // (An older save names a side: it is the site on that side of this object.)
+            if (o && g.sideNumber) {
+                g.site = connectionSiteOnSide(*o, g.site);
+                g.sideNumber = false;
+                moved = true;
+            }
+            if (!o || o == l || o->type() == ItemType::Line || g.site < 0 || g.site >= connectionSiteCount(*o)) {
                 g = LineItem::Glue();
                 moved = true;
                 return;

@@ -5,6 +5,7 @@
 #include "office/drawingml.h"
 #include "core/items.h"
 #include "core/connsites.h"
+#include "office/connectionsites.h"
 #include "office/package.h"
 
 #include "core/barcodeitem.h"
@@ -243,19 +244,15 @@ Fill shaded(const Fill &fill, GeometryPath::Fill mode)
     return out;
 }
 
-// Which of an object's connection points a connector's index (in the order
-// the standard lists them for the shape) is, in the object's own order (top,
-// left, bottom, right); -1 for a shape whose points aren't known here, and
-// for a point that is on no side (the drawing keeps only the four sides).
+// Which of an object's connection sites a connector's index (in the order the standard lists them for the shape) is: the same number, when the object has that many; -1 for a shape whose
+// points aren't known here, and for a number past its list.
 int connectionSiteOf(const Item &target, qint64 index)
 {
     if (target.type() == ItemType::Text || target.type() == ItemType::Picture) return index >= 0 && index < 4 ? int(index) : -1;
     if (target.type() != ItemType::Shape) return -1;
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return -1;
-    for (int side = 0; side < 4; ++side)
-        if (index >= 0 && sideConnectionSite(s.shape, s.rect.size(), {}, side) == index) return side;
-    return -1;
+    return index >= 0 && index < connectionSiteCount(target) ? int(index) : -1;
 }
 
 // The first child called `name` of the first element of `list` that has one.
@@ -304,8 +301,8 @@ public:
 
     ItemPtr shape(const QDomElement &e, const QVector<QDomElement> &inheritsFrom);
     ItemList tree(const QDomElement &parent);
-    // Joins the connectors to what they were drawn between, once all of it is read.
-    void join();
+    // Joins the connectors to what they were drawn between, once all of it is read; `last` when nothing else will be read (the connectors keep what the file says otherwise).
+    void join(bool last);
 
 private:
     struct Pending {
@@ -400,7 +397,7 @@ void Reader::appendChildren(const QDomElement &parent, ItemList *out, int nestin
     }
 }
 
-void Reader::join()
+void Reader::join(bool last)
 {
     for (const Pending &p : m_pending) {
         auto glue = [&](qint64 id, qint64 index, LineItem::Glue *end) {
@@ -411,6 +408,7 @@ void Reader::join()
         };
         glue(p.startId, p.startIndex, &p.line->start);
         glue(p.endId, p.endIndex, &p.line->end);
+        if (last) p.line->fileStart = p.line->fileEnd = LineItem::FileEnd();
     }
     m_pending.clear();
 }
@@ -946,6 +944,8 @@ ItemPtr Reader::line(const Frame &frame, const QString &prst, const QHash<QStrin
         p.startIndex = parseInt(attr(st, QStringLiteral("idx")), -1);
         p.endId = parseInt(attr(en, QStringLiteral("id")), -1);
         p.endIndex = parseInt(attr(en, QStringLiteral("idx")), -1);
+        l->fileStart = {p.startId, p.startIndex};
+        l->fileEnd = {p.endId, p.endIndex};
         m_pending.append(p);
     }
     return l;
@@ -1185,7 +1185,7 @@ ItemPtr readShape(const QDomElement &e, const DrawingContext &ctx, const TextSty
 {
     Reader reader(ctx, styles);
     ItemPtr it = reader.shape(e, inheritsFrom);
-    reader.join();
+    reader.join(false);
     return it;
 }
 
@@ -1193,8 +1193,31 @@ ItemList readShapeTree(const QDomElement &tree, const DrawingContext &ctx, const
 {
     Reader reader(ctx, styles);
     ItemList out = reader.tree(tree);
-    reader.join();
+    reader.join(true);
     return out;
+}
+
+void joinConnectors(const ItemList &items)
+{
+    QHash<qint64, const Item *> byId;
+    walkItems(items, [&](const ItemPtr &it) {
+        if (it->sourceId > 0) byId.insert(it->sourceId, it.get());
+    });
+    walkItems(items, [&](const ItemPtr &it) {
+        if (it->type() != ItemType::Line) return;
+        auto *l = static_cast<LineItem *>(it.get());
+        const auto join = [&](LineItem::FileEnd &from, LineItem::Glue *end) {
+            if (from.shape < 0) return;
+            const auto target = byId.constFind(from.shape);
+            if (target != byId.constEnd() && (*target)->type() != ItemType::Line) {
+                const int site = connectionSiteOf(**target, from.site);
+                if (site >= 0) *end = LineItem::Glue{(*target)->id, site};
+            }
+            from = LineItem::FileEnd();
+        };
+        join(l->fileStart, &l->start);
+        join(l->fileEnd, &l->end);
+    });
 }
 
 } // namespace jp::office

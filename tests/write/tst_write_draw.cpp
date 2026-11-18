@@ -3820,7 +3820,7 @@ private Q_SLOTS:
                                     "star6", "star8", "rightArrow", "upArrow", "flowChartConnector", "flowChartDecision", "donut", "plus", "heart", "cloud"})
             for (const QSizeF size : {QSizeF(100, 100), QSizeF(300, 40), QSizeF(30, 200)})
                 for (const jp::ConnectionSite &site : jp::connectionSites(name, size))
-                    QVERIFY2(site.at.x() >= -0.01 && site.at.x() <= size.width() + 0.01 && site.at.y() >= -0.01 && site.at.y() <= size.height() + 0.01, qPrintable(name));
+                    QVERIFY2(jp::hasConnectionSites(name) && site.at.x() >= -0.01 && site.at.x() <= size.width() + 0.01 && site.at.y() >= -0.01 && site.at.y() <= size.height() + 0.01, qPrintable(name));
         // A preset with no list (a line) has the four sides; so has a name the library does not know.
         QVERIFY(!jp::hasConnectionSites(QStringLiteral("noSuchShape")));
         QCOMPARE(jp::standardConnectionSiteCount(QStringLiteral("noSuchShape")), -1);
@@ -3946,27 +3946,34 @@ private Q_SLOTS:
         QVERIFY(std::abs(again.left - a.left) < 0.01 && std::abs(again.top - a.top) < 0.01);
     }
 
-    // A file to look at: an ellipse and a star with connectors glued to sites that are not on a side (JW_SHOT_DIR names the folder; nothing is made without it).
-    void shotOfConnectorsOnRealSites()
+    // Not a check: a helper that saves a picture to look at (JW_SHOT_DIR names the folder; skipped without it). A hexagon, a pentagon, a star, and a callout, none of them square, each with a
+    // connector glued to one of its sites that is not on a side.
+    void shotHelperConnectorsOnRealSites()
     {
         const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
         if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
-        const auto connector = [](int id, int startId, int startSite, int endId, int endSite) {
+        const auto connector = [](int id, int startId, int startSite, int endId) {
             return anchoredGraphic(id, kShapeUri, plainShape(100, 10, "straightConnector1", QByteArray(), "<wps:cNvCnPr><a:stCxn id=\"" + QByteArray::number(startId) + "\" idx=\"" + QByteArray::number(startSite) +
-                                                              "\"/><a:endCxn id=\"" + QByteArray::number(endId) + "\" idx=\"" + QByteArray::number(endSite) + "\"/></wps:cNvCnPr>",
+                                                              "\"/><a:endCxn id=\"" + QByteArray::number(endId) + "\" idx=\"1\"/></wps:cNvCnPr>",
                                                               "<a:ln w=\"25400\"><a:solidFill><a:srgbClr val=\"C00000\"/></a:solidFill></a:ln>"),
                                    300, 300, 100, 10);
         };
-        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(120, 120, "ellipse"), 60, 20, 120, 120) + anchoredGraphic(2, kShapeUri, plainShape(120, 120, "star5"), 60, 200, 120, 120) +
-                                 anchoredGraphic(3, kShapeUri, plainShape(60, 40, "rect"), 300, 20, 60, 40) + anchoredGraphic(4, kShapeUri, plainShape(60, 40, "rect"), 300, 240, 60, 40) +
-                                 connector(5, 1, 3, 3, 1) + connector(6, 1, 5, 4, 1) + connector(7, 2, 3, 3, 0) + connector(8, 2, 1, 4, 3) + "</w:p>"));
+        const char *presets[4] = {"hexagon", "pentagon", "star5", "wedgeRectCallout"};
+        const int sites[4] = {2, 3, 4, 4};
+        QByteArray body = "<w:p>";
+        for (int i = 0; i < 4; ++i)
+            body += anchoredGraphic(1 + i, kShapeUri, plainShape(160, 90, presets[i]), 40, 20 + 130 * i, 160, 90) + anchoredGraphic(11 + i, kShapeUri, plainShape(60, 40, "rect"), 360, 40 + 130 * i, 60, 40) +
+                    connector(21 + i, 1 + i, sites[i], 11 + i);
+        auto doc = open(makeDocx(body + "</w:p>"));
         QVERIFY(doc);
-        QVERIFY(rerouteConnectors(*doc, {{0, QRectF(60, 20, 120, 120)}, {1, QRectF(60, 200, 120, 120)}}, [](int p, QRectF *r) {
-            *r = p == 2 ? QRectF(300, 20, 60, 40) : QRectF(300, 240, 60, 40);
+        QVector<std::pair<int, QRectF>> moved;
+        for (int i = 0; i < 4; ++i) moved.push_back({3 * i, QRectF(40, 20 + 130 * i, 160, 90)});
+        QVERIFY(rerouteConnectors(*doc, moved, [](int p, QRectF *r) {
+            *r = QRectF(360, 40 + 130 * (p / 3), 60, 40);
             return true;
         }) > 0);
         WriteWindow w;
-        w.resize(1000, 1000);
+        w.resize(900, 900);
         w.show();
         jp::applyUiTheme(1);
         w.setDocument(std::move(doc), QString());

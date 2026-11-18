@@ -5,6 +5,7 @@
 #include "office/drawingml_write.h"
 #include "core/items.h"
 #include "core/connsites.h"
+#include "office/connectionsites.h"
 #include "office/barcodemarker.h"
 #include "core/barcodeitem.h"
 
@@ -1096,17 +1097,7 @@ int connectionPoints(const Item &target)
     if (target.type() != ItemType::Shape) return 0;
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return 0;
-    return int(connectionSites(s.shape, s.rect.size()).size());
-}
-
-// Which of an object's connection points is the one on each of its sides (top, left, bottom, right), by the standard's numbers.
-QVector<int> connectionSideSites(const Item &target)
-{
-    QVector<int> out = {0, 1, 2, 3};
-    if (target.type() != ItemType::Shape) return out;
-    const auto &s = static_cast<const ShapeItem &>(target);
-    for (int side = 0; side < 4; ++side) out[side] = sideConnectionSite(s.shape, s.rect.size(), {}, side);
-    return out;
+    return connectionSiteCount(target);
 }
 
 // The frame that puts a connector's ends where they are (the counterpart of how
@@ -1172,9 +1163,8 @@ void writeConnector(QXmlStreamWriter &w, const LineItem &l, DrawingWriteContext 
         const auto target = ctx.shapeIds.constFind(end.second.id);
         const auto kind = ctx.connectionSites.constFind(end.second.id);
         if (end.second.id.isEmpty() || target == ctx.shapeIds.constEnd() || kind == ctx.connectionSites.constEnd()) continue;
-        // The index of the site among the standard's: the one on the side the connector is glued to.
-        if (end.second.site < 0 || end.second.site >= kConnectionSites) continue;
-        const int idx = ctx.connectionSideSites.value(end.second.id).value(end.second.site, -1);
+        // The index of the site among the standard's: the site the connector is glued to.
+        const int idx = end.second.site;
         if (idx < 0 || idx >= *kind) continue;
         begin(w, end.first);
         attribute(w, "id", *target);
@@ -1400,7 +1390,7 @@ void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx)
             if (!image.isEmpty() && relatePicture(ctx, image).isEmpty()) return;
         }
         takeId(ctx, *it);
-        if (const int points = connectionPoints(*it)) ctx.connectionSites.insert(it->id, points), ctx.connectionSideSites.insert(it->id, connectionSideSites(*it));
+        if (const int points = connectionPoints(*it)) ctx.connectionSites.insert(it->id, points);
     });
 }
 
@@ -1423,7 +1413,7 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
 {
     // What a connector can be attached to: the points the standard gives the shape.
     auto remember = [&](const Item &it) {
-        if (const int points = connectionPoints(it)) ctx.connectionSites.insert(it.id, points), ctx.connectionSideSites.insert(it.id, connectionSideSites(it));
+        if (const int points = connectionPoints(it)) ctx.connectionSites.insert(it.id, points);
     };
     switch (item.type()) {
     case ItemType::Text:

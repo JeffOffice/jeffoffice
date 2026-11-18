@@ -5,6 +5,7 @@
 #include "io/odpexport_p.h"
 #include "core/blipeffects.h"
 #include "core/items.h"
+#include "office/connectionsites.h"
 
 #include "core/barcodeitem.h"
 #include "core/media.h"
@@ -616,8 +617,15 @@ void Exporter::writeLine(X &x, Scope &sc, const LineItem &l)
         static const int fileSite[4] = {0, 3, 2, 1};
         auto glue = [&](const char *shape, const char *point, const LineItem::Glue &g) {
             const auto id = m_ids.constFind(g.id);
-            if (g.id.isEmpty() || id == m_ids.cend() || g.site < 0 || g.site > 3) return;
-            x.attr(shape, id.value()).attr(point, fileSite[g.site]);
+            if (g.id.isEmpty() || id == m_ids.cend() || g.site < 0) return;
+            // (The file's glue points are the four sides: a shape's own site is the side it leaves by.)
+            int side = g.site;
+            if (m_page)
+                walkItems(m_page->items, [&](const ItemPtr &o) {
+                    if (o->id == g.id) side = sideOfConnectionSite(*o, g.site);
+                });
+            if (side < 0 || side > 3) return;
+            x.attr(shape, id.value()).attr(point, fileSite[side]);
         };
         glue("draw:start-shape", "draw:start-glue-point", l.start);
         glue("draw:end-shape", "draw:end-glue-point", l.end);

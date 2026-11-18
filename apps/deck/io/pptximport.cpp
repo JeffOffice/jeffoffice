@@ -1311,6 +1311,7 @@ void Importer::readPageTree(const QDomElement &tree, Scope &sc)
         m_budget.ranOut[k] = false;
     }
     readTree(tree, sc);
+    office::joinConnectors(sc.page->items);
     for (int k = 0; k < B::KindCount; ++k) {
         if (m_budget.ranOut[k]) {
             if (caps[k] < fileLeft[k]) m_pageFull = true;

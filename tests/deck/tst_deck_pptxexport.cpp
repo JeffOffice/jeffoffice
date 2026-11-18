@@ -1,5 +1,6 @@
 // JeffDeck's tests of writing a presentation file.
 #include "deckhelpers.h"
+#include "office/connectionsites.h"
 #include "core/gridview.h"
 #include "app/guidesdialog.h"
 #include "core/notesmaster.h"
@@ -1274,7 +1275,7 @@ private Q_SLOTS:
         circle->shape = QStringLiteral("ellipse");
         auto line = std::make_shared<LineItem>();
         line->start = LineItem::Glue{triangle->id, 1};
-        line->end = LineItem::Glue{circle->id, 1};
+        line->end = LineItem::Glue{circle->id, 2};   // (an ellipse's third site is the middle of its left side)
         slide.items.push_back(triangle);
         slide.items.push_back(circle);
         slide.items.push_back(line);
@@ -1289,6 +1290,103 @@ private Q_SLOTS:
         QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
         const QString xml = part(e, QStringLiteral("/ppt/slides/slide%1.xml").arg(at + 1));
         QVERIFY2(xml.contains(QRegularExpression(QStringLiteral("<a:stCxn id=\"[0-9]+\" idx=\"1\"/><a:endCxn id=\"[0-9]+\" idx=\"2\"/>"))), qPrintable(xml.mid(xml.indexOf(QStringLiteral("cNvCxnSpPr")), 200)));
+    }
+
+    // A connector end keeps the standard's number of the site it is glued to, whatever the shape: an octagon's sixth, a wide triangle's second (the middle of its slope, which is on no side),
+    // and a heart's two. Saved and opened again, the numbers and the places are the same.
+    void gluedEndsKeepTheirSiteNumbersThroughASaveAndAnOpen()
+    {
+        auto d = deck::newPresentation();
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        Page &slide = *d->pages[at];
+        const auto shapeOf = [&](const char *preset, const QRectF &r) {
+            auto s = std::make_shared<ShapeItem>();
+            s->shape = QString::fromLatin1(preset);
+            s->rect = r;
+            slide.items.push_back(s);
+            return s;
+        };
+        auto triangle = shapeOf("triangle", QRectF(20, 20, 400, 100)), octagon = shapeOf("octagon", QRectF(20, 200, 100, 100)), heart = shapeOf("heart", QRectF(300, 200, 100, 100));
+        auto target = shapeOf("rect", QRectF(600, 100, 100, 100));
+        const auto lineBetween = [&](const std::shared_ptr<ShapeItem> &a, int from, int to) {
+            auto l = std::make_shared<LineItem>();
+            l->start = LineItem::Glue{a->id, from};
+            l->end = LineItem::Glue{target->id, to};
+            slide.items.push_back(l);
+            return l;
+        };
+        auto l1 = lineBetween(triangle, 1, 1), l2 = lineBetween(octagon, 5, 3), l3 = lineBetween(heart, 0, 2), l4 = lineBetween(heart, 1, 0);
+        d->routeConnectors();
+        // The places: a wide triangle's second site is the middle of its left slope, (100, 70); the octagon's sixth is on its left side a corner's depth down: (20, 229.289).
+        QVERIFY(std::abs(l1->p1.x() - 120) < 1e-6 && std::abs(l1->p1.y() - 70) < 1e-6);
+        QVERIFY(std::abs(l2->p1.x() - 20) < 1e-6 && std::abs(l2->p1.y() - (200 + 29.289)) < 0.01);
+        QVERIFY(l1->start.site == 1 && l2->start.site == 5 && l3->start.site == 0 && l4->start.site == 1);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString xml = part(e, QStringLiteral("/ppt/slides/slide%1.xml").arg(at + 1));
+        QVERIFY2(xml.contains(QStringLiteral("idx=\"5\"")) && xml.count(QStringLiteral("<a:stCxn id=")) == 4, qPrintable(xml.mid(xml.indexOf(QStringLiteral("cNvCxnSpPr")), 300)));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        std::vector<const LineItem *> lines;
+        std::map<QString, QString> presetOf;
+        for (const auto &it : back->pages[at]->items) {
+            if (it->type() == ItemType::Line) lines.push_back(static_cast<const LineItem *>(it.get()));
+            if (it->type() == ItemType::Shape) presetOf[it->id] = static_cast<const ShapeItem *>(it.get())->shape;
+        }
+        QCOMPARE(int(lines.size()), 4);
+        int found = 0;
+        for (const LineItem *l : lines) {
+            const QString preset = presetOf[l->start.id];
+            if (preset == QLatin1String("triangle")) QCOMPARE(l->start.site, 1);
+            else if (preset == QLatin1String("octagon")) QCOMPARE(l->start.site, 5);
+            else if (preset == QLatin1String("heart")) QVERIFY(l->start.site == 0 || l->start.site == 1);
+            else QFAIL(qPrintable(QStringLiteral("a start that is unglued: ") + preset + QStringLiteral(" id ") + l->start.id + QStringLiteral(" site %1").arg(l->start.site)));
+            QCOMPARE(presetOf[l->end.id], QStringLiteral("rect"));
+            ++found;
+        }
+        QCOMPARE(found, 4);
+        // The heart's two sites are its own, and the connectors on them stay where the standard puts them.
+        QCOMPARE(connectionSite(*heart, 0), QPointF(350, 200 + 25));
+        QCOMPARE(connectionSite(*heart, 1), QPointF(350, 300));
+    }
+
+    // A connector end saved before the sites were counted the standard's way names a side (0 top, 1 left, 2 bottom, 3 right): it is the site on that side of the shape it is glued to.
+    void aSideNumberFromAnOlderSaveBecomesTheSiteOnThatSide()
+    {
+        auto d = deck::newPresentation();
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        Page &slide = *d->pages[at];
+        auto triangle = std::make_shared<ShapeItem>();
+        triangle->shape = QStringLiteral("triangle");
+        triangle->rect = QRectF(20, 20, 400, 100);
+        auto rect = std::make_shared<ShapeItem>();
+        rect->rect = QRectF(600, 100, 100, 100);
+        LineItem made;
+        made.start = LineItem::Glue{triangle->id, 2};   // the bottom, as a side
+        made.end = LineItem::Glue{rect->id, 1};
+        QJsonObject json = made.toJson();
+        for (const char *key : {"startGlue", "endGlue"}) {
+            QJsonObject g = json[QLatin1String(key)].toObject();
+            g.remove(QStringLiteral("model"));   // (what an older save has: just the number)
+            json[QLatin1String(key)] = g;
+        }
+        auto line = std::make_shared<LineItem>();
+        line->fromJson(json);
+        slide.items = {triangle, rect, line};
+        d->routeConnectors();
+        // The triangle's bottom is its fourth site (the middle of its foot), not its third (a corner).
+        QCOMPARE(line->start.site, 3);
+        QVERIFY(std::abs(line->p1.x() - 220) < 1e-6 && std::abs(line->p1.y() - 120) < 1e-6);
+        QCOMPARE(line->end.site, 1);
+        // Saved again it is a number of the new kind, and stays.
+        auto again = std::make_shared<LineItem>();
+        again->fromJson(line->toJson());
+        slide.items = {triangle, rect, again};
+        d->routeConnectors();
+        QCOMPARE(again->start.site, 3);
     }
 
     // Slide masters beyond the first keep their own themes, and every master and

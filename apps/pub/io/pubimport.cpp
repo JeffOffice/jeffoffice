@@ -1,4 +1,5 @@
 #include "io/pubimport.h"
+#include "office/connectionsites.h"
 
 #include "core/svg.h"
 #include "render/renderer.h"
@@ -900,8 +901,10 @@ public:
                 const auto it = m_seqItems.find(seq);
                 if (seq < 0 || it == m_seqItems.end() || site < 0 || site >= kConnectionSites) return;
                 const Item *o = m_doc.item(it->second);
-                if (!o || o->type() == ItemType::Line || QLineF(connectionSite(*o, site), at).length() > 1.5) return;
-                glue = LineItem::Glue{o->id, site};
+                // (Publisher counts a rectangle's sites as the sides; for another shape, the site on that side.)
+                const int own = o && o->type() != ItemType::Line ? connectionSiteOnSide(*o, site) : -1;
+                if (own < 0 || QLineF(connectionSite(*o, own), at).length() > 1.5) return;
+                glue = LineItem::Glue{o->id, own};
                 ++m_rep.attachedEnds;
             };
             attach(g.startSeq, g.startSite, g.line->start, g.line->p1);
