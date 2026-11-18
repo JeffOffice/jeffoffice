@@ -21,6 +21,7 @@
 #include "core/tocops.h"
 #include "io/qtpdf.h"
 #include "io/pdftransparency.h"
+#include "../pdftransparencyfixtures.h"
 #include "core/items.h"
 #include "app/pdfprotection.h"
 #include "core/printing.h"
@@ -758,6 +759,29 @@ private Q_SLOTS:
         }
         // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the shape solid: it is flattened first, so the page looks the same)
         QVERIFY2(farPixels(made[0], made[1], QSize(306, 396)) < 306 * 396 / 200, qPrintable(QString::number(farPixels(made[0], made[1], QSize(306, 396)))));
+    }
+
+    // A PDF/A export the check refuses is not made, and says which page of the document the see-through part is on (the PDF's page is a sheet: the document's pages on it are named).
+    void aRefusedPdfAFileNamesThePage()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+            return jptest::handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                                    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 5 0 R >> >> /Contents 4 0 R >>", jptest::handStream({}, "/GS1 gs 0 0 9 9 re f"),
+                                    "<< /Type /ExtGState /ca 0.5 >>"});
+        });
+        const auto reset = qScopeGuard([] { jp::setPdfTransparencyProbeForTest(nullptr); });
+        WriteOutputOptions o;
+        o.pdfArchive = true;
+        QString error;
+        QVERIFY(w.pdfBytes({0}, &error, o).isEmpty());
+        QVERIFY2(error.contains(QLatin1String("page 1")) && !error.contains(QLatin1String("PDF page")) && error.contains(QLatin1String("PDF/A")), qPrintable(error));
+        // (the same file without the check's finding is made)
+        jp::setPdfTransparencyProbeForTest(nullptr);
+        QVERIFY(!w.pdfBytes({0}, &error, o).isEmpty());
     }
 
     // The links of a PDF are clickable: a web address goes to its address, and a table of contents entry and a cross-reference go to the page of their heading, in a normal PDF and in a

@@ -325,11 +325,15 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
     // PDF/A-1 allows no transparency: what could not be flattened is not made into a file that claims to be one.
     if (options.pdfArchive) {
         const PdfTransparency clear = pdfTransparency(bytes);
-        if (clear.found) {
-            QStringList named;
-            for (int page : clear.pages) named << QString::number(page);
-            if (error) *error = named.isEmpty() ? tr("A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
-                                                : tr("A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", ")));
+        if (clear.refused()) {
+            // (a PDF page is a sheet: the document's pages on it are named)
+            const QVector<int> sheetOf = write::sheetOfPages(source, sheets, layout);
+            if (error) *error = pdfTransparencyRefusal(clear, QStringLiteral("PDF/A"), [&](int pdfPage) {
+                QStringList on;
+                for (int i = 0; i < sheetOf.size() && i < sheets.size(); ++i)
+                    if (sheetOf[i] == pdfPage - 1) on << QString::number(sheets[i] + 1);
+                return on.isEmpty() ? QString() : on.size() == 1 ? tr("page %1").arg(on.first()) : tr("pages %1").arg(on.join(QStringLiteral(", ")));
+            });
             return {};
         }
     }

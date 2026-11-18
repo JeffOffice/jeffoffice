@@ -14,6 +14,8 @@
 #include "io/pdftags.h"
 #include "io/pdftransparency.h"
 #include "../pdfmarkcheck.h"
+#include "../pdftransparencyfixtures.h"
+#include "text/textprops.h"
 #include "../withdialog.h"
 #include <QPdfWriter>
 #include <QJsonObject>
@@ -1558,6 +1560,272 @@ private Q_SLOTS:
         }
         // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the band and the letters solid: they are flattened first, so it looks the same)
         QVERIFY2(farPixels(made[0], made[1], QSize(300, 300)) < 300 * 300 / 200, qPrintable(QString::number(farPixels(made[0], made[1], QSize(300, 300)))));
+    }
+
+    // The words stay words in a PDF/A file: a see-through object of the master page is a picture of its own area, and the header and the footer that are opaque, and the lines of a text box
+    // that have no see-through or glowing letter, are text (a reader finds them and speaks them), and the file has no transparency.
+    void pdfaKeepsTextAsTextBesideSeeThroughParts()
+    {
+        auto doc = jp::Document::blank(QSizeF(300, 400));
+        QVERIFY(!doc->masters.isEmpty());
+        auto mark = std::make_shared<jp::ShapeItem>();
+        mark->rect = QRectF(30, 150, 240, 120);
+        mark->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
+        mark->fill.transparency = 0.5;
+        doc->masters[0]->items.push_back(mark);
+        auto words = [&](const QString &text, const QRectF &rect) {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = rect;
+            t->storyId = doc->createStory(text);
+            return t;
+        };
+        doc->masters[0]->items.push_back(words(QStringLiteral("Opaque header words"), QRectF(20, 10, 260, 30)));
+        doc->masters[0]->items.push_back(words(QStringLiteral("Footer page seven"), QRectF(20, 360, 260, 30)));
+        auto frame = words(QStringLiteral("Plain first line"), QRectF(20, 60, 260, 80));
+        {
+            QTextCursor cur(doc->storyDoc(frame->storyId));
+            cur.movePosition(QTextCursor::End);
+            cur.insertBlock();
+            QTextCharFormat glow;
+            glow.setProperty(jp::tp::GlowRef, QStringLiteral("#FFC800"));
+            cur.insertText(QStringLiteral("Glowword"), glow);
+            cur.insertBlock(QTextBlockFormat(), QTextCharFormat());
+            cur.insertText(QStringLiteral("Plain last line"), QTextCharFormat());
+        }
+        doc->pages[0]->items.push_back(frame);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray made[2];
+        for (int archival = 0; archival < 2; ++archival) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = archival;
+            const QString path = dir.filePath(QStringLiteral("k%1.pdf").arg(archival));
+            QVERIFY(w.exportPdfTo(path, s));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            made[archival] = f.readAll();
+        }
+        const jp::PdfTransparency found = jp::pdfTransparency(made[1]);
+        QVERIFY(!found.unreadable);
+        QVERIFY2(!found.found, "a PDF/A file has transparency");
+        const PdfDocument pdf(made[1]);
+        QVERIFY(pdf.isValid());
+        const QString text = pdf.text(0);
+        for (const char *line : {"Opaque header words", "Footer page seven", "Plain first line", "Plain last line"})
+            QVERIFY2(text.contains(QLatin1String(line)), qPrintable(QLatin1String(line) + QStringLiteral(" is not text; the page's text is: ") + text));
+        // (and it still looks as the plain file does)
+        QVERIFY2(farPixels(made[0], made[1], QSize(300, 400)) < 300 * 400 / 100, qPrintable(QString::number(farPixels(made[0], made[1], QSize(300, 400)))));
+    }
+
+    // A see-through master that is on every page is one picture in the file, not one for each page.
+    void pdfaEmbedsASeeThroughMasterOnce()
+    {
+        auto doc = jp::Document::blank(QSizeF(300, 300));
+        auto mark = std::make_shared<jp::ShapeItem>();
+        mark->rect = QRectF(30, 100, 240, 100);
+        mark->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
+        mark->fill.transparency = 0.5;
+        doc->masters[0]->items.push_back(mark);
+        for (int i = 0; i < 3; ++i) doc->addPage();
+        QCOMPARE(doc->pages.size(), size_t(4));
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        jp::MainWindow::PdfSettings s;
+        s.archival = true;
+        const QString path = dir.filePath(QStringLiteral("once.pdf"));
+        QVERIFY(w.exportPdfTo(path, s));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        QVERIFY(!jp::pdfTransparency(bytes).found);
+        QCOMPARE(bytes.count("/Subtype /Image"), 1);
+        QCOMPARE(PdfDocument(bytes).pageCount(), 4);
+    }
+
+    // What lies in the file when the export is refused: a text with an object set in it that is see-through is not made solid (the object is drawn as it is), so the PDF/A check refuses the file, says
+    // which page it was, and leaves the file that was there as it was (nothing is written over it first).
+    void aRefusedPdfAExportKeepsTheEarlierFile()
+    {
+        auto doc = jp::Document::blank(QSizeF(300, 300));
+        auto t = std::make_shared<jp::TextItem>();
+        t->rect = QRectF(20, 20, 260, 100);
+        t->storyId = doc->createStory(QStringLiteral("Logo: here"));
+        jp::ShapeItem box;
+        box.rect = QRectF(300, 500, 36, 24);
+        box.fill = jp::Fill::solid(jp::ColorRef::rgb(Qt::red));
+        box.fill.transparency = 0.5;
+        QTextCursor c(doc->storyDoc(t->storyId));
+        c.setPosition(6);
+        QTextCharFormat of = c.charFormat();
+        of.setProperty(jp::tp::InlineObject, QString::fromUtf8(QJsonDocument(box.toJson()).toJson(QJsonDocument::Compact)));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+        doc->pages[0]->items.push_back(t);
+        doc->addPage();
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("earlier.pdf"));
+        {
+            QFile earlier(path);
+            QVERIFY(earlier.open(QIODevice::WriteOnly));
+            earlier.write("the earlier file");
+        }
+        // (Qt's writer leaves a see-through color out of a PDF/A file, so the file the check is given is one that has it, on the second page of the publication)
+        jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+            return jptest::handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>",
+                                    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << >> /Contents 5 0 R >>",
+                                    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 6 0 R >> >> /Contents 7 0 R >>", jptest::handStream({}, "q Q"),
+                                    "<< /Type /ExtGState /ca 0.5 >>", jptest::handStream({}, "/GS1 gs 0 0 10 10 re f")});
+        });
+        const auto reset = qScopeGuard([] { jp::setPdfTransparencyProbeForTest(nullptr); });
+        for (const bool x1a : {false, true}) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = !x1a;
+            s.pdfx = x1a;
+            bool ok = true;
+            QString said;
+            withDialog([&] { ok = w.exportPdfTo(path, s); }, QString(), [&](QDialog *d) { said = qobject_cast<QMessageBox *>(d)->text(); });
+            QVERIFY(!ok);
+            QVERIFY2(said.contains(QLatin1String("see-through")) && said.contains(QLatin1String("page 2")), qPrintable(said));
+            QVERIFY2(said.contains(QLatin1String(x1a ? "PDF/X-1a" : "PDF/A")), qPrintable(said));
+            QVERIFY2(!said.contains(QLatin1String("PDF page")), qPrintable(said));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            QCOMPARE(f.readAll(), QByteArray("the earlier file"));
+            f.close();
+            // (and no part of the new one is left beside it)
+            QCOMPARE(QDir(dir.path()).entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot), QStringList{QStringLiteral("earlier.pdf")});
+        }
+        // a range of pages: the one PDF page is the publication's second, which is what the refusal names
+        {
+            jp::MainWindow::PdfSettings s;
+            s.archival = true;
+            s.from = 1;
+            s.to = 1;
+            jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+                return jptest::handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                                        "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 5 0 R >> >> /Contents 4 0 R >>", jptest::handStream({}, "/GS1 gs 0 0 9 9 re f"),
+                                        "<< /Type /ExtGState /ca 0.5 >>"});
+            });
+            QString said;
+            bool ok = true;
+            withDialog([&] { ok = w.exportPdfTo(path, s); }, QString(), [&](QDialog *d) { said = qobject_cast<QMessageBox *>(d)->text(); });
+            QVERIFY(!ok);
+            QVERIFY2(said.contains(QLatin1String("page 2")) && !said.contains(QLatin1String("PDF page")), qPrintable(said));
+        }
+        // a file that passes takes its place (all at once: nothing is left beside it)
+        jp::setPdfTransparencyProbeForTest(nullptr);
+        jp::MainWindow::PdfSettings s;
+        s.archival = true;
+        QVERIFY(w.exportPdfTo(path, s));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY(f.readAll().startsWith("%PDF-"));
+        QCOMPARE(QDir(dir.path()).entryList(QDir::Files | QDir::Hidden | QDir::NoDotAndDotDot), QStringList{QStringLiteral("earlier.pdf")});
+    }
+
+    // The check says "I could not check" for a file it can't read, and the export is refused: it is never passed as clean for not having been looked at.
+    void anUnreadablePdfIsRefusedAndOurOwnAlwaysReads()
+    {
+        const jp::PdfTransparency junk = jp::pdfTransparency(QByteArray("not a pdf at all"));
+        QVERIFY(junk.unreadable);
+        QVERIFY(junk.refused());
+        QVERIFY(jp::pdfTransparencyRefusal(junk, QStringLiteral("PDF/A")).contains(QLatin1String("could not be checked")));
+        // (the files this program writes, of every kind, read)
+        auto doc = jp::Document::blank(QSizeF(300, 300));
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->rect = QRectF(20, 20, 100, 100);
+        shape->fill = jp::Fill::solid(jp::ColorRef::rgb(Qt::blue));
+        shape->fill.transparency = 0.5;
+        doc->pages[0]->items.push_back(shape);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        for (int kind = 0; kind < 4; ++kind) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = kind == 1;
+            s.pdfx = kind == 2;
+            s.tags = kind == 3;
+            const QString path = dir.filePath(QStringLiteral("own%1.pdf").arg(kind));
+            QVERIFY(w.exportPdfTo(path, s));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const jp::PdfTransparency found = jp::pdfTransparency(f.readAll());
+            QVERIFY2(!found.unreadable, qPrintable(QString::number(kind)));
+            QCOMPARE(found.found, kind == 0 || kind == 3);
+        }
+    }
+
+    // What the check looks for, in small PDFs made by hand: a group that is a transparency group, a blend mode other than Normal, a soft mask or constant alpha in a form or a pattern a page draws with,
+    // a page whose content is a list of streams, and the pages named in the order of the page tree.
+    void theTransparencyCheckLooksWhereTransparencyHides()
+    {
+        using jptest::handStream;
+        using jptest::handPdf;
+        using jptest::onePagePdf;
+        auto check = [](const QByteArray &pdf) { return jp::pdfTransparency(pdf); };
+        // clean: a state with full alpha and the blend modes that mean Normal
+        {
+            const jp::PdfTransparency t = check(onePagePdf("/ExtGState << /GS1 5 0 R /GS2 6 0 R >>", "/GS1 gs /GS2 gs 0 0 10 10 re f", {"<< /Type /ExtGState /ca 1 /CA 1.0 /BM /Normal >>", "<< /Type /ExtGState /BM [/Compatible] /SMask /None >>"}));
+            QVERIFY(!t.unreadable);
+            QVERIFY2(!t.found, "a clean file is found to have transparency");
+        }
+        // a transparency group on the page, as a dictionary of its own and in the page
+        for (const bool apart : {false, true}) {
+            const QByteArray pdf = apart ? onePagePdf("", "q Q", {"<< /S /Transparency /CS /DeviceRGB >>"}, "/Group 5 0 R") : onePagePdf("", "q Q", {}, "/Group << /S /Transparency /CS /DeviceRGB >>");
+            const jp::PdfTransparency t = check(pdf);
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, qPrintable(QStringLiteral("group, apart %1").arg(apart)));
+        }
+        // a blend mode other than Normal (as a name and in a list)
+        for (const char *mode : {"/BM /Multiply", "/BM [/Normal /Screen]"}) {
+            const jp::PdfTransparency t = check(onePagePdf("/ExtGState << /GS1 5 0 R >>", "/GS1 gs 0 0 10 10 re f", {QByteArray("<< /Type /ExtGState ") + mode + " >>"}));
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, mode);
+        }
+        // a soft mask in a form the page draws, and constant alpha in a pattern's states
+        {
+            const jp::PdfTransparency t = check(onePagePdf("/XObject << /Fm1 5 0 R >>", "/Fm1 Do",
+                                                           {handStream("/Type /XObject /Subtype /Form /BBox [0 0 10 10] /Resources << /ExtGState << /GS1 6 0 R >> >>", "/GS1 gs 0 0 5 5 re f"), "<< /Type /ExtGState /SMask << /Type /Mask /S /Alpha /G 7 0 R >> >>",
+                                                            handStream("/Type /XObject /Subtype /Form /BBox [0 0 10 10]", "q Q")}));
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, "a soft mask in a form");
+        }
+        {
+            const jp::PdfTransparency t = check(onePagePdf("/Pattern << /P1 5 0 R >>", "/Pattern cs /P1 scn 0 0 10 10 re f",
+                                                           {handStream("/Type /Pattern /PatternType 1 /PaintType 1 /TilingType 1 /BBox [0 0 5 5] /XStep 5 /YStep 5 /Resources << /ExtGState << /GS1 6 0 R >> >>", "/GS1 gs 0 0 2 2 re f"),
+                                                            "<< /Type /ExtGState /ca 0.5 >>"}));
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, "alpha in a pattern");
+        }
+        // a form inside a form: found, and past the depth that is looked at the file is not passed (nor is a loop)
+        {
+            QList<QByteArray> more;
+            const int depth = 14;
+            for (int i = 0; i < depth; ++i)
+                more << handStream("/Type /XObject /Subtype /Form /BBox [0 0 10 10] /Resources << /XObject << /Fm1 " + QByteArray::number(6 + i) + " 0 R >> >>", "/Fm1 Do");
+            more << handStream("/Type /XObject /Subtype /Form /BBox [0 0 10 10] /Resources << /ExtGState << /GS1 " + QByteArray::number(6 + depth + 1) + " 0 R >> >>", "/GS1 gs");
+            more << "<< /Type /ExtGState /ca 0.5 >>";
+            const jp::PdfTransparency deep = check(onePagePdf("/XObject << /Fm1 5 0 R >>", "/Fm1 Do", more));
+            QVERIFY2(deep.refused(), "a file with transparency deeper than the check looks passes");
+            QList<QByteArray> loop{handStream("/Type /XObject /Subtype /Form /BBox [0 0 1 1] /Resources << /XObject << /Fm1 5 0 R >> >>", "/Fm1 Do")};
+            const jp::PdfTransparency again = check(onePagePdf("/XObject << /Fm1 5 0 R >>", "/Fm1 Do", loop));
+            QVERIFY(!again.found);   // (nothing see-through, and it ends)
+        }
+        // a page whose content is a list of streams (the state is set in the second)
+        {
+            const QByteArray page = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 6 0 R >> >> /Contents [4 0 R 5 0 R] >>";
+            const jp::PdfTransparency t = check(handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>", page, handStream({}, "q Q"), handStream({}, "/GS1 gs 0 0 9 9 re f"),
+                                                         "<< /Type /ExtGState /ca 0.25 >>"}));
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, "the second stream of a list");
+        }
+        // the pages are named as the page tree has them (the object that comes first is the second page here)
+        {
+            const QByteArray first = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 6 0 R >> >> /Contents 5 0 R >>";
+            const QByteArray second = "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << >> /Contents 7 0 R >>";
+            const jp::PdfTransparency t = check(handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [4 0 R 3 0 R] /Count 2 >>", first, second, handStream({}, "/GS1 gs 0 0 9 9 re f"),
+                                                         "<< /Type /ExtGState /ca 0.5 >>", handStream({}, "q Q")}));
+            QVERIFY2(t.found && t.pages == QVector<int>{2}, qPrintable(QString::number(t.pages.value(0))));
+        }
     }
 
     // The words of an SVG picture are in a PDF as text with no ink (a pen with no color, which Qt writes as a transparent fill), but not where the

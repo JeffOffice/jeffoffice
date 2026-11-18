@@ -634,12 +634,13 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     // PDF/A-1 allows no transparency: what could not be flattened is not made into a file that claims to be one.
     if (archiving) {
         const PdfTransparency clear = pdfTransparency(bytes);
-        if (clear.found) {
+        if (clear.refused()) {
             file.cancelWriting();
-            QStringList named;
-            for (int page : clear.pages) named << QString::number(page);
-            return fail(named.isEmpty() ? QCoreApplication::translate("DeckOutput", "A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
-                                        : QCoreApplication::translate("DeckOutput", "A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", "))));
+            // (a PDF page is a slide that is printed: the hidden ones are not in it)
+            const QVector<int> shown = outputSlides(d, o);
+            return fail(pdfTransparencyRefusal(clear, QStringLiteral("PDF/A"), [&](int pdfPage) {
+                return o.layout == PrintLayout::Slides && pdfPage >= 1 && pdfPage <= shown.size() ? QCoreApplication::translate("DeckOutput", "slide %1").arg(shown[pdfPage - 1] + 1) : QString();
+            }));
         }
     }
     if (tagging) {

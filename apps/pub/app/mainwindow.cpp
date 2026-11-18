@@ -84,6 +84,7 @@
 #include <QDialog>
 #include <QPainter>
 #include <QPdfWriter>
+#include <QUuid>
 #include "io/pdfbookmarks.h"
 #include "io/pdftags.h"
 #include "io/pdftransparency.h"
@@ -1384,9 +1385,14 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             return false;
         }
     }
+    // PDF/A-1 and PDF/X-1a allow no transparency: that file is made beside the one asked for and checked, and only a file that passes takes the place of what is there.
+    const bool checked = !encrypted && ((s.archival && !s.pdfx) || (s.pdfx && !x4));
+    const QFileInfo target(path);
+    const QString work = checked ? target.absoluteDir().filePath(QStringLiteral(".%1.%2.part").arg(target.fileName(), QUuid::createUuid().toString(QUuid::Id128))) : path;
+    const auto dropWork = qScopeGuard([&] { if (checked) QFile::remove(work); });
     QBuffer memory;
     memory.open(QIODevice::WriteOnly);
-    const auto pdfOwner = encrypted ? std::make_unique<QPdfWriter>(&memory) : std::make_unique<QPdfWriter>(path);
+    const auto pdfOwner = encrypted ? std::make_unique<QPdfWriter>(&memory) : std::make_unique<QPdfWriter>(work);
     QPdfWriter &pdf = *pdfOwner;
     pdf.setCreator(QStringLiteral("JeffPub"));
     const QString title = d->props.title.isEmpty() ? m_ed->displayName() : d->props.title;
@@ -1444,6 +1450,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     if (tagging) pageTags.install(&ctx);
     QVector<PdfBookmark> bookmarks;   // a page's, by the number of the PDF page it is on
     int pdfPage = -1;
+    QVector<QVector<int>> sourcePages;   // the publication's pages that are on each PDF page (a refusal names them)
     // The links of the pages (PDF/X has no annotations; a catalog's merged pages are not given any).
     QVector<PdfLink> links;
     QVector<int> internalTarget;                  // of each link: the publication's page it goes to, or -1
@@ -1480,7 +1487,9 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 if (!first) pdf.newPage();
                 first = false;
                 ++pdfPage;
+                sourcePages << QVector<int>();
                 for (int k = 0; k < 2; ++k) {
+                    if (side[k] >= 0) sourcePages.last() << side[k];
                     if (side[k] < 0) continue;
                     bookmarkPage(side[k]);
                     linkPage(side[k], QPointF(topFold ? 0 : k * ps.width(), topFold ? k * ps.height() : 0));
@@ -1499,6 +1508,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             if (!first) pdf.newPage();
             first = false;
             ++pdfPage;
+            sourcePages << QVector<int>{i};
             bookmarkPage(i);
             linkPage(i, QPointF(margin, margin));
             if (tagging) pageTags.beginSection();
@@ -1530,21 +1540,20 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
             else
                 memory.buffer() = spotted;
-        } else if (!addPdfSpotColors(path, d->print.spotColors, names, &spotErr))
+        } else if (!addPdfSpotColors(work, d->print.spotColors, names, &spotErr))
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
     }
-    // PDF/A-1 allows no transparency: what could not be flattened is not left as a file that claims to be one.
-    if (s.archival && !encrypted) {
-        QFile in(path);
-        const PdfTransparency clear = in.open(QIODevice::ReadOnly) ? pdfTransparency(in.readAll()) : PdfTransparency();
+    // What could not be flattened is not left as a file that claims to be one: nothing is written over the file that was there.
+    if (checked) {
+        QFile in(work);
+        const PdfTransparency clear = in.open(QIODevice::ReadOnly) ? pdfTransparency(in.readAll()) : PdfTransparency{false, true, {}};
         in.close();
-        if (clear.found) {
-            QStringList named;
-            for (int page : clear.pages) named << QString::number(page);
-            QFile::remove(path);
+        if (clear.refused()) {
             QApplication::restoreOverrideCursor();
-            jp::plainWarning(this, tr("Create PDF"), named.isEmpty() ? tr("A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
-                                                                      : tr("A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", "))));
+            jp::plainWarning(this, tr("Create PDF"), pdfTransparencyRefusal(clear, s.pdfx ? QStringLiteral("PDF/X-1a") : QStringLiteral("PDF/A"), [&](int pdfPage1) {
+                const QVector<int> on = pdfPage1 >= 1 && pdfPage1 <= sourcePages.size() ? sourcePages[pdfPage1 - 1] : QVector<int>();
+                return on.size() == 1 ? tr("page %1").arg(on[0] + 1) : on.size() == 2 ? tr("pages %1 and %2").arg(on[0] + 1).arg(on[1] + 1) : QString();
+            }));
             return false;
         }
     }
@@ -1560,7 +1569,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
         const double bleed = press ? std::min(marks.bleedSize, margin) : 0;
         xo.bleed = xo.trim.adjusted(-bleed, -bleed, bleed, bleed);
         QString xErr;
-        if (!(x4 ? makePdfX4(path, xo, &xErr) : makePdfX1a(path, xo, &xErr))) {
+        if (!(x4 ? makePdfX4(work, xo, &xErr) : makePdfX1a(work, xo, &xErr))) {
             QApplication::restoreOverrideCursor();
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but it isn't PDF/X: %1.").arg(xErr));
             return false;
@@ -1574,7 +1583,7 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
     if (!s.pdfx && ((s.bookmarks && !bookmarks.isEmpty()) || tagging || !links.isEmpty())) {
         QByteArray bytes = encrypted ? memory.data() : QByteArray();
         if (!encrypted) {
-            QFile in(path);
+            QFile in(work);
             if (in.open(QIODevice::ReadOnly)) bytes = in.readAll();
         }
         if (!bytes.isEmpty()) {
@@ -1596,10 +1605,26 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
             bytes = addPdfLinks(bytes, links);
             if (encrypted) memory.buffer() = bytes;
             else {
-                QSaveFile out(path);
+                QSaveFile out(work);
                 if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit())
                     qWarning("Create PDF: the bookmarks and tags could not be added: %s", qPrintable(out.errorString()));
             }
+        }
+    }
+    if (checked) {
+        // The file passed: it takes the place of the one that was there, all at once.
+        QFile made(work);
+        QSaveFile out(path);
+        bool ok = made.open(QIODevice::ReadOnly) && out.open(QIODevice::WriteOnly);
+        while (ok && !made.atEnd()) {
+            const QByteArray chunk = made.read(1 << 20);
+            ok = !chunk.isEmpty() && out.write(chunk) == chunk.size();
+        }
+        if (!ok || !out.commit()) {
+            const QString why = out.errorString();
+            QApplication::restoreOverrideCursor();
+            jp::plainWarning(this, tr("Create PDF"), tr("JeffPub couldn't write \"%1\".\n%2%3").arg(path, why, saveFailureHint(why)));
+            return false;
         }
     }
     if (encrypted) {

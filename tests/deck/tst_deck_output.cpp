@@ -10,6 +10,8 @@
 #include "office/officecrypt.h"
 #include "io/pdfcrypt.h"
 #include "io/pdftransparency.h"
+#include "../pdftransparencyfixtures.h"
+#include <QScopeGuard>
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include <QBuffer>
@@ -1147,6 +1149,33 @@ private Q_SLOTS:
         const QColor groundPlain = colorAt(made[0], QPointF(800, 450)), groundArchive = colorAt(made[1], QPointF(800, 450));
         QVERIFY2(std::abs(groundPlain.green() - groundArchive.green()) < 12 && groundArchive.green() > 80, qPrintable(groundArchive.name()));
         QVERIFY2(std::abs(meanGray(made[0], QRect(100, 300, 400, 80)) - meanGray(made[1], QRect(100, 300, 400, 80))) < 2.5, "the see-through letters came out solid");
+    }
+
+    // A PDF/A export the check refuses is not made, leaves the file that was there, and names the slide (a hidden slide is not in the PDF, so the PDF's second page is the third slide).
+    void aRefusedPdfAFileNamesTheSlideAndKeepsTheFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = showDeck(3);
+        d->pages[1]->hidden = true;
+        const QString path = dir.filePath(QStringLiteral("refused.pdf"));
+        {
+            QFile earlier(path);
+            QVERIFY(earlier.open(QIODevice::WriteOnly));
+            earlier.write("the earlier file");
+        }
+        jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+            return jptest::handPdf({"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R 4 0 R] /Count 2 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << >> /Contents 5 0 R >>",
+                                    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 100 100] /Resources << /ExtGState << /GS1 6 0 R >> >> /Contents 7 0 R >>", jptest::handStream({}, "q Q"),
+                                    "<< /Type /ExtGState /ca 0.5 >>", jptest::handStream({}, "/GS1 gs 0 0 9 9 re f")});
+        });
+        const auto reset = qScopeGuard([] { jp::setPdfTransparencyProbeForTest(nullptr); });
+        deck::OutputOptions o;
+        o.archive = true;
+        QString err;
+        QVERIFY(!deck::exportPdf(*d, path, o, &err));
+        QVERIFY2(err.contains(QLatin1String("slide 3")) && err.contains(QLatin1String("PDF/A")), qPrintable(err));
+        QCOMPARE(fileBytes(path), QByteArray("the earlier file"));
     }
 
     // Where the tags can't be made, whatever the reason, the PDF has none of the marks, shows what an untagged one shows, and the caller is told it is not tagged.
