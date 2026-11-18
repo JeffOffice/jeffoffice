@@ -381,6 +381,7 @@ private Q_SLOTS:
         QMenu menu;
         menu.addAction(win.w.act(QStringLiteral("insert.object.range")));
         menu.addAction(win.w.act(QStringLiteral("insert.object.chart")));
+        menu.addAction(win.w.act(QStringLiteral("insert.object.page")));
         menu.show();
         QVERIFY(menu.grab().save(dir + QStringLiteral("/write-insert-object-menu.png")));
         win.w.view()->refresh();
