@@ -39,6 +39,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 ## Print and share
 
 - [Print, PDF, and slide pictures](printing)
+- [Pack and Go: take a presentation with you](pack-and-go)
 
 ## Help and settings
 
