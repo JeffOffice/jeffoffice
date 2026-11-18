@@ -1291,7 +1291,7 @@ private Q_SLOTS:
         circle->shape = QStringLiteral("ellipse");
         auto cloud = std::make_shared<ShapeItem>();
         cloud->rect = QRectF(300, 10, 60, 60);
-        cloud->shape = QStringLiteral("cloud");
+        cloud->shape = QStringLiteral("funnel");   // (a preset the standard gives no connection sites)
         auto late = std::make_shared<TextItem>();
         late->rect = QRectF(300, 200, 60, 60);
         auto l = std::make_shared<LineItem>();
@@ -1334,7 +1334,7 @@ private Q_SLOTS:
             const auto *early2 = static_cast<LineItem *>(r.items[3].get());
             QCOMPARE(early2->start.id, r.items[5]->id);
             QCOMPARE(early2->start.site, 1);
-            QVERIFY(early2->end.id.isEmpty());   // a cloud has no points to join
+            QVERIFY(early2->end.id.isEmpty());   // a funnel has no points to join
             QCOMPARE(static_cast<LineItem *>(r.items[2].get())->start.id, r.items[0]->id);
             // The numbers are the ones the shapes are written with.
             QSet<int> numbers;
