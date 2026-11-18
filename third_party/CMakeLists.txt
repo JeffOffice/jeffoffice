@@ -9,12 +9,14 @@ find_package(ZLIB QUIET)
 if(NOT ZLIB_FOUND)
   FetchContent_Declare(zlib
     # (each URL is tried in turn: GitHub's downloads sometimes answer 504 for an hour)
-    URL https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
-        https://zlib.net/fossils/zlib-1.3.2.tar.gz
-        https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz
-    URL_HASH SHA256=bb329a0a2cd0274d05519d61c667c062e06990d72e125ee2dfa8de64f0119d16)
-  set(ZLIB_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-  set(SKIP_INSTALL_ALL ON CACHE BOOL "" FORCE)
+    URL https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz
+        https://zlib.net/fossils/zlib-1.4.tar.gz
+        https://github.com/madler/zlib/releases/download/v1.4/zlib-1.4.tar.gz
+    URL_HASH SHA256=02dd159783677a749c04adbdd02b55b8a2bcc7e054f51b76b549199a916ad584)
+  # (zlib 1.4 names its options ZLIB_*: no tests, no shared library, no install; only the static library is wanted)
+  set(ZLIB_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+  set(ZLIB_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+  set(ZLIB_INSTALL OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(zlib)
   add_library(jp_zlib INTERFACE)
   target_link_libraries(jp_zlib INTERFACE zlibstatic)
