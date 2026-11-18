@@ -75,6 +75,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Help"),
     QT_TRANSLATE_NOOP("Ribbon", "Home"),
     QT_TRANSLATE_NOOP("Ribbon", "Hyphenation"),
+    QT_TRANSLATE_NOOP("Ribbon", "Text Direction"),
     QT_TRANSLATE_NOOP("Ribbon", "Illustrations"),
     QT_TRANSLATE_NOOP("Ribbon", "Insert"),
     QT_TRANSLATE_NOOP("Ribbon", "Insert Merge Field"),

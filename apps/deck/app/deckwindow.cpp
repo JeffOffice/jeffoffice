@@ -412,7 +412,8 @@ void DeckWindow::refreshUi()
             a->setEnabled(box);
     if (auto *t = dynamic_cast<TextItem *>(one)) {
         act("tb.dirHorizontal")->setChecked(!t->vertical);
-        act("tb.dirVertical")->setChecked(t->vertical);
+        act("tb.dirVertical")->setChecked(t->vertical && !t->turnedBack);
+        act("tb.dirRotate270")->setChecked(t->vertical && t->turnedBack);
         for (int k = 0; k < 3; ++k) act(QStringLiteral("valign.%1").arg(k))->setChecked(int(t->valign) == k);
         for (int c = 1; c <= 3; ++c) act(QStringLiteral("cols.%1").arg(c))->setChecked(t->columns == c);
     } else if (auto *s = dynamic_cast<ShapeItem *>(one)) {

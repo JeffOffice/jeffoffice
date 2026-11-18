@@ -273,7 +273,8 @@
                   "keytip": "TD",
                   "menu": [
                     "tb.dirHorizontal",
-                    "tb.dirVertical"
+                    "tb.dirVertical",
+                    "tb.dirRotate270"
                   ]
                 },
                 {

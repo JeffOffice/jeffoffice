@@ -1,3 +1,4 @@
+#include "core/textdirection.h"
 #include <QDir>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -1050,6 +1051,21 @@ void MainWindow::createActions()
         if (auto *t = dynamic_cast<TextItem *>(it)) ed->change(tr("Text Direction"), [t] { t->vertical = !t->vertical; });
         else if (dynamic_cast<TableItem *>(it)) toggleTableTextDirection(ed);
     }, true);
+    {
+        // The words of a text box run across or turned a quarter either way (a table's cells keep the Text Direction toggle above).
+        static const std::pair<const char *, TextDirection> directions[] = {{"tb.dir.horz", TextDirection::Horizontal}, {"tb.dir.r90", TextDirection::Rotate90}, {"tb.dir.r270", TextDirection::Rotate270}};
+        for (const auto &d : directions) {
+            const TextDirection direction = d.second;
+            mk(QLatin1String(d.first), textDirectionName(direction), direction == TextDirection::Horizontal ? "text" : "arrow-down-wide-narrow", QKeySequence(), [ed, direction] {
+                Item *it = ed->isEditingText() ? ed->doc()->item(ed->textTarget().itemId) : ed->single();
+                if (auto *t = dynamic_cast<TextItem *>(it))
+                    ed->change(tr("Text Direction"), [t, direction] {
+                        t->vertical = direction != TextDirection::Horizontal;
+                        t->turnedBack = direction == TextDirection::Rotate270;
+                    });
+            }, true);
+        }
+    }
     const QPair<QString, int> valigns[] = {{tr("Align Top"), 0}, {tr("Align Middle"), 1}, {tr("Align Bottom"), 2}};
     for (const auto &v : valigns) {
         const int k = v.second;

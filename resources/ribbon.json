@@ -295,7 +295,7 @@
     {"name": "Text Box", "keytip": "JX", "context": "Text Box Tools", "color": "textBox", "groups": [
       {"name": "Text", "keytip": "ZT", "items": [
         {"large": "tb.textFit", "keytip": "TF", "menu": ["fit.best", "fit.shrink", "fit.grow", "fit.none"]},
-        {"large": "tb.direction", "keytip": "TD"},
+        {"large": {"id": "ribbon.textBoxDirection", "text": "Text Direction", "icon": "arrow-down-wide-narrow"}, "keytip": "TD", "menu": ["tb.dir.horz", "tb.dir.r90", "tb.dir.r270"]},
         {"large": {"id": "ribbon.hyphenation", "text": "Hyphenation", "icon": "hyphenation"}, "keytip": "HY", "menu": [
           "rev.hyphenation"]}
       ]},

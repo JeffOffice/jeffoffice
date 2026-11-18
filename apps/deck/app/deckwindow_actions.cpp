@@ -1,6 +1,7 @@
 // JeffDeck's commands for the Home, Insert, Design, and View tabs: each calls
 // the same Editor function the matching command of the other apps does.
 
+#include "core/textdirection.h"
 #include "app/deckwindow.h"
 
 #include "app/deckcanvas.h"
@@ -141,15 +142,23 @@ void DeckWindow::createFormatActions()
         mk(QStringLiteral("ls.%1").arg(s), QString::number(s), "", QKeySequence(), [ed, s] { ed->setLineSpacing(QTextBlockFormat::ProportionalHeight, s * 100); });
 
     // Text Direction, Align Text, and Columns work on the whole box.
-    for (const bool vertical : {false, true})
-        mk(vertical ? "tb.dirVertical" : "tb.dirHorizontal", vertical ? tr("Rotate All Text 90°") : tr("Horizontal"), vertical ? "arrow-down-wide-narrow" : "text", QKeySequence(),
-           [ed, vertical] {
-               const QVector<Item *> boxes = textTargets(ed);
-               ed->change(tr("Text Direction"), [&] {
-                   for (Item *it : boxes)
-                       if (it->type() == ItemType::Text) static_cast<TextItem *>(it)->vertical = vertical;
-               });
-           }, true);
+    {
+        static const std::pair<const char *, TextDirection> directions[] = {{"tb.dirHorizontal", TextDirection::Horizontal}, {"tb.dirVertical", TextDirection::Rotate90}, {"tb.dirRotate270", TextDirection::Rotate270}};
+        for (const auto &d : directions) {
+            const TextDirection direction = d.second;
+            mk(QLatin1String(d.first), textDirectionName(direction), direction == TextDirection::Horizontal ? "text" : "arrow-down-wide-narrow", QKeySequence(), [ed, direction] {
+                const QVector<Item *> boxes = textTargets(ed);
+                ed->change(tr("Text Direction"), [&] {
+                    for (Item *it : boxes)
+                        if (it->type() == ItemType::Text) {
+                            auto *t = static_cast<TextItem *>(it);
+                            t->vertical = direction != TextDirection::Horizontal;
+                            t->turnedBack = direction == TextDirection::Rotate270;
+                        }
+                });
+            }, true);
+        }
+    }
     const QString alignNames[] = {tr("Top"), tr("Middle"), tr("Bottom")};
     for (int k = 0; k < 3; ++k)
         mk(QStringLiteral("valign.%1").arg(k), alignNames[k], k == 0 ? "align-vertical-justify-start" : k == 1 ? "align-vertical-justify-center" : "align-vertical-justify-end",

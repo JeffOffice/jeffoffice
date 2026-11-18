@@ -1207,6 +1207,9 @@ void MainWindow::refreshUi()
         act("fit.grow")->setChecked(t->autofit == TextItem::GrowBox);
         act("fit.none")->setChecked(t->autofit == TextItem::NoAutofit);
         act("tb.direction")->setChecked(t->vertical);
+        act("tb.dir.horz")->setChecked(!t->vertical);
+        act("tb.dir.r90")->setChecked(t->vertical && !t->turnedBack);
+        act("tb.dir.r270")->setChecked(t->vertical && t->turnedBack);
         act("tb.break")->setEnabled(!t->nextId.isEmpty());
         act("tb.next")->setEnabled(!t->nextId.isEmpty());
         act("tb.prev")->setEnabled(d->prevFrame(t->id) != nullptr);
