@@ -647,8 +647,8 @@ private Q_SLOTS:
         QVERIFY2(s.importedDrawing.notRead.join(QLatin1Char('|')).contains(QLatin1String("inside other objects")), qPrintable(s.importedDrawing.notRead.join(QLatin1Char('|'))));
     }
 
-    // An object that holds a formula (math) is named as one, not as a chart that could not be read.
-    void anEquationObjectIsNamedAsOne()
+    // An object that holds a formula (math) is read as an equation, not named as a chart that could not be read.
+    void anEquationObjectIsReadAsOne()
     {
         const QByteArray math = "<math:math xmlns:math=\"http://www.w3.org/1998/Math/MathML\"><math:mi>x</math:mi></math:math>";
         Workbook wb;
@@ -657,8 +657,8 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
         const QString notes = s.importedDrawing.notRead.join(QLatin1Char('|'));
-        QVERIFY2(notes.contains(QLatin1String("equations")), qPrintable(notes));
-        QVERIFY2(!notes.contains(QLatin1String("charts that could not")), qPrintable(notes));
+        QVERIFY2(!notes.contains(QLatin1String("equations")) && !notes.contains(QLatin1String("charts that could not")), qPrintable(notes));
+        QCOMPARE(s.importedDrawing.anchors.size(), 1);
     }
 
     // A sheet whose name looks like a cell (Q1) is quoted in the chart's references.
