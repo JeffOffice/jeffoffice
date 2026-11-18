@@ -9,6 +9,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
+#include "office/mathobject.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "office/xml.h"
@@ -80,7 +81,7 @@ public:
         ctx.theme = m_theme;
         ctx.formats = m_formats;
         ctx.budget = &m_budget;
-        ctx.equations = true;   // (an equation is written as the picture of it: the standard has none here)
+        ctx.equations = true;   // (an equation is written as a formula object, with the picture of it beside it)
         ctx.images = &m_imageOfPart;   // (a picture that several objects use is handed over once)
         ctx.addImage = [this](const QByteArray &bytes, const QString &format) {
             const QString id = QStringLiteral("i%1").arg(m_images.size() + 1);
@@ -158,7 +159,11 @@ private:
     qint64 *m_pictureBytes;
     qint64 *m_objects;
     int *m_chartNumber;
+public:
+    qint64 *m_formulas = nullptr, *m_formulaBytes = nullptr;
+private:
     int m_charts = 0;   // the charts of this sheet
+    QHash<QByteArray, QString> m_equationPictures;   // the picture made for equal math, color, and size
     ColorScheme m_scheme;
     Theme m_theme;
     QDomDocument m_themeDoc;
@@ -446,20 +451,43 @@ private:
         switch (item.type()) {
         case ItemType::Equation: {
             const auto &eq = static_cast<const EquationItem &>(item);
-            const QByteArray png = office::wml::equationPng(eq.markup, int(std::ceil(w * 4)), int(std::ceil(h * 4)), eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_scheme));
-            if (png.isEmpty()) {
-                note(QCoreApplication::translate("Sheet", "equations that could not be drawn"));
-                return QString();
+            const int pw = int(std::ceil(w * 4)), ph = int(std::ceil(h * 4));
+            const QColor color = eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_scheme);
+            // (equal math, color, and size share one picture)
+            const QByteArray key = QCryptographicHash::hash(eq.markup + QByteArray::number(color.rgba()) + ':' + QByteArray::number(pw) + 'x' + QByteArray::number(ph), QCryptographicHash::Sha1);
+            QString imageId = m_equationPictures.value(key);
+            if (imageId.isEmpty()) {
+                const QByteArray png = office::wml::equationPng(eq.markup, pw, ph, color);
+                if (png.isEmpty()) {
+                    note(QCoreApplication::translate("Sheet", "equations that could not be drawn"));
+                    return QString();
+                }
+                imageId = QStringLiteral("eq%1").arg(m_images.size() + 1);
+                m_images[imageId] = png;
+                m_imageFormats[imageId] = QStringLiteral("png");
+                m_equationPictures.insert(key, imageId);
+            }
+            // As a formula object when the limits allow: the MathML document of the equation in an Object of its own, and the picture beside it.
+            QByteArray formula;
+            if (m_formulas && m_formulaBytes && *m_formulas < kMostMathObjects) {
+                formula = office::mathObjectFromOmml(eq.markup);
+                if (!formula.isEmpty() && *m_formulaBytes + formula.size() > kMostMathObjectBytes) formula.clear();
             }
             PictureItem pic;
             static_cast<Item &>(pic) = item;
             pic.fill = Fill();
             pic.stroke = Stroke::none();
-            pic.imageId = QStringLiteral("eq%1").arg(m_images.size() + 1);
-            m_images[pic.imageId] = png;
-            m_imageFormats[pic.imageId] = QStringLiteral("png");
+            pic.imageId = imageId;
             pic.imgRect = QRectF(0, 0, pic.rect.width(), pic.rect.height());
-            return emit(pic, x, y, w, h, depth, anchor, z);
+            QString frame = emit(pic, x, y, w, h, depth, anchor, z);
+            const qsizetype at = frame.indexOf(QLatin1String("<draw:image"));
+            if (formula.isEmpty() || at < 0) return frame;
+            ++*m_formulas;
+            *m_formulaBytes += formula.size();
+            const QString name = QStringLiteral("Object %1").arg(++*m_chartNumber);
+            m_out->objects.push_back({name + QStringLiteral("/content.xml"), formula});
+            frame.insert(at, QStringLiteral("<draw:object xlink:href=\"./%1\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>").arg(name));
+            return frame;
         }
         case ItemType::Picture: {
             const auto &p = static_cast<const PictureItem &>(item);
@@ -603,9 +631,11 @@ private:
 } // namespace
 
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes, qint64 *objects,
-                     int *chartNumber)
+                     int *chartNumber, qint64 *formulas, qint64 *formulaBytes)
 {
     Writer w(package, mainPart, drawingPart, grid, sheetRef, sheetNumber, out, pictureBytes, objects, chartNumber);
+    w.m_formulas = formulas;
+    w.m_formulaBytes = formulaBytes;
     w.run();
 }
 

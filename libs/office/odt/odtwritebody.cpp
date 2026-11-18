@@ -9,6 +9,8 @@
 #include "office/barcodemarker.h"
 #include "office/chart.h"
 #include "office/theme.h"
+#include "office/mathobject.h"
+#include "wml/wmlmathpath.h"
 #include "sheet/odschart.h"
 #include "wml/wmlwrap.h"
 
@@ -802,7 +804,7 @@ QString Writer::chartObject(const QString &rid, qint64 widthEmu, qint64 heightEm
     const QByteArray content = sheet::odschart::chartToOdf(chart, widthEmu, heightEmu, &notes);
     for (const QString &n : std::as_const(notes)) left(n);
     if (content.isEmpty()) return QString();
-    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + 1);
+    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + 1);
     m_chartObjects.push_back({dir, content});
     m_chartDone.insert(r.target, dir);
     return dir;
@@ -816,6 +818,28 @@ QByteArray emuLength(qint64 emu)
 }
 
 } // namespace
+
+QByteArray Writer::formulaFrame(const T &t, int math)
+{
+    if (int(m_formulas.size()) >= kMostMathObjects) return QByteArray();
+    const QByteArray markup = wml::equationMarkupDeclared(t.raw(math));
+    const QByteArray content = mathObjectFromOmml(markup);
+    if (content.isEmpty() || m_formulaBytes + content.size() > kMostMathObjectBytes) return QByteArray();
+    // (as large as it lays out at the height of the text it is set in)
+    const auto shape = wml::equationShapeCached(markup, 12);
+    if (!shape || !shape->valid()) return QByteArray();
+    const double w = std::clamp(shape->box.width(), 1.0, 2000.0), h = std::clamp(shape->box.height(), 1.0, 2000.0);
+    const QByteArray png = wml::equationPng(markup, int(std::ceil(w * 4)), int(std::ceil(h * 4)));
+    if (png.isEmpty()) return QByteArray();
+    m_formulaBytes += content.size();
+    const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + 1);
+    m_formulas.push_back({dir, content, png});
+    const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",
+                                       "<style:graphic-properties style:vertical-pos=\"middle\" style:vertical-rel=\"text\" fo:padding=\"0in\" fo:border=\"none\" style:wrap=\"none\" draw:stroke=\"none\" draw:fill=\"none\"/>");
+    const QByteArray width = QString::number(w / 72.0, 'f', 4).toUtf8() + "in", height = QString::number(h / 72.0, 'f', 4).toUtf8() + "in";
+    return "<draw:frame draw:style-name=\"" + esc(style) + "\" text:anchor-type=\"as-char\" svg:width=\"" + width + "\" svg:height=\"" + height + "\"><draw:object xlink:href=\"./" + esc(dir) +
+           "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/><draw:image xlink:href=\"ObjectReplacements/" + esc(dir) + ".png\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/></draw:frame>";
+}
 
 QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
 {
@@ -1567,7 +1591,13 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
         const QByteArray name = t.localName(c);
         if (t.ns(c) != wml::NsW) {
             if (isNs(t, c, "oMath", kNsM) || isNs(t, c, "oMathPara", kNsM)) {
-                // Equations are kept as the text they hold.
+                // An equation is a formula object (MathML in a part of its own, with a picture of it); what can't be is kept as the text it holds.
+                if (const QByteArray frame = formulaFrame(t, c); !frame.isEmpty()) {
+                    pc->xml += frame;
+                    pc->hasContent = true;
+                    pc->lastSpace = false;
+                    continue;
+                }
                 QString text;
                 QVector<int> stack{c};
                 int guard = 0;
@@ -1580,7 +1610,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                     for (int i = kids.size() - 1; i >= 0; --i) stack.push_back(kids[i]);
                 }
                 emitText(pc, text, QString());
-                left(QCoreApplication::translate("odt", "equations (kept as plain text)"));
+                left(QCoreApplication::translate("odt", "equations that can't be kept as formulas (kept as plain text)"));
             }
             continue;
         }

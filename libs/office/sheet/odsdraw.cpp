@@ -1,4 +1,5 @@
 #include "sheet/odsdraw.h"
+#include "office/mathobject.h"
 
 #include "odt/odtcommon.h"
 #include "sheet/odsdraw_p.h"
@@ -117,6 +118,22 @@ bool Budget::takeChart(qint64 limit)
     do {
         if (seen >= limit) return false;
     } while (!charts.compare_exchange_weak(seen, seen + 1));
+    return true;
+}
+
+bool Budget::takeFormula(qint64 n)
+{
+    qint64 seen = formulas.load();
+    do {
+        if (seen >= kMostMathObjects) return false;
+    } while (!formulas.compare_exchange_weak(seen, seen + 1));
+    qint64 bytes = formulaBytes.load();
+    do {
+        if (bytes + n > kMostMathObjectBytes) {
+            --formulas;
+            return false;
+        }
+    } while (!formulaBytes.compare_exchange_weak(bytes, bytes + n));
     return true;
 }
 

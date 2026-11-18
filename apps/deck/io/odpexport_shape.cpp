@@ -209,8 +209,10 @@ void Exporter::writeItem(X &x, Scope &sc, const Item &it)
     case ItemType::Group: writeGroup(x, sc, static_cast<const GroupItem &>(it)); break;
     case ItemType::Table: writeTable(x, sc, static_cast<const TableItem &>(it)); break;
     case ItemType::Equation:
-        sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
-        writeAsPicture(x, sc, it, builtUpEquation(static_cast<const EquationItem &>(it)));
+        if (!writeEquation(x, sc, static_cast<const EquationItem &>(it))) {
+            sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations that can't be saved as formulas are saved as pictures."));
+            writeAsPicture(x, sc, it, builtUpEquation(static_cast<const EquationItem &>(it)));
+        }
         break;
     case ItemType::TextArt:
         sayOnce(QStringLiteral("textart"), QCoreApplication::translate("OdpExport", "Text Art is saved as a picture."));

@@ -22,11 +22,15 @@
 #include "io/zip.h"
 #include "odt/odt.h"
 #include "office/package.h"
+#include "office/mathobject.h"
+#include "wml/wmlmathedit.h"
+#include "wml/wmlmathpath.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
 #include <QImage>
+#include <QRegularExpression>
 #include <QFile>
 #include <QTemporaryDir>
 #include <QTest>
@@ -905,7 +909,8 @@ private Q_SLOTS:
         office::PackageWriter p;
         p.addPart(QStringLiteral("/word/document.xml"),
                   "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><w:body>"
-                  "<w:p><w:r><w:t>first</w:t></w:r><w:r><w:object/></w:r></w:p><w:p><w:r><w:t>second</w:t></w:r><m:oMath><m:r><m:t>x</m:t></m:r></m:oMath></w:p></w:body></w:document>",
+                  "<w:p><w:r><w:t>first</w:t></w:r><w:r><w:object/></w:r></w:p><w:p><w:r><w:t>second</w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> FORMTEXT </w:instrText></w:r>"
+                  "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>typed</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p></w:body></w:document>",
                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
         p.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
         QTemporaryDir dir;
@@ -915,7 +920,7 @@ private Q_SLOTS:
         QStringList said;
         w.setNotifier([&](const QString &, const QString &text) { said << text; });
         QVERIFY(w.openFile(path));
-        // The equation goes first (so the first save has only the object to say), and comes back.
+        // The form field goes first (so the first save has only the object to say), and comes back.
         QTextCursor c(w.document()->story());
         c.setPosition(w.document()->story()->findBlockByNumber(1).position() + 6);
         c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
@@ -923,15 +928,181 @@ private Q_SLOTS:
         removeSelection(*w.document(), c);
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("one.odt"))));
         QCOMPARE(said.size(), 1);
-        QVERIFY2(said[0].contains(QLatin1String("embedded objects")) && !said[0].contains(QLatin1String("equations")), qPrintable(said[0]));
+        QVERIFY2(said[0].contains(QLatin1String("embedded objects")) && !said[0].contains(QLatin1String("form fields")), qPrintable(said[0]));
         QVERIFY(w.document()->undo());
         said.clear();
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("two.odt"))));
         QCOMPARE(said.size(), 1);
-        QVERIFY2(said[0].contains(QLatin1String("equations")) && !said[0].contains(QLatin1String("embedded objects")), qPrintable(said[0]));
+        QVERIFY2(said[0].contains(QLatin1String("form fields")) && !said[0].contains(QLatin1String("embedded objects")), qPrintable(said[0]));
         said.clear();
         QVERIFY(w.saveTo(dir.filePath(QStringLiteral("three.odt"))));
         QVERIFY(said.isEmpty());
+    }
+
+    // ---- equations as formula objects
+
+    static QByteArray equationsDocx(int count, const QByteArray &math = "<m:oMath><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b</m:t></m:r></m:den></m:f><m:r><m:t>+x</m:t></m:r></m:oMath>")
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        QByteArray body;
+        for (int i = 0; i < count; ++i) body += "<w:p><w:r><w:t>eq </w:t></w:r>" + math + "</w:p>";
+        office::PackageWriter p;
+        p.addPart(QStringLiteral("/word/document.xml"),
+                  "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><w:body>" + body +
+                      "</w:body></w:document>",
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        p.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        return p.finish();
+    }
+
+    // An .odt of one paragraph per frame, with the parts the frames name.
+    static QByteArray formulaOdt(const QStringList &frames, const QMap<QString, QByteArray> &parts)
+    {
+        QByteArray body;
+        for (const QString &f : frames) body += "<text:p>" + f.toUtf8() + "</text:p>";
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.text"), false);
+        z.add(QStringLiteral("content.xml"),
+              QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-content") + kNs + " office:version=\"1.2\"><office:automatic-styles/><office:body><office:text>" + body +
+                  "</office:text></office:body></office:document-content>",
+              true);
+        z.add(QStringLiteral("styles.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document-styles") + kNs + " office:version=\"1.2\"><office:styles/><office:automatic-styles/><office:master-styles/></office:document-styles>", true);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+        return z.finish();
+    }
+
+    static QStringList mathsOf(const QByteArray &docx)
+    {
+        office::Package p;
+        QString err;
+        if (!p.read(docx, &err)) return {};
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        QStringList out;
+        static const QRegularExpression math(QStringLiteral("<m:oMath[ >].*?</m:oMath>"), QRegularExpression::DotMatchesEverythingOption);
+        const QString text = QString::fromUtf8(xml);
+        for (auto it = math.globalMatch(text); it.hasNext();) out << office::wml::equationLine(office::wml::equationMarkupDeclared(it.next().captured().toUtf8()));
+        return out;
+    }
+
+    static const QByteArray hello()
+    {
+        return "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mfrac><mi>p</mi><mi>q</mi></mfrac></math>";
+    }
+
+    static QString frameOf(const QString &object, const QString &picture = QString())
+    {
+        return QStringLiteral("<draw:frame svg:width=\"1in\" svg:height=\"0.4in\" text:anchor-type=\"as-char\"><draw:object xlink:href=\"./%1\"/>%2</draw:frame>")
+            .arg(object, picture.isEmpty() ? QString() : QStringLiteral("<draw:image xlink:href=\"%1\"/>").arg(picture));
+    }
+
+    static QByteArray tinyPng()
+    {
+        QByteArray png;
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return png;
+    }
+
+    // An equation is saved as a formula object (its MathML in a part of its own, with a picture), opens as the same equation, and saving it again makes the same parts.
+    void anEquationIsAFormulaObjectInAnOdt()
+    {
+        const QByteArray docx = equationsDocx(2);
+        QString err;
+        QStringList notes;
+        const QByteArray odt = office::odt::fromDocxPackage(docx, &err, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(odt, parts));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).contains("<draw:object"));
+        QVERIFY(parts.value(QStringLiteral("Object 1/content.xml")).contains("MathML"));
+        QVERIFY(parts.value(QStringLiteral("Object 2/content.xml")).contains("<mfrac"));
+        QVERIFY(parts.value(QStringLiteral("ObjectReplacements/Object 1.png")).startsWith("\x89PNG"));
+        QVERIFY(parts.value(QStringLiteral("META-INF/manifest.xml")).contains("application/vnd.oasis.opendocument.formula"));
+        QVERIFY2(notes.join(QLatin1Char('|')).isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        const QStringList before = mathsOf(docx);
+        QCOMPARE(before.size(), 2);
+        QVERIFY(!before[0].isEmpty());
+        const QByteArray back = office::odt::toDocxPackage(odt, &err, &notes);
+        QVERIFY2(!back.isEmpty(), qPrintable(err));
+        QCOMPARE(mathsOf(back), before);
+        // Saved again: the same parts (the sub-documents of the first are not kept beside the second's).
+        const QByteArray again = office::odt::fromDocxPackage(back, &err, &notes);
+        QMap<QString, QByteArray> second;
+        QVERIFY(jp::readZip(again, second));
+        QCOMPARE(QStringList(second.keys()), QStringList(parts.keys()));
+    }
+
+    // A formula object written by hand (the other suite's own form) is shown as an equation.
+    void aHandWrittenFormulaObjectIsAnEquation()
+    {
+        QString err;
+        QStringList notes;
+        const QByteArray odt = formulaOdt({frameOf(QStringLiteral("Object 1"), QStringLiteral("ObjectReplacements/Object 1"))},
+                                          {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1"), tinyPng()}});
+        const QByteArray docx = office::odt::toDocxPackage(odt, &err, &notes);
+        QVERIFY2(!docx.isEmpty(), qPrintable(err));
+        const QStringList maths = mathsOf(docx);
+        QCOMPARE(maths.size(), 1);
+        QCOMPARE(maths[0], office::wml::equationLine(office::wml::equationMarkupDeclared(office::mathObjectToOmml(hello()))));
+        QVERIFY(!maths[0].isEmpty());
+    }
+
+    // A document with a script, a link, or a root that is not MathML is not read as an equation: the frame is its picture.
+    void aFormulaObjectThatRunsOrLinksOrIsNotMathIsItsPicture()
+    {
+        const QByteArray script = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi><script>alert(1)</script></math>";
+        const QByteArray link = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi href=\"http://example.com/\">x</mi></math>";
+        const QByteArray xlink = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\" xmlns:xlink=\"http://www.w3.org/1999/xlink\"><mrow xlink:href=\"http://example.com/\"><mi>x</mi></mrow></math>";
+        const QByteArray other = "<svg xmlns=\"http://www.w3.org/2000/svg\"><mi>x</mi></svg>";
+        for (const QByteArray &bad : {script, link, xlink, other}) {
+            QString err;
+            const QByteArray odt = formulaOdt({frameOf(QStringLiteral("Object 1"), QStringLiteral("ObjectReplacements/Object 1.png"))},
+                                              {{QStringLiteral("Object 1/content.xml"), bad}, {QStringLiteral("ObjectReplacements/Object 1.png"), tinyPng()}});
+            const QByteArray docx = office::odt::toDocxPackage(odt, &err);
+            QVERIFY2(!docx.isEmpty(), qPrintable(err));
+            QVERIFY2(mathsOf(docx).isEmpty(), bad.constData());
+            office::Package p;
+            QVERIFY(p.read(docx, &err));
+            QVERIFY2(p.part(QStringLiteral("/word/document.xml")).contains("<pic:pic"), bad.constData());
+        }
+    }
+
+    // At most 2,000 formula objects are read (and written), and 16 MB of their documents.
+    void formulaObjectsAreHeldToTheirLimits()
+    {
+        QString err;
+        // Read: 2,001 frames of one object.
+        QStringList frames;
+        for (int i = 0; i < office::kMostMathObjects + 1; ++i) frames << frameOf(QStringLiteral("Object 1"));
+        QStringList notes;
+        const QByteArray odt = formulaOdt(frames, {{QStringLiteral("Object 1/content.xml"), hello()}});
+        const QByteArray docx = office::odt::toDocxPackage(odt, &err, &notes);
+        QVERIFY2(!docx.isEmpty(), qPrintable(err));
+        QCOMPARE(mathsOf(docx).size(), office::kMostMathObjects);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("equations past")), qPrintable(notes.join(QLatin1Char('|'))));
+        // Written: 2,001 equations make 2,000 objects, the last is kept as text.
+        QStringList wnotes;
+        const QByteArray written = office::odt::fromDocxPackage(equationsDocx(office::kMostMathObjects + 1), &err, &wnotes);
+        QVERIFY2(!written.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(written, parts));
+        int objects = 0;
+        for (const QString &k : parts.keys())
+            if (k.startsWith(QLatin1String("Object ")) && k.endsWith(QLatin1String("/content.xml"))) ++objects;
+        QCOMPARE(objects, office::kMostMathObjects);
+        QVERIFY2(wnotes.join(QLatin1Char('|')).contains(QLatin1String("plain text")), qPrintable(wnotes.join(QLatin1Char('|'))));
+        // Read: documents of about a megabyte each (the comment is padding): 16 fit in 16 MB, the 17th and on are left.
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        QStringList many;
+        for (int i = 0; i < 20; ++i) many << frameOf(QStringLiteral("Object 1"));
+        const QByteArray heavy = formulaOdt(many, {{QStringLiteral("Object 1/content.xml"), big}});
+        const QByteArray heavyDocx = office::odt::toDocxPackage(heavy, &err);
+        QVERIFY2(!heavyDocx.isEmpty(), qPrintable(err));
+        QCOMPARE(mathsOf(heavyDocx).size(), int(office::kMostMathObjectBytes / big.size()));
     }
 
     static QByteArray odtPart(const QByteArray &odt, const QString &name)

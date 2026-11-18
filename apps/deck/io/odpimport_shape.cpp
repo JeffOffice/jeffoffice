@@ -5,6 +5,9 @@
 
 #include "io/odpimport_p.h"
 #include "office/hyperlink.h"
+#include "office/mathobject.h"
+#include "mathml/mathml.h"
+#include "wml/wmlmathedit.h"
 #include "io/odpimport.h"
 
 #include "core/barcodeitem.h"
@@ -313,6 +316,8 @@ ItemPtr Reader::readFrame(const QDomElement &e, Scope &sc, const QTransform &par
     }
     if (!box.isNull()) return readTextBox(e, box, sc, parentTransform);
     if (!table.isNull()) return readTableFrame(e, table, sc, parentTransform);
+    if (!object.isNull() && tagOf(object) == QLatin1String("draw:object"))
+        if (ItemPtr equation = readEquation(e, object, sc, parentTransform)) return equation;
     if (!image.isNull()) return readPicture(e, image, sc, parentTransform);
     if (!plugin.isNull()) {
         if (!m_said.contains(QStringLiteral("plugin"))) note(QCoreApplication::translate("OdpImport", "Movies, sounds, and other plug-in objects were left out."));
@@ -386,6 +391,43 @@ ItemPtr Reader::readTextBox(const QDomElement &frame, const QDomElement &box, Sc
         }
     }
     return t;
+}
+
+ItemPtr Reader::readEquation(const QDomElement &frame, const QDomElement &object, Scope &sc, const QTransform &parentTransform)
+{
+    QString path = at(object, "xlink:href").trimmed();
+    if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
+    while (path.endsWith(QLatin1Char('/'))) path.chop(1);
+    if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
+        return nullptr;
+    const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
+    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > office::mathml::kMostBytes) return nullptr;
+    const QByteArray content = m_pkg.part(part);
+    // (only a document that is a formula is looked at: a chart goes on its way)
+    if (!content.left(4096).contains("math")) return nullptr;
+    const QByteArray markup = office::mathObjectToOmml(content);
+    if (markup.isEmpty()) return nullptr;
+    if (m_formulas >= office::kMostMathObjects || m_formulaBytes + content.size() > office::kMostMathObjectBytes) {
+        if (!m_said.contains(QStringLiteral("formulas"))) note(QCoreApplication::translate("OdpImport", "Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.").arg(office::kMostMathObjects));
+        m_said.insert(QStringLiteral("formulas"));
+        return nullptr;
+    }
+    ++m_formulas;
+    m_formulaBytes += content.size();
+    const Attrs a(frame);
+    const StyleSheet &styles = *sc.styles;
+    const Bag bag = shapeBag(a, styles);
+    const QSizeF size(extent(lengthOr(a.get("svg:width"), 0)), extent(lengthOr(a.get("svg:height"), 0)));
+    QRectF boxRect;
+    const QTransform total = transformOf(a, size, &boxRect, nullptr) * parentTransform;
+    auto eq = std::make_shared<EquationItem>();
+    decorate(*eq, a, bag, styles);
+    eq->fill = Fill::solid(ColorRef::scheme(Main));
+    eq->stroke = Stroke::none();
+    place(*eq, boxRect, total);
+    eq->markup = markup;
+    eq->linear = office::wml::equationLinear(markup);
+    return eq;
 }
 
 ItemPtr Reader::readPicture(const QDomElement &frame, const QDomElement &imageElement, Scope &sc, const QTransform &parentTransform)

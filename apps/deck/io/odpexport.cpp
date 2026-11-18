@@ -1125,6 +1125,7 @@ QByteArray Exporter::run(QString *error)
     zip.add(QStringLiteral("meta.xml"), m_metaXml, true);
     for (const QString &path : m_order) {
         if (path == QLatin1String("styles.xml") || path == QLatin1String("content.xml") || path == QLatin1String("meta.xml")) continue;
+        if (path.endsWith(QLatin1Char('/'))) continue;   // (a formula object's folder is in the manifest only)
         zip.add(path, m_files.value(path), m_compress.value(path, false));
     }
     const QByteArray bytes = zip.finish();

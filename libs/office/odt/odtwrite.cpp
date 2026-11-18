@@ -1191,6 +1191,13 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
                     "<manifest:file-entry manifest:full-path=\"" + esc(c.first) + "/content.xml\" manifest:media-type=\"text/xml\"/>";
         zip.add(c.first + QStringLiteral("/content.xml"), c.second, true);
     }
+    for (const Formula &f : std::as_const(m_formulas)) {
+        manifest += "<manifest:file-entry manifest:full-path=\"" + esc(f.dir) + "/\" manifest:media-type=\"application/vnd.oasis.opendocument.formula\"/>"
+                    "<manifest:file-entry manifest:full-path=\"" + esc(f.dir) + "/content.xml\" manifest:media-type=\"text/xml\"/>"
+                    "<manifest:file-entry manifest:full-path=\"ObjectReplacements/" + esc(f.dir) + ".png\" manifest:media-type=\"image/png\"/>";
+        zip.add(f.dir + QStringLiteral("/content.xml"), f.content, true);
+        zip.add(QStringLiteral("ObjectReplacements/") + f.dir + QStringLiteral(".png"), f.picture, false);
+    }
     manifest += "</manifest:manifest>";
     zip.add(QStringLiteral("META-INF/manifest.xml"), manifest, true);
     *out = zip.finish();

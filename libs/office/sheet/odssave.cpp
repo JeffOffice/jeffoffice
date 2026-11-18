@@ -257,7 +257,7 @@ private:
     QVector<QPair<QString, QByteArray>> m_pictures;
     QSet<QString> m_pictureNames;
     QString m_commonStyles;
-    qint64 m_pictureBytes = 0, m_objects = 0;
+    qint64 m_pictureBytes = 0, m_objects = 0, m_mathObjects = 0, m_mathBytes = 0;
     int m_chartNumber = 0;
     QVector<QPair<QString, QByteArray>> m_objectFiles;   // the documents of the charts (Object N/content.xml)
     quint32 m_lastObjectRow = 0;   // the last row an object of the sheet being written reaches
@@ -314,7 +314,7 @@ private:
         for (const auto &object : m_objectFiles) {
             const QString dir = object.first.left(object.first.indexOf(QLatin1Char('/')) + 1);
             if (object.first.endsWith(QLatin1String("/content.xml")))
-                x += "<manifest:file-entry manifest:full-path=\"" + esc(dir).toUtf8() + "\" manifest:media-type=\"application/vnd.oasis.opendocument.chart\"/>";
+                x += "<manifest:file-entry manifest:full-path=\"" + esc(dir).toUtf8() + "\" manifest:media-type=\"" + (object.second.left(512).contains("Math/MathML") ? "application/vnd.oasis.opendocument.formula" : "application/vnd.oasis.opendocument.chart") + "\"/>";
             x += "<manifest:file-entry manifest:full-path=\"" + esc(object.first).toUtf8() + "\" manifest:media-type=\"text/xml\"/>";
         }
         for (const auto &picture : m_pictures) {
@@ -350,7 +350,7 @@ private:
         const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
         if (part.isEmpty()) return QString();
         odsdraw::Written drawn;
-        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber);
+        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_mathObjects, &m_mathBytes);
         for (const auto &object : drawn.objects) m_objectFiles.push_back(object);
         m_styleXml += drawn.styles;
         m_commonStyles += drawn.commonStyles;

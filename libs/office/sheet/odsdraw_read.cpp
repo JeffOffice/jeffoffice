@@ -9,6 +9,8 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
+#include "office/mathobject.h"
+#include "wml/wmlmathedit.h"
 #include "sheet/odsstyles.h"
 
 #include <QBuffer>
@@ -510,6 +512,34 @@ private:
         return count;
     }
 
+    // A frame that holds a formula object: its MathML document is read as the equation (false for any other kind of object, or one that is refused or past the limits: the frame is then read as its picture).
+    bool equation(const NodePtr &frame, const NodePtr &object, qint64 ox, qint64 oy, Placed *p)
+    {
+        QString path = object->attrs.value(QStringLiteral("xlink:href")).trimmed();
+        if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
+        while (path.endsWith(QLatin1Char('/'))) path.chop(1);
+        if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
+            return false;
+        const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
+        // (only a document that is a formula is looked at: a chart goes on its way)
+        if (content.isEmpty() || !content.left(4096).contains("math")) return false;
+        const QByteArray markup = mathObjectToOmml(content);
+        if (markup.isEmpty()) return false;
+        auto item = std::make_shared<EquationItem>();
+        double turn = 0;
+        if (!placeBox(frame, ox, oy, p, item.get(), &turn)) return false;
+        if (m_budget && !m_budget->takeFormula(content.size())) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(kMostMathObjects));
+            return false;
+        }
+        ++m_objectsHandled;
+        names(frame, item.get());
+        item->markup = markup;
+        item->linear = office::wml::equationLinear(markup);
+        p->item = item;
+        return true;
+    }
+
     // A frame that holds a chart: its document is read into a chart part (the shared chart model), and the frame says where it is.
     bool chart(const NodePtr &frame, const NodePtr &object, qint64 ox, qint64 oy, Placed *p)
     {
@@ -543,7 +573,7 @@ private:
             if (content.isEmpty()) {
                 m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
             } else if (isMath(content)) {
-                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations), which are not read"));
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) that could not be read"));
             } else {
                 QByteArray part;
                 QString why;
@@ -750,7 +780,8 @@ private:
         bool ok = false;
         const QString &name = n->name;
         if (name == QLatin1String("draw:frame")) {
-            if (const NodePtr image = childOf(n, "draw:image")) ok = picture(n, image, ox, oy, p);
+            if (const NodePtr formula = childOf(n, "draw:object"); formula && equation(n, formula, ox, oy, p)) ok = true;
+            else if (const NodePtr image = childOf(n, "draw:image")) ok = picture(n, image, ox, oy, p);
             else if (const NodePtr box = childOf(n, "draw:text-box")) ok = textBox(n, box, ox, oy, p);
             else if (const NodePtr object = childOf(n, "draw:object")) ok = chart(n, object, ox, oy, p);
             else if (childOf(n, "draw:object-ole")) return false;   // (an object of another program: said by the reader of the document)
@@ -886,6 +917,19 @@ private:
             return it == m_stories.end() ? nullptr : it->second.get();
         };
         ctx.nextShapeId = 2;
+        // An equation is a shape whose text is the math (a14:m), as the spreadsheet's own form keeps one.
+        ctx.rawFrame = [&ctx](const Item &item) {
+            if (item.type() != ItemType::Equation) return QString();
+            const auto &eq = static_cast<const EquationItem &>(item);
+            const QString markup = QString::fromUtf8(eq.markup);
+            const bool para = markup.trimmed().startsWith(QLatin1String("<m:oMathPara"));
+            const QString math = para ? markup : QStringLiteral("<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:oMathParaPr><m:jc m:val=\"centerGroup\"/></m:oMathParaPr>") + markup + QStringLiteral("</m:oMathPara>");
+            const qint64 cx = std::llround(std::max(1.0, eq.rect.width()) * kEmuPerPoint), cy = std::llround(std::max(1.0, eq.rect.height()) * kEmuPerPoint);
+            return QStringLiteral("<p:sp xmlns:p=\"http://schemas.openxmlformats.org/presentationml/2006/main\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><p:nvSpPr><p:cNvPr id=\"%1\" name=\"%2\" descr=\"%3\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"%4\" cy=\"%5\"/></a:xfrm>"
+                                  "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></p:spPr><p:txBody><a:bodyPr wrap=\"none\" rtlCol=\"0\" anchor=\"ctr\"/><a:lstStyle/><a:p>"
+                                  "<a14:m xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">%6</a14:m><a:endParaRPr lang=\"en-US\"/></a:p></p:txBody></p:sp>")
+                .arg(ctx.nextShapeId++).arg(xmlText(eq.name), xmlText(eq.altText)).arg(cx).arg(cy).arg(math);
+        };
         int chartNumber = 0;
         for (const Placed &p : placed) {
             if (p.chart >= 0) {
@@ -912,7 +956,12 @@ private:
             }
             element.replace("<p:", "<xdr:").replace("</p:", "</xdr:");
             element.replace("<xdr:nvPr/>", "");
-            m_out->anchors.push_back(anchorXml(anchorOf(p), element));
+            QByteArray anchor = anchorXml(anchorOf(p), element);
+            // (a shape of math is the choice of the programs that read it)
+            if (p.item->type() == ItemType::Equation)
+                anchor = "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\">" + anchor +
+                         "</mc:Choice></mc:AlternateContent>";
+            m_out->anchors.push_back(anchor);
         }
         if (m_out->anchors.isEmpty()) return;
         // the pictures the elements name: the writer made the relationships and parts, and they are taken from it as they are (no package is made of them and read again)

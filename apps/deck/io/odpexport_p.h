@@ -219,6 +219,8 @@ private:
     bool writeBarcode(X &x, Scope &sc, const GroupItem &g);
     void writeTable(X &x, Scope &sc, const TableItem &t);
     void writeAsPicture(X &x, Scope &sc, const Item &it, const ItemPtr &drawn = nullptr);
+    // An equation as a formula object (false, and nothing written, when it can't be: past the limits, or no MathML for it).
+    bool writeEquation(X &x, Scope &sc, const EquationItem &eq);
     void writePlace(X &x, const QRectF &rect, double rotation);
     void writeCommon(X &x, const Item &it);
     void writeInside(X &x, const Item &it);
@@ -255,6 +257,8 @@ private:
     QHash<QString, QString> m_mediaTypes;
     QHash<QString, bool> m_compress;
     QHash<QString, QString> m_pictureNames;           // image id -> part name
+    int m_formulaCount = 0;                           // the formula objects written (named Object N), and the bytes of their documents
+    qint64 m_formulaBytes = 0;
     QSet<QString> m_pageNames;
 
     QByteArray m_contentXml, m_stylesXml, m_metaXml, m_manifestXml;

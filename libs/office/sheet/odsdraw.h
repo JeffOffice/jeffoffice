@@ -45,10 +45,12 @@ constexpr qint64 kMaxNodeChars = 90000000;   // and the characters in them (the 
 
 // What one workbook's reading has taken so far (the sheets are read apart, by any thread).
 struct Budget {
-    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0};
+    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0}, formulas{0}, formulaBytes{0};
     // One more object, or `n` more bytes of pictures, if that stays within the limit (taken and counted in one step, so that sheets read on several threads can't pass it together).
     bool takeObject(qint64 limit);
     bool takeChart(qint64 limit);
+    // One more formula object (an equation) of a document `n` bytes long, if the file stays within office/mathobject.h's limits on their number and their bytes.
+    bool takeFormula(qint64 n);
     bool takeBytes(qint64 n, qint64 limit);
 };
 
@@ -146,8 +148,10 @@ struct Written {
 // `package` holds the workbook whose sheet has the drawing part `drawingPart`; `sheetNumber` makes the names of the styles different from those of other sheets; `pictureBytes` is what the
 // workbook's earlier sheets have taken of the room for pictures.
 // `sheetRef` is the sheet's name as an address in the file writes it (quoted if it needs); `objects` counts the objects the workbook's earlier sheets have written.
+// `formulas` and `formulaBytes` count the equations (formula objects) and the bytes of their documents the workbook's earlier sheets have written (office/mathobject.h has the limits); without
+// them an equation is written as its picture.
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes,
-                     qint64 *objects, int *chartNumber);
+                     qint64 *objects, int *chartNumber, qint64 *formulas = nullptr, qint64 *formulaBytes = nullptr);
 
 // Lengths: a length in EMU as the standard writes it ("1.2345678in"), and one read (false if it is none); a number that is too large is kept to the most a position may be.
 QString lengthText(qint64 emu);

@@ -101,6 +101,8 @@ private:
     QByteArray imagePart(const QString &rid, QString *href);
     // The chart part the relationship names, as the directory of an embedded object of the new file (empty when it can't be made).
     QString chartObject(const QString &rid, qint64 widthEmu, qint64 heightEmu);
+    // An equation (an m:oMath or m:oMathPara) as a formula object of the new file inside a frame; empty when it can't be made (past the limits, or markup that has no MathML).
+    QByteArray formulaFrame(const T &t, int math);
     QByteArray noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark = QString());
     QByteArray commentStart(int id);
     // sections
@@ -166,6 +168,12 @@ private:
     QVector<QPair<QString, QByteArray>> m_pictures;
     QVector<QPair<QString, QByteArray>> m_chartObjects;   // an embedded chart's directory -> its content.xml
     QHash<QString, QString> m_chartDone;                  // a chart part of the package -> its directory
+    struct Formula {
+        QString dir;
+        QByteArray content, picture;
+    };
+    QVector<Formula> m_formulas;                          // the equations: the directory of each formula object, its MathML, and its picture
+    qint64 m_formulaBytes = 0;
     int m_imageCount = 0, m_frameCount = 0, m_noteCount = 0, m_endnoteCount = 0, m_tableCount = 0, m_sectionCount = 0, m_commentCounter = 0, m_bookmarkSeq = 0, m_galleryMarks = 0;
     QSet<QString> m_sequences;
     QMap<QString, QString> m_fontFaces;                // name -> generic

@@ -676,8 +676,8 @@ private Q_SLOTS:
         QVERIFY(part(f, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<a:srgbClr val=\"123456\"")));
     }
 
-    // Saved as an open document presentation, the equation is at least a picture of itself (it is not left out), and the message says so.
-    void anOdpKeepsAPicture()
+    // Saved as an open document presentation, the equation is a formula object (with a picture beside it), opens as the same equation, and there is no message.
+    void anOdpKeepsTheEquation()
     {
         DeckWindow w;
         Editor *ed = w.editor();
@@ -688,12 +688,16 @@ private Q_SLOTS:
         QStringList said;
         const QByteArray bytes = deck::exportOdp(*ed->doc(), false, &err, &said);
         QVERIFY2(!bytes.isEmpty(), qPrintable(err));
-        QVERIFY2(said.join(' ').contains(QStringLiteral("Equations are saved as pictures")), qPrintable(said.join('\n')));
+        QVERIFY2(said.isEmpty(), qPrintable(said.join('\n')));
         auto back = deck::importOdp(bytes, &err);
         QVERIFY2(back, qPrintable(err));
-        int pictures = 0;
-        for (const ItemPtr &it : back->pages[0]->items) pictures += it->type() == ItemType::Picture && it->rect.width() >= 120 && it->rect.width() <= 130;
-        QCOMPARE(pictures, 1);
+        int equations = 0, pictures = 0;
+        for (const ItemPtr &it : back->pages[0]->items) {
+            equations += it->type() == ItemType::Equation && it->rect.width() >= 119 && it->rect.width() <= 121;
+            pictures += it->type() == ItemType::Picture;
+        }
+        QCOMPARE(equations, 1);
+        QCOMPARE(pictures, 0);
     }
 
     // The typing format and the Linear choice are program-wide settings: every open window's Equation tab shows a change made in another.

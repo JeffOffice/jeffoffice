@@ -166,7 +166,7 @@ QStringList Features::result() const
             else if (l.contains(QLatin1String("slicer")) || l.contains(QLatin1String("timeline"))) slicers = true;
             else if (l.contains(QLatin1String("ctrlprop"))) controls = true;
         }
-        // (an .ods copy has each equation as a picture of it: they are named, and the rest of the drawings are what the copy has not)
+        // (an .ods copy has each equation as a formula object: they are not what the copy lacks, and the rest of the drawings are)
         int equations = 0, objects = 0;
         if (m_kind == CopyKind::Ods && drawings)
             for (const QString &part : p.partNames()) {
@@ -176,10 +176,7 @@ QStringList Features::result() const
                 equations += int(readEquations(p, part, &n).size());
                 objects += n;
             }
-        if (equations > 0) {
-            add(QT_TRANSLATE_NOOP("Sheet", "equations (each is saved as a picture of it)"));
-            if (equations >= objects) drawings = media = false;
-        }
+        if (equations > 0 && equations >= objects) drawings = media = false;
         if (charts && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (an .ods copy writes them: odschart.h)
         if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));

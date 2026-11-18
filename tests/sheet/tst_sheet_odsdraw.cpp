@@ -10,6 +10,11 @@
 #include "sheet/odsdraw.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxsave.h"
+#include "core/fonts.h"
+#include "office/drawingml.h"
+#include "office/mathobject.h"
+#include "wml/wmlmathedit.h"
+#include "wml/wmlmathpath.h"
 
 #include <QDomDocument>
 #include <QThread>
@@ -358,6 +363,129 @@ private Q_SLOTS:
         QCOMPARE(int(d.objects[1].kind), int(ObjectKind::Shape));
         const QStringList names = package.partNames();
         QVERIFY(std::any_of(names.cbegin(), names.cend(), [&](const QString &n) { return n.contains(QLatin1String("/media/")) && package.part(n) == png; }));
+    }
+
+    // ---- equations as formula objects
+
+    static QString equationAnchors(int count, const QString &oMath = QStringLiteral("<m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b</m:t></m:r></m:den></m:f><m:r><m:t>+x</m:t></m:r></m:oMath>"))
+    {
+        QString out;
+        for (int i = 0; i < count; ++i) {
+            const QString shape = QStringLiteral("<xdr:sp macro=\"\" textlink=\"\"><xdr:nvSpPr><xdr:cNvPr id=\"%1\" name=\"Equation %1\"/><xdr:cNvSpPr txBox=\"1\"/></xdr:nvSpPr><xdr:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1828800\" cy=\"457200\"/></a:xfrm>"
+                                                "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></xdr:spPr><xdr:txBody><a:bodyPr wrap=\"none\"/><a:lstStyle/><a:p><a14:m xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">"
+                                                "<m:oMathPara xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\">%2</m:oMathPara></a14:m></a:p></xdr:txBody></xdr:sp>")
+                                      .arg(i + 2).arg(oMath);
+            out += QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\" Requires=\"a14\">")
+                   + twoCell(1, 2 + i % 5, 4, 4 + i % 5, shape) + QStringLiteral("</mc:Choice></mc:AlternateContent>");
+        }
+        return out;
+    }
+    static QStringList equationLinesOf(const Read &r)
+    {
+        QStringList out;
+        for (const DrawingObject &o : r.drawing.objects)
+            if (const QByteArray markup = jp::office::shapeMath(o.element); !markup.isEmpty()) out << jp::office::wml::equationLine(markup);
+        return out;
+    }
+    static int formulaPartsOf(const QMap<QString, QByteArray> &parts)
+    {
+        int n = 0;
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            if (it.key().startsWith(QLatin1String("Object ")) && it.key().endsWith(QLatin1String("/content.xml")) && it.value().contains("MathML")) ++n;
+        return n;
+    }
+    static QByteArray hello() { return "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mfrac><mi>p</mi><mi>q</mi></mfrac></math>"; }
+    static QString formulaFrame(const QString &object, int i = 0)
+    {
+        return QStringLiteral("<draw:frame draw:name=\"F%3\" svg:width=\"1.5in\" svg:height=\"0.5in\" svg:x=\"1in\" svg:y=\"%2in\"><draw:object xlink:href=\"./%1\"/><draw:image xlink:href=\"ObjectReplacements/%1.png\"/></draw:frame>")
+            .arg(object).arg(0.1 + (i % 20) * 0.1).arg(i);
+    }
+
+    void anEquationIsAFormulaObjectInAnOds()
+    {
+        jp::initCore();
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(xlsxWith(equationAnchors(2)), &s, &why), qPrintable(why));
+        QVERIFY(s.parts.value(QStringLiteral("content.xml")).contains("<draw:object"));
+        QVERIFY(s.parts.value(QStringLiteral("Object 1/content.xml")).contains("MathML"));
+        QVERIFY(s.parts.value(QStringLiteral("Object 2/content.xml")).contains("<mfrac"));
+        QVERIFY(s.parts.value(QStringLiteral("META-INF/manifest.xml")).contains("application/vnd.oasis.opendocument.formula"));
+        QVERIFY2(!s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("quation")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
+        QCOMPARE(formulaPartsOf(s.parts), 2);
+        Read r;
+        QVERIFY2(readOds(s.ods, &r, &why), qPrintable(why));
+        QVERIFY2(r.sheet.importedDrawing.notRead.isEmpty(), qPrintable(r.sheet.importedDrawing.notRead.join(QLatin1Char('|'))));
+        const QStringList lines = equationLinesOf(r);
+        QCOMPARE(lines.size(), 2);
+        QVERIFY(!lines[0].isEmpty());
+        // The line is the equation's own, as made from the first file.
+        Read first;
+        QVERIFY2(readOds(handWritten(QString()), &first, &why), qPrintable(why));
+        QCOMPARE(lines[0], jp::office::wml::equationLine(jp::office::wml::equationMarkupDeclared(QByteArray("<m:oMath><m:f><m:num><m:r><m:t>a</m:t></m:r></m:num><m:den><m:r><m:t>b</m:t></m:r></m:den></m:f><m:r><m:t>+x</m:t></m:r></m:oMath>"))));
+        // Opened and saved as a workbook, and as an .ods again: the same objects and the same parts.
+        Workbook wb;
+        QVERIFY2(openBytes(s.ods, QStringLiteral("e.ods"), &wb, &why), qPrintable(why));
+        QByteArray xlsx;
+        SaveReport report;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &xlsx, &why, &report), qPrintable(why));
+        Saved again;
+        QVERIFY2(saveAsOds(xlsx, &again, &why), qPrintable(why));
+        QCOMPARE(QStringList(again.parts.keys()), QStringList(s.parts.keys()));
+        Read second;
+        QVERIFY2(readOds(again.ods, &second, &why), qPrintable(why));
+        QCOMPARE(equationLinesOf(second), lines);
+    }
+
+    void aHandWrittenFormulaObjectIsAnEquationOnTheSheet()
+    {
+        jp::initCore();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(handWritten(formulaFrame(QStringLiteral("Object 1")), QString(), {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &r, &why),
+                  qPrintable(why));
+        QVERIFY2(r.sheet.importedDrawing.notRead.isEmpty(), qPrintable(r.sheet.importedDrawing.notRead.join(QLatin1Char('|'))));
+        QCOMPARE(equationLinesOf(r), QStringList{jp::office::wml::equationLine(jp::office::wml::equationMarkupDeclared(jp::office::mathObjectToOmml(hello())))});
+    }
+
+    void aFormulaObjectThatRunsOrLinksOrIsNotMathIsItsPictureOnTheSheet()
+    {
+        const QByteArray script = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi><script>alert(1)</script></math>";
+        const QByteArray link = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi href=\"http://example.com/\">x</mi></math>";
+        const QByteArray other = "<svg xmlns=\"http://www.w3.org/2000/svg\"><mi>x</mi></svg>";
+        for (const QByteArray &bad : {script, link, other}) {
+            QString why;
+            Read r;
+            QVERIFY2(readOds(handWritten(formulaFrame(QStringLiteral("Object 1")), QString(), {{QStringLiteral("Object 1/content.xml"), bad}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &r, &why),
+                      qPrintable(why));
+            QVERIFY2(equationLinesOf(r).isEmpty(), bad.constData());
+            QCOMPARE(r.drawing.objects.size(), 1);
+            QCOMPARE(int(r.drawing.objects[0].kind), int(ObjectKind::Picture));
+        }
+    }
+
+    // At most 2,000 formula objects are read and written, and 16 MB of their documents.
+    void formulaObjectsOfASheetAreHeldToTheirLimits()
+    {
+        jp::initCore();
+        QString why;
+        QString frames;
+        for (int i = 0; i < jp::office::kMostMathObjects + 1; ++i) frames += formulaFrame(QStringLiteral("Object 1"), i);
+        Read r;
+        QVERIFY2(readOds(handWritten(frames, QString(), {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &r, &why), qPrintable(why));
+        QCOMPARE(equationLinesOf(r).size(), jp::office::kMostMathObjects);
+        // Written: 2,001 equations make 2,000 formula objects.
+        Saved s;
+        QVERIFY2(saveAsOds(xlsxWith(equationAnchors(jp::office::kMostMathObjects + 1)), &s, &why), qPrintable(why));
+        QCOMPARE(formulaPartsOf(s.parts), jp::office::kMostMathObjects);
+        // Read: documents of about a megabyte each: 16 fit in 16 MB.
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        QString many;
+        for (int i = 0; i < 20; ++i) many += formulaFrame(QStringLiteral("Object 1"), i);
+        Read heavy;
+        QVERIFY2(readOds(handWritten(many, QString(), {{QStringLiteral("Object 1/content.xml"), big}, {QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3))}}), &heavy, &why), qPrintable(why));
+        QCOMPARE(equationLinesOf(heavy).size(), int(jp::office::kMostMathObjectBytes / big.size()));
     }
 
     // A chart in an .ods is still not read: the reader says so, and the writer says the copy has none.

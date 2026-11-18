@@ -6,6 +6,8 @@
 #include "core/wrapoutline.h"
 #include "office/chart.h"
 #include "office/chart_write.h"
+#include "office/mathobject.h"
+#include "mathml/mathml.h"
 #include "sheet/odschart.h"
 
 #include <QCoreApplication>
@@ -526,6 +528,32 @@ bool svgPathSteps(const QString &d, double scale, QByteArray *out)
 
 } // namespace
 
+QByteArray Reader::formulaMarkup(const Odf &o, int frame)
+{
+    if (m_flat) return QByteArray();
+    const int object = o.child(frame, "draw:object");
+    if (object < 0) return QByteArray();
+    QString path = o.at(object, "xlink:href").trimmed();
+    if (path.startsWith(QLatin1String("./"))) path.remove(0, 2);
+    while (path.endsWith(QLatin1Char('/'))) path.chop(1);
+    if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
+        return QByteArray();
+    const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
+    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > mathml::kMostBytes) return QByteArray();
+    const QByteArray content = m_pkg.part(part);
+    // (only a document that is a formula is looked at: a chart goes on its way)
+    if (!content.left(4096).contains("math")) return QByteArray();
+    const QByteArray markup = mathObjectToOmml(content);
+    if (markup.isEmpty()) return QByteArray();
+    if (m_formulaCount >= kMostMathObjects || m_formulaBytes + content.size() > kMostMathObjectBytes) {
+        left(QCoreApplication::translate("odt", "equations past the %1 a document may have, or the size they may come to together (kept as their pictures)").arg(kMostMathObjects));
+        return QByteArray();
+    }
+    ++m_formulaCount;
+    m_formulaBytes += content.size();
+    return markup;
+}
+
 QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
 {
     *ok = false;
@@ -860,8 +888,12 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         }
     } else if (o.is(n, "draw:frame")) {
         bool ok = false;
-        const QByteArray d = drawing(o, n, pc, &ok);
-        if (!d.isEmpty()) addRun(pc, d, fmt);
+        if (const QByteArray math = formulaMarkup(o, n); !math.isEmpty()) {
+            pc->runs += math;
+        } else {
+            const QByteArray d = drawing(o, n, pc, &ok);
+            if (!d.isEmpty()) addRun(pc, d, fmt);
+        }
         pc->lastSpace = false;
     } else if (o.is(n, "draw:a")) {
         inlineContent(o, n, pc, fmt, depth + 1);

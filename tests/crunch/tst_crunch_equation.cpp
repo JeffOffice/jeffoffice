@@ -274,8 +274,8 @@ private Q_SLOTS:
         QVERIFY(wide.cut);
     }
 
-    // A copy as .ods has no equation: it holds a picture of it, in the place the equation is, and the report says so.
-    void anOdsCopySavesAPictureAndNamesIt()
+    // A copy as .ods has the equation as a formula object (MathML in a part of its own), with a picture of it beside it, and the report has nothing to say.
+    void anOdsCopySavesAFormulaObject()
     {
         EditWindow e;
         QVERIFY(e.open(editBook()));
@@ -288,19 +288,20 @@ private Q_SLOTS:
         jp::office::sheet::Workbook book;
         QVERIFY2(book.open(package, &why), qPrintable(why));
         const QStringList before = jp::office::sheet::featuresNotInCopy(book, jp::office::sheet::CopyKind::Ods);
-        QVERIFY2(before.join(QLatin1Char('|')).contains(QStringLiteral("equation")), qPrintable(before.join(QLatin1Char('|'))));
+        QVERIFY2(!before.join(QLatin1Char('|')).contains(QStringLiteral("equation")), qPrintable(before.join(QLatin1Char('|'))));
         QByteArray ods;
         jp::office::sheet::CopyReport report;
         QVERIFY2(jp::office::sheet::saveOds(book, &ods, &report, &why), qPrintable(why));
-        QVERIFY2(report.notKept.join(QLatin1Char('|')).contains(QStringLiteral("equation")), qPrintable(report.notKept.join(QLatin1Char('|'))));
-        QVERIFY2(report.notKept.join(QLatin1Char('|')).contains(QStringLiteral("picture")), qPrintable(report.notKept.join(QLatin1Char('|'))));
+        QVERIFY2(!report.notKept.join(QLatin1Char('|')).contains(QStringLiteral("equation")), qPrintable(report.notKept.join(QLatin1Char('|'))));
+        QVERIFY2(!report.notKept.join(QLatin1Char('|')).contains(QStringLiteral("picture")), qPrintable(report.notKept.join(QLatin1Char('|'))));
         QMap<QString, QByteArray> parts;
         QVERIFY(jp::readZip(ods, parts));
         int pictures = 0;
         for (auto it = parts.begin(); it != parts.end(); ++it) pictures += it.key().startsWith(QStringLiteral("Pictures/")) && it.value().startsWith("\x89PNG");
         QCOMPARE(pictures, 1);
         const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
-        QVERIFY(content.contains(QStringLiteral("<draw:frame")) && content.contains(QStringLiteral("<draw:image")));
+        QVERIFY(content.contains(QStringLiteral("<draw:frame")) && content.contains(QStringLiteral("<draw:image")) && content.contains(QStringLiteral("<draw:object")));
+        QVERIFY(parts.value(QStringLiteral("Object 1/content.xml")).contains("MathML"));
         QVERIFY(QString::fromUtf8(parts.value(QStringLiteral("META-INF/manifest.xml"))).contains(QStringLiteral("Pictures/")));
     }
 

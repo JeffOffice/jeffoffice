@@ -254,6 +254,8 @@ private:
     ItemPtr readFrame(const QDomElement &e, Scope &sc, const QTransform &parentTransform);
     ItemPtr readTextBox(const QDomElement &frame, const QDomElement &box, Scope &sc, const QTransform &t);
     ItemPtr readPicture(const QDomElement &frame, const QDomElement &image, Scope &sc, const QTransform &t);
+    // A frame whose object is a formula: an equation. Null for any other (or one that is refused or past the limits: the frame is then read as its picture).
+    ItemPtr readEquation(const QDomElement &frame, const QDomElement &object, Scope &sc, const QTransform &t);
     ItemPtr readTableFrame(const QDomElement &frame, const QDomElement &table, Scope &sc, const QTransform &t);
     void fitRows(TableItem &t);
     ItemPtr readCustomShape(const QDomElement &e, Scope &sc, const QTransform &t);
@@ -289,6 +291,8 @@ private:
     const office::Package &m_pkg;
     Document &m_doc;
     int m_barcodes = 0;   // barcodes honored as barcodes so far (office/barcodemarker.h)
+    int m_formulas = 0;   // formula objects read so far, and the bytes of their documents (all the slides together are held to office/mathobject.h's limits)
+    qint64 m_formulaBytes = 0;
     QStringList *m_notes;
     std::deque<QDomDocument> m_doms;
     QDomDocument m_contentDom, m_stylesDom, m_metaDom;

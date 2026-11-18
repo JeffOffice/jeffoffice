@@ -5,6 +5,9 @@
 #include "office/hyperlink.h"
 #include "core/version.h"
 #include "core/notesmaster.h"
+#include "office/mathobject.h"
+#include "wml/wmlmathedit.h"
+#include "wml/wmlmathpath.h"
 
 namespace odptest {
 
@@ -2660,6 +2663,138 @@ private Q_SLOTS:
         QVERIFY2(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &why), qPrintable(why));
         QVERIFY2(QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).count(QStringLiteral("fo:text-shadow=\"0.00pt 4.00pt\"")) >= 1, "the list's shadow");
         QVERIFY(!QString::fromUtf8(zip.value(QStringLiteral("content.xml"))).contains(QStringLiteral("fo:text-shadow=\"1pt 1pt\"")));
+    }
+
+    // ---- equations as formula objects
+
+    static QVector<const EquationItem *> equationsOf(const Document &d)
+    {
+        QVector<const EquationItem *> out;
+        for (const auto &page : d.pages)
+            for (const auto &it : page->items)
+                if (it->type() == ItemType::Equation) out << static_cast<const EquationItem *>(it.get());
+        return out;
+    }
+    static std::shared_ptr<EquationItem> anEquation(const QString &linear, double x)
+    {
+        auto eq = std::make_shared<EquationItem>();
+        eq->markup = office::wml::equationMarkup(linear);
+        eq->linear = linear;
+        eq->rect = QRectF(x, 50, 120, 60);
+        return eq;
+    }
+    static QByteArray mathDeck(const QStringList &objects, const QMap<QString, QByteArray> &parts)
+    {
+        QString frames;
+        for (const QString &o : objects)
+            frames += QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"200pt\" svg:height=\"80pt\" svg:x=\"1cm\" svg:y=\"1cm\"><draw:object xlink:href=\"./%1\"/>"
+                                     "<draw:image xlink:href=\"ObjectReplacements/%1.png\"/></draw:frame>").arg(o);
+        return odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">") + frames + QStringLiteral("</draw:page>")),
+                               odptest::odpStyles(), parts);
+    }
+    static QByteArray aPng()
+    {
+        QByteArray png;
+        QImage image(4, 4, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        return png;
+    }
+    static QByteArray hello() { return "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mfrac><mi>p</mi><mi>q</mi></mfrac></math>"; }
+
+    // An equation is saved as a formula object, opens as the same equation, and saving it again makes the same parts.
+    void anEquationIsAFormulaObjectInAnOdp()
+    {
+        QString err;
+        auto d = deck::importOdp(odptest::sampleOdp(), &err);
+        QVERIFY2(d, qPrintable(err));
+        const int existing = int(equationsOf(*d).size());
+        d->pages[0]->items.push_back(anEquation(QStringLiteral("a/b + x^2"), 40));
+        d->pages[0]->items.push_back(anEquation(QStringLiteral("sqrt(x)"), 200));
+        QStringList notes;
+        const QByteArray odp = deck::exportOdp(*d, false, &err, &notes);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(odp, parts, &err));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).contains("<draw:object"));
+        QVERIFY(parts.value(QStringLiteral("Object 1/content.xml")).contains("MathML"));
+        QVERIFY(parts.value(QStringLiteral("Object 2/content.xml")).contains("MathML"));
+        QVERIFY(parts.value(QStringLiteral("ObjectReplacements/Object 1.png")).startsWith("\x89PNG"));
+        QVERIFY(parts.value(QStringLiteral("META-INF/manifest.xml")).contains("application/vnd.oasis.opendocument.formula"));
+        QVERIFY2(!notes.join(QLatin1Char('|')).contains(QLatin1String("quation")), qPrintable(notes.join(QLatin1Char('|'))));
+        auto back = deck::importOdp(odp, &err);
+        QVERIFY2(back, qPrintable(err));
+        const auto eqs = equationsOf(*back);
+        QCOMPARE(eqs.size(), existing + 2);
+        QCOMPARE(office::wml::equationLine(eqs[existing]->markup), office::wml::equationLine(anEquation(QStringLiteral("a/b + x^2"), 0)->markup));
+        QCOMPARE(office::wml::equationLine(eqs[existing + 1]->markup), office::wml::equationLine(anEquation(QStringLiteral("sqrt(x)"), 0)->markup));
+        QVERIFY(std::abs(eqs[existing]->rect.width() - 120) < 0.5 && std::abs(eqs[existing]->rect.height() - 60) < 0.5);
+        const QByteArray again = deck::exportOdp(*back, false, &err);
+        QMap<QString, QByteArray> second;
+        QVERIFY(readZip(again, second, &err));
+        QCOMPARE(QStringList(second.keys()), QStringList(parts.keys()));
+    }
+
+    void aHandWrittenFormulaObjectIsAnEquationOnTheSlide()
+    {
+        QString err;
+        auto d = deck::importOdp(mathDeck({QStringLiteral("Object 1")}, {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
+        QVERIFY2(d, qPrintable(err));
+        const auto eqs = equationsOf(*d);
+        QCOMPARE(eqs.size(), 1);
+        QCOMPARE(office::wml::equationLine(eqs[0]->markup), office::wml::equationLine(office::wml::equationMarkupDeclared(office::mathObjectToOmml(hello()))));
+        QVERIFY(!eqs[0]->markup.isEmpty());
+    }
+
+    // A document with a script, a link, or a root that is not MathML is not an equation: the frame is its picture.
+    void aFormulaObjectThatRunsOrLinksOrIsNotMathIsItsPictureOnTheSlide()
+    {
+        const QByteArray script = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi><script>alert(1)</script></math>";
+        const QByteArray link = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi href=\"http://example.com/\">x</mi></math>";
+        const QByteArray other = "<svg xmlns=\"http://www.w3.org/2000/svg\"><mi>x</mi></svg>";
+        for (const QByteArray &bad : {script, link, other}) {
+            QString err;
+            auto d = deck::importOdp(mathDeck({QStringLiteral("Object 1")}, {{QStringLiteral("Object 1/content.xml"), bad}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
+            QVERIFY2(d, qPrintable(err));
+            QVERIFY2(equationsOf(*d).isEmpty(), bad.constData());
+            int pictures = 0;
+            for (const auto &it : d->pages[0]->items) pictures += it->type() == ItemType::Picture;
+            QVERIFY2(pictures >= 1, bad.constData());
+        }
+    }
+
+    // At most 2,000 formula objects are read and written, and 16 MB of their documents.
+    void formulaObjectsOfASlideAreHeldToTheirLimits()
+    {
+        QString err;
+        QStringList objects;
+        for (int i = 0; i < office::kMostMathObjects + 1; ++i) objects << QStringLiteral("Object 1");
+        auto d = deck::importOdp(mathDeck(objects, {{QStringLiteral("Object 1/content.xml"), hello()}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(equationsOf(*d).size(), office::kMostMathObjects);
+        // Written: 2,001 equations make 2,000 objects; the last is a picture.
+        auto made = deck::newPresentation();
+        for (int i = 0; i < office::kMostMathObjects + 1; ++i) made->pages[0]->items.push_back(anEquation(QStringLiteral("x"), i % 400));
+        QStringList notes;
+        const QByteArray odp = deck::exportOdp(*made, false, &err, &notes);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(odp, parts, &err));
+        int formulas = 0;
+        for (const QString &k : parts.keys())
+            if (k.startsWith(QLatin1String("Object ")) && k.endsWith(QLatin1String("/content.xml"))) ++formulas;
+        QCOMPARE(formulas, office::kMostMathObjects);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("quations")), qPrintable(notes.join(QLatin1Char('|'))));
+        // Read: documents of about a megabyte each: 16 fit in 16 MB.
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        QStringList many;
+        for (int i = 0; i < 20; ++i) many << QStringLiteral("Object 1");
+        auto heavy = deck::importOdp(mathDeck(many, {{QStringLiteral("Object 1/content.xml"), big}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}}), &err);
+        QVERIFY2(heavy, qPrintable(err));
+        QCOMPARE(equationsOf(*heavy).size(), int(office::kMostMathObjectBytes / big.size()));
     }
 
 private:
