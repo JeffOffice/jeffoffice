@@ -159,11 +159,11 @@ private Q_SLOTS:
         QVERIFY(pagePicture(docx, 4000000, 3000000, 2).isNull());
         QVERIFY(!pageObject(docx, 1, &why));
         QVERIFY(!why.isEmpty());
-        // (what an object holds when it is read back: more than the cap says is not a package of ours)
+        // (an object read back from the clipboard may hold that much, as a file's may, but no picture is drawn from it)
         ole::EmbeddedObject big = *rangeObject(twoByTwo());
         big.partBytes = book;
         const auto back = decode(encode(big));
-        QVERIFY(!back || !back->isOurs);
+        QVERIFY(!back || !readRange(back->partBytes, QString(), &grid, &why));
         QVERIFY(clock.elapsed() < 20000);   // (a loose sanity bound only: the limits above are what refuse)
     }
 

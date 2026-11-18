@@ -309,10 +309,10 @@ private Q_SLOTS:
         QVERIFY(QDir(root.path()).isEmpty());
     }
 
-    // The central directory is summed before anything reads the package: more than 64 MB unpacked (a hand-made zip claiming 10 GB) or more than 10,000 entries is refused, the caps exactly are kept.
+    // The central directory is summed before anything reads the package: more than 1 GB unpacked (a hand-made zip claiming 10 GB) or more than 10,000 entries is refused, the caps exactly are kept.
     void aPackageThatUnpacksTooMuchIsRefused()
     {
-        const quint32 gb = 64u * 1024u * 1024u;   // (the cap)
+        const quint32 gb = 1024u * 1024u * 1024u;
         QVERIFY(packageWithinLimits(zipClaiming({gb})));
         QVERIFY(!packageWithinLimits(zipClaiming({gb, 1})));
         QVERIFY(packageWithinLimits(zipClaiming({gb / 2, gb / 2})));
