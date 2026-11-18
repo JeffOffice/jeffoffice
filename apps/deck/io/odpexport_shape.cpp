@@ -448,8 +448,10 @@ QPair<QString, bool> Exporter::objectOf(const PictureItem &p)
     const auto entry = m_objectEntries.constFind(p.id);
     if (entry == m_objectEntries.cend()) return {};
     const QString data = entry->value(QStringLiteral("data")).toString(), progId = entry->value(QStringLiteral("progId")).toString();
+    const office::ole::OdfForm form = office::ole::odfFormOfName(entry->value(QStringLiteral("odf")).toString());
+    const QString mediaType = entry->value(QStringLiteral("mediaType")).toString();
     // (the size and the budget are asked before the package is decoded, and the same package is written once)
-    const QByteArray key = QCryptographicHash::hash(progId.toUtf8() + '\0' + data.toLatin1(), QCryptographicHash::Sha1).toHex();
+    const QByteArray key = QCryptographicHash::hash(progId.toUtf8() + '\0' + office::ole::odfFormName(form).toUtf8() + '\0' + mediaType.toUtf8() + '\0' + data.toLatin1(), QCryptographicHash::Sha1).toHex();
     if (const auto known = m_objectDirOfBytes.constFind(QString::fromLatin1(key)); known != m_objectDirOfBytes.cend()) return known.value();
     QPair<QString, bool> done;
     const qint64 size = data.size() / 4 * 3;
@@ -457,9 +459,13 @@ QPair<QString, bool> Exporter::objectOf(const PictureItem &p)
         if (!m_objectsPastLimit)
             say(QCoreApplication::translate("OdpExport", "Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.").arg(office::ole::limits().objects));
         m_objectsPastLimit = true;
-    } else if (const auto kept = office::ole::keepObject(progId, QByteArray::fromBase64(data.toLatin1()), QByteArray(), 0, 0, m_objectBudget, QString())) {
+    } else if (std::optional<office::ole::EmbeddedObject> kept = office::ole::keepObject(progId, QByteArray::fromBase64(data.toLatin1()), QByteArray(), 0, 0, m_objectBudget, QString())) {
+        kept->odfForm = form;
+        kept->mediaType = form == office::ole::OdfForm::None ? QString() : mediaType;
         const QString dir = QStringLiteral("Object %1").arg(m_objectCounter + 1);
-        const QVector<office::ole::OdfOutPart> parts = office::ole::odfPartsOf(*kept, dir);
+        office::ole::OdfPartsFailure why = office::ole::OdfPartsFailure::None;
+        const QVector<office::ole::OdfOutPart> parts = office::ole::odfPartsOf(*kept, dir, &why);
+        if (why != office::ole::OdfPartsFailure::None) sayOnce(QStringLiteral("objectparts"), office::ole::odfPartsFailureNote(why));
         if (!parts.isEmpty()) {
             ++m_objectCounter;
             for (const office::ole::OdfOutPart &part : parts) addFile(part.path, part.bytes, part.mediaType, part.compress);

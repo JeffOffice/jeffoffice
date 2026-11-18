@@ -146,6 +146,13 @@ std::optional<EmbeddedObject> makeObject(Kind kind, const QByteArray &partBytes,
     return o;
 }
 
+QString odfFormName(OdfForm form) { return form == OdfForm::Folder ? QStringLiteral("folder") : form == OdfForm::Binary ? QStringLiteral("binary") : QString(); }
+
+OdfForm odfFormOfName(const QString &name)
+{
+    return name == QLatin1String("folder") ? OdfForm::Folder : name == QLatin1String("binary") ? OdfForm::Binary : OdfForm::None;
+}
+
 std::optional<EmbeddedObject> keepObject(const QString &progId, const QByteArray &partBytes, const QByteArray &previewPng, qint64 widthEmu, qint64 heightEmu, ObjectBudget &budget, const QString &origin)
 {
     if (partBytes.size() > limits().objectBytes) return std::nullopt;

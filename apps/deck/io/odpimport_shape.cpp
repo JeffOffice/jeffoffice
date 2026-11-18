@@ -465,10 +465,24 @@ ItemPtr Reader::readObject(const QDomElement &frame, const QDomElement &object, 
     if (result != office::ole::OdfObjectReader::Result::Kept) return nullptr;
     ItemPtr picture = readPicture(frame, image, sc, parentTransform);
     if (!picture) return nullptr;
-    QJsonArray charts = sc.page->props.value(QStringLiteral("charts")).toArray();
-    charts.append(QJsonObject{{QStringLiteral("item"), picture->id}, {QStringLiteral("kind"), QStringLiteral("object")}, {QStringLiteral("progId"), kept.progId}, {QStringLiteral("name"), a.get("draw:name")},
-                              {QStringLiteral("part"), kept.origin}, {QStringLiteral("data"), QString::fromLatin1(kept.partBytes.toBase64())}});
-    sc.page->props[QStringLiteral("charts")] = charts;
+    // (the text of an object's bytes is made once, for every frame that names it, and the page's list is added to in place)
+    const QString cacheKey = kept.origin + QLatin1Char('|') + kept.progId;
+    auto text = m_objectText.find(cacheKey);
+    if (text == m_objectText.end()) {
+        ++office::ole::odfObjectTestHooks().encodes;
+        text = m_objectText.insert(cacheKey, QString::fromLatin1(kept.partBytes.toBase64()));
+    }
+    QJsonValue held = sc.page->props.take(QStringLiteral("charts"));
+    QJsonArray charts = held.toArray();
+    held = QJsonValue();
+    QJsonObject entry{{QStringLiteral("item"), picture->id}, {QStringLiteral("kind"), QStringLiteral("object")}, {QStringLiteral("name"), a.get("draw:name")}, {QStringLiteral("part"), kept.origin}, {QStringLiteral("data"), text.value()}};
+    if (!kept.progId.isEmpty()) entry.insert(QStringLiteral("progId"), kept.progId);
+    if (kept.odfForm != office::ole::OdfForm::None) {
+        entry.insert(QStringLiteral("odf"), office::ole::odfFormName(kept.odfForm));
+        entry.insert(QStringLiteral("mediaType"), kept.mediaType);
+    }
+    charts.append(entry);
+    sc.page->props.insert(QStringLiteral("charts"), charts);
     return picture;
 }
 

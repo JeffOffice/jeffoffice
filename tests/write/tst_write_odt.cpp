@@ -1403,10 +1403,11 @@ private Q_SLOTS:
         f.types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
         QStringList frames;
         for (int i = 0; i < 1000; ++i) frames << objectFrame(QStringLiteral("Object 1"), false);
-        const qint64 before = office::ole::odfObjectTestHooks().objectReads.load();
+        // (counted where the parts are really inflated)
+        const qint64 before = office::ole::odfObjectTestHooks().inflatedParts.load();
         QString err;
         const QByteArray docx = office::odt::toDocxPackage(objectOdt(frames, f), &err);
-        QCOMPARE(office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(1));
+        QCOMPARE(office::ole::odfObjectTestHooks().inflatedParts.load() - before, qint64(1));
         office::Package pk;
         QVERIFY(pk.read(docx, &err));
         QCOMPARE(pk.part(QStringLiteral("/word/document.xml")).count("<w:object "), 1000);
@@ -1417,8 +1418,8 @@ private Q_SLOTS:
         // (and written back, the object is one folder)
         QStringList notes;
         const QByteArray out = office::odt::fromDocxPackage(docx, &err, &notes);
-        const qint64 afterWrite = office::ole::odfObjectTestHooks().objectReads.load();
-        QCOMPARE(afterWrite - before, qint64(2));
+        const qint64 afterWrite = office::ole::odfObjectTestHooks().inflatedParts.load();
+        QCOMPARE(afterWrite - before, qint64(3));   // (the content file read; the object's package, and its content file, to write it)
         int folders = 0;
         const ObjectFile written = fileOf(out);
         for (auto it = written.parts.cbegin(); it != written.parts.cend(); ++it)
@@ -1453,8 +1454,8 @@ private Q_SLOTS:
         office::PackageWriter w;
         w.addPart(QStringLiteral("/word/document.xml"),
                   "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
-                  "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><w:body><w:p><w:r><w:object><v:shape style=\"width:72pt;height:36pt\"/>"
-                  "<o:OLEObject Type=\"Embed\" ProgID=\"OpenDocument.Object\" r:id=\"rIdO\"/></w:object></w:r></w:p></w:body></w:document>",
+                  "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"><w:body><w:p><w:r><w:object><v:shape style=\"width:72pt;height:36pt\"/>"
+                  "<o:OLEObject Type=\"Embed\" jo:odf=\"folder\" jo:mediaType=\"application/vnd.oasis.opendocument.graphics\" r:id=\"rIdO\"/></w:object></w:r></w:p></w:body></w:document>",
                   QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
         w.addPart(QStringLiteral("/word/embeddings/oleObject1.bin"), blob.finish(), QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
         w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
@@ -1466,6 +1467,222 @@ private Q_SLOTS:
         }
     }
 
+    // An object from an OpenDocument file is not marked by a program ID (those are for programs' own objects): the docx has the form and the media type as attributes, and an object of ours has its ID.
+    void anOdfObjectHasNoProgramIdInTheDocx()
+    {
+        ObjectFile f = twoObjects();
+        QString err;
+        const QByteArray docx = office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("Object 1"), true, QStringLiteral("ObjectReplacements/Object 1.png")), objectFrame(QStringLiteral("Object 2"), false)}, f), &err);
+        office::Package pk;
+        QVERIFY(pk.read(docx, &err));
+        const QByteArray body = pk.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(!body.contains("ProgID") && !body.contains("OpenDocument."));
+        QVERIFY(body.contains("jo:odf=\"binary\" jo:mediaType=\"application/vnd.sun.star.oleobject\""));
+        QVERIFY(body.contains("jo:odf=\"folder\" jo:mediaType=\"application/vnd.oasis.opendocument.graphics\""));
+        // (an object that is one of ours has its program ID, and is not marked as the file's)
+        jp::ZipWriter inner;
+        inner.add(QStringLiteral("a.txt"), "x", false);
+        ObjectFile g;
+        g.parts.insert(QStringLiteral("Object 1"), inner.finish());
+        g.types.insert(QStringLiteral("Object 1"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        office::Package pg;
+        QVERIFY(pg.read(office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("Object 1"), true)}, g), &err), &err));
+        const QByteArray ours = pg.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(ours.contains("ProgID=\"" + office::ole::progIdOf(office::ole::Kind::Sheet).toLatin1() + "\"") && !ours.contains("jo:odf="));
+    }
+
+    // Saved as a .docx, an object an OpenDocument file held is its picture alone (no object, no part, no relationship), and says so; one of ours stays an object; saved back as an .odt it is all kept.
+    void anOdfObjectIsOnlyItsPictureInADocx()
+    {
+        ObjectFile f = twoObjects();
+        jp::ZipWriter inner;
+        inner.add(QStringLiteral("a.txt"), "x", false);
+        f.parts.insert(QStringLiteral("Object 3"), inner.finish());
+        f.types.insert(QStringLiteral("Object 3"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        f.parts.insert(QStringLiteral("ObjectReplacements/Object 3.png"), tinyPng());
+        QString err;
+        const QByteArray docx = office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("Object 1"), true, QStringLiteral("ObjectReplacements/Object 1.png")), objectFrame(QStringLiteral("Object 2"), false, QStringLiteral("ObjectReplacements/Object 2.png")),
+                                                                      objectFrame(QStringLiteral("Object 3"), true, QStringLiteral("ObjectReplacements/Object 3.png"))}, f), &err);
+        QVERIFY2(!docx.isEmpty(), qPrintable(err));
+        QStringList notes;
+        const QByteArray out = office::odt::docxWithoutOdfObjects(docx, &notes);
+        office::Package pk;
+        QVERIFY2(pk.read(out, &err), qPrintable(err));
+        const QByteArray body = pk.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(body.count("<w:object "), 1);   // (the one of ours)
+        QCOMPARE(body.count("<o:OLEObject"), 1);
+        QCOMPARE(body.count("<w:pict"), 2);
+        QCOMPARE(body.count("<v:imagedata "), 3);
+        QVERIFY(!body.contains("jo:odf"));
+        QStringList embeddings;
+        for (const QString &n : pk.partNames())
+            if (n.contains(QLatin1String("embeddings"))) embeddings << n;
+        QCOMPARE(embeddings.size(), 1);
+        int objectRels = 0;
+        for (const office::Relationship &r : pk.relationships(QStringLiteral("/word/document.xml")))
+            if (r.type.endsWith(QLatin1String("/oleObject"))) ++objectRels;
+        QCOMPARE(objectRels, 1);
+        QVERIFY2(notes.join('|').contains(QStringLiteral("kept as pictures")), qPrintable(notes.join('|')));
+        // (nothing changes for a file saved as an OpenDocument text: the same docx still keeps all three)
+        const ObjectFile again = fileOf(office::odt::fromDocxPackage(docx, &err));
+        QVERIFY(again.parts.contains(QStringLiteral("Object 1")) && again.parts.contains(QStringLiteral("Object 2/content.xml")));
+        // (and a document with none is given back as it was)
+        QStringList none;
+        QCOMPARE(office::odt::docxWithoutOdfObjects(equationsDocx(0), &none), equationsDocx(0));
+        QVERIFY(none.isEmpty());
+    }
+
+    // The parts of an object are looked at before any is inflated: a package that says it holds more than the cap is not inflated, and the object is refused with a note.
+    void anObjectPackageOverTheCapIsNotInflated()
+    {
+        Limit guard;
+        office::ole::Limits l = office::ole::limits();
+        l.objectBytes = 50000;
+        office::ole::setLimits(l);
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.graphics", false);
+        z.add(QStringLiteral("content.xml"), QByteArray(5000000, 'a'), true);   // (a few KB packed)
+        office::ole::EmbeddedObject o;
+        o.odfForm = office::ole::OdfForm::Folder;
+        o.mediaType = QStringLiteral("application/vnd.oasis.opendocument.graphics");
+        o.partBytes = z.finish();
+        QVERIFY(o.partBytes.size() < 50000);
+        const qint64 before = office::ole::odfObjectTestHooks().partsInflated.load(), partsBefore = office::ole::odfObjectTestHooks().inflatedParts.load();
+        office::ole::OdfPartsFailure why = office::ole::OdfPartsFailure::None;
+        QVERIFY(office::ole::odfPartsOf(o, QStringLiteral("Object 1"), &why).isEmpty());
+        QCOMPARE(why, office::ole::OdfPartsFailure::TooLarge);
+        QVERIFY2(office::ole::odfObjectTestHooks().partsInflated.load() - before < 1000, "the package was inflated");
+        QCOMPARE(office::ole::odfObjectTestHooks().inflatedParts.load() - partsBefore, qint64(0));
+        QVERIFY(!office::ole::odfPartsFailureNote(why).isEmpty());
+    }
+
+    // An object folder with a file whose name is not safe, or too many files, is refused, and the save says so.
+    void anObjectThatCannotBeWrittenSaysSo()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        auto docxOf = [&](const QByteArray &bin) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"),
+                      "<?xml version=\"1.0\"?><w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
+                      "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"><w:body><w:p><w:r><w:object><v:shape style=\"width:72pt;height:36pt\"/>"
+                      "<o:OLEObject Type=\"Embed\" jo:odf=\"folder\" jo:mediaType=\"application/vnd.oasis.opendocument.graphics\" r:id=\"rIdO\"/></w:object></w:r></w:p></w:body></w:document>",
+                      QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+            w.addPart(QStringLiteral("/word/embeddings/oleObject1.bin"), bin, QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdO"), rel + QStringLiteral("oleObject"), QStringLiteral("/word/embeddings/oleObject1.bin"));
+            return w.finish();
+        };
+        QString err;
+        {
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.graphics", false);
+            z.add(QStringLiteral("content.xml"), "<x/>", false);
+            z.add(QStringLiteral("c:evil.xml"), "evil", false);
+            QStringList notes;
+            QVERIFY(!office::odt::fromDocxPackage(docxOf(z.finish()), &err, &notes).isEmpty());
+            QVERIFY2(notes.join('|').contains(QStringLiteral("not safe to save")), qPrintable(notes.join('|')));
+        }
+        {
+            jp::ZipWriter z;
+            z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.graphics", false);
+            for (int i = 0; i <= office::ole::kMostFolderEntries; ++i) z.add(QStringLiteral("f%1.xml").arg(i), "<x/>", false);
+            QStringList notes;
+            QVERIFY(!office::odt::fromDocxPackage(docxOf(z.finish()), &err, &notes).isEmpty());
+            QVERIFY2(notes.join('|').contains(QStringLiteral("more files or bytes")), qPrintable(notes.join('|')));
+        }
+    }
+
+    // A path is safe in an object's folder only if it has no empty, ".", or ".." part, backslash, colon, or control character (NUL included), is not absolute, and is not over-long.
+    void anObjectFilePathIsCheckedForSafety()
+    {
+        using office::ole::odfPathIsSafe;
+        QVERIFY(odfPathIsSafe(QStringLiteral("Pictures/a.png")) && odfPathIsSafe(QStringLiteral("Inner/")));
+        QVERIFY(!odfPathIsSafe(QStringLiteral("c:evil.xml")));
+        QVERIFY(!odfPathIsSafe(QStringLiteral("a/b:c")));
+        QVERIFY(!odfPathIsSafe(QString(QStringLiteral("a")) + QChar(0) + QStringLiteral("b")));
+        QVERIFY(!odfPathIsSafe(QStringLiteral("a\x01") + QStringLiteral("b")));
+        QVERIFY(!odfPathIsSafe(QString(513, QLatin1Char('a'))));
+        QVERIFY(odfPathIsSafe(QString(512, QLatin1Char('a'))));
+        QVERIFY(!odfPathIsSafe(QStringLiteral("../a")) && !odfPathIsSafe(QStringLiteral("a/./b")) && !odfPathIsSafe(QStringLiteral("a//b")) && !odfPathIsSafe(QStringLiteral("/a")) && !odfPathIsSafe(QStringLiteral("a\\b")));
+        QVERIFY(!odfPathIsSafe(QString()));
+    }
+
+    // The files of the outer file are never an object's parts, whatever a frame names.
+    void theOuterFilesAreNeverObjectParts()
+    {
+        ObjectFile f;
+        f.parts.insert(QStringLiteral("Object 1"), blobOf(1, 100));
+        f.types.insert(QStringLiteral("Object 1"), QStringLiteral("application/vnd.sun.star.oleobject"));
+        const qint64 before = office::ole::odfObjectTestHooks().inflatedParts.load();
+        QString err;
+        const QByteArray docx = office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("content.xml"), true), objectFrame(QStringLiteral("styles.xml"), true), objectFrame(QStringLiteral("mimetype"), true),
+                                                                      objectFrame(QStringLiteral("META-INF/manifest.xml"), true), objectFrame(QStringLiteral("META-INF"), false), objectFrame(QStringLiteral("meta.xml"), true)}, f), &err);
+        QVERIFY2(!docx.isEmpty(), qPrintable(err));
+        office::Package pk;
+        QVERIFY(pk.read(docx, &err));
+        QCOMPARE(pk.part(QStringLiteral("/word/document.xml")).count("<w:object "), 0);
+        QCOMPARE(office::ole::odfObjectTestHooks().inflatedParts.load() - before, qint64(0));
+        for (const QString &n : pk.partNames()) QVERIFY2(!n.contains(QLatin1String("embeddings")), qPrintable(n));
+    }
+
+    // The manifest of a saved file lists the folders of an object in sorted order, whatever order the file gave them.
+    void theManifestOfAnObjectIsInOrder()
+    {
+        ObjectFile f;
+        f.parts.insert(QStringLiteral("Object 1/content.xml"), "<x/>");
+        f.types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
+        QStringList folders;
+        for (const char *n : {"q", "b", "z", "m", "d", "k", "a", "x", "f", "t", "c", "p"}) {
+            f.parts.insert(QStringLiteral("Object 1/%1/f.bin").arg(QLatin1String(n)), blobOf(3, 20));
+            f.types.insert(QStringLiteral("Object 1/%1/").arg(QLatin1String(n)), QStringLiteral("application/x-%1").arg(QLatin1String(n)));
+            folders << QStringLiteral("Object 1/%1/").arg(QLatin1String(n));
+        }
+        std::sort(folders.begin(), folders.end());
+        QString err;
+        const QByteArray once = office::odt::fromDocxPackage(office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("Object 1"), false)}, f), &err), &err);
+        const QByteArray twice = office::odt::fromDocxPackage(office::odt::toDocxPackage(once, &err), &err);
+        QMap<QString, QByteArray> a, b;
+        QVERIFY(jp::readZip(once, a) && jp::readZip(twice, b));
+        const QByteArray manifest = a.value(QStringLiteral("META-INF/manifest.xml"));
+        QCOMPARE(manifest, b.value(QStringLiteral("META-INF/manifest.xml")));
+        qsizetype last = -1;
+        for (const QString &d : std::as_const(folders)) {
+            const qsizetype at = manifest.indexOf("full-path=\"" + d.toUtf8() + "\"");
+            QVERIFY2(at > last, qPrintable(d));
+            last = at;
+        }
+    }
+
+    // A folder the manifest does not list, or lists with no type, is written with a type (its own mimetype file, else a generic one), never an empty one; an inner manifest does not add a second one.
+    void anObjectWithNoMediaTypeIsWrittenWithOne()
+    {
+        ObjectFile f;
+        f.parts.insert(QStringLiteral("Object 1/content.xml"), "<x/>");
+        f.parts.insert(QStringLiteral("Object 1/mimetype"), "application/x-inner-kind");
+        f.parts.insert(QStringLiteral("Object 1/META-INF/manifest.xml"), "<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"/>");
+        f.parts.insert(QStringLiteral("Object 1/data.bin"), blobOf(4, 30));
+        f.parts.insert(QStringLiteral("Object 2/content.xml"), "<x/>");
+        QString err;
+        const QByteArray docx = office::odt::toDocxPackage(objectOdt({objectFrame(QStringLiteral("Object 1"), false), objectFrame(QStringLiteral("Object 2"), false)}, f), &err);
+        office::Package pk;
+        QVERIFY(pk.read(docx, &err));
+        QByteArray bin;
+        QVector<QByteArray> bins;
+        for (const QString &n : pk.partNames())
+            if (n.contains(QLatin1String("embeddings"))) bins << pk.part(n);
+        QCOMPARE(bins.size(), 2);
+        for (const QByteArray &b : std::as_const(bins)) {
+            QCOMPARE(b.count("META-INF/manifest.xml"), 2);   // (one entry: its name is in the file's list and its directory)
+            QCOMPARE(b.count("mimetype"), 2);
+        }
+        const QByteArray out = office::odt::fromDocxPackage(docx, &err);
+        const ObjectFile got = fileOf(out);
+        QVERIFY(!QString::fromUtf8(got.parts.value(QStringLiteral("META-INF/manifest.xml"))).contains(QStringLiteral("media-type=\"\"")));
+        QCOMPARE(got.types.value(QStringLiteral("Object 1/")), QStringLiteral("application/x-inner-kind"));
+        QCOMPARE(got.types.value(QStringLiteral("Object 2/")), QStringLiteral("application/octet-stream"));
+        QVERIFY(got.parts.contains(QStringLiteral("Object 1/data.bin")));
+        QVERIFY(!got.parts.contains(QStringLiteral("Object 1/mimetype")) && !got.parts.contains(QStringLiteral("Object 1/META-INF/manifest.xml")));
+    }
 
     static QByteArray frameAndPictureOfFirstEquation(const QByteArray &math, QSizeF *frame, QImage *picture)
     {

@@ -47,7 +47,7 @@ constexpr qint64 kMaxNodeChars = 90000000;   // and the characters in them (the 
 
 // What one workbook's reading has taken so far (the sheets are read apart, by any thread).
 struct Budget {
-    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0}, formulas{0}, formulaBytes{0}, oleObjects{0}, oleBytes{0};
+    std::atomic<qint64> objects{0}, pictureBytes{0}, charts{0}, formulas{0}, formulaBytes{0}, oleObjects{0}, oleBytes{0}, oleBinary{0};   // (oleBinary: those of the oleObjects that were binary parts, to be counted against the draw:object-ole elements the document has)
     // One more object, or `n` more bytes of pictures, if that stays within the limit (taken and counted in one step, so that sheets read on several threads can't pass it together).
     bool takeObject(qint64 limit);
     bool takeChart(qint64 limit);

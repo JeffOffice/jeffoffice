@@ -903,28 +903,37 @@ QByteArray Writer::objectFrame(const T &t, int object)
         // (the count and the bytes are looked at before the part is inflated, and what is found is kept for the frames that name the part again)
         const qint64 size = m_pkg.partSize(r.target);
         QString dir;
+        bool folder = false;
         if (size <= 0 || size > ole::limits().objectBytes || !m_objectBudget.fits(size)) {
             if (size > 0 && !m_objectsPastLimit)
                 left(QCoreApplication::translate("odt", "embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)").arg(ole::limits().objects));
             if (size > 0) m_objectsPastLimit = true;
         } else {
             ++ole::odfObjectTestHooks().objectReads;
-            const std::optional<ole::EmbeddedObject> kept = ole::keepObject(t.attrAny(ole, "ProgID"), m_pkg.part(r.target), QByteArray(), cx, cy, m_objectBudget, r.target);
+            ++ole::odfObjectTestHooks().inflatedParts;
+            std::optional<ole::EmbeddedObject> kept = ole::keepObject(t.attrAny(ole, "ProgID"), m_pkg.part(r.target), QByteArray(), cx, cy, m_objectBudget, r.target);
             if (kept) {
+                kept->odfForm = ole::odfFormOfName(t.attrAny(ole, "odf"));
+                kept->mediaType = kept->odfForm == ole::OdfForm::None ? QString() : t.attrAny(ole, "mediaType");
                 const QString candidate = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + m_objectDirs + 1);
-                const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, candidate);
+                ole::OdfPartsFailure why = ole::OdfPartsFailure::None;
+                const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, candidate, &why);
                 if (!parts.isEmpty()) {
                     dir = candidate;
+                    folder = parts.first().path.endsWith(QLatin1Char('/'));
                     ++m_objectDirs;
                     m_objectParts += parts;
+                } else if (why != ole::OdfPartsFailure::None) {
+                    left(ole::odfPartsFailureNote(why));
+                    m_objectsPastLimit = true;   // (said: the plainer note after the frame is not said again)
                 }
             }
         }
-        done = m_objectDone.insert(key, dir);
+        done = m_objectDone.insert(key, {dir, folder});
     }
-    if (done.value().isEmpty()) return QByteArray();
-    const QString dir = done.value();
-    const bool folder = !m_objectParts.isEmpty() && std::any_of(m_objectParts.cbegin(), m_objectParts.cend(), [&](const ole::OdfOutPart &p) { return p.path == dir + QLatin1Char('/'); });
+    if (done.value().first.isEmpty()) return QByteArray();
+    const QString dir = done.value().first;
+    const bool folder = done.value().second;
     QString href;
     if (image >= 0) imagePart(t.attr(image, "id", wml::NsR), &href);
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",

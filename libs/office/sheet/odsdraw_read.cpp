@@ -539,12 +539,13 @@ private:
             m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(ole::limits().objects));
             return;
         }
+        if (m_budget && binary) ++m_budget->oleBinary;
         int index = -1;
         for (int i = 0; i < m_out->objects.size(); ++i)
-            if (m_out->objects[i].progId == kept.progId && m_out->objects[i].bytes == kept.partBytes) index = i;
+            if (m_out->objects[i].progId == kept.progId && m_out->objects[i].odf == ole::odfFormName(kept.odfForm) && m_out->objects[i].mediaType == kept.mediaType && m_out->objects[i].bytes == kept.partBytes) index = i;
         if (index < 0) {
             index = int(m_out->objects.size());
-            m_out->objects.push_back({kept.progId, kept.partBytes});
+            m_out->objects.push_back({kept.progId, ole::odfFormName(kept.odfForm), kept.mediaType, kept.partBytes});
         }
         p->object = index;
         ++m_objectsHandled;
@@ -1051,8 +1052,11 @@ private:
             if (p.object >= 0) {
                 // (the object this picture stands for: named in the picture's extension list, through a relationship of the drawing)
                 const QByteArray id = "rIdO" + QByteArray::number(p.object + 1);
-                const QByteArray mark = "<a:extLst><a:ext uri=\"" + QByteArray(kObjectUri) + "\"><jo:object xmlns:jo=\"" + QByteArray(kObjectNs) + "\" r:id=\"" + id + "\" progId=\"" +
-                                        xmlText(m_out->objects[p.object].progId).toUtf8() + "\"/></a:ext></a:extLst>";
+                QByteArray mark = "<a:extLst><a:ext uri=\"" + QByteArray(kObjectUri) + "\"><jo:object xmlns:jo=\"" + QByteArray(kObjectNs) + "\" r:id=\"" + id + "\"";
+                const ImportedObject &made = m_out->objects[p.object];
+                if (!made.progId.isEmpty()) mark += " progId=\"" + xmlText(made.progId).toUtf8() + "\"";
+                if (!made.odf.isEmpty()) mark += " odf=\"" + xmlText(made.odf).toUtf8() + "\" mediaType=\"" + xmlText(made.mediaType).toUtf8() + "\"";
+                mark += "/></a:ext></a:extLst>";
                 const qsizetype at = anchor.indexOf("<xdr:cNvPr");
                 const qsizetype end = at < 0 ? -1 : anchor.indexOf('>', at);
                 if (end > 0 && anchor[end - 1] == '/') anchor.replace(end - 1, 2, ">" + mark + "</xdr:cNvPr>");

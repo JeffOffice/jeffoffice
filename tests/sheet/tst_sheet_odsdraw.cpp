@@ -9,6 +9,7 @@
 #include "sheet/drawingadd.h"
 #include "sheet/odsdraw.h"
 #include "sheet/oldsave.h"
+#include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "core/fonts.h"
 #include "office/drawingml.h"
@@ -120,14 +121,16 @@ QByteArray handWritten(const QString &shapes, const QString &rows = QString(), c
     return buildOds(contentXml(body, styleXml + styles), QString(), QByteArray(), extra);
 }
 
-// An .ods opened as a workbook, saved as an .xlsx, and from that as an .ods again (as the program saves it).
-bool viaXlsx(const QByteArray &ods, Saved *s, QString *why)
+// An .ods opened as a workbook, saved as an .xlsx that goes on to be an .ods (as the program saves one), and read from that.
+bool resaved(const QByteArray &ods, Saved *s, QString *why)
 {
     Workbook wb;
     if (!openBytes(ods, QStringLiteral("o.ods"), &wb, why)) return false;
     QByteArray xlsx;
     SaveReport report;
-    if (!saveXlsx(wb, SaveChanges(), &xlsx, why, &report)) return false;
+    SaveChanges changes;
+    changes.keepOdfObjects = true;
+    if (!saveXlsx(wb, changes, &xlsx, why, &report)) return false;
     return saveAsOds(xlsx, s, why);
 }
 
@@ -552,7 +555,7 @@ private Q_SLOTS:
         QVERIFY2(!r.wb.foreignBook()->skipped().join(QLatin1Char('|')).contains(QLatin1String("charts")), qPrintable(r.wb.foreignBook()->skipped().join(QLatin1Char('|'))));
         // (opened as a workbook and saved as an .xlsx and from it as an .ods, as the program does)
         Saved s;
-        QVERIFY2(viaXlsx(ods, &s, &why), qPrintable(why));
+        QVERIFY2(resaved(ods, &s, &why), qPrintable(why));
         const QMap<QString, QByteArray> &got = s.parts;
         for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
             if (it.key().startsWith(QLatin1String("ObjectReplacements/"))) continue;
@@ -572,7 +575,7 @@ private Q_SLOTS:
         QVERIFY2(!s.report.notKept.join(QLatin1Char('|')).contains(QLatin1String("bject")), qPrintable(s.report.notKept.join(QLatin1Char('|'))));
         // Saved again: the same parts.
         Saved again;
-        QVERIFY2(viaXlsx(s.ods, &again, &why), qPrintable(why));
+        QVERIFY2(resaved(s.ods, &again, &why), qPrintable(why));
         QCOMPARE(QStringList(again.parts.keys()), QStringList(got.keys()));
         QCOMPARE(manifestTypesOf(again.parts), gotTypes);
         for (auto it = got.cbegin(); it != got.cend(); ++it)
@@ -640,11 +643,11 @@ private Q_SLOTS:
         types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
         parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
         for (int i = 0; i < 1000; ++i) frames += objectFrame(QStringLiteral("Object 1"), false, i, QStringLiteral("ObjectReplacements/Object 1.png"));
-        const qint64 before = jp::office::ole::odfObjectTestHooks().objectReads.load();
+        const qint64 before = jp::office::ole::odfObjectTestHooks().inflatedParts.load();
         QString why;
         Read r;
         QVERIFY2(readOds(objectSheet(frames, parts, types), &r, &why), qPrintable(why));
-        QCOMPARE(jp::office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(1));
+        QCOMPARE(jp::office::ole::odfObjectTestHooks().inflatedParts.load() - before, qint64(1));   // (counted where the part is really inflated)
         QCOMPARE(r.sheet.importedDrawing.objects.size(), 1);   // (one package, named by every picture)
         QCOMPARE(r.drawing.objects.size(), 1000);
     }
@@ -663,7 +666,7 @@ private Q_SLOTS:
         Read r;
         QVERIFY2(readOds(objectSheet(objectFrame(QStringLiteral("Object 1"), false, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), &r, &why), qPrintable(why));
         Saved s;
-        QVERIFY2(viaXlsx(objectSheet(objectFrame(QStringLiteral("Object 1"), false, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), &s, &why), qPrintable(why));
+        QVERIFY2(resaved(objectSheet(objectFrame(QStringLiteral("Object 1"), false, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), &s, &why), qPrintable(why));
         QVERIFY(s.parts.contains(QStringLiteral("Object 1/content.xml")));
         for (const QString &n : s.parts.keys()) {
             QVERIFY2(!n.contains(QLatin1String("..")) && !n.contains(QLatin1Char('\\')) && !n.startsWith(QLatin1Char('/')) && !n.contains(QLatin1String("evil")), qPrintable(n));
@@ -681,6 +684,98 @@ private Q_SLOTS:
         QStringList names = QStringList(s.parts.keys());
         names.erase(std::remove_if(names.begin(), names.end(), [](const QString &n) { return n.startsWith(QLatin1String("Pictures/")); }), names.end());
         QCOMPARE(names, (QStringList{QStringLiteral("META-INF/manifest.xml"), QStringLiteral("content.xml"), QStringLiteral("meta.xml"), QStringLiteral("mimetype"), QStringLiteral("settings.xml"), QStringLiteral("styles.xml")}));
+    }
+
+    // An object an OpenDocument file held that is not one of ours is written to an .xlsx as its picture alone: no part, no relationship, no extension that names it, and the save says so. One of ours
+    // is an embedded package, and comes back whole.
+    void anOdfObjectOfASheetIsOnlyItsPictureInAnXlsx()
+    {
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        twoObjectParts(&parts, &types);
+        jp::ZipWriter inner;
+        inner.add(QStringLiteral("a.txt"), "x", false);
+        const QByteArray ownPackage = inner.finish();
+        parts.insert(QStringLiteral("Object 3"), ownPackage);
+        types.insert(QStringLiteral("Object 3"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        parts.insert(QStringLiteral("ObjectReplacements/Object 3.png"), pngBytes(4, 4, QColor(5, 5, 5)));
+        const QByteArray ods = objectSheet(objectFrame(QStringLiteral("Object 1"), true, 0, QStringLiteral("ObjectReplacements/Object 1.png")) + objectFrame(QStringLiteral("Object 2"), false, 1, QStringLiteral("ObjectReplacements/Object 2.png")) +
+                                               objectFrame(QStringLiteral("Object 3"), true, 2, QStringLiteral("ObjectReplacements/Object 3.png")), parts, types);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(ods, QStringLiteral("o.ods"), &wb, &why), qPrintable(why));
+        QByteArray xlsx;
+        QStringList notes;
+        QVERIFY2(writeBaseXlsx(wb, &xlsx, &why, nullptr, &notes), qPrintable(why));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QLatin1String("kept as pictures")), qPrintable(notes.join(QLatin1Char('|'))));
+        QMap<QString, QByteArray> got;
+        QVERIFY(jp::readZip(xlsx, got));
+        QStringList embeddings, media;
+        for (const QString &n : got.keys()) {
+            if (n.startsWith(QLatin1String("xl/embeddings/"))) embeddings << n;
+            if (n.startsWith(QLatin1String("xl/media/"))) media << n;
+        }
+        QCOMPARE(embeddings, QStringList{QStringLiteral("xl/embeddings/object1.xlsx")});   // (the one of ours)
+        QCOMPARE(got.value(QStringLiteral("xl/embeddings/object1.xlsx")), ownPackage);
+        QCOMPARE(media.size(), 3);   // (the pictures: all three)
+        const QByteArray rels = got.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")), drawing = got.value(QStringLiteral("xl/drawings/drawing1.xml")), types2 = got.value(QStringLiteral("[Content_Types].xml"));
+        QCOMPARE(rels.count("/package\""), 1);
+        QVERIFY(!rels.contains("oleObject") && !types2.contains("oleObject") && !types2.contains("Extension=\"bin\""));
+        QCOMPARE(drawing.count("<jo:object "), 1);   // (the one of ours)
+        QVERIFY(drawing.contains(jp::office::ole::progIdOf(jp::office::ole::Kind::Sheet).toLatin1()));
+        // (the same through the save of the workbook)
+        QByteArray viaSave;
+        SaveReport report;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &viaSave, &why, &report), qPrintable(why));
+        QVERIFY2(report.notes.join(QLatin1Char('|')).contains(QLatin1String("kept as pictures")), qPrintable(report.notes.join(QLatin1Char('|'))));
+        // (and read again, the object of ours is an object of the .ods again; the others are pictures)
+        Saved s;
+        QVERIFY2(saveAsOds(xlsx, &s, &why), qPrintable(why));
+        const QByteArray content = s.parts.value(QStringLiteral("content.xml"));
+        QCOMPARE(content.count("<draw:object-ole "), 1);
+        QCOMPARE(content.count("<draw:object "), 0);
+        QCOMPARE(s.parts.value(QStringLiteral("Object 1")), ownPackage);
+        QCOMPARE(manifestTypesOf(s.parts).value(QStringLiteral("Object 1")), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+    }
+
+    // Only a relationship to an embedded package or binary, to a part of the embeddings, names an object: one that points at a worksheet copies nothing.
+    void anObjectRelationshipToAnotherPartCopiesNothing()
+    {
+        jp::ZipWriter inner;
+        inner.add(QStringLiteral("a.txt"), "x", false);
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        parts.insert(QStringLiteral("Object 1"), inner.finish());
+        types.insert(QStringLiteral("Object 1"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+        parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), pngBytes(4, 4, QColor(1, 2, 3)));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBytes(objectSheet(objectFrame(QStringLiteral("Object 1"), true, 0, QStringLiteral("ObjectReplacements/Object 1.png")), parts, types), QStringLiteral("o.ods"), &wb, &why), qPrintable(why));
+        QByteArray xlsx;
+        QVERIFY2(writeBaseXlsx(wb, &xlsx, &why), qPrintable(why));
+        QMap<QString, QByteArray> files;
+        QVERIFY(jp::readZip(xlsx, files));
+        const QString relsPart = QStringLiteral("xl/drawings/_rels/drawing1.xml.rels");
+        const QByteArray rels = files.value(relsPart);
+        QVERIFY(rels.contains("/package\" Target=\"../embeddings/object1.xlsx\""));
+        // (the unchanged file gives the object back)
+        Saved plain;
+        QVERIFY2(saveAsOds(xlsx, &plain, &why), qPrintable(why));
+        QVERIFY(plain.parts.contains(QStringLiteral("Object 1")));
+        const QList<QPair<QByteArray, QByteArray>> edits = {{"/package\" Target=\"../embeddings/object1.xlsx\"", "/package\" Target=\"../worksheets/sheet1.xml\""},
+                                                            {"/package\" Target=\"../embeddings/object1.xlsx\"", "/worksheet\" Target=\"../embeddings/object1.xlsx\""}};
+        for (const auto &edit : edits) {
+            QMap<QString, QByteArray> changed = files;
+            QByteArray r = rels;
+            r.replace(edit.first, edit.second);
+            changed.insert(relsPart, r);
+            jp::ZipWriter z;
+            for (auto it = changed.cbegin(); it != changed.cend(); ++it) z.add(it.key(), it.value(), true);
+            Saved s;
+            QVERIFY2(saveAsOds(z.finish(), &s, &why), qPrintable(why));
+            QVERIFY2(!s.parts.contains(QStringLiteral("Object 1")), qPrintable(QString::fromUtf8(edit.second)));
+            QVERIFY(!s.parts.value(QStringLiteral("content.xml")).contains("<draw:object"));
+        }
     }
 
     // A formula object that is refused is read once, whatever number of frames name it.

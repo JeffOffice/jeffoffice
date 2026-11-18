@@ -2,6 +2,7 @@
 
 #include "odt/odtread.h"
 #include "text/numbersystems.h"
+#include "office/package.h"
 #include "wml/wml.h"
 
 #include "io/zipindex.h"
@@ -10,6 +11,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QRegularExpression>
+#include <QSet>
 #include <algorithm>
 #include <cmath>
 
@@ -878,6 +880,89 @@ QByteArray toDocxPackage(const QByteArray &file, QString *error, QStringList *no
     Reader r;
     if (!r.read(file, error, notes)) return QByteArray();
     return r.docx();
+}
+
+QByteArray docxWithoutOdfObjects(const QByteArray &docx, QStringList *notes)
+{
+    Package pkg;
+    if (!pkg.readLazy(docx, nullptr)) return docx;
+    bool any = false;
+    for (const QString &n : pkg.partNames())
+        if (n.startsWith(QLatin1String("/word/embeddings/"), Qt::CaseInsensitive)) any = true;
+    if (!any) return docx;
+    // (the stories that hold one are rewritten: the object is its picture alone)
+    QHash<QString, QByteArray> changed;
+    QHash<QString, QSet<QString>> goneIds;   // by the part that held them: the relationships of the objects taken out
+    for (const QString &n : pkg.partNames()) {
+        if (!n.startsWith(QLatin1String("/word/"), Qt::CaseInsensitive) || !n.endsWith(QLatin1String(".xml"), Qt::CaseInsensitive) || n.contains(QLatin1String("/_rels/"))) continue;
+        if (pkg.partSize(n) > (qint64(256) << 20)) continue;
+        const QByteArray xml = pkg.part(n);
+        if (!xml.contains("jo:odf=\"")) continue;
+        QByteArray out;
+        qsizetype from = 0;
+        bool edited = false;
+        for (;;) {
+            qsizetype at = xml.indexOf("<w:object", from);
+            while (at >= 0 && at + 9 < xml.size() && xml[at + 9] != ' ' && xml[at + 9] != '>') at = xml.indexOf("<w:object", at + 9);
+            const qsizetype end = at < 0 ? -1 : xml.indexOf("</w:object>", at);
+            if (at < 0 || end < 0) break;
+            const qsizetype stop = end + 11;
+            const QByteArray block = xml.mid(at, stop - at);
+            const qsizetype ole = block.indexOf("<o:OLEObject");
+            const qsizetype oleEnd = ole < 0 ? -1 : block.indexOf('>', ole);
+            const QByteArray oleTag = oleEnd < 0 ? QByteArray() : block.mid(ole, oleEnd - ole + 1);
+            if (!oleTag.contains(" jo:odf=\"")) {
+                out += xml.mid(from, stop - from);
+                from = stop;
+                continue;
+            }
+            out += xml.mid(from, at - from);
+            const qsizetype shape = block.indexOf("<v:shape"), shapeEnd = shape < 0 ? -1 : block.indexOf("</v:shape>", shape);
+            const qsizetype image = shape < 0 ? -1 : block.indexOf("<v:imagedata", shape);
+            if (shape >= 0 && shapeEnd >= 0 && image >= 0 && image < shapeEnd) {
+                QByteArray picture = block.mid(shape, shapeEnd + 10 - shape);
+                picture.replace(" o:ole=\"\"", "");
+                static const QRegularExpression sizes(QStringLiteral(" w:d[xy]aOrig=\"[^\"]*\""));
+                QString head = QString::fromUtf8(block.left(block.indexOf('>') + 1));
+                head.replace(QLatin1String("<w:object"), QLatin1String("<w:pict")).remove(sizes);
+                out += head.toUtf8() + picture + "</w:pict>";
+            }
+            const qsizetype idAt = oleTag.indexOf(" r:id=\"");
+            if (idAt >= 0) goneIds[n].insert(QString::fromUtf8(oleTag.mid(idAt + 7, oleTag.indexOf('"', idAt + 7) - idAt - 7)));
+            edited = true;
+            from = stop;
+        }
+        if (!edited) continue;
+        out += xml.mid(from);
+        changed.insert(n, out);
+    }
+    if (changed.isEmpty()) return docx;
+    // (the relationships of those objects go, and the parts only they named)
+    QHash<QString, QVector<Relationship>> kept;
+    QSet<QString> candidates, targeted;
+    QStringList sources{QStringLiteral("/")};
+    sources << pkg.partNames();
+    for (const QString &source : std::as_const(sources))
+        for (const Relationship &r : pkg.relationships(source)) {
+            if (goneIds.value(source).contains(r.id)) {
+                if (!r.external) candidates.insert(r.target);
+                continue;
+            }
+            kept[source].push_back(r);
+            if (!r.external) targeted.insert(r.target);
+        }
+    PackageWriter w;
+    for (const QString &n : pkg.partNames()) {
+        if (candidates.contains(n) && !targeted.contains(n)) continue;
+        w.addPart(n, changed.contains(n) ? changed.value(n) : pkg.part(n), pkg.contentType(n));
+    }
+    for (const QString &source : std::as_const(sources))
+        for (const Relationship &r : kept.value(source)) w.addRelationshipWithId(source, r.id, r.type, r.target, r.external);
+    if (notes) {
+        const QString note = QCoreApplication::translate("odt", "embedded objects made in another kind of file (kept as pictures)");
+        if (!notes->contains(note)) notes->append(note);
+    }
+    return w.finish();
 }
 
 } // namespace jp::office::odt

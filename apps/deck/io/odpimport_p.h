@@ -300,6 +300,7 @@ private:
     QHash<QString, QByteArray> m_formulaOfPart;   // the markup of each formula object read (empty for one that is refused), so that frames that name it again do not read it again
     std::unique_ptr<office::ole::OdfObjectReader> m_objects;   // the other embedded objects, each part read once
     office::ole::ObjectBudget m_objectBudget;                  // what they come to, against the object core's caps
+    QHash<QString, QString> m_objectText;                      // the text (base64) of each object's bytes, made once
     QHash<QString, QColor> m_formulaColor;        // and the color each names for its letters
     QStringList *m_notes;
     std::deque<QDomDocument> m_doms;

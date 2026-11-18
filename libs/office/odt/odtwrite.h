@@ -178,7 +178,7 @@ private:
     QVector<Formula> m_formulas;                          // the equations: the directory of each formula object, its MathML, and its picture
     qint64 m_formulaBytes = 0;
     ole::ObjectBudget m_objectBudget;                     // the embedded objects written so far, against the object core's caps
-    QHash<QString, QString> m_objectDone;                 // an object's part in the package -> its directory in the new file (empty for one that is refused), so that a part many frames name is read once
+    QHash<QString, QPair<QString, bool>> m_objectDone;    // an object's part in the package -> its directory in the new file (empty for one that is refused) and whether it is a folder, so that a part many frames name is read once
     QVector<ole::OdfOutPart> m_objectParts;               // the parts the objects are written as
     int m_objectDirs = 0;                                 // the directories made for objects
     bool m_objectsPastLimit = false;

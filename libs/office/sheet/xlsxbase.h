@@ -22,7 +22,8 @@ QString baseSheetPart(int index);
 
 // The package, as the bytes of its ZIP, for a workbook that was read from the older binary form. Each sheet is read again from the workbook's records and written as it is read, one at
 // a time. False, with a message, if a sheet cannot be read whole or `cancel` is set (looked at as the cells are written).
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr);
+// An embedded object an OpenDocument file held that is not one of ours is written as its picture only, and `notes` (if given) says so; a file that is written only to be saved on as an OpenDocument one (`keepOdfObjects`) keeps them whole.
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr, QStringList *notes = nullptr, bool keepOdfObjects = false);
 
 // For a workbook read from an OpenDocument spreadsheet: a package with the drawing parts, relationships, and pictures of the sheets that have drawing objects (each sheet's part is a stand-in), named as
 // writeBaseXlsx names them. Null if the workbook has none. The sheets that may have objects are read whole to find them.

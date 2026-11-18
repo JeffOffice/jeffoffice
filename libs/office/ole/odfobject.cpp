@@ -4,6 +4,7 @@
 #include "office/mathobject.h"
 #include "office/package.h"
 
+#include <QCoreApplication>
 #include <QXmlStreamReader>
 
 #include <algorithm>
@@ -28,8 +29,24 @@ QString cleanName(QString name)
 
 } // namespace
 
-QString odfFolderProgId() { return QStringLiteral("OpenDocument.Object"); }
-QString odfBinaryProgId(const QString &mediaType) { return QStringLiteral("OpenDocument.OleObject/") + (mediaType.isEmpty() ? QString(kBinaryType) : mediaType); }
+namespace {
+
+// The files of an OpenDocument file that are its own, never an object's part.
+bool isOuterPart(const QString &path)
+{
+    const QString p = path.toLower();
+    return p == QLatin1String("content.xml") || p == QLatin1String("styles.xml") || p == QLatin1String("settings.xml") || p == QLatin1String("meta.xml") || p == QLatin1String("mimetype") ||
+           p == QLatin1String("meta-inf") || p.startsWith(QLatin1String("meta-inf/"));
+}
+
+QStringList sortedKeys(const QHash<QString, QString> &types)
+{
+    QStringList keys = types.keys();
+    std::sort(keys.begin(), keys.end());
+    return keys;
+}
+
+} // namespace
 
 OdfObjectTestHooks &odfObjectTestHooks()
 {
@@ -64,7 +81,10 @@ OdfSource odfSourceOfPackage(const Package &package)
         return out;
     };
     s.size = [p](const QString &n) { return p->partSize(QLatin1Char('/') + n); };
-    s.bytes = [p](const QString &n) { return p->part(QLatin1Char('/') + n); };
+    s.bytes = [p](const QString &n) {
+        ++odfObjectTestHooks().inflatedParts;
+        return p->part(QLatin1Char('/') + n);
+    };
     s.head = [p](const QString &n) { return peekPart(*p, QLatin1Char('/') + n); };
     if (p->hasPart(QStringLiteral("/META-INF/manifest.xml"))) s.types = odfManifestTypes(p->part(QStringLiteral("/META-INF/manifest.xml")));
     return s;
@@ -101,6 +121,7 @@ const OdfObjectReader::Plan &OdfObjectReader::planOf(const QString &path, bool b
     const auto known = m_plans.constFind(key);
     if (known != m_plans.constEnd()) return known.value();
     Plan plan;
+    if (isOuterPart(path)) return m_plans.insert(key, plan).value();
     if (!m_named) {
         m_names = m_source.names ? m_source.names() : QStringList();
         std::sort(m_names.begin(), m_names.end());
@@ -119,11 +140,17 @@ const OdfObjectReader::Plan &OdfObjectReader::planOf(const QString &path, bool b
         if (!formula && !chart) {
             plan.kind = Plan::Folder;
             plan.mediaType = type;
+            if (plan.mediaType.isEmpty()) {
+                const QByteArray mime = (m_source.head ? m_source.head(prefix + QStringLiteral("mimetype")) : QByteArray()).left(256).trimmed();
+                plan.mediaType = mime.isEmpty() || mime.contains('<') ? QStringLiteral("application/octet-stream") : QString::fromLatin1(mime);
+            }
             for (auto it = first; it != m_names.cend() && it->startsWith(prefix); ++it) {
                 if (plan.files.size() >= kMostFolderEntries) {
                     plan.over = true;
                     break;
                 }
+                const QString inner = it->mid(prefix.size());
+                if (inner == QLatin1String("mimetype") || inner == QLatin1String("META-INF/manifest.xml")) continue;   // (the object's package gets its own)
                 const qint64 size = m_source.size ? m_source.size(*it) : -1;
                 if (size < 0) continue;
                 plan.files << *it;
@@ -141,6 +168,7 @@ const OdfObjectReader::Plan &OdfObjectReader::planOf(const QString &path, bool b
         plan.total = oneSize;
         plan.over = oneSize > limits().objectBytes;
         plan.mediaType = m_source.types.value(path);
+        if (plan.mediaType.isEmpty()) plan.mediaType = kBinaryType;
     }
     return m_plans.insert(key, plan).value();
 }
@@ -168,12 +196,16 @@ OdfObjectReader::Result OdfObjectReader::read(const QString &href, bool binary, 
     }
     if (blob == m_blobs.end()) {
         ++odfObjectTestHooks().objectReads;
-        QString progId;
+        Blob made;
         QByteArray bytes;
         if (plan.kind == Plan::Binary) {
             bytes = m_source.bytes(path);
             const Kind kind = plan.mediaType == kSheetType ? Kind::Sheet : plan.mediaType == kPageType ? Kind::Page : Kind::Other;
-            progId = kind != Kind::Other ? progIdOf(kind) : odfBinaryProgId(plan.mediaType);
+            if (kind != Kind::Other) made.progId = progIdOf(kind);
+            else {
+                made.form = OdfForm::Binary;
+                made.mediaType = plan.mediaType;
+            }
             if (bytes.size() != plan.total) bytes.clear();
         } else {
             jp::ZipWriter zip;
@@ -181,7 +213,7 @@ OdfObjectReader::Result OdfObjectReader::read(const QString &href, bool binary, 
             QByteArray manifest = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\" manifest:version=\"1.3\">";
             const QString prefix = path + QLatin1Char('/');
             auto entry = [&manifest](const QString &p, const QString &type) {
-                manifest += "<manifest:file-entry manifest:full-path=\"" + p.toHtmlEscaped().toUtf8() + "\" manifest:media-type=\"" + type.toHtmlEscaped().toUtf8() + "\"/>";
+                manifest += "<manifest:file-entry manifest:full-path=\"" + p.toHtmlEscaped().toUtf8() + "\" manifest:media-type=\"" + (type.isEmpty() ? QStringLiteral("application/octet-stream") : type).toHtmlEscaped().toUtf8() + "\"/>";
             };
             entry(QStringLiteral("/"), plan.mediaType);
             bool good = true;
@@ -199,49 +231,77 @@ OdfObjectReader::Result OdfObjectReader::read(const QString &href, bool binary, 
                 entry(rel, m_source.types.value(f));
             }
             // (the folders the manifest names inside this one, with their types)
-            for (auto it = m_source.types.cbegin(); it != m_source.types.cend(); ++it)
-                if (it.key().startsWith(prefix) && it.key().endsWith(QLatin1Char('/')) && it.key().size() > prefix.size()) entry(it.key().mid(prefix.size()), it.value());
+            for (const QString &key : sortedKeys(m_source.types))
+                if (key.startsWith(prefix) && key.endsWith(QLatin1Char('/')) && key.size() > prefix.size()) entry(key.mid(prefix.size()), m_source.types.value(key));
             manifest += "</manifest:manifest>";
             zip.add(QStringLiteral("META-INF/manifest.xml"), manifest, false);
             if (good) bytes = zip.finish();
-            progId = odfFolderProgId();
+            made.form = OdfForm::Folder;
+            made.mediaType = plan.mediaType;
         }
-        if (bytes.isEmpty()) {
-            blob = m_blobs.insert(key, {QString(), QByteArray()});
-        } else {
-            blob = m_blobs.insert(key, {progId, bytes});
-        }
+        made.bytes = bytes;
+        blob = m_blobs.insert(key, made);
     }
-    if (blob.value().second.isEmpty()) return Result::NotObject;
-    std::optional<EmbeddedObject> kept = keepObject(blob.value().first, blob.value().second, preview, widthEmu, heightEmu, budget, path);
+    if (blob.value().bytes.isEmpty()) return Result::NotObject;
+    std::optional<EmbeddedObject> kept = keepObject(blob.value().progId, blob.value().bytes, preview, widthEmu, heightEmu, budget, path);
     if (!kept) {
         ++m_past;
         return Result::PastLimit;
     }
+    kept->odfForm = blob.value().form;
+    kept->mediaType = blob.value().mediaType;
     *out = *kept;
     return Result::Kept;
 }
 
-QVector<OdfOutPart> odfPartsOf(const EmbeddedObject &object, const QString &dir)
+QString odfPartsFailureNote(OdfPartsFailure why)
+{
+    if (why == OdfPartsFailure::TooLarge) return QCoreApplication::translate("jp::office::ole::OdfObject", "an embedded object holds more files or bytes than a file may keep (kept as its picture)");
+    if (why == OdfPartsFailure::UnsafeName) return QCoreApplication::translate("jp::office::ole::OdfObject", "an embedded object holds a file with a name that is not safe to save (kept as its picture)");
+    return QString();
+}
+
+QVector<OdfOutPart> odfPartsOf(const EmbeddedObject &object, const QString &dir, OdfPartsFailure *why)
 {
     QVector<OdfOutPart> out;
-    if (object.partBytes.isEmpty() || object.partBytes.size() > limits().objectBytes) return out;
+    if (why) *why = OdfPartsFailure::None;
+    if (object.partBytes.isEmpty()) return out;
+    if (object.partBytes.size() > limits().objectBytes) {
+        if (why) *why = OdfPartsFailure::TooLarge;
+        return out;
+    }
     if (object.isOurs && object.kind() != Kind::Other) {
         out.push_back({dir, object.partBytes, mediaTypeOfKind(object.kind()), false});
         return out;
     }
-    if (object.progId != odfFolderProgId()) {
-        QString type = object.progId.startsWith(QLatin1String("OpenDocument.OleObject/")) ? object.progId.mid(23) : QString(kBinaryType);
-        out.push_back({dir, object.partBytes, type, false});
+    if (object.odfForm != OdfForm::Folder) {
+        out.push_back({dir, object.partBytes, object.mediaType.isEmpty() ? QString(kBinaryType) : object.mediaType, false});
         return out;
     }
-    if (!packageWithinLimits(object.partBytes)) return out;
+    auto fail = [&](OdfPartsFailure reason) {
+        if (why) *why = reason;
+        return QVector<OdfOutPart>();
+    };
+    if (!packageWithinLimits(object.partBytes)) return fail(OdfPartsFailure::TooLarge);
+    // (read lazily: each part's size is looked at before it is inflated)
     Package pkg;
-    if (!pkg.readOpenDocument(object.partBytes, nullptr)) return out;
-    const QHash<QString, QString> types = pkg.hasPart(QStringLiteral("/META-INF/manifest.xml")) ? odfManifestTypes(pkg.part(QStringLiteral("/META-INF/manifest.xml"))) : QHash<QString, QString>();
-    out.push_back({dir + QLatin1Char('/'), QByteArray(), types.value(QStringLiteral("/")), false});
-    for (auto it = types.cbegin(); it != types.cend(); ++it)
-        if (it.key().endsWith(QLatin1Char('/')) && it.key() != QLatin1String("/") && odfPathIsSafe(it.key()) && out.size() < kMostFolderEntries) out.push_back({dir + QLatin1Char('/') + it.key(), QByteArray(), it.value(), false});
+    if (!pkg.readLazyOpenDocument(object.partBytes, nullptr, limits().objectBytes + (qint64(1) << 20))) return fail(OdfPartsFailure::TooLarge);
+    struct Count {
+        const Package &p;
+        ~Count() { odfObjectTestHooks().partsInflated += p.inflatedBytes(); }
+    } count{pkg};
+    const QString manifestPart = QStringLiteral("/META-INF/manifest.xml");
+    const QHash<QString, QString> types = pkg.hasPart(manifestPart) && pkg.partSize(manifestPart) <= (qint64(1) << 20) ? odfManifestTypes(pkg.part(manifestPart)) : QHash<QString, QString>();
+    QString rootType = !object.mediaType.isEmpty() ? object.mediaType : types.value(QStringLiteral("/"));
+    if (rootType.isEmpty()) {
+        const QString mimePart = QStringLiteral("/mimetype");
+        const QByteArray mime = pkg.hasPart(mimePart) && pkg.partSize(mimePart) <= 256 ? pkg.part(mimePart).trimmed() : QByteArray();
+        rootType = mime.isEmpty() || mime.contains('<') ? QStringLiteral("application/octet-stream") : QString::fromLatin1(mime);
+    }
+    out.push_back({dir + QLatin1Char('/'), QByteArray(), rootType, false});
+    for (const QString &key : sortedKeys(types))
+        if (key.endsWith(QLatin1Char('/')) && key != QLatin1String("/") && odfPathIsSafe(key) && out.size() < kMostFolderEntries)
+            out.push_back({dir + QLatin1Char('/') + key, QByteArray(), types.value(key).isEmpty() ? QStringLiteral("application/octet-stream") : types.value(key), false});
     qint64 total = 0;
     int files = 0;
     QStringList names = pkg.partNames();
@@ -249,11 +309,13 @@ QVector<OdfOutPart> odfPartsOf(const EmbeddedObject &object, const QString &dir)
     for (const QString &n : names) {
         const QString rel = cleanName(n);
         if (rel == QLatin1String("mimetype") || rel == QLatin1String("META-INF/manifest.xml")) continue;
-        if (!odfPathIsSafe(rel) || rel.endsWith(QLatin1Char('/')) || ++files > kMostFolderEntries) return QVector<OdfOutPart>();
+        if (!odfPathIsSafe(rel) || rel.endsWith(QLatin1Char('/'))) return fail(OdfPartsFailure::UnsafeName);
+        if (++files > kMostFolderEntries) return fail(OdfPartsFailure::TooLarge);
         const qint64 size = pkg.partSize(n);
         total += size;
-        if (size < 0 || total > limits().objectBytes) return QVector<OdfOutPart>();
-        const QString type = types.contains(rel) ? types.value(rel) : rel.endsWith(QLatin1String(".xml")) ? QStringLiteral("text/xml") : QStringLiteral("application/octet-stream");
+        if (size < 0 || total > limits().objectBytes) return fail(OdfPartsFailure::TooLarge);
+        const QString type = !types.value(rel).isEmpty() ? types.value(rel) : rel.endsWith(QLatin1String(".xml")) ? QStringLiteral("text/xml") : QStringLiteral("application/octet-stream");
+        ++odfObjectTestHooks().inflatedParts;
         out.push_back({dir + QLatin1Char('/') + rel, pkg.part(n), type, rel.endsWith(QLatin1String(".xml"))});
     }
     return out;

@@ -22,13 +22,12 @@ namespace jp::office::ole {
 // The most files one object's sub-document may hold (its bytes are held to Limits::objectBytes).
 constexpr int kMostFolderEntries = 512;
 
-// The program IDs an object of this form has when it comes from a file of this form: a sub-document, and a binary part with its media type after a slash (an object of ours has its own ID).
-JO_COMMON_EXPORT QString odfFolderProgId();
-JO_COMMON_EXPORT QString odfBinaryProgId(const QString &mediaType);
-
-// What tests count: the objects whose parts were inflated.
+// What tests count: the objects whose parts were inflated, and the bytes inflated to write an object's parts.
 struct OdfObjectTestHooks {
     std::atomic<qint64> objectReads{0};
+    std::atomic<qint64> partsInflated{0};
+    std::atomic<qint64> inflatedParts{0};   // the parts of the package inflated for objects (a part inflated twice counts twice)
+    std::atomic<qint64> encodes{0};   // the base64 texts a reader of the presentation form made for objects
 };
 JO_COMMON_EXPORT OdfObjectTestHooks &odfObjectTestHooks();
 
@@ -66,12 +65,18 @@ private:
         bool over = false;
         QString mediaType;
     };
+    struct Blob {
+        QString progId;
+        OdfForm form = OdfForm::None;
+        QString mediaType;
+        QByteArray bytes;
+    };
     const Plan &planOf(const QString &path, bool binary);
     OdfSource m_source;
     QStringList m_names;
     bool m_named = false;
     QHash<QString, Plan> m_plans;
-    QHash<QString, QPair<QString, QByteArray>> m_blobs;   // the program ID and bytes of each object read
+    QHash<QString, Blob> m_blobs;   // each object read: its program ID (an object of ours), or how the file held it, and its bytes
     int m_past = 0;
 };
 
@@ -83,7 +88,10 @@ struct OdfOutPart {
     QString mediaType;
     bool compress = false;
 };
-JO_COMMON_EXPORT QVector<OdfOutPart> odfPartsOf(const EmbeddedObject &object, const QString &dir);
+// Why an object gave no parts (the caller says so in its notes, with odfPartsFailureNote).
+enum class OdfPartsFailure { None, TooLarge, UnsafeName };
+JO_COMMON_EXPORT QVector<OdfOutPart> odfPartsOf(const EmbeddedObject &object, const QString &dir, OdfPartsFailure *why = nullptr);
+JO_COMMON_EXPORT QString odfPartsFailureNote(OdfPartsFailure why);
 
 // Whether a path is one an object's file may have inside its folder: no empty, "." or ".." part, no backslash, colon, or control character, not absolute.
 JO_COMMON_EXPORT bool odfPathIsSafe(const QString &path);

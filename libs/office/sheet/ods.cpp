@@ -772,7 +772,7 @@ struct OdsBook::Impl {
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
     mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
     mutable QVector<qint64> mergesLeftOut;     // by sheet: the merged ranges past the most a sheet keeps, when the sheet has been read whole (else 0)
-    mutable QVector<qint64> drawnObjects, drawnBytes, drawnCharts, drawnFormulas, drawnFormulaBytes, drawnOle, drawnOleBytes;   // by sheet: the drawing objects and the picture bytes it holds, when it has been read whole (a sheet read again is counted once)
+    mutable QVector<qint64> drawnObjects, drawnBytes, drawnCharts, drawnFormulas, drawnFormulaBytes, drawnOle, drawnOleBytes, drawnOleBinary;   // by sheet: the drawing objects and the picture bytes it holds, when it has been read whole (a sheet read again is counted once)
     std::shared_ptr<Package> package;          // (the pictures of the sheets' drawings are in it)
     QHash<QString, QString> manifestTypes;     // the media types the package's manifest gives its parts (the other embedded objects are told apart by them)
     bool chartDocuments = false;               // the package has documents of embedded objects (the charts)
@@ -1003,6 +1003,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         m.drawnFormulaBytes.append(0);
         m.drawnOle.append(0);
         m.drawnOleBytes.append(0);
+        m.drawnOleBinary.append(0);
         SheetShape shape;
         shape.name = original;   // (the settings of the sheet are kept by the name the document gave)
         shape.isProtected = t.isProtected;
@@ -1040,9 +1041,11 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     // what is not read
     // (a chart is read when the file holds its document; a chart object with none, and an object of another kind, is said not to be)
     // (an object of another kind that is kept is not left out: the objects kept are counted by the sheets that read them)
-    qint64 keptObjects = 0;
+    qint64 keptObjects = 0, keptBinary = 0;
     for (const qint64 n : std::as_const(m.drawnOle)) keptObjects += n;
-    if ((m.found.charts && !m.chartDocuments && keptObjects == 0) || (m.found.oleObjects && keptObjects < m.found.oleObjectCount)) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
+    for (const qint64 n : std::as_const(m.drawnOleBinary)) keptBinary += n;
+    // (the binary objects kept are counted against the draw:object-ole elements the document has: like for like)
+    if ((m.found.charts && !m.chartDocuments && keptObjects == 0) || (m.found.oleObjects && keptBinary < m.found.oleObjectCount)) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
     if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "form controls, freehand shapes, and callouts");
     if (m.found.pivots) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pivot tables");
     if (m.found.comments) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "comments");
@@ -1802,10 +1805,11 @@ private:
                     budget.formulaBytes += m_m.drawnFormulaBytes[i];
                     budget.oleObjects += m_m.drawnOle[i];
                     budget.oleBytes += m_m.drawnOleBytes[i];
+                    budget.oleBinary += m_m.drawnOleBinary[i];
                 }
         }
         const qint64 objectsBefore = budget.objects.load(), bytesBefore = budget.pictureBytes.load(), chartsBefore = budget.charts.load(), formulasBefore = budget.formulas.load(), formulaBytesBefore = budget.formulaBytes.load(),
-                     oleBefore = budget.oleObjects.load(), oleBytesBefore = budget.oleBytes.load();
+                     oleBefore = budget.oleObjects.load(), oleBytesBefore = budget.oleBytes.load(), oleBinaryBefore = budget.oleBinary.load();
         const odsdraw::StyleLookup styles = [this](const QString &family, const QString &name) { return m_m.found.store.resolve(family, name); };
         const std::function<QByteArray(const QString &)> parts = [this](const QString &name) {
             if (!m_m.package) return QByteArray();
@@ -1848,6 +1852,7 @@ private:
                 return m_m.package->partSize(QLatin1Char('/') + name);
             };
             source.bytes = [this](const QString &name) {
+                ++ole::odfObjectTestHooks().inflatedParts;
                 QMutexLocker locker(&m_m.lock);
                 return m_m.package->part(QLatin1Char('/') + name);
             };
@@ -1870,6 +1875,7 @@ private:
                 m_m.drawnFormulaBytes[m_index] = budget.formulaBytes.load() - formulaBytesBefore;
                 m_m.drawnOle[m_index] = budget.oleObjects.load() - oleBefore;
                 m_m.drawnOleBytes[m_index] = budget.oleBytes.load() - oleBytesBefore;
+                m_m.drawnOleBinary[m_index] = budget.oleBinary.load() - oleBinaryBefore;
             }
         }
         m_s.importedDrawing.notRead.removeDuplicates();

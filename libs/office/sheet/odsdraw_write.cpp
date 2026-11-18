@@ -419,9 +419,13 @@ private:
         if (marks.isEmpty()) return;
         const QDomElement mark = marks.at(0).toElement();
         const QString id = mark.attributeNS(QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships"), QStringLiteral("id")), progId = mark.attribute(QStringLiteral("progId"));
+        const ole::OdfForm form = ole::odfFormOfName(mark.attribute(QStringLiteral("odf")));
+        const QString mediaType = mark.attribute(QStringLiteral("mediaType"));
         const qsizetype at = frame->indexOf(QLatin1String("<draw:image"));
         const Relationship rel = m_package.relationship(m_drawingPart, id);
         if (id.isEmpty() || at < 0 || rel.id.isEmpty() || rel.external || !m_package.hasPart(rel.target)) return;
+        // (only a relationship to an embedded package or binary, to a part kept in the folder of embeddings, is one: the name an extension gives is not trusted)
+        if (!(rel.type.endsWith(QLatin1String("/oleObject")) || rel.type.endsWith(QLatin1String("/package"))) || !rel.target.startsWith(QLatin1String("/xl/embeddings/"), Qt::CaseInsensitive)) return;
         auto done = m_objectDone.find(rel.target);
         if (done == m_objectDone.end()) {
             // (the count and the bytes are looked at before the package is inflated, and a package many pictures name is written once)
@@ -431,10 +435,15 @@ private:
                 if (size > 0) note(QCoreApplication::translate("Sheet", "embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)").arg(ole::limits().objects));
             } else {
                 ++ole::odfObjectTestHooks().objectReads;
-                const std::optional<ole::EmbeddedObject> kept = ole::keepObject(progId, m_package.part(rel.target), QByteArray(), 0, 0, *m_objectBudget, rel.target);
+                ++ole::odfObjectTestHooks().inflatedParts;
+                std::optional<ole::EmbeddedObject> kept = ole::keepObject(progId, m_package.part(rel.target), QByteArray(), 0, 0, *m_objectBudget, rel.target);
                 if (kept) {
+                    kept->odfForm = form;
+                    kept->mediaType = form == ole::OdfForm::None ? QString() : mediaType;
                     const QString dir = QStringLiteral("Object %1").arg(++*m_chartNumber);
-                    const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, dir);
+                    ole::OdfPartsFailure why = ole::OdfPartsFailure::None;
+                    const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(*kept, dir, &why);
+                    if (why != ole::OdfPartsFailure::None) note(ole::odfPartsFailureNote(why));
                     if (!parts.isEmpty()) {
                         m_out->parts += parts;
                         result = {dir, parts.first().path.endsWith(QLatin1Char('/'))};

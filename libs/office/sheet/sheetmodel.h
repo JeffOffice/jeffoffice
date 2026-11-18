@@ -1468,9 +1468,12 @@ struct ImportedRel {
     int chart = -1;        // the place of the chart part among `charts`, for a relationship to a chart
     int object = -1;       // the place of the package among `objects`, for a relationship to an embedded object
 };
-// An embedded object of another kind (office/ole/odfobject.h): its program ID and its package, as the object core keeps them.
+// An embedded object of another kind (office/ole/odfobject.h), as the object core keeps it: the program ID of an object of ours (empty for any other), how the OpenDocument file held one that is
+// not ("folder" or "binary", empty for none) with the media type it had there, and its package.
 struct ImportedObject {
     QString progId;
+    QString odf;
+    QString mediaType;
     QByteArray bytes;
 };
 struct ImportedDrawing {

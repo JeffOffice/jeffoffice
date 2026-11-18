@@ -6,6 +6,8 @@
 #include "sheet/proofingext.h"
 #include "sheet/drawingadd.h"
 #include "sheet/foreignbook.h"
+#include "sheet/odsdraw.h"
+#include "ole/embedobj.h"
 
 #include "io/zip.h"
 #include "sheet/xmlscan.h"
@@ -799,7 +801,58 @@ std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
     return package;
 }
 
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel)
+namespace {
+
+// What an OpenDocument file's embedded object becomes in this kind of file: an object of ours (its package is one of ours) is kept as an embedded package; any other is left as the picture it
+// has (the object, its relationship, and the extension that names it are taken out). True if one was taken out.
+bool dropForeignObjects(ImportedDrawing *d)
+{
+    QVector<int> place(d->objects.size(), -1);
+    QVector<ImportedObject> keep;
+    bool dropped = false;
+    for (int i = 0; i < d->objects.size(); ++i) {
+        const ImportedObject &o = d->objects[i];
+        if (o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other) {
+            place[i] = int(keep.size());
+            keep.push_back(o);
+        } else dropped = true;
+    }
+    if (!dropped) return false;
+    QSet<QByteArray> gone;
+    for (int i = 0; i < d->objects.size(); ++i)
+        if (place[i] < 0) gone.insert("r:id=\"rIdO" + QByteArray::number(i + 1) + "\"");
+    const QByteArray start = "<a:extLst><a:ext uri=\"" + QByteArray(odsdraw::kObjectUri) + "\">", finish = "</a:ext></a:extLst>";
+    for (QByteArray &a : d->anchors) {
+        const qsizetype at = a.indexOf(start);
+        if (at < 0) continue;
+        const qsizetype end = a.indexOf(finish, at);
+        if (end < 0) continue;
+        const QByteArray mark = a.mid(at, end - at);
+        for (const QByteArray &g : std::as_const(gone))
+            if (mark.contains(g)) {
+                a.remove(at, end + finish.size() - at);
+                break;
+            }
+    }
+    QVector<ImportedRel> rels;
+    for (ImportedRel r : std::as_const(d->rels)) {
+        if (r.object >= 0) {
+            if (place[r.object] < 0) continue;
+            r.object = place[r.object];
+        }
+        rels.push_back(r);
+    }
+    d->rels = rels;
+    d->objects = keep;
+    return true;
+}
+
+} // namespace
+
+// An object of ours is written as an embedded package of its kind; any other (kept only for a file that goes on to be an OpenDocument one) as a binary part.
+static bool isOurObject(const ImportedObject &o) { return o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other; }
+
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -832,9 +885,10 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     }
     // The drawing objects of a workbook read from an OpenDocument spreadsheet: a sheet that may have some is read to find them (and what they come to is kept, so that what is written is what was
     // counted), and the pictures are named by the extension they will have.
+    const QString foreignNote = QCoreApplication::translate("jp::office::sheet::Save", "embedded objects made in another kind of file (kept as pictures)");
     std::vector<ImportedDrawing> importedOf(size_t(info.sheets.size()));
     std::vector<int> firstImportedChart(size_t(info.sheets.size()), 0);   // the number of the first chart part of a sheet's imported drawing
-    bool anyObjects = false;                                              // some sheet's imported drawing holds an embedded object of another kind
+    QSet<QString> objectExtensions;                                       // the extensions of the packages written for the embedded objects of ours
     int objectFiles = 0;                                                  // the packages written for them
     std::vector<std::unique_ptr<Sheet>> readFirst(size_t(info.sheets.size()));   // (a sheet read to find its objects is kept to be written: it is read once)
     QSet<QString> mediaExtensions;
@@ -845,11 +899,12 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             Sheet look;
             if (!book.readSheet(i, &look) || look.importedDrawing.isEmpty()) continue;
             importedOf[size_t(i)] = std::move(look.importedDrawing);
+            if (!keepOdfObjects && dropForeignObjects(&importedOf[size_t(i)]) && notes && !notes->contains(foreignNote)) notes->append(foreignNote);
             readFirst[size_t(i)] = std::make_unique<Sheet>(std::move(look));
             drawingOf[size_t(i)] = ++drawings;
             for (const ImportedMedia &m : std::as_const(importedOf[size_t(i)].media)) mediaExtensions.insert(m.name.mid(m.name.lastIndexOf(QLatin1Char('.')) + 1).toLower());
             firstImportedChart[size_t(i)] = charts + 1;
-            anyObjects = anyObjects || !importedOf[size_t(i)].objects.isEmpty();
+            for (const ImportedObject &o : std::as_const(importedOf[size_t(i)].objects)) objectExtensions.insert(isOurObject(o) ? ole::extensionOf(ole::kindOfProgId(o.progId)) : QStringLiteral("bin"));
             charts += int(importedOf[size_t(i)].charts.size());
         }
     }
@@ -866,7 +921,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         for (int d = 1; d <= drawings; ++d) types += "<Override PartName=\"/xl/drawings/drawing" + num(d) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawing+xml\"/>";
         for (const QString &e : std::as_const(mediaExtensions))
             if (const char *type = odt::contentTypeOf(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + type + "\"/>";
-        if (anyObjects) types += "<Default Extension=\"bin\" ContentType=\"application/vnd.openxmlformats-officedocument.oleObject\"/>";
+        for (const QString &e : std::as_const(objectExtensions)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + (e == QLatin1String("xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : e == QLatin1String("bin") ? "application/vnd.openxmlformats-officedocument.oleObject" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") + "\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);
@@ -944,7 +999,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             QVector<int> fileOfObject(sheet.importedDrawing.objects.size(), 0);
             for (int o = 0; o < sheet.importedDrawing.objects.size(); ++o) {
                 fileOfObject[o] = ++objectFiles;
-                zip.add(QStringLiteral("xl/embeddings/oleObject%1.bin").arg(objectFiles), sheet.importedDrawing.objects[o].bytes, false);
+                const ImportedObject &made = sheet.importedDrawing.objects[o];
+                zip.add(isOurObject(made) ? QStringLiteral("xl/embeddings/object%1.%2").arg(objectFiles).arg(ole::extensionOf(ole::kindOfProgId(made.progId))) : QStringLiteral("xl/embeddings/oleObject%1.bin").arg(objectFiles), made.bytes, false);
             }
             for (int c = 0; c < sheet.importedDrawing.charts.size(); ++c) {
                 const int number = firstImportedChart[size_t(i)] + c;
@@ -952,7 +1008,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             }
             for (const ImportedRel &rel : std::as_const(sheet.importedDrawing.rels)) {
                 if (rel.object >= 0 && rel.object < sheet.importedDrawing.objects.size()) {
-                    drawingRels += "<Relationship Id=\"" + rel.id.toUtf8() + "\" Type=\"" + kRelNs + "/oleObject\" Target=\"../embeddings/oleObject" + num(fileOfObject[rel.object]) + ".bin\"/>";
+                    drawingRels += "<Relationship Id=\"" + rel.id.toUtf8() + "\" Type=\"" + kRelNs + (isOurObject(sheet.importedDrawing.objects[rel.object]) ? "/package\" Target=\"../embeddings/object" + num(fileOfObject[rel.object]) + "." + ole::extensionOf(ole::kindOfProgId(sheet.importedDrawing.objects[rel.object].progId)).toLatin1()
+                                                                                                   : "/oleObject\" Target=\"../embeddings/oleObject" + num(fileOfObject[rel.object]) + ".bin") + "\"/>";
                     continue;
                 }
                 if (rel.chart >= 0 && rel.chart < sheet.importedDrawing.charts.size()) {

@@ -27,6 +27,11 @@ QByteArray toDocxPackage(const QByteArray &file, QString *error = nullptr, QStri
 // The .odt package that a .docx package is; empty, with the reason, if it can't be made. `notes` get what the format has no place for.
 QByteArray fromDocxPackage(const QByteArray &docx, QString *error = nullptr, QStringList *notes = nullptr);
 
+// The .docx package for a file of the .docx kind: the embedded objects an OpenDocument file held that are not of ours are written as their pictures alone (no object, no part for it, no
+// relationship); every other object is as it was. The package given is returned as it is when it has none. Not for a file saved back as an OpenDocument text, which keeps them.
+// `notes` get what was written as a picture.
+QByteArray docxWithoutOdfObjects(const QByteArray &docx, QStringList *notes = nullptr);
+
 // The most parts of one kind (lists, tables' styles, pictures, notes) a document makes, so a file cannot multiply them.
 constexpr int kMaxMadeParts = 20000;
 // The deepest nesting of tables and lists, and of styles' parents.

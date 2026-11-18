@@ -6,6 +6,7 @@
 #include "core/version.h"
 #include "core/notesmaster.h"
 #include "ole/odfobject.h"
+#include <QJsonObject>
 #include "office/mathobject.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
@@ -2968,11 +2969,11 @@ private Q_SLOTS:
         types.insert(QStringLiteral("Object 1/"), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
         parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), aPng());
         for (int i = 0; i < 1000; ++i) frames += objectFrame(QStringLiteral("Object 1"), false, i);
-        const qint64 before = office::ole::odfObjectTestHooks().objectReads.load();
+        const qint64 before = office::ole::odfObjectTestHooks().inflatedParts.load();
         QString err;
         auto d = deck::importOdp(objectDeck(frames, parts, types), &err);
         QVERIFY2(d, qPrintable(err));
-        QCOMPARE(office::ole::odfObjectTestHooks().objectReads.load() - before, qint64(1));
+        QCOMPARE(office::ole::odfObjectTestHooks().inflatedParts.load() - before, qint64(1));   // (counted where the part is really inflated)
         QCOMPARE(objectEntriesOf(*d), 1000);
         // (written back, the package is one folder)
         const QByteArray out = deck::exportOdp(*d, false, &err);
@@ -3002,6 +3003,46 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(out, got));
         for (const QString &n : got.keys())
             QVERIFY2(!n.contains(QLatin1String("..")) && !n.contains(QLatin1Char('\\')) && !n.startsWith(QLatin1Char('/')) && !n.contains(QLatin1String("evil")), qPrintable(n));
+    }
+
+    // The text of an object's bytes is made once however many frames name it (and the page's list is added to in place): 2000 frames, one text.
+    void anObjectTwoThousandFramesNameIsEncodedOnce()
+    {
+        QString frames;
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        parts.insert(QStringLiteral("Object 1"), blobOf(9, 5000));
+        types.insert(QStringLiteral("Object 1"), QStringLiteral("application/vnd.sun.star.oleobject"));
+        parts.insert(QStringLiteral("ObjectReplacements/Object 1.png"), aPng());
+        for (int i = 0; i < 2000; ++i) frames += objectFrame(QStringLiteral("Object 1"), true, i);
+        const qint64 before = office::ole::odfObjectTestHooks().encodes.load(), partsBefore = office::ole::odfObjectTestHooks().inflatedParts.load();
+        QString err;
+        auto d = deck::importOdp(objectDeck(frames, parts, types), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(objectEntriesOf(*d), 2000);
+        QCOMPARE(office::ole::odfObjectTestHooks().encodes.load() - before, qint64(1));
+        QCOMPARE(office::ole::odfObjectTestHooks().inflatedParts.load() - partsBefore, qint64(1));
+    }
+
+    // An object of a file that is not one of ours has no program ID in the deck: the form and the media type are fields of its entry.
+    void anOdfObjectOfASlideHasItsFormNotAProgramId()
+    {
+        QMap<QString, QByteArray> parts;
+        QMap<QString, QString> types;
+        twoObjectParts(&parts, &types);
+        QString err;
+        auto d = deck::importOdp(objectDeck(objectFrame(QStringLiteral("Object 1"), true, 0) + objectFrame(QStringLiteral("Object 2"), false, 1), parts, types), &err);
+        QVERIFY2(d, qPrintable(err));
+        QMap<QString, QJsonObject> byPart;
+        for (const QJsonValue &v : d->pages[0]->props.value(QStringLiteral("charts")).toArray())
+            if (v.toObject().value(QStringLiteral("kind")).toString() == QLatin1String("object")) byPart.insert(v.toObject().value(QStringLiteral("part")).toString(), v.toObject());
+        QCOMPARE(byPart.size(), 2);
+        const QJsonObject binary = byPart.value(QStringLiteral("Object 1")), folder = byPart.value(QStringLiteral("Object 2"));
+        QCOMPARE(binary.value(QStringLiteral("odf")).toString(), QStringLiteral("binary"));
+        QCOMPARE(binary.value(QStringLiteral("mediaType")).toString(), QStringLiteral("application/vnd.sun.star.oleobject"));
+        QCOMPARE(folder.value(QStringLiteral("odf")).toString(), QStringLiteral("folder"));
+        QCOMPARE(folder.value(QStringLiteral("mediaType")).toString(), QStringLiteral("application/vnd.oasis.opendocument.graphics"));
+        QVERIFY(binary.value(QStringLiteral("progId")).toString().isEmpty() && folder.value(QStringLiteral("progId")).toString().isEmpty());
     }
 
     // A deck with no objects saves no part of an object.

@@ -262,6 +262,9 @@ struct SaveChanges {
     // The kind the file is saved as when it is not the kind it was read as ("xlsx", "xlsm", "xltx", "xltm", or "xlam"; empty: the same kind). The main part's type follows it; going to a kind
     // that holds no macros leaves the macro project, its signature, and what names them out.
     QString targetKind;
+    // For a workbook read from an OpenDocument file: the embedded objects of other kinds it holds are kept whole when the file written goes on to be an OpenDocument one; else (the default) they are
+    // written as their pictures alone.
+    bool keepOdfObjects = false;
     std::vector<CellPermute> permutes;
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
     // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.
@@ -439,6 +442,7 @@ struct SaveReport {
     qint64 cellsChanged = 0, resultsChanged = 0;
     bool calcChainDropped = false;
     QStringList changedParts;            // the names, as the file has them
+    QStringList notes;                   // what the file written could not keep, in words (an embedded object of another kind of file, written as its picture)
     std::map<int, QString> backgroundRels;   // by the sheet's place: the relationship its background picture is named by now (empty: it has none), for the sheets whose picture was written
     std::map<int, QString> headerDrawings;   // by the sheet's place: the relationship its header and footer pictures are named by now (empty: it has none), for the sheets whose pictures were written
 };

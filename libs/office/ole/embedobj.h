@@ -33,6 +33,11 @@ constexpr qint64 kMaxEmu = 1000000000000LL;   // a size above this is not a size
 
 enum class Kind { Sheet, Page, Other };
 
+// Where an object that is not one of ours came from, when it came from an OpenDocument file: a sub-document (a folder of the file, kept as a package of its own) or a binary part (kept byte for byte).
+enum class OdfForm { None, Folder, Binary };
+QString odfFormName(OdfForm form);               // "folder" or "binary", empty for None
+OdfForm odfFormOfName(const QString &name);      // None for any other name
+
 struct EmbeddedObject {
     QString progId;
     QByteArray partBytes;
@@ -41,6 +46,8 @@ struct EmbeddedObject {
     qint64 heightEmu = 0;
     bool isOurs = false;   // made by one of our apps and a safe package: one we can open for editing
     QString origin;        // where a reader found it (the part's name), kept so a writer can put it back
+    OdfForm odfForm = OdfForm::None;   // an object an OpenDocument file held that is not one of ours (it has no program ID): how it was held,
+    QString mediaType;                 // and the media type the file's manifest gave it
 
     Kind kind() const { return isOurs ? kindOfProgIdImpl(progId) : Kind::Other; }
 private:

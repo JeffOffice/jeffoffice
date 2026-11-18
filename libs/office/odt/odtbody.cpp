@@ -609,11 +609,15 @@ QByteArray Reader::objectRun(const Odf &o, int frame, qint64 cx, qint64 cy, int 
     const double w = double(cx) / 12700.0, h = double(cy) / 12700.0;
     const int id = nextDocPrId();
     QByteArray xml = "<w:object xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
-                     "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" w:dxaOrig=\"" + num(qint64(std::llround(w * 20))) + "\" w:dyaOrig=\"" +
+                     "xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" w:dxaOrig=\"" + num(qint64(std::llround(w * 20))) + "\" w:dyaOrig=\"" +
                      num(qint64(std::llround(h * 20))) + "\"><v:shape id=\"_x0000_i" + num(1024 + id) + "\" type=\"#_x0000_t75\" style=\"width:" + QByteArray::number(w, 'f', 2) + "pt;height:" +
                      QByteArray::number(h, 'f', 2) + "pt\" stroked=\"f\" o:ole=\"\">";
     if (!pictureRid.isEmpty()) xml += "<v:imagedata r:id=\"" + esc(pictureRid) + "\" o:title=\"\"/>";
-    xml += "</v:shape><o:OLEObject Type=\"Embed\" ProgID=\"" + esc(kept.progId) + "\" ShapeID=\"_x0000_i" + num(1024 + id) + "\" DrawAspect=\"Content\" ObjectID=\"_" + num(1000000000 + id) +
+    // (an object of ours has its program ID; any other is marked with the form the file held it in and its media type, which a program ID is not for)
+    xml += "</v:shape><o:OLEObject Type=\"Embed\"";
+    if (!kept.progId.isEmpty()) xml += " ProgID=\"" + esc(kept.progId) + "\"";
+    if (kept.odfForm != ole::OdfForm::None) xml += " jo:odf=\"" + esc(ole::odfFormName(kept.odfForm)) + "\" jo:mediaType=\"" + esc(kept.mediaType) + "\"";
+    xml += " ShapeID=\"_x0000_i" + num(1024 + id) + "\" DrawAspect=\"Content\" ObjectID=\"_" + num(1000000000 + id) +
            "\" r:id=\"" + esc(rid) + "\"/></w:object>";
     return xml;
 }
