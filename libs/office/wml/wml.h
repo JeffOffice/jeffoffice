@@ -879,7 +879,8 @@ QByteArray keptElementDeclarations();
 // Embedded objects (a run's w:object: a VML shape holding the picture and an o:OLEObject naming the package). objectXml writes the element for an object of ours (the Ids are the
 // relationships' of the package and of the picture; the size in points). readObject reads one back through `related`, which gives the bytes a relationship Id names (empty for a
 // link that is missing, goes outside the package, or is not internal): nothing if the element names no program, no package, or the object is over a cap or the budget's.
-QByteArray objectXml(const QString &progId, const QString &objectId, const QString &pictureId, int shapeNumber, double widthPt, double heightPt);
+// `withShapeType` puts the definition of the picture shape (_x0000_t75) in the element, for a document that has none.
+QByteArray objectXml(const QString &progId, const QString &objectId, const QString &pictureId, int shapeNumber, double widthPt, double heightPt, bool withShapeType);
 struct ObjectRefs {
     QString progId, objectId, pictureId;
     double widthPt = 0, heightPt = 0;

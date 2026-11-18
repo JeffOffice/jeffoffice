@@ -41,6 +41,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
+#include <QPointer>
 #include <QImageReader>
 #include <QPainter>
 #include <QRegularExpression>
@@ -4727,25 +4728,100 @@ QString objectContentType(office::ole::Kind kind)
 
 bool isObjectRelationship(const office::Relationship &r) { return !r.external && (r.type.endsWith(QLatin1String("/package")) || r.type.endsWith(QLatin1String("/oleObject"))); }
 
-// What the document's objects come to (their packages and their pictures, each counted once), taken in as a budget; the object named by `leave` (a relationship Id) is not counted: the one a
-// new package takes the place of. False if they are over it already.
-bool objectBudgetOf(const WriteDoc &doc, const QString &leave, office::ole::ObjectBudget *budget)
+// What the body holds of objects, found by walking its atoms: kept between inserts (the walk is done again only when the text has changed since), and added to by the insert that made the change.
+struct ObjectUse {
+    QString objectId, pictureId;   // the relationships of the package and of the picture (empty for an atom that can't be read)
+    qint64 atomBytes = 0;          // for an atom that can't be read (too large): what it is, counted as the picture of an object
+};
+struct BodyObjects {
+    QPointer<QTextDocument> story;
+    int revision = -1;
+    QVector<ObjectUse> uses;
+    bool hasShapeType = false;     // the body defines the picture shape its objects name
+    qint64 highestShape = 1023;    // the highest _x0000_i number a shape of the body has
+};
+BodyObjects &bodyObjectsCache()
 {
-    QSet<QString> seen;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+    static BodyObjects cache;
+    return cache;
+}
+
+void noteShapeIds(const QByteArray &bytes, qint64 *highest)
+{
+    static const QByteArray mark("_x0000_i");
+    for (qsizetype at = bytes.indexOf(mark); at >= 0; at = bytes.indexOf(mark, at + mark.size())) {
+        qint64 n = 0;
+        for (qsizetype i = at + mark.size(); i < bytes.size() && i < at + mark.size() + 12 && bytes[i] >= '0' && bytes[i] <= '9'; ++i) n = n * 10 + (bytes[i] - '0');
+        *highest = std::max(*highest, n);
+    }
+}
+
+const BodyObjects &bodyObjectsOf(const WriteDoc &doc)
+{
+    BodyObjects &cache = bodyObjectsCache();
+    const QTextDocument *story = doc.story();
+    if (cache.story == story && cache.revision == story->revision()) return cache;
+    cache = BodyObjects();
+    cache.story = doc.story();
+    cache.revision = story->revision();
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextCharFormat cf = it.fragment().charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
             const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (bytes.contains("_x0000_t75") && bytes.contains("shapetype")) cache.hasShapeType = true;
+            noteShapeIds(bytes, &cache.highestShape);
             if (!bytes.contains("OLEObject")) continue;
-            const std::optional<ObjectRefs> refs = objectRefsOf(unpackAtom(bytes).raw);
-            if (!refs || refs->objectId == leave) continue;
-            const qint64 part = seen.contains(refs->objectId) ? 0 : doc.relatedPartData(refs->objectId).size();
-            const qint64 picture = refs->pictureId.isEmpty() || seen.contains(refs->pictureId) ? 0 : doc.relatedPartData(refs->pictureId).size();
-            seen.insert(refs->objectId);
-            seen.insert(refs->pictureId);
-            if (!budget->admit(part, picture)) return false;
+            const QByteArray raw = unpackAtom(bytes).raw;
+            const std::optional<ObjectRefs> refs = objectRefsOf(raw);
+            // (An atom too large to read is still an object: it counts by its size.)
+            if (!refs) cache.uses.push_back(ObjectUse{QString(), QString(), std::max<qint64>(raw.size(), 1)});
+            else cache.uses.push_back(ObjectUse{refs->objectId, refs->pictureId, 0});
         }
+    return cache;
+}
+
+// The target of a relationship of the main part, lower-cased, or nothing.
+QString objectTargetOf(const WriteDoc &doc, const QString &id)
+{
+    for (const office::Relationship &r : doc.mainRelationships())
+        if (r.id == id && !r.external) return r.target.toLower();
+    return QString();
+}
+
+// What the document's objects come to, taken in as a budget: the packages of every part that names one (the body, headers, footers, notes, text boxes, and the parts kept as they were), each
+// counted once, and the pictures of the body's objects; an atom too large to read counts by its size. The object named by `leave` (a relationship Id of the main part) is not counted: the
+// one a new package takes the place of. False if they are over the caps already.
+bool objectBudgetOf(const WriteDoc &doc, const QString &leave, office::ole::ObjectBudget *budget)
+{
+    QSet<QString> seen, pictures;
+    for (const ObjectUse &use : bodyObjectsOf(doc).uses) {
+        if (use.objectId.isEmpty()) {
+            if (!budget->admit(0, use.atomBytes)) return false;
+            continue;
+        }
+        if (use.objectId == leave) continue;
+        const QString target = objectTargetOf(doc, use.objectId);
+        const bool again = !target.isEmpty() && seen.contains(target);
+        const qint64 part = again ? 0 : doc.relatedPartData(use.objectId).size();
+        const qint64 picture = use.pictureId.isEmpty() || pictures.contains(use.pictureId) ? 0 : doc.relatedPartData(use.pictureId).size();
+        if (!target.isEmpty()) seen.insert(target);
+        pictures.insert(use.pictureId);
+        if (!budget->admit(part, picture)) return false;
+    }
+    // The packages that other parts name, and those of the main part that no object of the body names (a header's, a text box's, a kept part's).
+    QStringList owners = doc.partsWithRelationships();
+    owners.prepend(QString());
+    for (const QString &owner : std::as_const(owners)) {
+        const QVector<office::Relationship> rels = owner.isEmpty() ? doc.mainRelationships() : doc.relationshipsOfPart(owner);
+        for (const office::Relationship &r : rels) {
+            if (!isObjectRelationship(r) || (owner.isEmpty() && r.id == leave)) continue;
+            const QString target = r.target.toLower();
+            if (seen.contains(target)) continue;
+            seen.insert(target);
+            if (!budget->admit(doc.partData(r.target).size())) return false;
+        }
+    }
     return true;
 }
 
@@ -4794,12 +4870,26 @@ PictureResult insertObject(WriteDoc &doc, QTextCursor &c, const office::ole::Emb
     Inline atom;
     atom.kind = Inline::RunAtom;
     atom.tag = QStringLiteral("object");
-    atom.raw = objectXml(object.progId, objectId, pictureId, doc.nextDrawingId(doc.story()), made.width(), made.height());
+    // (The shape's number is past every one the body has, and the shape's definition is put in the first object of a body that has none.)
+    const BodyObjects &body = bodyObjectsOf(doc);
+    const int shapeNumber = int(std::max<qint64>(doc.nextDrawingId(doc.story()), body.highestShape - 1023));
+    const bool shapeType = !body.hasShapeType;
+    const int revision = body.revision;
+    const bool plain = !c.hasSelection();
+    atom.raw = objectXml(object.progId, objectId, pictureId, shapeNumber, made.width(), made.height(), shapeType);
     if (!insertDrawnAtom(doc, c, atom)) {
         doc.removeMedia(objectId);
         if (pictureAdded) doc.removeMedia(pictureId);
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "A picture can't be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.");
         return PictureResult::Refused;
+    }
+    // The count of the body goes on from what it was (the next insert need not walk the text again), if the insert changed nothing else.
+    BodyObjects &cache = bodyObjectsCache();
+    if (plain && cache.story == doc.story() && cache.revision == revision) {
+        cache.uses.push_back(ObjectUse{objectId, pictureId, 0});
+        cache.hasShapeType = true;
+        cache.highestShape = std::max<qint64>(cache.highestShape, 1024 + shapeNumber);
+        cache.revision = doc.story()->revision();
     }
     return PictureResult::Ok;
 }

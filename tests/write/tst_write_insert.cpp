@@ -116,24 +116,60 @@ QByteArray pngOfColor(int side, const QColor &color)
 }
 
 // A document with an object of another program in the first paragraph, built from plain parts: `target` is where the object's relationship points (empty: its own part).
-QByteArray docxWithForeignObjects(const QList<QByteArray> &packages, const QString &firstTarget = QString())
+// `sharing`: 1 makes every object name the first's package part (each with a relationship of its own), 2 makes every object name the first's relationship; `shapeType` puts the picture shape's
+// definition in the first object; `padding` makes the first object's element that many bytes longer.
+enum class Sharing { None, SamePart, SameLink };
+QByteArray docxWithForeignObjects(const QList<QByteArray> &packages, const QString &firstTarget = QString(), Sharing sharing = Sharing::None, bool shapeType = false, int padding = 0)
 {
     office::PackageWriter w;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
     QByteArray body;
     for (int i = 0; i < packages.size(); ++i) {
         const QString name = QStringLiteral("/word/embeddings/oleObject%1.bin").arg(i + 1), image = QStringLiteral("/word/media/image%1.png").arg(i + 1);
-        w.addPart(name, packages[i], QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
+        QString objectId = QStringLiteral("rIdO%1").arg(i + 1);
+        const QString imageId = QStringLiteral("rIdI%1").arg(i + 1);
+        if (sharing == Sharing::None || i == 0) w.addPart(name, packages[i], QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
         w.addPart(image, pngOfColor(8 + i, Qt::red), QStringLiteral("image/png"));
-        const QString objectId = QStringLiteral("rIdO%1").arg(i + 1), imageId = QStringLiteral("rIdI%1").arg(i + 1);
-        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), objectId, rel + QStringLiteral("oleObject"), i == 0 && !firstTarget.isEmpty() ? firstTarget : name);
+        if (sharing == Sharing::SameLink) objectId = QStringLiteral("rIdO1");
+        if (sharing != Sharing::SameLink || i == 0)
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), objectId, rel + QStringLiteral("oleObject"),
+                                    i == 0 && !firstTarget.isEmpty() ? firstTarget : (sharing == Sharing::SamePart ? QStringLiteral("/word/embeddings/oleObject1.bin") : name));
         w.addRelationshipWithId(QStringLiteral("/word/document.xml"), imageId, rel + QStringLiteral("image"), image);
-        body += "<w:p><w:r><w:object w:dxaOrig=\"2000\" w:dyaOrig=\"1000\"><v:shape id=\"_x0000_i102" + QByteArray::number(i + 5) + "\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\" o:ole=\"\">"
-                "<v:imagedata r:id=\"" + imageId.toUtf8() + "\" o:title=\"\"/></v:shape><o:OLEObject Type=\"Embed\" ProgID=\"Foo.Widget.1\" ShapeID=\"_x0000_i102" + QByteArray::number(i + 5) +
-                "\" DrawAspect=\"Content\" ObjectID=\"_1\" r:id=\"" + objectId.toUtf8() + "\"/></w:object></w:r></w:p>";
+        body += "<w:p><w:r><w:object w:dxaOrig=\"2000\" w:dyaOrig=\"1000\">";
+        if (shapeType && i == 0) body += "<v:shapetype id=\"_x0000_t75\" coordsize=\"21600,21600\" o:spt=\"75\"/>";
+        body += "<v:shape id=\"_x0000_i102" + QByteArray::number(i + 5) + "\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\" o:ole=\"\">"
+                "<v:imagedata r:id=\"" + imageId.toUtf8() + "\" o:title=\"" + (i == 0 ? QByteArray(padding, 'p') : QByteArray()) + "\"/></v:shape><o:OLEObject Type=\"Embed\" ProgID=\"Foo.Widget.1\" ShapeID=\"_x0000_i102" +
+                QByteArray::number(i + 5) + "\" DrawAspect=\"Content\" ObjectID=\"_1\" r:id=\"" + objectId.toUtf8() + "\"/></w:object></w:r></w:p>";
     }
     w.addPart(QStringLiteral("/word/document.xml"),
               xml(QByteArray("<w:document ") + kNs + " xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><w:body>" + body + "</w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
+// A document whose footer holds `count` objects of another program, each package its own part that the footer's relationships name.
+QByteArray docxWithFooterObjects(int count, const QByteArray &package)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    QByteArray footer;
+    for (int i = 0; i < count; ++i) {
+        const QString name = QStringLiteral("/word/embeddings/footerObject%1.bin").arg(i + 1), image = QStringLiteral("/word/media/footer%1.png").arg(i + 1);
+        w.addPart(name, package, QStringLiteral("application/vnd.openxmlformats-officedocument.oleObject"));
+        w.addPart(image, pngOfColor(8, Qt::red), QStringLiteral("image/png"));
+        const QByteArray n = QByteArray::number(i + 1);
+        w.addRelationshipWithId(QStringLiteral("/word/footer1.xml"), QStringLiteral("rIdO%1").arg(i + 1), rel + QStringLiteral("oleObject"), name);
+        w.addRelationshipWithId(QStringLiteral("/word/footer1.xml"), QStringLiteral("rIdI%1").arg(i + 1), rel + QStringLiteral("image"), image);
+        footer += "<w:p><w:r><w:object w:dxaOrig=\"2000\" w:dyaOrig=\"1000\"><v:shape id=\"_x0000_i103" + n + "\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\" o:ole=\"\">"
+                  "<v:imagedata r:id=\"rIdI" + n + "\" o:title=\"\"/></v:shape><o:OLEObject Type=\"Embed\" ProgID=\"Foo.Widget.1\" ShapeID=\"_x0000_i103" + n +
+                  "\" DrawAspect=\"Content\" ObjectID=\"_1\" r:id=\"rIdO" + n + "\"/></w:object></w:r></w:p>";
+    }
+    const QByteArray ns = QByteArray(" ") + kNs + " xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
+    w.addPart(QStringLiteral("/word/footer1.xml"), xml("<w:ftr" + ns + ">" + footer + "</w:ftr>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+    w.addPart(QStringLiteral("/word/document.xml"),
+              xml("<w:document" + ns + "><w:body><w:p><w:r><w:t>Hello there</w:t></w:r></w:p><w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdF\"/></w:sectPr></w:body></w:document>"),
               QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
     w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
     return w.finish();
@@ -3168,6 +3204,14 @@ private Q_SLOTS:
         QCOMPARE(partOf(saved, QStringLiteral("/word/media/image1.png")), partOf(zip, QStringLiteral("/word/media/image1.png")));
         QVERIFY(documentXml(saved).contains("ProgID=\"Foo.Widget.1\""));
         QCOMPARE(int(partsUnder(saved, QStringLiteral("/word/embeddings/")).size()), 1);
+        // The whole element is as it was, not only its program.
+        auto elementOf = [](const QByteArray &zip) {
+            const QString text = QString::fromUtf8(documentXml(zip));
+            const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("<w:object\\b.*?</w:object>"), QRegularExpression::DotMatchesEverythingOption).match(text);
+            return m.captured(0);
+        };
+        QVERIFY(!elementOf(zip).isEmpty());
+        QCOMPARE(elementOf(saved), elementOf(zip));
     }
 
     // Replacing an object's package: one package and one picture in the saved file, the new ones.
@@ -3177,7 +3221,7 @@ private Q_SLOTS:
         QVERIFY(doc);
         office::ole::ObjectBudget budget;
         const auto one = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("first"), pngOfColor(10, Qt::red), 1270000, 1270000, budget);
-        const auto two = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("second, and longer"), pngOfColor(12, Qt::green), 1270000, 1270000, budget);
+        const auto two = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("second, and longer"), pngOfColor(12, Qt::green), 2540000, 1905000, budget);
         QVERIFY(one && two);
         QTextCursor c(doc->story());
         c.setPosition(3);
@@ -3191,8 +3235,9 @@ private Q_SLOTS:
         const auto now = objectAt(*doc, 3);
         QVERIFY(now);
         QCOMPARE(now->previewPng, two->previewPng);
-        // The size and place stay: the element still says 1270000 EMU (100 points).
-        QVERIFY(documentXml(saved).contains("width:100.00pt"));
+        // The size and place stay: the element still says what the first object's size was (1270000 EMU, 100 points), not the new one's (200 by 150 points).
+        QVERIFY(documentXml(saved).contains("width:100.00pt;height:100.00pt"));
+        QVERIFY(!documentXml(saved).contains("width:200.00pt"));
         // The same with an object the file had: opened, replaced, and saved, the old package and picture are not in the new file.
         auto reopened = open(saved);
         QVERIFY(reopened);
@@ -3266,6 +3311,148 @@ private Q_SLOTS:
         QVERIFY(big);
         QVERIFY(!found);
         QCOMPARE(partOf(saved, QStringLiteral("/word/embeddings/oleObject1.bin")), QByteArray(500, 'z'));
+    }
+
+    // The objects of a header or a footer count toward the caps, as the body's do: a footer with two objects leaves room for none under a cap of two.
+    void objectsInAFooterCountTowardTheCaps()
+    {
+        office::ole::ObjectBudget budget;
+        const auto a = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage(QByteArray(100, 'x')), pngOfColor(6, Qt::red), 1270000, 1270000, budget);
+        QVERIFY(a);
+        const QByteArray zip = docxWithFooterObjects(2, QByteArray(100, 'f'));
+        // The count.
+        {
+            office::ole::Limits l;
+            l.objects = 2;
+            office::ole::setLimits(l);
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(2);
+            const PictureResult result = insertObject(*doc, c, *a);
+            office::ole::resetLimits();
+            QCOMPARE(result, PictureResult::Refused);
+        }
+        // The bytes: the two packages of the footer fill what a cap of their size and a little over leaves.
+        {
+            office::ole::Limits l;
+            l.totalBytes = 2 * 100 + 50;
+            office::ole::setLimits(l);
+            auto doc = open(zip);
+            QVERIFY(doc);
+            QTextCursor c(doc->story());
+            c.setPosition(2);
+            const PictureResult result = insertObject(*doc, c, *a);
+            office::ole::resetLimits();
+            QCOMPARE(result, PictureResult::Refused);
+        }
+        // With the real caps it goes in, and the footer's objects are still in the saved file.
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(2);
+        QCOMPARE(insertObject(*doc, c, *a), PictureResult::Ok);
+        QCOMPARE(int(partsUnder(doc->toDocx(), QStringLiteral("/word/embeddings/")).size()), 3);
+    }
+
+    // An element too large to read as an object still counts, by its size.
+    void anElementTooLargeToReadCountsBySize()
+    {
+        office::ole::ObjectBudget budget;
+        const auto a = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage(QByteArray(100, 'x')), pngOfColor(6, Qt::red), 1270000, 1270000, budget);
+        QVERIFY(a);
+        const QByteArray zip = docxWithForeignObjects({QByteArray("foreign")}, QString(), Sharing::None, false, (1 << 20) + 4096);
+        office::ole::Limits l;
+        l.totalBytes = 1 << 20;
+        office::ole::setLimits(l);
+        auto doc = open(zip);
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        const PictureResult result = insertObject(*doc, c, *a);
+        office::ole::resetLimits();
+        QCOMPARE(result, PictureResult::Refused);
+        // The same document with the real caps takes it.
+        auto again = open(zip);
+        QVERIFY(again);
+        QTextCursor d(again->story());
+        d.setPosition(0);
+        QCOMPARE(insertObject(*again, d, *a), PictureResult::Ok);
+    }
+
+    // An object put in a document gets a shape number no shape in it has, and the picture shape's definition goes in once, and not at all where the document has it.
+    void insertedObjectsGetFreshShapesAndOneShapeType()
+    {
+        office::ole::ObjectBudget budget;
+        const auto a = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("first"), pngOfColor(6, Qt::red), 1270000, 1270000, budget);
+        const auto b = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("second"), pngOfColor(7, Qt::red), 1270000, 1270000, budget);
+        QVERIFY(a && b);
+        auto idsOf = [](const QByteArray &text) {
+            QStringList ids;
+            QRegularExpressionMatchIterator it = QRegularExpression(QStringLiteral("<v:shape\\b[^>]* id=\"([^\"]*)\"")).globalMatch(QString::fromUtf8(text));
+            while (it.hasNext()) ids << it.next().captured(1);
+            return ids;
+        };
+        // A document with a shape _x0000_i1025 already (and none that defines the shape type).
+        auto doc = open(docxWithForeignObjects({QByteArray("foreign")}));
+        QVERIFY(doc);
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertObject(*doc, c, *a), PictureResult::Ok);
+        QCOMPARE(insertObject(*doc, c, *b), PictureResult::Ok);
+        const QByteArray out = documentXml(doc->toDocx());
+        const QStringList ids = idsOf(out);
+        QCOMPARE(int(ids.size()), 3);
+        QCOMPARE(QSet<QString>(ids.cbegin(), ids.cend()).size(), 3);
+        QVERIFY(ids.contains(QStringLiteral("_x0000_i1025")));
+        QCOMPARE(int(out.count("<v:shapetype id=\"_x0000_t75\"")), 1);
+        QVERIFY(out.contains("stroked=\"f\""));
+        // The new ones are read as objects again, and the saved file opens with the same.
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(int(idsOf(documentXml(back->toDocx())).size()), 3);
+        // A document that has the definition is given no second.
+        auto defined = open(docxWithForeignObjects({QByteArray("foreign")}, QString(), Sharing::None, true));
+        QVERIFY(defined);
+        QTextCursor d(defined->story());
+        d.setPosition(0);
+        QCOMPARE(insertObject(*defined, d, *a), PictureResult::Ok);
+        const QByteArray text = documentXml(defined->toDocx());
+        QCOMPARE(int(text.count("<v:shapetype id=\"_x0000_t75\"")), 1);
+        const QStringList more = idsOf(text);
+        QCOMPARE(QSet<QString>(more.cbegin(), more.cend()).size(), int(more.size()));
+    }
+
+    // Objects that name one package part, or one relationship, are each read, and saved with the one package.
+    void objectsThatShareAPackageOrALink()
+    {
+        const QByteArray package("shared foreign bytes");
+        for (Sharing sharing : {Sharing::SamePart, Sharing::SameLink}) {
+            auto doc = open(docxWithForeignObjects({package, package}, QString(), sharing));
+            QVERIFY(doc);
+            int found = 0;
+            for (int at = 0; at < doc->story()->characterCount() - 1; ++at)
+                if (const auto object = objectAt(*doc, at)) {
+                    ++found;
+                    QCOMPARE(object->partBytes, package);
+                }
+            QCOMPARE(found, 2);
+            const QByteArray saved = doc->toDocx();
+            QCOMPARE(int(partsUnder(saved, QStringLiteral("/word/embeddings/")).size()), 1);
+            QCOMPARE(int(documentXml(saved).count("<o:OLEObject")), 2);
+            // The budget counts the bytes of the package once: a cap with room for it once, the two pictures, and the new object, and not a byte more, takes the new object in.
+            office::ole::ObjectBudget budget;
+            const auto a = office::ole::keepObject(office::ole::progIdOf(office::ole::Kind::Page), objectPackage("first"), pngOfColor(6, Qt::red), 1270000, 1270000, budget);
+            QVERIFY(a);
+            office::ole::Limits l;
+            l.totalBytes = package.size() + pngOfColor(8, Qt::red).size() + pngOfColor(9, Qt::red).size() + a->partBytes.size() + a->previewPng.size() + 5;
+            office::ole::setLimits(l);
+            QTextCursor c(doc->story());
+            c.setPosition(0);
+            const PictureResult result = insertObject(*doc, c, *a);
+            office::ole::resetLimits();
+            QCOMPARE(result, PictureResult::Ok);
+        }
     }
 };
 
