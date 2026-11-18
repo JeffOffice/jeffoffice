@@ -166,13 +166,17 @@ void objectPositions(WriteDoc &doc, QVector<int> *graphics, QVector<int> *equati
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextCharFormat cf = it.fragment().charFormat();
             const int at = it.fragment().position();
-            if (cf.hasProperty(tp::InlineObject) || isPictureAt(doc.story(), at)) {
-                if (graphics->size() < kMostGoToItems) graphics->push_back(at);
-            } else if (cf.hasProperty(prop::Atom)) {
+            // (An equation drawn as the picture of its layout is still an equation, not a graphic.)
+            Inline atom;
+            if (cf.hasProperty(prop::Atom)) {
                 const QByteArray bytes = storedBytes(cf, prop::Atom);
-                if (!bytes.contains("oMath")) continue;
-                const Inline atom = unpackAtom(bytes);
-                if ((atom.tag == QLatin1String("oMath") || atom.tag == QLatin1String("oMathPara")) && equations->size() < kMostGoToItems) equations->push_back(at);
+                if (bytes.contains("oMath")) atom = unpackAtom(bytes);
+            }
+            const bool equation = atom.tag == QLatin1String("oMath") || atom.tag == QLatin1String("oMathPara");
+            if (equation) {
+                if (equations->size() < kMostGoToItems) equations->push_back(at);
+            } else if (cf.hasProperty(tp::InlineObject) || isPictureAt(doc.story(), at)) {
+                if (graphics->size() < kMostGoToItems) graphics->push_back(at);
             }
         }
 }

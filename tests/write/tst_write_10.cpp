@@ -936,7 +936,8 @@ void WriteTests::anEquationOfItsOwnParagraphIsCentered()
     auto doc = open(makeDocxWithParts("<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:p><m:oMathPara " + ns + "><m:oMath><m:r><m:t>a=b</m:t></m:r></m:oMath></m:oMathPara></w:p><w:p><w:r><w:t>After</w:t></w:r></w:p>",
                                       sectionXml(6000, 6000, 720), {}));
     QVERIFY(doc);
-    QCOMPARE(boxLines(*doc), (QStringList{QStringLiteral("Before"), QStringLiteral("a = b"), QStringLiteral("After")}));
+    // (The equation is set as a picture of its layout: its line holds the object's stand-in, an em dash.)
+    QCOMPARE(boxLines(*doc), (QStringList{QStringLiteral("Before"), QString(QChar(0x2014)), QStringLiteral("After")}));
     const auto page = doc->pager().materialize(0);
     QVERIFY(page && !page->boxes.isEmpty());
     const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[0]));
