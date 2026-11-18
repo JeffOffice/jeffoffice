@@ -3,6 +3,7 @@
 #include "app/packandgo.h"
 #include "app/privacy.h"
 #include "core/writedoc.h"
+#include "odt/odt.h"
 #include "office/officecrypt.h"
 #include "office/privacy.h"
 
@@ -19,6 +20,7 @@ PackReport WriteWindow::packAndGoTo(const QString &destination, PackMode mode, c
     }
     BytesPackSource source(displayName() + QStringLiteral(".docx"), m_path, m_fileProtected ? (m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword) : QString(), [this](QString *err, QStringList *notes) {
         QByteArray bytes = m_doc->toDocx(err);
+        if (!bytes.isEmpty()) bytes = office::odt::docxWithoutOdfObjects(bytes);
         // (Options > Save: the names stay out of a file that is sent away)
         QStringList problems;
         if (privacy::removeOnSave() && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &problems);

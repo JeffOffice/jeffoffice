@@ -25,6 +25,7 @@
 #include "office/privacy.h"
 #include "office/repair.h"
 #include "doc/docsalvage.h"
+#include "odt/odt.h"
 #include "odt/odttemplate.h"
 
 #include <QPointer>
@@ -352,6 +353,7 @@ bool WriteWindow::saveAsTemplate()
     // Options > Save > Privacy: the names are taken out of a template as they are from a document.
     QStringList namesProblems;
     QByteArray bytes = m_doc->toDocx(&err, true);
+    if (!bytes.isEmpty()) bytes = office::odt::docxWithoutOdfObjects(bytes);
     if (privacy::removeOnSave() && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
     // (a template of a document that asks for a password asks for it too)
     if (m_fileProtected && !bytes.isEmpty()) bytes = office::encryptPackage(bytes, m_filePassword);
@@ -441,6 +443,9 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     QApplication::setOverrideCursor(Qt::WaitCursor);
     int lostChars = 0;
     QByteArray bytes = text ? write::plainTextFile(*m_doc, textForm.encoding, textForm.ends, &lostChars, textForm.codePage) : rtf ? m_doc->toRtf(&err, &notKept) : odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl, macroFile);
+    // (an object an OpenDocument file held that is not one of ours has no place in a .docx: it is its picture there, and the .odt it came from keeps it)
+    QStringList docxNotes;
+    if (!text && !rtf && !odt && !bytes.isEmpty()) bytes = office::odt::docxWithoutOdfObjects(bytes, &docxNotes);
     QApplication::restoreOverrideCursor();
     // What the format would lose is said before anything is written, with the choice of a .docx beside it.
     if ((odt || rtf) && !bytes.isEmpty() && (m_formatAsker || !m_notifier)) {
@@ -520,6 +525,11 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
             }
         if (!fresh.isEmpty()) notice(tr("Save"), tr("An OpenDocument text file can't hold some of what this document has, so those parts were saved as they stand now or left out:\n\n%1").arg(fresh.join(QLatin1Char('\n'))));
     }
+    for (const QString &what : std::as_const(docxNotes))
+        if (!m_odtNoted.contains(what)) {
+            m_odtNoted.insert(what);
+            notice(tr("Save"), what);
+        }
     if (asCopy) {
         Settings::get().addRecentFile(path);
         telemetry::count(QStringLiteral("file.save.") + fileKind(path));

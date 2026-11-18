@@ -1532,6 +1532,34 @@ private Q_SLOTS:
         QVERIFY(none.isEmpty());
     }
 
+    // Save As .docx from a window that holds an object kept from an .odt: no object part leaks into the .docx, the rest is there, and saved as an .odt the object stays.
+    void anOdfObjectKeptFromAnOdtDoesNotLeakIntoASavedDocx()
+    {
+        ObjectFile f = twoObjects();
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString in = writeFile(dir.filePath(QStringLiteral("in.odt")), objectOdt({QStringLiteral("before text"), objectFrame(QStringLiteral("Object 2"), false, QStringLiteral("ObjectReplacements/Object 2.png")), QStringLiteral("after text")}, f));
+        WriteWindow win;
+        win.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(win.openFile(in, OpenHow::Normal));
+        const QString docxPath = dir.filePath(QStringLiteral("out.docx"));
+        QVERIFY(win.saveTo(docxPath, true));
+        office::Package pk;
+        QString err;
+        QVERIFY2(pk.read(readAll(docxPath), &err), qPrintable(err));
+        for (const QString &n : pk.partNames()) QVERIFY2(!n.contains(QLatin1String("/embeddings/")), qPrintable(n));
+        QVERIFY(!pk.part(QStringLiteral("/word/document.xml")).contains("jo:odf"));
+        WriteWindow again;
+        again.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(again.openFile(docxPath, OpenHow::Normal));
+        QVERIFY(again.document()->story()->toPlainText().contains(QStringLiteral("before text")));
+        QVERIFY(again.document()->story()->toPlainText().contains(QStringLiteral("after text")));
+        // (as an .odt the object is still kept)
+        const QString odtPath = dir.filePath(QStringLiteral("out.odt"));
+        QVERIFY(win.saveTo(odtPath, true));
+        QVERIFY2(fileOf(readAll(odtPath)).parts.contains(QStringLiteral("Object 1/Inner/data.bin")), "the kept object is in the .odt");
+    }
+
     // The parts of an object are looked at before any is inflated: a package that says it holds more than the cap is not inflated, and the object is refused with a note.
     void anObjectPackageOverTheCapIsNotInflated()
     {

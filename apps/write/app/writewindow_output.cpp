@@ -21,6 +21,7 @@
 #include "core/pdfbookmarks.h"
 #include "core/printing.h"
 #include "app/privacy.h"
+#include "odt/odt.h"
 #include "office/officecrypt.h"
 #include "office/privacy.h"
 #include "office/packageprops.h"
@@ -489,6 +490,7 @@ bool WriteWindow::exportEmail(EmailWhat what, const jp::PdfProtection &protect)
     const QVector<int> pages = outputPages(WriteOutputOptions());
     if (what == EmailWhat::Document) {
         QByteArray bytes = m_doc->toDocx(&err);
+        if (!bytes.isEmpty()) bytes = office::odt::docxWithoutOdfObjects(bytes);
         // (Options > Save: the names stay out of a file that is sent away)
         QStringList namesProblems;
         if (privacy::removeOnSave() && !bytes.isEmpty()) bytes = office::removePersonalFromPackage(bytes, nullptr, &namesProblems);
