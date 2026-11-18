@@ -1,8 +1,9 @@
 // JeffDeck's tests of spelling, comments, the options, and telemetry.
 #include "../plainprobe.h"
 #include "core/deckcompare.h"
-#include "core/review.h"
+#include "text/review.h"
 #include "core/version.h"
+#include "text/storyio.h"
 #include "deckhelpers.h"
 
 #include "../settingguard.h"
@@ -1902,6 +1903,13 @@ private Q_SLOTS:
             addBox(*b, *b->pages[0], QString(), 20, 20, QStringLiteral("body"));
         }
         a->pages[0]->id = b->pages[0]->id;
+        // (the premise: no object of a has the id of an object of b, so they are matched by what they hold and not by id)
+        QSet<QString> idsA;
+        walkItems(a->pages[0]->items, [&](const ItemPtr &it) { idsA.insert(it->id); });
+        QCOMPARE(int(idsA.size()), 10000);
+        int sharedIds = 0;
+        walkItems(b->pages[0]->items, [&](const ItemPtr &it) { sharedIds += idsA.contains(it->id); });
+        QCOMPARE(sharedIds, 0);
         DeckComparison crowd = compareDecks(*a, *b);
         QCOMPARE(crowd.changes.size(), 0);
         QVERIFY2(crowd.work < 40 * 10000, qPrintable(QString::number(crowd.work)));
@@ -1934,6 +1942,793 @@ private Q_SLOTS:
         QCOMPARE(letters(*w2), letters(*t2));
         rejectAll(*w2, c2, true);
         QCOMPARE(letters(*w2), letters(*mine));
+    }
+
+    // ---- Compare: the model's new parts, and the hostile and awkward cases ----
+
+    static QStringList boxTexts(const Document &d, int slide)
+    {
+        QStringList out;
+        for (const auto &it : d.pages[slide]->items)
+            if (it->type() == ItemType::Shape) out << textOfBox(d, static_cast<ShapeItem *>(it.get()));
+        return out;
+    }
+    static std::shared_ptr<TableItem> addTable(Document &d, Page &page, int rows, int cols, const QString &text, double y = 200)
+    {
+        auto t = std::make_shared<TableItem>();
+        t->rows = rows;
+        t->cols = cols;
+        t->colW = QVector<double>(cols, 50);
+        t->rowH = QVector<double>(rows, 20);
+        t->cells.resize(rows * cols);
+        for (int i = 0; i < rows * cols; ++i) t->cells[i].storyId = d.createStory(QStringLiteral("%1 %2").arg(text).arg(i));
+        t->rect = QRectF(10, y, 50.0 * cols, 20.0 * rows);
+        page.items.push_back(t);
+        return t;
+    }
+    static QStringList cellTexts(const Document &d, const TableItem &t)
+    {
+        QStringList out;
+        for (const TableCell &c : t.cells) out << (c.storyId.isEmpty() || !d.storyDoc(c.storyId) ? QString() : d.storyDoc(c.storyId)->toPlainText());
+        return out;
+    }
+    static const TableItem *tableOf(const Document &d, int slide)
+    {
+        for (const auto &it : d.pages[slide]->items)
+            if (it->type() == ItemType::Table) return static_cast<const TableItem *>(it.get());
+        return nullptr;
+    }
+    static QByteArray pngOf(QColor c)
+    {
+        QImage img(8, 8, QImage::Format_RGB32);
+        img.fill(c);
+        QByteArray out;
+        QBuffer buf(&out);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        return out;
+    }
+    // A list of indices 0..n-1 in an order made from `seed` (the same on every machine, which std::shuffle is not).
+    static QVector<int> shuffled(int n, quint32 seed)
+    {
+        QVector<int> v(n);
+        for (int i = 0; i < n; ++i) v[i] = i;
+        quint32 s = seed * 2654435761u + 12345u;
+        for (int i = n - 1; i > 0; --i) {
+            s = s * 1664525u + 1013904223u;
+            std::swap(v[i], v[(s >> 8) % quint32(i + 1)]);
+        }
+        return v;
+    }
+
+    // Two objects that share an id on one slide, both deleted by the other side: each accept takes out its own object (an id is not an address),
+    // whatever the order, and the changes that were done say so.
+    void compareAcceptsObjectsThatShareAnId()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        addBox(*mine, *mine->pages[0], QStringLiteral("one"), 10, 10)->id = QStringLiteral("x");
+        addBox(*mine, *mine->pages[0], QStringLiteral("keep"), 10, 60);
+        addBox(*mine, *mine->pages[0], QStringLiteral("two"), 10, 110)->id = QStringLiteral("x");
+        auto theirs = copyOf(*mine);   // (the copy gives the second "x" an id of its own)
+        theirs->pages[0]->items.erase(theirs->pages[0]->items.begin() + 2);
+        theirs->pages[0]->items.erase(theirs->pages[0]->items.begin());
+        for (int order = 0; order < 3; ++order) {
+            DeckComparison cmp = compareDecks(*mine, *theirs);
+            QCOMPARE(cmp.changes.size(), 2);
+            QCOMPARE(kindCount(cmp, review::Kind::Deleted), 2);
+            auto working = copyOf(*mine);
+            boxOf(*working, 0, 0)->id = QStringLiteral("x");   // a copy gives repeated object ids new ones: the compared deck has them, so the one worked on must
+            boxOf(*working, 0, 2)->id = QStringLiteral("x");
+            if (order == 0) {
+                QCOMPARE(acceptAll(*working, cmp), 2);
+            } else {
+                QVERIFY(applyChange(*working, cmp, order == 1 ? 0 : 1));
+                QVERIFY(applyChange(*working, cmp, order == 1 ? 1 : 0));
+            }
+            QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("keep")}));
+            QCOMPARE(cmp.changes.count(review::State::Accepted), 2);
+            QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+            // And back: each object returns to its own place.
+            QCOMPARE(rejectAll(*working, cmp, true), 2);
+            QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("one"), QStringLiteral("keep"), QStringLiteral("two")}));
+        }
+    }
+
+    // The same for slides: ids in a file repeat, and each accept removes the slide its change is about.
+    void compareAcceptsSlidesThatShareAnId()
+    {
+        auto mine = lettered(5);
+        for (auto &p : mine->pages) p->id = QStringLiteral("same");
+        auto theirs = copyOf(*mine);
+        QCOMPARE(theirs->pages[0]->id, QStringLiteral("same"));
+        for (auto &p : theirs->pages) p->id = newId("p");
+        theirs->pages.removeAt(1);
+        theirs->pages.removeAt(0);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        QCOMPARE(kindCount(cmp, review::Kind::Deleted), 2);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 2);
+        QCOMPARE(letters(*working), QStringLiteral("CDE"));
+        QCOMPARE(cmp.changes.count(review::State::Accepted), 2);
+        QCOMPARE(rejectAll(*working, cmp, true), 2);
+        QCOMPARE(letters(*working), QStringLiteral("ABCDE"));
+        // One at a time, the later one first.
+        DeckComparison cmp2 = compareDecks(*mine, *theirs);
+        auto w2 = copyOf(*mine);
+        QVERIFY(applyChange(*w2, cmp2, 1));
+        QVERIFY(applyChange(*w2, cmp2, 0));
+        QCOMPARE(letters(*w2), QStringLiteral("CDE"));
+    }
+
+    // An undo gives the slides their repeated ids back; the next accept finds the slides again.
+    void compareSlidesThatShareAnIdSurviveAnUndo()
+    {
+        auto mine = lettered(5);
+        for (auto &p : mine->pages) p->id = QStringLiteral("same");
+        auto theirs = copyOf(*mine);
+        for (auto &p : theirs->pages) p->id = newId("p");
+        theirs->pages.removeAt(1);
+        theirs->pages.removeAt(0);
+        DeckWindow w;
+        Editor *ed = w.editor();
+        ed->setDocument(copyOf(*mine));
+        DeckComparison cmp = compareDecks(*ed->doc(), *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        ed->change(QStringLiteral("Accept"), [&] { QVERIFY(applyChange(*ed->doc(), cmp, 0)); });
+        QCOMPARE(letters(*ed->doc()), QStringLiteral("BCDE"));
+        ed->undo();
+        QCOMPARE(letters(*ed->doc()), QStringLiteral("ABCDE"));
+        ed->change(QStringLiteral("Accept"), [&] { QVERIFY(applyChange(*ed->doc(), cmp, 0)); });
+        QCOMPARE(letters(*ed->doc()), QStringLiteral("BCDE"));
+        ed->change(QStringLiteral("Accept"), [&] { QVERIFY(applyChange(*ed->doc(), cmp, 1)); });
+        QCOMPARE(letters(*ed->doc()), QStringLiteral("CDE"));
+    }
+
+    // A change that can't be found in the working presentation is not marked as done.
+    void compareLeavesAChangePendingWhenItsSlideIsGone()
+    {
+        auto mine = compareBase();
+        auto theirs = copyOf(*mine);
+        boxOf(*theirs, 2)->rect.translate(5, 5);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 1);
+        auto working = copyOf(*mine);
+        working->pages.removeAt(2);
+        QVERIFY(!applyChange(*working, cmp, 0));
+        QCOMPARE(int(cmp.changes.changes[0].state), int(review::State::Pending));
+        QCOMPARE(acceptAll(*working, cmp), 0);
+        QCOMPARE(cmp.changes.pending(), 1);
+    }
+
+    // An added object goes after the object that comes before it in theirs, as slides do: mine [D, B] and theirs [B, N] end as [B, N], in any order.
+    void compareAddedObjectsKeepTheirOrder()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        addBox(*mine, *mine->pages[0], QStringLiteral("D"), 10, 10);
+        addBox(*mine, *mine->pages[0], QStringLiteral("B"), 10, 60);
+        auto theirs = copyOf(*mine);
+        theirs->pages[0]->items.erase(theirs->pages[0]->items.begin());
+        addBox(*theirs, *theirs->pages[0], QStringLiteral("N"), 10, 110);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 2);
+        QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("B"), QStringLiteral("N")}));
+        QCOMPARE(rejectAll(*working, cmp, true), 2);
+        QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("D"), QStringLiteral("B")}));
+        // Seven changes in 24 orders, accepted and then rejected one by one: mine [A D1 B D2 C], theirs [N1 A N2 B N3 N4 C N5].
+        auto m2 = deck::newPresentation();
+        m2->pages[0]->items.clear();
+        for (const char *t : {"A", "D1", "B", "D2", "C"}) addBox(*m2, *m2->pages[0], QString::fromLatin1(t), 10, 10 + 30 * int(m2->pages[0]->items.size()));
+        auto t2 = copyOf(*m2);
+        t2->pages[0]->items.clear();
+        const QStringList want{QStringLiteral("N1"), QStringLiteral("A"), QStringLiteral("N2"), QStringLiteral("B"), QStringLiteral("N3"), QStringLiteral("N4"), QStringLiteral("C"), QStringLiteral("N5")};
+        for (const QString &t : want) {
+            ShapeItem *made = nullptr;
+            for (const auto &it : m2->pages[0]->items)
+                if (it->type() == ItemType::Shape && textOfBox(*m2, static_cast<ShapeItem *>(it.get())) == t) made = static_cast<ShapeItem *>(it.get());
+            if (made) {
+                auto c = std::static_pointer_cast<ShapeItem>(made->clone());
+                c->id = made->id;
+                c->storyId = t2->createStory(t);
+                t2->pages[0]->items.push_back(c);
+            } else {
+                addBox(*t2, *t2->pages[0], t, 200, 10 + 30 * int(t2->pages[0]->items.size()));
+            }
+        }
+        for (int seed = 0; seed < 24; ++seed) {
+            DeckComparison c = compareDecks(*m2, *t2);
+            QCOMPARE(c.changes.size(), 7);
+            auto w = copyOf(*m2);
+            const QVector<int> order = shuffled(c.changes.size(), quint32(seed));
+            for (int i : order) QVERIFY(applyChange(*w, c, i));
+            QCOMPARE(boxTexts(*w, 0), want);
+            const QVector<int> back = shuffled(c.changes.size(), quint32(seed + 100));
+            for (int i : back) QVERIFY(rejectChange(*w, c, i));
+            QCOMPARE(boxTexts(*w, 0), (QStringList{QStringLiteral("A"), QStringLiteral("D1"), QStringLiteral("B"), QStringLiteral("D2"), QStringLiteral("C")}));
+        }
+    }
+
+    // The same for slides: added and deleted slides end in theirs' order whatever order the changes are taken in, and mine's when taken back.
+    void compareAddedSlidesKeepTheirOrder()
+    {
+        auto mine = lettered(2);   // A B
+        mine->pages[0]->title = QStringLiteral("D");
+        auto theirs = copyOf(*mine);   // [D B] -> [B N]
+        theirs->pages.removeAt(0);
+        const MasterPage *layout = deck::layoutOfType(*theirs, QStringLiteral("obj"));
+        theirs->pages[deck::addSlide(*theirs, *layout)]->title = QStringLiteral("N");
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 2);
+        QCOMPARE(letters(*working), QStringLiteral("BN"));
+        QCOMPARE(rejectAll(*working, cmp, true), 2);
+        QCOMPARE(letters(*working), QStringLiteral("DB"));
+        // Mine ABCDE, theirs [N1 A N2 C N3 E N4] (B and D deleted, four added): every order.
+        auto m2 = lettered(5);
+        auto t2 = copyOf(*m2);
+        t2->pages.removeAt(3);
+        t2->pages.removeAt(1);
+        const MasterPage *l2 = deck::layoutOfType(*t2, QStringLiteral("obj"));
+        for (int k = 0; k < 4; ++k) t2->pages[deck::addSlide(*t2, *l2, 2 * k)]->title = QStringLiteral("N%1").arg(k + 1);
+        const QString want = letters(*t2);
+        QCOMPARE(want.size(), 11);   // N1 A N2 C N3 E N4 = 7 slides, 11 characters
+        for (int seed = 0; seed < 24; ++seed) {
+            DeckComparison c = compareDecks(*m2, *t2);
+            QCOMPARE(c.changes.size(), 6);
+            auto w = copyOf(*m2);
+            for (int i : shuffled(c.changes.size(), quint32(seed))) QVERIFY(applyChange(*w, c, i));
+            QCOMPARE(letters(*w), want);
+            for (int i : shuffled(c.changes.size(), quint32(seed + 100))) QVERIFY(rejectChange(*w, c, i));
+            QCOMPARE(letters(*w), QStringLiteral("ABCDE"));
+        }
+    }
+
+    // Groups nested more than 16 deep are not read: the list says it is not all there is (16 deep is all read).
+    void compareSaysTooManyForGroupsDeeperThan16()
+    {
+        auto nested = [&](int groups) {
+            auto d = deck::newPresentation();
+            d->pages[0]->items.clear();
+            ItemPtr cur = addBoxPtr(*d, QStringLiteral("deep"));
+            for (int i = 0; i < groups; ++i) {
+                auto g = std::make_shared<GroupItem>();
+                g->children.push_back(cur);
+                g->syncRect();
+                cur = g;
+            }
+            d->pages[0]->items.push_back(cur);
+            return d;
+        };
+        auto leafOf = [](Document &d) {
+            Item *it = d.pages[0]->items[0].get();
+            while (it->type() == ItemType::Group) it = static_cast<GroupItem *>(it)->children[0].get();
+            return it;
+        };
+        auto mine = nested(16);
+        auto theirs = copyOf(*mine);
+        leafOf(*theirs)->rect.translate(9, 9);
+        DeckComparison fits = compareDecks(*mine, *theirs);
+        QVERIFY(!fits.changes.tooMany);
+        QCOMPARE(fits.changes.size(), 1);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, fits), 1);
+        QCOMPARE(leafOf(*working)->rect, leafOf(*theirs)->rect);
+        auto deep = nested(17);
+        auto deeper = copyOf(*deep);
+        leafOf(*deeper)->rect.translate(9, 9);
+        DeckComparison cmp = compareDecks(*deep, *deeper);
+        QVERIFY(cmp.changes.tooMany);
+        QCOMPARE(cmp.changes.size(), 0);
+    }
+    static ItemPtr addBoxPtr(Document &d, const QString &text)
+    {
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(10, 10, 100, 40);
+        s->storyId = d.createStory(text);
+        return s;
+    }
+
+    // A table of cells counts as that many objects, against the 20,000: exactly 20,000 is all read, one more is not.
+    void compareCountsTableCellsAsObjects()
+    {
+        // Tables of 100 x 199 and 7 x 14 cells, with `extra` boxes: a table is 1 and its cells (a table has at most 256 rows and 256 columns).
+        auto make = [&](QVector<QSize> shapes, int extra) {
+            auto d = deck::newPresentation();
+            d->pages[0]->items.clear();
+            for (const QSize &shape : shapes) {
+                auto t = std::make_shared<TableItem>();
+                t->rows = shape.width();
+                t->cols = shape.height();
+                t->colW = QVector<double>(t->cols, 5);
+                t->rowH = QVector<double>(t->rows, 20);
+                t->cells.resize(t->rows * t->cols);
+                t->rect = QRectF(0, 0, 5.0 * t->cols, 20.0 * t->rows);
+                d->pages[0]->items.push_back(t);
+            }
+            for (int i = 0; i < extra; ++i) addBox(*d, *d->pages[0], QString(), 10, 100 + i);
+            return d;
+        };
+        auto mine = make({QSize(100, 199), QSize(7, 14)}, 0);
+        auto theirs = copyOf(*mine);
+        QCOMPARE(int(tableOf(*theirs, 0)->cells.size()), 19900);
+        DeckComparison fits = compareDecks(*mine, *theirs);
+        QCOMPARE(fits.objectsMine, 20000);   // 2 tables and their 19,998 cells
+        QCOMPARE(fits.objectsTheirs, 20000);
+        QVERIFY(!fits.changes.tooMany);
+        auto more = make({QSize(100, 199), QSize(7, 14)}, 1);
+        DeckComparison over = compareDecks(*more, *copyOf(*more));
+        QCOMPARE(over.objectsMine, 20000);
+        QVERIFY(over.changes.tooMany);
+        auto big = make({QSize(100, 200)}, 0);
+        DeckComparison table = compareDecks(*big, *copyOf(*big));
+        QCOMPARE(table.objectsMine, 20000);
+        QVERIFY(table.changes.tooMany);
+    }
+
+    // At most 20 million characters of text are read from each presentation, and at most 100,000 of one object (exactly that much is all read).
+    void compareReadsAtMost20MillionCharactersOfText()
+    {
+        const QString big(100000, QLatin1Char('a'));
+        auto make = [&](int boxes) {
+            auto d = deck::newPresentation();
+            d->pages[0]->items.clear();
+            for (int i = 0; i < boxes; ++i) addBox(*d, *d->pages[0], big, 10, 10 + i);
+            return d;
+        };
+        auto mine = make(200);
+        auto theirs = copyOf(*mine);
+        DeckComparison fits = compareDecks(*mine, *theirs);
+        QCOMPARE(fits.textMine, deck::kMaxTotalText);
+        QCOMPARE(fits.textTheirs, deck::kMaxTotalText);
+        QVERIFY(!fits.changes.tooMany);
+        auto more = make(201);
+        DeckComparison over = compareDecks(*more, *copyOf(*more));
+        QCOMPARE(over.textMine, deck::kMaxTotalText);
+        QVERIFY(over.changes.tooMany);
+        // One object's text is read to 100,000 characters and no further.
+        auto one = deck::newPresentation();
+        one->pages[0]->items.clear();
+        addBox(*one, *one->pages[0], QString(150000, QLatin1Char('b')), 10, 10);
+        DeckComparison cut = compareDecks(*one, *copyOf(*one));
+        QCOMPARE(cut.textMine, qint64(100000));
+        QVERIFY(!cut.changes.tooMany);
+    }
+
+    // Formatting is compared over the first 20,000 paragraphs and runs of an object, and 200,000 in all: beyond that it is not looked at.
+    void compareComparesFormattingOfTheFirstRunsOnly()
+    {
+        // A story of `fragments` runs of one letter, bold and plain in turn, and the one at `odd` in another look.
+        auto story = [](int fragments, int odd) {
+            QJsonArray runs;
+            for (int i = 0; i < fragments; ++i) {
+                QTextCharFormat f;
+                if (i % 2) f.setFontWeight(QFont::Bold);
+                if (i == odd) f.setFontItalic(true);
+                runs.append(QJsonObject{{"t", QStringLiteral("a")}, {"f", formatToJson(f)}});
+            }
+            return QJsonObject{{"blocks", QJsonArray{QJsonObject{{"r", runs}}}}};
+        };
+        auto make = [&](int boxes, int fragments, int odd) {
+            auto d = deck::newPresentation();
+            d->pages[0]->items.clear();
+            for (int i = 0; i < boxes; ++i) {
+                ShapeItem *s = addBox(*d, *d->pages[0], QStringLiteral("x"), 10, 10 + 5 * i);
+                storyFromJson(d->storyDoc(s->storyId), story(fragments, odd));
+            }
+            return d;
+        };
+        // 1 paragraph and 19,999 runs are 20,000: a change in the last run is seen; in the 20,001st it is not.
+        auto a = make(1, 19999, -1);
+        DeckComparison seen = compareDecks(*a, *make(1, 19999, 19998));
+        QCOMPARE(seen.changes.size(), 1);
+        QCOMPARE(int(seen.changes.changes[0].kind), int(review::Kind::Reformatted));
+        QCOMPARE(seen.sigRunsMine, qint64(deck::kMaxSigRuns));
+        auto b = make(1, 20000, -1);
+        DeckComparison unseen = compareDecks(*b, *make(1, 20000, 19999));
+        QCOMPARE(unseen.changes.size(), 0);
+        QCOMPARE(unseen.sigRunsMine, qint64(deck::kMaxSigRuns));
+        // Ten such objects are 200,000: all compared; an eleventh is not, and the list says so.
+        auto ten = make(10, 19999, -1);
+        DeckComparison all = compareDecks(*ten, *copyOf(*ten));
+        QCOMPARE(all.sigRunsMine, deck::kMaxTotalSigRuns);
+        QCOMPARE(all.sigRunsTheirs, deck::kMaxTotalSigRuns);
+        QVERIFY(!all.changes.tooMany);
+        auto eleven = make(11, 19999, -1);
+        DeckComparison past = compareDecks(*eleven, *copyOf(*eleven));
+        QCOMPARE(past.sigRunsMine, deck::kMaxTotalSigRuns);
+        QVERIFY(past.changes.tooMany);
+    }
+
+    // Only the first 2,000 slides of a presentation of 10,000 are looked at, in the arrays as well as the matching, and the work stays a few steps for each.
+    void compareOf10000SlidesWorksOnTheFirst2000()
+    {
+        auto mine = deck::newPresentation();
+        while (mine->pages.size() < 10000) mine->addPage(-1, mine->pages[0]->masterId);
+        for (int i = 0; i < 10000; ++i) mine->pages[i]->title = QStringLiteral("slide number %1").arg(i);
+        auto theirs = copyOf(*mine);
+        theirs->pages.move(3, 1);
+        theirs->pages.removeLast();   // past the 2,000: not looked at
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.slidesMine, 2000);
+        QVERIFY(cmp.changes.tooMany);
+        QCOMPARE(cmp.workOfMine.size(), 2000);
+        QCOMPARE(cmp.workOfTheirs.size(), 2000);
+        QCOMPARE(cmp.mineOfTheirs.size(), 2000);
+        QCOMPARE(cmp.theirsOfMine.size(), 2000);
+        QCOMPARE(cmp.changes.size(), 1);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 1);
+        QCOMPARE(working->pages[1]->title, QStringLiteral("slide number 3"));
+        QCOMPARE(working->pages[3]->title, QStringLiteral("slide number 2"));
+        QCOMPARE(working->pages.size(), 10000);
+        QVERIFY2(cmp.work < 60 * 2000, qPrintable(QString::number(cmp.work)));
+    }
+
+    // Taking in thousands of added objects is a few steps each: the work counted (the id check, the place) does not grow with the square.
+    void acceptingManyAddedObjectsIsLinear()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        for (int i = 0; i < 3; ++i) addBox(*mine, *mine->pages[0], QStringLiteral("m%1").arg(i), 10, 10 + 5 * i);
+        auto theirs = copyOf(*mine);
+        for (int i = 0; i < 9000; ++i) addBox(*theirs, *theirs->pages[0], QString(), 10 + i % 90, 100 + i / 90);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 9000);
+        auto working = copyOf(*mine);
+        const qint64 before = cmp.work;
+        QCOMPARE(acceptAll(*working, cmp), 9000);
+        QCOMPARE(int(working->pages[0]->items.size()), 9003);
+        QVERIFY2(cmp.work - before < 20 * 9000, qPrintable(QString::number(cmp.work - before)));
+        for (int i = 0; i < 9003; ++i) QCOMPARE(working->pages[0]->items[i]->rect, theirs->pages[0]->items[i]->rect);
+    }
+
+    // The same picture fill in two files loaded apart (each gives a picture its own id) is not a change; another picture is.
+    void compareFillsByThePictureNotItsId()
+    {
+        auto d = deck::newPresentation();
+        d->pages[0]->items.clear();
+        ShapeItem *s = addBox(*d, *d->pages[0], QStringLiteral("filled"), 10, 10);
+        Fill f;
+        f.type = Fill::Picture;
+        f.imageId = d->addImage(pngOf(Qt::red), QStringLiteral("png"));
+        s->fill = f;
+        QString why;
+        const QByteArray file = deck::exportPresentation(*d, &why);
+        QVERIFY2(!file.isEmpty(), qPrintable(why));
+        auto a = deck::importPresentation(file, &why);
+        auto b = deck::importPresentation(file, &why);
+        QVERIFY2(a && b, qPrintable(why));
+        auto fillOf = [](Document &doc) -> Item * {
+            for (const auto &it : doc.pages[0]->items)
+                if (it->fill.type == Fill::Picture) return it.get();
+            return nullptr;
+        };
+        QVERIFY(fillOf(*a) && fillOf(*b));
+        QVERIFY(fillOf(*a)->fill.imageId != fillOf(*b)->fill.imageId);   // (the premise: each load made its own id)
+        DeckComparison same = compareDecks(*a, *b);
+        QCOMPARE(same.changes.size(), 0);
+        fillOf(*b)->fill.imageId = b->addImage(pngOf(Qt::blue), QStringLiteral("png"));
+        DeckComparison other = compareDecks(*a, *b);
+        QCOMPARE(other.changes.size(), 1);
+        QCOMPARE(other.changes.changes[0].target.path, QStringLiteral("fill"));
+    }
+
+    // A table that has a different shape is replaced (deleted and added), so that accepting gives theirs; one with the same shape has its cell text changed.
+    void compareTablesChangeCellsOrAreReplaced()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        addBox(*mine, *mine->pages[0], QStringLiteral("above"), 10, 10);
+        addTable(*mine, *mine->pages[0], 2, 2, QStringLiteral("cell"));
+        addBox(*mine, *mine->pages[0], QStringLiteral("below"), 10, 400);
+        // The same shape, a cell's text changed.
+        auto same = copyOf(*mine);
+        QTextCursor c(same->storyDoc(const_cast<TableItem *>(tableOf(*same, 0))->cells[3].storyId));
+        c.select(QTextCursor::Document);
+        c.insertText(QStringLiteral("changed"));
+        DeckComparison edit = compareDecks(*mine, *same);
+        QCOMPARE(edit.changes.size(), 1);
+        QCOMPARE(int(edit.changes.changes[0].kind), int(review::Kind::Edited));
+        auto w1 = copyOf(*mine);
+        QCOMPARE(acceptAll(*w1, edit), 1);
+        QCOMPARE(cellTexts(*w1, *tableOf(*w1, 0)), cellTexts(*same, *tableOf(*same, 0)));
+        QCOMPARE(rejectAll(*w1, edit, true), 1);
+        QCOMPARE(cellTexts(*w1, *tableOf(*w1, 0)), cellTexts(*mine, *tableOf(*mine, 0)));
+        // Another shape: 2 x 3 for 2 x 2, with other words.
+        auto theirs = copyOf(*mine);
+        auto &items = theirs->pages[0]->items;
+        items.erase(items.begin() + 1);
+        auto t = addTable(*theirs, *theirs->pages[0], 2, 3, QStringLiteral("new"));
+        items.pop_back();
+        items.insert(items.begin() + 1, t);
+        t->id = tableOf(*mine, 0)->id;
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        QCOMPARE(kindCount(cmp, review::Kind::Added), 1);
+        QCOMPARE(kindCount(cmp, review::Kind::Deleted), 1);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 2);
+        QCOMPARE(tableOf(*working, 0)->cells.size(), 6);
+        QCOMPARE(cellTexts(*working, *tableOf(*working, 0)), cellTexts(*theirs, *tableOf(*theirs, 0)));
+        QCOMPARE(boxTexts(*working, 0), (QStringList{QStringLiteral("above"), QStringLiteral("below")}));
+        QCOMPARE(working->pages[0]->items[1]->type(), ItemType::Table);   // the table stands between the two boxes, as in theirs
+        QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+        QCOMPARE(rejectAll(*working, cmp, true), 2);
+        QCOMPARE(tableOf(*working, 0)->cells.size(), 4);
+        QCOMPARE(working->pages[0]->items[1]->type(), ItemType::Table);
+        QCOMPARE(cellTexts(*working, *tableOf(*working, 0)), cellTexts(*mine, *tableOf(*mine, 0)));
+    }
+
+    // Groups: a child moved, a child's text changed, and a child added, each found and taken in or back.
+    void compareLooksInsideGroups()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        auto g = std::make_shared<GroupItem>();
+        for (const char *t : {"one", "two", "three"}) {
+            ItemPtr b = addBoxPtr(*mine, QString::fromLatin1(t));
+            b->rect.translate(0, 50 * int(g->children.size()));
+            g->children.push_back(b);
+        }
+        g->syncRect();
+        mine->pages[0]->items.push_back(g);
+        auto theirs = copyOf(*mine);
+        auto *tg = static_cast<GroupItem *>(theirs->pages[0]->items[0].get());
+        tg->children[0]->rect.translate(40, 0);
+        QTextCursor c(theirs->storyDoc(static_cast<ShapeItem *>(tg->children[1].get())->storyId));
+        c.select(QTextCursor::Document);
+        c.insertText(QStringLiteral("two, changed"));
+        tg->children.push_back(addBoxPtr(*theirs, QStringLiteral("four")));
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 3);
+        QCOMPARE(kindCount(cmp, review::Kind::Moved), 1);
+        QCOMPARE(kindCount(cmp, review::Kind::Edited), 1);
+        QCOMPARE(kindCount(cmp, review::Kind::Added), 1);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 3);
+        QCOMPARE(lookOf(*working), lookOf(*theirs));
+        QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+        QCOMPARE(rejectAll(*working, cmp, true), 3);
+        QCOMPARE(lookOf(*working), lookOf(*mine));
+    }
+
+    // Pictures: one moved and one added; the added one brings its picture, and taking it back leaves mine as it was.
+    void comparePicturesMoveAndComeIn()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        auto p = std::make_shared<PictureItem>();
+        p->rect = QRectF(10, 10, 80, 80);
+        p->imageId = mine->addImage(pngOf(Qt::red), QStringLiteral("png"));
+        mine->pages[0]->items.push_back(p);
+        auto theirs = copyOf(*mine);
+        theirs->pages[0]->items[0]->rect.translate(30, 0);
+        auto q = std::make_shared<PictureItem>();
+        q->rect = QRectF(100, 10, 80, 80);
+        const QByteArray blue = pngOf(Qt::blue);
+        q->imageId = theirs->addImage(blue, QStringLiteral("png"));
+        theirs->pages[0]->items.push_back(q);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 2);
+        QCOMPARE(kindCount(cmp, review::Kind::Moved), 1);
+        QCOMPARE(kindCount(cmp, review::Kind::Added), 1);
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 2);
+        QCOMPARE(int(working->pages[0]->items.size()), 2);
+        QCOMPARE(working->pages[0]->items[0]->rect, theirs->pages[0]->items[0]->rect);
+        const auto *added = static_cast<const PictureItem *>(working->pages[0]->items[1].get());
+        QVERIFY(working->images.contains(added->imageId));
+        QCOMPARE(working->images[added->imageId].bytes, blue);
+        QCOMPARE(rejectAll(*working, cmp, true), 2);
+        QCOMPARE(int(working->pages[0]->items.size()), 1);
+        QCOMPARE(working->pages[0]->items[0]->rect, mine->pages[0]->items[0]->rect);
+    }
+
+    // A change of look with the same words (a word made bold) is a formatting change, and taking it brings the look over.
+    void compareFindsAFontChange()
+    {
+        auto mine = deck::newPresentation();
+        mine->pages[0]->items.clear();
+        addBox(*mine, *mine->pages[0], QStringLiteral("Hello world"), 10, 10);
+        auto theirs = copyOf(*mine);
+        QTextCursor c(theirs->storyDoc(boxOf(*theirs, 0)->storyId));
+        c.setPosition(6);
+        c.setPosition(11, QTextCursor::KeepAnchor);
+        QTextCharFormat bold;
+        bold.setFontWeight(QFont::Bold);
+        c.mergeCharFormat(bold);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 1);
+        QCOMPARE(int(cmp.changes.changes[0].kind), int(review::Kind::Reformatted));
+        QCOMPARE(cmp.changes.changes[0].target.path, QStringLiteral("font"));
+        auto working = copyOf(*mine);
+        QCOMPARE(acceptAll(*working, cmp), 1);
+        QCOMPARE(storyToJson(working->storyDoc(boxOf(*working, 0)->storyId)), storyToJson(theirs->storyDoc(boxOf(*theirs, 0)->storyId)));
+        QCOMPARE(compareDecks(*working, *theirs).changes.size(), 0);
+        QCOMPARE(rejectAll(*working, cmp, true), 1);
+        QCOMPARE(storyToJson(working->storyDoc(boxOf(*working, 0)->storyId)), storyToJson(mine->storyDoc(boxOf(*mine, 0)->storyId)));
+    }
+
+    // A word that is on more than 64 slides tells nothing about which slide is which: slides that only share such words are not matched, and the
+    // work stays a few steps a slide (without the limit these 100 would be matched, a hundred looks each).
+    void compareFollowsAWordOnlyOnFewSlides()
+    {
+        auto mine = deck::newPresentation();
+        while (mine->pages.size() < 100) mine->addPage(-1, mine->pages[0]->masterId);
+        for (int i = 0; i < 100; ++i) mine->pages[i]->title = QStringLiteral("one two three four five six seven eight uniq%1").arg(i);
+        auto theirs = copyOf(*mine);
+        for (auto &p : theirs->pages) {
+            p->id = newId("p");
+            p->title += QStringLiteral(" extra");
+        }
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QCOMPARE(cmp.changes.size(), 200);   // 100 deleted, 100 added: the one word each has alone is too little to match them
+        QVERIFY2(cmp.work < 40 * 100, qPrintable(QString::number(cmp.work)));
+        // With 64 slides the words are followed: matched, no change.
+        auto few = deck::newPresentation();
+        while (few->pages.size() < 64) few->addPage(-1, few->pages[0]->masterId);
+        for (int i = 0; i < 64; ++i) few->pages[i]->title = QStringLiteral("one two three four five six seven eight uniq%1").arg(i);
+        auto moreWords = copyOf(*few);
+        for (auto &p : moreWords->pages) {
+            p->id = newId("p");
+            p->title += QStringLiteral(" extra");
+        }
+        QCOMPARE(compareDecks(*few, *moreWords).changes.size(), 0);
+    }
+
+    // The copy of mine that a comparison keeps (Document::snapshot, fromSnapshot) shares the pictures' and movies' bytes with mine and does not copy them:
+    // the same memory, so a deck of big pictures costs no more to compare.
+    void compareKeepsThePicturesAndMoviesSharedNotCopied()
+    {
+        auto mine = deck::newPresentation();
+        const QString img = mine->addImage(pngOf(Qt::green), QStringLiteral("png"));
+        const QString movie = mine->addMedia(QByteArray(50000, 'm'), QStringLiteral("video/mp4"), QStringLiteral("mp4"));
+        auto theirs = copyOf(*mine);
+        DeckComparison cmp = compareDecks(*mine, *theirs);
+        QVERIFY(cmp.mine->images.contains(img));
+        QVERIFY(cmp.mine->media.contains(movie));
+        QCOMPARE(static_cast<const void *>(cmp.mine->images[img].bytes.constData()), static_cast<const void *>(mine->images[img].bytes.constData()));
+        QCOMPARE(static_cast<const void *>(cmp.mine->media[movie].bytes.constData()), static_cast<const void *>(mine->media[movie].bytes.constData()));
+    }
+
+    // ---- the review model in libs/base ----
+
+    void reviewModelPositionKeyOfACrunchCellNeverCollides()
+    {
+        using review::crunchPosition;
+        QCOMPARE(crunchPosition(0, 0, 0), qint64(0));
+        QCOMPARE(crunchPosition(0, 0, 1), qint64(1));
+        QCOMPARE(crunchPosition(0, 1, 0), qint64(1) << 14);
+        QCOMPARE(crunchPosition(1, 0, 0), qint64(1) << 40);
+        // The last cell of a sheet comes before the first of the next, and the last of a row before the first of the next row.
+        QVERIFY(crunchPosition(0, 1048575, 16383) < crunchPosition(1, 0, 0));
+        QVERIFY(crunchPosition(3, 7, 16383) < crunchPosition(3, 8, 0));
+        QVERIFY(crunchPosition(16383, 1048575, 16383) > crunchPosition(16383, 1048575, 16382));
+        // No two of a spread of cells share a key, and the keys run in (sheet, row, column) order.
+        QSet<qint64> seen;
+        qint64 last = -1;
+        for (int sheet : {0, 1, 2, 255, 16383})
+            for (int row : {0, 1, 2, 1023, 1048574, 1048575})
+                for (int col : {0, 1, 255, 16382, 16383}) {
+                    const qint64 k = crunchPosition(sheet, row, col);
+                    QVERIFY(!seen.contains(k));
+                    QVERIFY(k > last);
+                    seen.insert(k);
+                    last = k;
+                }
+    }
+
+    void reviewModelKeepsRepliesAndRoundTripsAList()
+    {
+        review::ChangeList list;
+        for (int i = 0; i < 3; ++i) {
+            review::Change c;
+            c.id = QStringLiteral("t%1").arg(i);
+            c.kind = review::Kind::Commented;
+            c.author = QStringLiteral("Pat");
+            c.when = QDateTime(QDate(2026, 11, 1 + i), QTime(8, 30), Qt::UTC);
+            c.target = {QStringLiteral("Sheet 1"), QStringLiteral("B%1").arg(i + 2), QStringLiteral("thread")};
+            c.summary = QStringLiteral("Check this %1").arg(i);
+            c.position = review::crunchPosition(16383, 1048575 - i, 16383);   // more than 53 bits: it must not go through a double
+            c.data[QStringLiteral("resolved")] = i == 1;
+            for (int r = 0; r < i; ++r) c.replies << review::Reply{QStringLiteral("Lee%1").arg(r), QDateTime(QDate(2026, 11, 5), QTime(9, r), Qt::UTC), QStringLiteral("Reply %1").arg(r)};
+            list.changes << c;
+        }
+        list.changes[2].state = review::State::Accepted;
+        list.tooMany = true;
+        const review::ChangeList back = review::ChangeList::fromJson(list.toJson());
+        QVERIFY(back.tooMany);
+        QCOMPARE(back.size(), 3);
+        for (int i = 0; i < 3; ++i) {
+            const review::Change &a = list.changes[i], &b = back.changes[i];
+            QCOMPARE(b.id, a.id);
+            QCOMPARE(int(b.kind), int(a.kind));
+            QCOMPARE(b.author, a.author);
+            QCOMPARE(b.when, a.when);
+            QVERIFY(b.target == a.target);
+            QCOMPARE(b.summary, a.summary);
+            QCOMPARE(int(b.state), int(a.state));
+            QCOMPARE(b.position, a.position);
+            QCOMPARE(b.data, a.data);
+            QCOMPARE(b.replies.size(), a.replies.size());
+            for (int r = 0; r < a.replies.size(); ++r) {
+                QCOMPARE(b.replies[r].author, a.replies[r].author);
+                QCOMPARE(b.replies[r].when, a.replies[r].when);
+                QCOMPARE(b.replies[r].text, a.replies[r].text);
+            }
+        }
+        QVERIFY(!review::ChangeList::fromJson(review::ChangeList().toJson()).tooMany);
+        // A file with more than the most is read to the most, and says so; a thread's replies are cut the same way.
+        QJsonArray many;
+        for (int i = 0; i < review::kMaxChanges + 5; ++i) many.append(QJsonObject{{"id", QString::number(i)}});
+        const review::ChangeList cut = review::ChangeList::fromJson(QJsonObject{{"changes", many}});
+        QCOMPARE(cut.size(), review::kMaxChanges);
+        QVERIFY(cut.tooMany);
+        QJsonArray replies;
+        for (int i = 0; i < review::kMaxReplies + 3; ++i) replies.append(QJsonObject{{"text", QStringLiteral("r")}});
+        QCOMPARE(review::Change::fromJson(QJsonObject{{"replies", replies}}).replies.size(), review::kMaxReplies);
+        // A position written as a plain number (an older file) still reads.
+        QCOMPARE(review::Change::fromJson(QJsonObject{{"position", 12345.0}}).position, qint64(12345));
+    }
+
+    void reviewModelFindsAChangeByIdInOneStep()
+    {
+        review::ChangeList list;
+        for (int i = 0; i < review::kMaxChanges; ++i) {
+            review::Change c;
+            c.id = QStringLiteral("c%1").arg(i);
+            list.changes << c;
+        }
+        for (int i = 0; i < review::kMaxChanges; ++i) QCOMPARE(list.indexOf(QStringLiteral("c%1").arg(i)), i);
+        QCOMPARE(list.indexOf(QStringLiteral("none")), -1);
+        QCOMPARE(list.indexOf(QStringLiteral("none")), -1);
+        QCOMPARE(list.indexRebuilds(), 1);   // one hash for all 10,001 lookups
+        // A list that grew is indexed again, once; an id changed in place is told with reindex().
+        review::Change more;
+        more.id = QStringLiteral("late");
+        list.changes << more;
+        QCOMPARE(list.indexOf(QStringLiteral("late")), review::kMaxChanges);
+        QCOMPARE(list.indexRebuilds(), 2);
+        list.changes[0].id = QStringLiteral("renamed");
+        QCOMPARE(list.indexOf(QStringLiteral("c0")), -1);   // (a stale hash never answers with the wrong change)
+        list.reindex();
+        QCOMPARE(list.indexOf(QStringLiteral("renamed")), 0);
+    }
+
+    // Text came or went: the changes after it move, the ones in another container and before it do not, the order is kept, and the path is left alone.
+    void reviewModelShiftsAChangesPositionAfterAnEdit()
+    {
+        review::ChangeList list;
+        auto add = [&](const QString &container, qint64 pos) {
+            review::Change c;
+            c.id = QStringLiteral("c%1").arg(list.size());
+            c.target = {container, QString(), QStringLiteral("%1-%2").arg(pos).arg(pos + 3)};
+            c.position = pos;
+            list.changes << c;
+        };
+        add(QStringLiteral("body"), 5);
+        add(QStringLiteral("body"), 10);
+        add(QStringLiteral("body"), 12);
+        add(QStringLiteral("body"), 40);
+        add(QStringLiteral("header:1"), 12);
+        list.shiftAfter(QStringLiteral("body"), 10, 7);   // seven characters typed at 10: the one at 10 moves too
+        QCOMPARE(list.changes[0].position, qint64(5));
+        QCOMPARE(list.changes[1].position, qint64(17));
+        QCOMPARE(list.changes[2].position, qint64(19));
+        QCOMPARE(list.changes[3].position, qint64(47));
+        QCOMPARE(list.changes[4].position, qint64(12));
+        QCOMPARE(list.changes[1].target.path, QStringLiteral("10-13"));   // advisory: not rewritten
+        list.shiftAfter(QStringLiteral("body"), 15, -5);   // 15 to 20 removed: the one at 17 and 19 fall to 15, the one at 47 comes to 42
+        QCOMPARE(list.changes[1].position, qint64(15));
+        QCOMPARE(list.changes[2].position, qint64(15));
+        QCOMPARE(list.changes[3].position, qint64(42));
+        QCOMPARE(list.changes[0].position, qint64(5));
+        for (int i = 1; i < 4; ++i) QVERIFY(list.changes[i - 1].position <= list.changes[i].position);
     }
 
     // File > Options is the shared dialog: its General tab has the user name

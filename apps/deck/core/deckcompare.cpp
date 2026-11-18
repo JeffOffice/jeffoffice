@@ -7,10 +7,15 @@
 #include "text/storyio.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QHash>
 #include <QJsonDocument>
 #include <QSet>
+#include <QTextBlock>
+#include <QTextCursor>
 #include <QTextDocument>
+#include <QTextDocumentFragment>
+#include <QTextList>
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -35,7 +40,6 @@ struct Rec {
     const Item *item = nullptr;
     int parent = -1;     // the group it is in (index into recs), -1 on the page
     int index = 0;       // its place in its list
-    int ord = 0;         // which of the objects of the slide with its id it is, in walk order
     QString text;        // the text of all its stories, one separator between stories
     QString path;        // its place from the top of the slide: the indices of the lists, dotted
     QVector<int> kids;
@@ -47,20 +51,41 @@ struct Flat {
     bool complete = true;    // every object of the slide was read
 };
 
-QString textOf(const Document &d, const Item &it)
+// What a side may still read: objects (a table's cells count as objects) and characters of text, in all.
+struct Budget {
+    int objects = kMaxCompareObjects;
+    qint64 text = kMaxTotalText;
+};
+
+// The first characters of a story as plain text, at most kMaxItemText and no more than what is left of the budget (then `cut` is set and nothing is read).
+// A selection of that many characters is made, not the whole text and then cut.
+QString storyText(const Document &d, const QString &id, Budget &b, bool &cut)
 {
-    auto story = [&](const QString &id) {
-        const QTextDocument *sd = id.isEmpty() ? nullptr : d.storyDoc(id);
-        return sd ? sd->toPlainText().left(kMaxItemText) : QString();
-    };
+    const QTextDocument *sd = id.isEmpty() ? nullptr : d.storyDoc(id);
+    if (!sd) return QString();
+    const qint64 n = std::min<qint64>(sd->characterCount() - 1, kMaxItemText);
+    if (n <= 0) return QString();
+    if (n > b.text) {
+        cut = true;
+        return QString();
+    }
+    b.text -= n;
+    QTextCursor c(const_cast<QTextDocument *>(sd));
+    c.setPosition(0);
+    c.setPosition(int(n), QTextCursor::KeepAnchor);
+    return c.selection().toPlainText();
+}
+
+QString textOf(const Document &d, const Item &it, Budget &b, bool &cut)
+{
     switch (it.type()) {
-    case ItemType::Text: return story(static_cast<const TextItem &>(it).storyId);
-    case ItemType::Shape: return story(static_cast<const ShapeItem &>(it).storyId);
+    case ItemType::Text: return storyText(d, static_cast<const TextItem &>(it).storyId, b, cut);
+    case ItemType::Shape: return storyText(d, static_cast<const ShapeItem &>(it).storyId, b, cut);
     case ItemType::Table: {
         QString out;
         for (const TableCell &c : static_cast<const TableItem &>(it).cells) {
-            if (out.size() >= kMaxItemText) break;
-            out += story(c.storyId) + QChar(0x1f) + story(c.storyId2) + QChar(0x1f);
+            if (out.size() >= kMaxItemText || cut) break;
+            out += storyText(d, c.storyId, b, cut) + QChar(0x1f) + storyText(d, c.storyId2, b, cut) + QChar(0x1f);
         }
         return out;
     }
@@ -82,39 +107,93 @@ QStringList storyIdsOf(const Item &it)
     return out;
 }
 
-// The text with its formatting, for telling a change of look from none.
-QString storySignature(const Document &d, const Item &it)
+// A hash of the text of an object with its formatting, for telling a change of look from none. It looks at the first kMaxSigRuns paragraphs and runs and
+// the first kMaxItemText characters of the object, and what it looked at is added to `runs`; false when `runs` would pass `limit` (nothing is hashed then).
+// A format is turned into JSON once for each distinct one of the story, not for each run.
+bool storySignature(const Document &d, const Item &it, qint64 &runs, qint64 limit, QByteArray *out)
 {
-    QString out;
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    qint64 mine = 0;
+    qsizetype chars = 0;
+    auto json = [](const QTextFormat &f) { return QJsonDocument(formatToJson(f)).toJson(QJsonDocument::Compact); };
     for (const QString &id : storyIdsOf(it)) {
+        hash.addData(QByteArrayView("\x1f"));
         const QTextDocument *sd = id.isEmpty() ? nullptr : d.storyDoc(id);
-        if (sd) out += QString::fromUtf8(QJsonDocument(storyToJson(sd)).toJson(QJsonDocument::Compact));
-        out += QChar(0x1f);
+        if (!sd) continue;
+        QHash<int, QByteArray> formats;   // by the format's place in the document's collection
+        QHash<const QTextList *, QByteArray> lists;
+        auto cached = [&](int index, const QTextFormat &f) -> const QByteArray & {
+            auto at = formats.find(index);
+            if (at == formats.end()) at = formats.insert(index, json(f));
+            return at.value();
+        };
+        for (QTextBlock b = sd->begin(); b.isValid() && mine < kMaxSigRuns && chars < kMaxItemText; b = b.next()) {
+            ++mine;
+            hash.addData(QByteArrayView("\x1e"));
+            hash.addData(cached(b.blockFormatIndex(), b.blockFormat()));
+            hash.addData(cached(b.charFormatIndex(), b.charFormat()));
+            if (QTextList *l = b.textList()) {
+                auto at = lists.find(l);
+                if (at == lists.end()) at = lists.insert(l, json(l->format()));
+                hash.addData(at.value());
+            }
+            for (auto f = b.begin(); !f.atEnd() && mine < kMaxSigRuns && chars < kMaxItemText; ++f) {
+                const QTextFragment frag = f.fragment();
+                if (!frag.isValid()) continue;
+                ++mine;
+                const QString t = frag.text().left(kMaxItemText - chars);
+                chars += t.size();
+                hash.addData(QByteArrayView(reinterpret_cast<const char *>(t.constData()), t.size() * 2));
+                hash.addData(cached(frag.charFormatIndex(), frag.charFormat()));
+            }
+        }
     }
-    return out;
+    if (runs + mine > limit) return false;
+    runs += mine;
+    *out = hash.result();
+    return true;
 }
 
-void flatten(const Document &d, const ItemList &list, int parent, int depth, const QString &prefix, Flat &flat, QHash<QString, int> &seen, int &budget)
+void flatten(const Document &d, const ItemList &list, int parent, int depth, const QString &prefix, Flat &flat, Budget &budget)
 {
     for (int i = 0; i < int(list.size()); ++i) {
-        if (budget <= 0) {
+        if (budget.objects <= 0) {
             flat.complete = false;
             return;
         }
-        --budget;
+        --budget.objects;
         const Item *it = list[i].get();
+        // A table's cells are objects too: counted before any of them is read.
+        if (it->type() == ItemType::Table) {
+            const int cells = int(static_cast<const TableItem *>(it)->cells.size());
+            if (cells > budget.objects) {
+                budget.objects = 0;
+                flat.complete = false;
+                return;
+            }
+            budget.objects -= cells;
+        }
         Rec r;
         r.item = it;
         r.parent = parent;
         r.index = i;
-        r.ord = seen[it->id]++;
-        r.text = textOf(d, *it);
+        bool cut = false;
+        r.text = textOf(d, *it, budget, cut);
+        if (cut) {
+            flat.complete = false;
+            return;
+        }
         r.path = prefix.isEmpty() ? QString::number(i) : prefix + QLatin1Char('.') + QString::number(i);
         const int at = int(flat.recs.size());
         flat.recs << r;
         if (parent < 0) flat.top << at;
         else flat.recs[parent].kids << at;
-        if (it->type() == ItemType::Group && depth < kMaxDepth) flatten(d, static_cast<const GroupItem *>(it)->children, at, depth + 1, r.path, flat, seen, budget);
+        if (it->type() == ItemType::Group) {
+            const ItemList &kids = static_cast<const GroupItem *>(it)->children;
+            if (kids.empty()) continue;
+            if (depth < kMaxDepth) flatten(d, kids, at, depth + 1, r.path, flat, budget);
+            else flat.complete = false;   // a group deeper than that is not read
+        }
     }
 }
 
@@ -149,20 +228,19 @@ QVector<uint> tokensOf(const QString &text)
     return out;
 }
 
-SideInfo readSide(const Document &d, int *objectBudgetUsed)
+SideInfo readSide(const Document &d, int *objectsUsed, qint64 *textUsed)
 {
     SideInfo s;
     s.doc = &d;
     s.slides = std::min(int(d.pages.size()), kMaxCompareSlides);
-    int budget = kMaxCompareObjects;
+    Budget budget;
     s.flats.resize(s.slides);
     s.titles.resize(s.slides);
     s.keys.resize(s.slides);
     s.tokens.resize(s.slides);
     for (int i = 0; i < s.slides; ++i) {
         Flat &f = s.flats[i];
-        QHash<QString, int> seen;
-        flatten(d, d.pages[i]->items, -1, 0, QString(), f, seen, budget);
+        flatten(d, d.pages[i]->items, -1, 0, QString(), f, budget);
         QString all;
         for (const Rec &r : std::as_const(f.recs)) {
             if (all.size() >= kMaxSlideText) break;
@@ -174,8 +252,9 @@ SideInfo readSide(const Document &d, int *objectBudgetUsed)
         s.keys[i] = title + QChar(0x1e) + simplified(all);
         s.tokens[i] = tokensOf(title + QLatin1Char(' ') + all);
     }
-    *objectBudgetUsed = kMaxCompareObjects - budget;
-    s.objects = *objectBudgetUsed;
+    *objectsUsed = kMaxCompareObjects - budget.objects;
+    *textUsed = kMaxTotalText - budget.text;
+    s.objects = *objectsUsed;
     return s;
 }
 
@@ -339,32 +418,83 @@ QString commentKey(const comments::Comment &c) { return c.author + QLatin1Char('
 
 qint64 positionOf(int slideKey, int sub) { return qint64(slideKey) * 100000 + sub; }
 
-// ---- applying ----
+// What a picture is, for telling two loads of one file apart from two pictures: a hash of its bytes, made once for each id of a presentation.
+struct ImageHashes {
+    const Document *doc = nullptr;
+    QHash<QString, QString> cache;
+    const QString &of(const QString &id)
+    {
+        auto at = cache.find(id);
+        if (at == cache.end()) {
+            QString h;
+            if (!id.isEmpty()) {
+                const auto image = doc->images.constFind(id);
+                h = image == doc->images.cend() ? QStringLiteral("none") : QString::fromLatin1(QCryptographicHash::hash(image->bytes, QCryptographicHash::Sha1).toHex());
+            }
+            at = cache.insert(id, h);
+        }
+        return at.value();
+    }
+};
 
-CompareRef refOf(const Document &d, int index)
+bool sameFill(const Fill &a, ImageHashes &ha, const Fill &b, ImageHashes &hb)
 {
-    CompareRef r;
-    if (index < 0 || index >= d.pages.size()) return r;
-    r.id = d.pages[index]->id;
-    r.ord = 0;
-    for (int i = 0; i < index; ++i) r.ord += d.pages[i]->id == r.id;
-    return r;
+    if (a.imageId.isEmpty() && b.imageId.isEmpty()) return a == b;
+    Fill x = a, y = b;
+    x.imageId = ha.of(a.imageId);
+    y.imageId = hb.of(b.imageId);
+    return x == y;
 }
 
-int findSlide(const Document &d, const CompareRef &r)
+// Two tables that do not have the same rows, columns, and cells: a text change can't be taken from one into the other, so one replaces the other.
+bool tableShapeDiffers(const Item &a, const Item &b)
+{
+    if (a.type() != ItemType::Table || b.type() != ItemType::Table) return false;
+    const auto &x = static_cast<const TableItem &>(a), &y = static_cast<const TableItem &>(b);
+    return x.rows != y.rows || x.cols != y.cols || x.cells.size() != y.cells.size();
+}
+
+// ---- applying ----
+
+QString parentPathOf(const QString &path)
+{
+    const qsizetype i = path.lastIndexOf(QLatin1Char('.'));
+    return i < 0 ? QString() : path.left(i);
+}
+int lastIndexOf(const QString &path)
+{
+    const qsizetype i = path.lastIndexOf(QLatin1Char('.'));
+    return path.mid(i + 1).toInt();
+}
+QString childPath(const QString &parent, int k) { return parent.isEmpty() ? QString::number(k) : parent + QLatin1Char('.') + QString::number(k); }
+
+// Where the slide with this id is in the working presentation, or -1. The places are a hash made when needed (and again when a lookup of a slide that
+// should be there fails, as after slides came or went), so a lookup is a step and not a walk.
+int findSlide(const Document &w, DeckComparison &cmp, const CompareRef &r)
 {
     if (!r.valid()) return -1;
-    int n = 0;
-    for (int i = 0; i < d.pages.size(); ++i)
-        if (d.pages[i]->id == r.id && n++ == r.ord) return i;
-    return -1;
+    CompareWork &st = cmp.state;
+    auto hit = [&]() {
+        const auto at = st.slideAt.constFind(r.id);
+        return at != st.slideAt.cend() && *at < w.pages.size() && w.pages[*at]->id == r.id ? *at : -1;
+    };
+    const int i = hit();
+    if (i >= 0 || st.slideFresh) return i;
+    st.slideAt.clear();
+    st.slideAt.reserve(w.pages.size());
+    for (int k = 0; k < w.pages.size(); ++k)
+        if (!st.slideAt.contains(w.pages[k]->id)) st.slideAt.insert(w.pages[k]->id, k);
+    cmp.work += w.pages.size();
+    st.slideFresh = true;
+    return hit();
 }
 
 // Just after the slide before slide `src` of a side that is in the working presentation (the nearest such one), else the first place.
-int placeAfter(const Document &w, const QVector<CompareRef> &refs, int src)
+int placeAfter(const Document &w, DeckComparison &cmp, const QVector<CompareRef> &refs, int src)
 {
     for (int j = std::min(src, int(refs.size())) - 1; j >= 0; --j) {
-        const int k = findSlide(w, refs[j]);
+        ++cmp.work;
+        const int k = findSlide(w, cmp, refs[j]);
         if (k >= 0) return k + 1;
     }
     return 0;
@@ -375,31 +505,6 @@ struct Spot {
     int index = -1;
     Item *item = nullptr;
 };
-
-bool scanFor(ItemList &list, const QString &id, int *ord, Spot *out)
-{
-    for (int i = 0; i < int(list.size()); ++i) {
-        if (list[i]->id == id && (*ord)-- == 0) {
-            *out = Spot{&list, i, list[i].get()};
-            return true;
-        }
-        if (list[i]->type() == ItemType::Group && scanFor(static_cast<GroupItem *>(list[i].get())->children, id, ord, out)) return true;
-    }
-    return false;
-}
-
-Spot findItem(Document &d, int slide, const QString &id, int ord)
-{
-    if (slide < 0 || slide >= d.pages.size() || ord < 0) return {};
-    if (ord == 0) {
-        const Document::Loc loc = d.find(id);
-        if (loc.item && loc.item->id == id && loc.page == slide && loc.list && !loc.scratch) return Spot{loc.list, loc.index, loc.item};
-    }
-    Spot out;
-    int n = ord;
-    scanFor(d.pages[slide]->items, id, &n, &out);
-    return out;
-}
 
 Item *itemAtPath(const ItemList &top, const QString &path)
 {
@@ -415,6 +520,110 @@ Item *itemAtPath(const ItemList &top, const QString &path)
         list = at->type() == ItemType::Group ? &static_cast<GroupItem *>(at)->children : nullptr;
     }
     return at;
+}
+
+
+// Gives each object of the working presentation that shares its id (or has none) the id its place has in the copy of mine, which has none repeated, and
+// each slide that shares an id one of its own. The working presentation is taken to be mine as it was compared: slide m is slide m, and an object is where
+// its path says. After that an id is an address. Done by the first accept or reject, and again if an undo took the ids away.
+void stampItems(ItemList &wl, const ItemList &sl, QSet<QString> &seen, int page, DeckComparison &cmp)
+{
+    static const ItemList none;
+    CompareWork &st = cmp.state;
+    for (int i = 0; i < int(wl.size()); ++i) {
+        ++cmp.work;
+        Item &wi = *wl[i];
+        const Item *si = i < int(sl.size()) && sl[i]->type() == wi.type() ? sl[i].get() : nullptr;
+        if (si && (wi.id.isEmpty() || seen.contains(wi.id)) && !si->id.isEmpty() && si->id != wi.id) {
+            wi.id = si->id;
+            if (st.sampleSlide < 0) {
+                st.sampleSlide = page;
+                st.sampleId = wi.id;
+            }
+        }
+        seen.insert(wi.id);
+        if (wi.type() == ItemType::Group) stampItems(static_cast<GroupItem &>(wi).children, si ? static_cast<const GroupItem *>(si)->children : none, seen, page, cmp);
+    }
+}
+
+void bindWorking(Document &w, DeckComparison &cmp)
+{
+    CompareWork &st = cmp.state;
+    if (st.bound) {
+        // (the stamps are still there if the slide and the object that was stamped first are: an undo takes them all away at once)
+        bool ok = true;
+        if (st.samplePage >= 0) ok = findSlide(w, cmp, CompareRef{st.samplePageId}) >= 0;
+        if (ok && st.sampleSlide >= 0) {
+            const Document::Loc loc = w.find(st.sampleId);
+            ok = loc.item && loc.item->id == st.sampleId;
+        }
+        if (ok) return;
+    }
+    st.bound = true;
+    st.samplePage = st.sampleSlide = -1;
+    const int nm = int(cmp.workOfMine.size());
+    if (st.pageStamp.size() < nm) st.pageStamp.resize(nm);
+    QSet<QString> seenPages, seenItems;
+    for (int m = 0; m < w.pages.size(); ++m) {
+        Page &p = *w.pages[m];
+        const bool compared = m < nm && m < cmp.mine->pages.size();
+        if (compared && (p.id.isEmpty() || seenPages.contains(p.id))) {
+            if (st.pageStamp[m].isEmpty()) st.pageStamp[m] = newId("p");
+            p.id = st.pageStamp[m];
+            cmp.workOfMine[m] = CompareRef{p.id};
+            const int t = m < cmp.theirsOfMine.size() ? cmp.theirsOfMine[m] : -1;
+            if (t >= 0 && t < cmp.workOfTheirs.size()) cmp.workOfTheirs[t] = cmp.workOfMine[m];
+            if (st.samplePage < 0) {
+                st.samplePage = m;
+                st.samplePageId = p.id;
+            }
+        }
+        seenPages.insert(p.id);
+        if (compared) {
+            stampItems(p.items, cmp.mine->pages[m]->items, seenItems, m, cmp);
+        } else {
+            walkItems(p.items, [&](const ItemPtr &it) { seenItems.insert(it->id); ++cmp.work; });
+        }
+    }
+    st.ids = seenItems;
+    st.slideFresh = false;
+}
+
+// Where the object with this id is in `list`: its last known place if it is still there, else a look along the list. -1 when it is not in it.
+int indexInList(ItemList &list, const QString &id, DeckComparison &cmp)
+{
+    auto &hint = cmp.state.hint;
+    const auto at = hint.constFind(id);
+    if (at != hint.cend() && *at >= 0 && *at < int(list.size()) && list[*at]->id == id) return *at;
+    for (int i = 0; i < int(list.size()); ++i) {
+        ++cmp.work;
+        if (list[i]->id == id) {
+            hint[id] = i;
+            return i;
+        }
+    }
+    return -1;
+}
+
+// Where an object goes in `list` (its side's list stood at `path` on slide `slide` of that side): just after the nearest object before it that is in the
+// working list, else first. From theirs the objects before it are known by the table of what is who; from mine, by the copy of mine.
+int placeFor(ItemList &list, const QString &path, bool fromTheirs, int slide, DeckComparison &cmp)
+{
+    const QString parent = parentPathOf(path);
+    for (int k = lastIndexOf(path) - 1; k >= 0; --k) {
+        ++cmp.work;
+        const QString sibling = childPath(parent, k);
+        QString id;
+        if (fromTheirs) {
+            id = cmp.state.theirsWork.value(QString::number(slide) + QLatin1Char('/') + sibling);
+        } else if (slide >= 0 && slide < cmp.mine->pages.size()) {
+            if (const Item *it = itemAtPath(cmp.mine->pages[slide]->items, sibling)) id = it->id;
+        }
+        if (id.isEmpty() || !cmp.state.ids.contains(id)) continue;
+        const int at = indexInList(list, id, cmp);
+        if (at >= 0) return at + 1;
+    }
+    return 0;
 }
 
 // What an object carries into another presentation: its text, pictures, and movies are copied there, once each.
@@ -551,13 +760,21 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
     DeckComparison out;
     out.theirs = &theirs;
     out.mine = Document::fromSnapshot(mine.snapshot());
+    // The copy of mine has no id repeated (the later ones are given new ones); an object with none gets one. The objects of the working presentation are known by these.
+    for (auto &p : out.mine->pages)
+        walkItems(p->items, [](const ItemPtr &it) {
+            if (it->id.isEmpty()) it->id = newId();
+        });
     int usedM = 0, usedT = 0;
-    const SideInfo sm = readSide(mine, &usedM);
-    const SideInfo st = readSide(theirs, &usedT);
+    qint64 textM = 0, textT = 0;
+    const SideInfo sm = readSide(mine, &usedM, &textM);
+    const SideInfo st = readSide(theirs, &usedT, &textT);
     out.slidesMine = sm.slides;
     out.slidesTheirs = st.slides;
     out.objectsMine = usedM;
     out.objectsTheirs = usedT;
+    out.textMine = textM;
+    out.textTheirs = textT;
     const bool slidesCapped = mine.pages.size() > kMaxCompareSlides || theirs.pages.size() > kMaxCompareSlides;
     bool cut = slidesCapped;
     for (const Flat &f : sm.flats) cut |= !f.complete;
@@ -571,13 +788,15 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         if (mineOf[t] >= 0) theirsOf[mineOf[t]] = t;
     const std::vector<char> keeps = keepsOrder(mineOf);
 
-    out.mineOfTheirs.resize(theirs.pages.size());
-    out.theirsOfMine.resize(mine.pages.size());
-    out.mineOfTheirs.fill(-1);
-    out.theirsOfMine.fill(-1);
-    out.workOfMine.resize(mine.pages.size());
-    out.workOfTheirs.resize(theirs.pages.size());
-    for (int m = 0; m < mine.pages.size(); ++m) out.workOfMine[m] = refOf(mine, m);
+    // Only the slides that were read (at most kMaxCompareSlides of each) have places in these.
+    out.mineOfTheirs = QVector<int>(nt, -1);
+    out.theirsOfMine = QVector<int>(nm, -1);
+    out.workOfMine.resize(nm);
+    out.workOfTheirs.resize(nt);
+    for (int m = 0; m < nm; ++m) {
+        out.workOfMine[m] = CompareRef{mine.pages[m]->id};
+        ++out.work;
+    }
     for (int t = 0; t < nt; ++t) {
         out.mineOfTheirs[t] = mineOf[t];
         if (mineOf[t] >= 0) {
@@ -609,6 +828,27 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
     auto slideName = [&](const Document &d, int i) {
         const QString t = shortText(slideTitle(d, i));
         return t.isEmpty() ? QCoreApplication::translate("DeckCompare", "Slide %1").arg(i + 1) : t;
+    };
+    // The id an object of mine has in the working presentation (the copy of mine has no id repeated).
+    auto snapId = [&](int m, const QString &path) {
+        const Item *it = itemAtPath(out.mine->pages[m]->items, path);
+        return it ? it->id : QString();
+    };
+    ImageHashes imagesMine{&mine, {}}, imagesTheirs{&theirs, {}};
+    bool sigCut = false;
+    // Whether the text of two objects (that is the same) is formatted differently; the runs looked at are counted, at most kMaxTotalSigRuns of each side in all.
+    auto formatDiffers = [&](const Item &a, const Item &b) {
+        if (sigCut) return false;
+        qint64 runsM = out.sigRunsMine, runsT = out.sigRunsTheirs;
+        QByteArray ha, hb;
+        if (!storySignature(mine, a, runsM, kMaxTotalSigRuns, &ha) || !storySignature(theirs, b, runsT, kMaxTotalSigRuns, &hb)) {
+            sigCut = true;
+            out.changes.tooMany = true;
+            return false;
+        }
+        out.sigRunsMine = runsM;
+        out.sigRunsTheirs = runsT;
+        return ha != hb;
     };
 
     // Slides added and moved, in the order of theirs.
@@ -680,6 +920,14 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
         std::vector<int> itemMine(ft.recs.size(), -1);
         std::vector<char> usedM2(fm.recs.size(), 0);
         matchItems(fm, ft, fm.top, ft.top, itemMine, usedM2, out.work);
+        // A table that does not have the shape of the one it matched is replaced: the old one is deleted and the new one added.
+        for (int i = 0; i < int(ft.recs.size()); ++i) {
+            const int j = itemMine[i];
+            if (j >= 0 && tableShapeDiffers(*fm.recs[j].item, *ft.recs[i].item)) {
+                itemMine[i] = -1;
+                usedM2[j] = 0;
+            }
+        }
         // Objects of theirs: added when unmatched, else compared.
         for (int i = 0; i < int(ft.recs.size()) && !full; ++i) {
             const Rec &rt = ft.recs[i];
@@ -690,20 +938,18 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             data[QStringLiteral("ti")] = rt.path;
             if (itemMine[i] < 0) {
                 // The group it is in, in the working presentation: the matched object of mine.
-                if (rt.parent >= 0) {
-                    const Rec &pr = fm.recs[itemMine[rt.parent]];
-                    data[QStringLiteral("pid")] = pr.item->id;
-                    data[QStringLiteral("pord")] = pr.ord;
-                }
-                data[QStringLiteral("idx")] = rt.index;
+                if (rt.parent >= 0) data[QStringLiteral("pid")] = snapId(m, fm.recs[itemMine[rt.parent]].path);
                 emit(Kind::Added, container, rt.item->id, QStringLiteral("object"), QCoreApplication::translate("DeckCompare", "Object added: %1").arg(describe(*rt.item, rt.text)), pos, data);
                 continue;
             }
             const Rec &rm = fm.recs[itemMine[i]];
             const Item &a = *rm.item, &b = *rt.item;
+            const QString mid = snapId(m, rm.path);
             data[QStringLiteral("mi")] = rm.path;
-            data[QStringLiteral("mid")] = a.id;
-            data[QStringLiteral("mord")] = rm.ord;
+            data[QStringLiteral("mid")] = mid;
+            // Who is who, for placing the objects that come in beside them (see placeFor).
+            out.state.theirsWork.insert(QString::number(t) + QLatin1Char('/') + rt.path, mid);
+            out.state.hint.insert(mid, rm.index);
             const QString what = describe(b, rt.text);
             if (!sameGeometry(a, b)) {
                 const bool sized = std::abs(a.rect.width() - b.rect.width()) >= 0.01 || std::abs(a.rect.height() - b.rect.height()) >= 0.01;
@@ -716,10 +962,10 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             if (full) break;
             if (rm.text != rt.text)
                 emit(Kind::Edited, container, a.id, QStringLiteral("text"), QCoreApplication::translate("DeckCompare", "Text changed from \"%1\" to \"%2\"").arg(shortText(rm.text), shortText(rt.text)), pos, data);
-            else if (!storyIdsOf(b).isEmpty() && storySignature(mine, a) != storySignature(theirs, b))
+            else if (!storyIdsOf(b).isEmpty() && formatDiffers(a, b))
                 emit(Kind::Reformatted, container, a.id, QStringLiteral("font"), QCoreApplication::translate("DeckCompare", "Text formatting changed: %1").arg(what), pos, data);
             if (full) break;
-            if (!(a.fill == b.fill)) emit(Kind::Reformatted, container, a.id, QStringLiteral("fill"), QCoreApplication::translate("DeckCompare", "Fill changed: %1").arg(what), pos, data);
+            if (!sameFill(a.fill, imagesMine, b.fill, imagesTheirs)) emit(Kind::Reformatted, container, a.id, QStringLiteral("fill"), QCoreApplication::translate("DeckCompare", "Fill changed: %1").arg(what), pos, data);
             if (full) break;
             if (!(a.stroke == b.stroke)) emit(Kind::Reformatted, container, a.id, QStringLiteral("line"), QCoreApplication::translate("DeckCompare", "Line changed: %1").arg(what), pos, data);
         }
@@ -729,14 +975,10 @@ DeckComparison compareDecks(const Document &mine, const Document &theirs)
             const Rec &rm = fm.recs[i];
             if (rm.parent >= 0 && !usedM2[rm.parent]) continue;
             QJsonObject data = slideData;
+            const QString mid = snapId(m, rm.path);
             data[QStringLiteral("mi")] = rm.path;
-            data[QStringLiteral("mid")] = rm.item->id;
-            data[QStringLiteral("mord")] = rm.ord;
-            if (rm.parent >= 0) {
-                data[QStringLiteral("pid")] = fm.recs[rm.parent].item->id;
-                data[QStringLiteral("pord")] = fm.recs[rm.parent].ord;
-            }
-            data[QStringLiteral("idx")] = rm.index;
+            data[QStringLiteral("mid")] = mid;
+            if (rm.parent >= 0) data[QStringLiteral("pid")] = snapId(m, fm.recs[rm.parent].path);
             emit(Kind::Deleted, container, rm.item->id, QStringLiteral("object"), QCoreApplication::translate("DeckCompare", "Object deleted: %1").arg(describe(*rm.item, rm.text)), positionOf(key, 3 + i), data);
         }
     }
@@ -760,6 +1002,9 @@ QString dataString(const Change &c, const char *key) { return c.data.value(QLati
 // Takes one side's version of change `ch` into `w`. `accept`: theirs, else mine. Safe to repeat.
 bool take(Document &w, DeckComparison &cmp, Change &ch, bool accept)
 {
+    CompareWork &st = cmp.state;
+    st.slideFresh = false;   // (the slides may have changed since the last one)
+    bindWorking(w, cmp);
     const Document &src = accept ? *cmp.theirs : *cmp.mine;
     QVector<CompareRef> &refs = accept ? cmp.workOfTheirs : cmp.workOfMine;
     const int ms = dataInt(ch, "ms"), ts = dataInt(ch, "ts");
@@ -769,44 +1014,50 @@ bool take(Document &w, DeckComparison &cmp, Change &ch, bool accept)
     if (path == QLatin1String("slide")) {
         // An added slide (only in theirs) or a deleted one (only in mine): the side that has it is the one that keeps it.
         const bool inTheirs = ts >= 0;
-        QVector<CompareRef> &mine = inTheirs ? cmp.workOfTheirs : cmp.workOfMine;
-        const int own = inTheirs ? ts : ms;
-        if (own < 0 || own >= mine.size()) return false;
+        QVector<CompareRef> &own = inTheirs ? cmp.workOfTheirs : cmp.workOfMine;
+        const int n = inTheirs ? ts : ms;
+        if (n < 0 || n >= own.size()) return false;
         const bool wanted = inTheirs == accept;   // the slide should be in the working presentation
-        const int at = findSlide(w, mine[own]);
+        const int at = findSlide(w, cmp, own[n]);
         if (wanted) {
             if (at >= 0) return true;
             const Document &from = inTheirs ? *cmp.theirs : *cmp.mine;
-            const int index = insertSlideFrom(w, placeAfter(w, mine, own), from, own, true);
+            const int index = insertSlideFrom(w, placeAfter(w, cmp, own, n), from, n, true);
             if (index < 0) return false;
+            st.slideFresh = false;
             // The slide comes back under the id it had, so that what refers to it by id (and an undo) still finds it.
-            const QString want = from.pages[own]->id;
-            if (!want.isEmpty() && findSlide(w, CompareRef{want, 0}) < 0) w.pages[index]->id = want;
-            mine[own] = refOf(w, index);
+            const QString want = from.pages[n]->id;
+            if (!want.isEmpty() && findSlide(w, cmp, CompareRef{want}) < 0) w.pages[index]->id = want;
+            if (w.pages[index]->id.isEmpty()) w.pages[index]->id = newId("p");
+            own[n] = CompareRef{w.pages[index]->id};
+            st.slideFresh = false;
             return true;
         }
         if (at < 0) return true;
         if (w.pages.size() < 2) return false;
+        if (w.pages[at]->id == st.samplePageId) st.samplePage = -1;
         removeSlideAt(w, at);
+        st.slideFresh = false;
         return true;
     }
     if (path == QLatin1String("order")) {
         if (ms < 0 || ts < 0 || ms >= cmp.workOfMine.size()) return false;
-        const int idx = findSlide(w, cmp.workOfMine[ms]);
+        const int idx = findSlide(w, cmp, cmp.workOfMine[ms]);
         if (idx < 0) return false;
-        const int k = placeAfter(w, refs, srcSlide) - 1;   // the slide it follows, -1 for the first place
+        const int k = placeAfter(w, cmp, refs, srcSlide) - 1;   // the slide it follows, -1 for the first place
         if (k + 1 == idx) return true;
         const std::shared_ptr<Page> page = w.pages[idx];
         const int at = k < idx ? k + 1 : k;
         removeSlideAt(w, idx);
         w.pages.insert(at, page);
         slideInserted(w, at);
+        st.slideFresh = false;
         return true;
     }
 
     // Everything else is on a slide that both have.
     if (ms < 0 || ms >= cmp.workOfMine.size()) return false;
-    const int sl = findSlide(w, cmp.workOfMine[ms]);
+    const int sl = findSlide(w, cmp, cmp.workOfMine[ms]);
     if (sl < 0) return false;
     Page &page = *w.pages[sl];
     const Page &from = *src.pages[srcSlide];
@@ -841,43 +1092,56 @@ bool take(Document &w, DeckComparison &cmp, Change &ch, bool accept)
         return true;
     }
 
-    // Objects.
+    // Objects. Each is known by the id it has in the working presentation (made one of its own when the first accept or reject began).
     const QString mid = dataString(ch, "mid");
-    const int mord = dataInt(ch, "mord", 0);
-    const QString wid = dataString(ch, "wid");
-    auto parentList = [&]() -> ItemList * {
-        const QString pid = dataString(ch, "pid");
-        if (pid.isEmpty()) return &page.items;
-        const Spot parent = findItem(w, sl, pid, dataInt(ch, "pord", 0));
-        if (!parent.item || parent.item->type() != ItemType::Group) return nullptr;
-        return &static_cast<GroupItem *>(parent.item)->children;
+    auto locate = [&](const QString &id) -> Spot {
+        if (id.isEmpty()) return {};
+        const Document::Loc loc = w.find(id);
+        if (loc.item && loc.item->id == id && loc.page == sl && !loc.scratch) return Spot{loc.list, loc.index, loc.item};
+        return {};
     };
     if (path == QLatin1String("object")) {
         const bool added = ch.kind == Kind::Added;
         const bool wanted = added == accept;   // the object should be in the working presentation
-        Spot here;
-        if (!wid.isEmpty()) here = findItem(w, sl, wid, 0);
-        if (!here.item && !added) here = findItem(w, sl, mid, mord);
+        const QString tkey = QString::number(ts) + QLatin1Char('/') + dataString(ch, "ti");
+        const Spot here = locate(added ? dataString(ch, "wid") : mid);
         if (wanted) {
             if (here.item) return true;
-            ItemList *list = parentList();
-            if (!list) return false;
+            ItemList *list = &page.items;
+            if (const QString pid = dataString(ch, "pid"); !pid.isEmpty()) {
+                const Spot parent = locate(pid);
+                if (!parent.item || parent.item->type() != ItemType::Group) return false;
+                list = &static_cast<GroupItem *>(parent.item)->children;
+            }
             const QString ipath = dataString(ch, added ? "ti" : "mi");
             const Item *srcItem = itemAtPath(from.items, ipath);
             if (!srcItem) return false;
             ItemPtr made = Carry(w, src).copy(*srcItem);
-            if (!srcItem->id.isEmpty() && !w.find(srcItem->id).item) made->id = srcItem->id;   // the id it had, if free
-            const int at = std::clamp(dataInt(ch, "idx", int(list->size())), 0, int(list->size()));
+            if (!srcItem->id.isEmpty() && !st.ids.contains(srcItem->id)) made->id = srcItem->id;   // the id it had, if free
+            ++cmp.work;
+            const int at = placeFor(*list, ipath, added, added ? ts : ms, cmp);
             list->insert(list->begin() + at, made);
+            ItemList one{made};
+            walkItems(one, [&](const ItemPtr &it) { st.ids.insert(it->id); });
+            st.hint[made->id] = at;
             ch.data[QStringLiteral("wid")] = made->id;
+            if (added) st.theirsWork[tkey] = made->id;
             return true;
         }
         if (!here.item) return true;
+        const ItemPtr gone = (*here.list)[here.index];
         here.list->erase(here.list->begin() + here.index);
+        ItemList one{gone};
+        walkItems(one, [&](const ItemPtr &it) {
+            st.ids.remove(it->id);
+            if (it->id == st.sampleId) st.sampleSlide = -1;
+        });
+        st.hint.remove(gone->id);
+        if (added) st.theirsWork.remove(tkey);
         return true;
     }
     // A property of an object both have.
-    const Spot spot = findItem(w, sl, mid, mord);
+    const Spot spot = locate(mid);
     const QString ipath = dataString(ch, accept ? "ti" : "mi");
     const Item *srcItem = itemAtPath(from.items, ipath);
     if (!spot.item || !srcItem) return false;
