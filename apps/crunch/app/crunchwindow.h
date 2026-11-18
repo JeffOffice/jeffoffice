@@ -572,6 +572,8 @@ public:
     qint64 longestBatchItems() const { return m_longestBatchItems; }
     // For tests: slows the worker, or with a negative number holds it (see WorkbookLoader::setPace).
     void setWorkerPace(int micros) { m_loader.setPace(micros); }
+    // For tests: slows the calculation only (see WorkbookLoader::setCalcPace).
+    void setCalcPace(int micros) { m_loader.setCalcPace(micros); }
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
     // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).
     std::shared_ptr<crunch::LoadedBook> loadedBook() const { return m_loaded; }

@@ -180,6 +180,8 @@ public:
     // while the worker is at work. 0 is no wait. A negative number holds the worker where it waits until the pace is set to 0 or more (or the read is cancelled): what a test does
     // in the middle of a read then cannot be late, however busy the machine is.
     void setPace(int micros);
+    // For tests: the same wait between slices of the calculation only (the read is not slowed): a test that needs the calculation still going does not wait on a slow read.
+    void setCalcPace(int micros);
     // Workers that have not ended (all loaders'): a window that is closed leaves its worker to stop by itself.
     static int workersRunning();
     // The result so far; the calculation is in it once `finished` has been sent.
@@ -203,6 +205,7 @@ private:
         std::atomic<bool> redo{false};        // work every formula out again at the next slice
         std::atomic<int> pending{0};          // batches sent and not yet taken
         std::atomic<int> pace{0};
+        std::atomic<int> calcPace{0};
         std::atomic<bool> serving{false};     // the workbook is read whole and the worker is ready to work formulas out for the window
         std::mutex model;                     // the worker has it while it works formulas out (a slice at a time); the window has it while it changes cells
         std::condition_variable wake;         // the worker waits on it (with `model`) for something to work out
@@ -228,6 +231,7 @@ private:
     std::shared_ptr<LoadedBook> m_result;
     std::shared_ptr<State> m_state;
     int m_pace = 0;
+    int m_calcPace = 0;
     bool m_manualAllowed = true;
     int m_tablesAutomatic = -1;           // (the same, kept for the next read)
 };

@@ -113,6 +113,12 @@ void WorkbookLoader::setPace(int micros)
     if (m_state) m_state->pace = micros;
 }
 
+void WorkbookLoader::setCalcPace(int micros)
+{
+    m_calcPace = micros;
+    if (m_state) m_state->calcPace = micros;
+}
+
 void WorkbookLoader::startThread(std::function<void()> work, const std::shared_ptr<State> &state)
 {
     m_thread = std::shared_ptr<QThread>(QThread::create([work] {
@@ -134,6 +140,7 @@ void WorkbookLoader::begin(const QString &path, const std::shared_ptr<const jp::
     m_state = std::make_shared<State>();
     m_state->manualAllowed = m_manualAllowed;
     m_state->pace = m_pace;
+    m_state->calcPace = m_calcPace;
     m_state->tablesAutomatic = m_tablesAutomatic;
     m_result = std::make_shared<LoadedBook>();
     m_result->path = path;
@@ -530,7 +537,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
             } else {
                 lock.unlock();
             }
-            if (const int pace = state->pace.load(); pace > 0) QThread::usleep(pace);
+            if (const int pace = std::max(state->pace.load(), state->calcPace.load()); pace > 0) QThread::usleep(pace);
             while (state->pace.load() < 0 && !state->cancel.load()) QThread::usleep(200);   // (held, for a test)
             while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
             lock.lock();
