@@ -1501,10 +1501,12 @@ private Q_SLOTS:
         const QString book = savedFile(files, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total", "North", "12", "South", "30"}, 2)));
         EditWindow e;
         QVERIFY(ready(e));
+        // (a range at its natural size, where the selected cell is, and a page sized larger, which is drawn again at that size)
+        e.select(QStringLiteral("B3"));
         QVERIFY(e.win.w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B3")));
-        QVERIFY(e.win.w.moveObject(embedsOf(e)->idsOf(0).front(), cells(3, 2, 7, 8)));
+        e.select(QStringLiteral("J3"));
         QVERIFY(e.win.w.insertObjectFrom(objects::Source::Page, page, QStringLiteral("1")));
-        QVERIFY(e.win.w.moveObject(embedsOf(e)->idsOf(0).back(), cells(9, 2, 13, 14)));
+        QVERIFY(e.win.w.moveObject(embedsOf(e)->idsOf(0).back(), cells(9, 2, 16, 20)));
         e.win.w.objects()->layer()->prepareAll();
         e.win.w.objects()->layer()->select(embedsOf(e)->idsOf(0).back());
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/crunch-window-with-objects.png")));
