@@ -1165,6 +1165,15 @@ QString Canvas::itemAt(const QPointF &page, bool enterGroups, int *row, int *col
             st.setWidth(tol * 2 + s->stroke.width);
             return st.createStroke(path).contains(local) || (!s->storyId.isEmpty() && r.contains(local) && false);
         }
+        if (it->type() == ItemType::Text && (!static_cast<const TextItem *>(it)->shape.isEmpty() || !static_cast<const TextItem *>(it)->customPath.isEmpty())) {
+            // A text box with a shape is hit in its outline, as a shape is; a plain box is hit anywhere in its frame.
+            const auto *t = static_cast<const TextItem *>(it);
+            const QPainterPath path = Renderer::silhouette(*d, *it);
+            if (path.contains(local)) return true;
+            QPainterPathStroker st;
+            st.setWidth(tol * 2 + t->stroke.width);
+            return st.createStroke(path).contains(local);
+        }
         if (it->type() == ItemType::TextArt || it->type() == ItemType::Equation) {
             // TextArt is easy to grab anywhere in its frame.
             return r.adjusted(-tol, -tol, tol, tol).contains(local);

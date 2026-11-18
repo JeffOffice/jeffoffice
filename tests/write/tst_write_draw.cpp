@@ -7559,6 +7559,19 @@ private Q_SLOTS:
         QCOMPARE(spec.size, QSizeF(at(0)->rect.height(), at(0)->rect.width()));
     }
 
+    void theDirectionOfAWordShapeIsReadFromAPlainWspRootToo()
+    {
+        office::wml::Shape s;
+        s.wsp = "<wps:wsp xmlns:wps=\"urn:x\"><wps:bodyPr vert=\"vert270\"/></wps:wsp>";
+        ItemPtr ref = std::make_shared<TextItem>();
+        TextItem box;
+        applyDrawnLook(box, *ref, s);
+        QVERIFY(box.vertical && box.turnedBack);
+        s.wsp = "<w:r xmlns:w=\"w\" xmlns:wps=\"x\"><wps:wsp><wps:bodyPr vert=\"vert\"/></wps:wsp></w:r>";
+        applyDrawnLook(box, *ref, s);
+        QVERIFY(box.vertical && !box.turnedBack);
+    }
+
     void aShapeWithWordsIsSavedAsItWasAndKeepsItsShapeWhenItsWordsAreEdited()
     {
         const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, "ellipse", "Hi", "vert=\"vert270\"", 100, 100, 200, 150) + "</w:p>";
@@ -7593,7 +7606,7 @@ private Q_SLOTS:
         QByteArray body = "<w:p><w:r><w:t>Shapes with words</w:t></w:r>";
         const char *presets[] = {"ellipse", "roundRect", "wedgeEllipseCallout", "wedgeRoundRectCallout", "diamond", "hexagon", "rightArrow", "star5"};
         for (int i = 0; i < 8; ++i)
-            body += wordShape(10 + i, presets[i], QByteArray(presets[i]).left(9), i == 7 ? "vert=\"vert270\"" : "", 60 + (i % 2) * 260, 90 + (i / 2) * 170, 220, 140);
+            body += wordShape(10 + i, presets[i], QByteArray(QString::fromLatin1(presets[i]).replace(QRegularExpression(QStringLiteral("(?<=[a-z])(?=[A-Z0-9])")), QStringLiteral(" ")).toLatin1()), i == 7 ? "vert=\"vert270\"" : "", 60 + (i % 2) * 260, 90 + (i / 2) * 170, 220, 140);
         body += "</w:p>";
         auto doc = open(makeDocx(body));
         QVERIFY(doc);

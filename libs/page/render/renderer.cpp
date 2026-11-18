@@ -288,12 +288,17 @@ static QPainterPath boxOutline(const TextItem &t)
 static QMarginsF boxTextArea(const TextItem &t)
 {
     const QSizeF size = t.rect.size();
-    double l = t.textArea.left(), top = t.textArea.top(), r = t.textArea.right(), b = t.textArea.bottom();
-    if (t.customPath.isEmpty() || t.textArea.isNull()) {
-        if (t.shape.isEmpty() || !shapeDef(t.shape)) return QMarginsF();
+    double l = 0, top = 0, r = 0, b = 0;
+    if (!t.customPath.isEmpty()) {
+        l = t.textArea.left(); top = t.textArea.top(); r = t.textArea.right(); b = t.textArea.bottom();
+    } else if (!t.shape.isEmpty() && shapeDef(t.shape)) {
         const QRectF tr = shapeTextRect(t.shape, size, t.adj);
         l = tr.left(); top = tr.top(); r = size.width() - tr.right(); b = size.height() - tr.bottom();
     }
+    // (An area that is not a number, lies outside the frame, or leaves no room is the frame.)
+    auto side = [](double v) { return std::isfinite(v) ? std::max(0.0, v) : 0.0; };
+    l = side(l); top = side(top); r = side(r); b = side(b);
+    if (l + r >= size.width() || top + b >= size.height()) l = top = r = b = 0;
     if (!t.vertical) return QMarginsF(l, top, r, b);
     return t.turnedBack ? QMarginsF(b, l, top, r) : QMarginsF(top, r, b, l);
 }

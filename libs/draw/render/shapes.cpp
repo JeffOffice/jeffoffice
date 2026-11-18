@@ -126,6 +126,24 @@ QPainterPath rotated(const QPainterPath &p, double w, double h, double deg, doub
     return t.map(p);
 }
 
+// The text rectangle of a block arrow: the shaft, running into the head up to where the head's edge crosses the shaft's side (the arrow pointing right in a w x h box).
+QRectF arrowRightText(double w, double h, double t, double hl)
+{
+    const double head = std::min(w, hl * mn(w, h));
+    const double y0 = h * (0.5 - t / 2), y1 = h * (0.5 + t / 2);
+    const double x2 = (w - head) + head * (h > 0 ? y0 / (h / 2) : 0);
+    return QRectF(0, y0, std::clamp(x2, 0.0, w), y1 - y0);
+}
+
+QRectF rotatedRect(const QRectF &r, double w, double h, double deg, double pw, double ph)
+{
+    QTransform t;
+    t.translate(w / 2, h / 2);
+    t.rotate(deg);
+    t.translate(-pw / 2, -ph / 2);
+    return t.mapRect(r);
+}
+
 QPainterPath ellipse(double w, double h)
 {
     QPainterPath p;
@@ -355,23 +373,29 @@ static QVector<ShapeDef> build()
 
     // ---------------- Block Arrows ----------------
     add("rightArrow", QT_TRANSLATE_NOOP("Render", "Right Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) { return arrowRight(w, h, A(a, 0, 0.5), A(a, 1, 0.5)); },
-        {0.5, 0.5}, {{0, 1, 1, false, 0, 0.05, 1}}, 0.15);
+        {0.5, 0.5}, {{0, 1, 1, false, 0, 0.05, 1}}, 0.15, [](double w, double h, V a) { return arrowRightText(w, h, A(a, 0, 0.5), A(a, 1, 0.5)); });
     add("leftArrow", QT_TRANSLATE_NOOP("Render", "Left Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) { return rotated(arrowRight(w, h, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, 180, w, h); },
-        {0.5, 0.5}, {}, 0.15);
+        {0.5, 0.5}, {}, 0.15, [](double w, double h, V a) { return rotatedRect(arrowRightText(w, h, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, 180, w, h); });
     add("upArrow", QT_TRANSLATE_NOOP("Render", "Up Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) { return rotated(arrowRight(h, w, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, -90, h, w); },
-        {0.5, 0.5}, {}, 0.15);
+        {0.5, 0.5}, {}, 0.15, [](double w, double h, V a) { return rotatedRect(arrowRightText(h, w, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, -90, h, w); });
     add("downArrow", QT_TRANSLATE_NOOP("Render", "Down Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) { return rotated(arrowRight(h, w, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, 90, h, w); },
-        {0.5, 0.5}, {}, 0.15);
+        {0.5, 0.5}, {}, 0.15, [](double w, double h, V a) { return rotatedRect(arrowRightText(h, w, A(a, 0, 0.5), A(a, 1, 0.5)), w, h, 90, h, w); });
     add("leftRightArrow", QT_TRANSLATE_NOOP("Render", "Left-Right Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double t = A(a, 0, 0.5), hd = std::min(w / 2, A(a, 1, 0.5) * mn(w, h));
         const double y0 = h * (0.5 - t / 2), y1 = h * (0.5 + t / 2);
         return poly({{0, h / 2}, {hd, 0}, {hd, y0}, {w - hd, y0}, {w - hd, 0}, {w, h / 2}, {w - hd, h}, {w - hd, y1}, {hd, y1}, {hd, h}}); },
-        {0.5, 0.5}, {}, 0.2);
+        {0.5, 0.5}, {}, 0.2, [](double w, double h, V a) {
+            const double t = A(a, 0, 0.5), hd = std::min(w / 2, A(a, 1, 0.5) * mn(w, h));
+            const double y0 = h * (0.5 - t / 2), y1 = h * (0.5 + t / 2), x = h > 0 ? hd * (h / 2 - y0) / (h / 2) : 0;
+            return QRectF(x, y0, std::max(0.0, w - 2 * x), y1 - y0); });
     add("upDownArrow", QT_TRANSLATE_NOOP("Render", "Up-Down Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double t = A(a, 0, 0.5), hd = std::min(h / 2, A(a, 1, 0.5) * mn(w, h));
         const double x0 = w * (0.5 - t / 2), x1 = w * (0.5 + t / 2);
         return poly({{w / 2, 0}, {w, hd}, {x1, hd}, {x1, h - hd}, {w, h - hd}, {w / 2, h}, {0, h - hd}, {x0, h - hd}, {x0, hd}, {0, hd}}); },
-        {0.5, 0.5}, {}, 0.2);
+        {0.5, 0.5}, {}, 0.2, [](double w, double h, V a) {
+            const double t = A(a, 0, 0.5), hd = std::min(h / 2, A(a, 1, 0.5) * mn(w, h));
+            const double x0 = w * (0.5 - t / 2), x1 = w * (0.5 + t / 2), y = w > 0 ? hd * (w / 2 - x0) / (w / 2) : 0;
+            return QRectF(x0, y, x1 - x0, std::max(0.0, h - 2 * y)); });
     add("quadArrow", QT_TRANSLATE_NOOP("Render", "Quad Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double m = mn(w, h), t = A(a, 0, 0.12) * m, hw = A(a, 1, 0.22) * m, hl = A(a, 2, 0.22) * m;
         const double cx = w / 2, cy = h / 2;

@@ -332,6 +332,166 @@ private Q_SLOTS:
         QCOMPARE(freeformAgain.customPath.elementCount(), freeform.customPath.elementCount());
     }
 
+    // The text area a shape names is clamped as it is used: each side at least nothing, the rest inside the frame with room left, else the frame.
+    static QMarginsF laidOutArea(const TextItem &t, QSizeF *size = nullptr)
+    {
+        Document doc;
+        const FrameSpec spec = Renderer::frameSpec(doc, t, 1, RenderOptions());
+        if (size) *size = spec.size;
+        return spec.insets - t.insets;
+    }
+
+    void aTextAreaStaysInsideTheFrameWhateverTheFileOrTheAdjustmentsSay()
+    {
+        TextItem box;
+        box.rect = QRectF(0, 0, 100, 60);
+        box.shape = QStringLiteral("ellipse");
+        box.customPath.moveTo(0, 0);
+        box.customPath.lineTo(100, 0);
+        box.customPath.lineTo(0, 60);
+        box.customPath.closeSubpath();
+        QJsonObject json = box.toJson();
+        json["textArea"] = QJsonArray{-500, -5, -500, -5};
+        TextItem negative;
+        negative.fromJson(json);
+        QCOMPARE(laidOutArea(negative), QMarginsF());
+        json["textArea"] = QJsonArray{9999, 0, 9999, 0};
+        TextItem tooBig;
+        tooBig.fromJson(json);
+        QCOMPARE(laidOutArea(tooBig), QMarginsF());   // (no room left: the frame)
+        json["textArea"] = QJsonArray{10, 5, 20, 6};
+        TextItem fine;
+        fine.fromJson(json);
+        QCOMPARE(laidOutArea(fine), QMarginsF(10, 5, 20, 6));
+        // Every library shape with an adjustment far out of range: the area is inside the frame with room in it, and the box paints.
+        for (const ShapeDef &def : shapeLibrary()) {
+            TextItem t;
+            t.rect = QRectF(0, 0, 100, 60);
+            t.shape = def.id;
+            t.adj = QVector<double>(6, 1e9);
+            const QMarginsF m = laidOutArea(t);
+            QVERIFY2(m.left() >= 0 && m.top() >= 0 && m.right() >= 0 && m.bottom() >= 0, qPrintable(def.id));
+            QVERIFY2(m.left() + m.right() < 100 && m.top() + m.bottom() < 60, qPrintable(def.id));
+            t.adj = QVector<double>(6, -1e9);
+            const QMarginsF n = laidOutArea(t);
+            QVERIFY2(n.left() >= 0 && n.top() >= 0 && n.left() + n.right() < 100 && n.top() + n.bottom() < 60, qPrintable(def.id));
+        }
+        // (A box whose text is turned has the sides turned with it, and the area still fits the frame as it is laid out.)
+        TextItem turned;
+        turned.rect = QRectF(0, 0, 100, 60);
+        turned.shape = QStringLiteral("wedgeEllipseCallout");
+        turned.adj = QVector<double>(3, 1e9);
+        turned.vertical = true;
+        QSizeF size;
+        const QMarginsF m = laidOutArea(turned, &size);
+        QCOMPARE(size, QSizeF(60, 100));
+        QVERIFY(m.left() >= 0 && m.top() >= 0 && m.left() + m.right() < size.width() && m.top() + m.bottom() < size.height());
+    }
+
+    void aCustomOutlinesLoadedPointsAreFiniteAndItPaints()
+    {
+        QJsonObject json = TextItem().toJson();
+        json["path"] = QJsonArray{QJsonArray{0, 0.0, 0.0}, QJsonArray{1, 1e300, 5.0}, QJsonArray{1, -1e300, 1e300}, QJsonArray{2, 1e300, 1e300}, QJsonArray{3, -1e300, 2.0}, QJsonArray{3, 3.0, 4.0}};
+        json["rect"] = QJsonArray{0, 0, 100, 60};
+        TextItem t;
+        t.fromJson(json);
+        QVERIFY(!t.customPath.isEmpty());
+        for (int i = 0; i < t.customPath.elementCount(); ++i)
+            QVERIFY2(std::abs(t.customPath.elementAt(i).x) <= 1e6 && std::abs(t.customPath.elementAt(i).y) <= 1e6, qPrintable(QString::number(i)));
+        t.fill = Fill::solid(ColorRef::rgb(QColor(200, 0, 0)));
+        Document doc;
+        QVERIFY(Renderer::silhouette(doc, t).boundingRect().width() <= 2e6 + 1);
+        QImage out(120, 80, QImage::Format_ARGB32_Premultiplied);
+        out.fill(Qt::white);
+        QPainter p(&out);
+        PaintContext ctx;
+        ctx.doc = &doc;
+        LayoutCache cache;
+        ctx.cache = &cache;
+        Renderer::paintItem(&p, ctx, t);
+        p.end();
+        QVERIFY(!out.isNull());
+    }
+
+    void aCustomShapeNamedLikeALibraryShapeUsesItsOwnTextAreaOrTheFrame()
+    {
+        TextItem t;
+        t.rect = QRectF(0, 0, 100, 60);
+        t.shape = QStringLiteral("ellipse");   // (the file's name for its geometry)
+        t.customPath.addRect(0, 0, 100, 60);
+        QCOMPARE(laidOutArea(t), QMarginsF());   // no area of its own: the frame, not the ellipse's inscribed rectangle
+        t.textArea = QMarginsF(7, 8, 9, 4);
+        QCOMPARE(laidOutArea(t), QMarginsF(7, 8, 9, 4));
+        TextItem named;
+        named.rect = t.rect;
+        named.shape = QStringLiteral("ellipse");
+        QVERIFY(laidOutArea(named).left() > 10);   // (the library's shape does)
+    }
+
+    void aBoxShapeOfMorePointsThanTheCapIsPaintedAsItsFrameAndAShapeFollowsItsBoxWhenResized()
+    {
+        auto triangle = [](int points) {
+            QPainterPath p;
+            p.moveTo(0, 0);
+            for (int i = 1; i < points; ++i) p.lineTo(100.0 * i / points, 0);   // (a long edge: many points, the same triangle)
+            p.lineTo(100, 0);
+            p.lineTo(0, 60);
+            p.closeSubpath();
+            return p;
+        };
+        auto corner = [](const QPainterPath &path) {
+            TextItem t;
+            t.rect = QRectF(10, 10, 100, 60);
+            t.fill = Fill::solid(ColorRef::rgb(QColor(200, 0, 0)));
+            t.customPath = path;
+            Document doc;
+            QImage out(120, 80, QImage::Format_ARGB32_Premultiplied);
+            out.fill(Qt::white);
+            QPainter p(&out);
+            PaintContext ctx;
+            ctx.doc = &doc;
+            LayoutCache cache;
+            ctx.cache = &cache;
+            Renderer::paintItem(&p, ctx, t);
+            p.end();
+            return out.pixelColor(95, 55);   // (outside the triangle, inside the frame)
+        };
+        const QPainterPath few = triangle(1500), many = triangle(2500);
+        QVERIFY(few.elementCount() <= 2000 && many.elementCount() > 2000);
+        QCOMPARE(corner(few), QColor(Qt::white));
+        QCOMPARE(corner(many), QColor(200, 0, 0));
+        TextItem t;
+        t.rect = QRectF(10, 10, 100, 60);
+        t.customPath = few;
+        const QRectF from = t.rect;
+        t.scaleInto(from, QRectF(10, 10, 200, 30));
+        QCOMPARE(t.rect.size(), QSizeF(200, 30));
+        QVERIFY(std::abs(t.customPath.boundingRect().width() - 200) < 1e-6 && std::abs(t.customPath.boundingRect().height() - 30) < 1e-6);
+        TextItem own;
+        own.rect = QRectF(0, 0, 100, 60);
+        own.textArea = QMarginsF(1, 2, 3, 4);
+        own.customPath.addRect(0, 0, 100, 60);
+        TextItem again;
+        again.fromJson(own.toJson());
+        QCOMPARE(again.textArea, own.textArea);
+    }
+
+    void aBlockArrowsTextAreaLiesInItsShaft()
+    {
+        for (const char *id : {"rightArrow", "leftArrow", "upArrow", "downArrow", "leftRightArrow", "upDownArrow"}) {
+            const QSizeF size(120, 80);
+            const QRectF tr = shapeTextRect(QString::fromLatin1(id), size, {});
+            const QPainterPath path = shapePath(QString::fromLatin1(id), size, {});
+            QVERIFY2(!tr.isEmpty(), id);
+            QVERIFY2(QRectF(QPointF(0, 0), size).contains(tr), id);
+            // (Every corner of the area is in the arrow, and the area is no wider across than the shaft, which is half of the arrow.)
+            for (const QPointF &c : {tr.topLeft(), tr.topRight(), tr.bottomLeft(), tr.bottomRight()})
+                QVERIFY2(path.contains(QPointF(std::clamp(c.x(), tr.left() + 0.01, tr.right() - 0.01), std::clamp(c.y(), tr.top() + 0.01, tr.bottom() - 0.01))) && QPainterPath(path).intersects(QRectF(c.x() - 0.5, c.y() - 0.5, 1, 1)), id);
+            const bool across = QByteArray(id).startsWith("up") || QByteArray(id).startsWith("down") || QByteArray(id) == "upDownArrow";
+            QVERIFY2(across ? tr.width() <= size.width() * 0.5 + 1e-6 : tr.height() <= size.height() * 0.5 + 1e-6, id);
+        }
+    }
+
 };
 
 JP_TEST_CLASS(DrawSharedTests)

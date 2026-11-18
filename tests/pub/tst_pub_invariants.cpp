@@ -415,6 +415,21 @@ private Q_SLOTS:
         QVERIFY(!shot.isNull());
         QVERIFY2(jp::Document::itemsWalkedForTest() - walked0 <= qint64(40) * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked0)));
     }
+
+    void aShapedTextBoxIsHitInItsOutlineAndAPlainOneInItsFrame()
+    {
+        jp::Editor ed;
+        ed.doc()->pages[0]->items.clear();
+        auto oval = std::static_pointer_cast<jp::TextItem>(ed.newTextBox(QRectF(100, 100, 100, 60), QStringLiteral("oval")));
+        oval->shape = QStringLiteral("ellipse");
+        auto plain = std::static_pointer_cast<jp::TextItem>(ed.newTextBox(QRectF(300, 100, 100, 60), QStringLiteral("plain")));
+        ed.doc()->pages[0]->items.push_back(oval);
+        ed.doc()->pages[0]->items.push_back(plain);
+        jp::Canvas canvas(&ed);
+        QCOMPARE(canvas.itemAt(QPointF(150, 130)), oval->id);
+        QVERIFY(canvas.itemAt(QPointF(103, 103)).isEmpty());   // (the outer corner of the ellipse's frame)
+        QCOMPARE(canvas.itemAt(QPointF(303, 103)), plain->id);
+    }
 };
 
 JP_TEST_CLASS(PubInvariantTests)

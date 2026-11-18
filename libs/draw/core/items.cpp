@@ -515,12 +515,12 @@ static QPainterPath pathFrom(const QJsonArray &a)
     for (int i = 0; i < a.size(); ++i) {
         const auto e = a[i].toArray();
         const int t = e[0].toInt();
-        const QPointF pt(e[1].toDouble(), e[2].toDouble());
+        const QPointF pt(sane(e[1].toDouble()), sane(e[2].toDouble()));
         if (t == QPainterPath::MoveToElement) p.moveTo(pt);
         else if (t == QPainterPath::LineToElement) p.lineTo(pt);
         else if (t == QPainterPath::CurveToElement && i + 2 < a.size()) {
             const auto c2 = a[i + 1].toArray(), c3 = a[i + 2].toArray();
-            p.cubicTo(pt, QPointF(c2[1].toDouble(), c2[2].toDouble()), QPointF(c3[1].toDouble(), c3[2].toDouble()));
+            p.cubicTo(pt, QPointF(sane(c2[1].toDouble()), sane(c2[2].toDouble())), QPointF(sane(c3[1].toDouble()), sane(c3[2].toDouble())));
             i += 2;
         }
     }

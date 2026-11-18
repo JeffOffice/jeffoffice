@@ -264,7 +264,9 @@ static int bodyDirection(const Shape &s)
 {
     QDomDocument doc;
     if (s.wsp.isEmpty() || !office::parseXml(s.wsp, &doc)) return 0;
-    const QDomElement shape = doc.documentElement().firstChildElement();
+    // (The body is the wsp itself, or inside a wrapper that holds it.)
+    const QDomElement root = doc.documentElement();
+    const QDomElement shape = root.localName() == QLatin1String("wsp") ? root : root.firstChildElement();
     for (QDomElement e = shape.firstChildElement(); !e.isNull(); e = e.nextSiblingElement()) {
         if (e.localName() != QLatin1String("bodyPr")) continue;
         const QString v = e.attribute(QStringLiteral("vert"));
