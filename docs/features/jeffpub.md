@@ -380,7 +380,7 @@ What each format needs, to open, to save, and to come back unchanged. "Round tri
 
 ### PDF
 - [x] **1.0** Export PDF: standard, minimum size, high quality, and commercial press, with page ranges, document properties, a booklet as printed sheets, and fonts embedded
-- [x] **1.0** Export PDF/A (ISO 19005, PDF/A-1b) for archives, PDF/X-1a:2001 and PDF/X-4 for printers, with a print check first
+- [x] **1.0** Export PDF/A (ISO 19005, PDF/A-1b) for archives, PDF/X-1a:2001 and PDF/X-4 for printers, with a print check first (done November 17, 2026: in a PDF/A file anything see-through is drawn as opaque pixels over what lies beneath it, so the file has no constant alpha below 1 and no soft mask: a page color, a master page's objects, shapes, pictures, SVG, and see-through or effected letters, and an export that still ends with some is refused with the page named; checked by `pdfaFlattensHalfSeeThroughObjects` and `pdfaFlattensMastersAndText`)
 - [x] **1.0** Place a page of a PDF as a picture, shown as PDFium draws it and printed and exported as vectors
 - [ ] **later** Open a PDF as a publication, each page rebuilt as text boxes and pictures *(not a Publisher feature; a PDF is read as a picture today)*
 

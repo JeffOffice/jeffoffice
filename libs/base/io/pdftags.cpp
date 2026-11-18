@@ -236,6 +236,13 @@ PdfTagResult tagPdf(const QByteArray &pdf, const PdfTagger &tagger, const PdfTag
         const int parent = tags[i].parent >= 0 ? objectOf[tags[i].parent] : document;
         QByteArray d = "<< /Type /StructElem /S " + name(tags[i].type) + " /P " + QByteArray::number(parent) + " 0 R";
         if (!tags[i].alt.isEmpty()) d += " /Alt " + pdfText(tags[i].alt);
+        if (tags[i].colSpan > 1 || tags[i].rowSpan > 1 || !tags[i].scope.isEmpty()) {
+            d += " /A << /O /Table";
+            if (!tags[i].scope.isEmpty()) d += " /Scope /" + tags[i].scope.toLatin1();
+            if (tags[i].colSpan > 1) d += " /ColSpan " + QByteArray::number(tags[i].colSpan);
+            if (tags[i].rowSpan > 1) d += " /RowSpan " + QByteArray::number(tags[i].rowSpan);
+            d += " >>";
+        }
         if (!spots[i].isEmpty()) {
             // A tag drawn in more than one piece (the two halves of a divided cell) lists each: marked content numbers when they are on one page, references to each otherwise.
             bool onePage = true;

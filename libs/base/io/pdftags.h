@@ -19,6 +19,8 @@ struct PdfTag {
     int parent = -1;      // the tag it belongs to (an index), or -1 for a top one
     bool content = true;  // false for a tag that only holds others (a table, a row)
     double order = 0;     // among the tags of one parent, those with a smaller number come first (the ones with the same, in the order they were added)
+    int colSpan = 1, rowSpan = 1;   // a table cell that covers more than one column or row (the structure's attributes ColSpan and RowSpan, written when above 1)
+    QString scope;        // a header cell's: "Column" (it heads the cells below it), "Row" (the cells beside it), or "Both"; empty for any other tag
 };
 
 class PdfTagger {

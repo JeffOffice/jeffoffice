@@ -549,6 +549,130 @@ void CrunchPrintTests::aPdfOfThousandsOfSheetsHasBoundedBookmarks()
     QCOMPARE(int(readOutline(jp::addPdfBookmarks(made, marks)).titles.size()), jp::kMostPdfBookmarks);
 }
 
+namespace {
+// The structure elements of a PDF by type, each with its attribute text, in file order.
+QVector<QPair<QString, QString>> structureElements(const QByteArray &pdf)
+{
+    QVector<QPair<QString, QString>> out;
+    jp::QtPdf q;
+    if (!q.loadBytes(pdf)) return out;
+    static const QRegularExpression re(QStringLiteral("/Type /StructElem /S /(\\w+)"));
+    for (const jp::QtPdf::Obj &obj : q.objects) {
+        const QString dict = QString::fromLatin1(jp::QtPdf::dictOf(obj.body));
+        const auto m = re.match(dict);
+        if (m.hasMatch()) out.push_back({m.captured(1), dict});
+    }
+    return out;
+}
+} // namespace
+
+// The rows printed again on every page (the print titles) are header cells (TH, each heading the cells below it), and a merged range says how many columns and rows it covers (ColSpan and
+// RowSpan), in a PDF and in a PDF/A one.
+void CrunchPrintTests::theTaggedCellsHaveHeadersAndSpans()
+{
+    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>h1</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>h2</t></is></c></row>"
+                                                      "<row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>a</t></is></c><c r=\"B2\" t=\"inlineStr\"><is><t>b</t></is></c></row>"
+                                                      "<row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>wide</t></is></c></row>"
+                                                      "<row r=\"4\"><c r=\"A4\" t=\"inlineStr\"><is><t>tall</t></is></c><c r=\"B4\" t=\"inlineStr\"><is><t>c</t></is></c></row>"),
+                                       QStringLiteral("<mergeCells count=\"2\"><mergeCell ref=\"A3:B3\"/><mergeCell ref=\"A4:A5\"/></mergeCells>"));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({sheet})));
+    crunch::EditSession *session = e.win.w.session();
+    PageSetup p = session->pages().sheet(0);
+    p.titles.hasRows = true;
+    p.titles.row1 = 0;
+    p.titles.row2 = 0;
+    QVERIFY(session->setPageSetup(0, p, QStringLiteral("Print titles")).ok);
+    for (const bool archival : {false, true}) {
+        crunch::PrintJobOptions options;
+        options.pdfTags = true;
+        options.archival = archival;
+        const QString path = e.folder.dir.filePath(QStringLiteral("spans%1.pdf").arg(archival));
+        QString why;
+        QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        QCOMPARE(pdfcheck::structureProblems(pdf), QString());
+        int th = 0, td = 0, wide = 0, tall = 0;
+        for (const auto &el : structureElements(pdf)) {
+            if (el.first == QLatin1String("TH")) {
+                ++th;
+                QVERIFY2(el.second.contains(QLatin1String("/Scope /Column")), qPrintable(el.second));
+            }
+            if (el.first == QLatin1String("TD")) {
+                ++td;
+                QVERIFY2(!el.second.contains(QLatin1String("/Scope")), qPrintable(el.second));
+            }
+            wide += el.second.contains(QLatin1String("/ColSpan 2")) && !el.second.contains(QLatin1String("/RowSpan"));
+            tall += el.second.contains(QLatin1String("/RowSpan 2")) && !el.second.contains(QLatin1String("/ColSpan"));
+        }
+        QCOMPARE(th, 2);
+        QCOMPARE(td, 5);
+        QCOMPARE(wide, 1);
+        QCOMPARE(tall, 1);
+    }
+}
+
+// A gray job is made gray by the PDF, not as pictures of its pages: its words are words (and are tagged), and it comes out gray.
+void CrunchPrintTests::aGrayJobIsTaggedLikeAColorOne()
+{
+    const QByteArray sheet = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>gray words</t></is></c></row>"));
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({sheet})));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    options.grayscale = true;
+    const QString path = e.folder.dir.filePath(QStringLiteral("gray-tagged.pdf"));
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray pdf = f.readAll();
+    QVERIFY(pdf.contains("/StructTreeRoot"));
+    QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+    QCOMPARE(pdfcheck::structureProblems(pdf), QString());
+    const PdfDocument doc(pdf);
+    QVERIFY(doc.isValid());
+    QVERIFY2(doc.text(0).contains(QStringLiteral("gray words")), "the page is a picture, not words");
+}
+
+// The PDFs of Print > Save as PDF and of Make an Email are tagged as an export's are (the Export page's choice, on unless turned off).
+void CrunchPrintTests::savedAndEmailedPdfsAreTagged()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    jp::Settings::get().setValue(QStringLiteral("export/pdfTags"), true);
+    const QString file = e.folder.dir.filePath(QStringLiteral("saved.pdf"));
+    crunch::PrintChoices c;
+    c.toFile = true;
+    w.setPrinterPreparer(nullptr);
+    w.setSavePicker([&](const QString &, const QString &) { return file; });
+    QVERIFY(w.printWith(c));
+    {
+        QFile f(file);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY2(f.readAll().contains("/StructTreeRoot"), "Save as PDF is not tagged");
+    }
+    const QString eml = e.folder.dir.filePath(QStringLiteral("tagged.eml"));
+    w.setSavePicker([&](const QString &, const QString &) { return eml; });
+    QVERIFY(w.exportEmail(CrunchWindow::EmailWhat::Pdf));
+    {
+        QFile f(eml);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QVERIFY2(pdfAttachmentOf(f.readAll()).contains("/StructTreeRoot"), "the emailed PDF is not tagged");
+    }
+    // with the choice off, neither is
+    jp::Settings::get().setValue(QStringLiteral("export/pdfTags"), false);
+    const auto restore = qScopeGuard([] { jp::Settings::get().setValue(QStringLiteral("export/pdfTags"), true); });
+    w.setSavePicker([&](const QString &, const QString &) { return file; });
+    QVERIFY(w.printWith(c));
+    QFile f(file);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    QVERIFY(!f.readAll().contains("/StructTreeRoot"));
+}
+
 // An export that would pass the most tags a PDF is given is made without any (never half tagged), and says so; the bound is a count of tags, not of time.
 void CrunchPrintTests::aPdfTooBigToTagIsMadeUntaggedAndSaysSo()
 {

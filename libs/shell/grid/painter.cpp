@@ -1208,9 +1208,9 @@ marked:
                 const int x0 = L.xEdge(w.cols[j].index - sp.left, frozenCols), x1 = L.xEdge(w.cols[j].index + sp.right + 1, frozenCols);
                 box = QRect(x0, rs.start, x1 - x0, rs.size);
             }
-            if (o.cellText) o.cellText(true, rs.index, w.cols[j].index);
+            if (o.cellText) o.cellText(true, rs.index, w.cols[j].index, 1, 1);
             drawText(p, QRect(w.cols[j].start, rs.start, w.cols[j].size, rs.size), box, area, look, sh, o);
-            if (o.cellText) o.cellText(false, rs.index, w.cols[j].index);
+            if (o.cellText) o.cellText(false, rs.index, w.cols[j].index, 1, 1);
             m_iconInset = 0;
             --textBudget;
         }
@@ -1296,9 +1296,9 @@ marked:
             const Shown sh = m_sheet->shown(m.row1, m.col1, *anchor);
             if ((sh.kind != Kind::Empty || sh.hashes) && !(anchorCond && anchorCond->hideValue && (anchorCond->hasBar || icon))) {
                 m_iconInset = icon ? iconSize + 4 : 0;
-                if (o.cellText) o.cellText(true, m.row1, m.col1);
+                if (o.cellText) o.cellText(true, m.row1, m.col1, qint64(m.row2) - qint64(m.row1) + 1, qint64(m.col2) - qint64(m.col1) + 1);
                 drawText(p, rect, rect, area, look, sh, o);
-                if (o.cellText) o.cellText(false, m.row1, m.col1);
+                if (o.cellText) o.cellText(false, m.row1, m.col1, 1, 1);
                 m_iconInset = 0;
                 --textBudget;
             }

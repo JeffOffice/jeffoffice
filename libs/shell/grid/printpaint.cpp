@@ -162,7 +162,7 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
     if (m_tagger && m_tagger->tags().size() + 3 > mostSheetTags()) m_tagger->markFull();
     if (m_tagger && !m_tagger->full()) {
         table = m_tagger->add({QStringLiteral("Table"), QString(), -1, false});
-        options.cellText = [&](bool begin, qint64 row, qint64 col) {
+        options.cellText = [&](bool begin, qint64 row, qint64 col, qint64 rowSpan, qint64 colSpan) {
             if (!begin) {
                 if (cellTag < 0) return;
                 m_tagger->end(p, cellTag);
@@ -177,7 +177,14 @@ void PagePainter::paint(QPainter *p, const SheetPrint &print, const PageCut &pag
             artifact(p, false);
             int &tr = rowTags[row];
             if (tr == 0) tr = 1 + m_tagger->add({QStringLiteral("TR"), QString(), table, false, double(row)});
-            cellTag = m_tagger->add({QStringLiteral("TD"), QString(), tr - 1, true, double(col)});
+            // (the cells of the print titles, the rows and columns printed again on every page, are the table's headers)
+            const bool headsColumns = setup.titles.hasRows && row >= qint64(setup.titles.row1) && row <= qint64(setup.titles.row2);
+            const bool headsRows = setup.titles.hasCols && col >= qint64(setup.titles.col1) && col <= qint64(setup.titles.col2);
+            PdfTag cell{headsColumns || headsRows ? QStringLiteral("TH") : QStringLiteral("TD"), QString(), tr - 1, true, double(col)};
+            if (headsColumns || headsRows) cell.scope = headsColumns && headsRows ? QStringLiteral("Both") : headsColumns ? QStringLiteral("Column") : QStringLiteral("Row");
+            cell.rowSpan = int(std::clamp<qint64>(rowSpan, 1, 1000));
+            cell.colSpan = int(std::clamp<qint64>(colSpan, 1, 1000));
+            cellTag = m_tagger->add(cell);
             m_tagger->begin(p, cellTag);
         };
         artifact(p, true);

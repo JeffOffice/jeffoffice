@@ -19,24 +19,32 @@
 #include <QXmlStreamReader>
 #include "../settingguard.h"
 
-// How many pixels of the first page of two PDFs differ by more than a little, drawn on white at the same size.
-static int farPixels(const QByteArray &a, const QByteArray &b, const QSize &size)
+// The middle color of the first page of a PDF at a place (points from its top left, drawn on white), and the mean gray of a rectangle.
+static QColor colorAt(const QByteArray &bytes, const QPointF &at)
 {
-    auto draw = [&](const QByteArray &bytes) {
-        const PdfDocument pdf(bytes);
-        QImage page(size, QImage::Format_RGB32);
-        page.fill(Qt::white);
-        if (pdf.isValid()) {
-            QPainter on(&page);
-            on.drawImage(0, 0, pdf.render(0, size));
-        }
-        return page;
-    };
-    const QImage x = draw(a), y = draw(b);
-    int far = 0;
-    for (int j = 0; j < size.height(); ++j)
-        for (int i = 0; i < size.width(); ++i) far += std::abs(qGray(x.pixel(i, j)) - qGray(y.pixel(i, j))) > 60;
-    return far;
+    const PdfDocument pdf(bytes);
+    const QSize px = pdf.pageSize(0).toSize();
+    QImage page(px, QImage::Format_RGB32);
+    page.fill(Qt::white);
+    QPainter on(&page);
+    on.drawImage(0, 0, pdf.render(0, px));
+    return page.pixelColor(at.toPoint());
+}
+
+static double meanGray(const QByteArray &bytes, const QRect &r)
+{
+    const PdfDocument pdf(bytes);
+    const QSize px = pdf.pageSize(0).toSize();
+    QImage page(px, QImage::Format_RGB32);
+    page.fill(Qt::white);
+    {
+        QPainter on(&page);
+        on.drawImage(0, 0, pdf.render(0, px));
+    }
+    double sum = 0;
+    for (int y = r.top(); y < r.bottom(); ++y)
+        for (int x = r.left(); x < r.right(); ++x) sum += qGray(page.pixel(x, y));
+    return sum / (r.width() * r.height());
 }
 
 class DeckOutputTests : public QObject {
@@ -1107,6 +1115,8 @@ private Q_SLOTS:
         shape->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
         shape->fill.transparency = 0.5;
         d->pages[0]->items.push_back(shape);
+        d->pages[0]->background = jp::Fill::solid(jp::ColorRef::rgb(QColor(200, 0, 0)));
+        d->pages[0]->background.transparency = 0.5;
         auto text = std::make_shared<jp::TextItem>();
         text->rect = QRectF(100, 300, 400, 80);
         text->storyId = d->createStory(QStringLiteral("See-through words"));
@@ -1129,8 +1139,14 @@ private Q_SLOTS:
             QCOMPARE(jp::pdfTransparency(bytes).found, !archive);
             made[archive] = bytes;
         }
-        // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the shape solid: it is flattened first, so the slide looks the same)
-        QVERIFY2(farPixels(made[0], made[1], QSize(320, 180)) < 320 * 180 / 200, qPrintable(QString::number(farPixels(made[0], made[1], QSize(320, 180)))));
+        // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the shape and the letters solid: they are flattened first, so the slide looks the same)
+        const QColor shapePlain = colorAt(made[0], QPointF(200, 150)), shapeArchive = colorAt(made[1], QPointF(200, 150));
+        QVERIFY2(std::abs(shapePlain.red() - shapeArchive.red()) < 12 && std::abs(shapePlain.blue() - shapeArchive.blue()) < 12, qPrintable(shapeArchive.name()));
+        QVERIFY2(shapePlain.red() > 100, qPrintable(shapePlain.name()));   // (half blue on white)
+        // and the slide's own see-through color (half red on white, not solid red)
+        const QColor groundPlain = colorAt(made[0], QPointF(800, 450)), groundArchive = colorAt(made[1], QPointF(800, 450));
+        QVERIFY2(std::abs(groundPlain.green() - groundArchive.green()) < 12 && groundArchive.green() > 80, qPrintable(groundArchive.name()));
+        QVERIFY2(std::abs(meanGray(made[0], QRect(100, 300, 400, 80)) - meanGray(made[1], QRect(100, 300, 400, 80))) < 2.5, "the see-through letters came out solid");
     }
 
     // Where the tags can't be made, whatever the reason, the PDF has none of the marks, shows what an untagged one shows, and the caller is told it is not tagged.

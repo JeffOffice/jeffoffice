@@ -196,6 +196,9 @@ private Q_SLOTS:
     void aPdfHasABookmarkForEachSheet();
     void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
     void aTaggedPdfHasTheCellsAsATable();
+    void theTaggedCellsHaveHeadersAndSpans();
+    void aGrayJobIsTaggedLikeAColorOne();
+    void savedAndEmailedPdfsAreTagged();
     void theTaggedCellsAreReadRowByRow();
     void aPdfTooBigToTagIsMadeUntaggedAndSaysSo();
     void taggingCountsInTheProgressAndCanBeCancelled();

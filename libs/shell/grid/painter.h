@@ -63,7 +63,8 @@ struct PaintOptions {
     QFont headerFont;
     // Called around the text of each cell that is drawn in its own place (not the spill of a neighbor beyond the part): true before it, false after, with the cell's row and column. A page being
     // tagged for a PDF marks the cell's words by it.
-    std::function<void(bool begin, qint64 row, qint64 col)> cellText;
+    // `rowSpan` and `colSpan` are how many rows and columns the cell covers (a merged range: its first cell's).
+    std::function<void(bool begin, qint64 row, qint64 col, qint64 rowSpan, qint64 colSpan)> cellText;
 };
 
 struct PaintStats {
