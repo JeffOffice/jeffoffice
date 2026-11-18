@@ -78,7 +78,7 @@ private Q_SLOTS:
         QByteArray bad = png;
         bad[60] = char(bad[60] ^ 0x55);   // (inside the chunk: its checksum fails)
         QVERIFY(!carriedObject(bad));
-        QVERIFY(!carriedObject(png.left(png.size() / 2)));
+        QVERIFY(!carriedObject(png.left(60)));   // (cut inside the chunk)
         QVERIFY(!carriedObject(QByteArray("not a picture at all, nothing like one")));
         // (a package that is not a safe package is kept but is not one of ours to open: the chunk holds bytes of no zip)
         ole::EmbeddedObject junk = *object;
