@@ -1570,8 +1570,8 @@ private Q_SLOTS:
         QVERIFY(part(e, QStringLiteral("/ppt/slides/slide1.xml")) == slide);
     }
 
-    // A .odp keeps an object as its picture, and says so in words of its own, not a chart's.
-    void anOdpSavesAnObjectAsItsPicture()
+    // A .odp keeps an object of another program whole (as an OpenDocument object with its picture), and says nothing of a chart.
+    void anOdpKeepsAnObjectOfAnotherProgram()
     {
         QString err;
         auto d = deck::importPresentation(pack(objectPptx({QStringLiteral("Foo.Widget.1")}, {QByteArray("foreign bytes")})), &err);
@@ -1580,7 +1580,11 @@ private Q_SLOTS:
         const QByteArray odp = deck::exportOdp(*d, false, &err, &said);
         QVERIFY2(!odp.isEmpty(), qPrintable(err));
         const QString all = said.join(QLatin1Char(' '));
-        QVERIFY2(all.contains(QStringLiteral("Embedded objects are saved as their pictures")), qPrintable(said.join(';')));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(jp::readZip(odp, zip));
+        // (an object of another program is kept whole as an OpenDocument object, with its picture: nothing is said about pictures)
+        QVERIFY2(!zip.value(QStringLiteral("Object 1")).isEmpty(), qPrintable(QStringList(zip.keys()).join('|')));
+        QVERIFY2(!all.contains(QStringLiteral("Embedded objects are saved as their pictures")), qPrintable(said.join(';')));
         QVERIFY2(!all.contains(QStringLiteral("Charts are saved as pictures")), qPrintable(said.join(';')));
     }
 };
