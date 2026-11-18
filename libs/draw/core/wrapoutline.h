@@ -27,11 +27,14 @@ QPolygonF boundedWrapOutline(const QVector<QPointF> &points);
 // The most points an outline made from a shape has, and the most an outline made from a picture's transparency has; and the picture's longer side and its bands as it is scanned.
 constexpr int kMostPathOutlinePoints = 24, kMostAlphaOutlinePoints = 64, kAlphaOutlineSide = 256, kAlphaOutlineBands = 32;
 // The outline of a path drawn in a frame of `frame` (the path's own unit, points), as shares of the frame: its flattened edge with the corners kept and no more than kMostPathOutlinePoints,
-// bounded as above. Empty (the frame itself) for an empty path, a frame with no size, or a path of more than 20000 elements.
+// moved outward by the tolerance the points were simplified with (so that the text stays off the curve, not on the chords inside it), bounded as above. A path of more than one part, or with
+// a hole, is drawn small and read as a picture is (kMostAlphaOutlinePoints at most; a hole is closed). Empty (the frame itself) for an empty path, a frame with no size, or a path of more than 20000 elements.
 QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame);
-// The outline of what a picture shows: its pixels with an alpha above 16, read on a grid of at most kAlphaOutlineSide pixels on the longer side (the picture is not copied or scaled whole;
-// `scanned` gets how many pixels were looked at) in kAlphaOutlineBands bands, the left and right edge of each joined into one outline of at most kMostAlphaOutlinePoints points. Empty (the
-// frame itself) for a picture with no transparency, with nothing in it, or with no alpha at all.
+// The outline of what a picture shows: the pixels with an alpha above 16, the largest alpha of each cell of a grid of at most kAlphaOutlineSide cells on the longer side (so that a line of one
+// pixel counts), in kAlphaOutlineBands bands, the left and right edge of each joined into one outline of at most kMostAlphaOutlinePoints points. A picture of more than kMostAlphaScanPixels
+// is read at every few pixels (the work is bounded); `scanned` gets how many pixels were looked at. Empty (the frame itself) for a picture with no transparency, with nothing in it, or with
+// no alpha at all.
+constexpr qint64 kMostAlphaScanPixels = 16000000;
 QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
 // The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone, its inside solid: an outline that crosses itself has no holes). The page layer
 // and the paginator both take this, so that a line meets the same edge in both.

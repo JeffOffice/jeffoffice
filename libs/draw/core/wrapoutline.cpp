@@ -1,5 +1,6 @@
 #include "core/wrapoutline.h"
 
+#include <QPainter>
 #include <QPainterPathStroker>
 
 #include <algorithm>
@@ -60,6 +61,26 @@ QVector<QPointF> simplifiedRing(const QVector<QPointF> &ring, double tolerance)
     return out;
 }
 
+// The ring with each edge moved outward by `d` (a corner is mitered, no longer than five times d).
+QVector<QPointF> offsetRing(const QVector<QPointF> &ring, double d)
+{
+    const int n = int(ring.size());
+    double area = 0;
+    for (int i = 0; i < n; ++i) area += ring[i].x() * ring[(i + 1) % n].y() - ring[(i + 1) % n].x() * ring[i].y();
+    const double sign = area >= 0 ? 1.0 : -1.0;
+    auto normal = [&](const QPointF &a, const QPointF &b) {
+        const double len = std::hypot(b.x() - a.x(), b.y() - a.y());
+        return len > 0 ? QPointF(sign * (b.y() - a.y()) / len, -sign * (b.x() - a.x()) / len) : QPointF();
+    };
+    QVector<QPointF> out;
+    for (int i = 0; i < n; ++i) {
+        const QPointF n1 = normal(ring[(i + n - 1) % n], ring[i]), n2 = normal(ring[i], ring[(i + 1) % n]);
+        const double denom = std::max(0.2, 1.0 + n1.x() * n2.x() + n1.y() * n2.y());
+        out << QPointF(ring[i].x() + (n1.x() + n2.x()) / denom * d, ring[i].y() + (n1.y() + n2.y()) / denom * d);
+    }
+    return out;
+}
+
 } // namespace
 
 QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame)
@@ -67,19 +88,35 @@ QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame)
     if (path.isEmpty() || path.elementCount() > 20000 || !(frame.width() > 0) || !(frame.height() > 0)) return QPolygonF();
     QPainterPath solid = path;
     solid.setFillRule(Qt::WindingFill);
-    const QPolygonF flat = solid.simplified().toFillPolygon();
+    solid = solid.simplified();
+    const QList<QPolygonF> parts = solid.toSubpathPolygons();
+    if (parts.size() > 1) {
+        // (Several parts, or a hole: drawn small, and read as a picture is.)
+        const double k = double(kAlphaOutlineSide) / std::max(frame.width(), frame.height());
+        QImage drawn(std::max(1, int(std::lround(frame.width() * k))), std::max(1, int(std::lround(frame.height() * k))), QImage::Format_ARGB32_Premultiplied);
+        drawn.fill(Qt::transparent);
+        {
+            QPainter painter(&drawn);
+            painter.setRenderHint(QPainter::Antialiasing);
+            painter.scale(k, k);
+            painter.fillPath(solid, Qt::black);
+        }
+        return wrapOutlineOfAlpha(drawn);
+    }
+    if (parts.isEmpty()) return QPolygonF();
     QVector<QPointF> ring;
-    for (const QPointF &p : flat)
+    for (const QPointF &p : parts[0])
         if (std::isfinite(p.x()) && std::isfinite(p.y()) && (ring.isEmpty() || p != ring.last())) ring << p;
     while (ring.size() > 1 && ring.first() == ring.last()) ring.removeLast();
     if (ring.size() < 3) return QPolygonF();
-    // (The tolerance starts at a half of a percent of the frame and doubles until the outline is short enough.)
+    // (The tolerance starts at a half of a percent of the frame and grows until the outline is short enough.)
     double tolerance = std::max(frame.width(), frame.height()) * 0.005;
     QVector<QPointF> kept = simplifiedRing(ring, tolerance);
     while (kept.size() > kMostPathOutlinePoints) {
         tolerance *= 1.5;
         kept = simplifiedRing(ring, tolerance);
     }
+    kept = offsetRing(kept, tolerance);
     for (QPointF &p : kept) p = QPointF(p.x() / frame.width(), p.y() / frame.height());
     return boundedWrapOutline(kept);
 }
@@ -91,18 +128,23 @@ QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned)
     const int w = image.width(), h = image.height();
     const int step = std::max(1, (std::max(w, h) + kAlphaOutlineSide - 1) / kAlphaOutlineSide);
     const int sw = (w + step - 1) / step, sh = (h + step - 1) / step;
-    if (scanned) *scanned = sw * sh;
+    // (A picture of more pixels than the most is read at every stride-th one.)
+    const double all = double(w) * h;
+    const int stride = all > double(kMostAlphaScanPixels) ? int(std::ceil(std::sqrt(all / double(kMostAlphaScanPixels)))) : 1;
     const int bands = std::min(kAlphaOutlineBands, sh);
     QVector<int> left(bands, -1), right(bands, -1);
-    for (int sy = 0; sy < sh; ++sy) {
-        const int band = std::min(bands - 1, int(qint64(sy) * bands / sh));
-        const int y = std::min(h - 1, sy * step + step / 2);
-        for (int sx = 0; sx < sw; ++sx) {
-            if (qAlpha(image.pixel(std::min(w - 1, sx * step + step / 2), y)) <= 16) continue;
+    qint64 looked = 0;
+    for (int y = 0; y < h; y += stride) {
+        const int band = std::min(bands - 1, int(qint64(y / step) * bands / sh));
+        for (int x = 0; x < w; x += stride) {
+            ++looked;
+            if (qAlpha(image.pixel(x, y)) <= 16) continue;
+            const int sx = x / step;
             if (left[band] < 0 || sx < left[band]) left[band] = sx;
             if (sx > right[band]) right[band] = sx;
         }
     }
+    if (scanned) *scanned = int(std::min<qint64>(looked, 2000000000));
     QVector<int> used;
     bool solid = true;
     for (int b = 0; b < bands; ++b) {

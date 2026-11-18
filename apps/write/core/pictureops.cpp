@@ -1,4 +1,6 @@
 #include "core/pictureops.h"
+#include <QMutex>
+#include <QMutexLocker>
 
 #include "flow/flowdocument.h"
 
@@ -496,6 +498,7 @@ struct Prepared {
     QString extension, contentType;
     QSizeF size;
     QByteArray svg;   // an SVG picture's own file, kept beside the PNG that `bytes` holds
+    QImage seed;      // the picture as it was read, where it has transparency and is small enough to follow (a tight wrap starts from it)
 };
 
 PictureResult encodeImage(const QImage &image, Prepared *out)
@@ -509,6 +512,7 @@ PictureResult encodeImage(const QImage &image, Prepared *out)
     out->extension = QStringLiteral("png");
     out->contentType = QStringLiteral("image/png");
     out->size = QSizeF(image.width() * 0.75, image.height() * 0.75);
+    if (image.hasAlphaChannel() && qint64(image.width()) * image.height() <= kMostSeedPixels) out->seed = image;
     return PictureResult::Ok;
 }
 
@@ -619,6 +623,7 @@ PictureResult prepare(const QByteArray &input, Prepared *out)
         out->extension = QString::fromLatin1(k.extension);
         out->contentType = QString::fromLatin1(k.type);
         out->size = QSizeF(size.width() * 0.75, size.height() * 0.75);
+        if (whole.hasAlphaChannel() && qint64(whole.width()) * whole.height() <= kMostSeedPixels) out->seed = whole;
         return PictureResult::Ok;
     }
     const PictureResult drawn = encodeImage(reader.read(), out);
@@ -677,7 +682,7 @@ PictureResult insertPrepared(WriteDoc &doc, QTextCursor &c, const Prepared &p, c
         m.distL = m.distR = 114300;
         if (wrap == PictureWrap::BehindText) m.relativeHeight = 251658240 - 1;
         // (A tight wrap starts from what the picture shows: its transparency.)
-        const QPolygonF seed = wrap == PictureWrap::Tight ? seededWrapOutline(QPainterPath(), QString(), wrapSeedImage(p.bytes), size) : QPolygonF();
+        const QPolygonF seed = wrap == PictureWrap::Tight ? seededWrapOutline(QPainterPath(), QString(), p.seed, size) : QPolygonF();
         // (A layout kept by Set as Default Layout: the side, and the room round it where the text goes round.)
         if (layout && (wrap == PictureWrap::Square || wrap == PictureWrap::Tight || wrap == PictureWrap::TopAndBottom)) {
             auto emu = [](double points) { return qint64(std::llround(std::clamp(points, 0.0, kMostWrapDistance) * kEmuPerPoint)); };
@@ -1121,9 +1126,9 @@ bool setPictureBox(WriteDoc &doc, int position, double width, double height, con
 bool setPictureSize(WriteDoc &doc, int position, double width, double height) { return setPictureBox(doc, position, width, height, std::nullopt); }
 
 namespace {
-QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF *outline);
+QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF *outline, bool automatic = false);
 }
-static QPolygonF seededOutlineOf(const WriteDoc &doc, const Model &m, int *budget = nullptr);
+static QPolygonF seededOutlineOf(const WriteDoc &doc, const Model &m);
 
 bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap)
 {
@@ -1145,7 +1150,7 @@ bool setPictureWrap(WriteDoc &doc, int position, PictureWrap wrap)
         if (wrap == PictureWrap::Tight && readWrapPolygonXml(m.wrapRaw).isEmpty()) {
             const QPolygonF seed = seededOutlineOf(doc, m);
             if (!seed.isEmpty()) {
-                m.wrapRaw = rewrittenWrap(m, nullptr, &seed);
+                m.wrapRaw = rewrittenWrap(m, nullptr, &seed, true);
                 m.wrapRawOf = m.wrap;
             }
         }
@@ -1163,7 +1168,7 @@ const QRegularExpression &wrapStartTag()
 
 // The wrap element as it is kept: the kind of wrap the model has (a through wrap stays through), the side the text goes on, and for a tight wrap its outline (the model's own
 // where `outline` is null, the frame's if it has none). The element's own distances go to the model first (they come before the anchor's when read), so that the anchor's are the ones.
-QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF *outline)
+QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF *outline, bool automatic)
 {
     QString tag, attrs;
     if (const QRegularExpressionMatch found = wrapStartTag().match(QString::fromUtf8(m.wrapRaw)); found.hasMatch()) {
@@ -1184,7 +1189,7 @@ QByteArray rewrittenWrap(Model &m, const PictureWrapSide *side, const QPolygonF 
     QPolygonF shape = outline ? *outline : office::wml::readWrapPolygonXml(m.wrapRaw);
     if (shape.isEmpty()) shape = QPolygonF(QRectF(0, 0, 1, 1));
     if (tag.isEmpty()) tag = QStringLiteral("wrapTight");
-    return "<wp:" + tag.toLatin1() + " wrapText=\"" + sideText.toLatin1() + "\">" + office::wml::wrapPolygonXml(shape, outline != nullptr || tag == QLatin1String("wrapThrough")) + "</wp:" + tag.toLatin1() + ">";
+    return "<wp:" + tag.toLatin1() + " wrapText=\"" + sideText.toLatin1() + "\">" + office::wml::wrapPolygonXml(shape, (outline != nullptr && !automatic) || tag == QLatin1String("wrapThrough")) + "</wp:" + tag.toLatin1() + ">";
 }
 
 // A wrap that has a side and room round it: a floating picture that the text goes round.
@@ -5518,14 +5523,25 @@ GraphicConversion convertGraphicToShapes(WriteDoc &doc, int position)
 
 QString cleanAltText(const QString &text) { return cleanText(text, kMostAltTextLength); }
 
-// The outline a tight wrap starts from for a drawing: its shape's path, the shape a picture is cut to, or what a picture shows (text boxes are not looked at). Empty keeps the frame.
-static QPolygonF seededOutlineOf(const WriteDoc &doc, const Model &m, int *budget)
+// The outline a tight wrap starts from for a drawing: its shape's path, the shape a picture is cut to, or what a picture shows, cut and flipped as it is (text boxes are not looked at).
+// Empty keeps the frame. A turn is not applied: the layers place an outline in the frame before it is turned. A flipped shape keeps its frame (the shape's path is not read for one).
+// A picture's outline is kept for the data it was made from, so that Edit Wrap Points does not decode the picture again with each edit of the story.
+static QPolygonF seededOutlineOf(const WriteDoc &doc, const Model &m)
 {
     if (m.cx <= 0 || m.cy <= 0 || m.graphic.contains("<wps:txbx") || m.graphic.contains("<wpg:wgp")) return QPolygonF();
     const QSizeF frame(double(m.cx) / kEmuPerPoint, double(m.cy) / kEmuPerPoint);
     QPainterPath path;
     QString cropShape;
     QImage image;
+    WrapSeedView view;
+    {
+        static const QRegularExpression xfrm(QStringLiteral("<a:xfrm\\b([^>]*)>"));
+        static const QRegularExpression flipH(QStringLiteral("\\bflipH=\"(1|true)\"")), flipV(QStringLiteral("\\bflipV=\"(1|true)\""));
+        const QString attrs = xfrm.match(QString::fromUtf8(m.graphic)).captured(1);
+        view.flipH = flipH.match(attrs).hasMatch();
+        view.flipV = flipV.match(attrs).hasMatch();
+    }
+    quint64 key = 0;
     if (isShapeGraphic(m.graphic)) {
         Outline o;
         ShapeGeometry g;
@@ -5540,12 +5556,34 @@ static QPolygonF seededOutlineOf(const WriteDoc &doc, const Model &m, int *budge
         static const QRegularExpression prst(QStringLiteral("<a:prstGeom\\s[^>]*prst=\"([A-Za-z0-9]+)\""));
         const QRegularExpressionMatch found = prst.match(QString::fromUtf8(m.graphic));
         if (found.hasMatch() && found.captured(1) != QLatin1String("rect")) cropShape = found.captured(1);
+        double cut[4];
+        cutOf(m.graphic, cut);
+        view.cutLeft = cut[0];
+        view.cutTop = cut[1];
+        view.cutRight = cut[2];
+        view.cutBottom = cut[3];
+        static QMutex lock;
+        static QHash<quint64, QPolygonF> kept;
         if (cropShape.isEmpty()) {
             const BlipRefs refs = blipRefsOf(m.graphic);
-            if (!refs.png.isEmpty()) image = wrapSeedImage(doc.relatedPartData(refs.png));
+            if (refs.png.isEmpty()) return QPolygonF();
+            const QByteArray bytes = doc.relatedPartData(refs.png);
+            key = qHash(m.graphic, qHash(bytes, quint64(m.cx) * 31 + quint64(m.cy)));
+            {
+                QMutexLocker locker(&lock);
+                if (kept.contains(key)) return kept.value(key);
+            }
+            image = wrapSeedImage(bytes);
         }
+        const QPolygonF outline = seededWrapOutline(path, cropShape, image, frame, view);
+        if (key) {
+            QMutexLocker locker(&lock);
+            if (kept.size() >= 32) kept.clear();
+            kept.insert(key, outline);
+        }
+        return outline;
     }
-    return seededWrapOutline(path, cropShape, image, frame, budget);
+    return seededWrapOutline(path, cropShape, image, frame, view);
 }
 
 } // namespace jp::write
