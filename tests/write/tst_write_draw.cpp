@@ -3939,7 +3939,7 @@ private Q_SLOTS:
         };
         // The standard's own numbers put a few sites off its own drawing, and these stay (each checked by hand with an independent evaluator of the standard's table, which puts them just
         // where this does): a block arc's third site is the frame's center, which its band does not reach (25 pt at 200 x 100); the cloud callout's last site is the tip of its pointer, a
-        // little off the pointer's small circles (2.8 pt); and the multi-document's third site is 1.5 to 2.4 pt off the curve of its front sheet. (The circular arrow had one 8.8 pt off
+        // little off the pointer's small circles (2.7 pt); and the multi-document's third site is 1.5 to 2.4 pt off the curve of its front sheet. (The circular arrow had one 8.8 pt off
         // only while products of two sizes were held to 1e15; it is on its outline now.) The limits are what the standard's numbers give.
         const QHash<QString, double> exceptions = {{"blockArc", 25.0}, {"cloudCallout", 2.7}, {"fcMultidocument", 2.6}};
         QVector<std::pair<double, QString>> bad, all;
