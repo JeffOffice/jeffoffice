@@ -29,6 +29,7 @@
                 "edit.pasteTableRows",
                 "edit.pasteTableOverwrite",
                 "-",
+                "edit.pasteObject",
                 "edit.pasteSpecial"
               ],
               "keytip": "V"
@@ -325,6 +326,18 @@
             {
               "large": "insert.icons",
               "keytip": "IC"
+            },
+            {
+              "large": {
+                "id": "ribbon.object",
+                "text": "Object",
+                "icon": "box"
+              },
+              "keytip": "OB",
+              "menu": [
+                "insert.object.range",
+                "insert.object.chart"
+              ]
             },
             {
               "large": "insert.barcode",

@@ -26,6 +26,8 @@
 #include "app/optionsdialog.h"
 #include "app/selectionpane.h"
 #include "app/widgets.h"
+#include "app/objects.h"
+#include "app/objectsdialog.h"
 
 #include <QHash>
 #include <QImage>
@@ -182,6 +184,16 @@ public:
     // What a followed link is opened with: the system's browser or mail program, unless this stands in for it (tests): the address.
     // What Insert > Text from File asks for a file with: the file dialog, unless this stands in for it (tests): the path chosen, empty for none.
     void setTextFileChooser(const std::function<QString()> &chooser) { m_textFileChooser = chooser; }
+    // Objects of other apps (Insert > Object, Paste Special, the list in File > Info). The program that edits an object, and how it is opened, is the window's own EmbeddedEdit (tests give it an
+    // opener of their own); the box that asks where an object comes from is the shared one unless this stands in for it (tests).
+    EmbeddedEdit *objectEditor();
+    void setObjectSourceAsker(const std::function<bool(objects::Source, bool, objects::SourceChoice *)> &asker) { m_objectAsker = asker; }
+    bool insertObjectFrom(objects::Source source, const QString &path, const QString &detail);
+    bool insertObjectFromCopy();
+    void insertObjectFromAsk(objects::Source source);
+    // Opens the object at the position in its own app; the edit's saves come back as one step each.
+    bool editObjectAt(int position);
+    void showObjects();
     // What asks the person before a link is followed that needs it (tests stand in for the message box): the question; true to go on.
     void setLinkAsker(const std::function<bool(const QString &)> &asker) { m_linkAsker = asker; }
     // What asks for a field's new code when it is edited (tests stand in for the box): the field's code now; the new code, empty for none.
@@ -488,6 +500,9 @@ private:
     void alignSelectedObject(int align);
     void gradientSelectedShape(double angle, bool twoColors);
     void createInsertActions();
+    void createObjectActions();
+    void refreshObjectUi();
+    void objectSaved(int editId, const QByteArray &part, const QByteArray &png, bool stale);
     void createControlActions();
     void refreshControlUi();
     void createLayoutExtraActions();
@@ -636,6 +651,9 @@ private:
     bool m_pageNumbersMarked = false;
     std::function<bool(const QString &)> m_linkAsker;
     std::function<QString()> m_textFileChooser;
+    std::function<bool(objects::Source, bool, objects::SourceChoice *)> m_objectAsker;
+    EmbeddedEdit *m_objectEdit = nullptr;
+    QHash<int, QString> m_objectEdits;   // an edit's number, and the name of the object's package in the document now
     NavigationPane *m_nav = nullptr;
     QDockWidget *m_navDock = nullptr;
     bool m_focusMode = false;

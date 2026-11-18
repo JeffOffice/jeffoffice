@@ -79,6 +79,7 @@ void WriteWindow::createHomeActions()
             for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"})
                 if (act(QString::fromLatin1(id))->isEnabled()) choices.push_back({Kind::Keep, act(QString::fromLatin1(id))->text(), QString::fromLatin1(id)});
         }
+        if (act("edit.pasteObject")->isEnabled()) choices.push_back({Kind::Keep, act("edit.pasteObject")->text(), QStringLiteral("edit.pasteObject")});
         if (choices.isEmpty()) {
             statusBar()->showMessage(tr("There is nothing on the clipboard to paste."), 5000);
             return;

@@ -103,6 +103,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Merge"),
     QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Navigation"),
+    QT_TRANSLATE_NOOP("Ribbon", "Object"),
     QT_TRANSLATE_NOOP("Ribbon", "Operators"),
     QT_TRANSLATE_NOOP("Ribbon", "Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Orientation"),

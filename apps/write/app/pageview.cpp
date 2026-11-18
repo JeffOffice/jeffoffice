@@ -129,7 +129,7 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     });
 }
 
-PageView::~PageView() = default;
+PageView::~PageView() { *m_alive = nullptr; }
 
 void PageView::setDocument(WriteDoc *doc)
 {

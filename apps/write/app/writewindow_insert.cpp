@@ -243,6 +243,7 @@ void WriteWindow::refreshInsertUi()
         act("insert.dropCap.none")->setChecked(inText && now.lines <= 0);
         act("insert.dropCap.dropped")->setChecked(inText && now.lines > 0);
     }
+    refreshObjectUi();
     act("insert.dateTime")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.textFromFile")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());

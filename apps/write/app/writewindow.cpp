@@ -337,6 +337,7 @@ void WriteWindow::createActions()
     createShapeActions();
     createPictureAdjustActions();
     createInsertActions();
+    createObjectActions();
     createControlActions();
     createLayoutExtraActions();
     createThemeActions();

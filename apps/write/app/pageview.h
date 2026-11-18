@@ -12,6 +12,7 @@ namespace jp { class ShapeTextEdit; }
 #include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "ole/embedobj.h"
 #include "wml/wmlhtmlread.h"
 
 #include <QAbstractScrollArea>
@@ -308,6 +309,18 @@ public:
     bool insertPictureBytes(const QByteArray &bytes, const QString &name, PictureWrap wrap = PictureWrap::Inline);
     // A barcode (core/barcodeitem.h makes it from the settings) at the caret, as a floating picture; false, with the reason as a notice, where it can't be put.
     bool insertBarcodeSettings(const QJsonObject &settings);
+    // An object of another app (libs/office/ole) at the caret, in place of a selection; it is selected when it is in. False, with a notice, where it can't be put in.
+    bool insertObjectAtCaret(const office::ole::EmbeddedObject &object);
+    // The positions of the objects of the body, in the order of the text (ours and other programs').
+    QVector<int> objectPositions() const;
+    // The rectangle of the object at `position` in the window (false where it is not on a page that is drawn), and the object under a point of the window (its position, -1 for none).
+    bool objectRect(int position, QRectF *rect);
+    int objectAtPoint(const QPoint &pos);
+    // The object at `position` given new bytes and a picture (its size and place stay), as one step that undoes.
+    bool replaceObject(int position, const office::ole::EmbeddedObject &object);
+    // The object at `position` made a picture of what it shows, one step that undoes (its package goes from the file); or taken out.
+    bool convertObjectToPicture(int position);
+    bool deleteObject(int position);
     // An online picture with its title (its alt text) and, when `credit` is not empty, its credit line under it: one step.
     bool insertOnlinePictureBytes(const QByteArray &bytes, const QString &title, const QString &credit);
     bool insertPictureImage(const QImage &image, PictureWrap wrap = PictureWrap::Inline);
@@ -389,6 +402,7 @@ Q_SIGNALS:
     void contextMenuWanted(const QPoint &globalPos);
     // A barcode picture was double-clicked (and selected): the barcode dialog edits it.
     void editBarcodeWanted();
+    void editObjectWanted(int position);   // a double click on an object of another app (its position in the text)
     void editBarcodeFieldWanted(int begin);   // a double click on a barcode field
     void grammarStopped();                  // the document is past the limit of work grammar checking may do: it has stopped (said once)
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
@@ -648,6 +662,7 @@ private:
     int m_moreObjectsRevision = -1;
 
     WriteDoc *m_doc = nullptr;
+    std::shared_ptr<PageView *> m_alive = std::make_shared<PageView *>(this);   // what a copy made for another program asks whether the view is still there
     QTextCursor m_cursor;
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;

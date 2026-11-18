@@ -56,6 +56,10 @@ QWidget *WriteWindow::buildInfoPage(QWidget *parent)
         hideFileScreen();
         act(QStringLiteral("review.accessibility"))->trigger();
     };
+    h.extraCards.push_back({QStringLiteral("objectsCard"), QStringLiteral("boxes"), tr("Objects"), tr("The pieces of other programs in the document: what each is, and opening, turning into a picture, or deleting it."), [this] {
+        hideFileScreen();
+        showObjects();
+    }});
     h.thumbnail = [this] { return m_view->pageImage(0, 240); };
     return jp::buildInfoPage(parent, h);
 }
