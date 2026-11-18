@@ -170,6 +170,8 @@ private:
     QString chartRelationship(const Odf &o, int object);
     // The equation a frame holds as a formula object (its MathML document read as math markup), or empty (a frame of another kind, an object that is refused, or one past the limits).
     QByteArray formulaMarkup(const Odf &o, int frame);
+    // Whether the object's document (a part of the package) is a formula, seen once from its first bytes.
+    bool isFormulaPart(const QString &part);
     QByteArray anchorXml(const Odf &o, int frame, const QString &styleName, qint64 cx, qint64 cy, const QByteArray &graphic, int docPrId);
     QByteArray noteReference(const Odf &o, int note, ParaCtx *pc, const RunFmt &fmt);
     QByteArray commentXml(const Odf &o, int annotation, ParaCtx *pc);
@@ -227,6 +229,8 @@ private:
     int m_chartCount = 0;                             // the chart parts made (at most kMostCharts)
     qint64 m_formulaBytes = 0;                        // the formula objects read so far: their documents' bytes (a budget for the whole file) and their number
     int m_formulaCount = 0;
+    QHash<QString, bool> m_formulaPart;               // the objects found to be formulas or not
+    QHash<QString, QByteArray> m_formulaOfPart;       // the markup of each formula object read (empty for one that is refused), so that frames that name it again do not read it again
     int m_imageCount = 0, m_docPrId = 0, m_bookmarkId = 0, m_footnoteCount = 0, m_endnoteCount = 0, m_commentCount = 0;
     QByteArray m_footnotesBody, m_endnotesBody, m_commentsBody;
     QHash<QString, QString> m_headerParts;            // "tree:node" -> relationship Id

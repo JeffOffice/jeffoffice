@@ -16,7 +16,8 @@ namespace jp::deck::odpw {
 bool Exporter::writeEquation(X &x, Scope &sc, const EquationItem &eq)
 {
     if (m_formulaCount >= office::kMostMathObjects) return false;
-    const QByteArray content = office::mathObjectFromOmml(eq.markup);
+    const QByteArray plain = office::mathObjectFromOmml(eq.markup);
+    const QByteArray content = plain.isEmpty() || eq.fill.isNone() ? plain : office::mathObjectWithColor(plain, eq.fill.color.resolve(m_doc.colors));
     if (content.isEmpty() || m_formulaBytes + content.size() > office::kMostMathObjectBytes) return false;
     const double w = eq.rect.width(), h = eq.rect.height();
     if (!(w > 0 && h > 0)) return false;

@@ -1799,6 +1799,16 @@ private:
             ++odsdraw::testHooks().pictureReads;
             return m_m.package->part(part);
         };
+        const odsdraw::PartPeek peek = [this](const QString &name, qint64 *size) {
+            *size = -1;
+            if (!m_m.package) return QByteArray();
+            QMutexLocker locker(&m_m.lock);
+            const QString part = QLatin1Char('/') + name;
+            if (!m_m.package->hasPart(part)) return QByteArray();
+            *size = m_m.package->partSize(part);
+            const std::unique_ptr<QIODevice> stream = m_m.package->openPart(part);
+            return stream && stream->isOpen() ? stream->read(4096) : QByteArray();
+        };
         // (a chart's document: its styles are read as the spreadsheet's are, and it is made into a chart part)
         const odsdraw::ChartMaker charts = [this](const QByteArray &content, QByteArray *part, QString *error, QStringList *notes) {
             ods::StyleStore store;
@@ -1808,7 +1818,7 @@ private:
             *part = jp::office::writeChartPart(chart);
             return !part->isEmpty();
         };
-        odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, charts, &budget, &m_s.importedDrawing);
+        odsdraw::shapesToDrawing(m_shapes, m_drawCounters, grid, styles, parts, charts, &budget, &m_s.importedDrawing, peek);
         if (m_shapesOver) m_s.importedDrawing.notRead << QCoreApplication::translate("jp::office::sheet::Ods", "drawing objects past the %1 a sheet may have").arg(kMaxDrawingAnchors);
         {
             QMutexLocker locker(&m_m.lock);

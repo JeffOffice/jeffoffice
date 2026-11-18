@@ -401,19 +401,32 @@ ItemPtr Reader::readEquation(const QDomElement &frame, const QDomElement &object
     if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
         return nullptr;
     const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
-    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > office::mathml::kMostBytes) return nullptr;
-    const QByteArray content = m_pkg.part(part);
-    // (only a document that is a formula is looked at: a chart goes on its way)
-    if (!content.left(4096).contains("math")) return nullptr;
-    const QByteArray markup = office::mathObjectToOmml(content);
-    if (markup.isEmpty()) return nullptr;
-    if (m_formulas >= office::kMostMathObjects || m_formulaBytes + content.size() > office::kMostMathObjectBytes) {
+    // (only a document that is a formula is looked at: a chart goes on its way, unread)
+    auto isMath = m_formulaPart.constFind(part);
+    if (isMath == m_formulaPart.constEnd()) isMath = m_formulaPart.insert(part, office::isMathObjectDocument(office::peekPart(m_pkg, part)));
+    if (!isMath.value()) return nullptr;
+    const qint64 partBytes = m_pkg.partSize(part);
+    // (the count and the bytes are looked at before the document is inflated, and what is found is kept for the frames that name it again)
+    if (m_formulas >= office::kMostMathObjects || m_formulaBytes + partBytes > office::kMostMathObjectBytes) {
         if (!m_said.contains(QStringLiteral("formulas"))) note(QCoreApplication::translate("OdpImport", "Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.").arg(office::kMostMathObjects));
         m_said.insert(QStringLiteral("formulas"));
         return nullptr;
     }
+    auto known = m_formulaOfPart.find(part);
+    if (known == m_formulaOfPart.end()) {
+        QByteArray found;
+        if (partBytes > 0 && partBytes <= office::mathml::kMostBytes) {
+            ++office::mathObjectTestHooks().objectReads;
+            const QByteArray content = m_pkg.part(part);
+            found = office::mathObjectToOmml(content);
+            m_formulaColor.insert(part, office::mathObjectColor(content));
+        }
+        known = m_formulaOfPart.insert(part, found);
+    }
+    const QByteArray markup = known.value();
+    if (markup.isEmpty()) return nullptr;
     ++m_formulas;
-    m_formulaBytes += content.size();
+    m_formulaBytes += partBytes;
     const Attrs a(frame);
     const StyleSheet &styles = *sc.styles;
     const Bag bag = shapeBag(a, styles);
@@ -423,6 +436,7 @@ ItemPtr Reader::readEquation(const QDomElement &frame, const QDomElement &object
     auto eq = std::make_shared<EquationItem>();
     decorate(*eq, a, bag, styles);
     eq->fill = Fill::solid(ColorRef::scheme(Main));
+    if (const QColor color = m_formulaColor.value(part); color.isValid()) eq->fill = Fill::solid(ColorRef::rgb(color));
     eq->stroke = Stroke::none();
     place(*eq, boxRect, total);
     eq->markup = markup;

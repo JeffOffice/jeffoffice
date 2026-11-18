@@ -464,6 +464,50 @@ private Q_SLOTS:
         }
     }
 
+    // A formula object that is refused is read once, whatever number of frames name it.
+    void aRefusedFormulaObjectOfASheetIsReadOnce()
+    {
+        const QByteArray script = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi><script>alert(1)</script></math>";
+        QString frames;
+        for (int i = 0; i < 1000; ++i) frames += formulaFrame(QStringLiteral("Object 1"), i);
+        const qint64 before = odsdraw::testHooks().pictureReads.load();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(handWritten(frames, QString(), {{QStringLiteral("Object 1/content.xml"), script}}), &r, &why), qPrintable(why));
+        QCOMPARE(odsdraw::testHooks().pictureReads.load() - before, qint64(1));
+        QVERIFY(equationLinesOf(r).isEmpty());
+    }
+
+    // The count and the bytes are looked at before a document is inflated: 2,500 objects of their own inflate 2,000, and 20 of a megabyte inflate 16.
+    void formulaObjectsOfASheetPastTheLimitsAreNotInflated()
+    {
+        jp::initCore();
+        QString frames;
+        QMap<QString, QByteArray> parts;
+        for (int i = 1; i <= 2500; ++i) {
+            frames += formulaFrame(QStringLiteral("Object %1").arg(i), i);
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), hello());
+        }
+        qint64 before = odsdraw::testHooks().pictureReads.load();
+        QString why;
+        Read r;
+        QVERIFY2(readOds(handWritten(frames, QString(), parts), &r, &why), qPrintable(why));
+        QCOMPARE(odsdraw::testHooks().pictureReads.load() - before, qint64(2000));
+        QCOMPARE(equationLinesOf(r).size(), 2000);
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        frames.clear();
+        parts.clear();
+        for (int i = 1; i <= 20; ++i) {
+            frames += formulaFrame(QStringLiteral("Object %1").arg(i), i);
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), big);
+        }
+        before = odsdraw::testHooks().pictureReads.load();
+        Read heavy;
+        QVERIFY2(readOds(handWritten(frames, QString(), parts), &heavy, &why), qPrintable(why));
+        QCOMPARE(odsdraw::testHooks().pictureReads.load() - before, qint64((16 << 20) / big.size()));
+    }
+
     // At most 2,000 formula objects are read and written, and 16 MB of their documents.
     void formulaObjectsOfASheetAreHeldToTheirLimits()
     {

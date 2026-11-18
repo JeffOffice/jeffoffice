@@ -822,14 +822,39 @@ QByteArray emuLength(qint64 emu)
 QByteArray Writer::formulaFrame(const T &t, int math)
 {
     if (int(m_formulas.size()) >= kMostMathObjects) return QByteArray();
-    const QByteArray markup = wml::equationMarkupDeclared(t.raw(math));
+    QByteArray markup = wml::equationMarkupDeclared(t.raw(math));
+    // (the letters' size and color are the document's own w: properties: that prefix is declared with the other, if the equation uses it)
+    if (markup.contains("<w:") && !markup.contains("xmlns:w=")) markup.insert(markup.indexOf(" xmlns:m="), " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"");
     const QByteArray content = mathObjectFromOmml(markup);
     if (content.isEmpty() || m_formulaBytes + content.size() > kMostMathObjectBytes) return QByteArray();
-    // (as large as it lays out at the height of the text it is set in)
-    const auto shape = wml::equationShapeCached(markup, 12);
+    // (as large as it lays out at the size of the letters the equation's own run has, 12 points if it names none, and in its color)
+    double em = 12;
+    QColor color(Qt::black);
+    {
+        QVector<int> stack{math};
+        for (int guard = 0; !stack.isEmpty() && guard < 400; ++guard) {
+            const int n = stack.takeLast();
+            if (t.ns(n) == wml::NsW && t.localName(n) == "rPr") {
+                if (const int sz = t.child(n, "sz"); sz >= 0) {
+                    const double v = t.val(sz).toDouble();
+                    if (v >= 2 && v <= 3276) em = std::min(v / 2.0, 400.0);
+                }
+                if (const int col = t.child(n, "color"); col >= 0) {
+                    const QColor c(QStringLiteral("#") + t.val(col));
+                    if (c.isValid()) color = c;
+                }
+                break;
+            }
+            for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
+        }
+    }
+    const auto shape = wml::equationShapeCached(markup, em);
     if (!shape || !shape->valid()) return QByteArray();
-    const double w = std::clamp(shape->box.width(), 1.0, 2000.0), h = std::clamp(shape->box.height(), 1.0, 2000.0);
-    const QByteArray png = wml::equationPng(markup, int(std::ceil(w * 4)), int(std::ceil(h * 4)));
+    const double keep = std::min(1.0, 2000.0 / std::max(shape->box.width(), shape->box.height()));
+    const double w = std::max(1.0, shape->box.width() * keep), h = std::max(1.0, shape->box.height() * keep);
+    // (a picture is at most 4,000 pixels each way: both sides are scaled by the same factor to keep the proportions)
+    const double px = std::min({4.0, 4000.0 / w, 4000.0 / h});
+    const QByteArray png = wml::equationPng(markup, std::max(1, int(std::lround(w * px))), std::max(1, int(std::lround(h * px))), color);
     if (png.isEmpty()) return QByteArray();
     m_formulaBytes += content.size();
     const QString dir = QStringLiteral("Object %1").arg(m_chartObjects.size() + m_formulas.size() + 1);

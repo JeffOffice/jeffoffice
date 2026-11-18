@@ -215,9 +215,11 @@ QString Reader::chartRelationship(const Odf &o, int object)
         return failed(QCoreApplication::translate("odt", "charts the file does not hold"));
     const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
     if (!m_pkg.hasPart(part)) return failed(QString());   // (an object with no content.xml is not a chart: an equation or another kind says so where it is read)
+    if (isFormulaPart(part)) return failed(QString());   // (an equation is told where it is read, and is not read again here)
     if (m_pkg.partSize(part) > sheet::odschart::kMaxPartBytes) return failed(QCoreApplication::translate("odt", "charts larger than a chart may be"));
     // (all the charts of one document together are held to a budget of bytes and of points)
     if (m_chartBytes + m_pkg.partSize(part) > kMostChartBytes) return failed(QCoreApplication::translate("odt", "charts past the size all the charts of a document may come to"));
+    ++mathObjectTestHooks().objectReads;
     const QByteArray content = m_pkg.part(part);
     m_chartBytes += content.size();
     // (an equation is an embedded object too: it has no chart in it)
@@ -539,19 +541,37 @@ QByteArray Reader::formulaMarkup(const Odf &o, int frame)
     if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
         return QByteArray();
     const QString part = QStringLiteral("/") + path + QStringLiteral("/content.xml");
-    if (!m_pkg.hasPart(part) || m_pkg.partSize(part) > mathml::kMostBytes) return QByteArray();
-    const QByteArray content = m_pkg.part(part);
-    // (only a document that is a formula is looked at: a chart goes on its way)
-    if (!content.left(4096).contains("math")) return QByteArray();
-    const QByteArray markup = mathObjectToOmml(content);
-    if (markup.isEmpty()) return QByteArray();
-    if (m_formulaCount >= kMostMathObjects || m_formulaBytes + content.size() > kMostMathObjectBytes) {
+    // (only a document that is a formula is looked at: a chart goes on its way, unread)
+    if (!isFormulaPart(part)) return QByteArray();
+    const qint64 size = m_pkg.partSize(part);
+    auto tooMany = [&](qint64 bytes) { return m_formulaCount >= kMostMathObjects || m_formulaBytes + bytes > kMostMathObjectBytes; };
+    // (the count and the bytes are looked at before the document is inflated, and what is found is kept for the frames that name it again)
+    if (tooMany(size)) {
         left(QCoreApplication::translate("odt", "equations past the %1 a document may have, or the size they may come to together (kept as their pictures)").arg(kMostMathObjects));
         return QByteArray();
     }
+    auto known = m_formulaOfPart.find(part);
+    if (known == m_formulaOfPart.end()) {
+        QByteArray markup;
+        if (size > 0 && size <= mathml::kMostBytes) {
+            ++mathObjectTestHooks().objectReads;
+            markup = mathObjectToOmml(m_pkg.part(part));
+        }
+        known = m_formulaOfPart.insert(part, markup);
+    }
+    if (known.value().isEmpty()) return QByteArray();
     ++m_formulaCount;
-    m_formulaBytes += content.size();
-    return markup;
+    m_formulaBytes += size;
+    return known.value();
+}
+
+bool Reader::isFormulaPart(const QString &part)
+{
+    const auto known = m_formulaPart.constFind(part);
+    if (known != m_formulaPart.constEnd()) return known.value();
+    const bool math = isMathObjectDocument(peekPart(m_pkg, part));
+    m_formulaPart.insert(part, math);
+    return math;
 }
 
 QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)

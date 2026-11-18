@@ -9,6 +9,7 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
+#include "mathml/mathml.h"
 #include "office/mathobject.h"
 #include "wml/wmlmathedit.h"
 #include "sheet/odsstyles.h"
@@ -53,8 +54,8 @@ struct Placed {
 
 class Converter {
 public:
-    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, const ChartMaker &charts, Budget *budget, ImportedDrawing *out)
-        : m_grid(grid), m_styles(styles), m_parts(parts), m_charts(charts), m_budget(budget), m_out(out)
+    Converter(const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts, const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek)
+        : m_grid(grid), m_styles(styles), m_parts(parts), m_charts(charts), m_peek(peek), m_budget(budget), m_out(out)
     {
         m_scheme = builtinColorSchemes().value(0);
     }
@@ -90,11 +91,16 @@ private:
     const StyleLookup &m_styles;
     const std::function<QByteArray(const QString &)> &m_parts;
     const ChartMaker &m_charts;
+    const PartPeek &m_peek;
     int m_chartCount = 0;
     int m_objectsSeen = 0, m_objectsHandled = 0;
-    QSet<QString> m_notMath;   // the objects found not to be formulas, so that a frame that names one again does not read it again
-    QString m_stashPath;       // the object whose document was read to see what it is, and the bytes (for the chart that is read next)
-    QByteArray m_stash;
+    QHash<QString, bool> m_isMath;   // what each object the frames name was found to be (a formula or not), seen from its first bytes once
+    struct Formula {
+        QByteArray markup;   // empty for one that is refused
+        qint64 bytes = 0;
+        bool noRoom = false;
+    };
+    QHash<QString, Formula> m_formulaOf;   // the verdict on each formula object, kept so that frames that name it again do not read it again
     QHash<QString, int> m_chartOfHref;   // the chart part made of each Object the frames name (-1 for one that could not be): read and kept once, whatever number of frames show it
     Budget *m_budget;
     ImportedDrawing *m_out;
@@ -503,18 +509,24 @@ private:
         return true;
     }
 
-    static bool isMath(const QByteArray &content)
-    {
-        const QByteArray head = content.left(4096);
-        return head.contains("math:math") || head.contains("<math ") || head.contains("MathML");
-    }
-
     static int countObjects(const NodePtr &n, int depth)
     {
         if (!n || depth > 40) return 0;
         int count = n->name == QLatin1String("draw:object") || n->name == QLatin1String("draw:object-ole") ? 1 : 0;
         for (const NodePtr &c : n->children) count += countObjects(c, depth + 1);
         return count;
+    }
+
+    // Whether the object is a formula (its document's root is MathML's math), seen from the first bytes of its document, once for each object the frames name.
+    bool isFormula(const QString &path)
+    {
+        const auto known = m_isMath.constFind(path);
+        if (known != m_isMath.constEnd()) return known.value();
+        qint64 size = -1;
+        const QByteArray head = m_peek ? m_peek(path + QStringLiteral("/content.xml"), &size) : QByteArray();
+        const bool math = isMathObjectDocument(head);
+        m_isMath.insert(path, math);
+        return math;
     }
 
     // A frame that holds a formula object: its MathML document is read as the equation (false for any other kind of object, or one that is refused or past the limits: the frame is then read as its picture).
@@ -525,21 +537,37 @@ private:
         while (path.endsWith(QLatin1Char('/'))) path.chop(1);
         if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
             return false;
-        if (m_notMath.contains(path)) return false;
-        const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
-        // (only a document that is a formula is looked at: a chart goes on its way, with the bytes read, which it takes)
-        if (content.isEmpty() || !content.left(4096).contains("math")) {
-            m_notMath.insert(path);
-            m_stashPath = path;
-            m_stash = content;
+        if (!isFormula(path)) return false;
+        auto known = m_formulaOf.find(path);
+        if (known == m_formulaOf.end()) {
+            // (the count and the bytes are looked at before the document is read, and what is found is kept for the frames that name it again)
+            Formula f;
+            qint64 size = -1;
+            const QString part = path + QStringLiteral("/content.xml");
+            if (m_peek) m_peek(part, &size);
+            if (size > 0 && size <= mathml::kMostBytes) {
+                if (m_budget && !m_budget->roomForFormula(size)) {
+                    f.noRoom = true;
+                } else {
+                    const QByteArray content = m_parts(part);
+                    f.bytes = content.size();
+                    if (!content.isEmpty()) f.markup = mathObjectToOmml(content);
+                }
+            }
+            known = m_formulaOf.insert(path, f);
+        }
+        const Formula &formula = known.value();
+        if (formula.noRoom) {
+            m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(kMostMathObjects));
             return false;
         }
-        const QByteArray markup = mathObjectToOmml(content);
-        if (markup.isEmpty()) return false;
+        if (formula.markup.isEmpty()) return false;
+        const QByteArray markup = formula.markup;
+        const qint64 contentSize = formula.bytes;
         auto item = std::make_shared<EquationItem>();
         double turn = 0;
         if (!placeBox(frame, ox, oy, p, item.get(), &turn)) return false;
-        if (m_budget && !m_budget->takeFormula(content.size())) {
+        if (m_budget && !m_budget->takeFormula(contentSize)) {
             m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) past the %1 a workbook may have, or the size they may come to together (shown as their pictures)").arg(kMostMathObjects));
             return false;
         }
@@ -555,6 +583,16 @@ private:
     bool chart(const NodePtr &frame, const NodePtr &object, qint64 ox, qint64 oy, Placed *p)
     {
         ++m_objectsHandled;
+        {
+            // (a formula object that was refused is not a chart, and is not read again as one)
+            QString href = object->attrs.value(QStringLiteral("xlink:href")).trimmed();
+            if (href.startsWith(QLatin1String("./"))) href.remove(0, 2);
+            while (href.endsWith(QLatin1Char('/'))) href.chop(1);
+            if (m_isMath.value(href, false)) {
+                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) that could not be read"));
+                return false;
+            }
+        }
         ShapeItem box;
         double turn = 0;
         if (!placeBox(frame, ox, oy, p, &box, &turn)) return false;
@@ -580,12 +618,9 @@ private:
             index = known.value();
         } else {
             // (the document is read from the package and made into a chart part once; frames that name it again share the part)
-            const QByteArray content = m_stashPath == path ? std::exchange(m_stash, QByteArray()) : m_parts(path + QStringLiteral("/content.xml"));
-            if (m_stashPath == path) m_stashPath.clear();
+            const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
             if (content.isEmpty()) {
                 m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
-            } else if (isMath(content)) {
-                m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "formula objects (equations) that could not be read"));
             } else {
                 QByteArray part;
                 QString why;
@@ -999,10 +1034,10 @@ private:
 } // namespace
 
 void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
-                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out)
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek)
 {
     *out = ImportedDrawing();
-    Converter c(grid, styles, parts, charts, budget, out);
+    Converter c(grid, styles, parts, charts, budget, out, peek);
     c.run(shapes, counters);
 }
 

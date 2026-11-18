@@ -51,6 +51,8 @@ struct Budget {
     bool takeChart(qint64 limit);
     // One more formula object (an equation) of a document `n` bytes long, if the file stays within office/mathobject.h's limits on their number and their bytes.
     bool takeFormula(qint64 n);
+    // Whether one more formula object of a document `n` bytes long would be taken now (the number and the bytes of those taken, nothing changed).
+    bool roomForFormula(qint64 n) const;
     bool takeBytes(qint64 n, qint64 limit);
 };
 
@@ -128,10 +130,13 @@ using StyleLookup = std::function<QHash<QString, QString>(const QString &family,
 // Makes a chart part (c:chartSpace) from the bytes of an OpenDocument chart's document (odschart.h); false, with a message, if it can't be. `notes` gets what was left out.
 using ChartMaker = std::function<bool(const QByteArray &content, QByteArray *chartPart, QString *error, QStringList *notes)>;
 
+// The first bytes of a part of the package (a few KB, inflated no further) and how many bytes it holds in all (-1 and empty for one that is not there), to see what an object is before it is read.
+using PartPeek = std::function<QByteArray(const QString &name, qint64 *size)>;
+
 // Makes the drawing of the sheet from its shapes. `parts` gives the bytes of a part of the package by its name ("Pictures/a.png"; empty for one that is not there). The drawing is empty,
 // and `notRead` says what was left out, if nothing can be made.
 void shapesToDrawing(const QVector<SheetShape> &shapes, const Counters &counters, const Grid &grid, const StyleLookup &styles, const std::function<QByteArray(const QString &)> &parts,
-                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out);
+                     const ChartMaker &charts, Budget *budget, ImportedDrawing *out, const PartPeek &peek = PartPeek());
 
 // ---- writing
 // What a sheet's drawing is as the standard's elements.

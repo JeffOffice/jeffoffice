@@ -293,6 +293,9 @@ private:
     int m_barcodes = 0;   // barcodes honored as barcodes so far (office/barcodemarker.h)
     int m_formulas = 0;   // formula objects read so far, and the bytes of their documents (all the slides together are held to office/mathobject.h's limits)
     qint64 m_formulaBytes = 0;
+    QHash<QString, bool> m_formulaPart;           // the objects found to be formulas or not, from their first bytes, once
+    QHash<QString, QByteArray> m_formulaOfPart;   // the markup of each formula object read (empty for one that is refused), so that frames that name it again do not read it again
+    QHash<QString, QColor> m_formulaColor;        // and the color each names for its letters
     QStringList *m_notes;
     std::deque<QDomDocument> m_doms;
     QDomDocument m_contentDom, m_stylesDom, m_metaDom;

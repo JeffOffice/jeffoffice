@@ -1105,6 +1105,125 @@ private Q_SLOTS:
         QCOMPARE(mathsOf(heavyDocx).size(), int((16 << 20) / big.size()));
     }
 
+    // A chart made by another suite declares the math namespace on its root: it is read once as a chart (not inflated again as a formula), however many frames name it.
+    void aChartThatDeclaresMathIsInflatedOnceNoMatterTheFrames()
+    {
+        const QByteArray chart = "<?xml version=\"1.0\"?><office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" "
+                                 "xmlns:math=\"http://www.w3.org/1998/Math/MathML\"><office:body><office:chart><chart:chart chart:class=\"chart:bar\"/></office:chart></office:body></office:document-content>";
+        QStringList frames;
+        for (int i = 0; i < 500; ++i) frames << frameOf(QStringLiteral("Object 1"));
+        const QByteArray odt = formulaOdt(frames, {{QStringLiteral("Object 1/content.xml"), chart}});
+        const qint64 before = office::mathObjectTestHooks().objectReads.load();
+        QString err;
+        office::odt::toDocxPackage(odt, &err);
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(1));
+    }
+
+    // A formula object that is refused is inflated once, not again for each frame that names it.
+    void aRefusedFormulaObjectIsInflatedOnce()
+    {
+        const QByteArray bad = "<?xml version=\"1.0\"?><math xmlns=\"http://www.w3.org/1998/Math/MathML\"><script>x</script></math>";
+        QStringList frames;
+        for (int i = 0; i < 1000; ++i) frames << frameOf(QStringLiteral("Object 1"));
+        const QByteArray odt = formulaOdt(frames, {{QStringLiteral("Object 1/content.xml"), bad}});
+        const qint64 before = office::mathObjectTestHooks().objectReads.load();
+        QString err;
+        office::odt::toDocxPackage(odt, &err);
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(1));
+    }
+
+    // The count and the bytes are looked at before a document is inflated: 2,500 objects of their own inflate 2,000, and 20 of a megabyte inflate 16.
+    void formulaObjectsPastTheLimitsAreNotInflated()
+    {
+        QStringList frames;
+        QMap<QString, QByteArray> parts;
+        for (int i = 1; i <= 2500; ++i) {
+            frames << frameOf(QStringLiteral("Object %1").arg(i));
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), hello());
+        }
+        qint64 before = office::mathObjectTestHooks().objectReads.load();
+        QString err;
+        const QByteArray docx = office::odt::toDocxPackage(formulaOdt(frames, parts), &err);
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(2000));
+        QCOMPARE(mathsOf(docx).size(), 2000);
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        frames.clear();
+        parts.clear();
+        for (int i = 1; i <= 20; ++i) {
+            frames << frameOf(QStringLiteral("Object %1").arg(i));
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), big);
+        }
+        before = office::mathObjectTestHooks().objectReads.load();
+        office::odt::toDocxPackage(formulaOdt(frames, parts), &err);
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64((16 << 20) / big.size()));
+    }
+
+    static QByteArray frameAndPictureOfFirstEquation(const QByteArray &math, QSizeF *frame, QImage *picture)
+    {
+        QString err;
+        const QByteArray odt = office::odt::fromDocxPackage(equationsDocx(1, math), &err);
+        const QString content = QString::fromUtf8(odtPart(odt, QStringLiteral("content.xml")));
+        static const QRegularExpression size(QStringLiteral("svg:width=\"([0-9.]+)in\" svg:height=\"([0-9.]+)in\""));
+        const QRegularExpressionMatch m = size.match(content);
+        *frame = m.hasMatch() ? QSizeF(m.captured(1).toDouble(), m.captured(2).toDouble()) : QSizeF();
+        *picture = QImage::fromData(odtPart(odt, QStringLiteral("ObjectReplacements/Object 1.png")));
+        return odt;
+    }
+
+    static QByteArray runOf(const QByteArray &props, int count)
+    {
+        QByteArray text;
+        for (int i = 0; i < count; ++i) text += "a+b";
+        return "<m:oMath><m:r><w:rPr>" + props + "</w:rPr><m:t>" + text + "</m:t></m:r></m:oMath>";
+    }
+
+    // The frame and the picture of a saved equation follow the size of its letters.
+    void anEquationsPreviewFollowsItsRunsSize()
+    {
+        auto run = runOf;
+        QSizeF small, large;
+        QImage smallPicture, largePicture;
+        frameAndPictureOfFirstEquation(run("<w:sz w:val=\"24\"/>", 1), &small, &smallPicture);
+        frameAndPictureOfFirstEquation(run("<w:sz w:val=\"48\"/>", 1), &large, &largePicture);
+        QVERIFY(small.width() > 0 && large.width() > 0);
+        QVERIFY2(large.width() > 1.8 * small.width() && large.width() < 2.2 * small.width(), qPrintable(QString::number(large.width() / small.width())));
+        QVERIFY(largePicture.width() > 1.6 * smallPicture.width());
+    }
+
+    // ... and its color.
+    void anEquationsPreviewIsDrawnInItsRunsColor()
+    {
+        auto run = runOf;
+        QSizeF redSize;
+        QImage red;
+        frameAndPictureOfFirstEquation(run("<w:color w:val=\"FF0000\"/>", 1), &redSize, &red);
+        QVERIFY(!red.isNull());
+        int redPixels = 0, otherPixels = 0;
+        for (int y = 0; y < red.height(); ++y)
+            for (int x = 0; x < red.width(); ++x) {
+                const QColor c = red.pixelColor(x, y);
+                if (c.alpha() < 200) continue;
+                (c.red() > 200 && c.green() < 60 && c.blue() < 60 ? redPixels : otherPixels)++;
+            }
+        QVERIFY(redPixels > 20);
+        QCOMPARE(otherPixels, 0);
+    }
+
+    // One too wide for a picture (at most 4,000 pixels) keeps its proportions.
+    void aWideEquationsPictureKeepsItsProportions()
+    {
+        auto run = runOf;
+        QSizeF wide;
+        QImage widePicture;
+        frameAndPictureOfFirstEquation(run("<w:sz w:val=\"24\"/>", 800), &wide, &widePicture);
+        QVERIFY(!widePicture.isNull());
+        QVERIFY(widePicture.width() <= 4000 && widePicture.width() >= 3000);
+        // (the picture's height is whole pixels: the proportions agree to about a pixel of it)
+        const double seen = double(widePicture.width()) / widePicture.height(), asked = wide.width() / wide.height();
+        QVERIFY2(std::abs(seen / asked - 1) < 1.5 / widePicture.height() + 0.01, qPrintable(QString::number(seen) + " vs " + QString::number(asked)));
+    }
+
     static QByteArray odtPart(const QByteArray &odt, const QString &name)
     {
         QMap<QString, QByteArray> parts;

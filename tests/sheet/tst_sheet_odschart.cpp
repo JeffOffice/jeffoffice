@@ -591,6 +591,43 @@ private Q_SLOTS:
         }
     }
 
+    // A chart made by another suite declares the math namespace on its root: one inflate reads it, however many frames name it, and charts past the sheet's limit are not read at all.
+    void aChartThatDeclaresMathIsNotReadAsAFormulaFirst()
+    {
+        QByteArray chart = miniChart(QStringLiteral("chart:bar"), QStringLiteral("<chart:series chart:values-cell-range-address=\"S.A1:S.A3\"/>"));
+        const int at = chart.indexOf("<office:document-content ");
+        QVERIFY(at >= 0);
+        chart.insert(at + 24, " xmlns:math=\"http://www.w3.org/1998/Math/MathML\"");
+        {
+            Workbook wb;
+            QString why;
+            const qint64 reads = odsdraw::testHooks().pictureReads.load();
+            QVERIFY2(openBytes(odsWithObject(chart, 500), QStringLiteral("math.ods"), &wb, &why), qPrintable(why));
+            Sheet s;
+            QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+            QCOMPARE(int(s.importedDrawing.charts.size()), 1);
+            QCOMPARE(odsdraw::testHooks().pictureReads.load() - reads, qint64(1));
+        }
+        {
+            const int count = jp::office::sheet::odschart::kMaxChartsPerSheet + 20;
+            QString shape;
+            QMap<QString, QByteArray> parts;
+            for (int i = 1; i <= count; ++i) {
+                shape += QStringLiteral("<draw:frame draw:name=\"C%1\" svg:width=\"1in\" svg:height=\"1in\" svg:x=\"0in\" svg:y=\"0in\"><draw:object xlink:href=\"./Object %1\"/></draw:frame>").arg(i);
+                parts.insert(QStringLiteral("Object %1/content.xml").arg(i), chart);
+            }
+            const QString table = QStringLiteral("<table:table table:name=\"S\"><table:shapes>%1</table:shapes><table:table-column table:number-columns-repeated=\"3\"/>"
+                                                 "<table:table-row><table:table-cell office:value-type=\"float\" office:value=\"7\"/></table:table-row></table:table>").arg(shape);
+            Workbook wb;
+            QString why;
+            const qint64 reads = odsdraw::testHooks().pictureReads.load();
+            QVERIFY2(openBytes(buildOds(contentXml(table), QString(), QByteArray(), parts), QStringLiteral("past.ods"), &wb, &why), qPrintable(why));
+            Sheet s;
+            QVERIFY2(wb.readSheet(0, &s), qPrintable(s.error));
+            QCOMPARE(odsdraw::testHooks().pictureReads.load() - reads, qint64(jp::office::sheet::odschart::kMaxChartsPerSheet));
+        }
+    }
+
     // The charts of a whole workbook are bounded too, whatever sheets they are on.
     void chartsPastTheWorkbookLimitAreNamed()
     {

@@ -7,6 +7,7 @@
 #include "io/odpimport_p.h"
 
 #include "office/chart.h"
+#include "office/mathobject.h"
 
 #include <QCoreApplication>
 #include <QRegularExpression>
@@ -155,6 +156,7 @@ QString Reader::drawChart(const QString &part, const QSizeF &size)
 {
     QDomDocument dom;
     QString why;
+    ++office::mathObjectTestHooks().objectReads;
     if (!parse(part + QStringLiteral("/content.xml"), &dom, &why)) return QString();
     const QDomElement chartEl = kid(kid(kid(dom.documentElement(), "office:body"), "office:chart"), "chart:chart");
     if (chartEl.isNull()) return QString();

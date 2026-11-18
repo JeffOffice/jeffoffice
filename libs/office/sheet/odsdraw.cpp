@@ -137,6 +137,11 @@ bool Budget::takeFormula(qint64 n)
     return true;
 }
 
+bool Budget::roomForFormula(qint64 n) const
+{
+    return formulas.load() < kMostMathObjects && formulaBytes.load() + n <= kMostMathObjectBytes;
+}
+
 bool Budget::takeBytes(qint64 n, qint64 limit)
 {
     qint64 seen = pictureBytes.load();

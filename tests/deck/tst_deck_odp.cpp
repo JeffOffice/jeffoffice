@@ -2797,6 +2797,85 @@ private Q_SLOTS:
         QCOMPARE(equationsOf(*heavy).size(), int((16 << 20) / big.size()));
     }
 
+    // A formula object that is refused is inflated once, not again for each frame that names it.
+    void aRefusedFormulaObjectOfASlideIsInflatedOnce()
+    {
+        const QByteArray script = "<math xmlns=\"http://www.w3.org/1998/Math/MathML\"><mi>x</mi><script>alert(1)</script></math>";
+        QStringList objects;
+        for (int i = 0; i < 1000; ++i) objects << QStringLiteral("Object 1");
+        const QByteArray odp = mathDeck(objects, {{QStringLiteral("Object 1/content.xml"), script}, {QStringLiteral("ObjectReplacements/Object 1.png"), aPng()}});
+        const qint64 before = office::mathObjectTestHooks().objectReads.load();
+        QString err;
+        auto d = deck::importOdp(odp, &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(1));
+    }
+
+    // The count and the bytes are looked at before a document is inflated: 2,500 objects of their own inflate 2,000, and 20 of a megabyte inflate 16.
+    void formulaObjectsOfASlidePastTheLimitsAreNotInflated()
+    {
+        QString err;
+        QStringList objects;
+        QMap<QString, QByteArray> parts;
+        for (int i = 1; i <= 2500; ++i) {
+            objects << QStringLiteral("Object %1").arg(i);
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), hello());
+            parts.insert(QStringLiteral("ObjectReplacements/Object %1.png").arg(i), aPng());
+        }
+        qint64 before = office::mathObjectTestHooks().objectReads.load();
+        auto d = deck::importOdp(mathDeck(objects, parts), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(2000));
+        QByteArray big = hello();
+        big.insert(big.size() - 7, "<!--" + QByteArray(999000, 'x') + "-->");
+        objects.clear();
+        parts.clear();
+        for (int i = 1; i <= 20; ++i) {
+            objects << QStringLiteral("Object %1").arg(i);
+            parts.insert(QStringLiteral("Object %1/content.xml").arg(i), big);
+            parts.insert(QStringLiteral("ObjectReplacements/Object %1.png").arg(i), aPng());
+        }
+        before = office::mathObjectTestHooks().objectReads.load();
+        auto heavy = deck::importOdp(mathDeck(objects, parts), &err);
+        QVERIFY2(heavy, qPrintable(err));
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64((16 << 20) / big.size()));
+    }
+
+    // A chart made by another suite declares the math namespace on its root: it is not inflated as a formula first (one inflate for the chart, whatever number of frames).
+    void aChartThatDeclaresMathIsNotInflatedAsAFormula()
+    {
+        const QByteArray chart = "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:chart=\"urn:oasis:names:tc:opendocument:xmlns:chart:1.0\" "
+                                 "xmlns:math=\"http://www.w3.org/1998/Math/MathML\"><office:body><office:chart><chart:chart chart:class=\"chart:bar\"/></office:chart></office:body></office:document-content>";
+        QString frames;
+        for (int i = 0; i < 300; ++i)
+            frames += QStringLiteral("<draw:frame draw:style-name=\"gr5\" draw:layer=\"layout\" svg:width=\"200pt\" svg:height=\"80pt\" svg:x=\"1cm\" svg:y=\"1cm\"><draw:object xlink:href=\"./Object 1\"/><draw:image xlink:href=\"ObjectReplacements/Object 1.png\"/></draw:frame>");
+        const QByteArray odp = odptest::odpZip(odptest::odpContent(odptest::sampleAutomaticStyles(), QStringLiteral("<draw:page draw:name=\"p\" draw:style-name=\"dp1\" draw:master-page-name=\"Default\">") + frames + QStringLiteral("</draw:page>")),
+                                               odptest::odpStyles(), {{QStringLiteral("Object 1/content.xml"), chart}});
+        const qint64 before = office::mathObjectTestHooks().objectReads.load();
+        QString err;
+        auto d = deck::importOdp(odp, &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(equationsOf(*d).isEmpty());
+        QCOMPARE(office::mathObjectTestHooks().objectReads.load() - before, qint64(1));
+    }
+
+    // An equation's color is kept in its formula document and comes back.
+    void anEquationKeepsItsColorThroughAnOdp()
+    {
+        QString err;
+        auto d = deck::newPresentation();
+        auto eq = anEquation(QStringLiteral("x+y"), 40);
+        eq->fill = Fill::solid(ColorRef::rgb(QColor(200, 30, 20)));
+        d->pages[0]->items.push_back(eq);
+        const QByteArray odp = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!odp.isEmpty(), qPrintable(err));
+        auto back = deck::importOdp(odp, &err);
+        QVERIFY2(back, qPrintable(err));
+        const auto eqs = equationsOf(*back);
+        QCOMPARE(eqs.size(), 1);
+        QCOMPARE(eqs[0]->fill.color.resolve(back->colors), QColor(200, 30, 20));
+    }
+
 private:
     // The pictures a presentation's charts are, in order, as the SVG each one is.
     static QVector<QByteArray> chartPictures(const Document &d)
