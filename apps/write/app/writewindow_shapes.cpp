@@ -18,6 +18,7 @@
 #include "app/equationdialog.h"
 #include "app/equationtab.h"
 #include "core/pictureops.h"
+#include "core/textboxops.h"
 #include "office/drawingml.h"
 #include "office/drawingml_geometry.h"
 #include "render/shapes.h"
@@ -187,6 +188,23 @@ void WriteWindow::createShapeActions()
             if (m_doc) m_view->insertTextBoxObject(design);
             m_view->setFocus(Qt::OtherFocusReason);
         });
+    }
+    mk("insert.textBox.draw", tr("Draw Text Box"), "text-cursor-input", QKeySequence(), [this] {
+        if (m_doc) m_view->beginShapeDraw(QStringLiteral("textbox"));
+        m_view->setFocus(Qt::OtherFocusReason);
+        statusBar()->showMessage(tr("Drag on the page to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops."), 8000);
+    });
+    {
+        static const std::pair<const char *, write::TextDirection> directions[] = {{"horz", write::TextDirection::Horizontal}, {"r90", write::TextDirection::Rotate90}, {"r270", write::TextDirection::Rotate270}};
+        const QString texts[] = {tr("Horizontal"), tr("Rotate all text 90°"), tr("Rotate all text 270°")};
+        int i = 0;
+        for (const auto &d : directions) {
+            const write::TextDirection direction = d.second;
+            mk(QStringLiteral("shape.direction.") + QLatin1String(d.first), texts[i++], "rotate-cw", QKeySequence(), [this, direction] {
+                m_view->changeSelectedPicture([direction](write::WriteDoc &doc, int position) { return write::setTextBoxDirection(doc, position, direction); });
+                m_view->setFocus(Qt::OtherFocusReason);
+            }, true);
+        }
     }
     mk("shape.editPoints", tr("Edit Points"), "spline", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -1017,6 +1035,11 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
         });
         return b;
     };
+    parts.menus[QStringLiteral("textDirection")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        for (const char *id : {"horz", "r90", "r270"}) m->addAction(act(QStringLiteral("shape.direction.") + QLatin1String(id)));
+        return m;
+    };
     parts.menus[QStringLiteral("shapeRotate")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const char *id : {"right", "left", "none"}) m->addAction(act(QStringLiteral("shape.rotate.") + QLatin1String(id)));
@@ -1147,6 +1170,7 @@ void WriteWindow::refreshShapeUi()
 {
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     for (const write::TextBoxDesign &design : write::textBoxDesigns()) act(QStringLiteral("insert.textBox.") + design.id)->setEnabled(body);
+    act("insert.textBox.draw")->setEnabled(body);
     act("insert.equation")->setEnabled(body);
     act("insert.drawingCanvas")->setEnabled(body);
     for (int i = 0; i < write::equationGallery().size(); ++i) act(QStringLiteral("insert.equation.design.%1").arg(i))->setEnabled(body);
@@ -1224,6 +1248,15 @@ void WriteWindow::refreshShapeUi()
     }
     if (!act("shape.editPoints")->isEnabled() || !m_view->editingShapePoints()) act("shape.editPoints")->setChecked(m_view->editingShapePoints());
     act("shape.editText")->setEnabled(editable && write::textBoxText(*m_doc, at).has_value());
+    {
+        const write::TextDirection now = editable ? write::textBoxDirection(*m_doc, at) : write::TextDirection::Horizontal;
+        const bool takesWords = editable && write::textBoxText(*m_doc, at).has_value();
+        const std::pair<const char *, write::TextDirection> directions[] = {{"horz", write::TextDirection::Horizontal}, {"r90", write::TextDirection::Rotate90}, {"r270", write::TextDirection::Rotate270}};
+        for (const auto &d : directions) {
+            act(QStringLiteral("shape.direction.") + QLatin1String(d.first))->setEnabled(takesWords);
+            act(QStringLiteral("shape.direction.") + QLatin1String(d.first))->setChecked(takesWords && now == d.second);
+        }
+    }
     act("shape.createLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::canLinkTextBoxFrom(*m_doc, at));
     act("shape.breakLink")->setEnabled(info.valid && info.editable && info.kind == write::DrawnKind::TextBox && write::hasLinkedTextBoxAfter(*m_doc, at));
     for (const double w : kWeights) act(QStringLiteral("shape.weight.%1").arg(w))->setChecked(drawn && std::abs(info.lineWeight - w) < 0.01);

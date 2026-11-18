@@ -16,6 +16,7 @@
 #include <QToolButton>
 #include "core/refops.h"
 #include "core/tableops.h"
+#include "core/textboxops.h"
 #include "core/writeprops.h"
 
 #include <QApplication>
@@ -1164,14 +1165,20 @@ void PageView::finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers 
     QTextCursor c(m_doc->story());
     c.setPosition(d.position);
     m_doc->pictureNotice.clear();
-    const PictureResult result = insertShapeAt(*m_doc, c, preset, d.from, to, modifiers & Qt::ShiftModifier);
+    // (Draw Text Box is the same drag with the Simple design's box: it is in front of the text, selected, and its words are typed at once.)
+    const bool box = preset == QLatin1String("textbox");
+    const PictureResult result = box ? insertTextBoxAt(*m_doc, c, d.from, to, modifiers & Qt::ShiftModifier) : insertShapeAt(*m_doc, c, preset, d.from, to, modifiers & Qt::ShiftModifier);
     if (result == PictureResult::Ok) {
         m_cursor = c;
         selectPicture(d.position);
         Q_EMIT contentChanged();
+        if (box) {
+            refresh();
+            beginShapeTextEdit();
+        }
         return;
     }
-    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.") : m_doc->pictureNotice);
+    Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? (box ? QCoreApplication::translate("jp::write::Pictures", "A text box can't be put here.") : QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.")) : m_doc->pictureNotice);
 }
 
 void PageView::finishTableTool(const QPoint &viewportPos)

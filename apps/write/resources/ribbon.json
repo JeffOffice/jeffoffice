@@ -426,6 +426,8 @@
               },
               "keytip": "TB",
               "menu": [
+                "insert.textBox.draw",
+                "-",
                 "insert.textBox.simple",
                 "insert.textBox.plain",
                 "-",
@@ -2496,6 +2498,15 @@
             {
               "large": "shape.editText",
               "keytip": "ET"
+            },
+            {
+              "large": {
+                "id": "ribbon.textDirection",
+                "text": "Text Direction",
+                "icon": "rotate-cw"
+              },
+              "keytip": "TD",
+              "menu": "@textDirection"
             }
           ]
         },
