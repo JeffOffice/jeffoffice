@@ -499,7 +499,7 @@ jobs:
           # (the caps: a shared base entry of Windows or macOS holds the 1,700 files its four jobs compile, 0.9 GB on Windows and 1.2 on macOS, with room for a
           # run or two of replaced ones; the entries of both systems and the Qt caches (1.5 GB) come to about 5 GB of GitHub's 10, 8.4 while a new base is saved
           # before the old one is deleted. The Build step trims to the cap before the Save steps, and ccache keeps what a job used lately.)
-          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '1500M' || (matrix.name == 'linux' && '3G' || '2000M')) }}
+          CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '3000M' || (matrix.name == 'linux' && '3G' || '2000M')) }}
           CCACHE_COMPILERCHECK: content
           # (only the job that packages: the others build their own programs)
           FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
