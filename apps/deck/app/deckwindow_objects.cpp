@@ -192,7 +192,7 @@ void DeckWindow::objectSaved(int editId, const QByteArray &part, const QByteArra
         saved.previewPng = png;
         saved.pictureStale = stale;
         office::ole::applySave(*now, saved);
-        m_ed->endTextEdit();
+        // (Words being typed stay as they are: the update is a step of its own beside them.)
         m_ed->beginChange(tr("Update Object"));
         const bool put = deck::setPageObject(*d, page, itemId, *now);
         m_ed->endChange();

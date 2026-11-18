@@ -11,6 +11,7 @@
 
 #include "core/chartobject.h"
 #include "core/presets.h"
+#include "ole/embedobj.h"
 #include "text/storyio.h"
 #include "core/comments.h"
 #include "text/textprops.h"
@@ -1020,6 +1021,46 @@ bool Editor::moveOutOfText(Wrap::Mode mode)
     return true;
 }
 
+namespace {
+
+// The objects of other apps a page keeps (its "charts" entries of kind "object": the package of each, named by the picture that shows it).
+bool isObjectEntry(const QJsonObject &e) { return e.value(QStringLiteral("kind")).toString() == QLatin1String("object"); }
+
+// The entries of the pictures given, for a copy to carry: a pasted picture of an object is an object of its own, not a picture that has lost its program.
+QJsonArray objectEntriesOf(const PageBase &page, const QSet<QString> &ids)
+{
+    QJsonArray found;
+    for (const QJsonValue &v : page.props.value(QStringLiteral("charts")).toArray())
+        if (isObjectEntry(v.toObject()) && ids.contains(v.toObject().value(QStringLiteral("item")).toString())) found.append(v);
+    return found;
+}
+
+// The entries put on the page for the copies of their pictures (`copies`: the old item's id to the new one's), as long as the objects of the presentation stay within the caps of a file.
+void putObjectEntries(Document &doc, PageBase &page, const QJsonArray &entries, const QHash<QString, QString> &copies)
+{
+    int count = 0;
+    qint64 bytes = 0;
+    for (const auto &p : doc.pages)
+        for (const QJsonValue &v : p->props.value(QStringLiteral("charts")).toArray())
+            if (isObjectEntry(v.toObject())) {
+                ++count;
+                bytes += v.toObject().value(QStringLiteral("data")).toString().size() / 4 * 3;
+            }
+    QJsonArray charts = page.props.value(QStringLiteral("charts")).toArray();
+    for (const QJsonValue &v : entries) {
+        QJsonObject e = v.toObject();
+        const qint64 size = e.value(QStringLiteral("data")).toString().size() / 4 * 3;
+        if (!isObjectEntry(e) || !copies.contains(e.value(QStringLiteral("item")).toString()) || count + 1 > office::ole::limits().objects || bytes + size > office::ole::limits().totalBytes) continue;
+        e[QStringLiteral("item")] = copies.value(e.value(QStringLiteral("item")).toString());
+        charts.append(e);
+        ++count;
+        bytes += size;
+    }
+    page.props[QStringLiteral("charts")] = charts;
+}
+
+} // namespace
+
 void Editor::duplicateSelection()
 {
     const QStringList ids = topLevelSelection();
@@ -1029,11 +1070,17 @@ void Editor::duplicateSelection()
     ItemList originals;
     for (const auto &id : ids)
         if (ItemPtr it = m_doc->itemPtr(id)) originals.push_back(it);
-    for (const ItemPtr &c : m_doc->cloneItems(originals)) {
-        c->moveBy(12, 12);
-        surfaceItems().push_back(c);
-        made << c->id;
+    const ItemList clones = m_doc->cloneItems(originals);
+    QHash<QString, QString> copies;
+    QSet<QString> copied;
+    for (int i = 0; i < clones.size(); ++i) {
+        clones[i]->moveBy(12, 12);
+        surfaceItems().push_back(clones[i]);
+        made << clones[i]->id;
+        copies.insert(originals[i]->id, clones[i]->id);
+        copied.insert(originals[i]->id);
     }
+    if (m_master.isEmpty()) putObjectEntries(*m_doc, *surface(), objectEntriesOf(*surface(), copied), copies);
     m_sel = made;
     endChange();
     Q_EMIT selectionChanged();
@@ -1617,7 +1664,9 @@ void Editor::copy()
     if (ids.isEmpty()) return;
     QJsonArray items;
     QJsonObject stories, images;
+    QSet<QString> copied;
     std::function<void(const Item &)> collect = [&](const Item &it) {
+        copied.insert(it.id);
         auto addStory = [&](const QString &sid) {
             if (QTextDocument *d = m_doc->storyDoc(sid)) stories[sid] = storyToJson(d);
         };
@@ -1652,7 +1701,9 @@ void Editor::copy()
         collect(*it);
     }
     auto *md = new QMimeData;
-    md->setData(kItemsMime, QJsonDocument(QJsonObject{{"items", items}, {"stories", stories}, {"images", images}}).toJson(QJsonDocument::Compact));
+    QJsonObject payload{{"items", items}, {"stories", stories}, {"images", images}};
+    if (const QJsonArray objects = objectEntriesOf(*surface(), copied); !objects.isEmpty()) payload["objects"] = objects;
+    md->setData(kItemsMime, QJsonDocument(payload).toJson(QJsonDocument::Compact));
     // Also offer a picture of the selection to other programs.
     PaintContext ctx;
     ctx.doc = m_doc.get();
@@ -1787,6 +1838,7 @@ QStringList Editor::insertItemsJson(const QByteArray &json, const QString &label
             surfaceItems().push_back(it);
             made << it->id;
         }
+        if (const QJsonArray objects = o["objects"].toArray(); !objects.isEmpty() && m_master.isEmpty()) putObjectEntries(*m_doc, *surface(), objects, idMap);
         // Pasted connectors stay attached to the pasted copies of their
         // objects, and come loose from objects that weren't copied with them.
         for (const QString &id : made)

@@ -508,5 +508,8 @@ std::optional<office::ole::EmbeddedObject> objectAt(const WriteDoc &doc, int pos
 // Puts the object's new bytes and picture in the object at `position` (its size and place stay), one step that undoes: the new package and picture are put in, and the old ones go from
 // the file when nothing else names them. False when there is no such object or it is refused as above.
 bool setObjectAt(WriteDoc &doc, int position, const office::ole::EmbeddedObject &object);
+// The positions, in the order of the text, of the objects whose package is the part named `origin` (an object's origin): more than one when a copy of an object has not been changed yet. Only
+// the objects' own records are looked at, not their packages.
+QVector<int> objectsOfPackage(const WriteDoc &doc, const QString &origin);
 
 } // namespace jp::write

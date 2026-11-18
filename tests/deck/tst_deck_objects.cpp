@@ -212,6 +212,106 @@ private Q_SLOTS:
         QCOMPARE(undone->previewPng, old->previewPng);
     }
 
+    void aPastedCopyIsItsOwnObjectAndItsEditGoesToIt()
+    {
+        QTemporaryDir dir, temp;
+        const QString book = savedFile(dir, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total", "North", "12"}, 2)));
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.editor()->setDocument(sample());
+        EmbeddedEdit *ed = w.objectEditor();
+        ed->setTempRoot(temp.path());
+        ed->setPollInterval(600000);
+        QStringList opened;
+        ed->setOpener([&](const QString &path, ole::Kind) {
+            opened << path;
+            return true;
+        });
+        QVERIFY(w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B2")));
+        const QString first = objectItems(*w.editor()->doc()).first();
+        const auto old = objectOnSlide(*w.editor()->doc(), 0, first);
+        QVERIFY(old);
+        w.editor()->select(first);
+        w.editor()->copy();
+        w.editor()->paste();
+        const QVector<QString> items = objectItems(*w.editor()->doc());
+        QCOMPARE(items.size(), 2);
+        const QString second = items[0] == first ? items[1] : items[0];
+        QVERIFY(second != first);
+        QVERIFY(w.editObject(second));
+        QCOMPARE(opened.size(), 1);
+        QSignalSpy saves(ed, &EmbeddedEdit::objectSaved);
+        const QByteArray changed = objects::rangePackage(gridOf({"Name", "Total", "North", "99", "West", "5"}, 2));
+        {
+            QFile f(opened.first());
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(changed);
+        }
+        QTRY_VERIFY((ed->pollNow(), saves.count() >= 1));
+        QCOMPARE(objectOnSlide(*w.editor()->doc(), 0, second)->partBytes, changed);
+        QCOMPARE(objectOnSlide(*w.editor()->doc(), 0, first)->partBytes, old->partBytes);   // (the one that was not edited is as it was)
+    }
+
+    void aDuplicateOfAnObjectIsAnObjectToo()
+    {
+        QTemporaryDir dir;
+        const QString book = savedFile(dir, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total"}, 2)));
+        DeckWindow w;
+        w.editor()->setDocument(sample());
+        QVERIFY(w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B1")));
+        w.editor()->duplicateSelection();
+        const QVector<QString> items = objectItems(*w.editor()->doc());
+        QCOMPARE(items.size(), 2);
+        QVERIFY(items[0] != items[1]);
+        QCOMPARE(objectOnSlide(*w.editor()->doc(), 0, items[1])->partBytes, objectOnSlide(*w.editor()->doc(), 0, items[0])->partBytes);
+        // One step undoes the duplicate, entry and all.
+        w.editor()->undoStack()->undo();
+        QCOMPARE(objectItems(*w.editor()->doc()).size(), 1);
+    }
+
+    void aSaveFromTheOtherAppLeavesTheTypingBeing()
+    {
+        QTemporaryDir dir, temp;
+        const QString book = savedFile(dir, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total", "North", "12"}, 2)));
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.editor()->setDocument(sample());
+        EmbeddedEdit *ed = w.objectEditor();
+        ed->setTempRoot(temp.path());
+        ed->setPollInterval(600000);
+        QStringList opened;
+        ed->setOpener([&](const QString &path, ole::Kind) {
+            opened << path;
+            return true;
+        });
+        QVERIFY(w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B2")));
+        const QString item = objectItems(*w.editor()->doc()).first();
+        QVERIFY(w.editObject(item));
+        Editor *e = w.editor();
+        auto *title = static_cast<TextItem *>(e->doc()->pages[0]->items[0].get());
+        e->select(title->id);
+        e->beginTextEdit(title->id, 0);
+        QVERIFY(e->isEditingText());
+        e->cursor().insertText(QStringLiteral("typed words"));
+        e->textEdited();
+        const int caret = e->cursor().position();
+        QSignalSpy saves(ed, &EmbeddedEdit::objectSaved);
+        const QByteArray changed = objects::rangePackage(gridOf({"Name", "Total", "North", "99", "West", "5"}, 2));
+        {
+            QFile f(opened.first());
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(changed);
+        }
+        QTRY_VERIFY((ed->pollNow(), saves.count() >= 1));
+        QCOMPARE(objectOnSlide(*e->doc(), 0, item)->partBytes, changed);   // (the object is updated)
+        QVERIFY(e->isEditingText());   // (and the typing is still going on, where it was)
+        QCOMPARE(e->textTarget().itemId, title->id);
+        QCOMPARE(e->cursor().position(), caret);
+        QCOMPARE(e->editDoc()->toPlainText(), QStringLiteral("typed words"));
+    }
+
     void aMissingProgramIsSaidInTheStatusBar()
     {
         QTemporaryDir dir, temp;

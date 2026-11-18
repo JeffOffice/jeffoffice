@@ -5022,6 +5022,25 @@ bool setObjectAt(WriteDoc &doc, int position, const office::ole::EmbeddedObject 
     return true;
 }
 
+QVector<int> objectsOfPackage(const WriteDoc &doc, const QString &origin)
+{
+    QVector<int> found;
+    QSet<QString> ids;
+    for (const office::Relationship &r : doc.mainRelationships())
+        if (r.target == origin) ids.insert(r.id);
+    if (ids.isEmpty()) return found;
+    const QTextDocument *story = doc.story();
+    for (QTextBlock b = story->begin(); b.isValid() && found.size() < office::ole::limits().objects; b = b.next()) {
+        const QString text = b.text();
+        for (int i = 0; i < text.size(); ++i) {
+            Inline atom;
+            if (text.at(i) != QChar::ObjectReplacementCharacter || !objectAtomOf(story, b.position() + i, &atom)) continue;
+            if (const auto refs = objectRefsOf(atom.raw); refs && ids.contains(refs->objectId)) found.push_back(b.position() + i);
+        }
+    }
+    return found;
+}
+
 bool setChartForm(WriteDoc &doc, int position, ChartForm form)
 {
     return editChart(doc, position, [&](Chart &chart) { return office::sheet::chartSetForm(chart, form, chartTheme(doc)); });
