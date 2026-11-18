@@ -1,7 +1,10 @@
 #include "core/effectmask.h"
 
 #include <QRectF>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QRegularExpression>
+#include <list>
 #include <algorithm>
 #include <cmath>
 
@@ -131,12 +134,26 @@ QPainterPath formed(bool in, double p, QPainterPath (*form)(double), double reac
     return whole().subtracted(form((1 - p) * reach));
 }
 
-} // namespace
+// The last masks built, by filter, direction, and progress in 256ths: a frame asks for the same few again and again (every behavior of a
+// slide, every frame of a run), and a dissolve is 400 rectangles. Bounded, so a file's odd filters cannot grow it.
+constexpr size_t kCacheSize = 128;
+constexpr int kSteps = 256;
 
-bool effectMask(const QString &filter, double pIn, bool entering, QPainterPath *shown)
+struct Cache {
+    QMutex lock;
+    std::list<std::pair<QString, QPainterPath>> entries;   // the newest first
+    int hits = 0, builds = 0;
+};
+
+Cache &cache()
 {
-    static const QRegularExpression named(QStringLiteral("^(blinds|checkerboard|randombar|box|circle|diamond|plus|wheel)\\(([A-Za-z0-9]+)\\)$"));
-    const double p = std::clamp(pIn, 0.0, 1.0);
+    static Cache c;
+    return c;
+}
+
+bool build(const QString &filter, double p, bool entering, QPainterPath *shown)
+{
+    static const QRegularExpression named(QStringLiteral("^(blinds|checkerboard|randombar|box|circle|diamond|plus|wheel)\\(([A-Za-z0-9]{1,12})\\)$"));
     QPainterPath path;
     if (filter == QLatin1String("dissolve")) {
         path = dissolve(p);
@@ -156,6 +173,58 @@ bool effectMask(const QString &filter, double pIn, bool entering, QPainterPath *
     }
     *shown = entering ? path : whole().subtracted(path);
     return true;
+}
+
+} // namespace
+
+bool effectMask(const QString &filter, double pIn, bool entering, QPainterPath *shown)
+{
+    if (filter.size() > 40) return false;   // none of the names is near this long
+    const double p = std::isfinite(pIn) ? std::clamp(pIn, 0.0, 1.0) : 0.0;
+    const int step = int(std::lround(p * kSteps));
+    const QString key = filter + QLatin1Char(entering ? '+' : '-') + QString::number(step);
+    Cache &c = cache();
+    {
+        QMutexLocker guard(&c.lock);
+        for (auto it = c.entries.begin(); it != c.entries.end(); ++it)
+            if (it->first == key) {
+                c.entries.splice(c.entries.begin(), c.entries, it);
+                *shown = it->second;
+                ++c.hits;
+                return true;
+            }
+    }
+    if (!build(filter, double(step) / kSteps, entering, shown)) return false;
+    QMutexLocker guard(&c.lock);
+    ++c.builds;
+    c.entries.emplace_front(key, *shown);
+    if (c.entries.size() > kCacheSize) c.entries.pop_back();
+    return true;
+}
+
+int effectMaskCacheHits()
+{
+    QMutexLocker guard(&cache().lock);
+    return cache().hits;
+}
+
+int effectMaskBuilds()
+{
+    QMutexLocker guard(&cache().lock);
+    return cache().builds;
+}
+
+int effectMaskCacheSize()
+{
+    QMutexLocker guard(&cache().lock);
+    return int(cache().entries.size());
+}
+
+void clearEffectMaskCache()
+{
+    QMutexLocker guard(&cache().lock);
+    cache().entries.clear();
+    cache().hits = cache().builds = 0;
 }
 
 } // namespace jp::deck

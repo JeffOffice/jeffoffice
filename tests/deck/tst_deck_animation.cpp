@@ -549,24 +549,286 @@ private Q_SLOTS:
         }
     }
 
+    // The masks are kept: the same filter, way, and progress (in 256ths) is built once; a few hundred of them at most are held.
+    void animationMaskCacheKeepsWhatItBuilt()
+    {
+        deck::clearEffectMaskCache();
+        QPainterPath first, second, near, other;
+        QVERIFY(deck::effectMask(QStringLiteral("dissolve"), 0.5, true, &first));
+        QCOMPARE(deck::effectMaskBuilds(), 1);
+        QCOMPARE(deck::effectMaskCacheHits(), 0);
+        QVERIFY(deck::effectMask(QStringLiteral("dissolve"), 0.5, true, &second));
+        QCOMPARE(deck::effectMaskBuilds(), 1);   // not built again
+        QCOMPARE(deck::effectMaskCacheHits(), 1);
+        QCOMPARE(second, first);
+        QVERIFY(deck::effectMask(QStringLiteral("dissolve"), 0.5 + 1.0 / 1000, true, &near));   // the same 256th
+        QCOMPARE(deck::effectMaskBuilds(), 1);
+        QCOMPARE(near, first);
+        QVERIFY(deck::effectMask(QStringLiteral("dissolve"), 0.5, false, &other));   // an exit is another mask
+        QVERIFY(deck::effectMask(QStringLiteral("dissolve"), 0.6, true, &other));
+        QCOMPARE(deck::effectMaskBuilds(), 3);
+        // A file's odd filters and every progress fill it to its limit and no further.
+        for (int i = 0; i < 1000; ++i) {
+            QPainterPath p;
+            QVERIFY(deck::effectMask(QStringLiteral("blinds(h%1)").arg(i % 40), i / 1000.0, i % 2 == 0, &p));
+        }
+        QVERIFY2(deck::effectMaskCacheSize() > 0 && deck::effectMaskCacheSize() <= 128, qPrintable(QString::number(deck::effectMaskCacheSize())));
+        // A name that is no filter is not kept, and a long one is refused before it is looked at.
+        const int size = deck::effectMaskCacheSize();
+        QPainterPath none;
+        QVERIFY(!deck::effectMask(QStringLiteral("fade"), 0.5, true, &none));
+        QVERIFY(!deck::effectMask(QStringLiteral("wheel(") + QString(5000, QLatin1Char('a')) + QLatin1Char(')'), 0.5, true, &none));
+        QCOMPARE(deck::effectMaskCacheSize(), size);
+    }
+
+    // A slide of 200 dissolving shapes played for 60 frames builds each mask once per frame, not once per shape.
+    void animationMasksAreBuiltOncePerFrame()
+    {
+        auto d = editDeck(200);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        for (int i = 0; i < 200; ++i) {
+            deck::Anim a = deck::makeAnim(QStringLiteral("entr.dissolve"), 10 + i);
+            a.duration = 1000;
+            a.start = i == 0 ? deck::EffectStart::OnClick : deck::EffectStart::WithPrevious;
+            seq.add(a);
+        }
+        deck::setAnimations(*d, slide, seq);
+        const deck::Timeline tl = deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString());
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        deck::clearEffectMaskCache();
+        int masked = 0;
+        for (int frame = 0; frame < 60; ++frame) {
+            const deck::States states = deck::statesAt(tl, g, 0, frame * 1000.0 / 60);
+            for (const deck::TargetState &s : states) masked += s.masked;
+        }
+        QVERIFY2(masked >= 200 * 59, qPrintable(QString::number(masked)));
+        QVERIFY2(deck::effectMaskBuilds() <= 60, qPrintable(QString::number(deck::effectMaskBuilds())));
+        QVERIFY2(deck::effectMaskCacheHits() >= 200 * 59 - 60, qPrintable(QString::number(deck::effectMaskCacheHits())));
+    }
+
+    // Painted through the show's own path, a checkerboard and a wheel halfway cover some of the shape and leave the rest as the slide has it.
+    void animationMasksPaintInTheShow()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(600, 380, 120, 80);
+        box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+        box->sourceId = 7;
+        slide.items.push_back(box);
+        LayoutCache cache;
+        const QColor fill(200, 60, 40), white(Qt::white);
+        auto frame = [&](const char *kind, const char *variant, double ms) {
+            deck::AnimSequence seq;
+            deck::Anim a = deck::makeAnim(QLatin1String(kind), 7);
+            a.variant = QLatin1String(variant);
+            a.duration = 1000;
+            seq.add(a);
+            deck::setAnimations(*d, slide, seq);
+            const deck::Timeline tl = deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString());
+            const deck::States states = deck::statesAt(tl, deck::geometryOf(*d, slide), 0, ms);
+            return paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+        };
+        auto at = [&](const QImage &img, double x, double y) { return img.pixelColor(qRound(600 + x * 120), qRound(380 + y * 80)); };
+        // Checkerboard across, half way: the squares of one color are in, the others not yet (a square is 15 by 10 points).
+        QImage img = frame("entr.checkerboard", "across", 500);
+        QCOMPARE(at(img, 0.5 / 8, 0.5 / 8), fill);
+        QCOMPARE(at(img, 1.5 / 8, 0.5 / 8), white);
+        QCOMPARE(at(img, 1.5 / 8, 1.5 / 8), fill);
+        // Wheel of four, half way: half of each quarter, from the top, clockwise.
+        img = frame("entr.wheel", "s4", 500);
+        QCOMPARE(at(img, 0.6, 0.3), fill);
+        QCOMPARE(at(img, 0.9, 0.4), white);
+        // An exit shows what an entrance has not: the box opening out from the middle takes it away.
+        img = frame("exit.box", "out", 500);
+        QCOMPARE(at(img, 0.5, 0.5), white);
+        QCOMPARE(at(img, 0.05, 0.05), fill);
+        // At the end of an entrance all of it shows.
+        img = frame("entr.wheel", "s4", 1000);
+        QCOMPARE(at(img, 0.9, 0.4), fill);
+        QCOMPARE(at(img, 0.05, 0.95), fill);
+    }
+
+    // Odd filters and sizes: a spoke count out of range is the nearest one, an unreadable way the first, a name with nothing in it no filter, and
+    // an effect on a shape with no size or a very long one, or one that takes no time or forever, works a bounded amount and does not fall over.
+    void animationHostileFiltersAreBounded()
+    {
+        auto mask = [](const char *filter, double p = 0.5) {
+            QPainterPath shown;
+            return deck::effectMask(QString::fromLatin1(filter), p, true, &shown) ? shown : QPainterPath(QPointF(-5, -5));
+        };
+        QCOMPARE(mask("wheel(999)"), mask("wheel(8)"));
+        QCOMPARE(mask("wheel(0)"), mask("wheel(1)"));
+        QCOMPARE(mask("wheel(x)"), mask("wheel(1)"));
+        QCOMPARE(mask("blinds(x)"), mask("blinds(horizontal)"));
+        QCOMPARE(mask("checkerboard(x)"), mask("checkerboard(across)"));
+        QCOMPARE(mask("randombar(x)"), mask("randombar(horizontal)"));
+        for (const char *none : {"checkerboard()", "wheel()", "wheel(-1)", "blinds(a b)", "box", "dissolve()", ""})
+            QCOMPARE(mask(none), QPainterPath(QPointF(-5, -5)));
+        for (const char *filter : {"wheel(999)", "wheel(8)", "dissolve", "checkerboard(across)", "randombar(vertical)", "plus(in)", "circle(in)", "blinds(vertical)"})
+            for (double p : {0.0, 0.3, 1.0, 7.0, -3.0}) QVERIFY2(mask(filter, p).elementCount() < 10000, filter);
+        // As a file has one.
+        const deck::Timeline wheel = deck::readTimeline(animTiming(animSteps({animNode("entr", 21, 4, "clickEffect", 0, {animShow(10, true), animFilter(10, "wheel(999)", true, 1000)})})));
+        auto d = editDeck(3);
+        Page &slide = *d->pages[0];
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        const deck::TargetState viaFile = deck::statesAt(wheel, g, 0, 500).value(deck::Target{10});
+        QVERIFY(viaFile.masked);
+        QCOMPARE(viaFile.mask, mask("wheel(8)"));
+        // A shape with no size, a very long one, and a normal one; no time at all and about eleven days.
+        static_cast<ShapeItem *>(slide.items[2].get())->rect = QRectF(100, 100, 0, 0);
+        static_cast<ShapeItem *>(slide.items[3].get())->rect = QRectF(0, 100, 20000, 1);
+        LayoutCache cache;
+        int painted = 0;
+        for (int duration : {0, 1, 1000000000})
+            for (const char *kind : {"entr.dissolve", "entr.wheel", "exit.checkerboard", "entr.blinds", "exit.circle"}) {
+                deck::AnimSequence seq;
+                for (int shape : {10, 11, 12}) {
+                    deck::Anim a = deck::makeAnim(QLatin1String(kind), shape);
+                    a.duration = duration;
+                    a.start = deck::EffectStart::WithPrevious;
+                    seq.add(a);
+                }
+                deck::setAnimations(*d, slide, seq);
+                const deck::Timeline tl = deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString());
+                QVERIFY(!tl.isEmpty());
+                for (double ms : {0.0, 500.0, 1e6}) {
+                    const deck::States states = deck::statesAt(tl, g, 0, ms);
+                    for (const deck::TargetState &s : states) QVERIFY2(s.mask.elementCount() < 10000, kind);
+                    const QImage img = paintedSlide(d.get(), &cache, 0, [&](PaintContext &ctx) { deck::animate(ctx, *d, states); });
+                    QVERIFY(!img.isNull());
+                    ++painted;
+                }
+            }
+        QCOMPARE(painted, 3 * 5 * 3);
+    }
+
+    // A line has no width or no height, so there is nothing to uncover: it shows at the end of an entrance and goes at the end of an exit.
+    void animationDegenerateShapesShowAndHideAtTheEnd()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        static_cast<ShapeItem *>(slide.items[2].get())->rect = QRectF(100, 400, 200, 0);   // a flat line
+        static_cast<ShapeItem *>(slide.items[3].get())->rect = QRectF(400, 400, 0, 60);    // an upright one
+        const deck::Geometry g = deck::geometryOf(*d, slide);
+        for (int shape : {10, 11})
+            for (const char *kind : {"entr.checkerboard", "entr.wheel", "entr.dissolve", "exit.circle", "exit.blinds"}) {
+                deck::AnimSequence seq;
+                deck::Anim a = deck::makeAnim(QLatin1String(kind), shape);
+                a.duration = 1000;
+                seq.add(a);
+                deck::setAnimations(*d, slide, seq);
+                const deck::Timeline tl = deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString());
+                const QString where = QLatin1String(kind) + QLatin1Char(' ') + QString::number(shape);
+                const deck::TargetState mid = deck::statesAt(tl, g, 0, 500).value(deck::Target{shape}), end = deck::statesAt(tl, g, 1).value(deck::Target{shape});
+                QVERIFY2(!mid.masked && !end.masked, qPrintable(where));   // no mask over a box with no area
+                if (kind[1] == 'n') {
+                    QVERIFY2(!mid.visible && end.visible, qPrintable(where));   // an entrance: there at the end
+                } else {
+                    QVERIFY2(mid.visible && !end.visible, qPrintable(where));   // an exit: gone at the end
+                }
+            }
+    }
+
+    // What the program has no kind for stays as the file wrote it through a saved file: a Swivel whose path was changed by hand, and Strips.
+    void animationUnknownEffectsSurviveSaving()
+    {
+        auto d = editDeck(2);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence one;
+        one.add(deck::makeAnim(QStringLiteral("entr.swivel"), 11));
+        deck::setAnimations(*d, slide, one);
+        QString swivel = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(swivel.contains(QStringLiteral("#ppt_w*0.4")));
+        QVERIFY(!deck::readAnimations(slide).effects[0].custom());   // as the program writes it, it is a kind
+        swivel.replace(QStringLiteral("#ppt_w*0.4"), QStringLiteral("#ppt_w*0.45"));
+        slide.props[QStringLiteral("timingXml")] = swivel;
+        deck::AnimSequence seq = deck::readAnimations(slide);
+        QCOMPARE(seq.effects.size(), 1);
+        QVERIFY(seq.effects[0].custom());
+        const QString strips = animNode("entr", 18, 1, "clickEffect", 0, {animShow(10, true), animFilter(10, "strips(rightDown)", true, 2000)});
+        slide.props[QStringLiteral("timingXml")] = animTiming(animStep({animGroup(0, {strips})}));
+        const deck::AnimSequence stripped = deck::readAnimations(slide);
+        QCOMPARE(stripped.effects.size(), 1);
+        QVERIFY(stripped.effects[0].custom());
+        seq.effects.push_front(stripped.effects[0]);
+        deck::setAnimations(*d, slide, seq);
+        const deck::AnimSequence before = deck::readAnimations(slide);
+        QCOMPARE(before.effects.size(), 2);
+        QVERIFY(before.effects[0].custom() && before.effects[1].custom());
+        QVERIFY(before.effects[0].xml.contains(QStringLiteral("strips(rightDown)")));
+        QVERIFY(before.effects[1].xml.contains(QStringLiteral("#ppt_w*0.45")));
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const deck::AnimSequence after = deck::readAnimations(*back->pages[0]);
+        QCOMPARE(after.effects.size(), 2);
+        for (int i = 0; i < 2; ++i) {
+            QVERIFY(after.effects[i].custom());
+            QCOMPARE(after.effects[i].xml, before.effects[i].xml);   // byte for byte
+        }
+    }
+
+    // A transparency is read as the effect it is whether the file animates the opacity or sets it, and both play.
+    void animationTransparencyReadsBothForms()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        deck::Anim a = deck::makeAnim(QStringLiteral("emph.transparency"), 10);
+        a.amount = 75;
+        seq.add(a);
+        deck::setAnimations(*d, slide, seq);
+        const QString animated = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY(animated.contains(QStringLiteral("<p:anim ")));
+        deck::AnimSequence read = deck::readAnimations(slide);
+        QVERIFY(!read.effects[0].custom());
+        QCOMPARE(read.effects[0].amount, 75.0);
+        static const QRegularExpression form(QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\">(<p:cBhvr>.*?</p:cBhvr>)<p:tavLst>.*?<p:tav tm=\"100000\"><p:val><p:strVal val=\"([^\"]*)\"/></p:val></p:tav></p:tavLst></p:anim>"),
+                                             QRegularExpression::DotMatchesEverythingOption);
+        QString set = animated;
+        set.replace(form, QStringLiteral("<p:set>\\1<p:to><p:strVal val=\"\\2\"/></p:to></p:set>"));
+        QVERIFY(set != animated && !set.contains(QStringLiteral("<p:anim ")));
+        slide.props[QStringLiteral("timingXml")] = set;
+        read = deck::readAnimations(slide);
+        QCOMPARE(read.effects.size(), 1);
+        QVERIFY2(!read.effects[0].custom(), "a set of the opacity is a Transparency too");
+        QCOMPARE(read.effects[0].kind, QStringLiteral("emph.transparency"));
+        QCOMPARE(read.effects[0].amount, 75.0);
+        // And the shape is as clear as it says once it has played.
+        const deck::Timeline tl = deck::readTimeline(set);
+        QCOMPARE(deck::statesAt(tl, deck::geometryOf(*d, slide), 1).value(deck::Target{10}).opacity, 0.25);
+    }
+
     // The Animations gallery lists each new effect (by the actions the command search and the ribbon use), with a picture that is not the
     // plain slide: halfway, the shape is cut or moved.
     void animationGalleryListsTheCommonEffects()
     {
         DeckWindow w;
         w.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QTRY_VERIFY(w.windowHandle() && w.windowHandle()->isExposed());
         auto *gallery = w.ribbon()->findChild<Gallery *>(QStringLiteral("animationGallery"));
         QVERIFY(gallery);
         QSet<QString> ids;
         for (const GalleryItem &item : gallery->items()) ids.insert(item.id);
+        Editor *ed = w.editor();
+        Page &slide = *ed->doc()->pages[0];
+        ed->select(slide.items[0]->id);
         const QStringList entrance = {"blinds", "box", "checkerboard", "circle", "diamond", "plus", "dissolve", "randombars", "wheel", "peek", "flash", "stretch", "swivel", "expand", "spiral", "bounce"};
         for (const QString &k : entrance) {
             QVERIFY2(ids.contains(QStringLiteral("entr.") + k), qPrintable(k));
             QVERIFY2(w.act(QStringLiteral("anim.set.entr.") + k), qPrintable(k));
+            w.act(QStringLiteral("anim.set.entr.") + k)->trigger();   // and the effect is on the shape
+            QVERIFY2(deck::readAnimations(slide).effects.size() == 1 && deck::readAnimations(slide).effects[0].kind == QStringLiteral("entr.") + k, qPrintable(k));
             if (k != QLatin1String("flash")) {
                 QVERIFY2(ids.contains(QStringLiteral("exit.") + k), qPrintable(k));
                 QVERIFY2(w.act(QStringLiteral("anim.set.exit.") + k), qPrintable(k));
+                w.act(QStringLiteral("anim.set.exit.") + k)->trigger();
+                QVERIFY2(deck::readAnimations(slide).effects.size() == 1 && deck::readAnimations(slide).effects[0].kind == QStringLiteral("exit.") + k, qPrintable(k));
             }
         }
         QVERIFY(ids.contains(QStringLiteral("emph.transparency")));
@@ -599,7 +861,7 @@ private Q_SLOTS:
         DeckWindow w;
         w.resize(1440, 900);
         w.show();
-        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        QTRY_VERIFY(w.windowHandle() && w.windowHandle()->isExposed());
         Editor *ed = w.editor();
         w.newSlide(QStringLiteral("obj"));
         auto onSlide = std::make_shared<ShapeItem>();

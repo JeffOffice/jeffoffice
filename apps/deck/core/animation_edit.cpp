@@ -745,9 +745,13 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
             k.amount = x;
         }
     } else if (found.kind->amount == EffectKind::Amount::Transparency) {
-        // The last value of the opacity's animation is what it ends at.
+        // The last value of the opacity's animation is what it ends at; a file may as well set the value (a set with a "to").
         const QVector<QDomElement> values = pChildren(pChild(pChild(kids, "anim"), "tavLst"), "tav");
-        const double opacity = values.isEmpty() ? 0.5 : attr(pChild(pChild(values.last(), "val"), "strVal"), QStringLiteral("val")).toDouble();
+        double opacity = values.isEmpty() ? 0.5 : attr(pChild(pChild(values.last(), "val"), "strVal"), QStringLiteral("val")).toDouble();
+        if (values.isEmpty())
+            for (const QDomElement &set : pChildren(kids, "set"))
+                if (pChild(pChild(pChild(set, "cBhvr"), "attrNameLst"), "attrName").text() == QLatin1String("style.opacity"))
+                    opacity = attr(pChild(pChild(set, "to"), "strVal"), QStringLiteral("val"), QStringLiteral("0.5")).toDouble();
         k.amount = std::clamp(std::round((1 - opacity) * 10000) / 100, 0.0, 100.0);
     } else if (found.kind->amount == EffectKind::Amount::Spin) {
         const double by = attr(pChild(kids, "animRot"), QStringLiteral("by")).toDouble() / 60000;
@@ -760,7 +764,15 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
     QString again = effectXml(k, k.group, placeholder, &ids);
     if (again.isEmpty()) return a;
     again.replace(0, 6, QStringLiteral("<p:par xmlns:p=\"%1\"").arg(office::ns::P));
-    if (canonOf(again) != canonOf(a.xml)) return a;
+    if (canonOf(again) != canonOf(a.xml)) {
+        // A transparency as a set of the opacity: the same effect, in the other form.
+        static const QRegularExpression animForm(QStringLiteral("<p:anim calcmode=\"lin\" valueType=\"num\">(<p:cBhvr>.*?</p:cBhvr>)<p:tavLst>.*?<p:tav tm=\"100000\"><p:val><p:strVal val=\"([^\"]*)\"/></p:val></p:tav></p:tavLst></p:anim>"),
+                                                QRegularExpression::DotMatchesEverythingOption);
+        if (found.kind->amount != EffectKind::Amount::Transparency) return a;
+        QString asSet = again;
+        asSet.replace(animForm, QStringLiteral("<p:set>\\1<p:to><p:strVal val=\"\\2\"/></p:to></p:set>"));
+        if (asSet == again || canonOf(asSet) != canonOf(a.xml)) return a;
+    }
     k.xml.clear();
     return k;
 }

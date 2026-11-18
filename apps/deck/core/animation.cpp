@@ -845,7 +845,14 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
         static const QRegularExpression barn(QStringLiteral("^barn\\((in|out)(Vertical|Horizontal)\\)$"));
         if (const QRegularExpressionMatch m = wipe.match(b.filter); m.hasMatch()) clipTo(s, wipeClip(m.captured(1), b.entering, p));
         else if (const QRegularExpressionMatch n = barn.match(b.filter); n.hasMatch()) barnClip(s, n.captured(1) + n.captured(2), b.entering ? p : 1 - p);
-        else if (QPainterPath shown; effectMask(b.filter, p, b.entering, &shown)) maskTo(s, shown);
+        else if (QPainterPath shown; effectMask(b.filter, p, b.entering, &shown)) {
+            const QRectF box = g.shapes.value(b.target.shape);
+            if (g.shapes.contains(b.target.shape) && (!(box.width() > 0) || !(box.height() > 0))) {   // a line has no area to uncover: it shows or hides at the end
+                if (b.entering ? p < 1 : p >= 1) s.visible = false;
+            } else {
+                maskTo(s, shown);
+            }
+        }
         else s.opacity *= b.entering ? p : 1 - p;   // a fade, and every filter drawn as one
         break;
     }

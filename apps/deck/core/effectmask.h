@@ -12,6 +12,13 @@ namespace jp::deck {
 // "box(in)", "circle(out)", "diamond(in)", "plus(out)", "wheel(4)", "dissolve") shows `p` of the way (0 to 1)
 // through, as a path over the unit square: an entrance shows what the effect has uncovered, an exit what it
 // has not reached yet. False for a filter it has no picture for (a fade, a wipe, and every other name).
+// The last 128 are kept, by filter, direction, and progress in 256ths (the path is the one for the nearest 256th).
 bool effectMask(const QString &filter, double p, bool entering, QPainterPath *shown);
+
+// How the cache has done (for the tests): masks asked for that were kept, masks built, and a way to start over.
+int effectMaskCacheHits();
+int effectMaskBuilds();
+int effectMaskCacheSize();
+void clearEffectMaskCache();
 
 } // namespace jp::deck
