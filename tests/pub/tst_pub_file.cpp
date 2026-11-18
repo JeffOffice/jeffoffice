@@ -1338,6 +1338,36 @@ void PubFileTests::pubWriterShapes()
     }
 
 
+// A picture cut to an outline that has no numbered shape of Publisher's (a heart) is saved as that outline; read back it is the outline filled with the picture (it once stopped the reader).
+void PubFileTests::aPictureInAnOutlineWithNoPresetComesBackAsAFilledShape()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    QImage photo(40, 30, QImage::Format_RGB32);
+    photo.fill(QColor(200, 60, 60));
+    QByteArray png;
+    QBuffer buf(&png);
+    buf.open(QIODevice::WriteOnly);
+    photo.save(&buf, "PNG");
+    auto pic = std::make_shared<jp::PictureItem>();
+    pic->imageId = doc->addImage(png, QStringLiteral("png"));
+    pic->rect = QRectF(100, 100, 120, 90);
+    pic->imgRect = QRectF(0, 0, 120, 90);
+    pic->maskShape = QStringLiteral("heart");
+    doc->pages[0]->items.push_back(pic);
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("heart-picture.pub"));
+    QString err;
+    QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+    auto back = jp::importPublisherFile(path, &err);
+    QVERIFY2(back, qPrintable(err));
+    int found = 0;
+    jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+        if (it->type() == jp::ItemType::Picture) ++found;
+        if (it->type() == jp::ItemType::Shape && static_cast<const jp::ShapeItem *>(it.get())->fill.type == jp::Fill::Picture) ++found;
+    });
+    QCOMPARE(found, 1);
+}
+
 // Gradients, picture fills, transparency and shadows survive .pub.
 void PubFileTests::pubWriterFills()
 {

@@ -14,7 +14,7 @@ struct Pair { const char *preset; int type; bool same = false; };
 // default proportions or their handles.
 const Pair kPairs[] = {
     {"rect", 1, true}, {"roundRect", 2, true}, {"ellipse", 3, true}, {"diamond", 4, true}, {"triangle", 5, true}, {"rtTriangle", 6, true},
-    {"parallelogram", 7}, {"trapezoid", 8}, {"hexagon", 9}, {"octagon", 10}, {"plus", 11}, {"star5", 12},
+    {"parallelogram", 7, true}, {"trapezoid", 8}, {"hexagon", 9, true}, {"octagon", 10}, {"plus", 11}, {"star5", 12},
     {"rightArrow", 13}, {"homePlate", 15}, {"cube", 16}, {"arc", 19}, {"plaque", 21}, {"can", 22}, {"donut", 23},
     {"ribbon", 53}, {"ribbon2", 54}, {"chevron", 55}, {"pentagon", 56}, {"noSmoking", 57}, {"star8", 58},
     {"star16", 59}, {"star32", 60}, {"wave", 64}, {"foldedCorner", 65, true}, {"leftArrow", 66}, {"downArrow", 67},

@@ -1364,7 +1364,7 @@ private:
             fill.imageId = bitmap.isEmpty() ? QString() : m_doc.addImage(bitmap, formatForMime(mime));
             if (fill.imageId.isEmpty()) fill = Fill::solid(ColorRef::rgb(QColor(220, 220, 220)));
         }
-        if (fill.type == Fill::Picture) {
+        if (fill.type == Fill::Picture && (isRect || preset)) {
             // A picture in a rectangle or in one of the preset shapes. A
             // picture keeps its frame's quarter turns, which the outline's
             // turn (folded within 45 degrees) loses: rotated flowers in a

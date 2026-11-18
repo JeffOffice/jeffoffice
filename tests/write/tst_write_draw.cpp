@@ -3973,7 +3973,7 @@ private Q_SLOTS:
             return true;
         }) > 0);
         WriteWindow w;
-        w.resize(900, 900);
+        w.resize(900, 1150);
         w.show();
         jp::applyUiTheme(1);
         w.setDocument(std::move(doc), QString());

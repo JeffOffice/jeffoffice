@@ -98,6 +98,7 @@ private Q_SLOTS:
     void pubWriterShapes();
     void pubWriterFills();
     void pubWriterPictures();
+    void aPictureInAnOutlineWithNoPresetComesBackAsAFilledShape();
     void pubWriterLinked();
     void pubWriterTextFormats();
     void pubWriterTabsLists();

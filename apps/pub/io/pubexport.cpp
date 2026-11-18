@@ -1818,6 +1818,10 @@ QByteArray PubWriter::write(QStringList *skipped)
                 const QVector<double> adj = s->adj.isEmpty() && def ? def->defaults : s->adj;
                 bool atDefaults = def && adj.size() == def->defaults.size();
                 for (int k = 0; atDefaults && k < adj.size(); ++k) atDefaults = std::abs(adj[k] - def->defaults[k]) < 1e-6;
+                // Publisher's parallelogram and hexagon set their slant by the width (5400 of 21600 unless a handle says), JeffPub's, as the standard's, by the shorter side: the handle is
+                // written to make them alike, and then any setting of the slant is Publisher's own shape.
+                const bool slantByWidth = def && adj.size() == 1 && (s->shape == QLatin1String("parallelogram") || s->shape == QLatin1String("hexagon"));
+                if (slantByWidth) atDefaults = true;
                 int st = s->customPath.isEmpty() && atDefaults ? pubShapeType(s->shape) : -1;
                 // Publisher's rectangle holds text itself. Its other shapes and
                 // its freeforms do not (a freeform has no text frame, and a file
@@ -1882,6 +1886,10 @@ QByteArray PubWriter::write(QStringList *skipped)
                 shadowProps(opt, s->fx.shadow);
                 rotationProp(opt, s);
                 if (st == 0) freeformProps(opt, outline, frame.size());
+                else if (slantByWidth) {
+                    const double share = std::clamp(adj[0] * std::min(s->rect.width(), s->rect.height()) / std::max(1e-6, s->rect.width()), 0.0, 1.0);
+                    if (std::abs(share * 21600 - 5400) > 0.5) opt << Prop{0x0147, quint32(std::lround(share * 21600))};
+                }
                 if (hasText) {
                     // Margins from the frame to JeffPub's text area.
                     QRectF tr = s->customPath.isEmpty() ? shapeTextRect(s->shape, s->rect.size(), s->adj) : QRectF(QPointF(), s->rect.size());
