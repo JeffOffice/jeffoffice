@@ -1821,7 +1821,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                 for (int k = 0; atDefaults && k < adj.size(); ++k) atDefaults = std::abs(adj[k] - def->defaults[k]) < 1e-6;
                 // Publisher's parallelogram and hexagon set their slant by the width (5400 of 21600 unless a handle says), JeffPub's, as the standard's, by the shorter side: the handle is
                 // written to make them alike, and then any setting of the slant is Publisher's own shape.
-                const bool slantByWidth = def && adj.size() == 1 && (s->shape == QLatin1String("parallelogram") || s->shape == QLatin1String("hexagon"));
+                const bool slantByWidth = def && adj.size() >= 1 && (s->shape == QLatin1String("parallelogram") || s->shape == QLatin1String("hexagon"));
                 if (slantByWidth) atDefaults = true;
                 int st = s->customPath.isEmpty() && atDefaults ? pubShapeType(s->shape) : -1;
                 // Publisher's rectangle holds text itself. Its other shapes and

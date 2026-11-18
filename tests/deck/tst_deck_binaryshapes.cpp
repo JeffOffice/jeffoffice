@@ -337,7 +337,7 @@ private Q_SLOTS:
         QVERIFY(d->slideText);
         auto shape = [&](double height) {
             auto s = std::make_shared<ShapeItem>();
-            s->shape = QStringLiteral("roundRect");
+            s->shape = QStringLiteral("rect");   // (a round rectangle's text area is inset by its corner, which depends on the height)
             s->rect = QRectF(100, 100, 150, height);
             s->storyId = d->createStory();
             d->storyDoc(s->storyId)->setPlainText(QStringLiteral("one two three four five six seven eight nine ten eleven twelve ").repeated(4));
