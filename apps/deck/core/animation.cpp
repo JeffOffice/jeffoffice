@@ -1,4 +1,5 @@
 #include "core/animation.h"
+#include "core/effectmask.h"
 #include "core/items.h"
 
 #include "office/xml.h"
@@ -149,7 +150,7 @@ bool Step::visual() const { return std::any_of(effects.begin(), effects.end(), [
 
 bool TargetState::operator==(const TargetState &o) const
 {
-    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2;
+    return visible == o.visible && opacity == o.opacity && offset == o.offset && scaleX == o.scaleX && scaleY == o.scaleY && rotation == o.rotation && clip == o.clip && clip2 == o.clip2 && masked == o.masked && mask == o.mask;
 }
 
 // ---- reading the file's timing ----
@@ -715,6 +716,13 @@ void clipTo(TargetState &s, const QRectF &clip)
     if (!s.clip2.isNull()) s.clip2 = intersectClips(s.clip2, clip);
 }
 
+// Only the part inside `shown` (over the unit square), cut to what is shown already.
+void maskTo(TargetState &s, const QPainterPath &shown)
+{
+    s.mask = s.masked ? s.mask.intersected(shown) : shown;
+    s.masked = true;
+}
+
 // Two parts shown (a split): where the shape is clipped already, both are cut to it.
 void clipToTwo(TargetState &s, const QRectF &a, const QRectF &b)
 {
@@ -837,6 +845,7 @@ void applyBehavior(TargetState &s, const Behavior &b, const Geometry &g, double 
         static const QRegularExpression barn(QStringLiteral("^barn\\((in|out)(Vertical|Horizontal)\\)$"));
         if (const QRegularExpressionMatch m = wipe.match(b.filter); m.hasMatch()) clipTo(s, wipeClip(m.captured(1), b.entering, p));
         else if (const QRegularExpressionMatch n = barn.match(b.filter); n.hasMatch()) barnClip(s, n.captured(1) + n.captured(2), b.entering ? p : 1 - p);
+        else if (QPainterPath shown; effectMask(b.filter, p, b.entering, &shown)) maskTo(s, shown);
         else s.opacity *= b.entering ? p : 1 - p;   // a fade, and every filter drawn as one
         break;
     }
@@ -927,6 +936,7 @@ void combine(TargetState &a, const TargetState &b)
         if (b.clip2.isNull()) clipTo(a, b.clip);
         else clipToTwo(a, b.clip, b.clip2);
     }
+    if (b.masked) maskTo(a, b.mask);
 }
 
 bool turns(const TargetState &s) { return !s.offset.isNull() || s.scaleX != 1 || s.scaleY != 1 || s.rotation != 0; }
@@ -950,6 +960,8 @@ QRectF clipRectIn(const QRectF &box, const QRectF &share)
 // The part of `box` the state shows: one rectangle, or two.
 void setClip(QPainter *p, const QRectF &box, const TargetState &s)
 {
+    if (s.masked) p->setClipPath(QTransform(box.width(), 0, 0, box.height(), box.x(), box.y()).map(s.mask), Qt::IntersectClip);
+    if (s.clip.isNull()) return;
     if (s.clip2.isNull()) {
         p->setClipRect(clipRectIn(box, s.clip), Qt::IntersectClip);
         return;
@@ -1005,7 +1017,7 @@ public:
             const QRectF box = it.type() == ItemType::Group ? it.bounds() : it.rect;
             p->save();
             p->setTransform(movedAbout(s, box.center()), true);
-            if (!s.clip.isNull()) setClip(p, box, s);
+            if (!s.clip.isNull() || s.masked) setClip(p, box, s);
             if (s.opacity < 1) drawFaded(p, box, s.opacity, draw);
             else draw(p);
             p->restore();
@@ -1090,7 +1102,7 @@ public:
             QPainterPath mine;
             for (const auto &b : o.bands) mine.addRect(QRectF(-kFar, b.first, 2 * kFar, b.second - b.first));
             p->setClipPath(mine, Qt::IntersectClip);
-            if (!s.clip.isNull()) setClip(p, o.box, s);
+            if (!s.clip.isNull() || s.masked) setClip(p, o.box, s);
             if (s.opacity < 1) p->setOpacity(p->opacity() * s.opacity);
             paintText(p);
             p->restore();

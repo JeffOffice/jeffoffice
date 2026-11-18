@@ -1402,6 +1402,67 @@ private Q_SLOTS:
         }
     }
 
+    // The common effects are written with the names the standard has for them and the filter of each (this kind of file is not read for
+    // animations): nothing is left out.
+    void odpWritesTheCommonEffects()
+    {
+        auto d = deck::newPresentation();
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("blank")));
+        Page &slide = *d->pages[at];
+        auto s = std::make_shared<ShapeItem>();
+        s->rect = QRectF(20, 400, 60, 40);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+        slide.items.push_back(s);
+        const int number = deck::shapeNumber(slide, s->id);
+        deck::AnimSequence seq;
+        struct Case { const char *kind, *variant, *preset, *type, *subtype; };
+        const Case cases[] = {{"entr.blinds", "vertical", "ooo-entrance-venetian-blinds", "blindsWipe", "vertical"}, {"entr.checkerboard", "down", "ooo-entrance-checkerboard", "checkerBoardWipe", "down"},
+                              {"entr.randombars", "horizontal", "ooo-entrance-random-bars", "randomBarWipe", "horizontal"}, {"entr.box", "out", "ooo-entrance-box", "irisWipe", "rectangle"},
+                              {"exit.circle", "in", "ooo-exit-circle", "ellipseWipe", "circle"}, {"entr.diamond", "in", "ooo-entrance-diamond", "irisWipe", "diamond"},
+                              {"entr.plus", "in", "ooo-entrance-plus", "fourBoxWipe", "cornersIn"}, {"entr.wheel", "s3", "ooo-entrance-wheel", "pinWheelWipe", "threeBlade"},
+                              {"entr.dissolve", "none", "ooo-entrance-dissolve-in", "dissolve", "default"}, {"entr.peek", "left", "ooo-entrance-peek-in", "barWipe", "leftToRight"},
+                              {"exit.dissolve", "none", "ooo-exit-dissolve-out", "dissolve", "default"}, {"entr.flash", "none", "ooo-entrance-flash-once", "", ""},
+                              {"entr.stretch", "left", "ooo-entrance-stretch", "", ""}, {"entr.swivel", "vertical", "ooo-entrance-swivel", "fade", "crossfade"}, {"entr.spiral", "none", "ooo-entrance-spiral-in", "", ""},
+                              {"entr.bounce", "none", "ooo-entrance-bounce", "fade", "crossfade"}, {"emph.transparency", "none", "ooo-emphasis-transparency", "", ""}};
+        for (const Case &c : cases) {
+            deck::Anim an = deck::makeAnim(QString::fromLatin1(c.kind), number);
+            an.variant = QString::fromLatin1(c.variant);
+            seq.add(an);
+        }
+        deck::setAnimations(*d, slide, seq);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join(QLatin1Char('\n'))));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        QDomDocument dom;
+        QVERIFY(office::parseXml(zip.value(QStringLiteral("content.xml")), &dom, &err));
+        QStringList presets;
+        QList<QDomElement> effects;
+        for (const QDomElement &p : odptest::byName(dom, "anim:par"))
+            if (!odptest::attrOf(p, "presentation:preset-id").isEmpty()) {
+                presets << odptest::attrOf(p, "presentation:preset-id");
+                effects << p;
+            }
+        QCOMPARE(int(presets.size()), int(std::size(cases)));
+        for (size_t i = 0; i < std::size(cases); ++i) {
+            QCOMPARE(presets[int(i)], QString::fromLatin1(cases[i].preset));
+            const QList<QDomElement> filters = odptest::byName(effects[int(i)], "anim:transitionFilter");
+            if (!*cases[i].type) {
+                QVERIFY2(filters.isEmpty(), cases[i].kind);
+                continue;
+            }
+            QVERIFY2(filters.size() == 1, cases[i].kind);
+            QCOMPARE(odptest::attrOf(filters[0], "smil:type"), QString::fromLatin1(cases[i].type));
+            QCOMPARE(odptest::attrOf(filters[0], "smil:subtype"), QString::fromLatin1(cases[i].subtype));
+        }
+        QCOMPARE(odptest::attrOf(odptest::byName(effects[3], "anim:transitionFilter").value(0), "smil:direction"), QString());       // box out: the standard's own way
+        QCOMPARE(odptest::attrOf(odptest::byName(effects[5], "anim:transitionFilter").value(0), "smil:direction"), QStringLiteral("reverse"));   // diamond in
+        QCOMPARE(odptest::attrOf(odptest::byName(effects[4], "anim:transitionFilter").value(0), "smil:mode"), QStringLiteral("out"));    // an exit
+    }
+
     // The animations are written as the other suite writes them: a timing root with the main sequence, a step for each click, the effects that
     // start with or after the one before in the groups of that step, each effect as the standard names it with the parts that do it (show,
     // fade, fly, wipe, zoom, spin, grow), aimed at objects by the ids they have, and at the paragraphs of a list by those they have.

@@ -159,6 +159,8 @@ struct TargetState {
     double rotation = 0;             // degrees clockwise, about its middle
     QRectF clip;                     // the part shown, as shares of its width and height; null for all of it
     QRectF clip2;                    // with clip, a second part shown (a split shows two strips); null for none
+    bool masked = false;             // only the part inside `mask` is shown (checkerboard, circle, wheel, ...)
+    QPainterPath mask;               // over the unit square: its width and height are 1
     bool operator==(const TargetState &o) const;
     bool operator!=(const TargetState &o) const { return !(*this == o); }
 };
@@ -211,14 +213,14 @@ struct EffectVariant {
 };
 
 struct EffectKind {
-    enum class Amount { None, Size, Spin };
+    enum class Amount { None, Size, Spin, Transparency };
     QString id;      // "fade", "fly", "growshrink"
     QString name;
     QString group;   // motion paths: "Lines", "Arcs", "Turns", "Shapes", "Loops", "Curves"
     EffectClass cls = EffectClass::Entrance;
     QVector<EffectVariant> variants;   // the first is the one a new effect has
     int duration = 0;                  // milliseconds a new effect takes; 0 when it has no length (an appearing shape)
-    Amount amount = Amount::None;      // Size: a percentage and a direction (both, horizontal, vertical); Spin: degrees and a turning way
+    Amount amount = Amount::None;      // Size: a percentage and a direction (both, horizontal, vertical); Spin: degrees and a turning way; Transparency: percent
     bool smooth = false;               // starts and ends smoothly unless told not to (motion paths)
     const EffectVariant *variant(const QString &key) const;
     const EffectVariant &firstVariant() const { return variants.first(); }

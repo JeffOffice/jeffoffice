@@ -45,19 +45,19 @@ AnimationOptionsDialog::AnimationOptionsDialog(const deck::Anim &anim, bool hasT
             m_variant->setAccessibleName(tr("Direction"));
             for (const deck::EffectVariant &v : kind->variants) m_variant->addItem(v.name, v.key);
             m_variant->setCurrentIndex(std::max(0, m_variant->findData(anim.variant)));
-            form->addRow(kind->cls == deck::EffectClass::MotionPath ? tr("Path") : tr("Direction"), m_variant);
+            form->addRow(kind->cls == deck::EffectClass::MotionPath ? tr("Path") : kind->id.endsWith(QLatin1String(".wheel")) ? tr("Spokes") : tr("Direction"), m_variant);
         }
         if (kind->amount != deck::EffectKind::Amount::None) {
             m_amount = new QDoubleSpinBox();
             m_amount->setObjectName(QStringLiteral("animAmount"));
-            const bool size = kind->amount == deck::EffectKind::Amount::Size;
-            m_amount->setRange(size ? 1 : 1, size ? 1000 : 3600);
+            const bool size = kind->amount == deck::EffectKind::Amount::Size, clear = kind->amount == deck::EffectKind::Amount::Transparency;
+            m_amount->setRange(clear ? 0 : 1, size ? 1000 : clear ? 100 : 3600);
             m_amount->setDecimals(0);
-            m_amount->setSingleStep(size ? 5 : 45);
-            m_amount->setSuffix(size ? tr(" %") : tr(" degrees"));
+            m_amount->setSingleStep(size ? 5 : clear ? 5 : 45);
+            m_amount->setSuffix(size || clear ? tr(" %") : tr(" degrees"));
             m_amount->setValue(anim.amount);
-            m_amount->setAccessibleName(size ? tr("Size") : tr("Amount"));
-            form->addRow(size ? tr("Size") : tr("Amount"), m_amount);
+            m_amount->setAccessibleName(size ? tr("Size") : clear ? tr("Transparency") : tr("Amount"));
+            form->addRow(size ? tr("Size") : clear ? tr("Transparency") : tr("Amount"), m_amount);
         }
         m_smoothStart = new QCheckBox(tr("Smooth start"));
         m_smoothStart->setObjectName(QStringLiteral("animSmoothStart"));

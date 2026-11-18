@@ -63,6 +63,35 @@ std::vector<VariantDef> splitVariants()
 }
 std::vector<VariantDef> floatVariants() { return {{"up", QT_TRANSLATE_NOOP("Animation", "Float Up"), 42, 0}, {"down", QT_TRANSLATE_NOOP("Animation", "Float Down"), 47, 0}}; }
 
+std::vector<VariantDef> orientationVariants(int preset)
+{
+    return {{"horizontal", QT_TRANSLATE_NOOP("Animation", "Horizontal"), preset, 10}, {"vertical", QT_TRANSLATE_NOOP("Animation", "Vertical"), preset, 5}};
+}
+std::vector<VariantDef> inOutVariants(int preset, const char *in, const char *out)
+{
+    return {{"in", in, preset, 16}, {"out", out, preset, 32}};
+}
+std::vector<VariantDef> peekVariants()
+{
+    return {{"bottom", QT_TRANSLATE_NOOP("Animation", "From Bottom"), 12, 4}, {"left", QT_TRANSLATE_NOOP("Animation", "From Left"), 12, 8}, {"top", QT_TRANSLATE_NOOP("Animation", "From Top"), 12, 1},
+            {"right", QT_TRANSLATE_NOOP("Animation", "From Right"), 12, 2}};
+}
+std::vector<VariantDef> wheelVariants()
+{
+    return {{"s1", QT_TRANSLATE_NOOP("Animation", "1 Spoke"), 21, 1}, {"s2", QT_TRANSLATE_NOOP("Animation", "2 Spokes"), 21, 2}, {"s3", QT_TRANSLATE_NOOP("Animation", "3 Spokes"), 21, 3},
+            {"s4", QT_TRANSLATE_NOOP("Animation", "4 Spokes"), 21, 4}, {"s8", QT_TRANSLATE_NOOP("Animation", "8 Spokes"), 21, 8}};
+}
+std::vector<VariantDef> stretchVariants()
+{
+    return {{"across", QT_TRANSLATE_NOOP("Animation", "Across"), 17, 10}, {"left", QT_TRANSLATE_NOOP("Animation", "From Left"), 17, 8}, {"right", QT_TRANSLATE_NOOP("Animation", "From Right"), 17, 2},
+            {"top", QT_TRANSLATE_NOOP("Animation", "From Top"), 17, 1}, {"bottom", QT_TRANSLATE_NOOP("Animation", "From Bottom"), 17, 4}};
+}
+std::vector<VariantDef> checkerVariants()
+{
+    return {{"across", QT_TRANSLATE_NOOP("Animation", "Across"), 5, 10}, {"down", QT_TRANSLATE_NOOP("Animation", "Down"), 5, 5}};
+}
+std::vector<VariantDef> single(const char *name, int preset) { return {{"none", name, preset, 0}}; }
+
 // The motion paths by the number the presentation program gives each.
 struct PathName {
     int preset;
@@ -88,12 +117,29 @@ const std::vector<KindDef> &kindDefs()
         d.push_back({"entr.wipe", QT_TRANSLATE_NOOP("Animation", "Wipe"), kEntrance, "", 500, none, false, wipeVariants()});
         d.push_back({"entr.growturn", QT_TRANSLATE_NOOP("Animation", "Grow & Turn"), kEntrance, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Grow & Turn"), 31, 0}}});
         d.push_back({"entr.zoom", QT_TRANSLATE_NOOP("Animation", "Zoom"), kEntrance, "", 500, none, false, {{"object", QT_TRANSLATE_NOOP("Animation", "Object Center"), 53, 16}, {"slide", QT_TRANSLATE_NOOP("Animation", "Slide Center"), 53, 528}}});
+        d.push_back({"entr.blinds", QT_TRANSLATE_NOOP("Animation", "Blinds"), kEntrance, "", 500, none, false, orientationVariants(3)});
+        d.push_back({"entr.box", QT_TRANSLATE_NOOP("Animation", "Box"), kEntrance, "", 500, none, false, inOutVariants(4, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"entr.checkerboard", QT_TRANSLATE_NOOP("Animation", "Checkerboard"), kEntrance, "", 500, none, false, checkerVariants()});
+        d.push_back({"entr.circle", QT_TRANSLATE_NOOP("Animation", "Shape"), kEntrance, "", 500, none, false, inOutVariants(6, QT_TRANSLATE_NOOP("Animation", "Circle In"), QT_TRANSLATE_NOOP("Animation", "Circle Out"))});
+        d.push_back({"entr.diamond", QT_TRANSLATE_NOOP("Animation", "Diamond"), kEntrance, "", 500, none, false, inOutVariants(8, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"entr.plus", QT_TRANSLATE_NOOP("Animation", "Plus"), kEntrance, "", 500, none, false, inOutVariants(13, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"entr.dissolve", QT_TRANSLATE_NOOP("Animation", "Dissolve In"), kEntrance, "", 500, none, false, single(QT_TRANSLATE_NOOP("Animation", "Dissolve In"), 9)});
+        d.push_back({"entr.randombars", QT_TRANSLATE_NOOP("Animation", "Random Bars"), kEntrance, "", 500, none, false, orientationVariants(14)});
+        d.push_back({"entr.wheel", QT_TRANSLATE_NOOP("Animation", "Wheel"), kEntrance, "", 500, none, false, wheelVariants()});
+        d.push_back({"entr.peek", QT_TRANSLATE_NOOP("Animation", "Peek In"), kEntrance, "", 500, none, false, peekVariants()});
+        d.push_back({"entr.flash", QT_TRANSLATE_NOOP("Animation", "Flash Once"), kEntrance, "", 500, none, false, single(QT_TRANSLATE_NOOP("Animation", "Flash Once"), 11)});
+        d.push_back({"entr.stretch", QT_TRANSLATE_NOOP("Animation", "Stretch"), kEntrance, "", 500, none, false, stretchVariants()});
+        d.push_back({"entr.swivel", QT_TRANSLATE_NOOP("Animation", "Swivel"), kEntrance, "", 1000, none, false, orientationVariants(19)});
+        d.push_back({"entr.expand", QT_TRANSLATE_NOOP("Animation", "Expand"), kEntrance, "", 500, none, false, single(QT_TRANSLATE_NOOP("Animation", "Expand"), 55)});
+        d.push_back({"entr.spiral", QT_TRANSLATE_NOOP("Animation", "Spiral In"), kEntrance, "", 1000, none, false, single(QT_TRANSLATE_NOOP("Animation", "Spiral In"), 15)});
+        d.push_back({"entr.bounce", QT_TRANSLATE_NOOP("Animation", "Bounce"), kEntrance, "", 2000, none, false, single(QT_TRANSLATE_NOOP("Animation", "Bounce"), 26)});
 
         d.push_back({"emph.pulse", QT_TRANSLATE_NOOP("Animation", "Pulse"), kEmphasis, "", 500, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Pulse"), 26, 0}}});
         d.push_back({"emph.teeter", QT_TRANSLATE_NOOP("Animation", "Teeter"), kEmphasis, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Teeter"), 32, 0}}});
         d.push_back({"emph.spin", QT_TRANSLATE_NOOP("Animation", "Spin"), kEmphasis, "", 2000, Amount::Spin, false, {{"cw", QT_TRANSLATE_NOOP("Animation", "Clockwise"), 8, 0}, {"ccw", QT_TRANSLATE_NOOP("Animation", "Counterclockwise"), 8, 0}}});
         d.push_back({"emph.growshrink", QT_TRANSLATE_NOOP("Animation", "Grow/Shrink"), kEmphasis, "", 2000, Amount::Size, false,
                      {{"both", QT_TRANSLATE_NOOP("Animation", "Both"), 6, 0}, {"horizontal", QT_TRANSLATE_NOOP("Animation", "Horizontal"), 6, 0}, {"vertical", QT_TRANSLATE_NOOP("Animation", "Vertical"), 6, 0}}});
+        d.push_back({"emph.transparency", QT_TRANSLATE_NOOP("Animation", "Transparency"), kEmphasis, "", 500, Amount::Transparency, false, single(QT_TRANSLATE_NOOP("Animation", "Transparency"), 9)});
 
         d.push_back({"exit.disappear", QT_TRANSLATE_NOOP("Animation", "Disappear"), kExit, "", 0, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Disappear"), 1, 0}}});
         d.push_back({"exit.fade", QT_TRANSLATE_NOOP("Animation", "Fade"), kExit, "", 500, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Fade"), 10, 0}}});
@@ -103,6 +149,21 @@ const std::vector<KindDef> &kindDefs()
         d.push_back({"exit.wipe", QT_TRANSLATE_NOOP("Animation", "Wipe"), kExit, "", 500, none, false, wipeVariants()});
         d.push_back({"exit.growturn", QT_TRANSLATE_NOOP("Animation", "Shrink & Turn"), kExit, "", 1000, none, false, {{"none", QT_TRANSLATE_NOOP("Animation", "Shrink & Turn"), 31, 0}}});
         d.push_back({"exit.zoom", QT_TRANSLATE_NOOP("Animation", "Zoom"), kExit, "", 500, none, false, {{"object", QT_TRANSLATE_NOOP("Animation", "Object Center"), 53, 32}}});
+        d.push_back({"exit.blinds", QT_TRANSLATE_NOOP("Animation", "Blinds"), kExit, "", 500, none, false, orientationVariants(3)});
+        d.push_back({"exit.box", QT_TRANSLATE_NOOP("Animation", "Box"), kExit, "", 500, none, false, inOutVariants(4, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"exit.checkerboard", QT_TRANSLATE_NOOP("Animation", "Checkerboard"), kExit, "", 500, none, false, checkerVariants()});
+        d.push_back({"exit.circle", QT_TRANSLATE_NOOP("Animation", "Shape"), kExit, "", 500, none, false, inOutVariants(6, QT_TRANSLATE_NOOP("Animation", "Circle In"), QT_TRANSLATE_NOOP("Animation", "Circle Out"))});
+        d.push_back({"exit.diamond", QT_TRANSLATE_NOOP("Animation", "Diamond"), kExit, "", 500, none, false, inOutVariants(8, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"exit.plus", QT_TRANSLATE_NOOP("Animation", "Plus"), kExit, "", 500, none, false, inOutVariants(13, QT_TRANSLATE_NOOP("Animation", "In"), QT_TRANSLATE_NOOP("Animation", "Out"))});
+        d.push_back({"exit.dissolve", QT_TRANSLATE_NOOP("Animation", "Dissolve Out"), kExit, "", 500, none, false, single(QT_TRANSLATE_NOOP("Animation", "Dissolve Out"), 9)});
+        d.push_back({"exit.randombars", QT_TRANSLATE_NOOP("Animation", "Random Bars"), kExit, "", 500, none, false, orientationVariants(14)});
+        d.push_back({"exit.wheel", QT_TRANSLATE_NOOP("Animation", "Wheel"), kExit, "", 500, none, false, wheelVariants()});
+        d.push_back({"exit.peek", QT_TRANSLATE_NOOP("Animation", "Peek Out"), kExit, "", 500, none, false, peekVariants()});
+        d.push_back({"exit.stretch", QT_TRANSLATE_NOOP("Animation", "Contract"), kExit, "", 500, none, false, stretchVariants()});
+        d.push_back({"exit.swivel", QT_TRANSLATE_NOOP("Animation", "Swivel"), kExit, "", 1000, none, false, orientationVariants(19)});
+        d.push_back({"exit.expand", QT_TRANSLATE_NOOP("Animation", "Collapse"), kExit, "", 500, none, false, single(QT_TRANSLATE_NOOP("Animation", "Collapse"), 55)});
+        d.push_back({"exit.spiral", QT_TRANSLATE_NOOP("Animation", "Spiral Out"), kExit, "", 1000, none, false, single(QT_TRANSLATE_NOOP("Animation", "Spiral Out"), 15)});
+        d.push_back({"exit.bounce", QT_TRANSLATE_NOOP("Animation", "Bounce"), kExit, "", 2000, none, false, single(QT_TRANSLATE_NOOP("Animation", "Bounce"), 26)});
 
         d.push_back({"path.lines", QT_TRANSLATE_NOOP("Animation", "Lines"), kPath, "Lines", 2000, none, true,
                      pathVariants({{42, QT_TRANSLATE_NOOP("Animation", "Down")}, {63, QT_TRANSLATE_NOOP("Animation", "Right")}, {35, QT_TRANSLATE_NOOP("Animation", "Left")}, {64, QT_TRANSLATE_NOOP("Animation", "Up")}, {49, QT_TRANSLATE_NOOP("Animation", "Diagonal Down Right")}, {56, QT_TRANSLATE_NOOP("Animation", "Diagonal Up Right")}})});
@@ -438,6 +499,8 @@ QString bodyOf(const PresetTemplate &t, const Anim &a, Ids *ids)
         } else if (token == QLatin1String("BY")) {
             const bool vertical = a.variant == QLatin1String("vertical"), horizontal = a.variant == QLatin1String("horizontal");
             out += QStringLiteral("<p:by x=\"%1\" y=\"%2\"/>").arg(numberText((vertical ? 100 : a.amount) * 1000), numberText((horizontal ? 100 : a.amount) * 1000));
+        } else if (token == QLatin1String("OPACITY")) {
+            out += QString::number(1 - a.amount / 100, 'g', 6);
         } else if (token == QLatin1String("ROT")) {
             out += numberText((a.variant == QLatin1String("ccw") ? -1 : 1) * a.amount * 60000);
         } else if (token == QLatin1String("PATH")) {
@@ -681,6 +744,11 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
             k.variant = QStringLiteral("both");
             k.amount = x;
         }
+    } else if (found.kind->amount == EffectKind::Amount::Transparency) {
+        // The last value of the opacity's animation is what it ends at.
+        const QVector<QDomElement> values = pChildren(pChild(pChild(kids, "anim"), "tavLst"), "tav");
+        const double opacity = values.isEmpty() ? 0.5 : attr(pChild(pChild(values.last(), "val"), "strVal"), QStringLiteral("val")).toDouble();
+        k.amount = std::clamp(std::round((1 - opacity) * 10000) / 100, 0.0, 100.0);
     } else if (found.kind->amount == EffectKind::Amount::Spin) {
         const double by = attr(pChild(kids, "animRot"), QStringLiteral("by")).toDouble() / 60000;
         k.variant = by < 0 ? QStringLiteral("ccw") : QStringLiteral("cw");
@@ -929,7 +997,7 @@ Anim makeAnim(const EffectKind &kind, int shape)
     a.shape = shape;
     a.duration = kind.duration;
     a.smoothStart = a.smoothEnd = kind.smooth;
-    a.amount = kind.amount == EffectKind::Amount::Size ? 150 : kind.amount == EffectKind::Amount::Spin ? 360 : 0;
+    a.amount = kind.amount == EffectKind::Amount::Size ? 150 : kind.amount == EffectKind::Amount::Spin ? 360 : kind.amount == EffectKind::Amount::Transparency ? 50 : 0;
     return a;
 }
 

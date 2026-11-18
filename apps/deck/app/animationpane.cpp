@@ -346,6 +346,7 @@ QIcon effectIcon(const deck::EffectKind &kindIn, const QString &variantIn, bool 
                     if (!s.clip2.isNull()) parts.addRect(part(s.clip2));
                     p->setClipPath(parts, Qt::IntersectClip);
                 }
+                if (s.masked) p->setClipPath(QTransform(at.width(), 0, 0, at.height(), at.x(), at.y()).map(s.mask), Qt::IntersectClip);
                 p->setOpacity(std::clamp(s.opacity, 0.15, 1.0));
                 paintShape(p, at, color);
                 p->restore();

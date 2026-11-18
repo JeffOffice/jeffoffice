@@ -657,9 +657,9 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
                 menu->addAction(tr("No Effect Options"))->setEnabled(false);
                 return;
             }
-            const bool size = kind->amount == deck::EffectKind::Amount::Size, spin = kind->amount == deck::EffectKind::Amount::Spin;
+            const bool size = kind->amount == deck::EffectKind::Amount::Size, spin = kind->amount == deck::EffectKind::Amount::Spin, clear = kind->amount == deck::EffectKind::Amount::Transparency;
             if (kind->variants.size() > 1) {
-                menu->addSection(kind->cls == deck::EffectClass::MotionPath ? tr("Path") : tr("Direction"));
+                menu->addSection(kind->cls == deck::EffectClass::MotionPath ? tr("Path") : kind->id.endsWith(QLatin1String(".wheel")) ? tr("Spokes") : tr("Direction"));
                 for (const deck::EffectVariant &v : kind->variants) {
                     QAction *item = menu->addAction(v.name);
                     item->setCheckable(true);
@@ -668,10 +668,11 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
                     connect(item, &QAction::triggered, menu, [st, key] { st->change(QCoreApplication::translate("Animation", "Effect Options"), [key](deck::Anim &e) { if (!e.custom()) e.variant = key; }); });
                 }
             }
-            if (size || spin) {
+            if (size || spin || clear) {
                 menu->addSection(tr("Amount"));
                 struct Preset { QString name; double value; };
-                const QVector<Preset> presets = size ? QVector<Preset>{{tr("Tiny"), 25}, {tr("Smaller"), 50}, {tr("Larger"), 150}, {tr("Huge"), 400}}
+                const QVector<Preset> presets = clear ? QVector<Preset>{{tr("25% Clear"), 25}, {tr("50% Clear"), 50}, {tr("75% Clear"), 75}, {tr("100% Clear"), 100}}
+                                                     : size ? QVector<Preset>{{tr("Tiny"), 25}, {tr("Smaller"), 50}, {tr("Larger"), 150}, {tr("Huge"), 400}}
                                                      : QVector<Preset>{{tr("Quarter Spin"), 90}, {tr("Half Spin"), 180}, {tr("Full Spin"), 360}, {tr("Two Spins"), 720}};
                 for (const Preset &pr : presets) {
                     QAction *item = menu->addAction(pr.name);

@@ -191,12 +191,33 @@ QString presetName(EffectClass cls, int id, int sub, QString *subType)
             *subType = direction(sub);
             return base + QStringLiteral("wipe");
         case 31: return base + QStringLiteral("turn-and-grow");
+        case 3: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("venetian-blinds");
+        case 4: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("box");
+        case 5: *subType = sub == 5 ? QStringLiteral("down") : QStringLiteral("across"); return base + QStringLiteral("checkerboard");
+        case 6: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("circle");
+        case 8: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("diamond");
+        case 13: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("plus");
+        case 9: return base + (entrance ? QStringLiteral("dissolve-in") : QStringLiteral("dissolve-out"));
+        case 14: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("random-bars");
+        case 21: *subType = QString::number(sub) + QStringLiteral("-spoke"); return base + QStringLiteral("wheel");
+        case 12:
+            *subType = direction(sub);
+            return base + (entrance ? QStringLiteral("peek-in") : QStringLiteral("peek-out"));
+        case 11: return base + QStringLiteral("flash-once");
+        case 17:
+            *subType = sub == 10 ? QStringLiteral("across") : direction(sub);
+            return base + (entrance ? QStringLiteral("stretch") : QStringLiteral("contract"));
+        case 19: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("swivel");
+        case 55: return base + (entrance ? QStringLiteral("expand") : QStringLiteral("collapse"));
+        case 15: return base + (entrance ? QStringLiteral("spiral-in") : QStringLiteral("spiral-out"));
+        case 26: return base + QStringLiteral("bounce");
         case 53:
             *subType = entrance ? QStringLiteral("in") : QStringLiteral("out");
             return base + (entrance ? QStringLiteral("fade-in-and-zoom") : QStringLiteral("fade-out-and-zoom"));
         }
     } else if (cls == EffectClass::Emphasis) {
         switch (id) {
+        case 9: return QStringLiteral("ooo-emphasis-transparency");
         case 26: return QStringLiteral("ooo-emphasis-flash-bulb");
         case 32: return QStringLiteral("ooo-emphasis-teeter");
         case 8: return QStringLiteral("ooo-emphasis-spin");
@@ -227,6 +248,46 @@ bool filterNames(const QString &filter, QString *type, QString *subtype, bool *r
         *type = QStringLiteral("barnDoorWipe");
         *subtype = m.captured(2) == QLatin1String("Vertical") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
         *reverse = m.captured(1) == QLatin1String("in");
+        return true;
+    }
+    // The common effects: the forms open from the middle (out) or close in from the edges (in); the standard's own direction is outward.
+    static const QRegularExpression common(QStringLiteral("^(blinds|checkerboard|randombar|box|circle|diamond|plus|wheel)\\(([A-Za-z0-9]+)\\)$"));
+    if (filter == QLatin1String("dissolve")) {
+        *type = QStringLiteral("dissolve");
+        *subtype = QStringLiteral("default");
+        return true;
+    }
+    if (const QRegularExpressionMatch m = common.match(filter); m.hasMatch()) {
+        const QString what = m.captured(1), option = m.captured(2);
+        *reverse = option == QLatin1String("in");
+        if (what == QLatin1String("blinds")) {
+            *type = QStringLiteral("blindsWipe");
+            *subtype = option == QLatin1String("vertical") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
+        } else if (what == QLatin1String("checkerboard")) {
+            *type = QStringLiteral("checkerBoardWipe");
+            *subtype = option == QLatin1String("down") ? QStringLiteral("down") : QStringLiteral("across");
+        } else if (what == QLatin1String("randombar")) {
+            *type = QStringLiteral("randomBarWipe");
+            *subtype = option == QLatin1String("vertical") ? QStringLiteral("vertical") : QStringLiteral("horizontal");
+        } else if (what == QLatin1String("box")) {
+            *type = QStringLiteral("irisWipe");
+            *subtype = QStringLiteral("rectangle");
+        } else if (what == QLatin1String("circle")) {
+            *type = QStringLiteral("ellipseWipe");
+            *subtype = QStringLiteral("circle");
+        } else if (what == QLatin1String("diamond")) {
+            *type = QStringLiteral("irisWipe");
+            *subtype = QStringLiteral("diamond");
+        } else if (what == QLatin1String("plus")) {
+            *type = QStringLiteral("fourBoxWipe");
+            *subtype = QStringLiteral("cornersIn");
+            *reverse = option == QLatin1String("out");   // the corner boxes growing in is the plus closing
+        } else {
+            *reverse = false;
+            *type = QStringLiteral("pinWheelWipe");
+            *subtype = option == QLatin1String("1") ? QStringLiteral("oneBlade") : option == QLatin1String("2") ? QStringLiteral("twoBladeVertical")
+                     : option == QLatin1String("3") ? QStringLiteral("threeBlade") : option == QLatin1String("8") ? QStringLiteral("eightBlade") : QStringLiteral("fourBlade");
+        }
         return true;
     }
     return false;
