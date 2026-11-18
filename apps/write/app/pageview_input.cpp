@@ -1,7 +1,6 @@
 // The keyboard, the mouse, the input method, and the clipboard in the page view.
 
 #include "app/pageview.h"
-#include "app/objects.h"
 #include "app/shapetextedit.h"
 
 #include "core/autoops.h"
@@ -109,18 +108,6 @@ void PageView::copy()
     mime->setText(text);
     mime->setHtml(f.toHtml());
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
-    // (What was copied can also be put in another program as an object: made only when that is asked for, from the page the selection begins on.)
-    {
-        flow::Paginator &pg = m_doc->pager();
-        const int page = std::clamp(currentPage(), 0, std::max(0, pg.pagesKnown() - 1)) + 1;
-        const std::shared_ptr<PageView *> alive = m_alive;
-        WriteDoc *doc = m_doc;
-        mime = static_cast<QMimeData *>(objects::withObject(mime, [alive, doc, page]() -> std::optional<office::ole::EmbeddedObject> {
-            if (!*alive || (*alive)->m_doc != doc) return std::nullopt;
-            const QByteArray docx = doc->toDocx();
-            return docx.isEmpty() ? std::nullopt : objects::pageObject(docx, page);
-        }));
-    }
     s_copied = clip;
     s_copiedText = text;
     s_copiedWhole = selectionIsWholeWords(m_cursor);

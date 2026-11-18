@@ -214,6 +214,52 @@ private Q_SLOTS:
         QCOMPARE(undone->previewPng, old->previewPng);
     }
 
+    void aPastedCopyIsItsOwnObjectAndItsEditGoesToIt()
+    {
+        QTemporaryDir dir, temp;
+        const QString book = saved(dir, QStringLiteral("book.xlsx"), objects::rangePackage(gridOf({"Name", "Total", "North", "12"}, 2)));
+        Win win;
+        EmbeddedEdit *ed = win.w.objectEditor();
+        ed->setTempRoot(temp.path());
+        ed->setPollInterval(600000);
+        QStringList opened;
+        ed->setOpener([&](const QString &path, ole::Kind) {
+            opened << path;
+            return true;
+        });
+        QVERIFY(win.w.insertObjectFrom(objects::Source::Range, book, QStringLiteral("A1:B2")));
+        const int firstAt = win.objectsNow().first();
+        const auto old = objectAt(*win.w.document(), firstAt);
+        QVERIFY(old);
+        QTextCursor pick(win.w.document()->story());
+        pick.setPosition(firstAt);
+        pick.setPosition(firstAt + 1, QTextCursor::KeepAnchor);
+        win.w.view()->setCursor(pick);
+        win.w.view()->copy();
+        QTextCursor c(win.w.document()->story());
+        c.setPosition(win.w.document()->story()->characterCount() - 1);
+        win.w.view()->setCursor(c);
+        win.w.view()->paste();
+        const QVector<int> now = win.objectsNow();
+        QCOMPARE(now.size(), 2);
+        const auto a = objectAt(*win.w.document(), now[0]);
+        const auto b = objectAt(*win.w.document(), now[1]);
+        QVERIFY(a && b);
+        QCOMPARE(a->origin, b->origin);   // (a copy starts with the package of the one it was copied from)
+        QVERIFY(win.w.editObjectAt(now[1]));
+        QVERIFY(objectAt(*win.w.document(), now[1])->origin != objectAt(*win.w.document(), now[0])->origin);   // (the one edited has a package of its own)
+        QSignalSpy saves(ed, &EmbeddedEdit::objectSaved);
+        const QByteArray changed = objects::rangePackage(gridOf({"Name", "Total", "North", "99", "West", "5"}, 2));
+        {
+            QFile f(opened.first());
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(changed);
+        }
+        QTRY_VERIFY((ed->pollNow(), saves.count() >= 1));
+        QCOMPARE(objectAt(*win.w.document(), now[1])->partBytes, changed);
+        QCOMPARE(objectAt(*win.w.document(), now[0])->partBytes, old->partBytes);
+    }
+
     void aMissingProgramIsSaidInTheStatusBar()
     {
         QTemporaryDir dir, temp;
@@ -247,7 +293,7 @@ private Q_SLOTS:
         QCOMPARE(put->partBytes, object->partBytes);
     }
 
-    void copyingInWriteOffersAPageObject()
+    void copyingInWriteOffersNoObject()
     {
         Win win;
         QTextCursor c(win.w.document()->story());
@@ -257,11 +303,29 @@ private Q_SLOTS:
         QApplication::clipboard()->clear();
         win.w.view()->copy();
         QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("Hello"));
-        const auto made = objects::objectOf(QApplication::clipboard()->mimeData());
-        QVERIFY(made);
-        QCOMPARE(made->kind(), ole::Kind::Page);
-        QCOMPARE(objects::kindWords(*made), QStringLiteral("Document page"));
-        QVERIFY(QImage::fromData(made->previewPng, "PNG").width() > 0);
+        // (A page of the document is put in as an object from Insert > Object, with a choice of file and page, not offered on every copy.)
+        QVERIFY(!objects::hasObject(QApplication::clipboard()->mimeData()));
+    }
+
+    void aPageOfADocumentIsPutInFromTheInsertMenu()
+    {
+        QTemporaryDir dir;
+        const QString page = saved(dir, QStringLiteral("page.docx"), docxOf({QStringLiteral("First page words")}));
+        Win win;
+        objects::Source asked = objects::Source::Range;
+        win.w.setObjectSourceAsker([&](objects::Source source, bool, objects::SourceChoice *choice) {
+            asked = source;
+            choice->path = page;
+            choice->detail = QStringLiteral("1");
+            return true;
+        });
+        QVERIFY(win.w.act(QStringLiteral("insert.object.page"))->isEnabled());
+        win.w.act(QStringLiteral("insert.object.page"))->trigger();
+        QCOMPARE(asked, objects::Source::Page);
+        QCOMPARE(win.objectsNow().size(), 1);
+        const auto put = objectAt(*win.w.document(), win.objectsNow().first());
+        QVERIFY(put);
+        QCOMPARE(objects::kindWords(*put), QStringLiteral("Document page"));
     }
 
     void theListShowsWordsAndConvertLeavesAPictureWithNoPart()

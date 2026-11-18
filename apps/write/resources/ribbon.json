@@ -336,7 +336,8 @@
               "keytip": "OB",
               "menu": [
                 "insert.object.range",
-                "insert.object.chart"
+                "insert.object.chart",
+                "insert.object.page"
               ]
             },
             {

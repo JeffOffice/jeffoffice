@@ -662,7 +662,6 @@ private:
     int m_moreObjectsRevision = -1;
 
     WriteDoc *m_doc = nullptr;
-    std::shared_ptr<PageView *> m_alive = std::make_shared<PageView *>(this);   // what a copy made for another program asks whether the view is still there
     QTextCursor m_cursor;
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;

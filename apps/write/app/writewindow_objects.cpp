@@ -1,4 +1,4 @@
-// JeffWrite's objects of other apps: Insert > Object (a range or chart of a workbook), Paste Special as an object, double-clicking one to edit it in its own app, and the list of the
+// JeffWrite's objects of other apps: Insert > Object (a range or chart of a workbook, a page of a document), Paste Special as an object, double-clicking one to edit it in its own app, and the list of the
 // document's objects in File > Info. The picture, the package, and the box that asks where an object comes from are libs/shell/app/objects.h; the work on the document is
 // core/pictureops.h.
 
@@ -24,6 +24,7 @@ void WriteWindow::createObjectActions()
 {
     mk("insert.object.range", tr("From JeffCrunch Range…"), "table", QKeySequence(), [this] { insertObjectFromAsk(objects::Source::Range); });
     mk("insert.object.chart", tr("From JeffCrunch Chart…"), "chart-column", QKeySequence(), [this] { insertObjectFromAsk(objects::Source::Chart); });
+    mk("insert.object.page", tr("From JeffWrite Page…"), "file-text", QKeySequence(), [this] { insertObjectFromAsk(objects::Source::Page); });
     mk("edit.pasteObject", tr("As Object"), "box", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
         if (!insertObjectFromCopy()) statusBar()->showMessage(tr("What was copied can't be put in as an object."), 6000);
@@ -41,6 +42,7 @@ void WriteWindow::refreshObjectUi()
     const bool can = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
     act("insert.object.range")->setEnabled(can);
     act("insert.object.chart")->setEnabled(can);
+    act("insert.object.page")->setEnabled(can);
     act("edit.pasteObject")->setEnabled(can && objects::hasObject(QApplication::clipboard()->mimeData()));
 }
 
@@ -102,11 +104,17 @@ void WriteWindow::insertObjectFromAsk(objects::Source source)
 bool WriteWindow::editObjectAt(int position)
 {
     if (!m_doc) return false;
-    const auto object = write::objectAt(*m_doc, position);
+    auto object = write::objectAt(*m_doc, position);
     if (!object) return false;
     if (!object->isOurs) {
         statusBar()->showMessage(tr("This object was made in another program, so it can't be edited here."), 8000);
         return false;
+    }
+    // A copy of an object has the package of the one it was copied from, so an edit would go to whichever the text has first: this one is given a package of its own first.
+    if (write::objectsOfPackage(*m_doc, object->origin).size() > 1) {
+        if (!m_view->replaceObject(position, *object)) return false;
+        object = write::objectAt(*m_doc, position);
+        if (!object) return false;
     }
     const int id = objectEditor()->start(this, object->origin, *object);
     if (id == 0) {
@@ -124,7 +132,7 @@ void WriteWindow::objectSaved(int editId, const QByteArray &part, const QByteArr
     const QString origin = m_objectEdits.value(editId);
     int position = -1;
     std::optional<office::ole::EmbeddedObject> now;
-    for (const int at : m_view->objectPositions()) {
+    for (const int at : write::objectsOfPackage(*m_doc, origin)) {
         if (const auto o = write::objectAt(*m_doc, at); o && o->origin == origin) {
             position = at;
             now = o;
