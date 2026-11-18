@@ -27,7 +27,9 @@
 #include <QJsonDocument>
 #include <QPaintEngine>
 #include <QPainter>
+#include <QCryptographicHash>
 #include <QSvgRenderer>
+#include <list>
 #include <QPainterPathStroker>
 #include <QScopeGuard>
 #include <QtEndian>
@@ -997,6 +999,53 @@ static void paintDrawnWords(QPainter *p, const QImage &img, const QRectF &where,
         drawUnseenText(p, w.family, w.size * where.height(), w.bold, w.italic, QPointF(where.left() + w.at.x() * where.width(), where.top() + w.at.y() * where.height()), w.text, 0, visible);
 }
 
+// A picture that is an SVG is read once, not at every paint: the parsed pictures the thread painted last (at most 64, and 64 MB of their bytes in all), by the hash of the bytes. The
+// parsed picture is the same one that a read at each paint made, so what is painted is the same.
+namespace {
+struct SvgKept {
+    QByteArray key;
+    std::shared_ptr<QSvgRenderer> renderer;
+    qint64 cost = 0;
+};
+struct SvgCache {
+    std::list<SvgKept> list;   // most recently used first
+    qint64 cost = 0;
+    SvgCacheStats stats;
+};
+SvgCache &svgCache()
+{
+    thread_local SvgCache cache;
+    return cache;
+}
+std::shared_ptr<QSvgRenderer> cachedSvg(const QByteArray &bytes)
+{
+    SvgCache &c = svgCache();
+    const QByteArray key = QCryptographicHash::hash(bytes, QCryptographicHash::Sha1);
+    for (auto it = c.list.begin(); it != c.list.end(); ++it)
+        if (it->key == key) {
+            c.list.splice(c.list.begin(), c.list, it);
+            ++c.stats.hits;
+            return it->renderer;
+        }
+    auto made = std::make_shared<QSvgRenderer>();
+    if (!made->load(bytes)) return nullptr;
+    ++c.stats.parses;
+    c.list.push_front({key, made, bytes.size()});
+    c.cost += bytes.size();
+    while (c.list.size() > 64 || (c.list.size() > 1 && c.cost > (qint64(64) << 20))) {
+        c.cost -= c.list.back().cost;
+        c.list.pop_back();
+    }
+    return made;
+}
+} // namespace
+
+SvgCacheStats svgCacheStats() { return svgCache().stats; }
+void clearSvgCache()
+{
+    svgCache() = SvgCache();
+}
+
 static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem &pic)
 {
     if (ctx.opt.skipPictures) return;
@@ -1043,7 +1092,7 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         const ImageData data = ctx.doc->images.value(pic.imageId);
         const bool plain = !pic.brightness && !pic.contrast && !pic.recolor && !pic.hasTransparentColor && pic.blipEffects.isEmpty();
         Metafile mf;
-        QSvgRenderer svg;
+        std::shared_ptr<QSvgRenderer> parsed;
         // Recolored clip art (border art's tinted pieces among it) plays as
         // vectors too, every color changed as the picture's pixels would be:
         // made into a small picture first, its hairlines were lost.
@@ -1058,7 +1107,8 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
             });
         } else if (ctx.opt.output && plain && metafile && mf.load(data.bytes)) {
             mf.play(p, pic.imgRect);
-        } else if ((ctx.opt.output || data.graphic) && plain && data.format == QLatin1String("svg") && svg.load(data.bytes)) {
+        } else if ((ctx.opt.output || data.graphic) && plain && data.format == QLatin1String("svg") && (parsed = cachedSvg(data.bytes))) {
+            QSvgRenderer &svg = *parsed;
             if (data.graphic) svg::paintFitted(svg, data.bytes, p, pic.imgRect, svg::kMostClipRuns);
             else svg::paint(svg, data.bytes, p, pic.imgRect);
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) svg::paintText(data.bytes, p, pic.imgRect, r);

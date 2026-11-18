@@ -29,4 +29,8 @@ bool replaceEquation(WriteDoc &doc, int position, const QString &linear);
 // Puts the equation at the cursor, in place of a selection, as one step that undoes. False for an empty equation, one too large, or where an equation can't go (a locked place).
 bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear);
 
+// The pictures of the equations with one between `from` and `to` of the story made again from the look their runs have now (after a change of size or color, or a paste: a copy from another
+// document names a picture of that document's): the one that cannot be made loses its picture and shows its line.
+void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to);
+
 } // namespace jp::write

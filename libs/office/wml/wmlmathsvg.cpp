@@ -59,6 +59,7 @@ EquationSvg equationSvg(const QByteArray &markup, double fontPoints, const QColo
     out.svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"" + QByteArray::number(w, 'f', 3) + "\" height=\"" + QByteArray::number(h, 'f', 3) + "\" viewBox=\"0 0 " + size +
               "\"><path fill=\"" + color.name(QColor::HexRgb).toLatin1() + "\" fill-rule=\"" + (path.fillRule() == Qt::OddEvenFill ? "evenodd" : "nonzero") + "\" d=\"" + d + "\"/></svg>";
     out.size = QSizeF(w, h);
+    out.elements = path.elementCount();
     out.ascent = std::clamp(shape->baseline * k, 0.0, h);
     return out;
 }

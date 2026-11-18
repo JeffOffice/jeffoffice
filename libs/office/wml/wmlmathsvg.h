@@ -12,6 +12,7 @@ struct EquationSvg {
     QByteArray svg;         // empty for markup that is not an equation, or that is cut short (nested too deep, or too much of it): the page keeps its line of text
     QSizeF size;            // the picture's width and height in points
     double ascent = 0;      // the part of the height above the line's baseline (the rest, `size.height() - ascent`, hangs below it)
+    qint64 elements = 0;    // the elements of the outline's path (what the picture cost to make)
     bool valid() const { return !svg.isEmpty(); }
 };
 

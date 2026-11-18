@@ -1639,11 +1639,14 @@ QByteArray WriteDoc::diagramPicture(const QString &part, const QVector<Relations
     return svg;
 }
 
-// An equation set in the text as the picture of its two-dimensional layout, on the baseline of its line (what hangs below it is its negative bottom distance); the line of text it
-// stands for stays the character's field text, for finding, copying, and reading aloud. An equation that is cut short, or past the pictures the document may have, keeps its line.
+// An equation set in the text as the picture of its two-dimensional layout, on the baseline of its line (what hangs below it is the run's InlineHangBelow); the line of text it
+// stands for stays the character's field text, for finding, copying, and reading aloud. An equation that is cut short, or past what the document may hold of them (a count of its
+// own, so that the pictures after them still have room; the bytes and layout elements they come to, in all), keeps its line, and the format has no picture.
 void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
 {
     flow::FlowDocument &f = *m_flow;
+    format->clearProperty(tp::InlineObject);
+    format->clearProperty(tp::InlineHangBelow);
     const double points = format->fontPointSize() > 0 ? format->fontPointSize() : format->font().pointSizeF() > 0 ? format->font().pointSizeF() : 11;
     const QColor color = format->foreground().style() != Qt::NoBrush && format->foreground().color().alpha() > 0 ? format->foreground().color() : QColor(Qt::black);
     const office::wml::EquationSvg eq = office::wml::equationSvg(atom.raw, points, color);
@@ -1651,7 +1654,7 @@ void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
     const QByteArray key = QCryptographicHash::hash(eq.svg, QCryptographicHash::Sha1);
     int image = m_equationImages.value(key, -1);
     if (image < 0 || image >= f.images.size() || f.images[image].bytes != eq.svg) {
-        if (f.images.size() >= kMostImages) return;
+        if (m_equationCount >= m_mostEquationImages || m_equationBytes + eq.svg.size() > m_mostEquationBytes || m_equationElements + eq.elements > m_mostEquationElements) return;
         flow::FlowImage made;
         made.bytes = eq.svg;
         made.format = QStringLiteral("svg");
@@ -1659,15 +1662,25 @@ void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
         f.images.push_back(made);
         image = int(f.images.size()) - 1;
         m_equationImages.insert(key, image);
+        ++m_equationCount;
+        m_equationBytes += eq.svg.size();
+        m_equationElements += eq.elements;
     }
     auto pic = std::make_shared<PictureItem>();
     pic->rect = QRectF(0, 0, eq.size.width(), eq.size.height());
     pic->imgRect = pic->rect;
     pic->imageId = QStringLiteral("flow-img:%1").arg(image);
-    pic->wrap.left = pic->wrap.right = pic->wrap.top = 0;
-    pic->wrap.bottom = eq.ascent - eq.size.height();
+    pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
     pic->altText = atom.display;
     format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(pic->toJson()).toJson(QJsonDocument::Compact)));
+    format->setProperty(tp::InlineHangBelow, std::clamp(eq.size.height() - eq.ascent, 0.0, 1000.0));
+}
+
+void WriteDoc::setEquationLimits(int images, qint64 bytes, qint64 elements)
+{
+    m_mostEquationImages = images;
+    m_mostEquationBytes = bytes;
+    m_mostEquationElements = elements;
 }
 
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)
@@ -1698,7 +1711,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         shownMissing = false;
         // A barcode of ours is drawn from the settings its marker holds (as vectors), not from the picture beside it that other programs show, when the pictures in the file are the ones
         // the marker was written with (not another picture put in their place), and the document does not hold as many barcode pictures as are honored.
-        if (!s.barcode.isEmpty() && f.images.size() < kMostImages) {
+        if (!s.barcode.isEmpty() && otherImages() < kMostImages) {
             const QVector<Relationship> &barcodeLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
             auto bytesOf = [&](const QString &rId) {
                 for (const Relationship &r : barcodeLinks)
@@ -1727,7 +1740,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         // A diagram is drawn from the drawing its file keeps (at the size of its frame), kept with the document's pictures; one with no drawing is the picture the older form of the
         // object holds, or else a box that says what it is.
         if (s.embed.isEmpty() && !s.diagramEmbed.isEmpty()) {
-            if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
+            if (otherImages() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
             const QVector<Relationship> &diagramLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
             QByteArray svg = diagramPicture(part, diagramLinks, s.diagramEmbed, s.width, s.height);
             if (svg.isEmpty()) {
@@ -1753,7 +1766,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
         }
         // A chart is drawn as the picture its part makes (at the size of its frame), kept with the document's pictures.
         if (s.embed.isEmpty() && !s.chartEmbed.isEmpty()) {
-            if (f.images.size() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
+            if (otherImages() >= kMostImages || s.width <= 0 || s.height <= 0) return -1;
             QString chartTarget;
             const QVector<Relationship> &chartLinks = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
             for (const Relationship &r : chartLinks)
@@ -1771,7 +1784,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
             f.images.push_back(image);
             return int(f.images.size()) - 1;
         }
-        if (s.embed.isEmpty() || f.images.size() >= kMostImages) return -1;
+        if (s.embed.isEmpty() || otherImages() >= kMostImages) return -1;
         QString target;
         const QVector<Relationship> &links = part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
         for (const Relationship &r : links)

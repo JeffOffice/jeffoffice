@@ -9,6 +9,8 @@
 
 #include <QCoreApplication>
 #include <QHash>
+#include <QTextBlock>
+#include <QTextFragment>
 #include <QVector>
 
 namespace jp::write {
@@ -154,6 +156,29 @@ bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)
     const QByteArray markup = equationMarkup(linear, &ok);
     if (!ok) return false;
     return insertMarkup(doc, c, markup);
+}
+
+void refreshEquationPictures(WriteDoc &doc, QTextDocument *story, int from, int to)
+{
+    struct Fix { int from, to; QTextCharFormat format; };
+    QVector<Fix> fixes;
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (f.position() + f.length() <= from || f.position() >= to || !cf.hasProperty(tp::InlineObject) || !cf.hasProperty(prop::Atom)) continue;
+            const Inline atom = unpackAtom(storedBytes(cf, prop::Atom));
+            if (atom.tag != QLatin1String("oMath") && atom.tag != QLatin1String("oMathPara")) continue;
+            QTextCharFormat nf = cf;
+            doc.equationPicture(atom, &nf);
+            if (nf != cf) fixes.push_back({f.position(), f.position() + f.length(), nf});
+        }
+    for (const Fix &x : std::as_const(fixes)) {
+        QTextCursor t(story);
+        t.setPosition(x.from);
+        t.setPosition(x.to, QTextCursor::KeepAnchor);
+        t.setCharFormat(x.format);
+    }
 }
 
 } // namespace jp::write

@@ -17,6 +17,13 @@ class QPainter;
 
 namespace jp {
 
+// What the paint of SVG pictures did on this thread since the cache was cleared: pictures parsed, and paints that used one already parsed (a test reads them).
+struct SvgCacheStats {
+    int parses = 0, hits = 0;
+};
+SvgCacheStats svgCacheStats();
+void clearSvgCache();
+
 struct RenderOptions {
     bool output = false;          // printing/exporting: no placeholders or screen-only marks
     TextOutput textOutput = TextOutput::Picture;   // what the text is drawn for (a PDF export, the printer, or a screen or picture)

@@ -1569,7 +1569,8 @@ private Q_SLOTS:
     void headerObjectsAndInlinePicturesAreOnTheirPages();
     void aParagraphOutOfLayoutHasNoLinesAndNoRoom();
     void anObjectWithNoNegativeBottomDistanceSitsOnTheBaselineAsBefore();
-    void anObjectWithANegativeBottomDistanceHangsBelowTheBaseline();
+    void anObjectWhoseRunHangsBelowTheBaselineHangsThere();
+    void aNegativeBottomDistanceInAnItemIsHeldAtNothing();
     void aStretchIsNotEndedByAParagraphWithNoLines();
     void aFrameIsSetAtTheParagraphAfterItAndTheTextGoesRoundIt();
     void aFramesHeightIsItsTextsOrWhatItAsks();

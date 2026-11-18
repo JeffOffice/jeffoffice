@@ -523,7 +523,7 @@ public:
         QVector<double> bars;                        // the places of a word processor's bar tab stops (tp::BarTabs), from the text area's edge in the layout's units
         QStringList alignTabs;                       // a word processor's absolute position tabs of the paragraph (tp::AlignTab of each), in order
         QVector<QPair<int, int>> noteRefs;           // a note reference's display position, and its index in notes()
-        struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; };
+        struct Box { int disp = 0; int docPos = 0; QString json; QSizeF size; QMarginsF pad; double hangBelow = 0; };
         QVector<Box> objects;                        // objects set in the text, by display position
         // A word processor's paragraph borders and shading (tp::Borders): the box, whether the paragraph is in one with the one before and after
         // (the same borders and indents), and the room its top and bottom lines take in the layout, and where its sides are (frame-local).

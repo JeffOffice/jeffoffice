@@ -1,3 +1,4 @@
+#include "core/equationops.h"
 #include "core/contentcontrolops.h"
 #include "core/fieldops.h"
 #include "core/editops.h"
@@ -1755,6 +1756,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
         c.setPosition(end);
     }
     *pastedTo = c.position();
+    refreshEquationPictures(doc, d, *pastedFrom, *pastedTo);   // (a copy from another document names that document's pictures)
     c.endEditBlock();
 }
 
@@ -2382,6 +2384,7 @@ void changeCharFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QT
         t.setCharFormat(e.format);
     }
     for (const auto &m : std::as_const(marks)) setMarkFormat(m.first, m.second);
+    if (!edits.isEmpty()) refreshEquationPictures(doc, d, from, to);   // (an equation's picture is the size and color its run has)
     if (!edits.isEmpty()) followAutoRedefine(doc, c);
     c.endEditBlock();
 }

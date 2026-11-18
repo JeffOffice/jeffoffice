@@ -892,21 +892,22 @@ void FlowTests::anObjectWithNoNegativeBottomDistanceSitsOnTheBaselineAsBefore()
     QVERIFY(qAbs((raised.bottom - raised.top) - (plain.bottom - plain.top + 4)) < 0.01);
 }
 
-// An object set in the text with a negative bottom distance hangs below the baseline by it, and its line has that room under the baseline (an equation's descent).
-void FlowTests::anObjectWithANegativeBottomDistanceHangsBelowTheBaseline()
+// An object set in the text whose run says it hangs below the baseline does, by that much, and its line has that room under the baseline (an equation's descent).
+void FlowTests::anObjectWhoseRunHangsBelowTheBaselineHangsThere()
 {
     struct Seen { QRectF object; double baseline = 0, top = 0, bottom = 0; };
-    auto lay = [](double height, double bottom) {
+    auto lay = [](double height, double hang) {
         auto story = makeStory(1, 5, {}, 3, 5);
         auto item = std::make_shared<PictureItem>();
         item->rect = QRectF(0, 0, 40, height);
         item->imageId = QStringLiteral("flow-img:0");
         item->wrap.left = item->wrap.right = item->wrap.top = 0;
-        item->wrap.bottom = bottom;
+        item->wrap.bottom = 0;
         QTextCursor c(story.get());
         c.setPosition(2);
         QTextCharFormat inl;
         inl.setFontPointSize(11);
+        inl.setProperty(tp::InlineHangBelow, hang);
         inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
         c.insertText(QString(QChar(0xFFFC)), inl);
         LayoutEnv env;
@@ -927,7 +928,7 @@ void FlowTests::anObjectWithANegativeBottomDistanceHangsBelowTheBaseline()
         return s;
     };
     // Below it: a 30 point object with 20 points under the baseline is 10 above it, and the line is that high with the 20 below.
-    const Seen low = lay(30, -20), control = lay(10, 0);
+    const Seen low = lay(30, 20), control = lay(10, 0);
     QVERIFY(low.object.height() > 0 && control.object.height() > 0);
     QCOMPARE(low.object.bottom(), low.baseline + 20);
     QCOMPARE(low.object.top(), control.object.top());
@@ -935,8 +936,52 @@ void FlowTests::anObjectWithANegativeBottomDistanceHangsBelowTheBaseline()
     QVERIFY(qAbs(low.bottom - (low.baseline + 20)) < 0.01);
     QVERIFY(low.bottom - low.top > control.bottom - control.top);
     // A distance that is not a number, or far out, is kept inside the limits.
-    const Seen far = lay(30, -1e9);
+    const Seen far = lay(30, 1e9);
     QCOMPARE(far.object.bottom(), far.baseline + 1000);
+}
+
+// A negative bottom distance in an object's own item (a file's, or Publisher's) is held at nothing, as it always was: the object and its line are as with a bottom distance of nothing.
+void FlowTests::aNegativeBottomDistanceInAnItemIsHeldAtNothing()
+{
+    struct Seen { QRectF object; double baseline = 0, top = 0, bottom = 0; };
+    auto lay = [](double bottom) {
+        auto story = makeStory(1, 5, {}, 3, 5);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 40, 30);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = 0;
+        item->wrap.bottom = bottom;
+        QTextCursor c(story.get());
+        c.setPosition(2);
+        QTextCharFormat inl;
+        inl.setFontPointSize(11);
+        inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+        c.insertText(QString(QChar(0xFFFC)), inl);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout l;
+        l.build(story.get(), {plainFrame(600, 600)}, env);
+        Seen s;
+        if (l.inlineObjects().size() != 1) return s;
+        s.object = l.inlineObjects().first().rect;
+        for (const auto &line : l.lineInfo(0))
+            if (line.rect.top() <= s.object.top() + 0.01 && line.rect.bottom() >= s.object.top() - 0.01) {
+                s.baseline = line.baseline;
+                s.top = line.rect.top();
+                s.bottom = line.rect.bottom();
+                break;
+            }
+        return s;
+    };
+    const Seen zero = lay(0);
+    QVERIFY(zero.object.height() > 0);
+    for (double bottom : {-20.0, -1e9}) {
+        const Seen s = lay(bottom);
+        QCOMPARE(s.object, zero.object);
+        QCOMPARE(s.baseline, zero.baseline);
+        QCOMPARE(s.top, zero.top);
+        QCOMPARE(s.bottom, zero.bottom);
+    }
 }
 
 

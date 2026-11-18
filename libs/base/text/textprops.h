@@ -70,6 +70,7 @@ enum : int {
     MergeField,                                  // bool: layout only, on a field of a mail merge (its result, or its mark): the ones Highlight Merge Fields shades
     BlankFieldResult,                            // bool: layout only, the run is the result of a field (a reference) that is nothing but blanks: it is shown, and takes no part in its line's height (LayoutEnv::wordLines)
     ContextualAlts,                              // int: 0 default, 1 on, 2 off (the font's contextual alternates, calt)
+    InlineHangBelow,                             // double: layout only, how far (points, 0 to 1000) the run's inline object hangs below its line's baseline (an equation's descent); only a program that sets such an object writes it
 
     // block
     StyleName = QTextFormat::UserProperty + 100, // QString paragraph style
