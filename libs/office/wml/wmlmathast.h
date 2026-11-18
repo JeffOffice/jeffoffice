@@ -16,6 +16,7 @@ namespace jp::office::wml::mathtree {
 // Limits for everything a parser, the reader, or the writer handles (the depth and the length of a typed equation are kMostEquationDepth and kMostEquationInput of wmlmathedit.h).
 constexpr int kMostMatrixCells = 1024;    // cells of one matrix
 constexpr int kMostMatrixSide = 64;       // rows, and columns
+constexpr int kMostCells = 16384;         // cells of all the matrices of one equation read (empty ones too)
 constexpr int kMostNodes = 4000;          // structures, runs, and operands of one equation, read or written
 constexpr qint64 kMostMarkupBytes = qint64(1) << 20;   // the markup made from a typed equation
 

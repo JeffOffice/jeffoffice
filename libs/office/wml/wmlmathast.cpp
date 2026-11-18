@@ -146,7 +146,7 @@ public:
 
 private:
     const XmlTree &m_t;
-    int m_nodes = 0;
+    int m_nodes = 0, m_cells = 0;
     void fail() { ok = false; }
     int kid(int node, const char *name) const
     {
@@ -234,7 +234,7 @@ private:
         } else if (name == "m") {
             n.kind = Kind::Matrix;
             n.operand = true;
-            int rows = 0;
+            int rows = 0, read = 0;
             std::vector<std::vector<Seq>> grid;
             for (int r = m_t.firstChild(c); r >= 0 && ok; r = m_t.next(r)) {
                 if (m_t.ns(r) == NsW || m_t.localName(r) != "mr") continue;
@@ -242,13 +242,15 @@ private:
                 std::vector<Seq> row;
                 for (int e = m_t.firstChild(r); e >= 0 && ok; e = m_t.next(e)) {
                     if (m_t.ns(e) == NsW || m_t.localName(e) != "e") continue;
-                    if (int(row.size()) >= kMostMatrixSide) return fail();
+                    if (int(row.size()) >= kMostMatrixSide || m_cells + ++read > kMostCells) return fail();
                     row.push_back(seqOf(e, d));
                 }
                 n.cols = std::max(n.cols, int(row.size()));
                 grid.push_back(std::move(row));
             }
             if (!ok || grid.empty() || n.cols == 0 || int(grid.size()) * n.cols > kMostMatrixCells) return fail();
+            m_cells += int(grid.size()) * n.cols;   // (the cells, as padded, of this matrix)
+            if (m_cells > kMostCells) return fail();
             for (auto &row : grid) {
                 row.resize(size_t(n.cols));
                 for (Seq &cell : row) n.part.push_back(std::move(cell));

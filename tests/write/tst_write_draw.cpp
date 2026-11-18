@@ -5713,6 +5713,46 @@ private Q_SLOTS:
         QVERIFY(!equationAt(*back, 7).isEmpty());
     }
 
+    // An equation another program made carries the look of its letters on every run (w:rPr): an edit keeps it on every run it rebuilds when the runs all agree, and is refused, with
+    // the markup left as it was, when they differ.
+    void anEquationFromAnotherProgramKeepsTheLookOfItsLettersWhenEditedOrIsRefused()
+    {
+        const QByteArray ns = "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\" xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+        const QByteArray look = "<w:rPr><w:rFonts w:ascii=\"Cambria Math\" w:hAnsi=\"Cambria Math\"/><w:b/></w:rPr>";
+        const QByteArray other = "<w:rPr><w:rFonts w:ascii=\"Cambria Math\" w:hAnsi=\"Cambria Math\"/></w:rPr>";
+        auto equation = [&](const QByteArray &first, const QByteArray &second) {
+            return "<m:oMath " + ns + "><m:r>" + first + "<m:t>y=</m:t></m:r><m:f><m:num><m:r>" + second + "<m:t>a</m:t></m:r></m:num><m:den><m:r>" + second + "<m:t>b</m:t></m:r></m:den></m:f></m:oMath>";
+        };
+        auto made = [&](const QByteArray &eq) { return open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r>" + eq + "</w:p>")); };
+        {
+            // Every run has the same look: the line is offered, and the edit's runs have it too.
+            auto doc = made(equation(look, look));
+            QVERIFY(doc);
+            QVERIFY(!equationAt(*doc, 7).isEmpty());
+            QVERIFY(replaceEquation(*doc, 7, QStringLiteral("y=a^2+b")));
+            const QByteArray saved = documentXml(doc->toDocx());
+            office::wml::XmlTree tree;
+            QVERIFY(tree.parse(saved));
+            QVERIFY(saved.contains("<m:sSup>"));
+            const int runs = saved.count("<m:r>"), looks = saved.count("<w:b/>");
+            QVERIFY2(runs >= 4 && looks == runs, qPrintable(QString::number(runs) + " runs, " + QString::number(looks) + " with the look"));
+            QCOMPARE(int(saved.count("Cambria Math\" w:hAnsi=\"Cambria Math")), runs);
+            // ... and again, from the file saved.
+            auto back = open(doc->toDocx());
+            QVERIFY(back && !equationAt(*back, 7).isEmpty());
+            QVERIFY(replaceEquation(*back, 7, QStringLiteral("z")));
+            QCOMPARE(int(documentXml(back->toDocx()).count("<w:b/>")), 1);
+        }
+        for (const QByteArray &eq : {equation(look, QByteArray()), equation(look, other)}) {
+            // Runs that differ in look (or only some have one) are not rebuilt: no line, no edit, the markup as it was.
+            auto doc = made(eq);
+            QVERIFY(doc);
+            QVERIFY(equationAt(*doc, 7).isEmpty());
+            QVERIFY(!replaceEquation(*doc, 7, QStringLiteral("y=a^2+b")));
+            QVERIFY(documentXml(doc->toDocx()).contains(eq));
+        }
+    }
+
     void anEquationIsPutInAsOneStepIsShownAsItsLineAndSavedAsMathMarkup()
     {
         auto doc = textDoc({"Before after"});

@@ -17,10 +17,13 @@ namespace jp {
 bool askEquation(QWidget *parent, const QString &title, QString *linear);
 
 // The same dialog for a program that keeps the equation's markup (not only the line it was typed as). The dialog also lets the equation be typed in UnicodeMath or LaTeX (the
-// choice "equationSyntax", the line stays the first) and shows it as built up (Professional) or only as typed (Linear), the choice "equationForm". `linear` (if given) is the
+// choice "equationSyntax", the line stays the first) and shows it as built up (Professional) or only as typed (Linear), the choices "equationProfessional" and "equationLinear". `linear` (if given) is the
 // equation as a line of our own syntax, or empty when it has none (a function, say); `markup` is always the equation's markup. With `markup` null (askEquation), an equation that
 // has no line of our own syntax can't be accepted.
-bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markup);
+// `markup` is also the markup the equation had when it is edited (empty for a new one; a stored line that no longer reads as it did is shown in the line that does, see
+// equationLineForEditing). `form` (if given) is the form the dialog starts in and the one chosen.
+enum class EquationForm { Professional, Linear };
+bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markup, EquationForm *form = nullptr);
 
 // An equation typed as `linear`, drawn with letters `emSize` points tall in `color` on a transparent ground (a null image for a line that makes no equation).
 QImage equationPicture(const QString &linear, double emSize, const QColor &color, double pixelRatio = 1.0);

@@ -235,7 +235,10 @@ private:
             const uint c = cpAt(m_i, &len);
             m_i += len;
             switch (c) {
-            case '\\': case ' ': case ',': case ';': case ':': return run(QStringLiteral(" "));
+            case '\\':   // (a line break: only a matrix has rows, and an equation does not break; not a space)
+                fail();
+                return run(QString());
+            case ' ': case ',': case ';': case ':': return run(QStringLiteral(" "));
             case '!': return run(QString());
             case '|': return run(QString(QChar(0x2016)));
             default: return run(str(c), 0, isOperandCp(c));

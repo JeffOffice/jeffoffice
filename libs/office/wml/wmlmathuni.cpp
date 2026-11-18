@@ -162,7 +162,7 @@ private:
             if (c != QLatin1Char('^') && c != QLatin1Char('_')) break;
             ++m_i;
             blanks();
-            Seq operand = scriptOperand(c, stops, depth);
+            Seq operand = scriptOperand(c, stops, depth + 1);   // (an operator or a function name in the operand nests one deeper)
             Seq &slot = c == QLatin1Char('^') ? sup : sub;
             bool &has = c == QLatin1Char('^') ? hasSup : hasSub;
             if (has) {

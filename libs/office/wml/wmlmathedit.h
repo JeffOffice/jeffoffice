@@ -28,6 +28,10 @@ const QVector<EquationDesign> &equationGallery();
 // typing a new equation, never half undone).
 QString equationLinear(const QByteArray &markup);
 
+// The line to show when an equation kept with its markup is edited. A line stored before Normal Text was read with a pair of quotes meant those quotes themselves; if the markup stored
+// with `line` is not what the line makes now, the line is the markup's own (which writes such quotes so that they read back as they were).
+QString equationLineForEditing(const QString &line, const QByteArray &markup);
+
 // Equations typed as text in the two syntaxes people know, and the text for any math markup (not only markup a typed line made), as wmlmathuni.h and wmlmathlatex.h say. The
 // functions that read return the markup (an m:oMath element), or an empty array, with `ok` (if given) false, for text that is empty, past kMostEquationInput characters, nested past
 // kMostEquationDepth, or past the limits of one equation (4,000 pieces, 1,024 cells in a matrix); the functions that print return an empty string for markup that holds

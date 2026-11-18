@@ -69,7 +69,7 @@ QImage equationPicture(const QString &linear, double emSize, const QColor &color
 
 bool askEquation(QWidget *parent, const QString &title, QString *linear) { return askEquationMarkup(parent, title, linear, nullptr); }
 
-bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markupOut)
+bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, QByteArray *markupOut, EquationForm *formOut)
 {
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("equationDialog"));
@@ -94,7 +94,9 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
     professional->setObjectName(QStringLiteral("equationProfessional"));
     auto *linearForm = new QRadioButton(QCoreApplication::translate("EquationDialog", "Linear"), &dlg);
     linearForm->setObjectName(QStringLiteral("equationLinear"));
-    professional->setChecked(true);
+    const bool startLinear = formOut && *formOut == EquationForm::Linear;
+    professional->setChecked(!startLinear);
+    linearForm->setChecked(startLinear);
     auto *form = new QButtonGroup(&dlg);
     form->addButton(professional);
     form->addButton(linearForm);
@@ -115,7 +117,7 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
     designs->addItem(QCoreApplication::translate("EquationDialog", "Built-In Equations"), QString());
     for (const office::wml::EquationDesign &d : office::wml::equationGallery()) designs->addItem(d.name, d.linear);
     layout->addWidget(designs);
-    auto *input = new QLineEdit(linear ? *linear : QString(), &dlg);
+    auto *input = new QLineEdit(linear ? (markupOut ? office::wml::equationLineForEditing(*linear, *markupOut) : *linear) : QString(), &dlg);
     input->setObjectName(QStringLiteral("equationInput"));
     input->setMinimumWidth(420);
     layout->addWidget(input);
@@ -154,6 +156,8 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
         current = markupOf(shown, input->text());
         const bool ok = !current.isEmpty();
         currentLine = ok ? (shown == LineSyntax ? input->text() : office::wml::equationLinear(current)) : QString();
+        // (A line is kept only when it makes this very equation again: \limits, for one, is something a line can't say.)
+        if (ok && shown != LineSyntax && office::wml::equationMarkup(currentLine) != current) currentLine.clear();
         const bool keepable = ok && (!needsLine || !currentLine.isEmpty());
         preview->setText(ok ? office::wml::equationLine(current) : QString());
         if (ok && !keepable) preview->setText(QCoreApplication::translate("EquationDialog", "This equation can't be put in here yet."));
@@ -164,6 +168,7 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
     };
     QObject::connect(input, &QLineEdit::textChanged, &dlg, update);
     QObject::connect(linearForm, &QRadioButton::toggled, &dlg, [drawn](bool on) { drawn->setVisible(!on); });
+    drawn->setVisible(!startLinear);
     // Another typing format: what is typed is written again in it (kept as it is, and the choice undone, when it can't be).
     QObject::connect(syntax, &QComboBox::activated, &dlg, [&](int i) {
         const int to = syntax->itemData(i).toInt();
@@ -186,6 +191,12 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
         const QString line = designs->itemData(i).toString();
         if (!line.isEmpty()) {
             const QString text = shown == LineSyntax ? line : textOf(shown, office::wml::equationMarkup(line));
+            if (text.isEmpty()) {
+                // (The built-in equation can't be printed in this format: it is typed in the line, which says it.)
+                shown = LineSyntax;
+                syntax->setCurrentIndex(syntax->findData(int(LineSyntax)));
+                setHints();
+            }
             input->setText(text.isEmpty() ? line : text);
         }
         input->setFocus();
@@ -195,6 +206,7 @@ bool askEquationMarkup(QWidget *parent, const QString &title, QString *linear, Q
     if (dlg.exec() != QDialog::Accepted) return false;
     if (linear) *linear = currentLine;
     if (markupOut) *markupOut = current;
+    if (formOut) *formOut = linearForm->isChecked() ? EquationForm::Linear : EquationForm::Professional;
     return true;
 }
 

@@ -375,13 +375,23 @@ private:
         return Item{"<m:nary>" + props + "<m:sub>" + sub + "</m:sub><m:sup>" + sup + "</m:sup><m:e>" + e + "</m:e></m:nary>", QByteArray(), true};
     }
 
+    // Whether a quote at the caret has another (not written with a backslash) after it: a lone one is a quote mark, as it was before Normal Text (5" long).
+    bool quoteCloses() const
+    {
+        for (qsizetype i = m_at + 1; i < m_text.size(); ++i) {
+            if (m_text[i] == QLatin1Char('\\')) ++i;
+            else if (m_text[i] == QLatin1Char('"')) return true;
+        }
+        return false;
+    }
+
     Item primary(int depth)
     {
         if (!more()) return Item{};
         const QChar ch = peek();
         if (ch == QLatin1Char('(')) return group(QLatin1Char(')'), true, depth);
         if (ch == QLatin1Char('{')) return group(QLatin1Char('}'), false, depth);
-        if (ch == QLatin1Char('"')) {
+        if (ch == QLatin1Char('"') && quoteCloses()) {
             // Normal Text: the words in quotes, set upright as they are typed (a backslash and a character in them is that character).
             ++m_at;
             QString words;
@@ -506,6 +516,14 @@ QByteArray equationMarkup(const QString &linear, bool *ok)
     return QByteArray("<m:oMath ") + kMathNs + ">" + body + "</m:oMath>";
 }
 
+QString equationLineForEditing(const QString &line, const QByteArray &markup)
+{
+    if (markup.isEmpty() || !line.contains(QLatin1Char('"'))) return line;
+    if (equationMarkup(line) == markup) return line;
+    const QString own = equationLinear(markup);
+    return own.isEmpty() ? line : own;
+}
+
 QString equationLine(const QByteArray &markup)
 {
     XmlTree t;
@@ -544,6 +562,7 @@ public:
     QString of(int node, int depth)
     {
         QString out;
+        if (node < 0) return out;   // (no such part: a root with no degree)
         for (int c = m_t.firstChild(node); c >= 0; c = m_t.next(c)) out += one(c, depth + 1);
         return out;
     }

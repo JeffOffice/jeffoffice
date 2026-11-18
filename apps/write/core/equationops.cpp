@@ -34,33 +34,54 @@ bool equationAtomAt(const QTextDocument *story, int position, Inline *atom)
     return false;
 }
 
-} // namespace
-
-QString equationAt(const WriteDoc &doc, int position)
+// The w:rPr every run of an equation made elsewhere carries (the face and weight of its letters): true with `props` set (empty when no run has one) when all the runs agree, false
+// when they differ or only some have one, as an edit that rebuilds the runs could not keep them apart.
+bool commonRunProps(const QByteArray &raw, QByteArray *props)
 {
-    Inline atom;
-    if (!equationAtomAt(doc.story(), position, &atom)) return QString();
-    return equationLinear(atom.raw);
+    props->clear();
+    XmlTree t;
+    if (!t.parse("<x>" + raw + "</x>", nullptr)) return false;
+    const int root = t.firstChild(t.root());
+    if (root < 0) return false;
+    int runs = 0, withProps = 0;
+    QByteArray first;
+    bool same = true;
+    QVector<int> todo{root};
+    while (!todo.isEmpty()) {
+        const int n = todo.takeLast();
+        for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
+            if (t.ns(c) == NsW) continue;
+            if (t.localName(c) != "r") {
+                todo << c;
+                continue;
+            }
+            ++runs;
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                if (t.ns(k) != NsW || t.localName(k) != "rPr") continue;
+                const QByteArray one = t.raw(k);
+                if (!withProps++) first = one;
+                else if (one != first) same = false;
+                break;
+            }
+        }
+    }
+    if (withProps == 0) return true;
+    if (!same || withProps != runs) return false;
+    *props = first;
+    return true;
 }
 
-bool replaceEquation(WriteDoc &doc, int position, const QString &linear)
+// The markup with `props` (a w:rPr) put in every run, after its m:rPr if it has one and before its text.
+QByteArray withRunProps(QByteArray markup, const QByteArray &props)
 {
-    Inline atom;
-    if (!equationAtomAt(doc.story(), position, &atom) || isLocked(doc.story()->findBlock(position))) return false;
-    bool ok = false;
-    const QByteArray markup = equationMarkup(linear, &ok);
-    if (!ok || markup == atom.raw) return false;
-    QTextCursor c(doc.story());
-    c.setPosition(position);
-    c.setPosition(position + 1, QTextCursor::KeepAnchor);
-    return insertEquation(doc, c, linear);
+    if (props.isEmpty()) return markup;
+    markup.replace("</m:rPr><m:t", "</m:rPr>" + props + "<m:t");
+    markup.replace("<m:r><m:t", "<m:r>" + props + "<m:t");
+    return markup;
 }
 
-bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)
+bool insertMarkup(WriteDoc &doc, QTextCursor &c, const QByteArray &markup)
 {
-    bool ok = false;
-    const QByteArray markup = equationMarkup(linear, &ok);
-    if (!ok) return false;
     XmlTree t;
     if (!t.parse("<x>" + markup + "</x>", nullptr)) return false;
     const int n = t.firstChild(t.root());
@@ -93,6 +114,40 @@ bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)
     }
     outer.endEditBlock();
     return put;
+}
+
+} // namespace
+
+QString equationAt(const WriteDoc &doc, int position)
+{
+    Inline atom;
+    QByteArray props;
+    if (!equationAtomAt(doc.story(), position, &atom) || !commonRunProps(atom.raw, &props)) return QString();   // (runs that differ in look can't be rebuilt)
+    return equationLinear(atom.raw);
+}
+
+bool replaceEquation(WriteDoc &doc, int position, const QString &linear)
+{
+    Inline atom;
+    if (!equationAtomAt(doc.story(), position, &atom) || isLocked(doc.story()->findBlock(position))) return false;
+    QByteArray props;
+    if (!commonRunProps(atom.raw, &props)) return false;
+    bool ok = false;
+    const QByteArray markup = withRunProps(equationMarkup(linear, &ok), props);
+    if (!ok || markup == atom.raw) return false;
+    if (!props.isEmpty() && markup.count(props) != markup.count("<m:r>")) return false;
+    QTextCursor c(doc.story());
+    c.setPosition(position);
+    c.setPosition(position + 1, QTextCursor::KeepAnchor);
+    return insertMarkup(doc, c, markup);
+}
+
+bool insertEquation(WriteDoc &doc, QTextCursor &c, const QString &linear)
+{
+    bool ok = false;
+    const QByteArray markup = equationMarkup(linear, &ok);
+    if (!ok) return false;
+    return insertMarkup(doc, c, markup);
 }
 
 } // namespace jp::write
