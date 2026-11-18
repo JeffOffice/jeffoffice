@@ -21,6 +21,7 @@
 #include "app/iconpicker.h"
 #include "core/barcode.h"
 #include "core/svg.h"
+#include "core/connsites.h"
 #include <QScrollBar>
 #include <QSvgRenderer>
 #include "app/onlinepictures.h"
@@ -3766,11 +3767,115 @@ private Q_SLOTS:
             *r = QRectF(400, 400, 40, 40);
             return true;
         });
-        QCOMPARE(count, 2);
+        // (The second connector names a site the triangle does not have: it stays where the file put it.)
+        QCOMPARE(count, 1);
         // The triangle's site 5 is the middle of its right slope: (175, 150); the rectangle's top is (420, 400).
         const PictureInfo a = pictureAt(*doc, doc->story(), 2);
         QVERIFY(std::abs(a.left - 175) < 0.01 && std::abs(a.top - 150) < 0.01 && std::abs(a.width - (420 - 175)) < 0.01 && std::abs(a.height - (400 - 150)) < 0.01);
         QVERIFY(isConnectorGlued(*doc, 2) && isConnectorGlued(*doc, 3));
+    }
+
+    void everyPresetHasTheStandardsSiteCountAndItsSitesLieInTheBox()
+    {
+        const QHash<QString, int> counts = {{"rect", 4}, {"roundRect", 4}, {"diamond", 4}, {"ellipse", 8}, {"triangle", 6}, {"rtTriangle", 6}, {"trapezoid", 4}, {"hexagon", 6}, {"octagon", 8},
+                                            {"pentagon", 5}, {"heptagon", 7}, {"decagon", 10}, {"dodecagon", 12}, {"star5", 10}, {"star4", 4}, {"rightArrow", 4}, {"upArrow", 4},
+                                            {"flowChartConnector", 8}, {"flowChartProcess", 4}, {"donut", 8}, {"cloud", 4}, {"noSuchShape", 4}};
+        for (auto it = counts.constBegin(); it != counts.constEnd(); ++it)
+            for (const QSizeF size : {QSizeF(100, 100), QSizeF(300, 40), QSizeF(30, 200)}) {
+                const QVector<jp::ConnectionSite> sites = jp::connectionSites(it.key(), size);
+                QVERIFY2(sites.size() == it.value(), qPrintable(it.key() + ": " + QString::number(sites.size())));
+                for (const jp::ConnectionSite &site : sites)
+                    QVERIFY2(site.at.x() >= -1e-6 && site.at.x() <= size.width() + 1e-6 && site.at.y() >= -1e-6 && site.at.y() <= size.height() + 1e-6, qPrintable(it.key()));
+            }
+        // The ellipse's order: top, then counterclockwise; a shape with no list of its own has the four sides.
+        const QVector<jp::ConnectionSite> e = jp::connectionSites(QStringLiteral("ellipse"), QSizeF(100, 60));
+        QVERIFY(std::abs(e[0].at.x() - 50) < 1e-6 && std::abs(e[0].at.y()) < 1e-6);
+        QVERIFY(std::abs(e[2].at.x()) < 1e-6 && std::abs(e[2].at.y() - 30) < 1e-6);
+        QVERIFY(e[3].at.x() > 0 && e[3].at.x() < 50 && e[3].at.y() > 30 && e[3].at.y() < 60);
+        QVERIFY(!jp::hasConnectionSites(QStringLiteral("cloud")));
+        QCOMPARE(jp::connectionSites(QStringLiteral("cloud"), QSizeF(100, 60))[3].at, QPointF(100, 30));
+    }
+
+    void aConnectorGluedToANonSideSiteFollowsItsShapeAndAnIndexPastTheCountStaysPut()
+    {
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 100, "ellipse"), 100, 100, 100, 100) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 400, 400, 40, 40) +
+                                 anchoredGraphic(5, kShapeUri, plainShape(100, 100, "octagon"), 100, 600, 100, 100) + gluedConnector(3, 1, 3, 2, 0) + gluedConnector(4, 5, 5, 2, 0) +
+                                 gluedConnector(6, 1, 99, 2, 0) + "</w:p>"));
+        QVERIFY(doc);
+        const PictureInfo stayed = pictureAt(*doc, doc->story(), 4);
+        const int count = rerouteConnectors(*doc, {{0, QRectF(100, 100, 100, 100)}, {2, QRectF(100, 600, 100, 100)}}, [](int, QRectF *r) {
+            *r = QRectF(400, 400, 40, 40);
+            return true;
+        });
+        // (The connector with an index of 99 is left as the file had it.)
+        QCOMPARE(count, 2);
+        // An ellipse's fourth site is its bottom left, (150 - 35.355, 150 + 35.355); the rectangle's top is (420, 400).
+        const double r = 50 * std::cos(M_PI / 4);
+        const PictureInfo a = pictureAt(*doc, doc->story(), 3);
+        QVERIFY2(std::abs(a.left - (150 - r)) < 0.01 && std::abs(a.top - (150 + r)) < 0.01 && std::abs(a.width - (420 - (150 - r))) < 0.01 && std::abs(a.height - (400 - (150 + r))) < 0.01,
+                 qPrintable(QString("%1 %2 %3 %4").arg(a.left).arg(a.top).arg(a.width).arg(a.height)));
+        // An octagon's sixth site is on its left side, where the corner ends: (100, 629.289); the frame runs from there up to the rectangle's top.
+        const PictureInfo b = pictureAt(*doc, doc->story(), 4);
+        QVERIFY2(std::abs(b.left - 100) < 0.01 && std::abs(b.top - 400) < 0.01 && std::abs(b.height - 229.289) < 0.01, qPrintable(QString("%1 %2 %3").arg(b.left).arg(b.top).arg(b.height)));
+        const PictureInfo c = pictureAt(*doc, doc->story(), 5);
+        QVERIFY(std::abs(c.left - stayed.left) < 1e-9 && std::abs(c.top - stayed.top) < 1e-9 && std::abs(c.width - stayed.width) < 1e-9);
+        // The file keeps what each connector is glued to, and saved and opened again the places hold.
+        const QByteArray x = documentXml(doc->toDocx());
+        QVERIFY(x.contains("<a:stCxn id=\"1\" idx=\"3\"/>") && x.contains("<a:stCxn id=\"5\" idx=\"5\"/>") && x.contains("<a:stCxn id=\"1\" idx=\"99\"/>") && x.contains("<a:endCxn id=\"2\" idx=\"0\"/>"));
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QVERIFY(isConnectorGlued(*back, 3) && isConnectorGlued(*back, 4));
+        const PictureInfo again = pictureAt(*back, back->story(), 3);
+        QVERIFY(std::abs(again.left - a.left) < 0.01 && std::abs(again.top - a.top) < 0.01);
+    }
+
+    // A file to look at: an ellipse and a star with connectors glued to sites that are not on a side (JW_SHOT_DIR names the folder; nothing is made without it).
+    void shotOfConnectorsOnRealSites()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        const auto connector = [](int id, int startId, int startSite, int endId, int endSite) {
+            return anchoredGraphic(id, kShapeUri, plainShape(100, 10, "straightConnector1", QByteArray(), "<wps:cNvCnPr><a:stCxn id=\"" + QByteArray::number(startId) + "\" idx=\"" + QByteArray::number(startSite) +
+                                                              "\"/><a:endCxn id=\"" + QByteArray::number(endId) + "\" idx=\"" + QByteArray::number(endSite) + "\"/></wps:cNvCnPr>",
+                                                              "<a:ln w=\"25400\"><a:solidFill><a:srgbClr val=\"C00000\"/></a:solidFill></a:ln>"),
+                                   300, 300, 100, 10);
+        };
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(120, 120, "ellipse"), 60, 20, 120, 120) + anchoredGraphic(2, kShapeUri, plainShape(120, 120, "star5"), 60, 200, 120, 120) +
+                                 anchoredGraphic(3, kShapeUri, plainShape(60, 40, "rect"), 300, 20, 60, 40) + anchoredGraphic(4, kShapeUri, plainShape(60, 40, "rect"), 300, 240, 60, 40) +
+                                 connector(5, 1, 3, 3, 1) + connector(6, 1, 5, 4, 1) + connector(7, 2, 3, 3, 0) + connector(8, 2, 7, 4, 3) + "</w:p>"));
+        QVERIFY(doc);
+        QVERIFY(rerouteConnectors(*doc, {{0, QRectF(60, 20, 120, 120)}, {1, QRectF(60, 200, 120, 120)}}, [](int p, QRectF *r) {
+            *r = p == 2 ? QRectF(300, 20, 60, 40) : QRectF(300, 240, 60, 40);
+            return true;
+        }) > 0);
+        WriteWindow w;
+        w.resize(1000, 1000);
+        w.show();
+        jp::applyUiTheme(1);
+        w.setDocument(std::move(doc), QString());
+        w.view()->refresh();
+        QVERIFY(w.grab().save(dir + QStringLiteral("/connsites.png")));
+    }
+
+    void connectPicksTheNearestRealSites()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor a(doc->story());
+        a.setPosition(0);
+        QCOMPARE(insertShape(*doc, a, QStringLiteral("octagon"), QSizeF(100, 100)), PictureResult::Ok);
+        QTextCursor b(doc->story());
+        b.setPosition(1);
+        QCOMPARE(insertShape(*doc, b, QStringLiteral("ellipse"), QSizeF(100, 100)), PictureResult::Ok);
+        int made = -1;
+        // The ellipse is below and to the right of the octagon: the nearest pair is the octagon's lower right corner and the ellipse's top left.
+        QCOMPARE(connectObjects(*doc, 0, QRectF(100, 100, 100, 100), 1, QRectF(260, 260, 100, 100), QStringLiteral("straightConnector1"), &made), PictureResult::Ok);
+        const QByteArray x = documentXml(doc->toDocx());
+        QRegularExpression ends(QStringLiteral("<a:stCxn id=\"[0-9]+\" idx=\"([0-9]+)\"/><a:endCxn id=\"[0-9]+\" idx=\"([0-9]+)\"/>"));
+        const auto m = ends.match(QString::fromUtf8(x));
+        QVERIFY(m.hasMatch());
+        // The octagon's second site is (r, 100 - 29.289): its right side; its third is (71, b); either faces the ellipse; the ellipse's second site is its upper left.
+        QVERIFY2(m.captured(1) == QLatin1String("1") || m.captured(1) == QLatin1String("2"), qPrintable(m.captured(1)));
+        QCOMPARE(m.captured(2), QStringLiteral("1"));
     }
 
     void aConnectorIsGluedToTheOutlineOfAShapeNotToItsBoundingBox()
@@ -3785,8 +3890,8 @@ private Q_SLOTS:
         int made = -1;
         QCOMPARE(connectObjects(*doc, 0, QRectF(100, 100, 100, 100), 1, QRectF(400, 100, 40, 40), QStringLiteral("straightConnector1"), &made), PictureResult::Ok);
         const PictureInfo info = pictureAt(*doc, doc->story(), made);
-        // A five-pointed star is narrower at the middle of its height than its box is, so the connector leaves its outline, inside the box.
-        QVERIFY2(info.width > 203 && info.width < 280, qPrintable(QString::number(info.width)));
+        // A five-pointed star has its sites on its outline (an outer point reaches the box's right edge), inside the box.
+        QVERIFY2(info.width >= 199.99 && info.width < 280, qPrintable(QString::number(info.width)));
         QVERIFY(isConnectorGlued(*doc, made));
         // A rectangle still has its sides' middles.
         QTextCursor c(doc->story());

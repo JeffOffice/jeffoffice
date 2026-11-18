@@ -4,6 +4,7 @@
 
 #include "office/drawingml.h"
 #include "core/items.h"
+#include "core/connsites.h"
 #include "office/package.h"
 
 #include "core/barcodeitem.h"
@@ -244,23 +245,16 @@ Fill shaded(const Fill &fill, GeometryPath::Fill mode)
 
 // Which of an object's connection points a connector's index (in the order
 // the standard lists them for the shape) is, in the object's own order (top,
-// left, bottom, right); -1 for a shape whose points aren't known here.
+// left, bottom, right); -1 for a shape whose points aren't known here, and
+// for a point that is on no side (the drawing keeps only the four sides).
 int connectionSiteOf(const Item &target, qint64 index)
 {
-    static const QStringList fourPoints = {QStringLiteral("rect"), QStringLiteral("roundRect"), QStringLiteral("snip1"), QStringLiteral("snip2same"),
-        QStringLiteral("snip2diag"), QStringLiteral("snipRound"), QStringLiteral("round1"), QStringLiteral("round2same"), QStringLiteral("round2diag"),
-        QStringLiteral("diamond"), QStringLiteral("fcProcess"), QStringLiteral("fcAltProcess"), QStringLiteral("fcDecision"), QStringLiteral("fcPredefined"),
-        QStringLiteral("fcInternalStorage")};
-    static const QStringList eightPoints = {QStringLiteral("ellipse"), QStringLiteral("fcConnector"), QStringLiteral("fcSummingJunction"), QStringLiteral("fcOr")};
-    bool four = target.type() == ItemType::Text || target.type() == ItemType::Picture;
-    bool eight = false;
-    if (target.type() == ItemType::Shape) {
-        const auto &s = static_cast<const ShapeItem &>(target);
-        four = fourPoints.contains(s.shape) && s.customPath.isEmpty();
-        eight = eightPoints.contains(s.shape) && s.customPath.isEmpty();
-    }
-    if (four) return index >= 0 && index < 4 ? int(index) : -1;
-    if (eight) return index >= 0 && index < 8 && index % 2 == 0 ? int(index / 2) : -1;
+    if (target.type() == ItemType::Text || target.type() == ItemType::Picture) return index >= 0 && index < 4 ? int(index) : -1;
+    if (target.type() != ItemType::Shape) return -1;
+    const auto &s = static_cast<const ShapeItem &>(target);
+    if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return -1;
+    for (int side = 0; side < 4; ++side)
+        if (index >= 0 && sideConnectionSite(s.shape, s.rect.size(), s.adj, side) == index) return side;
     return -1;
 }
 

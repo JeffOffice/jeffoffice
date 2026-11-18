@@ -1260,6 +1260,37 @@ private Q_SLOTS:
         QCOMPARE(static_cast<PictureItem *>(grouped->children[1].get())->imageId, static_cast<PictureItem *>(page.items[placeholders + 4].get())->imageId);
     }
 
+    // A connector glued to a triangle's left side and an ellipse's left is written with the standard's numbers for those sites (the triangle's second, the ellipse's third), with its ends
+    // on the sites the table gives.
+    void aGluedConnectorKeepsTheStandardsSiteNumbers()
+    {
+        auto d = deck::newPresentation();
+        const int at = deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("titleOnly")));
+        Page &slide = *d->pages[at];
+        auto triangle = std::make_shared<ShapeItem>(), circle = std::make_shared<ShapeItem>();
+        triangle->rect = QRectF(50, 150, 100, 100);
+        triangle->shape = QStringLiteral("triangle");
+        circle->rect = QRectF(350, 300, 80, 80);
+        circle->shape = QStringLiteral("ellipse");
+        auto line = std::make_shared<LineItem>();
+        line->start = LineItem::Glue{triangle->id, 1};
+        line->end = LineItem::Glue{circle->id, 1};
+        slide.items.push_back(triangle);
+        slide.items.push_back(circle);
+        slide.items.push_back(line);
+        d->routeConnectors();
+        // The triangle's left site is the middle of its slope, (25, 50) in its box; the ellipse's is the middle of its left side.
+        QVERIFY(std::abs(line->p1.x() - 75) < 1e-6 && std::abs(line->p1.y() - 200) < 1e-6);
+        QVERIFY(std::abs(line->p2.x() - 350) < 1e-6 && std::abs(line->p2.y() - 340) < 1e-6);
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        Exported e;
+        QVERIFY2(unpack(bytes, &e, &err), qPrintable(err));
+        const QString xml = part(e, QStringLiteral("/ppt/slides/slide%1.xml").arg(at + 1));
+        QVERIFY2(xml.contains(QRegularExpression(QStringLiteral("<a:stCxn id=\"[0-9]+\" idx=\"1\"/><a:endCxn id=\"[0-9]+\" idx=\"2\"/>"))), qPrintable(xml.mid(xml.indexOf(QStringLiteral("cNvCxnSpPr")), 200)));
+    }
+
     // Slide masters beyond the first keep their own themes, and every master and
     // layout has an id of its own.
     void exportWritesEachMastersTheme()

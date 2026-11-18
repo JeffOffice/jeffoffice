@@ -826,6 +826,26 @@ private Q_SLOTS:
         QCOMPARE(dmlAs<LineItem>(list[0])->start.id, dmlAs<GroupItem>(list[1])->children[0]->id);
     }
 
+    void dmlConnectorsToAShapeWithSitesOfItsOwnFindTheSideSite()
+    {
+        DmlEnv env;
+        const QString shapes = dmlSp(dmlXfrm(10, 10, 100, 100) + QStringLiteral("<a:prstGeom prst=\"triangle\"/>"), QString(), QString(), QString(), QString(), QString(), QStringLiteral("3"));
+        const auto joined = [&](const QString &ends) {
+            const ItemList list = dmlTree(env, shapes + dmlCxn(dmlXfrm(60, 35, 140, 0) + QStringLiteral("<a:prstGeom prst=\"straightConnector1\"/>"), ends));
+            return dmlAs<LineItem>(list.back());
+        };
+        // The triangle's sites: the apex, the middle of the left slope, its three foot points, and the middle of the right slope.
+        auto l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"1\"/><a:endCxn id=\"3\" idx=\"5\"/>"));
+        QCOMPARE(l->start.site, 1);
+        QCOMPARE(l->end.site, 3);
+        l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"3\"/><a:endCxn id=\"3\" idx=\"0\"/>"));
+        QCOMPARE(l->start.site, 2);
+        QCOMPARE(l->end.site, 0);
+        // The foot's corner is on no side; and six is past the list.
+        l = joined(QStringLiteral("<a:stCxn id=\"3\" idx=\"2\"/><a:endCxn id=\"3\" idx=\"6\"/>"));
+        QVERIFY(l->start.id.isEmpty() && l->end.id.isEmpty());
+    }
+
     void dmlHyperlinksAreTheirExternalTargets()
     {
         DmlEnv env;

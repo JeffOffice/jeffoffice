@@ -7,6 +7,7 @@
 #include "core/boxlinks.h"
 #include "core/drawnitems.h"
 #include "core/barcodeitem.h"
+#include "core/connsites.h"
 #include "app/iconpicker.h"
 #include "core/editops.h"
 #include "core/textboxops.h"
@@ -3568,23 +3569,15 @@ bool partsOfGroup(const Model &g, QVector<GroupPart> *out)
 
 namespace {
 
-// The connection sites of a shape in the order the drawing format counts them: for an ellipse eight, from the top and counterclockwise; for any other shape (as a rectangle has them) four,
-// the top, the left, the bottom, and the right.
+// The connection sites of a shape in the order the drawing format counts them (libs/draw/core/connsites.h); a shape that has no list there has the four sides' middles, top, left,
+// bottom, and right.
 QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
 {
     const QPointF c = r.center();
-    if (preset == QLatin1String("ellipse")) {
-        const double dx = r.width() / 2 * std::cos(M_PI / 4), dy = r.height() / 2 * std::sin(M_PI / 4);
-        return {QPointF(c.x(), r.top()), QPointF(c.x() - dx, c.y() - dy), QPointF(r.left(), c.y()), QPointF(c.x() - dx, c.y() + dy),
-                QPointF(c.x(), r.bottom()), QPointF(c.x() + dx, c.y() + dy), QPointF(r.right(), c.y()), QPointF(c.x() + dx, c.y() - dy)};
-    }
-    // (The triangle: the apex, the middle of each slanted side, and the foot's corners and middle.)
-    if (preset == QLatin1String("triangle"))
-        return {QPointF(c.x(), r.top()), QPointF(r.left() + r.width() / 4, c.y()), QPointF(r.left(), r.bottom()), QPointF(c.x(), r.bottom()), QPointF(r.right(), r.bottom()), QPointF(r.right() - r.width() / 4, c.y())};
-    // (The hexagon: its six corners as it has them with its usual proportions.)
-    if (preset == QLatin1String("hexagon")) {
-        const double x1 = r.left() + r.width() * 0.25, x2 = r.right() - r.width() * 0.25;
-        return {QPointF(r.right(), c.y()), QPointF(x2, r.bottom()), QPointF(x1, r.bottom()), QPointF(r.left(), c.y()), QPointF(x1, r.top()), QPointF(x2, r.top())};
+    if (hasConnectionSites(preset)) {
+        QVector<QPointF> out;
+        for (const ConnectionSite &s : jp::connectionSites(preset, r.size())) out.push_back(r.topLeft() + s.at);
+        return out;
     }
     // (Any other shape of the library: where a line from the middle meets its outline going up, left, down, and right, which for a rectangle, a diamond, and the arrows is the middle of
     // the side, and for a star, a heart, a cloud, or a callout is on the shape itself and not on the box round it.)
@@ -3613,12 +3606,13 @@ QVector<QPointF> connectionSites(const QRectF &r, const QString &preset)
     return sides;
 }
 
-// The place of a site: one a shape does not have (a file from another program counts sites its own way) is the middle of the side that the number falls on, so the connector stays glued.
-QPointF connectionSite(const QRectF &r, const QString &preset, int index)
+// The place of a site, from the shape's list; a number the shape has no site for (a file from another program counts sites its own way) is none, and the connector stays where the file put it.
+bool connectionSite(const QRectF &r, const QString &preset, int index, QPointF *at)
 {
     const QVector<QPointF> sites = connectionSites(r, preset);
-    if (index >= 0 && index < sites.size()) return sites[index];
-    return connectionSites(r, QString()).value(((index % 4) + 4) % 4);
+    if (index < 0 || index >= sites.size()) return false;
+    *at = sites[index];
+    return true;
 }
 
 // The ids (a drawing's wp:docPr id) of what a connector is glued to, and the sites; -1 for an end that is free.
@@ -3822,7 +3816,7 @@ int rerouteConnectors(WriteDoc &doc, const QVector<std::pair<int, QRectF>> &move
             } else {
                 ok = false;
             }
-            if (ok) ends[side] = connectionSite(shown, preset, site);
+            if (ok) ok = connectionSite(shown, preset, site, &ends[side]);
         }
         if (!ok) continue;
         if (changePicture(doc, cp, [&](Model &model) {

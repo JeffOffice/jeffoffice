@@ -70,8 +70,10 @@ struct DrawingWriteContext {
     // are attached to it.
     QHash<QString, int> shapeIds;
     // How many connection points the standard gives the shape of each item
-    // written (4 or 8), for the ones that have them: where a connector joins.
+    // written, for the ones that have them: where a connector joins.
     QHash<QString, int> connectionSites;
+    // And which of those is the one on each side (top, left, bottom, right; -1 for none): the editor glues a connector to a side.
+    QHash<QString, QVector<int>> connectionSideSites;
     // The relationships made from the part so far, by type and target, so
     // that a picture or an address used twice has one.
     QHash<QString, QString> relations;

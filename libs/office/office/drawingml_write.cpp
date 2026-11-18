@@ -4,6 +4,7 @@
 
 #include "office/drawingml_write.h"
 #include "core/items.h"
+#include "core/connsites.h"
 #include "office/barcodemarker.h"
 #include "core/barcodeitem.h"
 
@@ -1087,20 +1088,25 @@ bool writeBarcode(QXmlStreamWriter &w, const GroupItem &g, DrawingWriteContext &
 }
 
 // How many connection points the standard gives an object's shape (the
-// counterpart of how a connector is read): four on the sides of a rectangle,
-// eight round an ellipse, and none for a shape whose points aren't known here.
+// counterpart of how a connector is read; libs/draw/core/connsites.h has the
+// lists): none for a shape whose points aren't known here.
 int connectionPoints(const Item &target)
 {
-    static const QStringList fourPoints = {QStringLiteral("rect"), QStringLiteral("roundRect"), QStringLiteral("snip1"), QStringLiteral("snip2same"),
-        QStringLiteral("snip2diag"), QStringLiteral("snipRound"), QStringLiteral("round1"), QStringLiteral("round2same"), QStringLiteral("round2diag"),
-        QStringLiteral("diamond"), QStringLiteral("fcProcess"), QStringLiteral("fcAltProcess"), QStringLiteral("fcDecision"), QStringLiteral("fcPredefined"),
-        QStringLiteral("fcInternalStorage")};
-    static const QStringList eightPoints = {QStringLiteral("ellipse"), QStringLiteral("fcConnector"), QStringLiteral("fcSummingJunction"), QStringLiteral("fcOr")};
     if (target.type() == ItemType::Text || target.type() == ItemType::Picture) return 4;
     if (target.type() != ItemType::Shape) return 0;
     const auto &s = static_cast<const ShapeItem &>(target);
-    if (!s.customPath.isEmpty()) return 0;
-    return fourPoints.contains(s.shape) ? 4 : eightPoints.contains(s.shape) ? 8 : 0;
+    if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return 0;
+    return int(connectionSites(s.shape, s.rect.size(), s.adj).size());
+}
+
+// Which of an object's connection points is the one on each of its sides (top, left, bottom, right), by the standard's numbers.
+QVector<int> connectionSideSites(const Item &target)
+{
+    QVector<int> out = {0, 1, 2, 3};
+    if (target.type() != ItemType::Shape) return out;
+    const auto &s = static_cast<const ShapeItem &>(target);
+    for (int side = 0; side < 4; ++side) out[side] = sideConnectionSite(s.shape, s.rect.size(), s.adj, side);
+    return out;
 }
 
 // The frame that puts a connector's ends where they are (the counterpart of how
@@ -1166,9 +1172,10 @@ void writeConnector(QXmlStreamWriter &w, const LineItem &l, DrawingWriteContext 
         const auto target = ctx.shapeIds.constFind(end.second.id);
         const auto kind = ctx.connectionSites.constFind(end.second.id);
         if (end.second.id.isEmpty() || target == ctx.shapeIds.constEnd() || kind == ctx.connectionSites.constEnd()) continue;
-        // The index of the site among the standard's, for a shape of four or eight points.
-        const int idx = *kind == 4 ? end.second.site : *kind == 8 ? end.second.site * 2 : -1;
-        if (idx < 0 || end.second.site < 0 || end.second.site >= kConnectionSites) continue;
+        // The index of the site among the standard's: the one on the side the connector is glued to.
+        if (end.second.site < 0 || end.second.site >= kConnectionSites) continue;
+        const int idx = ctx.connectionSideSites.value(end.second.id).value(end.second.site, -1);
+        if (idx < 0 || idx >= *kind) continue;
         begin(w, end.first);
         attribute(w, "id", *target);
         attribute(w, "idx", idx);
@@ -1393,7 +1400,7 @@ void assignShapeIds(const ItemList &items, DrawingWriteContext &ctx)
             if (!image.isEmpty() && relatePicture(ctx, image).isEmpty()) return;
         }
         takeId(ctx, *it);
-        if (const int points = connectionPoints(*it)) ctx.connectionSites.insert(it->id, points);
+        if (const int points = connectionPoints(*it)) ctx.connectionSites.insert(it->id, points), ctx.connectionSideSites.insert(it->id, connectionSideSites(*it));
     });
 }
 
@@ -1416,7 +1423,7 @@ void writeShape(QXmlStreamWriter &w, const Item &item, DrawingWriteContext &ctx,
 {
     // What a connector can be attached to: the points the standard gives the shape.
     auto remember = [&](const Item &it) {
-        if (const int points = connectionPoints(it)) ctx.connectionSites.insert(it.id, points);
+        if (const int points = connectionPoints(it)) ctx.connectionSites.insert(it.id, points), ctx.connectionSideSites.insert(it.id, connectionSideSites(it));
     };
     switch (item.type()) {
     case ItemType::Text:

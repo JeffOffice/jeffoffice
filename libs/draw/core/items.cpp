@@ -1,5 +1,6 @@
 #include "core/items.h"
 #include "core/blipeffects.h"
+#include "core/connsites.h"
 
 #include <algorithm>
 #include <cmath>
@@ -1060,10 +1061,31 @@ QPointF connectionSite(const Item &it, int site, bool *vertical)
     static const QPointF at[kConnectionSites] = {{0.5, 0}, {0, 0.5}, {0.5, 1}, {1, 0.5}};
     static const QPointF out[kConnectionSites] = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
     site = std::clamp(site, 0, kConnectionSites - 1);
-    const QPointF l(at[site].x() * sz.width(), at[site].y() * sz.height());
+    QPointF l(at[site].x() * sz.width(), at[site].y() * sz.height());
+    // A shape with sites of its own is glued where the standard puts the one on that side.
+    QString preset;
+    QVector<double> adjust;
+    if (it.type() == ItemType::Shape && static_cast<const ShapeItem &>(it).customPath.isEmpty()) {
+        preset = static_cast<const ShapeItem &>(it).shape;
+        adjust = static_cast<const ShapeItem &>(it).adj;
+    } else if (it.type() == ItemType::Text && static_cast<const TextItem &>(it).customPath.isEmpty()) {
+        preset = static_cast<const TextItem &>(it).shape;
+        adjust = static_cast<const TextItem &>(it).adj;
+    }
+    double angle = 0;
+    bool real = false;
+    if (!preset.isEmpty() && hasConnectionSites(preset)) {
+        const int index = sideConnectionSite(preset, sz, adjust, site);
+        const QVector<ConnectionSite> sites = connectionSites(preset, sz, adjust);
+        if (index >= 0 && index < sites.size()) {
+            l = sites[index].at;
+            angle = sites[index].angle * M_PI / 180;
+            real = true;
+        }
+    }
     const QPointF p = t.map(l);
     if (vertical) {
-        const QPointF n = t.map(l + out[site]) - p;
+        const QPointF n = t.map(l + (real ? QPointF(std::cos(angle), std::sin(angle)) : out[site])) - p;
         *vertical = std::abs(n.y()) > std::abs(n.x());
     }
     return p;
