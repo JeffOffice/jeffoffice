@@ -6,6 +6,7 @@
 #include "app/privacy.h"
 #include "app/settings.h"
 #include "io/presentationfile.h"
+#include "office/officecrypt.h"
 
 #include <QApplication>
 #include <QFile>
@@ -22,7 +23,7 @@ PackReport DeckWindow::packAndGoTo(const QString &destination, PackMode mode, co
     }
     m_notes->commit();
     m_ed->endTextEdit();
-    BytesPackSource source(m_ed->displayName() + QStringLiteral(".pptx"), m_ed->filePath(), m_fileProtected ? m_filePassword : QString(), [this](QString *err, QStringList *notes) {
+    BytesPackSource source(m_ed->displayName() + QStringLiteral(".pptx"), m_ed->filePath(), m_fileProtected ? (m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword) : QString(), [this](QString *err, QStringList *notes) {
         QByteArray bytes;
         // A folder of its own, so that nothing is left in the shared temporary folder (the password is put on the copy by Pack and Go, after its links are moved).
         QTemporaryDir dir;

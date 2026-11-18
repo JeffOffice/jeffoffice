@@ -2,6 +2,7 @@
 
 #include "../isolatesettings.h"
 #include "../cardchecks.h"
+#include "../packedpackagecheck.h"
 #include "../localepin.h"
 #include "../pdfmarkcheck.h"
 #include "app/filescreen.h"
@@ -33,6 +34,7 @@
 #include "core/writedoc.h"
 #include "app/theme.h"
 #include "app/packandgo.h"
+#include "app/passworddialogs.h"
 #include "io/zip.h"
 
 #include <QAction>
@@ -1607,7 +1609,9 @@ private Q_SLOTS:
         const QString picture = dir.filePath(QStringLiteral("elsewhere/photo.png")), fieldPicture = dir.filePath(QStringLiteral("elsewhere/field.png"));
         QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("elsewhere"))));
         QVERIFY(image.save(picture) && image.save(fieldPicture));
-        const QString text = dir.filePath(QStringLiteral("elsewhere/part.docx"));
+        // (a linked document travels only from the document's own folder)
+        const QString text = dir.filePath(QStringLiteral("work/part.docx"));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("work"))));
         {
             QFile f(text);
             QVERIFY(f.open(QIODevice::WriteOnly));
@@ -1639,9 +1643,14 @@ private Q_SLOTS:
             QVERIFY2(l.target.startsWith(QLatin1String("linked/")), qPrintable(l.target));
             QVERIFY2(QFileInfo(report.path + QLatin1Char('/') + l.target).isFile(), qPrintable(l.target));
         }
+        // every relationship of the packed file is inside it or external, and it opens with nothing said (no repair)
+        int external = 0;
+        QCOMPARE(packedcheck::problemsOf(fileBytes(report.path + QStringLiteral("/") + w.displayName() + QStringLiteral(".docx")), &external), QString());
+        QVERIFY(external >= 1);
         WriteWindow v;
         Quiet quietV(v);
         QVERIFY(v.openFile(report.path + QStringLiteral("/") + w.displayName() + QStringLiteral(".docx")));
+        QVERIFY2(quietV.said.isEmpty(), qPrintable(quietV.said.join(QLatin1Char('|'))));
         // the same, in a ZIP, with the font it names left out of it when the program has none
         const jp::PackReport zip = w.packAndGoTo(dir.filePath(QStringLiteral("pack.zip")), jp::PackMode::Zip);
         QVERIFY2(zip.ok, qPrintable(zip.error));
@@ -1649,6 +1658,34 @@ private Q_SLOTS:
         QMap<QString, QByteArray> entries;
         QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("pack.zip"))), entries));
         QVERIFY(entries.contains(QStringLiteral("linked/photo.png")));
+    }
+    // A document protected with an empty stored password (the one every program knows is then the lock) is packed protected still, not left open.
+    void aPackedCopyOfAFileWithAnEmptyStoredPasswordStaysProtected()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("work"))));
+        const QString path = dir.filePath(QStringLiteral("work/plain.docx"));
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(linkedDocx(QStringLiteral("none.png"), QStringLiteral("none2.png"), QStringLiteral("none.docx")));
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(path));
+        jp::setNewPasswordStandIn([](bool, QString *password) {
+            password->clear();
+            return jp::NewPasswordChoice::Set;
+        });
+        w.encryptWithPassword();
+        jp::setNewPasswordStandIn(nullptr);
+        QVERIFY(w.isPasswordProtected());
+        const jp::PackReport zip = w.packAndGoTo(dir.filePath(QStringLiteral("pack.zip")), jp::PackMode::Zip);
+        QVERIFY2(zip.ok, qPrintable(zip.error));
+        QMap<QString, QByteArray> entries;
+        QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("pack.zip"))), entries));
+        QVERIFY(entries.contains(w.displayName() + QStringLiteral(".docx")));
+        QVERIFY(entries.value(w.displayName() + QStringLiteral(".docx")).startsWith(QByteArray("\xD0\xCF\x11\xE0", 4)));
     }
     // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
     void packAndGoPageScreenshot()

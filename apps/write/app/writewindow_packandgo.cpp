@@ -17,7 +17,7 @@ PackReport WriteWindow::packAndGoTo(const QString &destination, PackMode mode, c
         none.error = tr("The document couldn't be saved for Pack and Go.");
         return none;
     }
-    BytesPackSource source(displayName() + QStringLiteral(".docx"), m_path, m_fileProtected ? m_filePassword : QString(), [this](QString *err, QStringList *notes) {
+    BytesPackSource source(displayName() + QStringLiteral(".docx"), m_path, m_fileProtected ? (m_filePassword.isEmpty() ? office::defaultPassword() : m_filePassword) : QString(), [this](QString *err, QStringList *notes) {
         QByteArray bytes = m_doc->toDocx(err);
         // (Options > Save: the names stay out of a file that is sent away)
         QStringList problems;

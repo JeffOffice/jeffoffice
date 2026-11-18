@@ -3,6 +3,7 @@
 #include "../isolatesettings.h"
 #include "../recoverygate.h"
 #include "../privacyhooks.h"
+#include "../packedpackagecheck.h"
 #include "office/privacy.h"
 #include "../settingguard.h"
 #include "app/recovery.h"
@@ -1702,10 +1703,15 @@ private Q_SLOTS:
             QVERIFY2(l.target.startsWith(QLatin1String("linked/")), qPrintable(l.target));
             QVERIFY2(QFileInfo(report.path + QLatin1Char('/') + l.target).isFile(), qPrintable(l.target));
         }
+        // every relationship of the packed file is inside it or external, and it opens with nothing said (no repair)
+        int external = 0;
+        QCOMPARE(packedcheck::problemsOf(fileBytes(copy), &external), QString());
+        QVERIFY(external >= 2);
         // opened from the folder: the media are the ones beside it
         DeckWindow v;
         Quiet quietV(v);
         QVERIFY(v.openFile(copy));
+        QVERIFY2(quietV.said.isEmpty(), qPrintable(quietV.said.join(QLatin1Char('|'))));
         int linkedMedia = 0;
         for (const auto &item : v.editor()->doc()->pages[0]->items)
             if (auto *pic = dynamic_cast<PictureItem *>(item.get()); pic && !pic->mediaLink.isEmpty()) {
@@ -1713,6 +1719,28 @@ private Q_SLOTS:
                 QVERIFY2(pic->mediaLink.startsWith(QLatin1String("linked/")), qPrintable(pic->mediaLink));
             }
         QCOMPARE(linkedMedia, 2);
+    }
+    // A presentation protected with an empty stored password (the one every program knows is then the lock) is packed protected still, not left open.
+    void aPackedCopyOfAFileWithAnEmptyStoredPasswordStaysProtected()
+    {
+        QTemporaryDir dir;
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        setNewPasswordStandIn([](bool, QString *password) {
+            password->clear();
+            return NewPasswordChoice::Set;
+        });
+        w.encryptWithPassword();
+        setNewPasswordStandIn(nullptr);
+        QVERIFY(w.isPasswordProtected());
+        const jp::PackReport zip = w.packAndGoTo(dir.filePath(QStringLiteral("pack.zip")), jp::PackMode::Zip);
+        QVERIFY2(zip.ok, qPrintable(zip.error));
+        QMap<QString, QByteArray> entries;
+        QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("pack.zip"))), entries));
+        const QString name = w.editor()->displayName() + QStringLiteral(".pptx");
+        QVERIFY(entries.contains(name));
+        QVERIFY(entries.value(name).startsWith(kCompound));
     }
     // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
     void packAndGoPageScreenshot()

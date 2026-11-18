@@ -16,6 +16,7 @@
 #include "office/packageprops.h"
 #include "../localepin.h"
 #include "../privacyhooks.h"
+#include "../packedpackagecheck.h"
 #include "office/privacy.h"
 
 #include <QAction>
@@ -795,12 +796,18 @@ private Q_SLOTS:
         QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/logo.png")).isFile());
         QFile copy(report.path + QStringLiteral("/") + QFileInfo(e.path).completeBaseName() + QStringLiteral(".xlsx"));
         QVERIFY(copy.open(QIODevice::ReadOnly));
-        const QVector<jp::PackLink> links = jp::OpcPackSource::linksOf(copy.readAll());
+        const QByteArray packed = copy.readAll();
+        // every relationship of the packed file is inside it or external, and it opens with nothing said (no repair)
+        int external = 0;
+        QCOMPARE(packedcheck::problemsOf(packed, &external), QString());
+        QVERIFY(external >= 1);
+        const QVector<jp::PackLink> links = jp::OpcPackSource::linksOf(packed);
         QCOMPARE(links.size(), 1);
         QCOMPARE(links[0].target, QStringLiteral("linked/logo.png"));
         // (it opens from its folder)
         EditWindow v;
         QVERIFY2(v.win.open(copy.fileName()), qPrintable(v.win.told.join(QLatin1Char('|'))));
+        QVERIFY2(v.win.told.isEmpty(), qPrintable(v.win.told.join(QLatin1Char('|'))));
     }
     // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
     void packAndGoPageScreenshot()
