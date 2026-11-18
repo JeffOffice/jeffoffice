@@ -2,6 +2,7 @@
 // Insert Table of Authorities, Insert Citation, and Manage Sources (the work on the document is core/captionops.h, core/indexops.h, core/citeops.h, and core/tocops.h).
 
 #include "app/writedialogs.h"
+#include "text/numbersystems.h"
 
 #include "app/pageview.h"
 #include "app/plaintext.h"
@@ -748,6 +749,7 @@ bool notesOptionsDialog(QWidget *parent, WriteDoc *doc, bool *endnotesChanged, N
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "i, ii, iii, ...")), QStringLiteral("lowerRoman"));
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "I, II, III, ...")), QStringLiteral("upperRoman"));
         c->addItem(tr(QT_TRANSLATE_NOOP("jp::write::RefsDialogs", "*, \u2020, \u2021, \u00A7, ...")), QStringLiteral("chicago"));
+        for (const QString &format : jp::numsys::offeredFormats()) c->addItem(jp::numsys::formatLabel(format), format);
     };
     auto makeBox = [&](const QString &title, bool endnotes) {
         auto *group = new jp::Section(title, &dlg);

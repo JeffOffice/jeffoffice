@@ -1,5 +1,7 @@
 #include "core/pagenumbering.h"
 
+#include "text/numbersystems.h"
+
 #include <QCoreApplication>
 #include <QRegularExpression>
 #include <QTextCursor>
@@ -34,8 +36,11 @@ PageNumbering pageNumberingOf(const SectionProps &p)
 
 QVector<QPair<QString, QString>> pageNumberFormats()
 {
-    return {{QStringLiteral("decimal"), QCoreApplication::translate("jp::write::PageNumbering", "1, 2, 3, …")},     {QStringLiteral("lowerLetter"), QCoreApplication::translate("jp::write::PageNumbering", "a, b, c, …")}, {QStringLiteral("upperLetter"), QCoreApplication::translate("jp::write::PageNumbering", "A, B, C, …")},
+    QVector<QPair<QString, QString>> out = {{QStringLiteral("decimal"), QCoreApplication::translate("jp::write::PageNumbering", "1, 2, 3, …")},     {QStringLiteral("lowerLetter"), QCoreApplication::translate("jp::write::PageNumbering", "a, b, c, …")}, {QStringLiteral("upperLetter"), QCoreApplication::translate("jp::write::PageNumbering", "A, B, C, …")},
             {QStringLiteral("lowerRoman"), QCoreApplication::translate("jp::write::PageNumbering", "i, ii, iii, …")}, {QStringLiteral("upperRoman"), QCoreApplication::translate("jp::write::PageNumbering", "I, II, III, …")}, {QStringLiteral("numberInDash"), QCoreApplication::translate("jp::write::PageNumbering", "- 1 -, - 2 -, - 3 -, …")}};
+    // (and the formats of other scripts and systems, and in words)
+    for (const QString &format : numsys::offeredFormats()) out.push_back({format, numsys::formatLabel(format)});
+    return out;
 }
 
 int applyPageNumbering(WriteDoc &doc, int section, bool wholeDocument, const PageNumbering &numbering)

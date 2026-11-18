@@ -1,6 +1,7 @@
 // OpenDocument text to .docx: the package, the styles, and what they say (see odt.h).
 
 #include "odt/odtread.h"
+#include "text/numbersystems.h"
 #include "wml/wml.h"
 
 #include "io/zipindex.h"
@@ -680,7 +681,11 @@ QByteArray Reader::sectPrXml(const SectionState &s)
          num(footerDistance) + "\" w:gutter=\"0\"/>";
     {
         const QString first = lp("style:first-page-number");
-        if (!first.isEmpty() && first != QLatin1String("continue") && first.toInt() > 0 && !s.continuous) x += "<w:pgNumType w:start=\"" + num(first.toInt()) + "\"/>";
+        const bool hasStart = !first.isEmpty() && first != QLatin1String("continue") && first.toInt() > 0 && !s.continuous;
+        // (The page's own number format: "1" is decimal, and the formats of other scripts and systems are named by their first numbers.)
+        const QString format = jp::numsys::formatOfOdf(lp("style:num-format"));
+        const bool hasFormat = !format.isEmpty() && format != QLatin1String("decimal");
+        if (hasStart || hasFormat) x += "<w:pgNumType" + (hasFormat ? " w:fmt=\"" + format.toUtf8() + "\"" : QByteArray()) + (hasStart ? " w:start=\"" + num(first.toInt()) + "\"" : QByteArray()) + "/>";
     }
     // The columns: a section's own, or the page's.
     int cols = s.columns;

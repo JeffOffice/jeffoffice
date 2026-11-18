@@ -1,9 +1,11 @@
 #include "app/uistyle.h"
 #include "app/listdialogs.h"
+#include "text/numbersystems.h"
 
 #include <QCheckBox>
 #include <QColorDialog>
 #include <QComboBox>
+#include <vector>
 #include <QCoreApplication>
 #include <QDialog>
 #include <QDialogButtonBox>
@@ -48,10 +50,23 @@ QComboBox *alignmentBox(const QString &current, QWidget *parent)
 
 const NumberStyleName *numberStyleNames(int *count)
 {
-    static const NumberStyleName names[] = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"},
+    // (the formats of other scripts and systems follow, from the one list of libs/base/text/numbersystems.h; the examples are UTF-8)
+    static const std::vector<NumberStyleName> names = [] {
+        static std::vector<QByteArray> kept;
+        std::vector<NumberStyleName> list = {{"decimal", "1, 2, 3"}, {"upperLetter", "A, B, C"}, {"lowerLetter", "a, b, c"}, {"upperRoman", "I, II, III"}, {"lowerRoman", "i, ii, iii"},
                                               {"decimalZero", "01, 02, 03"}, {"ordinal", "1st, 2nd, 3rd"}, {"cardinalText", "One, Two, Three"}, {"ordinalText", "First, Second, Third"}};
-    if (count) *count = int(sizeof names / sizeof names[0]);
-    return names;
+        const QStringList more = numsys::offeredFormats();
+        kept.reserve(size_t(more.size()) * 2);
+        for (const QString &format : more) {
+            if (format == QLatin1String("ordinal") || format == QLatin1String("cardinalText") || format == QLatin1String("ordinalText")) continue;
+            kept.push_back(format.toLatin1());
+            kept.push_back(numsys::formatLabel(format).toUtf8());
+            list.push_back({kept[kept.size() - 2].constData(), kept.back().constData()});
+        }
+        return list;
+    }();
+    if (count) *count = int(names.size());
+    return names.data();
 }
 
 bool defineBulletDialog(QWidget *parent, ListLevelLook *look, const SymbolPicker &pick, ListBoxes mode)
@@ -149,7 +164,7 @@ bool defineNumberFormatDialog(QWidget *parent, ListLevelLook *look, ListBoxes mo
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
-    for (int i = 0; i < (mode != ListBoxes::Full ? std::min(count, 5) : count); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    for (int i = 0; i < (mode != ListBoxes::Full ? std::min(count, 5) : count); ++i) style->addItem(QString::fromUtf8(names[i].example), QString::fromLatin1(names[i].id));
     style->setCurrentIndex(std::max(0, style->findData(look->numFmt)));
     form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style"), style);
     auto *text = new QLineEdit(look->bullet || look->text.isEmpty() ? QStringLiteral("%1.") : look->text, &d);
@@ -232,7 +247,7 @@ bool defineMultilevelPlainDialog(QWidget *parent, QVector<ListLevelLook> *levels
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
-    for (int i = 0; i < std::min(count, 5); ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    for (int i = 0; i < std::min(count, 5); ++i) style->addItem(QString::fromUtf8(names[i].example), QString::fromLatin1(names[i].id));
     form->addRow(QCoreApplication::translate("jp::ListDialogs", "Number style"), style);
     auto *punctuation = new QComboBox(&d);
     punctuation->setObjectName(QStringLiteral("numberPunctuation"));

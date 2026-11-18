@@ -34,6 +34,7 @@ struct SectionInfo {
     bool separator = false;
     QString headerRef[3], footerRef[3];   // default, even, first: relationship Ids (empty: none)
     int pageStart = 0;
+    QString pageFormat;   // pgNumType fmt (empty: decimal)
     QString master;
 };
 

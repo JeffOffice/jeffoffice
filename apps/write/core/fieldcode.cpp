@@ -1,8 +1,11 @@
 #include "core/fieldcode.h"
 
+#include "text/numbersystems.h"
+
 #include <atomic>
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
@@ -43,46 +46,8 @@ bool takesArgument(const QString &name, QChar letter)
     return false;
 }
 
-const char *const kOnes[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"};
-const char *const kTens[] = {"", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"};
-
-QString belowThousand(int n)
-{
-    QStringList parts;
-    if (n >= 100) {
-        parts << QLatin1String(kOnes[n / 100]) + QLatin1String(" hundred");
-        n %= 100;
-    }
-    if (n >= 20) parts << (n % 10 ? QLatin1String(kTens[n / 10]) + QLatin1Char('-') + QLatin1String(kOnes[n % 10]) : QLatin1String(kTens[n / 10]));
-    else if (n > 0) parts << QLatin1String(kOnes[n]);
-    return parts.join(QLatin1Char(' '));
-}
-
-QString cardinal(qint64 n)
-{
-    if (n == 0) return QStringLiteral("zero");
-    static const char *const scales[] = {"", " thousand", " million", " billion"};
-    QStringList parts;
-    for (int scale = 0; n > 0; ++scale, n /= 1000)
-        if (const int group = int(n % 1000)) parts.prepend(belowThousand(group) + QLatin1String(scales[scale]));
-    return parts.join(QLatin1Char(' '));
-}
-
-QString ordinalWords(qint64 n)
-{
-    QString words = cardinal(n);
-    // The last word becomes its ordinal.
-    const int cut = std::max(words.lastIndexOf(QLatin1Char(' ')), words.lastIndexOf(QLatin1Char('-')));
-    const QString head = words.left(cut + 1), last = words.mid(cut + 1);
-    static const QHash<QString, QString> irregular = {{QStringLiteral("one"), QStringLiteral("first")}, {QStringLiteral("two"), QStringLiteral("second")}, {QStringLiteral("three"), QStringLiteral("third")},
-                                                      {QStringLiteral("five"), QStringLiteral("fifth")}, {QStringLiteral("eight"), QStringLiteral("eighth")}, {QStringLiteral("nine"), QStringLiteral("ninth")},
-                                                      {QStringLiteral("twelve"), QStringLiteral("twelfth")}, {QStringLiteral("zero"), QStringLiteral("zeroth")}};
-    QString ordinal;
-    if (irregular.contains(last)) ordinal = irregular.value(last);
-    else if (last.endsWith(QLatin1Char('y'))) ordinal = last.chopped(1) + QStringLiteral("ieth");
-    else ordinal = last + QStringLiteral("th");
-    return head + ordinal;
-}
+QString cardinal(qint64 n) { return numsys::cardinalWords(n); }
+QString ordinalWords(qint64 n) { return numsys::ordinalWords(n); }
 
 QString romanOf(qint64 n)
 {
@@ -99,10 +64,22 @@ QString romanOf(qint64 n)
     return out;
 }
 
+// The w:numFmt value that a switch of a field names (\* THAIARABIC: thaiNumbers), or empty for one that is not a number format of other scripts.
+QString numberFormatOfSwitch(const QString &g)
+{
+    static const QHash<QString, QString> names = {
+        {QStringLiteral("arabicalpha"), QStringLiteral("arabicAlpha")}, {QStringLiteral("arabicabjad"), QStringLiteral("arabicAbjad")}, {QStringLiteral("hebrew1"), QStringLiteral("hebrew1")},
+        {QStringLiteral("hebrew2"), QStringLiteral("hebrew2")}, {QStringLiteral("hindiarabic"), QStringLiteral("hindiNumbers")}, {QStringLiteral("hindiletter1"), QStringLiteral("hindiVowels")},
+        {QStringLiteral("hindiletter2"), QStringLiteral("hindiConsonants")}, {QStringLiteral("thaiarabic"), QStringLiteral("thaiNumbers")}, {QStringLiteral("thailetter"), QStringLiteral("thaiLetters")},
+        {QStringLiteral("thaicardtext"), QStringLiteral("thaiCounting")}, {QStringLiteral("circlenum"), QStringLiteral("decimalEnclosedCircle")}, {QStringLiteral("dbchar"), QStringLiteral("decimalFullWidth")},
+        {QStringLiteral("ganada"), QStringLiteral("ganada")}, {QStringLiteral("chosung"), QStringLiteral("chosung")}};
+    return names.value(g.toLower());
+}
+
 bool isNumberFormat(const QString &g)
 {
     static const QStringList names = {QStringLiteral("roman"), QStringLiteral("alphabetic"), QStringLiteral("arabic"), QStringLiteral("ordinal"), QStringLiteral("cardtext"), QStringLiteral("ordtext"), QStringLiteral("hex"), QStringLiteral("arabicdash")};
-    return names.contains(g.toLower());
+    return names.contains(g.toLower()) || !numberFormatOfSwitch(g).isEmpty();
 }
 
 // Splits a code into words: a quoted piece is one word (without its quotes), a backslash outside quotes begins a word.
@@ -292,9 +269,7 @@ QString formatNumber(qint64 n, const QStringList &general)
                 out = QString(int((n - 1) / 26 + 1), letter);
             }
         } else if (l == QLatin1String("ordinal")) {
-            const qint64 a = n < 0 ? -n : n;
-            const int last = int(a % 100) >= 11 && int(a % 100) <= 13 ? 0 : int(a % 10);
-            out = QString::number(n) + (last == 1 ? QStringLiteral("st") : last == 2 ? QStringLiteral("nd") : last == 3 ? QStringLiteral("rd") : QStringLiteral("th"));
+            out = numsys::numberIn(QStringLiteral("ordinal"), n);
         } else if (l == QLatin1String("cardtext")) {
             if (n >= 0 && n < 1000000000000LL) out = cardinal(n);
         } else if (l == QLatin1String("ordtext")) {
@@ -303,6 +278,8 @@ QString formatNumber(qint64 n, const QStringList &general)
             if (n >= 0) out = QString::number(n, 16).toUpper();
         } else if (l == QLatin1String("arabicdash")) {
             out = QStringLiteral("- %1 -").arg(n);
+        } else if (const QString other = numberFormatOfSwitch(g); !other.isEmpty()) {
+            out = numsys::numberIn(other, n);
         }
         break;
     }

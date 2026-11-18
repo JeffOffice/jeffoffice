@@ -1,4 +1,7 @@
 #include "tst_write.h"
+#include "text/numbersystems.h"
+#include "app/listdialogs.h"
+#include "app/writedialogs.h"
 #include "app/theme.h"
 
 
@@ -2973,6 +2976,202 @@ void WriteTests::theNumbersInWordsAndOtherFormatsOfARealListAreShown()
     QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(2)), QStringLiteral("3rd"));
     QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(3)), QStringLiteral("(One)"));
     QCOMPARE(labelOfBlock(doc->story()->findBlockByNumber(4)), QStringLiteral("Third item"));
+}
+
+// The number formats of other scripts and systems, each with the numbers a person checks it by.
+void WriteTests::everyNumberFormatCountsInItsOwnScript()
+{
+    using jp::numsys::numberIn;
+    struct Row {
+        const char *format;
+        const char *shown[8];   // for 1, 10, 11, 20, 99, 100, 1000, 10000
+    };
+    const Row rows[] = {
+        {"decimal", {"1", "10", "11", "20", "99", "100", "1000", "10000"}},
+        {"ordinal", {"1st", "10th", "11th", "20th", "99th", "100th", "1000th", "10000th"}},
+        {"cardinalText", {"One", "Ten", "Eleven", "Twenty", "Ninety-nine", "One hundred", "One thousand", "Ten thousand"}},
+        {"ordinalText", {"First", "Tenth", "Eleventh", "Twentieth", "Ninety-ninth", "One hundredth", "One thousandth", "Ten thousandth"}},
+        {"decimalFullWidth", {u8"１", u8"１０", u8"１１", u8"２０", u8"９９", u8"１００", u8"１０００", u8"１００００"}},
+        {"hindiNumbers", {u8"١", u8"١٠", u8"١١", u8"٢٠", u8"٩٩", u8"١٠٠", u8"١٠٠٠", u8"١٠٠٠٠"}},
+        {"hindiCounting", {u8"१", u8"१०", u8"११", u8"२०", u8"९९", u8"१००", u8"१०००", u8"१००००"}},
+        {"thaiNumbers", {u8"๑", u8"๑๐", u8"๑๑", u8"๒๐", u8"๙๙", u8"๑๐๐", u8"๑๐๐๐", u8"๑๐๐๐๐"}},
+        {"thaiCounting", {u8"หนึ่ง", u8"สิบ", u8"สิบเอ็ด", u8"ยี่สิบ", u8"เก้าสิบเก้า", u8"หนึ่งร้อย", u8"หนึ่งพัน", u8"หนึ่งหมื่น"}},
+        {"hebrew1", {u8"א", u8"י", u8"יא", u8"כ", u8"צט", u8"ק", "1000", "10000"}},
+        {"chineseCounting", {u8"一", u8"十", u8"十一", u8"二十", u8"九十九", u8"一百", u8"一千", u8"一万"}},
+        {"taiwaneseCounting", {u8"一", u8"十", u8"十一", u8"二十", u8"九十九", u8"一百", u8"一千", u8"一萬"}},
+        {"chineseLegalSimplified", {u8"壹", u8"壹拾", u8"壹拾壹", u8"贰拾", u8"玖拾玖", u8"壹佰", u8"壹仟", u8"壹万"}},
+        {"japaneseCounting", {u8"一", u8"十", u8"十一", u8"二十", u8"九十九", u8"百", u8"千", u8"一万"}},
+        {"japaneseDigitalTenThousand", {u8"一", u8"一〇", u8"一一", u8"二〇", u8"九九", u8"一〇〇", u8"一〇〇〇", u8"一万〇〇〇〇"}},
+        {"ideographDigital", {u8"一", u8"一〇", u8"一一", u8"二〇", u8"九九", u8"一〇〇", u8"一〇〇〇", u8"一〇〇〇〇"}},
+        {"koreanCounting", {u8"일", u8"십", u8"십일", u8"이십", u8"구십구", u8"백", u8"천", u8"만"}},
+        {"koreanDigital", {u8"일", u8"일영", u8"일일", u8"이영", u8"구구", u8"일영영", u8"일영영영", u8"일영영영영"}},
+        {"koreanLegal", {u8"하나", u8"열", u8"열하나", u8"스물", u8"아흔아홉", "100", "1000", "10000"}},
+        {"decimalEnclosedCircle", {u8"①", u8"⑩", u8"⑪", u8"⑳", "99", "100", "1000", "10000"}},
+    };
+    const qint64 at[] = {1, 10, 11, 20, 99, 100, 1000, 10000};
+    for (const Row &row : rows) {
+        const QString format = QString::fromLatin1(row.format);
+        QVERIFY2(jp::numsys::knows(format), row.format);
+        for (int i = 0; i < 8; ++i) QCOMPARE(numberIn(format, at[i]), QString::fromUtf8(row.shown[i]));
+    }
+    // The ones that count with letters (and the sequences of characters that end).
+    QCOMPARE(numberIn("hebrew1", 15), QString(u8"טו"));
+    QCOMPARE(numberIn("hebrew1", 16), QString(u8"טז"));
+    QCOMPARE(numberIn("hebrew1", 999), QString(u8"תתקצט"));
+    QCOMPARE(numberIn("hebrew2", 22), QString(u8"ת"));
+    QCOMPARE(numberIn("hebrew2", 23), QString(u8"אא"));
+    QCOMPARE(numberIn("arabicAlpha", 1) + numberIn("arabicAlpha", 2) + numberIn("arabicAlpha", 29), QString(u8"أبأأ"));
+    QCOMPARE(numberIn("arabicAbjad", 3), QString(u8"ج"));
+    QCOMPARE(numberIn("russianLower", 1) + numberIn("russianLower", 29), QString(u8"ааа"));
+    QCOMPARE(numberIn("russianUpper", 2), QString(u8"Б"));
+    QCOMPARE(numberIn("ideographTraditional", 10), QString(u8"癸"));
+    QCOMPARE(numberIn("ideographTraditional", 11), QStringLiteral("11"));
+    QCOMPARE(numberIn("aiueoFullWidth", 46), QString(u8"ン"));
+    QCOMPARE(numberIn("aiueoFullWidth", 47), QStringLiteral("47"));
+    QCOMPARE(numberIn("ganada", 1) + numberIn("ganada", 15), QString(u8"가거"));
+    QCOMPARE(numberIn("decimalEnclosedCircle", 50), QString(u8"㊿"));
+    QCOMPARE(numberIn("decimalEnclosedCircle", 51), QStringLiteral("51"));
+    // Chinese and Japanese counting differ at the zeros, and Chinese leaves the one out of ten only at the start.
+    QCOMPARE(numberIn("chineseCounting", 0), QString(u8"零"));
+    QCOMPARE(numberIn("chineseCounting", 101), QString(u8"一百零一"));
+    QCOMPARE(numberIn("chineseCounting", 110), QString(u8"一百一十"));
+    QCOMPARE(numberIn("chineseCounting", 10001), QString(u8"一万零一"));
+    QCOMPARE(numberIn("japaneseCounting", 1111), QString(u8"千百十一"));
+    QCOMPARE(numberIn("japaneseCounting", 11000), QString(u8"一万千"));
+    QCOMPARE(numberIn("japaneseDigitalTenThousand", 12345), QString(u8"一万二三四五"));
+    QCOMPARE(numberIn("thaiCounting", 21), QString(u8"ยี่สิบเอ็ด"));
+    QCOMPARE(numberIn("thaiCounting", 1000001), QString(u8"หนึ่งล้านเอ็ด"));
+    // What a format cannot show is shown as digits: nothing is empty, and nothing is endless.
+    for (const QString &format : jp::numsys::offeredFormats()) {
+        QVERIFY2(!jp::numsys::formatLabel(format).isEmpty(), qPrintable(format));
+        for (qint64 n : {qint64(-5), qint64(0), qint64(1), qint64(1000000000000LL), std::numeric_limits<qint64>::max()}) QVERIFY2(!numberIn(format, n).isEmpty(), qPrintable(format));
+    }
+    QCOMPARE(numberIn("hebrew1", -5), QStringLiteral("-5"));
+    QCOMPARE(numberIn("chineseCounting", 1000000000000LL), QStringLiteral("1000000000000"));
+    QCOMPARE(numberIn("cardinalText", -1), QStringLiteral("-1"));
+    QCOMPARE(numberIn("thaiNumbers", std::numeric_limits<qint64>::max()), QString(u8"๙๒๒๓๓๗๒๐๓๖๘๕๔๗๗๕๘๐๗"));
+    QCOMPARE(numberIn("vietnameseCounting", 3), QStringLiteral("3"));
+    QVERIFY(!jp::numsys::knows(QStringLiteral("vietnameseCounting")));
+    // ODF names the same formats (one name for each of the same characters).
+    for (const QString &format : jp::numsys::offeredFormats()) {
+        const QString odf = jp::numsys::odfFormatOf(format);
+        if (odf.isEmpty()) continue;
+        const QString back = jp::numsys::formatOfOdf(odf);
+        QVERIFY2(!back.isEmpty() && numberIn(back, 2) == numberIn(format, 2) && numberIn(back, 3) == numberIn(format, 3), qPrintable(format));
+    }
+    QCOMPARE(jp::numsys::formatOfOdf(QString(u8"๑, ๒, ๓, ...")), QStringLiteral("thaiNumbers"));
+}
+
+// A list in two of the formats and the pages in another, as the file names them: shown, saved, and read back from .docx and .odt.
+void WriteTests::aListAndPageNumbersInOtherNumberFormatsAreShownAndKept()
+{
+    const QByteArray numbering =
+        "<w:abstractNum w:abstractNumId=\"0\"><w:multiLevelType w:val=\"multilevel\"/>"
+        "<w:lvl w:ilvl=\"0\"><w:start w:val=\"1\"/><w:numFmt w:val=\"thaiNumbers\"/><w:lvlText w:val=\"%1.\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"1\"><w:start w:val=\"1\"/><w:numFmt w:val=\"chineseCounting\"/><w:lvlText w:val=\"(%2)\"/></w:lvl>"
+        "<w:lvl w:ilvl=\"2\"><w:start w:val=\"1\"/><w:numFmt w:val=\"vietnameseCounting\"/><w:lvlText w:val=\"%3\"/></w:lvl></w:abstractNum>"
+        "<w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgNumType w:fmt=\"hindiNumbers\" w:start=\"7\"/></w:sectPr>";
+    const QByteArray body = numPara(1, 0) + numPara(1, 1) + numPara(1, 1) + numPara(1, 0) + numPara(1, 1) + numPara(1, 2);
+    auto doc = open(makeDocxWithParts(body, sect, {}, QByteArray(), kStyles, numbering));
+    QVERIFY(doc);
+    auto labels = [](WriteDoc &d) {
+        QStringList out;
+        for (int i = 0; i < 6; ++i) out << labelOfBlock(d.story()->findBlockByNumber(i));
+        return out;
+    };
+    const QStringList expected = {QString(u8"๑."), QString(u8"(一)"), QString(u8"(二)"), QString(u8"๒."), QString(u8"(一)"), QStringLiteral("1")};
+    QCOMPARE(labels(*doc), expected);
+    auto pageShown = [](WriteDoc &d) {
+        const auto page = d.pager().materialize(0);
+        FieldContext ctx;
+        if (!page) return QStringLiteral("<no page>");
+        ctx.doc = page->doc.get();
+        ctx.pageNumber = 1;
+        return ctx.resolve(QStringLiteral("page"));
+    };
+    QCOMPARE(doc->flow().sections[0].pageNumberFormat, QStringLiteral("hindiNumbers"));
+    QCOMPARE(pageShown(*doc), QString(u8"٧"));
+    // .docx: the file's own names come back.
+    const QByteArray docx = doc->toDocx();
+    QVERIFY(documentXml(docx).contains("w:fmt=\"hindiNumbers\""));
+    const QByteArray numberingXml = documentXmlOfPart(docx, QStringLiteral("/word/numbering.xml"));
+    for (const char *name : {"thaiNumbers", "chineseCounting", "vietnameseCounting"}) QVERIFY2(numberingXml.contains(QByteArray("w:numFmt w:val=\"") + name + "\""), name);
+    auto again = open(docx);
+    QVERIFY(again);
+    QCOMPARE(labels(*again), expected);
+    // .odt: the formats it has a name for come back (the one it has none for shows as digits).
+    QString err;
+    const QByteArray odt = doc->toOdt(&err);
+    QVERIFY2(!odt.isEmpty(), qPrintable(err));
+    auto fromOdt = WriteDoc::fromFile(odt, &err);
+    QVERIFY2(fromOdt, qPrintable(err));
+    QCOMPARE(labels(*fromOdt), expected);
+    QCOMPARE(fromOdt->flow().sections[0].pageNumberFormat, QStringLiteral("hindiNumbers"));
+    QCOMPARE(pageShown(*fromOdt), QString(u8"٧"));
+    const QByteArray viaOdt = fromOdt->toDocx();
+    QVERIFY(documentXml(viaOdt).contains("w:fmt=\"hindiNumbers\""));
+    QVERIFY(documentXmlOfPart(viaOdt, QStringLiteral("/word/numbering.xml")).contains("w:numFmt w:val=\"thaiNumbers\""));
+}
+
+// A format this program has no name for stays as the file wrote it, on a page and in a note, and the choices offered include the new ones.
+void WriteTests::aNumberFormatWithNoNameHereKeepsItsName()
+{
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgNumType w:fmt=\"bahtText\" w:start=\"3\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(paragraphs(1, 5), sect, {}));
+    QVERIFY(doc);
+    QVERIFY(documentXml(doc->toDocx()).contains("w:fmt=\"bahtText\""));
+    // A page number of such a format is shown in digits.
+    const auto page = doc->pager().materialize(0);
+    QVERIFY(page);
+    FieldContext ctx;
+    ctx.doc = page->doc.get();
+    ctx.pageNumber = 1;
+    QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("3"));
+    QStringList offered;
+    for (const auto &f : pageNumberFormats()) offered << f.first;
+    for (const char *name : {"thaiNumbers", "hebrew1", "chineseCounting", "japaneseCounting", "hindiNumbers", "ordinalText", "decimalFullWidth", "koreanCounting"}) QVERIFY2(offered.contains(QLatin1String(name)), name);
+    // The boxes that pick a number style of a list offer them too.
+    int styles = 0;
+    const jp::NumberStyleName *names = jp::numberStyleNames(&styles);
+    QStringList ids;
+    for (int i = 0; i < styles; ++i) ids << QString::fromLatin1(names[i].id);
+    QVERIFY(ids.contains(QStringLiteral("thaiNumbers")) && ids.contains(QStringLiteral("hebrew1")) && ids.contains(QStringLiteral("japaneseCounting")));
+    QCOMPARE(ids.count(QStringLiteral("ordinalText")), 1);
+    // A field's switch counts in them too.
+    QCOMPARE(fields::formatNumber(12, {QStringLiteral("THAIARABIC")}), QString(u8"๑๒"));
+    QCOMPARE(fields::formatNumber(2, {QStringLiteral("HEBREW1")}), QString(u8"ב"));
+    QCOMPARE(fields::formatNumber(1, {QStringLiteral("ARABICABJAD")}), QString(u8"أ"));
+    QCOMPARE(fields::formatNumber(21, {QStringLiteral("CardText")}), QStringLiteral("twenty-one"));
+}
+
+// A picture of the Page Number Format box with its choices open, when JO_SHOT_DIR names a folder.
+void WriteTests::theNumberFormatChoicesAreShown()
+{
+    const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+    if (dir.isEmpty()) QSKIP("JO_SHOT_DIR names the folder for the picture");
+    jp::applyUiTheme(1);
+    auto doc = open(makeDocx(paragraphs(1, 5)));
+    QVERIFY(doc);
+    bool saved = false;
+    QTimer timer;
+    QObject::connect(&timer, &QTimer::timeout, [&] {
+        auto *box = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        auto *combo = box ? box->findChild<QComboBox *>(QStringLiteral("numberFormat")) : nullptr;
+        if (!combo) return;
+        combo->setCurrentIndex(std::max(0, combo->findData(QStringLiteral("hebrew1"))));
+        combo->showPopup();
+        QApplication::processEvents();
+        if (combo->view()->isVisible()) {
+            saved = combo->view()->window()->grab().save(dir + QStringLiteral("/number-format-choices.png")) && box->grab().save(dir + QStringLiteral("/page-number-format-box.png"));
+            combo->hidePopup();
+            box->reject();
+            timer.stop();
+        }
+    });
+    timer.start(20);
+    jp::write::pageNumberFormatDialog(nullptr, doc.get(), 0);
+    QVERIFY(saved);
 }
 
 void WriteTests::editingOneLevelOfARealListKeepsTheRest()

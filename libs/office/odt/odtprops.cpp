@@ -2,6 +2,7 @@
 
 #include "odt/odtread.h"
 
+#include "text/numbersystems.h"
 #include "text/opentype.h"
 
 #include <QRegularExpression>
@@ -469,7 +470,7 @@ QString bulletOf(const QString &c)
     return c.left(1);
 }
 
-const char *numFmtOf(const QString &fmt)
+QByteArray numFmtOf(const QString &fmt)
 {
     if (fmt == QLatin1String("1")) return "decimal";
     if (fmt == QLatin1String("a")) return "lowerLetter";
@@ -478,6 +479,8 @@ const char *numFmtOf(const QString &fmt)
     if (fmt == QLatin1String("I")) return "upperRoman";
     if (fmt == QLatin1String("01")) return "decimalZero";
     if (fmt.isEmpty()) return "none";
+    // (The formats of other scripts and systems that ODF spells as their first numbers; one it has no name for shows as digits.)
+    if (const QString other = jp::numsys::formatOfOdf(fmt); !other.isEmpty()) return other.toLatin1();
     return "decimal";
 }
 
@@ -531,7 +534,7 @@ QByteArray Reader::numberingXml() const
                 l.hasIndent = true;
             }
             QByteArray lvlText;
-            const char *fmt = "bullet";
+            QByteArray fmt = "bullet";
             if (l.bullet) lvlText = esc(bulletOf(l.bulletChar));
             else {
                 fmt = numFmtOf(l.numFmt);

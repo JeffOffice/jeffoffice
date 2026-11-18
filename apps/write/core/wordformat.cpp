@@ -3,6 +3,7 @@
 #include "core/color.h"
 #include "core/fieldcode.h"
 #include "core/writeprops.h"
+#include "text/numbersystems.h"
 #include "text/opentype.h"
 #include "text/textprops.h"
 
@@ -920,41 +921,10 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
 
 // ---- the text of a list's numbers
 
-static QString letters(int n, bool upper)
-{
-    QString s;
-    for (n = std::max(1, n); n > 0; n = (n - 1) / 26) s.prepend(QChar((upper ? 'A' : 'a') + (n - 1) % 26));
-    return s;
-}
+QString romanNumeral(int n, bool upper) { return numsys::romanNumeral(n, upper); }
 
-QString romanNumeral(int n, bool upper)
-{
-    static const std::pair<int, const char *> table[] = {{1000, "m"}, {900, "cm"}, {500, "d"}, {400, "cd"}, {100, "c"}, {90, "xc"}, {50, "l"}, {40, "xl"}, {10, "x"}, {9, "ix"}, {5, "v"}, {4, "iv"}, {1, "i"}};
-    QString s;
-    n = std::clamp(n, 1, 3999);
-    for (const auto &t : table)
-        while (n >= t.first) {
-            s += QLatin1String(t.second);
-            n -= t.first;
-        }
-    return upper ? s.toUpper() : s;
-}
-
-QString listNumberText(const QString &format, int n)
-{
-    if (format == QLatin1String("lowerLetter")) return letters(n, false);
-    if (format == QLatin1String("upperLetter")) return letters(n, true);
-    if (format == QLatin1String("lowerRoman")) return romanNumeral(n, false);
-    if (format == QLatin1String("upperRoman")) return romanNumeral(n, true);
-    if (format == QLatin1String("decimalZero")) return QStringLiteral("%1").arg(n, 2, 10, QLatin1Char('0'));
-    if (format == QLatin1String("ordinal")) return fields::formatNumber(n, {QStringLiteral("ordinal")});
-    if (format == QLatin1String("cardinalText") || format == QLatin1String("ordinalText")) {
-        QString words = fields::formatNumber(std::max(0, n), {format == QLatin1String("cardinalText") ? QStringLiteral("cardtext") : QStringLiteral("ordtext")});
-        if (!words.isEmpty()) words[0] = words[0].toUpper();
-        return words;
-    }
-    return QString::number(n);
-}
+// (Every format of w:numFmt is counted in libs/base/text/numbersystems: the letters and Roman numerals of a list, the words, and the formats of other scripts.)
+QString listNumberText(const QString &format, int n) { return numsys::numberIn(format, n); }
 
 QString noteNumberText(const QString &format, int n)
 {

@@ -82,7 +82,7 @@ public:
     virtual QString pageRefText(const QString &bookmark) const { Q_UNUSED(bookmark) return QString(); }
 };
 
-// A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", or "dash").
+// A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", "dash", or a w:numFmt value of libs/base/text/numbersystems.h: "thaiNumbers"...).
 QString pageNumberText(int number, const QString &format);
 
 // A stock font's average character width in ems (OS/2 xAvgCharWidth), the

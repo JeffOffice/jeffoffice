@@ -5,6 +5,7 @@
 #include "core/fonts.h"
 #include "core/texteffects.h"
 #include "text/hyphenation.h"
+#include "text/numbersystems.h"
 #include "text/opentype.h"
 #include "text/textprops.h"
 
@@ -109,6 +110,8 @@ QString pageNumberText(int n, const QString &style)
         return one.repeated((n - 1) / 26 + 1);
     }
     if (style == "dash") return QStringLiteral("- %1 -").arg(n);
+    // (Any other format of the file's own: Arabic-Indic digits, Hebrew, Thai, Chinese, and Japanese counting, words...)
+    if (!style.isEmpty()) return numsys::numberIn(style, n);
     return QString::number(n);
 }
 

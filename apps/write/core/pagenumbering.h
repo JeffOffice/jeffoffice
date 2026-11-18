@@ -7,7 +7,7 @@
 namespace jp::write {
 
 struct PageNumbering {
-    QString format = QStringLiteral("decimal");   // decimal, lowerLetter, upperLetter, lowerRoman, upperRoman, or numberInDash
+    QString format = QStringLiteral("decimal");   // decimal, lowerLetter, upperLetter, lowerRoman, upperRoman, numberInDash, or another w:numFmt of text/numbersystems.h
     bool continueFromPrevious = true;
     int startAt = 1;                              // for continueFromPrevious off
     int chapterStyle = 0;                         // the heading level (1 to 9) whose number comes first; 0 for none

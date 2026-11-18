@@ -5,6 +5,7 @@
 #include "io/zip.h"
 #include "odt/odtread.h"
 #include "wml/wml.h"
+#include "text/numbersystems.h"
 #include "text/opentype.h"
 
 #include <QCoreApplication>
@@ -759,7 +760,12 @@ QByteArray Writer::listLevelsXml(const QByteArray &head, const AbstractDef &def,
         static const QHash<QString, QByteArray> fmts = {{QStringLiteral("decimal"), "1"},      {QStringLiteral("lowerLetter"), "a"}, {QStringLiteral("upperLetter"), "A"},
                                                          {QStringLiteral("lowerRoman"), "i"},   {QStringLiteral("upperRoman"), "I"},  {QStringLiteral("decimalZero"), "01"},
                                                          {QStringLiteral("none"), ""}};
-        const QByteArray fmt = fmts.value(l.fmt, "1");
+        // (A format of another script or system is spelled as its first numbers; one with no spelling here is written as digits.)
+        QByteArray fmt = fmts.value(l.fmt);
+        if (fmt.isNull()) {
+            const QString odf = jp::numsys::odfFormatOf(l.fmt);
+            fmt = odf.isEmpty() ? QByteArray("1") : esc(odf);
+        }
         int start = l.start;
         if (startOverride && startOverride[lv] >= 0) start = startOverride[lv];
         x += "<text:list-level-style-number text:level=\"" + num(lv + 1) + "\" style:num-format=\"" + fmt + "\"" + (prefix.isEmpty() ? QByteArray() : " style:num-prefix=\"" + esc(prefix) + "\"") +
@@ -809,6 +815,7 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             left(QCoreApplication::translate("odt", "line numbers"));
         } else if (name == "pgNumType") {
             if (t.has(c, "start")) s.pageStart = t.attr(c, "start").toInt();
+            s.pageFormat = t.attr(c, "fmt");
         } else if (name == "headerReference" || name == "footerReference") {
             const QString type = t.attr(c, "type");
             const int slot = type == QLatin1String("even") ? 1 : type == QLatin1String("first") ? 2 : 0;
@@ -824,7 +831,7 @@ QString Writer::masterFor(const SectionInfo &s)
     QString key = QStringLiteral("%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12|").arg(s.pageW).arg(s.pageH).arg(s.top).arg(s.bottom).arg(s.left).arg(s.right).arg(s.header).arg(s.footer).arg(s.landscape).arg(s.columns).arg(s.columnGap).arg(s.separator);
     for (int i = 0; i < 3; ++i) key += s.headerRef[i] + QLatin1Char('/') + s.footerRef[i] + QLatin1Char(';');
     key += s.titlePg ? QLatin1Char('T') : QLatin1Char('-');
-    key += QString::number(s.pageStart);
+    key += QString::number(s.pageStart) + s.pageFormat;
     const auto it = m_masterByKey.constFind(key);
     if (it != m_masterByKey.constEnd()) return it.value();
     const QString name = QStringLiteral("MP%1").arg(m_masters.size() + 1);
@@ -833,6 +840,13 @@ QString Writer::masterFor(const SectionInfo &s)
     m_masters.push_back(copy);
     m_masterByKey.insert(key, name);
     return name;
+}
+
+// The page's number format as a page layout spells it (digits for one that has no spelling).
+static QByteArray pageNumFormat(const QString &format)
+{
+    const QString odf = jp::numsys::odfFormatOf(format);
+    return odf.isEmpty() ? QByteArray("1") : esc(odf);
 }
 
 QByteArray Writer::masterPages()
@@ -847,7 +861,7 @@ QByteArray Writer::masterPages()
         const qint64 top = hasHeader ? std::min(s.header, s.top) : s.top, bottom = hasFooter ? std::min(s.footer, s.bottom) : s.bottom;
         const qint64 headerHeight = hasHeader ? std::max<qint64>(0, s.top - top) : 0, footerHeight = hasFooter ? std::max<qint64>(0, s.bottom - bottom) : 0;
         layouts += "<style:page-layout style:name=\"pm" + num(n) + "\"><style:page-layout-properties fo:page-width=\"" + inchesFromTwips(double(s.pageW)).toUtf8() + "\" fo:page-height=\"" +
-                   inchesFromTwips(double(s.pageH)).toUtf8() + "\" style:num-format=\"1\" style:print-orientation=\"" + (s.landscape ? "landscape" : "portrait") + "\" fo:margin-top=\"" +
+                   inchesFromTwips(double(s.pageH)).toUtf8() + "\" style:num-format=\"" + pageNumFormat(s.pageFormat) + "\" style:print-orientation=\"" + (s.landscape ? "landscape" : "portrait") + "\" fo:margin-top=\"" +
                    inchesFromTwips(double(top)).toUtf8() + "\" fo:margin-bottom=\"" + inchesFromTwips(double(bottom)).toUtf8() + "\" fo:margin-left=\"" + inchesFromTwips(double(s.left)).toUtf8() +
                    "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" + (s.pageStart > 0 ? " style:first-page-number=\"" + num(s.pageStart) + "\"" : QByteArray()) +
                    " style:writing-mode=\"lr-tb\" style:footnote-max-height=\"0in\">";

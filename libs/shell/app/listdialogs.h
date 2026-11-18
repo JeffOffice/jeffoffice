@@ -49,7 +49,7 @@ struct NumberingValueChoice {
 };
 bool setNumberingValueDialog(QWidget *parent, bool canContinue, NumberingValueChoice *choice);
 
-// The number format names the boxes list, as "decimal" and the others are written, with what each shows. The first five are the styles every app counts; the rest (leading zero, ordinal, and the numbers in words) are for the apps whose files hold them (JeffWrite).
+// The number format names the boxes list, as "decimal" and the others are written, with what each shows. The first five are the styles every app counts; the rest (leading zero, ordinal, the numbers in words, and the formats of other scripts and systems) are for the apps whose files hold them (JeffWrite). The examples are UTF-8.
 struct NumberStyleName {
     const char *id;
     const char *example;

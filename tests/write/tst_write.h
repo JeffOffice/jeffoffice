@@ -1777,6 +1777,10 @@ private Q_SLOTS:
     void modifyingAListStyleChangesItsUsersInTextBoxes();
     void theGalleryShowsTheFirstHundredListStylesAndSaysThereAreMore();
     void theNumbersInWordsAndOtherFormatsOfARealListAreShown();
+    void everyNumberFormatCountsInItsOwnScript();
+    void aListAndPageNumbersInOtherNumberFormatsAreShownAndKept();
+    void aNumberFormatWithNoNameHereKeepsItsName();
+    void theNumberFormatChoicesAreShown();
     void editingOneLevelOfARealListKeepsTheRest();
     void theAcceptanceSetOfRealListsKeepsItsNumbers();
     void aPictureBulletIsDrawnAndKeptInTheFile();

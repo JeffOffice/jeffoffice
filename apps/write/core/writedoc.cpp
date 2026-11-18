@@ -10,6 +10,7 @@
 #include "doc/doc.h"
 #include "odt/odt.h"
 #include "rtf/rtf.h"
+#include "text/numbersystems.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -243,6 +244,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
                          : p.pageFormat == QLatin1String("lowerLetter") ? QStringLiteral("alpha")
                          : p.pageFormat == QLatin1String("upperLetter") ? QStringLiteral("ALPHA")
                          : p.pageFormat == QLatin1String("numberInDash") ? QStringLiteral("dash")
+                         : p.pageFormat != QLatin1String("decimal") && numsys::knows(p.pageFormat) ? p.pageFormat   // (the other formats of numbersystems.h keep their names)
                                                                        : QString();
     return s;
 }
@@ -287,6 +289,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
                         : s.pageNumberFormat == QLatin1String("alpha") ? QStringLiteral("lowerLetter")
                         : s.pageNumberFormat == QLatin1String("ALPHA") ? QStringLiteral("upperLetter")
                         : s.pageNumberFormat == QLatin1String("dash") ? QStringLiteral("numberInDash")
+                        : numsys::knows(s.pageNumberFormat) ? s.pageNumberFormat
                                                                        : QString();
 }
 

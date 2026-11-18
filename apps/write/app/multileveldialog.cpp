@@ -1,5 +1,6 @@
 #include "app/uistyle.h"
 #include "app/multileveldialog.h"
+#include "text/numbersystems.h"
 
 #include "app/listdialogs.h"
 
@@ -52,7 +53,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
     style->setObjectName(QStringLiteral("numberStyle"));
     int count = 0;
     const NumberStyleName *names = numberStyleNames(&count);
-    for (int i = 0; i < count; ++i) style->addItem(QString::fromLatin1(names[i].example), QString::fromLatin1(names[i].id));
+    for (int i = 0; i < count; ++i) style->addItem(QString::fromUtf8(names[i].example), QString::fromLatin1(names[i].id));
     style->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "Bullet"), QStringLiteral("bullet"));
     style->addItem(QCoreApplication::translate("jp::write::MultilevelDialog", "(none)"), QStringLiteral("none"));
     form->addRow(QCoreApplication::translate("jp::write::MultilevelDialog", "Number style for this level"), style);
@@ -144,9 +145,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
             QString t = l.text;
             for (int k = 1; k <= 9; ++k) {
                 const Level &of = work.levels[k - 1];
-                const char *sample = of.numFmt == QLatin1String("upperRoman") ? "I" : of.numFmt == QLatin1String("lowerRoman") ? "i" : of.numFmt == QLatin1String("upperLetter") ? "A" :
-                                     of.numFmt == QLatin1String("lowerLetter") ? "a" : "1";
-                t.replace(QStringLiteral("%") + QString::number(k), QString::fromLatin1(sample));
+                t.replace(QStringLiteral("%") + QString::number(k), jp::numsys::numberIn(of.numFmt, 1));
             }
             out += QString(i * 2, QLatin1Char(' ')) + t + QLatin1Char('\n');
             if (i >= 3) break;
