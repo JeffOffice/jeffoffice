@@ -33,14 +33,25 @@ bool hasSoftMask(const QString &dict)
     return re.match(dict).hasMatch();
 }
 
-// A blend mode other than Normal (or Compatible, its old name), as a name or as the list of names a reader tries in turn.
-bool hasBlendMode(const QString &dict)
+// The text of an object a "N 0 R" names ("" where there is none), for a value that is kept as an object of its own.
+using Lookup = std::function<QString(int)>;
+
+// A blend mode other than Normal (or Compatible, its old name), as a name or as the list of names a reader tries in turn, written in place or as an object ("/BM 5 0 R") of its own.
+bool hasBlendMode(const QString &dict, const Lookup &look)
 {
-    static const QRegularExpression re(QStringLiteral("/BM\\s*(/[A-Za-z]+|\\[[^\\]]*\\])"));
+    static const QRegularExpression re(QStringLiteral("/BM\\s*(/[A-Za-z]+|\\[[^\\]]*\\]|\\d+ 0 R)"));
     static const QRegularExpression name(QStringLiteral("/([A-Za-z]+)"));
+    static const QRegularExpression ref(QStringLiteral("^(\\d+) 0 R$"));
     auto it = re.globalMatch(dict);
     while (it.hasNext()) {
-        auto names = name.globalMatch(it.next().captured(1));
+        QString value = it.next().captured(1);
+        if (const auto r = ref.match(value); r.hasMatch()) {
+            if (!look) continue;
+            const QString body = look(r.captured(1).toInt()).trimmed();
+            if (body.isEmpty()) return true;   // (a mode that can't be read is not taken to be Normal)
+            value = body;
+        }
+        auto names = name.globalMatch(value);
         while (names.hasNext()) {
             const QString n = names.next().captured(1);
             if (n != QLatin1String("Normal") && n != QLatin1String("Compatible")) return true;
@@ -55,7 +66,7 @@ bool isTransparencyGroup(const QString &dict)
     return re.match(dict).hasMatch();
 }
 
-bool seeThroughDict(const QString &dict) { return seeThroughState(dict) || hasSoftMask(dict) || hasBlendMode(dict) || isTransparencyGroup(dict); }
+bool seeThroughDict(const QString &dict, const Lookup &look = nullptr) { return seeThroughState(dict) || hasSoftMask(dict) || hasBlendMode(dict, look) || isTransparencyGroup(dict); }
 
 struct Scan {
     const QtPdf &pdf;
@@ -66,6 +77,7 @@ struct Scan {
     explicit Scan(const QtPdf &p) : pdf(p) {}
 
     const QtPdf::Obj *get(int id) const { return id > 0 ? byId.value(id, nullptr) : nullptr; }
+    Lookup lookup() const { return [this](int id) { const QtPdf::Obj *o = get(id); return o ? QString::fromLatin1(o->body.left(4096)) : QString(); }; }
 
     // A dictionary as text, with the dictionary a "/Group N 0 R" points to put where it is (a group is kept as an object of its own as well).
     QString dictText(const QtPdf::Obj &o) const
@@ -89,7 +101,7 @@ struct Scan {
             if (depth > 0 && (key == QLatin1String("ExtGState") || key == QLatin1String("XObject") || key == QLatin1String("Pattern") || key == QLatin1String("Resources"))) {
                 if (const QtPdf::Obj *o = get(id)) {
                     const QString inner = QString::fromLatin1(QtPdf::dictOf(o->body));
-                    bad |= seeThroughDict(inner);
+                    bad |= seeThroughDict(inner, lookup());
                     namesIn(inner, names, depth - 1, bad);
                 }
             }
@@ -149,7 +161,7 @@ struct Scan {
         bool bad = false;
         QHash<QString, int> names;
         namesIn(res, names, 2, bad);
-        if (bad || seeThroughDict(res)) return true;
+        if (bad || seeThroughDict(res, lookup())) return true;
         static const QRegularExpression use(QStringLiteral("/([A-Za-z0-9_.#-]+)\\s+(?:gs|Do|scn|SCN|sh)\\b"));
         auto it = use.globalMatch(QString::fromLatin1(stream));
         while (it.hasNext()) {
@@ -157,7 +169,7 @@ struct Scan {
             const QtPdf::Obj *o = get(id);
             if (!o) continue;
             const QString dict = dictText(*o);
-            if (seeThroughDict(dict)) return true;
+            if (seeThroughDict(dict, lookup())) return true;
             // (a pattern or a shading keeps its graphics states in its own dictionary)
             if (dict.contains(QLatin1String("/ExtGState"))) {
                 QHash<QString, int> inner;
@@ -165,7 +177,7 @@ struct Scan {
                 namesIn(dict, inner, 2, innerBad);
                 if (innerBad) return true;
                 for (auto at = inner.cbegin(); at != inner.cend(); ++at)
-                    if (const QtPdf::Obj *state = get(at.value()); state && seeThroughDict(dictText(*state))) return true;
+                    if (const QtPdf::Obj *state = get(at.value()); state && seeThroughDict(dictText(*state), lookup())) return true;
             }
             if (!QtPdf::isStream(o->body) || seen.contains(id)) continue;
             // A form, or a tiling pattern: drawn with its own resources.
@@ -207,10 +219,10 @@ PdfTransparency pdfTransparency(const QByteArray &given)
     Scan scan(pdf);
     QVector<const QtPdf::Obj *> pages;
     static const QRegularExpression isPage(QStringLiteral("/Type\\s*/Page(?![a-zA-Z])"));
+    for (const QtPdf::Obj &o : pdf.objects) scan.byId.insert(o.id, &o);
     for (const QtPdf::Obj &o : pdf.objects) {
-        scan.byId.insert(o.id, &o);
         const QString dict = QString::fromLatin1(QtPdf::dictOf(o.body));
-        if (seeThroughDict(dict)) out.found = true;
+        if (seeThroughDict(dict, scan.lookup())) out.found = true;
         if (isPage.match(dict).hasMatch() && pages.size() < kMostPages) pages << &o;
     }
     if (pages.isEmpty()) {
@@ -246,7 +258,7 @@ PdfTransparency pdfTransparency(const QByteArray &given)
     for (const QtPdf::Obj *o : std::as_const(pages)) {
         ++page;
         const QString dict = scan.dictText(*o);
-        bool bad = seeThroughDict(dict);
+        bool bad = seeThroughDict(dict, scan.lookup());
         if (!bad) {
             QByteArray stream;
             bool ok = true;

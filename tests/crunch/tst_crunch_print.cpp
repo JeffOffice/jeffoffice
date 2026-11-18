@@ -3817,10 +3817,22 @@ void CrunchPrintTests::aGrayPdfAFileKeepsItsWordsAndHasNoTransparency()
     options.archival = true;
     options.pdfTags = true;
     QString why;
+    // (the check is counted: it is run on the PDF/A file the gray export made)
+    int checked = 0;
+    QByteArray given;
+    jp::setPdfTransparencyProbeForTest([&](const QByteArray &pdf) {
+        ++checked;
+        given = pdf;
+        return pdf;
+    });
+    const auto reset = qScopeGuard([] { jp::setPdfTransparencyProbeForTest(nullptr); });
     QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QCOMPARE(checked, 1);
     QFile f(path);
     QVERIFY(f.open(QIODevice::ReadOnly));
     const QByteArray bytes = f.readAll();
+    QVERIFY2(given.startsWith("%PDF-"), "the check was not given a PDF");
+    jp::setPdfTransparencyProbeForTest(nullptr);
     const jp::PdfTransparency found = jp::pdfTransparency(bytes);
     QVERIFY(!found.unreadable);
     QVERIFY2(!found.found, "a gray PDF/A file has transparency");
@@ -3828,6 +3840,23 @@ void CrunchPrintTests::aGrayPdfAFileKeepsItsWordsAndHasNoTransparency()
     QVERIFY(pdf.isValid());
     QVERIFY2(pdf.text(0).contains(QLatin1String("Grayword3")), qPrintable(pdf.text(0)));
     QCOMPARE(inkOf(pdf.render(0, QSize(612, 792))).colored, 0);
+    // what the check finds stops a gray PDF/A export too, and leaves the file that was there
+    jp::setPdfTransparencyProbeForTest([&](const QByteArray &) {
+        ++checked;
+        return jptest::onePagePdf("/ExtGState << /GS1 5 0 R >>", "/GS1 gs 0 0 9 9 re f", {"<< /Type /ExtGState /ca 0.5 >>"});
+    });
+    const QString refused = e.folder.dir.filePath(QStringLiteral("grayrefused.pdf"));
+    {
+        QFile earlier(refused);
+        QVERIFY(earlier.open(QIODevice::WriteOnly));
+        earlier.write("the earlier file");
+    }
+    QVERIFY(!e.win.w.exportPdfTo(refused, options, QString(), &why));
+    QCOMPARE(checked, 2);
+    QVERIFY2(why.contains(QLatin1String("page 1")) && why.contains(QLatin1String("PDF/A")) && why.contains(QLatin1String("see-through")), qPrintable(why));
+    QFile kept(refused);
+    QVERIFY(kept.open(QIODevice::ReadOnly));
+    QCOMPARE(kept.readAll(), QByteArray("the earlier file"));
 }
 
 // What the check finds in the file stops a PDF/A export of a sheet, which names the page (the page of the job, not the PDF's object order) and leaves the file that was there.
@@ -3899,6 +3928,55 @@ void CrunchPrintTests::theBackdropOfSeeThroughPicturesLeavesThePaintAlone()
     QVERIFY2(painted[1] >= crunch::PrintJob::kMostBackdropsPerPage && painted[1] <= crunch::PrintJob::kMostBackdropsPerPage + 1, qPrintable(QString::number(painted[1])));
 }
 
+// Past the bound on pictures that are given a page of their own, the see-through ones still show the objects beneath them: a red rectangle with more than the bound of ellipses over it
+// is red at its corners (which the ellipses leave clear) in the PDF/A paint, as it is in the usual one.
+void CrunchPrintTests::seeThroughPicturesPastTheBoundStillShowWhatLiesBeneath()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(30, {})));
+    QVERIFY(e.settle());
+    e.view()->selectRange(0, 0, 3, 2);
+    QVERIFY(e.win.w.insertShape(QStringLiteral("rect")));
+    QVERIFY(e.win.w.setObjectFill(Qt::red, false));
+    constexpr int kEllipses = crunch::PrintJob::kMostBackdropsPerPage + 10;
+    for (int i = 0; i < kEllipses; ++i) QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+    QVERIFY(e.settle());
+    QString why;
+    QImage looks[2];
+    for (int archival = 0; archival < 2; ++archival) {
+        crunch::PrintJobOptions options;
+        options.archival = archival;
+        const std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(options, &why);
+        QVERIFY2(job, qPrintable(why));
+        QImage page(612 * 2, 792 * 2, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        QPainter p(&page);
+        p.scale(2, 2);
+        QVERIFY(job->paint(&p, 0));
+        p.end();
+        looks[archival] = page;
+    }
+    auto reddish = [](QRgb c) { return qRed(c) > 180 && qGreen(c) < 90 && qBlue(c) < 90; };
+    // (the first red pixel from the top left is the top left corner of the rectangle: the ellipses over it leave that corner clear)
+    int cx = -1, cy = -1;
+    for (int y = 0; y < looks[0].height() && cx < 0; ++y)
+        for (int x = 0; x < looks[0].width(); ++x)
+            if (reddish(looks[0].pixel(x, y))) {
+                cx = x;
+                cy = y;
+                break;
+            }
+    QVERIFY2(cx >= 0, "the rectangle is not red in the usual paint");
+    int usual = 0, flat = 0;
+    for (int y = 0; y < looks[0].height(); ++y)
+        for (int x = 0; x < looks[0].width(); ++x) {
+            usual += reddish(looks[0].pixel(x, y));
+            flat += reddish(looks[1].pixel(x, y));
+        }
+    QVERIFY2(reddish(looks[1].pixel(cx + 4, cy + 4)), qPrintable(QString::number(looks[1].pixel(cx + 4, cy + 4), 16)));
+    QVERIFY2(flat * 10 >= usual * 8, qPrintable(QStringLiteral("%1 red pixels, against %2").arg(flat).arg(usual)));
+}
+
 // A merged cell is a table cell that spans the rows and columns the page shows of it (not hidden ones, and not those on the pages before and after).
 void CrunchPrintTests::aTableCellSpansOnlyWhatThePageShows()
 {
@@ -3925,3 +4003,26 @@ void CrunchPrintTests::aTableCellSpansOnlyWhatThePageShows()
     QVERIFY2(!bytes.contains("/RowSpan 30"), "the span is the whole merged range");
 }
 
+// A merge across columns that a vertical page break cuts: each page's table cell spans the columns that page shows of it (a hidden column inside it is not counted).
+void CrunchPrintTests::aTableCellAcrossColumnsSpansOnlyWhatEachPageShows()
+{
+    const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Mergedword</t></is></c></row>");
+    const QByteArray book = buildXlsx({worksheet(rows, QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:F1\"/></mergeCells><colBreaks count=\"1\" manualBreakCount=\"1\">"
+                                                                    "<brk id=\"3\" max=\"1048575\" man=\"1\"/></colBreaks>"),
+                                         QStringLiteral("<cols><col min=\"3\" max=\"3\" width=\"9\" hidden=\"1\" customWidth=\"1\"/></cols>"))});
+    EditWindow e;
+    QVERIFY(e.open(book));
+    const QString path = e.folder.dir.filePath(QStringLiteral("colspan.pdf"));
+    crunch::PrintJobOptions options;
+    options.pdfTags = true;
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    QCOMPARE(PdfDocument(bytes).pageCount(), 2);
+    // (columns A, B, and the hidden C are on the first page, and D, E, F on the second)
+    QVERIFY2(bytes.contains("/ColSpan 2 "), "the first page's span is not the columns it shows");
+    QVERIFY2(bytes.contains("/ColSpan 3 "), "the second page's span is not the columns it shows");
+    QVERIFY2(!bytes.contains("/ColSpan 6") && !bytes.contains("/ColSpan 5") && !bytes.contains("/ColSpan 4"), "the span is more than a page shows");
+}

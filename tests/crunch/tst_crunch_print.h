@@ -197,6 +197,8 @@ private Q_SLOTS:
     void aRefusedPdfAFileIsNotMadeAndNamesThePage();
     void theBackdropOfSeeThroughPicturesLeavesThePaintAlone();
     void aTableCellSpansOnlyWhatThePageShows();
+    void aTableCellAcrossColumnsSpansOnlyWhatEachPageShows();
+    void seeThroughPicturesPastTheBoundStillShowWhatLiesBeneath();
     void aPdfHasABookmarkForEachSheet();
     void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
     void aTaggedPdfHasTheCellsAsATable();

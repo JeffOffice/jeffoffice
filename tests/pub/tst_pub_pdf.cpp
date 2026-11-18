@@ -1664,6 +1664,7 @@ private Q_SLOTS:
         c.insertText(QString(QChar::ObjectReplacementCharacter), of);
         doc->pages[0]->items.push_back(t);
         doc->addPage();
+        doc->addPage();
         jp::MainWindow w;
         w.editor()->setDocument(std::move(doc));
         QTemporaryDir dir;
@@ -1715,6 +1716,21 @@ private Q_SLOTS:
             withDialog([&] { ok = w.exportPdfTo(path, s); }, QString(), [&](QDialog *d) { said = qobject_cast<QMessageBox *>(d)->text(); });
             QVERIFY(!ok);
             QVERIFY2(said.contains(QLatin1String("page 2")) && !said.contains(QLatin1String("PDF page")), qPrintable(said));
+        }
+        // a range that starts at the third page: the one PDF page is the publication's third, not its first
+        {
+            jp::MainWindow::PdfSettings s;
+            s.archival = true;
+            s.from = 2;
+            s.to = 2;
+            jp::setPdfTransparencyProbeForTest([](const QByteArray &) {
+                return jptest::onePagePdf("/ExtGState << /GS1 5 0 R >>", "/GS1 gs 0 0 9 9 re f", {"<< /Type /ExtGState /ca 0.5 >>"});
+            });
+            QString said;
+            bool ok = true;
+            withDialog([&] { ok = w.exportPdfTo(path, s); }, QString(), [&](QDialog *d) { said = qobject_cast<QMessageBox *>(d)->text(); });
+            QVERIFY(!ok);
+            QVERIFY2(said.contains(QLatin1String("page 3")) && !said.contains(QLatin1String("page 1")) && !said.contains(QLatin1String("PDF page")), qPrintable(said));
         }
         // a file that passes takes its place (all at once: nothing is left beside it)
         jp::setPdfTransparencyProbeForTest(nullptr);
@@ -1783,6 +1799,15 @@ private Q_SLOTS:
         for (const char *mode : {"/BM /Multiply", "/BM [/Normal /Screen]"}) {
             const jp::PdfTransparency t = check(onePagePdf("/ExtGState << /GS1 5 0 R >>", "/GS1 gs 0 0 10 10 re f", {QByteArray("<< /Type /ExtGState ") + mode + " >>"}));
             QVERIFY2(t.found && t.pages == QVector<int>{1}, mode);
+        }
+        // a blend mode that is an object of its own ("/BM 5 0 R": a name or a list), and one that is Normal that way
+        for (const char *mode : {"/Multiply", "[/Normal /Screen]"}) {
+            const jp::PdfTransparency t = check(onePagePdf("/ExtGState << /GS1 6 0 R >>", "/GS1 gs 0 0 10 10 re f", {mode, "<< /Type /ExtGState /BM 5 0 R >>"}));
+            QVERIFY2(t.found && t.pages == QVector<int>{1}, mode);
+        }
+        for (const char *mode : {"/Normal", "[/Compatible]"}) {
+            const jp::PdfTransparency t = check(onePagePdf("/ExtGState << /GS1 6 0 R >>", "/GS1 gs 0 0 10 10 re f", {mode, "<< /Type /ExtGState /BM 5 0 R >>"}));
+            QVERIFY2(!t.found && !t.unreadable, mode);
         }
         // a soft mask in a form the page draws, and constant alpha in a pattern's states
         {

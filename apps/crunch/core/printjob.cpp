@@ -651,7 +651,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
     }
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     // PDF/A: what lies beneath a see-through picture is painted into pixels, so that the picture's clear parts are not left clear. The page beneath is painted by painters of its own, for each of
-    // the first few pictures (with the objects that lie under that one); past kMostBackdropsPerPage the page's cells are painted once, and each picture is given its part of them.
+    // the first few pictures (with the objects that lie under that one); past kMostBackdropsPerPage the page is painted once, with the cells and every object (one above a picture is drawn over it again afterwards, so it looks right), and each picture is given its part of that.
     const QTransform base = painter->transform();
     PageObjectPainter::Backdrop under;
     if (m_options.archival && c.objects && c.objects->count() > 0) {
@@ -685,7 +685,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
                 ip.setRenderHint(QPainter::Antialiasing);
                 ip.setRenderHint(QPainter::TextAntialiasing);
                 ip.scale(beneath->scale, beneath->scale);
-                paintBeneath(&ip, page, objectsOf, 0);
+                paintBeneath(&ip, page, objectsOf, -1);
             }
             const QRect part = QRectF(points.x() * beneath->scale, points.y() * beneath->scale, points.width() * beneath->scale, points.height() * beneath->scale).toAlignedRect().intersected(beneath->page.rect());
             QImage img(pixels, QImage::Format_RGB32);
