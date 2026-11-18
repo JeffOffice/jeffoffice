@@ -543,7 +543,7 @@ const AdjustSpec kAdjustments[] = {
     {"mathEqual", 2, {23520, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 36745) / 100000, pin(0, a[1], 100000 - 2 * pin(0, a[0], 36745)) / 100000}; }},
     {"mathNotEqual", 3, {23520, 6600000, 11760}, [](const double *a, double, double) {
          const double a1 = pin(0, a[0], 50000);
-         return QVector<double>{a1 / 100000, pin(4200000, a[1], 6600000) / 100000, pin(0, a[2], 100000 - 2 * a1) / 100000};
+         return QVector<double>{a1 / 100000, pin(4200000, a[1], 6600000) / 21600000, pin(0, a[2], 100000 - 2 * a1) / 100000};
      }},
     // Stars: the inner points' distance from the center, over the outer's, in half of 100,000ths.
     {"star4", 1, {12500}, SIDE_FRACTION(50000)},
@@ -665,6 +665,7 @@ QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVe
     else if (prst == QLatin1String("doubleWave")) slots = {{0, 200000}};
     else if (prst == QLatin1String("arc") || prst == QLatin1String("chord") || prst == QLatin1String("pie")) slots = {{0, 21600000}, {1, 21600000}};
     else if (prst == QLatin1String("blockArc")) slots = {{0, 21600000}, {1, 21600000}, {2, 100000}};
+    else if (prst == QLatin1String("mathNotEqual")) slots = {{0, 100000}, {1, 21600000}, {2, 100000}};
     else
         for (int i = 0; i < spec->count; ++i) slots.append({i, 100000});
     double values[8];

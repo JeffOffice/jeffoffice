@@ -565,8 +565,8 @@ static QVector<ShapeDef> build()
         p.addRect(w * 0.13255, h / 2 - g / 2 - t, w * 0.7349, t); p.addRect(w * 0.13255, h / 2 + g / 2, w * 0.7349, t); return p; }, {0.2352, 0.1176}, {}, 0.3, nullptr);
     add("mathNotEqual", QT_TRANSLATE_NOOP("Render", "Not Equal"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
         // (The standard's drawing: two bars and a slash across them. The bars' thickness and the gap between them are fractions of the height; the slash's angle is the second value, in
-        // 100,000ths of 60,000ths of a degree, as the standard has it, which is 66 for its 110 degrees.)
-        const double a1 = std::clamp(A(a, 0, 0.2352), 0.0, 0.5), crAng = std::clamp(A(a, 1, 66.0), 42.0, 66.0) * 100000 / 60000 * M_PI / 180;
+        // a fraction of a turn, 110 degrees by default.)
+        const double a1 = std::clamp(A(a, 0, 0.2352), 0.0, 0.5), crAng = std::clamp(A(a, 1, 6600000.0 / 21600000), 4200000.0 / 21600000, 6600000.0 / 21600000) * 2 * M_PI;
         const double a3 = std::clamp(A(a, 2, 0.1176), 0.0, 1 - 2 * a1);
         const double hc = w / 2, vc = h / 2, hd2 = h / 2, dy1 = h * a1, dy2 = h * a3 / 2, dx1 = w * 0.7349 / 2;
         const double x1 = hc - dx1, x8 = hc + dx1, y2 = vc - dy2, y3 = vc + dy2, y1 = y2 - dy1, y4 = y3 + dy1;
@@ -577,7 +577,7 @@ static QVector<ShapeDef> build()
         const double rx = cadj2 > 0 ? x7 + dx7 : rx7, lx = cadj2 > 0 ? x7 : rx7 - dx7, ry = cadj2 > 0 ? dy3 : 0, ly = cadj2 > 0 ? 0 : -dy3;
         const double dlx = w - rx, drx = w - lx, dly = h - ry, dry = h - ly;
         return poly({{x1, y1}, {x6, y1}, {lx, ly}, {rx, ry}, {rx6, y1}, {x8, y1}, {x8, y2}, {rx5, y2}, {rx4, y3}, {x8, y3}, {x8, y4}, {rx3, y4}, {drx, dry}, {dlx, dly},
-                     {x3, y4}, {x1, y4}, {x1, y3}, {x4, y3}, {x5, y2}, {x1, y2}}); }, {0.2352, 66.0, 0.1176}, {}, 0.3, nullptr);
+                     {x3, y4}, {x1, y4}, {x1, y3}, {x4, y3}, {x5, y2}, {x1, y2}}); }, {0.2352, 6600000.0 / 21600000, 0.1176}, {}, 0.3, nullptr);
 
     // ---------------- Flowchart ----------------
     add("fcProcess", QT_TRANSLATE_NOOP("Render", "Flowchart: Process"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { QPainterPath p; p.addRect(0, 0, w, h); return p; }, {}, {}, 0.05);
@@ -820,7 +820,7 @@ QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const Q
     } else if (id == QLatin1String("mathEqual")) {
         a = {a[0] * 0.8, a[0] * 0.48};
     } else if (id == QLatin1String("mathNotEqual")) {
-        a = {a[0] * 0.8, 66.0, a[0] * 0.48};   // (the slash was turned 20 degrees: the standard's 110)
+        a = {a[0] * 0.8, 6600000.0 / 21600000, a[0] * 0.48};   // (the slash was turned 20 degrees: the standard's 110)
     } else if (id == QLatin1String("mathDivide")) {
         a = {a[0] * 0.6, a[0] * 0.396, a[0] * 0.33};
     } else if (id.startsWith(QLatin1String("wedge"))) {
