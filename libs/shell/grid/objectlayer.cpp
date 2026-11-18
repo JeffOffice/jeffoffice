@@ -875,10 +875,11 @@ bool ObjectLayer::fractionAt(const Entry &e, const GridLayout &layout, const QPo
 
 void ObjectLayer::armBox(bool on, const QSizeF &usualPoints)
 {
+    const bool was = m_boxArmed || m_boxDragging;
     m_boxArmed = on;
     m_boxUsual = usualPoints;
     m_boxDragging = false;
-    requestRepaint();
+    if (was) requestRepaint();   // (putting it down when it was not armed changes nothing on the screen)
 }
 
 // The grid's unit is a pixel at 100%: three quarters of a point.

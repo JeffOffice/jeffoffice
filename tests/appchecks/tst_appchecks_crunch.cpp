@@ -299,6 +299,10 @@ private Q_SLOTS:
                 w->insertShape(QStringLiteral("rect"));
                 waitFor([&] { return quiet(w); });
             }),
+            in(QStringLiteral("a text box selected"), [](CrunchWindow *w) {
+                w->insertTextBox();
+                waitFor([&] { return quiet(w); });
+            }),
             in(QStringLiteral("a Text Art selected"), [](CrunchWindow *w) {
                 w->insertTextArt(QStringLiteral("plain"));
                 waitFor([&] { return quiet(w); });
@@ -530,6 +534,7 @@ private Q_SLOTS:
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
             {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected"), QStringLiteral("a shape selected"), QStringLiteral("a picture selected")}},
+            {QStringLiteral("object.dir"), {QStringLiteral("a text box selected")}},
             {QStringLiteral("object.crop"), {QStringLiteral("a picture selected")}},
             {QStringLiteral("object.compress"), {QStringLiteral("a picture selected")}},
             {QStringLiteral("object.textArt"), {QStringLiteral("a Text Art selected")}},
@@ -566,6 +571,8 @@ private Q_SLOTS:
             {QStringLiteral("formulas.options"), menu},
             {QStringLiteral("sheet.tabColor"), menu},
             {QStringLiteral("sheet.unhide"), menu},
+            {QStringLiteral("insert.textBox.draw"), QStringLiteral("it arms the draw tool and changes nothing before the drag; aDragDrawsATextBoxOfTheDraggedSizeInOneStep drags it")},
+            {QStringLiteral("object.dir.horz"), QStringLiteral("a text box starts across, so choosing across changes nothing; textDirectionHasThreeChoicesAndEachIsOneStepThatUndoesAndIsSaved turns one and back")},
             {QStringLiteral("fmt.border.draw"), QStringLiteral("it picks up the pen: the pointer and a line in the status bar change, and the borders are made by a mouse drag over the grid")},
             {QStringLiteral("fmt.border.drawGrid"), QStringLiteral("it picks up the pen for a grid: the pointer and a line in the status bar change, and the borders are made by a mouse drag over the grid")},
             {QStringLiteral("fmt.border.erase"), QStringLiteral("it picks up the eraser: the pointer and a line in the status bar change, and the borders are taken off by a mouse drag over the grid")},
