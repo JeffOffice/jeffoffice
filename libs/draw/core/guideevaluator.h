@@ -24,6 +24,9 @@ public:
     void define(const QString &name, const QString &formula);
     // The same for a formula already split into its words (a list that is used again and again splits once).
     void define(const QString &name, const QStringList &words);
+    // Works a guide out now, from the words of its formula, and holds its value as the name's: the standard's guides come in order, and a name that is defined twice has the
+    // later value for what comes after it (and the earlier for what came before). A built-in name, or one given a value with set(), is not changed.
+    void assign(const QString &name, const QStringList &words);
     // Defines a name as a number.
     void set(const QString &name, double value);
     // The value of a name or of a number written out.
@@ -35,6 +38,7 @@ private:
     QHash<QString, double> m_values;
     QHash<QString, QStringList> m_formulas;
     QSet<QString> m_active;
+    QSet<QString> m_locked;   // the built-in names and those given a value
     int m_depth = 0;
 };
 

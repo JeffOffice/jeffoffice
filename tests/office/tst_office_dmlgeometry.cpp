@@ -122,6 +122,38 @@ private Q_SLOTS:
         QCOMPARE(g.value(QStringLiteral("dx")), 7.0);
     }
 
+    // The standard's guides have products of two sizes in EMU (5e21 in a circular arrow) before they divide, so an intermediate is held to far more than a coordinate is.
+    void dmlGuidesHoldProductsOfTwoSizes()
+    {
+        GuideEvaluator g(1000, 600);
+        g.define(QStringLiteral("p"), QStringLiteral("*/ 5000000000000000000000 3 3"));
+        QCOMPARE(g.value(QStringLiteral("p")), 5e21);
+        g.define(QStringLiteral("q"), QStringLiteral("*/ 100000000000000000000 100000000000000000000 100000000000000000000"));
+        QCOMPARE(g.value(QStringLiteral("q")), 1e20);
+        // Still finite, whatever it is fed.
+        g.define(QStringLiteral("huge"), QStringLiteral("*/ 1e300 1e300 1"));
+        QVERIFY(std::isfinite(g.value(QStringLiteral("huge"))));
+    }
+
+    // The guides of a preset come in order and a name defined twice has the later value for what follows it: assign() works a guide out at once.
+    void dmlAssignedGuidesFollowInOrderAndALaterNameOverrides()
+    {
+        GuideEvaluator g(1000, 600);
+        g.assign(QStringLiteral("il"), {QStringLiteral("val"), QStringLiteral("10")});
+        g.assign(QStringLiteral("a"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
+        g.assign(QStringLiteral("il"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("5"), QStringLiteral("0")});   // from the earlier il: 15
+        g.assign(QStringLiteral("b"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
+        QCOMPARE(g.value(QStringLiteral("a")), 11.0);
+        QCOMPARE(g.value(QStringLiteral("il")), 15.0);
+        QCOMPARE(g.value(QStringLiteral("b")), 16.0);
+        // A built-in name and one that was set are not changed.
+        g.assign(QStringLiteral("w"), {QStringLiteral("val"), QStringLiteral("1")});
+        g.set(QStringLiteral("adj"), 3);
+        g.assign(QStringLiteral("adj"), {QStringLiteral("val"), QStringLiteral("1")});
+        QCOMPARE(g.value(QStringLiteral("w")), 1000.0);
+        QCOMPARE(g.value(QStringLiteral("adj")), 3.0);
+    }
+
     void dmlGuidesSurviveLoopsAndExcess()
     {
         GuideEvaluator g(1000, 600);

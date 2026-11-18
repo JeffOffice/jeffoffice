@@ -60,18 +60,16 @@ bool frameOf(const QSizeF &size, double *w, double *h)
     return !(*w < 0 || *h < 0 || (*w == 0 && *h == 0));
 }
 
-// The evaluator of a definition: its adjustments (the given ones over its own), then its guides, each worked out in order so that a guide's operands are known by the time
-// it is used.
+// The evaluator of a definition: its adjustments (the given ones over its own), then its guides, each worked out in order, as the standard has them: a guide's operands are the
+// values before it, and a name defined twice has the later value from there on.
 void prepare(GuideEvaluator &ev, const GeomSpec &spec, const QHash<QString, double> &adjust)
 {
     for (const GeomGuide &g : spec.adjust) {
         const auto it = adjust.constFind(g.name);
         if (it != adjust.constEnd()) ev.set(g.name, it.value());
     }
-    for (const GeomGuide &g : spec.adjust) ev.define(g.name, g.words);
-    for (const GeomGuide &g : spec.guides) ev.define(g.name, g.words);
-    for (const GeomGuide &g : spec.adjust) ev.value(g.name);
-    for (const GeomGuide &g : spec.guides) ev.value(g.name);
+    for (const GeomGuide &g : spec.adjust) ev.assign(g.name, g.words);
+    for (const GeomGuide &g : spec.guides) ev.assign(g.name, g.words);
 }
 
 double points(double emu)

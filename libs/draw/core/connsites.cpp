@@ -170,8 +170,8 @@ QVector<ConnectionSite> connectionSites(const QString &preset, const QSizeF &siz
     // Only the adjustments the preset itself defines are taken: a file cannot reach the built-in names (w, h, ss, cd2) or the guides through them.
     for (auto it = adj.constBegin(); it != adj.constEnd(); ++it)
         if (p->adjustmentNames.contains(it.key())) ev.set(it.key(), it.value());
-    for (const Guide &g : p->adjustments) ev.define(g.name, g.words);
-    for (const Guide &g : p->guides) ev.define(g.name, g.words);
+    for (const Guide &g : p->adjustments) ev.assign(g.name, g.words);
+    for (const Guide &g : p->guides) ev.assign(g.name, g.words);
     QVector<ConnectionSite> out;
     out.reserve(p->sites.size());
     for (const Site &s : p->sites) out.push_back({QPointF(ev.value(s.x), ev.value(s.y)), degrees(ev.value(s.angle))});
