@@ -668,6 +668,7 @@ private Q_SLOTS:
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
             {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
+            {QStringLiteral("insert.textBox.draw"), QStringLiteral("it arms the draw tool and changes nothing before the drag; theTextBoxGalleryStartsWithDrawTextBoxAndADragOnThePageDrawsABoxAndBeginsItsWords drags it")},
             {QStringLiteral("shape.createLink"), QStringLiteral("it waits for a click on the text box that the words go on in, and changes nothing before it; createLinkAndBreakLinkWorkFromTheShapeFormatTab clicks it")},
             {QStringLiteral("shape.effect.none"), QStringLiteral("it takes the effect off a shape, and the shape it runs on has none; aShapeTakesOneEffectAtATimeSavedInTheFilesForm and theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach run it with one")},
             {QStringLiteral("shape.editPoints"), QStringLiteral("it shows the points of the shape's outline for pulling and changes nothing itself; editPointsFromTheWindowDragsDeletesAndInsertsPointsInOneStepEach pulls them")},
