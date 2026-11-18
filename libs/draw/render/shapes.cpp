@@ -1,6 +1,7 @@
 #include "render/shapes.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -784,6 +785,39 @@ QVector<double> shapeAdj(const QString &id, const QVector<double> &adj)
     QVector<double> out = d ? d->defaults : QVector<double>();
     for (int i = 0; i < adj.size() && i < out.size(); ++i) out[i] = adj[i];
     return out;
+}
+
+QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const QVector<double> &adj)
+{
+    // (What each shape's list of defaults was, for the shapes whose adjustments changed their meaning or their defaults.)
+    static const QHash<QString, QVector<double>> old = {
+        {"parallelogram", {0.25}}, {"trapezoid", {0.25}}, {"hexagon", {0.25}}, {"halfFrame", {0.333}}, {"leftUpArrow", {0.18, 0.22}},
+        {"mathEqual", {0.235}}, {"mathDivide", {0.235}}, {"star4", {0.19}}, {"star5", {0.38}}, {"star6", {0.58}}, {"star7", {0.6}}, {"star8", {0.72}},
+        {"star10", {0.76}}, {"star12", {0.78}}, {"star16", {0.82}}, {"star24", {0.86}}, {"star32", {0.88}}, {"mathPlus", {0.235}}, {"mathMinus", {0.235}},
+        {"mathMultiply", {0.235}}, {"wedgeRectCallout", {0.2, 1.0}}, {"wedgeRoundRectCallout", {0.2, 1.0}}, {"wedgeEllipseCallout", {0.18, 1.0}}};
+    const auto at = old.constFind(id);
+    if (at == old.cend()) return adj;
+    QVector<double> a = at.value();
+    for (int i = 0; i < adj.size(); ++i) {
+        if (i < a.size()) a[i] = adj[i];
+        else a.append(adj[i]);
+    }
+    const double w = std::max(0.5, size.width()), h = std::max(0.5, size.height()), m = std::min(w, h);
+    if (id == QLatin1String("parallelogram") || id == QLatin1String("trapezoid") || id == QLatin1String("hexagon")) {
+        a[0] = a[0] * w / m;
+    } else if (id == QLatin1String("halfFrame")) {
+        a = {a[0], a[0]};
+    } else if (id == QLatin1String("mathEqual")) {
+        a = {a[0] * 0.8, a[0] * 0.48};
+    } else if (id == QLatin1String("mathDivide")) {
+        a = {a[0] * 0.6, a[0] * 0.396, a[0] * 0.33};
+    } else if (id.startsWith(QLatin1String("wedge"))) {
+        a[0] -= 0.5;
+        a[1] -= 0.5;
+        // (The rounded one's corner was 0.16 of the box above its pointer, now a share of the frame's shorter side.)
+        if (id == QLatin1String("wedgeRoundRectCallout")) a = {a[0], a[1], 0.16 * std::min(w, h * 0.78) / m};
+    }
+    return a;
 }
 
 QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<double> &adj)

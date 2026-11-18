@@ -45,6 +45,9 @@ const ShapeDef *shapeDef(const QString &id);
 QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 QRectF shapeTextRect(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 QVector<double> shapeAdj(const QString &id, const QVector<double> &adj);   // fills in defaults
+// A save from before the library drew the standard's shapes (no "adjModel" in it) holds adjustments in the old meanings: a slant as a fraction of the width, a callout's tip
+// from the top left, and the old defaults for what it left out. This gives the values that draw the same shape now. `size` is the shape's frame.
+QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const QVector<double> &adj);
 QPointF adjHandlePos(const AdjHandle &h, const QSizeF &size, const QVector<double> &adj);
 double adjFromPoint(const AdjHandle &h, const QSizeF &size, const QPointF &local);
 

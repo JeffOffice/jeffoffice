@@ -3913,6 +3913,100 @@ private Q_SLOTS:
         QVERIFY(all.size() > 100);
     }
 
+    // A file saved before the library drew the standard's shapes holds adjustments in the old meanings (a slant as a fraction of the width, a callout's tip from the top left); it must look as it did.
+    void aShapeSavedByTheOldLibraryKeepsItsLook()
+    {
+        using Poly = QVector<QPointF>;
+        const auto outline = [](const QString &name, const QSizeF &size, const QVector<double> &adj, bool asText, bool roundTrip) {
+            QJsonObject o;
+            if (asText) {
+                jp::TextItem t;
+                t.shape = name;
+                t.rect = QRectF(10, 20, size.width(), size.height());
+                t.adj = adj;
+                o = t.toJson();
+            } else {
+                jp::ShapeItem s;
+                s.shape = name;
+                s.rect = QRectF(10, 20, size.width(), size.height());
+                s.adj = adj;
+                o = s.toJson();
+            }
+            o.remove(QStringLiteral("adjModel"));   // (what the old version wrote has no such key)
+            QVector<double> got;
+            QString shape;
+            if (asText) {
+                jp::TextItem t;
+                t.fromJson(o);
+                if (roundTrip) { jp::TextItem u; u.fromJson(t.toJson()); t = u; }
+                got = t.adj;
+                shape = t.shape;
+            } else {
+                jp::ShapeItem s;
+                s.fromJson(o);
+                if (roundTrip) { jp::ShapeItem u; u.fromJson(s.toJson()); s = u; }
+                got = s.adj;
+                shape = s.shape;
+            }
+            return jp::shapePath(shape, size, got);
+        };
+        const auto same = [](const QPainterPath &a, const QPainterPath &b) {
+            if (a.elementCount() != b.elementCount()) return false;
+            for (int i = 0; i < a.elementCount(); ++i)
+                if (std::abs(a.elementAt(i).x - b.elementAt(i).x) > 1e-6 || std::abs(a.elementAt(i).y - b.elementAt(i).y) > 1e-6) return false;
+            return true;
+        };
+        const auto poly = [](const Poly &pts) {
+            QPainterPath p;
+            p.moveTo(pts.first());
+            for (int i = 1; i < pts.size(); ++i) p.lineTo(pts[i]);
+            p.closeSubpath();
+            return p;
+        };
+        for (const bool asText : {false, true})
+            for (const bool roundTrip : {false, true})
+                for (const QSizeF size : {QSizeF(200, 100), QSizeF(100, 200), QSizeF(120, 120)})
+                    for (const bool given : {true, false}) {
+                        const double w = size.width(), h = size.height();
+                        const QString where = QStringLiteral(" (%1x%2, %3, %4, %5)").arg(w).arg(h).arg(asText ? "text" : "shape").arg(roundTrip ? "round trip" : "load").arg(given ? "adj" : "no adj");
+                        const double a = given ? 0.3 : 0.25, s = a * w;
+                        const QVector<double> adj = given ? QVector<double>{a} : QVector<double>();
+                        QVERIFY2(same(outline("parallelogram", size, adj, asText, roundTrip), poly({{s, 0}, {w, 0}, {w - s, h}, {0, h}})), qPrintable("parallelogram" + where));
+                        QVERIFY2(same(outline("trapezoid", size, adj, asText, roundTrip), poly({{s, 0}, {w - s, 0}, {w, h}, {0, h}})), qPrintable("trapezoid" + where));
+                        QVERIFY2(same(outline("hexagon", size, adj, asText, roundTrip), poly({{s, 0}, {w - s, 0}, {w, h / 2}, {w - s, h}, {s, h}, {0, h / 2}})), qPrintable("hexagon" + where));
+                        // A wedge callout's tip was at (adj1, adj2) of the frame from its top left (0.2, 1.0 unless it was an oval: 0.18, 1.0).
+                        for (const char *name : {"wedgeRectCallout", "wedgeRoundRectCallout", "wedgeEllipseCallout"}) {
+                            const bool oval = QLatin1String(name) == QLatin1String("wedgeEllipseCallout");
+                            const double tx = given ? 0.7 : oval ? 0.18 : 0.2, ty = given ? 1.4 : 1.0;
+                            const QPainterPath p = outline(name, size, given ? QVector<double>{tx, ty} : QVector<double>(), asText, roundTrip);
+                            bool tip = false;
+                            for (int i = 0; i < p.elementCount(); ++i)
+                                if (std::abs(p.elementAt(i).x - tx * w) < 1e-6 && std::abs(p.elementAt(i).y - ty * h) < 1e-6) tip = true;
+                            QVERIFY2(tip, qPrintable(QString::fromLatin1(name) + where));
+                        }
+                        // The one that had no adjustment to give it: the left-up arrow's old defaults, the half frame's one thickness for both arms (a square's only), and every star's old default.
+                        if (given) continue;
+                        const double m = std::min(w, h), t = 0.18 * m, hw = 0.22 * m;
+                        QVERIFY2(same(outline("leftUpArrow", size, {}, asText, roundTrip),
+                                      poly({{0, h - hw}, {hw, h - 2 * hw}, {hw, h - hw - t / 2}, {w - hw - t / 2, h - hw - t / 2}, {w - hw - t / 2, hw}, {w - 2 * hw, hw}, {w - hw, 0}, {w, hw},
+                                            {w - hw + t / 2, hw}, {w - hw + t / 2, h - hw + t / 2}, {hw, h - hw + t / 2}, {hw, h}})),
+                                 qPrintable("leftUpArrow" + where));
+                        const QHash<QString, double> stars = {{"star4", 0.19}, {"star5", 0.38}, {"star6", 0.58}, {"star7", 0.6}, {"star8", 0.72}, {"star10", 0.76}, {"star12", 0.78}, {"star16", 0.82}, {"star24", 0.86}, {"star32", 0.88}};
+                        for (auto it = stars.cbegin(); it != stars.cend(); ++it)
+                            QVERIFY2(same(outline(it.key(), size, {}, asText, roundTrip), jp::shapePath(it.key(), size, {it.value()})), qPrintable(it.key() + where));
+                    }
+        // The half frame had one thickness for both arms (it is the standard's drawing only where the box is square).
+        for (const bool given : {true, false}) {
+            const double t = (given ? 0.4 : 0.333) * 100;
+            QVERIFY(same(outline("halfFrame", QSizeF(100, 100), given ? QVector<double>{0.4} : QVector<double>(), false, true), poly({{0, 0}, {100, 0}, {100 - t, t}, {t, t}, {t, 100 - t}, {0, 100}})));
+        }
+        // The equals sign: the bars were 0.8 of the number tall and the gap between them 0.48 of it; the division sign: a bar 0.6 of it tall, dots 0.66 of it across, and 0.396 of it between a dot and the bar.
+        const double h = 100;
+        QVERIFY(std::abs(outline("mathEqual", QSizeF(200, h), {0.3}, false, true).boundingRect().height() - (2 * 0.8 * 0.3 + 0.48 * 0.3) * h) < 1e-6);
+        QVERIFY(std::abs(outline("mathEqual", QSizeF(200, h), {}, false, true).boundingRect().height() - (2 * 0.8 * 0.235 + 0.48 * 0.235) * h) < 1e-6);
+        QVERIFY(std::abs(outline("mathDivide", QSizeF(200, h), {0.3}, false, true).boundingRect().height() - (0.6 * 0.3 + 3.2 * 0.66 * 0.3) * h) < 1e-6);
+    }
+
     void aConnectorGluedToANonSideSiteFollowsItsShapeAndAnIndexPastTheCountStaysPut()
     {
         auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 100, "ellipse"), 100, 100, 100, 100) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 400, 400, 40, 40) +

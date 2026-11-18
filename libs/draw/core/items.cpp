@@ -1,5 +1,6 @@
 #include "core/items.h"
 #include "core/blipeffects.h"
+#include "render/shapes.h"
 
 #include <algorithm>
 #include <cmath>
@@ -243,6 +244,7 @@ QJsonObject TextItem::toJson() const
         for (double v : adj) a.append(v);
         o["adj"] = a;
     }
+    if (!shape.isEmpty()) o["adjModel"] = 2;
     if (!customPath.isEmpty()) o["path"] = pathJson(customPath);
     if (!textArea.isNull()) o["textArea"] = marginsJson(textArea);
     o["story"] = storyId;
@@ -272,6 +274,8 @@ void TextItem::fromJson(const QJsonObject &o)
     shape = o["shape"].toString();
     adj.clear();
     for (const auto &v : o["adj"].toArray()) adj.append(v.toDouble());
+    // (A save from before "adjModel" 2 holds the old library's meanings.)
+    if (o["adjModel"].toInt() < 2 && !shape.isEmpty()) adj = adjFromOldLibrary(shape, rect.size(), adj);
     customPath = pathFrom(o["path"].toArray());
     textArea = o.contains("textArea") ? marginsFrom(o["textArea"], QMarginsF()) : QMarginsF();
     storyId = o["story"].toString();
@@ -536,6 +540,7 @@ QJsonObject ShapeItem::toJson() const
         for (double v : adj) a.append(v);
         o["adj"] = a;
     }
+    o["adjModel"] = 2;
     if (!customPath.isEmpty()) o["path"] = pathJson(customPath);
     // Overlapping outlines fill by winding (as SVG does by default).
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
@@ -568,6 +573,8 @@ void ShapeItem::fromJson(const QJsonObject &o)
     shape = o["shape"].toString(QStringLiteral("rect"));
     adj.clear();
     for (const auto &v : o["adj"].toArray()) adj.push_back(v.toDouble());
+    // (A save from before "adjModel" 2 holds the old library's meanings.)
+    if (o["adjModel"].toInt() < 2) adj = adjFromOldLibrary(shape, rect.size(), adj);
     customPath = pathFrom(o["path"].toArray());
     if (o["winding"].toBool()) customPath.setFillRule(Qt::WindingFill);
     storyId = o["story"].toString();
