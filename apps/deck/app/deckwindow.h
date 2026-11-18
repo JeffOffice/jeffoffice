@@ -5,6 +5,7 @@
 #include "app/appwindow.h"
 #include "app/lossywarning.h"
 #include "app/missingfonts.h"
+#include "app/packandgo.h"
 #include "app/filetasks.h"
 #include "app/formatpane.h"
 #include "app/recovery.h"
@@ -415,6 +416,10 @@ public:
     bool exportEmail(EmailWhat what, const PdfProtection &protect = PdfProtection());
     // Asks which of the two, then makes the message as exportEmail does.
     bool exportEmailAsk(const PdfProtection &fromPage = PdfProtection());
+    // Pack and Go (File > Export): the presentation saved in a ZIP or a folder with the fonts it uses and the files it links to, their links moved inside (libs/shell/app/packandgo.h). packAndGo asks where
+    // and shows what was packed; packAndGoTo makes the package at `destination` (a test calls it).
+    bool packAndGo(bool toFolder);
+    PackReport packAndGoTo(const QString &destination, PackMode mode, const PackAsk &ask = PackAsk(), const PackLimits &limits = PackLimits());
 
     // JeffDeck's Help (F1 and the ribbon's "?"): the Help pane on the right,
     // on `topic` ("" for the topic of what is being done, else the contents);

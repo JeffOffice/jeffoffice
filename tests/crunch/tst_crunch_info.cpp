@@ -766,6 +766,56 @@ private Q_SLOTS:
         QVERIFY(e.win.w.isWindowModified());
         e.win.w.hideFileScreen();
     }
+    // Pack and Go saves the workbook with the picture it links to, the link moved inside the package, so that it opens from the new folder with the picture beside it.
+    void packAndGoTakesALinkedPictureAndMovesTheLink()
+    {
+        EditWindow e;
+        QImage image(40, 30, QImage::Format_RGB32);
+        image.fill(Qt::blue);
+        const QString picture = e.folder.dir.filePath(QStringLiteral("elsewhere/logo.png"));
+        QVERIFY(QDir().mkpath(e.folder.dir.filePath(QStringLiteral("elsewhere"))));
+        QVERIFY(image.save(picture));
+        const QString drawing = QStringLiteral("<xdr:wsDr xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                                               "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><xdr:twoCellAnchor><xdr:from><xdr:col>4</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>1</xdr:row>"
+                                               "<xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>6</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>4</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:pic><xdr:nvPicPr>"
+                                               "<xdr:cNvPr id=\"2\" name=\"Logo\"/><xdr:cNvPicPr/></xdr:nvPicPr><xdr:blipFill><a:blip r:link=\"rId1\"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill><xdr:spPr>"
+                                               "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:twoCellAnchor></xdr:wsDr>");
+        const QString rels = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                                            "<Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"%1\" TargetMode=\"External\"/></Relationships>").arg(picture);
+        QVector<ExtraPart> parts;
+        parts.append({QStringLiteral("xl/drawings/drawing1.xml"), drawing.toUtf8(), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
+                      QStringLiteral("../drawings/drawing1.xml")});
+        parts.append({QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"), rels.toUtf8(), QString(), -1, QString(), QString(), QString()});
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        QVERIFY(e.open(withParts(buildXlsx({worksheet(rows, QStringLiteral("<drawing r:id=\"rIdD1\"/>"))}), parts)));
+        QDir().mkpath(e.folder.dir.filePath(QStringLiteral("dest")));
+        const jp::PackReport report = e.win.w.packAndGoTo(e.folder.dir.filePath(QStringLiteral("dest")), jp::PackMode::Folder);
+        QVERIFY2(report.ok, qPrintable(report.error));
+        QCOMPARE(report.packed(), 1);
+        QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/logo.png")).isFile());
+        QFile copy(report.path + QStringLiteral("/") + QFileInfo(e.path).completeBaseName() + QStringLiteral(".xlsx"));
+        QVERIFY(copy.open(QIODevice::ReadOnly));
+        const QVector<jp::PackLink> links = jp::OpcPackSource::linksOf(copy.readAll());
+        QCOMPARE(links.size(), 1);
+        QCOMPARE(links[0].target, QStringLiteral("linked/logo.png"));
+        // (it opens from its folder)
+        EditWindow v;
+        QVERIFY2(v.win.open(copy.fileName()), qPrintable(v.win.told.join(QLatin1Char('|'))));
+    }
+    // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
+    void packAndGoPageScreenshot()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        auto &w = e.win.w;
+        w.resize(1280, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("export"));
+        QTRY_VERIFY(w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip")) && w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip"))->isVisible());
+        QVERIFY(w.grab().save(dir + QStringLiteral("/crunch-pack-and-go.png")));
+    }
 };
 
 JP_TEST_CLASS(CrunchInfoTests)

@@ -5,6 +5,7 @@
 
 #include "app/appwindow.h"
 #include "app/missingfonts.h"
+#include "app/packandgo.h"
 #include "app/readaloud.h"
 #include "app/selectionpane.h"
 #include "app/versionstore.h"
@@ -611,6 +612,10 @@ public:
     // Asks which of the two, then makes the message as exportEmail does.
     // `fromPage`: the password chosen on the Export page, offered in the box
     bool exportEmailAsk(const PdfProtection &fromPage = PdfProtection());
+    // Pack and Go (File > Export): the workbook saved in a ZIP or a folder with the fonts it uses and the files it links to, their links moved inside (libs/shell/app/packandgo.h). packAndGo asks where
+    // and shows what was packed; packAndGoTo makes the package at `destination` (a test calls it).
+    bool packAndGo(bool toFolder);
+    PackReport packAndGoTo(const QString &destination, PackMode mode, const PackAsk &ask = PackAsk(), const PackLimits &limits = PackLimits());
     // Prints what the choices say, to the printer or into a PDF file the person names (what asks for the name is the Save As picker). True when it was done; false, with the reason shown.
     bool printWith(const crunch::PrintChoices &choices);
     // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).

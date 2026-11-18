@@ -31,6 +31,9 @@
 #include "office/package.h"
 #include "office/packageprops.h"
 #include "core/writedoc.h"
+#include "app/theme.h"
+#include "app/packandgo.h"
+#include "io/zip.h"
 
 #include <QAction>
 #include <QLabel>
@@ -136,6 +139,29 @@ QByteArray richDocx(const QString &alt)
     w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
     w.addPart(QStringLiteral("/word/media/p.png"), png, QStringLiteral("image/png"));
     w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId9"), kRel + QStringLiteral("image"), QStringLiteral("/word/media/p.png"));
+    return w.finish();
+}
+
+// A .docx whose picture is linked to the file `picture` (not in the document) and that has INCLUDEPICTURE and INCLUDETEXT fields for `fieldPicture` and `fieldText`, in the font Georgia.
+QByteArray linkedDocx(const QString &picture, const QString &fieldPicture, const QString &fieldText)
+{
+    const QByteArray drawing = "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"914400\" cy=\"914400\"/><wp:docPr id=\"7\" name=\"Linked\"/>"
+                               "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"l.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                               "<pic:blipFill><a:blip r:link=\"rId9\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"914400\" cy=\"914400\"/></a:xfrm>"
+                               "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    auto field = [](const QString &code) {
+        return QByteArray("<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> ") + code.toUtf8() + " </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+               "<w:r><w:t>result</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+    };
+    const QByteArray body = "<w:p><w:r><w:rPr><w:rFonts w:ascii=\"Georgia\" w:hAnsi=\"Georgia\"/></w:rPr><w:t>Linked</w:t></w:r><w:r>" + drawing + "</w:r></w:p><w:p>" +
+                            field(QStringLiteral("INCLUDEPICTURE \"%1\" \\d").arg(fieldPicture)) + "</w:p><w:p>" + field(QStringLiteral("INCLUDETEXT \"%1\"").arg(fieldText)) + "</w:p>";
+    const QByteArray ns = QByteArray(kNs) + " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                          "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + ns + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId9"), kRel + QStringLiteral("image"), picture, true);
     return w.finish();
 }
 
@@ -1571,6 +1597,71 @@ private Q_SLOTS:
         Quiet quietOther(other);
         QVERIFY(other.openFile(b));
         QVERIFY(other.isReadOnly());
+    }
+    // Pack and Go saves the document with the picture it links to and the files its fields name, and with the links moved inside the package, so that it opens from the new folder.
+    void packAndGoTakesTheLinkedFilesAndMovesTheLinks()
+    {
+        QTemporaryDir dir;
+        QImage image(40, 30, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString picture = dir.filePath(QStringLiteral("elsewhere/photo.png")), fieldPicture = dir.filePath(QStringLiteral("elsewhere/field.png"));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("elsewhere"))));
+        QVERIFY(image.save(picture) && image.save(fieldPicture));
+        const QString text = dir.filePath(QStringLiteral("elsewhere/part.docx"));
+        {
+            QFile f(text);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("other document");
+        }
+        const QString docx = dir.filePath(QStringLiteral("work/linked.docx"));
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("work"))));
+        {
+            QFile f(docx);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(linkedDocx(picture, fieldPicture, text));
+        }
+        WriteWindow w;
+        Quiet quiet(w);
+        QVERIFY(w.openFile(docx));
+        QDir().mkpath(dir.filePath(QStringLiteral("dest")));
+        const jp::PackReport report = w.packAndGoTo(dir.filePath(QStringLiteral("dest")), jp::PackMode::Folder);
+        QVERIFY2(report.ok, qPrintable(report.error));
+        QCOMPARE(report.packed(), 3);
+        QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/photo.png")).isFile());
+        QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/field.png")).isFile());
+        QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/part.docx")).isFile());
+        // the package opens from its folder with every link inside
+        QFile packed(report.path + QStringLiteral("/") + w.displayName() + QStringLiteral(".docx"));
+        QVERIFY(packed.open(QIODevice::ReadOnly));
+        const QVector<jp::PackLink> links = jp::OpcPackSource::linksOf(packed.readAll());
+        QCOMPARE(links.size(), 3);
+        for (const jp::PackLink &l : links) {
+            QVERIFY2(l.target.startsWith(QLatin1String("linked/")), qPrintable(l.target));
+            QVERIFY2(QFileInfo(report.path + QLatin1Char('/') + l.target).isFile(), qPrintable(l.target));
+        }
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(report.path + QStringLiteral("/") + w.displayName() + QStringLiteral(".docx")));
+        // the same, in a ZIP, with the font it names left out of it when the program has none
+        const jp::PackReport zip = w.packAndGoTo(dir.filePath(QStringLiteral("pack.zip")), jp::PackMode::Zip);
+        QVERIFY2(zip.ok, qPrintable(zip.error));
+        QCOMPARE(zip.packed(), 3);
+        QMap<QString, QByteArray> entries;
+        QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("pack.zip"))), entries));
+        QVERIFY(entries.contains(QStringLiteral("linked/photo.png")));
+    }
+    // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
+    void packAndGoPageScreenshot()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        w.resize(1280, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("export"));
+        QTRY_VERIFY(w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip")) && w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip"))->isVisible());
+        QVERIFY(w.grab().save(dir + QStringLiteral("/write-pack-and-go.png")));
     }
 };
 

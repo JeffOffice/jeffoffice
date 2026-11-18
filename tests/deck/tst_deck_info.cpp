@@ -1661,6 +1661,72 @@ private Q_SLOTS:
         QVERIFY(w.editor()->isModified());
         w.hideFileScreen();
     }
+    // Pack and Go saves the presentation with the movie and sound it links to, their links moved inside the package, so that it opens from the new folder with nothing missing.
+    void packAndGoTakesLinkedMediaAndMovesTheLinks()
+    {
+        QTemporaryDir dir;
+        QVERIFY(QDir().mkpath(dir.filePath(QStringLiteral("elsewhere"))));
+        const QString movie = dir.filePath(QStringLiteral("elsewhere/clip.mp4")), sound = dir.filePath(QStringLiteral("elsewhere/tune.wav"));
+        for (const QString &f : {movie, sound}) {
+            QFile file(f);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write("not really media");
+        }
+        DeckWindow w;
+        Quiet quiet(w);
+        w.editor()->setDocument(sample());
+        Document *d = w.editor()->doc();
+        QImage poster(160, 90, QImage::Format_RGB32);
+        poster.fill(QColor(30, 90, 160));
+        for (const auto &[kind, file] : {std::pair<QString, QString>{QStringLiteral("video"), movie}, {QStringLiteral("audio"), sound}}) {
+            auto base = deck::newMediaPicture(*d, *d->pages[0], QByteArray("x"), QFileInfo(file).fileName(), poster, 1000);
+            QVERIFY(base);
+            auto linked = std::make_shared<PictureItem>();
+            linked->rect = QRectF(60, 60, 200, 120);
+            linked->imgRect = QRectF(0, 0, 200, 120);
+            linked->imageId = base->imageId;
+            linked->mediaKind = kind;
+            linked->mediaLink = file;
+            d->pages[0]->items.push_back(linked);
+        }
+        QDir().mkpath(dir.filePath(QStringLiteral("dest")));
+        const jp::PackReport report = w.packAndGoTo(dir.filePath(QStringLiteral("dest")), jp::PackMode::Folder);
+        QVERIFY2(report.ok, qPrintable(report.error));
+        QCOMPARE(report.packed(), 2);
+        QCOMPARE(fileBytes(report.path + QStringLiteral("/linked/clip.mp4")), QByteArray("not really media"));
+        QVERIFY(QFileInfo(report.path + QStringLiteral("/linked/tune.wav")).isFile());
+        const QString copy = report.path + QLatin1Char('/') + w.editor()->displayName() + QStringLiteral(".pptx");
+        const QVector<jp::PackLink> links = jp::OpcPackSource::linksOf(fileBytes(copy));
+        QCOMPARE(links.size(), 2);
+        for (const jp::PackLink &l : links) {
+            QVERIFY2(l.target.startsWith(QLatin1String("linked/")), qPrintable(l.target));
+            QVERIFY2(QFileInfo(report.path + QLatin1Char('/') + l.target).isFile(), qPrintable(l.target));
+        }
+        // opened from the folder: the media are the ones beside it
+        DeckWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(copy));
+        int linkedMedia = 0;
+        for (const auto &item : v.editor()->doc()->pages[0]->items)
+            if (auto *pic = dynamic_cast<PictureItem *>(item.get()); pic && !pic->mediaLink.isEmpty()) {
+                ++linkedMedia;
+                QVERIFY2(pic->mediaLink.startsWith(QLatin1String("linked/")), qPrintable(pic->mediaLink));
+            }
+        QCOMPARE(linkedMedia, 2);
+    }
+    // A picture of the Export page with the two Pack and Go cards (only with JO_SHOT_DIR set: it makes the program's style the new one for the rest of the process).
+    void packAndGoPageScreenshot()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        w.showFileScreen(QStringLiteral("export"));
+        QTRY_VERIFY(w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip")) && w.findChild<QAbstractButton *>(QStringLiteral("packAndGoZip"))->isVisible());
+        QVERIFY(w.grab().save(dir + QStringLiteral("/deck-pack-and-go.png")));
+    }
 };
 
 JP_TEST_CLASS(DeckInfoTests)

@@ -628,6 +628,10 @@ QWidget *DeckFileScreen::buildExport()
         if (m_win->exportEmailAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(mail);
+    // Pack and Go: the file with its fonts and linked files (libs/shell/app/packandgo.h).
+    addPackAndGoCards(v, w, [this](bool toFolder) {
+        if (m_win->packAndGo(toFolder)) Q_EMIT closeRequested();
+    });
     v->addStretch(1);
     return w;
 }

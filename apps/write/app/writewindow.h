@@ -9,6 +9,7 @@
 #include "app/translate.h"
 #include "app/translatepane.h"
 #include "app/missingfonts.h"
+#include "app/packandgo.h"
 #include "app/readaloud.h"
 #include <QStatusBar>
 #include "core/textexport.h"
@@ -339,6 +340,10 @@ public:
     bool askTextForm(const QString &title, const QString &intro, write::TextForm *form, const QByteArray *sample = nullptr);
     // Asks what the message holds (the document, a PDF, or the pages), then makes it as exportEmail does.
     bool exportEmailAsk();
+    // Pack and Go (File > Export): the document saved in a ZIP or a folder with the fonts it uses and the files it links to, their links moved inside (libs/shell/app/packandgo.h). packAndGo asks where
+    // and shows what was packed; packAndGoTo makes the package at `destination` (a test calls it).
+    bool packAndGo(bool toFolder);
+    PackReport packAndGoTo(const QString &destination, PackMode mode, const PackAsk &ask = PackAsk(), const PackLimits &limits = PackLimits());
     // The pages that an output covers (from 0), for the options and the document.
     QVector<int> outputPages(const WriteOutputOptions &options);
     // The pages the printed view has (what the Print page says the document has), and how many times the document was laid out for it (a test counts them).
