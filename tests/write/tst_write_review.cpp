@@ -4,14 +4,17 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "app/writeinfo.h"
+#include "app/homedialogs.h"
 #include "app/pageview.h"
 #include "app/settings.h"
+#include "app/theme.h"
 #include "app/reviewpane.h"
 #include "app/writefindpane.h"
 #include "app/writewindow.h"
 #include "wml/xmltree.h"
 #include "core/appinfo.h"
 #include "core/commentops.h"
+#include "core/compareops.h"
 #include "core/editops.h"
 #include "core/fonts.h"
 #include "core/reviewops.h"
@@ -246,6 +249,61 @@ QByteArray commentElement(int id, const char *author, const char *text, const ch
 QByteArray commented(int id, const char *words) { return "<w:commentRangeStart w:id=\"" + QByteArray::number(id) + "\"/>" + run(words) + "<w:commentRangeEnd w:id=\"" + QByteArray::number(id) + "\"/><w:r><w:commentReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
 
 } // namespace
+
+// ---- Compare: moved text and changed formatting
+
+const char kMoveText[] = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima";   // (twelve words)
+
+QStringList bodyTexts(const WriteDoc &doc)
+{
+    QStringList out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+        QString t = b.text();
+        t.remove(QChar::ObjectReplacementCharacter);
+        out << t;
+    }
+    return out;
+}
+
+int countOf(const QByteArray &haystack, const char *needle) { return int(haystack.count(needle)); }
+
+QByteArray boldRun(const char *text) { return QByteArray("<w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">") + text + "</w:t></w:r>"; }
+
+std::unique_ptr<WriteDoc> compared(const QByteArray &one, const QByteArray &two, CompareOptions o = CompareOptions(), QString *note = nullptr, int *changes = nullptr)
+{
+    auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+    o.author = QStringLiteral("Reviewer");
+    return compareDocuments(*original, *revised, o, changes, nullptr, {}, note);
+}
+
+// The result accepted is the revised text, and rejected is the original's.
+void verifyAcceptsAndRejects(const QByteArray &one, const QByteArray &two, const CompareOptions &o = CompareOptions())
+{
+    auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+    CompareOptions options = o;
+    options.author = QStringLiteral("Reviewer");
+    auto result = compareDocuments(*original, *revised, options);
+    QVERIFY(result);
+    auto rejected = open(result->toDocx());
+    rejectAll(*rejected);
+    QCOMPARE(bodyTexts(*rejected), bodyTexts(*original));
+    auto accepted = open(result->toDocx());
+    acceptAll(*accepted);
+    QCOMPARE(bodyTexts(*accepted), bodyTexts(*revised));
+}
+
+// Puts the limits the compare tests change back as they were.
+struct CompareLimitsGuard {
+    CompareLimits saved = compareLimitsForTest();
+    ~CompareLimitsGuard() { compareLimitsForTest() = saved; }
+};
+
+QString words(const char *prefix, int n)
+{
+    QStringList w;
+    for (int i = 0; i < n; ++i) w << QStringLiteral("%1%2").arg(QLatin1String(prefix)).arg(i);
+    return w.join(QLatin1Char(' '));
+}
 
 class ReviewTests : public QObject {
     Q_OBJECT
@@ -2170,6 +2228,336 @@ private Q_SLOTS:
         QCOMPARE(revisionCount(doc->story()), n);
         QCOMPARE(acceptAll(*doc), n);
         QCOMPARE(textWithDeletions(*doc).size(), n / 2);
+    }
+
+    // ---------------------------------------------------------------- Compare: moves and formatting
+
+    void compareFindsAMovedParagraphAsOneMovePairBothWays()
+    {
+        const QByteArray one = para(run("Intro")) + para(run(kMoveText)) + para(run("Middle one")) + para(run("Middle two")) + para(run("Closing"));
+        const QByteArray two = para(run("Intro")) + para(run("Middle one")) + para(run("Middle two")) + para(run(kMoveText)) + para(run("Closing"));
+        for (const bool forward : {true, false}) {
+            const QByteArray a = forward ? one : two, b = forward ? two : one;
+            auto result = compared(a, b);
+            QVERIFY(result);
+            const QByteArray saved = documentXml(result->toDocx());
+            QCOMPARE(countOf(saved, "</w:moveFrom>"), 1);
+            QCOMPARE(countOf(saved, "</w:moveTo>"), 1);
+            QCOMPARE(countOf(saved, "<w:moveFromRangeStart"), 1);
+            QCOMPARE(countOf(saved, "<w:moveToRangeStart"), 1);
+            QCOMPARE(countOf(saved, "<w:ins "), 0);
+            QCOMPARE(countOf(saved, "<w:del "), 0);
+            const auto nameOf = [&](const char *tag) {
+                const int at = saved.indexOf(tag);
+                const int n = saved.indexOf("w:name=\"", at);
+                return saved.mid(n, saved.indexOf('"', n + 8) - n);
+            };
+            QVERIFY(!nameOf("<w:moveFromRangeStart").isEmpty());
+            QCOMPARE(nameOf("<w:moveFromRangeStart"), nameOf("<w:moveToRangeStart"));
+            QVector<Revision::Kind> kinds;
+            for (const Revision &r : revisionsIn(result->story())) kinds << r.kind;
+            QVERIFY(kinds.contains(Revision::MovedFrom) && kinds.contains(Revision::MovedTo));
+            verifyAcceptsAndRejects(a, b);
+        }
+    }
+
+    void aMovedParagraphWithOneWordChangedIsStillAMove()
+    {
+        const QByteArray one = para(run("Intro")) + para(run("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike")) + para(run("Middle one")) + para(run("Closing"));
+        const QByteArray two = para(run("Intro")) + para(run("Middle one")) + para(run("alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima november")) + para(run("Closing"));
+        auto result = compared(one, two);
+        QVERIFY(result);
+        const QByteArray saved = documentXml(result->toDocx());
+        QCOMPARE(countOf(saved, "</w:moveFrom>"), 1);
+        QCOMPARE(countOf(saved, "</w:moveTo>"), 1);
+        verifyAcceptsAndRejects(one, two);
+    }
+
+    void aMoveShorterThanTheLimitOrTooUnlikeIsAnInsertionAndADeletion()
+    {
+        // eleven words moved
+        const char *eleven = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo";
+        QByteArray one = para(run("Intro")) + para(run(eleven)) + para(run("Middle one")) + para(run("Closing"));
+        QByteArray two = para(run("Intro")) + para(run("Middle one")) + para(run(eleven)) + para(run("Closing"));
+        auto shortOne = compared(one, two);
+        QVERIFY(shortOne);
+        QByteArray saved = documentXml(shortOne->toDocx());
+        QCOMPARE(countOf(saved, "</w:moveFrom>"), 0);
+        QVERIFY(saved.contains("<w:ins ") && saved.contains("<w:del "));
+        verifyAcceptsAndRejects(one, two);
+        // twelve words, three of them different (75% the same)
+        one = para(run("Intro")) + para(run(kMoveText)) + para(run("Middle one")) + para(run("Closing"));
+        two = para(run("Intro")) + para(run("Middle one")) + para(run("alpha bravo charlie delta echo foxtrot golf hotel x1 x2 x3 lima")) + para(run("Closing"));
+        auto unlike = compared(one, two);
+        QVERIFY(unlike);
+        saved = documentXml(unlike->toDocx());
+        QCOMPARE(countOf(saved, "</w:moveFrom>"), 0);
+        QVERIFY(saved.contains("<w:ins ") && saved.contains("<w:del "));
+        verifyAcceptsAndRejects(one, two);
+        // the option off: a move that would be found is not
+        const QByteArray m1 = para(run("Intro")) + para(run(kMoveText)) + para(run("Middle one")) + para(run("Closing"));
+        const QByteArray m2 = para(run("Intro")) + para(run("Middle one")) + para(run(kMoveText)) + para(run("Closing"));
+        CompareOptions off;
+        off.detectMoves = false;
+        saved = documentXml(compared(m1, m2, off)->toDocx());
+        QCOMPARE(countOf(saved, "</w:moveFrom>"), 0);
+        QVERIFY(saved.contains("<w:ins "));
+        QCOMPARE(countOf(documentXml(compared(m1, m2)->toDocx()), "</w:moveFrom>"), 1);
+    }
+
+    void aWordMadeBoldIsOneChangeOfFormattingThatRejectsToTheOldLook()
+    {
+        const QByteArray one = para(run("The quick brown fox jumps."));
+        const QByteArray two = para(run("The ") + boldRun("quick") + run(" brown fox jumps."));
+        int changes = 0;
+        auto result = compared(one, two, CompareOptions(), nullptr, &changes);
+        QVERIFY(result);
+        QCOMPARE(changes, 1);
+        const QByteArray saved = documentXml(result->toDocx());
+        QCOMPARE(countOf(saved, "<w:rPrChange"), 1);
+        QCOMPARE(countOf(saved, "<w:ins "), 0);
+        QCOMPARE(countOf(saved, "<w:del "), 0);
+        QVector<Revision> format;
+        for (const Revision &r : revisionsIn(result->story()))
+            if (r.kind == Revision::Format) format << r;
+        QCOMPARE(format.size(), 1);
+        auto boldOf = [](WriteDoc &d) {
+            for (QTextBlock::iterator it = d.story()->begin().begin(); !it.atEnd(); ++it)
+                if (it.fragment().text().contains(QLatin1String("quick"))) return it.fragment().charFormat().fontWeight() >= QFont::DemiBold;
+            return false;
+        };
+        QVERIFY(boldOf(*result));
+        auto rejected = open(result->toDocx());
+        rejectAll(*rejected);
+        QVERIFY(!boldOf(*rejected));
+        QCOMPARE(bodyTexts(*rejected), bodyTexts(*open(makeDocx(one))));
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        QVERIFY(boldOf(*accepted));
+        QCOMPARE(revisionCount(accepted->story()), 0);
+        // the option off: no change at all
+        CompareOptions off;
+        off.compareFormatting = false;
+        int offChanges = -1;
+        auto none = compared(one, two, off, nullptr, &offChanges);
+        QCOMPARE(offChanges, 0);
+        QCOMPARE(revisionCount(none->story()), 0);
+    }
+
+    void sameTextInTheSameLookIsNoChangeAndAParagraphSettingChangeIsOne()
+    {
+        int changes = -1;
+        const QByteArray same = para(run("Plain ") + boldRun("bold")) + para(run("Second"), "<w:jc w:val=\"left\"/>");
+        auto r = compared(same, same, CompareOptions(), nullptr, &changes);
+        QCOMPARE(changes, 0);
+        QCOMPARE(revisionCount(r->story()), 0);
+        const QByteArray one = para(run("Plain ") + boldRun("bold")) + para(run("Second"));
+        const QByteArray two = para(run("Plain ") + boldRun("bold")) + para(run("Second"), "<w:jc w:val=\"center\"/><w:ind w:left=\"720\"/>");
+        auto result = compared(one, two, CompareOptions(), nullptr, &changes);
+        QCOMPARE(changes, 1);
+        const QByteArray saved = documentXml(result->toDocx());
+        QCOMPARE(countOf(saved, "<w:pPrChange"), 1);
+        QCOMPARE(countOf(saved, "<w:rPrChange"), 0);
+        auto rejected = open(result->toDocx());
+        rejectAll(*rejected);
+        QCOMPARE(rejected->story()->findBlockByNumber(1).blockFormat().leftMargin(), 0.0);
+        QVERIFY(rejected->story()->findBlockByNumber(1).blockFormat().alignment() != Qt::AlignHCenter);
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        QCOMPARE(accepted->story()->findBlockByNumber(1).blockFormat().alignment(), Qt::AlignHCenter);
+        QVERIFY(accepted->story()->findBlockByNumber(1).blockFormat().leftMargin() > 0);
+    }
+
+    void formattingOfWordsThatStayIsComparedAlongsideChangedWords()
+    {
+        const QByteArray one = para(run("The quick brown fox jumps."));
+        const QByteArray two = para(run("The ") + boldRun("quick") + run(" red fox jumps."));
+        auto result = compared(one, two);
+        const QByteArray saved = documentXml(result->toDocx());
+        QCOMPARE(countOf(saved, "<w:rPrChange"), 1);
+        QVERIFY(saved.contains("<w:ins ") && saved.contains("<w:del "));
+        auto accepted = open(result->toDocx());
+        acceptAll(*accepted);
+        QCOMPARE(bodyTexts(*accepted), (QStringList{"The quick red fox jumps."}));
+    }
+
+    void theCompareDialogHasChecksForMovesAndFormattingThatSetTheOptions()
+    {
+        CompareOptions o;
+        QString path;
+        bool accepted = false;
+        withDialog([&] { accepted = compareDialog(nullptr, &path, &o); }, QStringLiteral("compareDialog"), [](QDialog *d) {
+            auto *moves = d->findChild<QCheckBox *>(QStringLiteral("compareDetectMoves"));
+            auto *looks = d->findChild<QCheckBox *>(QStringLiteral("compareFormatting"));
+            QVERIFY(moves && looks);
+            QVERIFY(moves->isChecked() && looks->isChecked());   // (both on by default)
+            moves->setChecked(false);
+            looks->setChecked(false);
+            d->findChild<QLineEdit *>(QStringLiteral("revisedPath"))->setText(QStringLiteral("revised.docx"));
+        });
+        QVERIFY(accepted);
+        QVERIFY(!o.detectMoves && !o.compareFormatting);
+        QCOMPARE(path, QStringLiteral("revised.docx"));
+    }
+
+    // With JO_SHOT_DIR set: a picture of a compared document that has a move and a change of formatting; skipped otherwise.
+    void pictureOfAComparedDocumentWithAMoveAndAChangeOfFormatting()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        MarkupGuard guard;
+        tp::revisionMarkup().formatting = tp::RevisionMarkup::FmtColorOnly;   // (so that a run whose look changed is drawn in the person's color)
+        ++tp::revisionMarkup().generation;
+        const QByteArray one = para(run("Quarterly summary")) + para(run("The garden committee met in March to plan the spring planting.")) +
+                               para(run("Volunteers are asked to bring gloves, a trowel, and a water bottle to every work day, and to sign in at the shed.")) + para(run("Seeds will be shared at the April meeting."));
+        const QByteArray two = para(run("Quarterly summary")) + para(run("The garden committee met in ") + boldRun("March") + run(" to plan the spring planting.")) +
+                               para(run("Seeds will be shared at the April meeting.")) +
+                               para(run("Volunteers are asked to bring gloves, a trowel, and a water bottle to every work day, and to sign in at the shed."));
+        auto result = compared(one, two);
+        QVERIFY(result);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 640);
+        w.show();
+        w.setDocument(std::move(result), QString());
+        w.act(QStringLiteral("review.view.all"))->trigger();
+        if (!w.act(QStringLiteral("review.show.formatting"))->isChecked()) w.act(QStringLiteral("review.show.formatting"))->trigger();
+        QCoreApplication::processEvents();
+        w.grab().save(dir + QStringLiteral("/compare-move-and-format.png"));
+    }
+
+    void aComparedDocumentWithAMoveAndAFormattingChangeSurvivesSavingAsOdt()
+    {
+        const QByteArray one = para(run("Intro")) + para(run(kMoveText)) + para(run("Middle one")) + para(run("The quick brown fox.")) + para(run("Closing"));
+        const QByteArray two = para(run("Intro")) + para(run("Middle one")) + para(run(kMoveText)) + para(run("The ") + boldRun("quick") + run(" brown fox.")) + para(run("Closing"));
+        auto result = compared(one, two);
+        QVERIFY(result);
+        QString err;
+        const QByteArray odt = result->toOdt(&err);
+        QVERIFY2(!odt.isEmpty(), qPrintable(err));
+        auto original = open(makeDocx(one)), revised = open(makeDocx(two));
+        auto back = WriteDoc::fromOdt(odt, &err);
+        QVERIFY2(back, qPrintable(err));
+        QVERIFY(revisionCount(back->story()) > 0);
+        // (what .odt keeps of a tracked paragraph that goes is a paragraph with nothing in it, as it does for any insertion or deletion: the words are what is compared)
+        auto words = [](const WriteDoc &d) {
+            QStringList out = bodyTexts(d);
+            out.removeAll(QString());
+            return out;
+        };
+        auto rejected = WriteDoc::fromOdt(odt, &err);
+        rejectAll(*rejected);
+        QCOMPARE(words(*rejected), words(*original));
+        acceptAll(*back);
+        QCOMPARE(words(*back), words(*revised));
+    }
+
+    // ---- the limits
+
+    void textsOfMoreThanThreeThousandWordsAreOneReplacement()
+    {
+        const QString from = words("w", 3001) + QStringLiteral(" end"), to = words("w", 3001) + QStringLiteral(" fin");
+        const QVector<TextEdit> edits = diffText(from, to, CompareOptions());
+        QCOMPARE(edits.size(), 1);
+        QCOMPARE(edits.first().deleteFrom, 0);
+        QCOMPARE(edits.first().deleteTo, int(from.size()));
+        QCOMPARE(edits.first().insertText, to);
+        const QVector<TextEdit> small = diffText(words("w", 100) + QStringLiteral(" end"), words("w", 100) + QStringLiteral(" fin"), CompareOptions());
+        QCOMPARE(small.size(), 1);
+        QCOMPARE(small.first().deleteTo - small.first().deleteFrom, 3);
+    }
+
+    void moreParagraphsThanTheMoveLimitMeansNoMoveIsLookedFor()
+    {
+        // 2001 paragraphs of twelve words on each side, none the same as another: all are candidates, and the pairs they make are too many to look at
+        QByteArray one, two;
+        for (int i = 0; i < 2001; ++i) {
+            one += para(run(qPrintable(words("a", 11) + QStringLiteral(" n%1").arg(i))));
+            two += para(run(qPrintable(words("b", 11) + QStringLiteral(" n%1").arg(i))));
+        }
+        QString note;
+        auto result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(result);
+        QVERIFY2(note.contains(QStringLiteral("Too many changes")), qPrintable(note));
+        QCOMPARE(compareWorkForTest().moveComparisons, qint64(0));
+        QCOMPARE(compareWorkForTest().moves, qint64(0));
+    }
+
+    void moreTextThanTheMoveByteLimitMeansNoMoveIsLookedFor()
+    {
+        CompareLimitsGuard guard;
+        compareLimitsForTest().moveBytes = 100;
+        const QByteArray one = para(run("Intro")) + para(run(kMoveText)) + para(run("Middle one")) + para(run("Closing"));
+        const QByteArray two = para(run("Intro")) + para(run("Middle one")) + para(run(kMoveText)) + para(run("Closing"));
+        QString note;
+        auto result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(note.contains(QStringLiteral("Too many changes")));
+        QCOMPARE(countOf(documentXml(result->toDocx()), "</w:moveFrom>"), 0);
+        QCOMPARE(compareWorkForTest().moves, qint64(0));
+        verifyAcceptsAndRejects(one, two);
+    }
+
+    void theWordsLookedAtToTellHowLikeTwoParagraphsAreAreCapped()
+    {
+        CompareLimitsGuard guard;
+        compareLimitsForTest().moveWork = 60;   // (a pair of the paragraphs below is 24 words)
+        // three paragraphs gone and three put in, in another place, all twelve words and none like another
+        QByteArray one, two;
+        for (int i = 0; i < 3; ++i) {
+            one += para(run(qPrintable(words("x", 11) + QStringLiteral(" p%1").arg(i))));
+            two += para(run(qPrintable(words("y", 11) + QStringLiteral(" q%1").arg(i))));
+        }
+        const QByteArray keep = para(run("Kept paragraph")), intro = para(run("Intro"));
+        QString note;
+        auto result = compared(intro + one + keep, intro + keep + two, CompareOptions(), &note);
+        QVERIFY(result);
+        QVERIFY(note.contains(QStringLiteral("Too many changes")));
+        QVERIFY2(compareWorkForTest().moveWords <= 60, qPrintable(QString::number(compareWorkForTest().moveWords)));
+        QCOMPARE(compareWorkForTest().moveComparisons, qint64(2));
+        // with room for all of them, all nine pairs are compared
+        compareLimitsForTest().moveWork = 100000;
+        auto all = compared(intro + one + keep, intro + keep + two, CompareOptions(), &note);
+        QVERIFY(note.isEmpty());
+        QCOMPARE(compareWorkForTest().moveComparisons, qint64(9));
+    }
+
+    void paragraphsPastTheWordTableLimitAreShownAsReplacedWhole()
+    {
+        CompareLimitsGuard guard;
+        compareLimitsForTest().diffCells = 100;   // (a pair of the paragraphs below needs 12 by 12)
+        const QByteArray one = para(run("one two three four five six")) + para(run("seven eight nine ten eleven twelve")) + para(run("alpha beta gamma delta epsilon zeta"));
+        const QByteArray two = para(run("one two three four five SIX")) + para(run("seven eight nine ten eleven TWELVE")) + para(run("alpha beta gamma delta epsilon ZETA"));
+        QString note;
+        auto result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(result);
+        QVERIFY(note.contains(QStringLiteral("Too many changes")));
+        QVERIFY2(compareWorkForTest().diffCells <= 100, qPrintable(QString::number(compareWorkForTest().diffCells)));
+        QCOMPARE(compareWorkForTest().diffCells, qint64(0));
+        verifyAcceptsAndRejects(one, two);
+        compareLimitsForTest().diffCells = 100000;
+        QString note2;
+        auto exact = compared(one, two, CompareOptions(), &note2);
+        QVERIFY(note2.isEmpty());
+        QCOMPARE(compareWorkForTest().diffCells, qint64(3 * 12 * 12));
+    }
+
+    void changesOfFormattingPastTheLimitAreLeftOut()
+    {
+        CompareLimitsGuard guard;
+        compareLimitsForTest().formatChanges = 2;
+        const QByteArray one = para(run("a b c d e f g h i j"));
+        const QByteArray two = para(boldRun("a") + run(" b ") + boldRun("c") + run(" d ") + boldRun("e") + run(" f ") + boldRun("g") + run(" h i j"));
+        QString note;
+        auto result = compared(one, two, CompareOptions(), &note);
+        QVERIFY(result);
+        QVERIFY(note.contains(QStringLiteral("Too many changes")));
+        QCOMPARE(compareWorkForTest().formatChanges, qint64(2));
+        QCOMPARE(countOf(documentXml(result->toDocx()), "<w:rPrChange"), 2);
+        compareLimitsForTest().formatChanges = 20000;
+        auto all = compared(one, two, CompareOptions(), &note);
+        QVERIFY(note.isEmpty());
+        QCOMPARE(compareWorkForTest().formatChanges, qint64(4));
     }
 
     void changesWithNoPartnerOrNoTextAreHandled()
