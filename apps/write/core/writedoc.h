@@ -748,6 +748,10 @@ Q_SIGNALS:
     // Track Changes was turned on or off, the person who reviews changed, or the way changes are shown did.
     void reviewChanged();
 
+public:
+    // An equation as the picture of its layout, set in its line (tp::InlineObject on `format`, a character that holds the equation's atom, in the font and color the format has): nothing
+    // is set for one that is cut short or past the pictures the document may have, and its line of text shows as it is.
+    void equationPicture(const office::wml::Inline &atom, QTextCharFormat *format);
 private:
     WriteDoc();
     void build(office::wml::Document &&doc);
@@ -1037,6 +1041,7 @@ private:
     QSet<QString> m_diagramsSeen;                             // the drawings drawn since the story was built (at most kMostDiagramsDrawn)
     QHash<QString, std::shared_ptr<office::Package>> m_diagramPackages;   // the pictures of each drawing, as the shapes' reader wants them
     QSet<QString> m_diagramImages;                            // the picture parts that went into those, each counted once
+    QHash<QByteArray, int> m_equationImages;                  // the pictures of equations set in the text, by the hash of the picture (their places in the flow's pictures)
     int m_barcodePictures = 0;   // the pictures of barcodes drawn from their markers so far (no more than kMostBarcodesHonored)
     qint64 m_diagramBytes = 0, m_diagramImageBytes = 0;       // what the pictures made, and the picture parts copied, come to
     int m_groupParts = 0;   // the parts of the groups set in the text that have been drawn so far (a document has kMostGroupParts of them in all)

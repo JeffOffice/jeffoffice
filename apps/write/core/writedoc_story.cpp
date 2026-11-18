@@ -19,9 +19,11 @@
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textengine.h"
+#include "wml/wmlmathsvg.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonDocument>
@@ -1410,6 +1412,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
             // (An endnote's reference whose run names no style and says nothing of raising is shown raised on the page, as a note's mark is; the run is written as the file has it.)
             if (in.tag == QLatin1String("endnoteReference") && af.verticalAlignment() == QTextCharFormat::AlignNormal && af.stringProperty(tp::CharStyle).isEmpty()) af.setProperty(tp::RaisedRef, true);
             af.setProperty(tp::Field, field);
+            if (in.kind == Inline::ParaAtom && !deleted && changeKind == 0 && (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara"))) equationPicture(in, &af);
             c.insertText(QString(QChar::ObjectReplacementCharacter), af);
         }
         if (advanceTop >= 0) {
@@ -1634,6 +1637,37 @@ QByteArray WriteDoc::diagramPicture(const QString &part, const QVector<Relations
     m_diagramBytes += svg.size();
     m_diagramPictures.insert(key, svg);
     return svg;
+}
+
+// An equation set in the text as the picture of its two-dimensional layout, on the baseline of its line (what hangs below it is its negative bottom distance); the line of text it
+// stands for stays the character's field text, for finding, copying, and reading aloud. An equation that is cut short, or past the pictures the document may have, keeps its line.
+void WriteDoc::equationPicture(const Inline &atom, QTextCharFormat *format)
+{
+    flow::FlowDocument &f = *m_flow;
+    const double points = format->fontPointSize() > 0 ? format->fontPointSize() : format->font().pointSizeF() > 0 ? format->font().pointSizeF() : 11;
+    const QColor color = format->foreground().style() != Qt::NoBrush && format->foreground().color().alpha() > 0 ? format->foreground().color() : QColor(Qt::black);
+    const office::wml::EquationSvg eq = office::wml::equationSvg(atom.raw, points, color);
+    if (!eq.valid()) return;
+    const QByteArray key = QCryptographicHash::hash(eq.svg, QCryptographicHash::Sha1);
+    int image = m_equationImages.value(key, -1);
+    if (image < 0 || image >= f.images.size() || f.images[image].bytes != eq.svg) {
+        if (f.images.size() >= kMostImages) return;
+        flow::FlowImage made;
+        made.bytes = eq.svg;
+        made.format = QStringLiteral("svg");
+        made.graphic = true;
+        f.images.push_back(made);
+        image = int(f.images.size()) - 1;
+        m_equationImages.insert(key, image);
+    }
+    auto pic = std::make_shared<PictureItem>();
+    pic->rect = QRectF(0, 0, eq.size.width(), eq.size.height());
+    pic->imgRect = pic->rect;
+    pic->imageId = QStringLiteral("flow-img:%1").arg(image);
+    pic->wrap.left = pic->wrap.right = pic->wrap.top = 0;
+    pic->wrap.bottom = eq.ascent - eq.size.height();
+    pic->altText = atom.display;
+    format->setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(pic->toJson()).toJson(QJsonDocument::Compact)));
 }
 
 bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFormat *format, double lineWidth, const QVector<Inline> *content)

@@ -38,6 +38,11 @@
 #include "core/drawnitems.h"
 #include "core/editops.h"
 #include "core/equationops.h"
+#include "wml/wmlmathpath.h"
+#include "wml/wmlmathsvg.h"
+#include "render/pdfpage.h"
+#include "text/textengine.h"
+#include "app/writefindpane.h"
 #include "core/fonts.h"
 #include "core/fontops.h"
 #include "core/items.h"
@@ -728,6 +733,42 @@ QPointF pageOrigin()
     while (!probe.w.view()->pictureRect(0, &r) && waited.elapsed() < 5000) QCoreApplication::processEvents();
     const double s = probe.w.view()->zoom() * 96.0 / 72.0;
     return r.topLeft() - QPointF(100 * s, 100 * s);
+}
+
+} // namespace
+
+namespace {
+static QByteArray mathNs() { return "xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\""; }
+static QByteArray mathRun(const QByteArray &t) { return "<m:r><m:t>" + t + "</m:t></m:r>"; }
+static QByteArray mathFraction(const QByteArray &a, const QByteArray &b) { return "<m:f><m:num>" + mathRun(a) + "</m:num><m:den>" + mathRun(b) + "</m:den></m:f>"; }
+static QByteArray equationDocx(int inlineCount = 1, bool display = true)
+{
+    QByteArray body;
+    for (int i = 0; i < inlineCount; ++i)
+        body += "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><m:oMath " + mathNs() + ">" + mathFraction("a" + QByteArray::number(i), "b") + "</m:oMath><w:r><w:t xml:space=\"preserve\"> after</w:t></w:r></w:p>";
+    if (display) body += "<w:p><m:oMathPara " + mathNs() + "><m:oMath><m:nary><m:naryPr><m:chr m:val=\"" + QByteArray("\xE2\x88\x91") + "\"/></m:naryPr><m:sub>" + mathRun("i=1") + "</m:sub><m:sup>" + mathRun("n") + "</m:sup><m:e>" + mathRun("sum") + "</m:e></m:nary></m:oMath></m:oMathPara></w:p>";
+    return makeDocx(body);
+}
+// The pictures set in the story's lines: the item, its run's font size, and the markup of the equation it stands for.
+struct SetEquation { std::shared_ptr<PictureItem> pic; double points = 0; QByteArray markup; };
+static QVector<SetEquation> setEquations(WriteDoc &doc)
+{
+    QVector<SetEquation> out;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            const QString json = cf.stringProperty(tp::InlineObject);
+            if (json.isEmpty() || !cf.hasProperty(prop::Atom)) continue;
+            const ItemPtr item = Item::fromJsonAny(QJsonDocument::fromJson(json.toUtf8()).object());
+            if (item && item->type() == ItemType::Picture) out.push_back({std::static_pointer_cast<PictureItem>(item), cf.fontPointSize(), unpackAtom(storedBytes(cf, prop::Atom)).raw});
+        }
+    return out;
+}
+static int svgImages(WriteDoc &doc)
+{
+    int n = 0;
+    for (const auto &img : doc.flow().images) n += img.format == QLatin1String("svg") ? 1 : 0;
+    return n;
 }
 
 } // namespace
@@ -5799,6 +5840,157 @@ private Q_SLOTS:
         once.start(0);
         win.w.act("insert.equation")->trigger();
         QVERIFY(documentXml(win.w.document()->toDocx()).contains("<m:oMath"));
+    }
+
+    // ---------------------------------------------------------------- equations laid out in two dimensions
+    void anEquationInALineAndOneOnItsOwnLineAreDrawnAsPicturesOfTheirLayout()
+    {
+        auto doc = open(equationDocx());
+        QVERIFY(doc);
+        const QVector<SetEquation> set = setEquations(*doc);
+        QCOMPARE(set.size(), 2);
+        QCOMPARE(svgImages(*doc), 2);
+        for (const SetEquation &e : set) {
+            const auto shape = office::wml::equationShapeCached(e.markup);
+            QVERIFY(shape && shape->valid());
+            QVERIFY(e.points > 0);
+            // As tall as the layout's own box at the run's size, with what hangs below the baseline as the distance under it.
+            const double k = e.points / office::wml::kEquationLayoutSize;
+            QVERIFY(e.pic->rect.height() >= shape->box.height() * k - 0.01);
+            QVERIFY(e.pic->rect.height() > e.points);
+            QVERIFY(std::abs(-e.pic->wrap.bottom - (shape->box.height() - shape->baseline) * k) < 0.01);
+            QVERIFY(e.pic->wrap.bottom < 0);
+        }
+        // The line the story shows is still its text (to find, copy, and read), and the equation stays as its markup.
+        QVERIFY(doc->story()->toPlainText().count(QChar::ObjectReplacementCharacter) >= 2);
+        // (The pages' find has never looked into an equation: its character is one mark in the words. What the picture keeps is the line the character shows, as its field text and its alternative
+        // text, which is what reading aloud and the list of equations take.)
+        QStringList lines;
+        for (QTextBlock b = doc->story()->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().hasProperty(tp::InlineObject)) lines << it.fragment().charFormat().stringProperty(tp::Field);
+        QCOMPARE(lines.size(), 2);
+        QVERIFY(lines[0].startsWith(QLatin1String("raw:")) && lines[0].contains(QLatin1String("a0")));
+        QVERIFY(lines[1].contains(QLatin1String("sum")) && set[1].pic->altText.contains(QLatin1String("sum")));
+        // The words after the inline equation are on its baseline: the picture's bottom is the line's baseline plus what hangs below it.
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec frame;
+        frame.size = QSizeF(400, 600);
+        frame.insets = QMarginsF(0, 0, 0, 0);
+        StoryLayout layout;
+        layout.build(doc->story(), {frame}, env);
+        QCOMPARE(layout.inlineObjects().size(), 2);
+        const auto infos = layout.lineInfo(0);
+        const QRectF inlineBox = layout.inlineObjects()[0].rect, displayBox = layout.inlineObjects()[1].rect;
+        const StoryLayout::LineInfo *line = nullptr;
+        for (const auto &l : infos)
+            if (l.rect.top() <= inlineBox.top() + 0.01 && l.rect.bottom() >= inlineBox.top()) line = &l;
+        QVERIFY(line);
+        QVERIFY2(QString(line->text).remove(QChar(0xAD)).contains(QLatin1String("after")), qPrintable(line->text));
+        QVERIFY(std::abs(inlineBox.bottom() + set[0].pic->wrap.bottom - line->baseline) < 0.02);
+        QVERIFY(line->rect.bottom() + 0.02 >= inlineBox.bottom());
+        // The one on its own line is in the middle of the line.
+        QVERIFY(std::abs(displayBox.center().x() - 200) < 1.0);
+    }
+
+    void anEquationsPictureIsTheSharedRenderersShapeAndThePdfDrawsItAsVectors()
+    {
+        const QByteArray markup = QByteArray("<m:oMath ") + mathNs() + ">" + mathFraction("x", "y") + "</m:oMath>";
+        const double points = 12;
+        const office::wml::EquationSvg eq = office::wml::equationSvg(markup, points, Qt::black);
+        QVERIFY(eq.valid());
+        // The same shape paintEquation draws: the ink of the picture and of the shared renderer's, on the same size, cover the same pixels.
+        const int scale = 8, w = int(std::ceil(eq.size.width() * scale)), h = int(std::ceil(eq.size.height() * scale));
+        QImage viaSvg(w, h, QImage::Format_ARGB32_Premultiplied), viaPath(w, h, QImage::Format_ARGB32_Premultiplied);
+        viaSvg.fill(Qt::transparent);
+        viaPath.fill(Qt::transparent);
+        {
+            QSvgRenderer r(eq.svg);
+            QVERIFY(r.isValid());
+            QPainter p(&viaSvg);
+            r.render(&p, QRectF(0, 0, eq.size.width() * scale, eq.size.height() * scale));
+        }
+        {
+            QPainter p(&viaPath);
+            office::wml::paintEquation(&p, markup, QRectF(0, 0, eq.size.width() * scale, eq.size.height() * scale), Qt::black);
+        }
+        auto ink = [](const QImage &img, QRect *bounds) {
+            int n = 0;
+            int x0 = img.width(), y0 = img.height(), x1 = -1, y1 = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qAlpha(img.pixel(x, y)) > 127) {
+                        ++n;
+                        x0 = std::min(x0, x), y0 = std::min(y0, y), x1 = std::max(x1, x), y1 = std::max(y1, y);
+                    }
+            *bounds = QRect(QPoint(x0, y0), QPoint(x1, y1));
+            return n;
+        };
+        QRect a, b;
+        const int inkSvg = ink(viaSvg, &a), inkPath = ink(viaPath, &b);
+        QVERIFY(inkSvg > 100 && inkPath > 100);
+        QVERIFY2(std::abs(a.left() - b.left()) <= 3 && std::abs(a.top() - b.top()) <= 3 && std::abs(a.right() - b.right()) <= 3 && std::abs(a.bottom() - b.bottom()) <= 3,
+                 qPrintable(QStringLiteral("ink %1,%2 %3x%4 against %5,%6 %7x%8").arg(a.left()).arg(a.top()).arg(a.width()).arg(a.height()).arg(b.left()).arg(b.top()).arg(b.width()).arg(b.height())));
+        QVERIFY(std::abs(inkSvg - inkPath) * 50 < inkPath);
+        // The page's PDF holds the equation as vector content, and its line of text is not drawn as well.
+        Win win;
+        win.w.setDocument(open(equationDocx()), QString());
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("e.pdf"));
+        win.w.setNotifier([](const QString &, const QString &) {});
+        win.w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        win.w.exportPdf();
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        QVERIFY(pdf.size() > 200);
+        QVERIFY(!pdf.contains("/Subtype /Image") && !pdf.contains("/Subtype/Image"));
+        const QString text = PdfDocument::shared(pdf)->text(0);
+        QVERIFY(text.contains(QStringLiteral("Before")) && text.contains(QStringLiteral("after")));
+        QVERIFY2(!text.contains(QChar(0x2211)) && !text.contains(QStringLiteral("sum")) && !text.contains(QStringLiteral("a0")), qPrintable(text));
+    }
+
+    void anEquationEditedOrPutInKeepsItsPictureInOneStepAndTheMarkupBytesRoundTrip()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QVERIFY(insertEquation(*doc, c, QStringLiteral("x/y")));
+        QCOMPARE(setEquations(*doc).size(), 1);
+        const double before = setEquations(*doc)[0].pic->rect.height();
+        QVERIFY(replaceEquation(*doc, 7, QStringLiteral("x^2/y^3/z")));
+        QCOMPARE(setEquations(*doc).size(), 1);
+        QVERIFY(setEquations(*doc)[0].pic->rect.height() > before);
+        QVERIFY(doc->undo());
+        QCOMPARE(setEquations(*doc).size(), 1);
+        QCOMPARE(setEquations(*doc)[0].pic->rect.height(), before);
+        QVERIFY(doc->undo());
+        QVERIFY(setEquations(*doc).isEmpty());
+        QVERIFY(doc->redo() && doc->redo());
+        // A file's equation is saved as the markup it came in with.
+        auto file = open(equationDocx());
+        const QByteArray saved = documentXml(file->toDocx());
+        QVERIFY(saved.contains(mathFraction("a0", "b")));
+        QVERIFY(saved.contains("<m:nary>"));
+    }
+
+    void anEquationTooBigOrPastThePictureCapKeepsItsLineOfText()
+    {
+        // Past the pictures a document may have, the rest are lines, as before.
+        auto many = open(equationDocx(2500, false));
+        QVERIFY(many);
+        QCOMPARE(svgImages(*many), 2000);
+        QCOMPARE(setEquations(*many).size(), 2000);
+        QCOMPARE(many->story()->toPlainText().count(QChar::ObjectReplacementCharacter), 2500);
+        // An equation nested deeper than the layout holds is cut short: its line is shown, with no picture.
+        QByteArray deep = mathRun("x");
+        for (int i = 0; i < office::wml::kMaxEquationDepth + 20; ++i) deep = "<m:rad><m:radPr><m:degHide m:val=\"1\"/></m:radPr><m:deg/><m:e>" + deep + "</m:e></m:rad>";
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Deep </w:t></w:r><m:oMath " + mathNs() + ">" + deep + "</m:oMath></w:p>"));
+        QVERIFY(doc);
+        QVERIFY(setEquations(*doc).isEmpty());
+        QCOMPARE(svgImages(*doc), 0);
+        QVERIFY(documentXml(doc->toDocx()).contains("<m:rad>"));
     }
 
     // ---------------------------------------------------------------- charts

@@ -109,6 +109,12 @@ bool insertMarkup(WriteDoc &doc, QTextCursor &c, const QByteArray &markup)
         QTextCharFormat f;
         if (atom.key == QLatin1String("d")) f.setProperty(tp::DisplayFamily, QStringLiteral("DejaVu Sans"));
         else if (!atom.key.isEmpty()) f.setProperty(tp::DisplayStyle, atom.key);
+        // The picture of the equation's layout, in the line, in the same step (it keeps the line of text for finding and copying).
+        QTextCursor one(c.document());
+        one.setPosition(before + 1);
+        QTextCharFormat shown = one.charFormat();
+        doc.equationPicture(atom, &shown);
+        if (shown.hasProperty(tp::InlineObject)) f.setProperty(tp::InlineObject, shown.property(tp::InlineObject));
         // (The atom itself keeps the key, as a file's equation does.)
         look.mergeCharFormat(f);
     }
