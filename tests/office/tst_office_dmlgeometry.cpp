@@ -140,12 +140,12 @@ private Q_SLOTS:
     {
         GuideEvaluator g(1000, 600);
         g.assign(QStringLiteral("il"), {QStringLiteral("val"), QStringLiteral("10")});
-        g.assign(QStringLiteral("a"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
+        g.assign(QStringLiteral("ga"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
         g.assign(QStringLiteral("il"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("5"), QStringLiteral("0")});   // from the earlier il: 15
-        g.assign(QStringLiteral("b"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
-        QCOMPARE(g.value(QStringLiteral("a")), 11.0);
+        g.assign(QStringLiteral("gb"), {QStringLiteral("+-"), QStringLiteral("il"), QStringLiteral("1"), QStringLiteral("0")});
+        QCOMPARE(g.value(QStringLiteral("ga")), 11.0);
         QCOMPARE(g.value(QStringLiteral("il")), 15.0);
-        QCOMPARE(g.value(QStringLiteral("b")), 16.0);
+        QCOMPARE(g.value(QStringLiteral("gb")), 16.0);
         // A built-in name and one that was set are not changed.
         g.assign(QStringLiteral("w"), {QStringLiteral("val"), QStringLiteral("1")});
         g.set(QStringLiteral("adj"), 3);
