@@ -1575,6 +1575,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             }
         return r;
     };
+    double lastAfter = 0;   // (the space after the paragraph copied before)
     for (QTextBlock b = firstBlock; b.isValid(); b = b.next()) {
         if (b != firstBlock && restartsNotesAt(b)) footnote = endnote = 1;
         // A table set at a place has no lines in the text: it is a paragraph of as many characters as it takes that shows nothing and takes no room.
@@ -1649,7 +1650,15 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         // none where the section below begins at its top (the text after it would be put in the box that has the room of its line).
         if (run.freeBreak && run.splitEnds.contains(b.position() + b.length()) && bf.boolProperty(tp::OutOfFlow) && b != firstBlock) bf.setProperty(tp::OutOfLayout, true);
         if (inFirst && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
-        if (gap > 0 && b != firstBlock && std::binary_search(gapBlocks.cbegin(), gapBlocks.cend(), b.position())) bf.setTopMargin(bf.topMargin() + gap);
+        // Justified: `gap` more room above this paragraph than there is. Where the space between paragraphs is the larger of the two (the engine's way for a word processor's files),
+        // that larger one is what the gap is added to; its automatic space is a fixed 14 points, which the paragraph then states itself.
+        const bool collapses = m_doc->env.wordLines && !m_doc->env.wordSpaceSums;
+        if (gap > 0 && b != firstBlock && std::binary_search(gapBlocks.cbegin(), gapBlocks.cend(), b.position())) {
+            const double before = collapses && bf.boolProperty(tp::SpaceBeforeAuto) ? 14.0 : bf.topMargin();
+            bf.setTopMargin((collapses ? std::max(before, lastAfter) : before) + gap);
+            if (collapses) bf.clearProperty(tp::SpaceBeforeAuto);
+        }
+        lastAfter = collapses && bf.boolProperty(tp::SpaceAfterAuto) ? 14.0 : bf.bottomMargin();
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
             if (!x.isValid() || !y.isValid()) return false;
@@ -2015,9 +2024,12 @@ QVector<StoryLayout::LineBrief> Paginator::lines(int index)
     paginate(index);
     if (index < 0 || index >= m_starts.size()) return {};
     Run run = layoutPage(index, m_starts[index]);
-    Section mirrored;
-    const PageShift shift = alignOf(run, sectionOf(m_starts[index], numberOf(index), &mirrored), m_starts[index].section);
-    applyShift(&run, shift);
+    PageShift shift;
+    if (m_doc->section(m_starts[index].section).pageAlign != Section::PageAlign::Top) {   // (a page of the top pays nothing)
+        Section mirrored;
+        shift = alignOf(run, sectionOf(m_starts[index], numberOf(index), &mirrored), m_starts[index].section);
+        applyShift(&run, shift);
+    }
     QVector<StoryLayout::LineBrief> out = run.lines.mid(0, run.kept);
     for (auto &l : out) {
         l.frame -= run.firstFrame;

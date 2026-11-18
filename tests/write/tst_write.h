@@ -1521,6 +1521,7 @@ private Q_SLOTS:
     void justifiedVerticalAlignmentSpreadsTheFreeHeightBetweenParagraphsEqually();
     void aFullPageAndAPageEndedByABreakStayAtTheTop();
     void verticalAlignmentIsKeptChangedByPageSetupAndLostInAnOdt();
+    void aMiddleSectionKeepsItsVerticalAlignmentAndACenteredTableMovesWithTheText();
     void aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays();
     void rubyInAHeaderIsShown();
     void anEquationIsDrawnAsALineOfText();

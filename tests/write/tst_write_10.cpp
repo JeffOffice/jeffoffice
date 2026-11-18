@@ -886,14 +886,38 @@ void WriteTests::justifiedVerticalAlignmentSpreadsTheFreeHeightBetweenParagraphs
     const double extra = lines[1].rect.top() - flat[1].rect.top();
     QVERIFY2(extra > 1 && extra <= 4 * lines[0].rect.height() + 0.5, qPrintable(QString::number(extra)));
     QVERIFY(std::abs((lines[2].rect.top() - flat[2].rect.top()) - 2 * extra) < 0.5);
-    // The text the page draws has the same gaps: its box is as tall as the lines are.
-    const auto page = pg.materialize(0);
-    QVERIFY(page);
-    std::shared_ptr<Item> box;
-    for (const auto &it : page->doc->pages[0]->items)
-        if (it->id == page->boxes[0]) box = it;
-    QVERIFY(box);
-    QVERIFY2(std::abs(box->rect.height() - (lines[2].rect.bottom() - lines[2].below)) < 1.0, qPrintable(QString::number(box->rect.height())));
+    // The text the page draws has the gaps the lines report: each paragraph's first line, laid out as the page's box lays it, is where lines() says (paragraphs with space after,
+    // and one with the automatic space, as a file's own paragraphs have).
+    auto paintedAgainstReported = [&](const QByteArray &spacing, const char *what) {
+        const QByteArray body = plainP("one", QByteArray(), spacing) + plainP("two", QByteArray(), spacing) + plainP("three", QByteArray(), spacing) + plainP("four", QByteArray(), spacing);
+        auto spaced = open(makeDocxWithParts(body, sect, {}));
+        auto flatDoc = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(spaced && flatDoc);
+        const auto reported = spaced->pager().lines(0), flatLines = flatDoc->pager().lines(0);
+        const auto shown = spaced->pager().materialize(0);
+        QVERIFY(shown);
+        QCOMPARE(int(reported.size()), 4);
+        const TextItem *box = nullptr;
+        for (const auto &item : shown->doc->pages[0]->items)
+            if (item->id == shown->boxes[0]) box = dynamic_cast<const TextItem *>(item.get());
+        QVERIFY(box);
+        StoryLayout layout;
+        layout.build(shown->doc->story(box->storyId)->doc.get(), {Renderer::frameSpec(*shown->doc, *box, 1, RenderOptions())}, spaced->flow().env);
+        const auto painted = layout.lineBriefs();
+        QCOMPARE(int(painted.size()), 4);
+        // Every gap grew by the same, which is not none, and the page's text is where the lines say.
+        const double grew = reported[1].rect.top() - flatLines[1].rect.top();
+        QVERIFY2(grew > 1, what);
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(std::abs((box->rect.top() + painted[i].rect.top()) - (shown->bodyArea.top() + reported[i].rect.top())) < 0.5, qPrintable(QStringLiteral("%1, paragraph %2: painted %3, reported %4").arg(QLatin1String(what)).arg(i).arg(box->rect.top() + painted[i].rect.top()).arg(shown->bodyArea.top() + reported[i].rect.top())));
+            QVERIFY2(std::abs((reported[i].rect.top() - flatLines[i].rect.top()) - i * grew) < 0.5, what);
+        }
+    };
+    paintedAgainstReported("<w:spacing w:before=\"0\" w:after=\"160\"/>", "space after");
+    paintedAgainstReported("<w:spacing w:before=\"240\" w:after=\"0\"/>", "space before");
+    paintedAgainstReported("<w:spacing w:before=\"0\" w:after=\"20\"/>", "a little space after");
+    paintedAgainstReported("<w:spacing w:beforeAutospacing=\"1\" w:afterAutospacing=\"1\"/>", "automatic space");
+    paintedAgainstReported("", "none stated");
 }
 
 
@@ -2134,4 +2158,37 @@ void WriteTests::formattingASelectionLeavesTheEndnotesOfASectionAlone()
     toggleBold(*doc, c);
     QVERIFY(!bold());
     QCOMPARE(notes(), before);
+}
+
+
+// A section that a paragraph ends (not the document's last) has its own w:vAlign, kept and read as the section's; and a page with a table that is centered moves the table with the
+// text.
+void WriteTests::aMiddleSectionKeepsItsVerticalAlignmentAndACenteredTableMovesWithTheText()
+{
+    jp::initCore();
+    const QByteArray centered = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:vAlign w:val=\"center\"/>");
+    auto two = open(makeDocxWithParts(plainP("first") + "<w:p><w:pPr>" + centered + "</w:pPr></w:p>" + plainP("second"), sectionXml(12240, 15840, 1440), {}));
+    QVERIFY(two);
+    QCOMPARE(two->sectionCount(), 2);
+    QVERIFY(two->flow().section(0).pageAlign == flow::Section::PageAlign::Center);
+    QVERIFY(two->flow().section(1).pageAlign == flow::Section::PageAlign::Top);
+    QCOMPARE(int(documentXml(two->toDocx()).count("<w:vAlign w:val=\"center\"/>")), 1);
+    // A table under a line, on a centered page: the table and the text move by the same.
+    const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"5000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"5000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"5000\" w:type=\"dxa\"/></w:tcPr>"
+                             "<w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+    const QByteArray body = plainP("above") + table + plainP("below");
+    auto aligned = open(makeDocxWithParts(body, centered, {})), top = open(makeDocxWithParts(body, sectionXml(12240, 15840, 1440), {}));
+    QVERIFY(aligned && top);
+    const auto a = aligned->pager().materialize(0), t = top->pager().materialize(0);
+    QVERIFY(a && t);
+    QCOMPARE(int(a->tables.size()), 1);
+    QCOMPARE(int(t->tables.size()), 1);
+    auto boxTop = [](const flow::MaterializedPage &page) {
+        for (const auto &item : page.doc->pages[0]->items)
+            if (item->id == page.boxes[0]) return item->rect.top();
+        return -1.0;
+    };
+    const double textShift = boxTop(*a) - boxTop(*t), tableShift = a->tables[0]->rect().top() - t->tables[0]->rect().top();
+    QVERIFY2(textShift > 50, qPrintable(QString::number(textShift)));
+    QVERIFY2(std::abs(textShift - tableShift) < 0.5, qPrintable(QString::number(textShift) + " vs " + QString::number(tableShift)));
 }
