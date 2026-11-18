@@ -135,6 +135,7 @@ void fontDialog(QWidget *p, Editor *ed)
         {QT_TRANSLATE_NOOP("Dialogs", "Thick"), QTextCharFormat::SingleUnderline, 4},
         {QT_TRANSLATE_NOOP("Dialogs", "Dotted"), QTextCharFormat::DotLine, 0},
         {QT_TRANSLATE_NOOP("Dialogs", "Dashed"), QTextCharFormat::DashUnderline, 0},
+        {QT_TRANSLATE_NOOP("Dialogs", "Long dash"), QTextCharFormat::DashUnderline, 8},
         {QT_TRANSLATE_NOOP("Dialogs", "Dot dash"), QTextCharFormat::DashDotLine, 0},
         {QT_TRANSLATE_NOOP("Dialogs", "Dot dot dash"), QTextCharFormat::DashDotDotLine, 0},
         {QT_TRANSLATE_NOOP("Dialogs", "Wave"), QTextCharFormat::WaveUnderline, 0},

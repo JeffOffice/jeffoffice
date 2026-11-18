@@ -916,6 +916,29 @@ private Q_SLOTS:
         }
     }
 
+    // The Font window's Underline list has Long dash, which sets the engine's long-dash kind (8) on the words.
+    void fontWindowUnderlineListHasLongDash()
+    {
+        DeckWindow w;
+        editTitle(w, QStringLiteral("Hello"), 0, 5);
+        QTimer::singleShot(0, [] {
+            untilDone([] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!dlg) return false;
+                for (QComboBox *c : dlg->findChildren<QComboBox *>()) {
+                    const int at = c->findText(QStringLiteral("Long dash"));
+                    if (at >= 0) c->setCurrentIndex(at);
+                }
+                dlg->accept();
+                return true;
+            });
+        });
+        fontDialog(&w, w.editor());
+        const QTextCharFormat cf = w.editor()->currentCharFormat();
+        QVERIFY(cf.underlineStyle() == QTextCharFormat::DashUnderline);
+        QCOMPARE(cf.intProperty(tp::UnderlineKind), 8);
+    }
+
     // The Font window's Advanced page has the OpenType choices, and they go to the words as the Font window sets them: a choice left alone is not touched, and one set
     // back to the font's own is taken away.
     void fontWindowAdvancedPageSetsOpenTypeChoices()

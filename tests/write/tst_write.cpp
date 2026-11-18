@@ -1662,7 +1662,7 @@ void WriteTests::anUnderlineStyleAndColorFromTheDialogAreSavedInTheFileAndComeBa
 {
     // The choices of the dialog, in its order, and the val the file has for each.
     const QStringList vals = {QStringLiteral("none"), QStringLiteral("single"), QStringLiteral("words"), QStringLiteral("double"), QStringLiteral("thick"), QStringLiteral("dotted"),
-                              QStringLiteral("dash"), QStringLiteral("dotDash"), QStringLiteral("dotDotDash"), QStringLiteral("wave"), QStringLiteral("wavyDouble")};
+                              QStringLiteral("dash"), QStringLiteral("dashLong"), QStringLiteral("dotDash"), QStringLiteral("dotDotDash"), QStringLiteral("wave"), QStringLiteral("wavyDouble")};
     WriteWindow w;
     w.show();
     QString text;
@@ -1701,9 +1701,9 @@ void WriteTests::anUnderlineStyleAndColorFromTheDialogAreSavedInTheFileAndComeBa
     selectRange(v, 20, 23);   // "w06", dashed
     withFontDialog(v, [](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("underlineStyle"))->setCurrentIndex(0); });
     QVERIFY(!documentXml(v.document()->toDocx()).contains("w:val=\"dash\""));
-    selectRange(v, 24, 27);   // "w07", dot dash in red
+    selectRange(v, 28, 31);   // "w08", dot dash in red
     withFontDialog(v, [](QDialog *d) { d->findChild<ColorButton *>(QStringLiteral("underlineColor"))->setCurrent(ColorRef::none()); });
-    QVERIFY2(runPropsOfText(documentXml(v.document()->toDocx()), QStringLiteral("w07")) == QLatin1String("<w:u w:val=\"dotDash\"/>"), documentXml(v.document()->toDocx()).constData());
+    QVERIFY2(runPropsOfText(documentXml(v.document()->toDocx()), QStringLiteral("w08")) == QLatin1String("<w:u w:val=\"dotDash\"/>"), documentXml(v.document()->toDocx()).constData());
 }
 
 

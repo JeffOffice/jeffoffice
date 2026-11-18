@@ -277,6 +277,40 @@ private Q_SLOTS:
             QVERIFY2(hello.language != QLatin1String("fr-FR"), name);
         }
     }
+    // A long-dash underline, plain and heavy, is kept in a .pptx and in a .odp (as long-dash, bold for the heavy one) and read again with its kind.
+    void longDashUnderlinesAreKeptInPptxAndOdp()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QTextDocument *doc = editTitle(w, QStringLiteral("alpha beta"), 0, 0);
+        QTextCursor c(doc);
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        for (const int kind : {8, 12}) {
+            QTextCharFormat f;
+            f.setUnderlineStyle(QTextCharFormat::DashUnderline);
+            f.setProperty(tp::UnderlineKind, kind);
+            c.insertText(kind == 8 ? QStringLiteral("alpha ") : QStringLiteral("beta"), f);
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const char *name : {"dash.pptx", "dash.odp"}) {
+            const auto back = savedAndOpened(*ed->doc(), dir, QString::fromLatin1(name));
+            QVERIFY2(back, name);
+            auto *title = static_cast<jp::TextItem *>(back->pages[0]->items[0].get());
+            QTextDocument *story = back->storyDoc(title->storyId);
+            QVERIFY2(story, name);
+            const QString text = story->toPlainText();
+            for (const auto &want : {std::make_pair(QStringLiteral("alpha"), 8), std::make_pair(QStringLiteral("beta"), 12)}) {
+                QTextCursor at(story);
+                at.setPosition(text.indexOf(want.first) + 1);
+                QVERIFY2(at.charFormat().underlineStyle() == QTextCharFormat::DashUnderline, name);
+                QCOMPARE(at.charFormat().intProperty(tp::UnderlineKind), want.second);
+            }
+        }
+    }
+
     // The box offers the language the text has (a bare tag such as "fr" chooses the nearest language of the list), and US English where the text states none: as JeffWrite's does.
     void theLanguageBoxPreselectsAsJeffWriteDoes()
     {

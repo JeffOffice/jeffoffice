@@ -131,7 +131,7 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
     QString underline = QStringLiteral("none");
     switch (cf.underlineStyle()) {
     case QTextCharFormat::NoUnderline: break;
-    case QTextCharFormat::DashUnderline: underline = QStringLiteral("dash"); break;
+    case QTextCharFormat::DashUnderline: underline = kind & 8 ? QStringLiteral("long-dash") : QStringLiteral("dash"); break;
     case QTextCharFormat::DotLine: underline = QStringLiteral("dotted"); break;
     case QTextCharFormat::DashDotLine: underline = QStringLiteral("dot-dash"); break;
     case QTextCharFormat::DashDotDotLine: underline = QStringLiteral("dot-dot-dash"); break;

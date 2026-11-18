@@ -131,6 +131,7 @@ const UnderlineChoice kUnderlines[] = {
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Thick"), QTextCharFormat::SingleUnderline, 4},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Dotted"), QTextCharFormat::DotLine, 0},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Dashed"), QTextCharFormat::DashUnderline, 0},
+    {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Long dash"), QTextCharFormat::DashUnderline, 8},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Dot dash"), QTextCharFormat::DashDotLine, 0},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Dot dot dash"), QTextCharFormat::DashDotDotLine, 0},
     {QT_TRANSLATE_NOOP("jp::write::Dialogs", "Wave"), QTextCharFormat::WaveUnderline, 0},
