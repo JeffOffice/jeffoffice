@@ -11,6 +11,7 @@
 #include "app/shapetextedit.h"
 #include "render/shapes.h"
 #include "text/textprops.h"
+#include "core/textdirection.h"
 
 #include <QApplication>
 #include <QFileInfo>
@@ -33,6 +34,7 @@ namespace jp {
 
 static const int kRuler = 22;
 static const double kHandle = 4.5;     // handle radius in pixels
+static const QSizeF kUsualTextBox(144, 72);   // the size of a text box clicked onto the page
 
 // How people move the rulers' zero points; the gestures are all here. Shift
 // and the right button on a ruler move that ruler's zero to where you let
@@ -2186,6 +2188,12 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
             m_siteHover = siteNear(page, {});
             if (!m_siteHover.id.isEmpty()) b = m_siteHover.at;
         }
+        // (A text box is drawn by the rule every app shares: the preview is the box that is made.)
+        if (m_drag == Drag::Draw && t == Tool::Text) {
+            const auto ends = textBoxDragEnds(a, b, false, kUsualTextBox);
+            a = ends.first;
+            b = ends.second;
+        }
         m_lastPage = b;
         m_rubber = QRectF(a, b).normalized();
         if (m_drag == Drag::Draw) m_tip = QStringLiteral("%1 × %2").arg(st.format(m_rubber.width()), st.format(m_rubber.height()));
@@ -2492,7 +2500,7 @@ void Canvas::finishDraw(const QRectF &rIn, bool clicked)
     QRectF r = rIn;
     const QPointF p0 = m_pressPage;
     QPointF p1 = m_lastPage;
-    if (clicked) {
+    if (clicked && tool != Tool::Text) {
         QSizeF def(144, 72);
         if (tool == Tool::Shape) def = QSizeF(72, 72);
         if (tool == Tool::Table) def = QSizeF(216, 72);
@@ -2503,7 +2511,8 @@ void Canvas::finishDraw(const QRectF &rIn, bool clicked)
     Document *d = m_ed->doc();
     switch (tool) {
     case Tool::Text: {
-        auto t = m_ed->newTextBox(r);
+        const auto ends = textBoxDragEnds(r.topLeft(), r.bottomRight(), false, kUsualTextBox);
+        auto t = m_ed->newTextBox(QRectF(ends.first, ends.second).normalized());
         m_ed->addItem(t);
         m_ed->setTool(Tool::Select);
         m_ed->beginTextEdit(t->id, 0);

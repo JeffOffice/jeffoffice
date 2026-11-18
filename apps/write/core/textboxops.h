@@ -2,6 +2,7 @@
 // Text boxes drawn with the mouse, and the direction of a box's words (see jeffwrite.md).
 
 #include "core/pictureops.h"
+#include "core/textdirection.h"
 
 #include <QPointF>
 
@@ -14,7 +15,7 @@ PictureResult insertTextBoxAt(WriteDoc &doc, QTextCursor &c, const QPointF &from
 std::pair<QPointF, QPointF> textBoxDragEnds(const QPointF &from, const QPointF &to, bool keepProportions);
 
 // How a text box's (or shape's) words run: across, or turned a quarter either way.
-enum class TextDirection { Horizontal, Rotate90, Rotate270 };
+using TextDirection = jp::TextDirection;
 // The direction the drawn object after `position` says (Horizontal for anything else).
 TextDirection textBoxDirection(const WriteDoc &doc, int position);
 // Sets it, as one step that undoes: only the body's `vert` (a box of the older drawing format, its `layout-flow`) is written again, the rest of the drawing is kept; the frame is as it was. A

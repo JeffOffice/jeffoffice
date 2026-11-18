@@ -21,22 +21,8 @@ using namespace office::wml;
 
 std::pair<QPointF, QPointF> textBoxDragEnds(const QPointF &from, const QPointF &to, bool keepProportions)
 {
-    if (!std::isfinite(from.x()) || !std::isfinite(from.y()) || !std::isfinite(to.x()) || !std::isfinite(to.y())) return {from, from};
-    QPointF d = to - from;
-    if (std::abs(d.x()) < 4 && std::abs(d.y()) < 4) {
-        // (A click: the Simple design's usual size, from the point.)
-        const QSizeF usual = textBoxDesigns().first().size;
-        return {from, from + QPointF(usual.width(), usual.height())};
-    }
-    if (keepProportions) {
-        const double side = std::max(std::abs(d.x()), std::abs(d.y()));
-        d = QPointF(d.x() < 0 ? -side : side, d.y() < 0 ? -side : side);
-    }
-    // (A box that can hold a line: at least 18 points each way.)
-    auto atLeast = [](double v) { return std::abs(v) < 18 ? (v < 0 ? -18.0 : 18.0) : v; };
-    d = QPointF(atLeast(d.x()), atLeast(d.y()));
-    const QPointF end = from + d;
-    return {QPointF(std::min(from.x(), end.x()), std::min(from.y(), end.y())), QPointF(std::max(from.x(), end.x()), std::max(from.y(), end.y()))};
+    const QSizeF usual = textBoxDesigns().first().size;
+    return jp::textBoxDragEnds(from, to, keepProportions, usual);
 }
 
 PictureResult insertTextBoxAt(WriteDoc &doc, QTextCursor &c, const QPointF &from, const QPointF &to, bool keepProportions)
@@ -142,7 +128,7 @@ Tag ownBodyTag(const QByteArray &x)
     return {};
 }
 
-const char *vertWord(TextDirection d) { return d == TextDirection::Rotate90 ? "vert" : d == TextDirection::Rotate270 ? "vert270" : "horz"; }
+const char *vertWord(TextDirection d) { return jp::textDirectionVert(d); }
 
 // An attribute of the start tag [tagBegin, tagEnd], either quoted way: where its value is, or valueBegin -1 for none.
 struct Attr {
@@ -184,7 +170,7 @@ TextDirection directionOfDrawing(const QByteArray &raw)
     if (t.begin < 0 || t.end < 0) return TextDirection::Horizontal;
     const Attr a = findAttr(raw, t.begin, t.end, "vert");
     const QByteArray v = a.valueBegin >= 0 ? raw.mid(a.valueBegin, a.valueEnd - a.valueBegin) : QByteArray();
-    return v == "vert270" ? TextDirection::Rotate270 : v == "vert" || v == "eaVert" ? TextDirection::Rotate90 : TextDirection::Horizontal;
+    return jp::textDirectionFromVert(QString::fromLatin1(v)).value_or(TextDirection::Horizontal);
 }
 
 // A box of the older format: its words' style says how they flow (layout-flow, and mso-layout-flow-alt for the turn the other way).

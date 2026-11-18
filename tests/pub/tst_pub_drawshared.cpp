@@ -2,6 +2,7 @@
 // an outline. Built here from paths and a few lines of XML.
 
 #include "core/pathpoints.h"
+#include "core/textdirection.h"
 #include "core/picturestyles.h"
 #include "office/drawingml_effects.h"
 #include "office/drawingml_geometry.h"
@@ -492,6 +493,43 @@ private Q_SLOTS:
         }
     }
 
+
+    // The rule every app draws a text box by (core/textdirection.h): a drag of under 4 points both ways is the usual size from where it began; otherwise each side is at least 18 points, in order;
+    // Shift makes it square. And the names a direction has in the files: the body's vert of a drawing, and the writing modes of an OpenDocument style.
+    void aTextBoxIsDrawnByOneRuleAndADirectionHasItsFileValues()
+    {
+        const QSizeF usual(144, 72);
+        auto click = jp::textBoxDragEnds(QPointF(100, 100), QPointF(102, 101), false, usual);
+        QCOMPARE(click.first, QPointF(100, 100));
+        QCOMPARE(click.second, QPointF(244, 172));
+        auto small = jp::textBoxDragEnds(QPointF(100, 100), QPointF(110, 95), false, usual);
+        QCOMPARE(small.first, QPointF(100, 82));
+        QCOMPARE(small.second, QPointF(118, 100));
+        auto big = jp::textBoxDragEnds(QPointF(300, 200), QPointF(100, 50), false, usual);
+        QCOMPARE(big.first, QPointF(100, 50));
+        QCOMPARE(big.second, QPointF(300, 200));
+        auto square = jp::textBoxDragEnds(QPointF(0, 0), QPointF(50, 30), true, usual);
+        QCOMPARE(square.second - square.first, QPointF(50, 50));
+        auto bad = jp::textBoxDragEnds(QPointF(0, 0), QPointF(std::nan(""), 5), false, usual);
+        QCOMPARE(bad.first, bad.second);
+        using D = jp::TextDirection;
+        QCOMPARE(QString::fromLatin1(jp::textDirectionVert(D::Horizontal)), QStringLiteral("horz"));
+        QCOMPARE(QString::fromLatin1(jp::textDirectionVert(D::Rotate90)), QStringLiteral("vert"));
+        QCOMPARE(QString::fromLatin1(jp::textDirectionVert(D::Rotate270)), QStringLiteral("vert270"));
+        QCOMPARE(int(*jp::textDirectionFromVert(QStringLiteral("vert270"))), int(D::Rotate270));
+        QCOMPARE(int(*jp::textDirectionFromVert(QStringLiteral("eaVert"))), int(D::Rotate90));
+        QVERIFY(!jp::textDirectionFromVert(QStringLiteral("wordArtVert")));
+        QVERIFY(!jp::textDirectionFromVert(QString()));
+        QCOMPARE(jp::textDirectionOdfAttributes(D::Horizontal), QString());
+        QCOMPARE(jp::textDirectionOdfAttributes(D::Rotate90), QStringLiteral(" style:writing-mode=\"tb-rl\""));
+        QVERIFY(jp::textDirectionOdfAttributes(D::Rotate270).contains(QStringLiteral("loext:writing-mode=\"bt-lr\"")));
+        QCOMPARE(int(jp::textDirectionFromOdf(QStringLiteral("tb-rl"), QString())), int(D::Rotate90));
+        QCOMPARE(int(jp::textDirectionFromOdf(QStringLiteral("tb-rl"), QStringLiteral("bt-lr"))), int(D::Rotate270));
+        QCOMPARE(int(jp::textDirectionFromOdf(QString(), QStringLiteral("tb-rl90"))), int(D::Rotate90));
+        QCOMPARE(int(jp::textDirectionFromOdf(QStringLiteral("tb-rl"), QString(), true)), int(D::Rotate270));   // (files written before: jo:turned-back)
+        QCOMPARE(int(jp::textDirectionFromOdf(QStringLiteral("lr-tb"), QString())), int(D::Horizontal));
+        QCOMPARE(int(jp::textDirectionFromOdf(QStringLiteral("junk"), QStringLiteral("junk"))), int(D::Horizontal));
+    }
 };
 
 JP_TEST_CLASS(DrawSharedTests)
