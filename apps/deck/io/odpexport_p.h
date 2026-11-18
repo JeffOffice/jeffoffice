@@ -218,7 +218,7 @@ private:
     // A barcode as the picture other programs show, with the settings in the frame (office/barcodemarker.h); false when it can't be a picture.
     bool writeBarcode(X &x, Scope &sc, const GroupItem &g);
     void writeTable(X &x, Scope &sc, const TableItem &t);
-    void writeAsPicture(X &x, Scope &sc, const Item &it);
+    void writeAsPicture(X &x, Scope &sc, const Item &it, const ItemPtr &drawn = nullptr);
     void writePlace(X &x, const QRectF &rect, double rotation);
     void writeCommon(X &x, const Item &it);
     void writeInside(X &x, const Item &it);

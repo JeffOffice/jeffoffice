@@ -100,6 +100,56 @@ bool mathOfKeptPair(const QJsonObject &kept, QByteArray *markup, QString *linear
     }
     return false;
 }
+// The picture that stands for an equation a file brought, made an equation from `markup` (in the same place, in the frame it had, as one step that undoes), shown as `linearForm` says.
+bool convertKeptEquation(DeckWindow &w, QString id, const QByteArray &markup, const QString &line, bool linearForm, const QColor &color)
+{
+    Editor *ed = w.editor();
+    int slide = 0;
+    if (keptEquation(*ed->doc(), id, &slide).isEmpty()) return false;
+    const Document::Loc at = ed->doc()->find(id);
+    if (!at.item || !at.list || !equationRoom(*ed->doc(), 0)) {
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This presentation has as many equations as it can hold."), 6000);
+        return false;
+    }
+    const Item &old = *at.item;
+    auto made = makeEquationFromMarkup(markup, line, linearForm, old.rect.center(), kSlideLetters);
+    if (!made || !equationRoom(*ed->doc(), made->markup.size())) {
+        w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This equation can't be changed."), 6000);
+        return false;
+    }
+    // (the new equation fits the frame the old one had, as large as it goes, keeping its proportions)
+    const double k = std::min(old.rect.width() / made->rect.width(), old.rect.height() / made->rect.height());
+    if (k > 0 && std::isfinite(k)) {
+        made->rect = QRectF(QPointF(), made->rect.size() * k);
+        made->rect.moveCenter(old.rect.center());
+    }
+    made->id = old.id;
+    made->name = old.name;
+    made->altText = old.altText;
+    made->altTitle = old.altTitle;
+    made->sourceId = old.sourceId;
+    made->rotation = old.rotation;
+    made->flipH = old.flipH;
+    made->flipV = old.flipV;
+    made->hidden = old.hidden;
+    made->hyperlink = old.hyperlink;
+    made->size = kSlideLetters;
+    if (color.isValid()) made->fill = Fill::solid(ColorRef::rgb(color));
+    const int index = at.index;
+    ItemList *list = at.list;
+    ed->endTextEdit();
+    ed->change(QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), [&] {
+        (*list)[size_t(index)] = made;
+        QJsonObject props = ed->doc()->pages[size_t(slide)]->props;
+        QJsonArray rest;
+        for (const QJsonValue &v : props.value(QStringLiteral("charts")).toArray())
+            if (v.toObject().value(QStringLiteral("item")).toString() != id) rest.append(v);
+        props[QStringLiteral("charts")] = rest;
+        ed->doc()->pages[size_t(slide)]->props = props;
+    });
+    ed->select(id);
+    return true;
+}
 } // namespace
 
 void DeckWindow::createEquationActions()
@@ -129,6 +179,13 @@ void DeckWindow::createEquationActions()
     handlers.setLinear = [this, refreshTab](bool linear) {
         setEquationLinearSetting(linear);
         if (Item *one = m_ed->single(); one && one->type() == ItemType::Equation) setEquationLinearForm(m_ed, one->id, linear);
+        else if (Item *kept = m_ed->single(); linear && kept && !keptEquation(*m_ed->doc(), kept->id, nullptr).isEmpty()) {
+            // (the picture of an equation a file brought is already built up: Linear makes it an equation, shown as a line)
+            QByteArray markup;
+            QString text;
+            QColor color;
+            if (mathOfKeptPair(keptEquation(*m_ed->doc(), kept->id, nullptr), &markup, &text, &color)) convertKeptEquation(*this, kept->id, markup, text, true, color);
+        }
         refreshTab();
     };
     handlers.setSyntax = [refreshTab](EquationSyntax s) {
@@ -136,6 +193,7 @@ void DeckWindow::createEquationActions()
         refreshTab();
     };
     jp::createEquationTabActions([this](const QString &id, const QString &text, const QString &iconName, const std::function<void()> &fn, bool checkable) { return mk(id, text, iconName, QKeySequence(), fn, checkable); }, handlers);
+    onEquationChoicesChanged(this, refreshTab);
     connect(m_ed, &Editor::selectionChanged, this, refreshTab);
     connect(m_ed, &Editor::changed, this, refreshTab);
     // A double click on an equation opens the editor on it, and so does one on the picture that stands for an equation a file brought.
@@ -203,50 +261,10 @@ bool editEquationIn(DeckWindow &w, QString id, const QString &pick)
         const QByteArray startMarkup = markup;
         QString line = linear;
         EquationForm form = equationLinearSetting() ? EquationForm::Linear : EquationForm::Professional;
-        if (!askEquationMarkup(&w, QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), &line, &markup, &form, pick) || markup == startMarkup) return false;
-        const Document::Loc at = ed->doc()->find(id);
-        if (!at.item || !at.list || !equationRoom(*ed->doc(), 0)) {
-            w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This presentation has as many equations as it can hold."), 6000);
-            return false;
-        }
-        const Item &old = *at.item;
-        auto made = makeEquationFromMarkup(markup, line, form == EquationForm::Linear, old.rect.center(), kSlideLetters);
-        if (!made || !equationRoom(*ed->doc(), made->markup.size())) {
-            w.statusBar()->showMessage(QCoreApplication::translate("jp::DeckWindow", "This equation can't be changed."), 6000);
-            return false;
-        }
-        // (the new equation fits the frame the old one had, as large as it goes, keeping its proportions)
-        const double k = std::min(old.rect.width() / made->rect.width(), old.rect.height() / made->rect.height());
-        if (k > 0 && std::isfinite(k)) {
-            made->rect = QRectF(QPointF(), made->rect.size() * k);
-            made->rect.moveCenter(old.rect.center());
-        }
-        made->id = old.id;
-        made->name = old.name;
-        made->altText = old.altText;
-        made->altTitle = old.altTitle;
-        made->sourceId = old.sourceId;
-        made->rotation = old.rotation;
-        made->flipH = old.flipH;
-        made->flipV = old.flipV;
-        made->hidden = old.hidden;
-        made->hyperlink = old.hyperlink;
-        made->size = kSlideLetters;
-        if (color.isValid()) made->fill = Fill::solid(ColorRef::rgb(color));
-        const int index = at.index;
-        ItemList *list = at.list;
-        ed->endTextEdit();
-        ed->change(QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), [&] {
-            (*list)[size_t(index)] = made;
-            QJsonObject props = ed->doc()->pages[size_t(slide)]->props;
-            QJsonArray rest;
-            for (const QJsonValue &v : props.value(QStringLiteral("charts")).toArray())
-                if (v.toObject().value(QStringLiteral("item")).toString() != id) rest.append(v);
-            props[QStringLiteral("charts")] = rest;
-            ed->doc()->pages[size_t(slide)]->props = props;
-        });
-        ed->select(id);
-        return true;
+        const EquationForm startForm = form;
+        if (!askEquationMarkup(&w, QCoreApplication::translate("jp::DeckWindow", "Edit Equation"), &line, &markup, &form, pick)) return false;
+        if (markup == startMarkup && form == startForm) return false;
+        return convertKeptEquation(w, id, markup, line, form == EquationForm::Linear, color);
     }
     auto *eq = dynamic_cast<EquationItem *>(ed->doc()->item(id));
     if (!eq) return false;

@@ -30,6 +30,11 @@ bool changeEquation(Editor *ed, QString id, const QString &linear);
 // Changes the equation `id` to this markup (and line, and form) in the same way, as one step that undoes; false for markup that makes no equation, or where nothing would change.
 bool changeEquationMarkup(Editor *ed, QString id, const QByteArray &markup, const QString &linear, bool linearForm);
 // Shows the equation `id` Linear or Professional, as one step that undoes ("Edit Equation"); false when it already is, or there is no such equation.
+// The text that says the equation for a reader who can't see it (alt text, the e-book, the screen reader): the line it was typed as when a line of our syntax makes it, else its
+// UnicodeMath, else the plain text of its math (so an equation typed in LaTeX is never silent).
+QString equationReadableText(const EquationItem &eq);
+// The equation as the files that have no Linear form keep it: built up, its frame the built-up layout's (the scale the person gave the frame kept, its top-left kept).
+std::shared_ptr<EquationItem> builtUpEquation(const EquationItem &eq);
 bool setEquationLinearForm(Editor *ed, QString id, bool linearForm);
 
 } // namespace jp

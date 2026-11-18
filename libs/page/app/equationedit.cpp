@@ -81,6 +81,27 @@ bool changeEquation(Editor *ed, QString id, const QString &linear)
     return ok && changeEquationMarkup(ed, id, markup, linear, w->linearForm);
 }
 
+QString equationReadableText(const EquationItem &eq)
+{
+    QString text = eq.linear.trimmed();
+    if (text.isEmpty()) text = office::wml::equationToUnicodeMath(eq.markup).trimmed();
+    if (text.isEmpty()) text = office::wml::equationLine(eq.markup).trimmed();
+    return text;
+}
+
+std::shared_ptr<EquationItem> builtUpEquation(const EquationItem &eq)
+{
+    auto out = std::static_pointer_cast<EquationItem>(eq.clone());
+    if (!eq.linearForm) return out;
+    QSizeF linearNatural, builtNatural;
+    Renderer::equationOutline(eq, &linearNatural);
+    out->linearForm = false;
+    Renderer::equationOutline(*out, &builtNatural);
+    if (linearNatural.isEmpty() || builtNatural.isEmpty()) return out;
+    out->rect = QRectF(eq.rect.topLeft(), QSizeF(builtNatural.width() * eq.rect.width() / linearNatural.width(), builtNatural.height() * eq.rect.height() / linearNatural.height()));
+    return out;
+}
+
 bool setEquationLinearForm(Editor *ed, QString id, bool linearForm)
 {
     auto *w = dynamic_cast<EquationItem *>(ed->doc()->item(id));

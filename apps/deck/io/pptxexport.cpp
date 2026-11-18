@@ -30,6 +30,7 @@
 #include "office/theme.h"
 #include "core/fonts.h"
 #include "office/xml.h"
+#include "app/equationedit.h"
 #include "render/renderer.h"
 #include "wml/wmlmathpath.h"
 #include "text/textprops.h"
@@ -1041,8 +1042,11 @@ QString withShapePlace(const QString &xml, const Item &item)
 // The pair of alternatives of an equation made here, or read from a file as one: the shape whose text is the math (a14:m, for the programs that know it), and a
 // picture of it for the others, drawn as JeffDeck draws the equation, with the frame's own proportions (twice as many pixels as points across, and at most 4,000).
 // Both are placed alike and have the equation's name; the shape has its number, the picture the next free one. Empty, with a note, if no picture can be made.
-QString Exporter::equationPair(const EquationItem &eq, office::DrawingWriteContext &ctx, const QString &where)
+QString Exporter::equationPair(const EquationItem &shown, office::DrawingWriteContext &ctx, const QString &where)
 {
+    // (A file has no Linear form: the math is saved built up, in a frame of the built-up layout's proportions.)
+    const auto builtUp = builtUpEquation(shown);
+    const EquationItem &eq = *builtUp;
     const double w = eq.rect.width(), h = eq.rect.height();
     const QColor color = eq.fill.isNone() ? QColor(Qt::black) : eq.fill.color.resolve(m_doc.colors);
     // The picture is three pixels to the point, at most 4,000 a side; the pictures of a whole file come to at most kMostEquationPixels, and past that each is drawn smaller

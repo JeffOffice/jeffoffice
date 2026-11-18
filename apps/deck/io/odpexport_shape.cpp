@@ -12,6 +12,7 @@
 #include "office/drawingml_geometry.h"
 #include "office/barcodemarker.h"
 #include "office/drawingml_write.h"
+#include "app/equationedit.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
 
@@ -209,7 +210,7 @@ void Exporter::writeItem(X &x, Scope &sc, const Item &it)
     case ItemType::Table: writeTable(x, sc, static_cast<const TableItem &>(it)); break;
     case ItemType::Equation:
         sayOnce(QStringLiteral("equation"), QCoreApplication::translate("OdpExport", "Equations are saved as pictures."));
-        writeAsPicture(x, sc, it);
+        writeAsPicture(x, sc, it, builtUpEquation(static_cast<const EquationItem &>(it)));
         break;
     case ItemType::TextArt:
         sayOnce(QStringLiteral("textart"), QCoreApplication::translate("OdpExport", "Text Art is saved as a picture."));
@@ -219,9 +220,9 @@ void Exporter::writeItem(X &x, Scope &sc, const Item &it)
 }
 
 // An object that this kind of file can't draw as itself, as a picture of what it looks like.
-void Exporter::writeAsPicture(X &x, Scope &sc, const Item &it)
+void Exporter::writeAsPicture(X &x, Scope &sc, const Item &it, const ItemPtr &drawn)
 {
-    const ItemPtr ptr = m_doc.itemPtr(it.id);
+    const ItemPtr ptr = drawn ? drawn : m_doc.itemPtr(it.id);
     if (!ptr) return;
     LayoutCache cache;
     PaintContext ctx;
