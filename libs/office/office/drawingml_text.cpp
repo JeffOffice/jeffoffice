@@ -457,8 +457,8 @@ QTextCharFormat charFormatOf(const RunProps &r)
     if (r.bold.value_or(false)) cf.setFontWeight(QFont::Bold);
     if (r.italic.value_or(false)) cf.setFontItalic(true);
 
-    // The underline's line is Qt's style; double, words only, and heavy are
-    // the engine's own kinds beside it.
+    // The underline's line is Qt's style; double, words only, heavy, and long dash
+    // are the engine's own kinds beside it.
     if (!r.underline.isEmpty() && r.underline != QLatin1String("none")) {
         QString u = r.underline;
         int kind = 0;
