@@ -206,6 +206,32 @@ flow::Section::LineNumbers lineNumbersOf(const QVector<RawChild> &extra)
     return out;
 }
 
+// A section's vertical alignment of its pages (w:vAlign, kept as written among the section's properties): a value that is none of the four is the top.
+flow::Section::PageAlign pageAlignOf(const SectionProps &props)
+{
+    const QVector<RawChild> &extra = props.extra;
+    static const QRegularExpression isAlign(QStringLiteral("^<(?:[\\w.-]+:)?vAlign\\b([^>]*)>")), val(QStringLiteral("[\\s:]val\\s*=\\s*[\"']([^\"']*)[\"']"));
+    for (const RawChild &child : extra) {
+        const QRegularExpressionMatch head = isAlign.match(QString::fromUtf8(child.xml.left(400)));
+        if (!head.hasMatch()) continue;
+        const QString v = val.match(head.captured(1)).captured(1);
+        return v == QLatin1String("center") ? flow::Section::PageAlign::Center : v == QLatin1String("both") ? flow::Section::PageAlign::Justified
+               : v == QLatin1String("bottom") ? flow::Section::PageAlign::Bottom : flow::Section::PageAlign::Top;
+    }
+    return flow::Section::PageAlign::Top;
+}
+
+void setPageAlign(SectionProps *p, flow::Section::PageAlign align)
+{
+    // (The element goes, and the one the new value needs is put in its place among the section's properties: none for the top, which is what a section without one has.)
+    static const QRegularExpression isAlign(QStringLiteral("^<(?:[\\w.-]+:)?vAlign\\b"));
+    for (int i = p->extra.size() - 1; i >= 0; --i)
+        if (isAlign.match(QString::fromUtf8(p->extra[i].xml.left(400))).hasMatch()) p->extra.removeAt(i);
+    if (align == flow::Section::PageAlign::Top) return;
+    const char *name = align == flow::Section::PageAlign::Center ? "center" : align == flow::Section::PageAlign::Justified ? "both" : "bottom";
+    p->extra.push_back({sectionChildRank("vAlign"), QByteArray("<w:vAlign w:val=\"") + name + "\"/>"});
+}
+
 flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
 {
     flow::Section s;
@@ -230,6 +256,7 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.startParity = p.type == QLatin1String("oddPage") ? flow::Section::Parity::Odd : p.type == QLatin1String("evenPage") ? flow::Section::Parity::Even : flow::Section::Parity::Any;
     s.pageBorders = pageBordersOf(p.extra);
     s.lineNumbers = lineNumbersOf(p.extra);
+    s.pageAlign = pageAlignOf(p);
     s.firstPageNumber = p.pageStart;
     // (Page numbers that carry a chapter's number: the heading level of the style (w:chapStyle) and the separator (w:chapSep: a hyphen when it says none).)
     {
@@ -282,6 +309,7 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
     }
     if (s.headerDistance != was.headerDistance) p->header = int(std::lround(s.headerDistance * 20));
     if (s.footerDistance != was.footerDistance) p->footer = int(std::lround(s.footerDistance * 20));
+    if (s.pageAlign != was.pageAlign) setPageAlign(p, s.pageAlign);
     if (s.differentFirstPage != was.differentFirstPage) p->titlePg = s.differentFirstPage;
     if (s.firstPageNumber != was.firstPageNumber) p->pageStart = s.firstPageNumber;
     if (s.pageNumberFormat != was.pageNumberFormat)

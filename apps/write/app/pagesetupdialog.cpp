@@ -202,6 +202,14 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     oddEven->setChecked(before.differentOddEven);
     lf->addRow(firstPage);
     lf->addRow(oddEven);
+    auto *vertical = new QComboBox(layoutPage);
+    vertical->setObjectName(QStringLiteral("verticalAlignment"));
+    vertical->addItem(QCoreApplication::translate("jp::write::Dialogs", "Top"), int(flow::Section::PageAlign::Top));
+    vertical->addItem(QCoreApplication::translate("jp::write::Dialogs", "Center"), int(flow::Section::PageAlign::Center));
+    vertical->addItem(QCoreApplication::translate("jp::write::Dialogs", "Justified"), int(flow::Section::PageAlign::Justified));
+    vertical->addItem(QCoreApplication::translate("jp::write::Dialogs", "Bottom"), int(flow::Section::PageAlign::Bottom));
+    vertical->setCurrentIndex(std::max(0, int(vertical->findData(int(before.pageAlign)))));
+    lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Vertical alignment"), vertical);
     auto *header = spin("header", before.header), *footer = spin("footer", before.footer);
     lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Header, from the edge"), header);
     lf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Footer, from the edge"), footer);
@@ -245,6 +253,7 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     after.start = start->currentData().toString();
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
+    after.pageAlign = flow::Section::PageAlign(vertical->currentData().toInt());
     // (book fold is the document's, whatever the margins apply to)
     doc->setBookFold(multiple->currentData().toBool(), booklet->currentData().toInt());
     // Set as Default: the margins and the paper (not how a section starts, or its headers) go to the Normal template, which new documents start from.

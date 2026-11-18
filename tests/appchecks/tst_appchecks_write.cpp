@@ -1569,6 +1569,43 @@ private Q_SLOTS:
         QCOMPARE(zipDigest(doc.toDocx()), original);
     }
 
+    // The Layout tab's Vertical alignment: Center and Bottom put the page's text there, each in one step that undoes (with JO_SHOT_DIR, pictures of the dialog and the pages).
+    void thePageSetupDialogSetsTheVerticalAlignmentOfThePage()
+    {
+        const bool shots = !qEnvironmentVariableIsEmpty("JO_SHOT_DIR");
+        if (shots) jp::applyUiTheme(1);
+        std::unique_ptr<WriteWindow> w(launchBlank());
+        w->resize(1200, 1400);
+        if (shots) w->show();
+        typeInto(w->view(), QStringLiteral("A title page"));
+        settle(w.get());
+        write::WriteDoc &doc = *w->document();
+        const QString original = zipDigest(doc.toDocx());
+        for (const auto &[index, name] : {std::pair<int, QString>{1, QStringLiteral("center")}, std::pair<int, QString>{3, QStringLiteral("bottom")}}) {
+            answer([&, index = index, name = name](QDialog *d) {
+                auto *combo = d->findChild<QComboBox *>(QStringLiteral("verticalAlignment"));
+                QVERIFY(combo);
+                QCOMPARE(combo->count(), 4);
+                QCOMPARE(combo->currentIndex(), 0);
+                combo->setCurrentIndex(index);
+                if (auto *tabs = d->findChild<QTabWidget *>()) tabs->setCurrentIndex(tabs->count() - 1);
+                shotOf(d, QStringLiteral("page-setup-vertical-") + name);
+            });
+            w->act(QStringLiteral("layout.pageSetup"))->trigger();
+            settle(w.get());
+            QVERIFY(doc.flow().section(0).pageAlign == flow::Section::PageAlign(index));
+            const auto lines = doc.pager().lines(0);
+            QVERIFY(!lines.isEmpty() && lines[0].rect.top() > 100);
+            if (shots) {
+                QTest::qWait(200);
+                w->grab().save(qEnvironmentVariable("JO_SHOT_DIR") + QStringLiteral("/page-") + name + QStringLiteral(".png"));
+            }
+            w->act(QStringLiteral("edit.undo"))->trigger();
+            settle(w.get());
+            QCOMPARE(zipDigest(doc.toDocx()), original);
+        }
+    }
+
     // The ruler shows the margins, the indents of the paragraph the caret is in, and its tab stops; each marker is dragged, a click adds a tab stop, and each change is one step.
     void theRulerDragsIndentsMarginsAndTabsInOneStepEach()
     {

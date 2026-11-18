@@ -19,6 +19,7 @@ struct SectionSetup {
     QString start = QStringLiteral("nextPage");                        // nextPage, continuous, oddPage, or evenPage
     bool differentFirstPage = false;
     bool differentOddEven = false;                                     // the document's
+    flow::Section::PageAlign pageAlign = flow::Section::PageAlign::Top;   // where the text stands between the top and bottom margins
     bool operator==(const SectionSetup &o) const;
 };
 

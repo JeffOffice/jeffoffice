@@ -1,5 +1,5 @@
 # Set up the page
-<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, envelope size, envelope, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
+<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, envelope size, envelope, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, vertical alignment, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
 
 **Page Setup** sets the paper, the margins, and how the pages of a **section** begin. A document has one section until you add a section break (**Layout > Breaks**); each section can have its own paper, margins, and layout.
 
@@ -18,6 +18,7 @@ Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, B5, or an envelope:
 - **Section start** says where the section begins: on a new page, on the same page (**Continuous**), or on the next even or odd page. The first section's start is kept but has no effect.
 - **Different first page** gives the first page of the section a header and footer of its own.
 - **Different odd and even pages** gives odd pages and even pages headers and footers of their own. It applies to the whole document.
+- **Vertical alignment** says where the text of each page of the section stands between the top and bottom margins: **Top**, **Center**, **Justified** (the free room is spread evenly between the paragraphs, up to four lines each), or **Bottom**. A page that a page break ends before it is full stays at the top, and so does a page with text wrapped around objects or with footnotes. The last page of the section follows the choice. A file saved as .odt does not keep this setting; a .docx does.
 - **Header** and **Footer** say how far from the edge of the paper they begin.
 
 ## Apply to

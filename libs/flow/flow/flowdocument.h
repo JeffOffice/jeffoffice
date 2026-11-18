@@ -161,6 +161,10 @@ struct Section {
     // blank page, one of the section before's, is left before it. (A continuous section has no page of its own to ask this of.)
     enum class Parity { Any, Odd, Even };
     Parity startParity = Parity::Any;
+    // Where the text of a page stands between the top and bottom margins (w:vAlign): at the top, in the middle, with the free height spread between its paragraphs, or at the bottom. A page
+    // that a break ends before it is full (not the section's last) stays at the top.
+    enum class PageAlign { Top, Center, Justified, Bottom };
+    PageAlign pageAlign = PageAlign::Top;
     bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation; }
     bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
     bool sameSidesAs(const Section &o) const { return margins.left() == o.margins.left() && margins.right() == o.margins.right(); }

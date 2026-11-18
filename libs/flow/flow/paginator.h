@@ -344,7 +344,15 @@ private:
     void settle(int index);                               // lays out again what edits changed, until page `index` is right (-1: all)
     void settleStep();                                    // one page of that
     void extend(int index);                               // lays out forward until `index` is known
-    std::unique_ptr<QTextDocument> sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore);
+    std::unique_ptr<QTextDocument> sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore, const QVector<int> &gapBlocks = {}, double gap = 0);
+    // How a page's text is moved by its section's vertical alignment: `top` down for the middle and bottom; for Justified, `gap` more above each of the paragraphs in `gapBlocks`
+    // (their start positions), which is also the added height of the lines after each.
+    struct PageShift {
+        double top = 0, gap = 0;
+        QVector<int> gapBlocks;
+    };
+    PageShift alignOf(const Run &run, const Section &sec, int section) const;
+    void applyShift(Run *run, const PageShift &shift) const;
 
     // The room a page's text has: the section's text area, less what the header and footer ask for beyond the margins (a header or a footer
     // taller than the margin leaves room for pushes the text away from it, as it does in a word processor), and the stories to draw above and below.

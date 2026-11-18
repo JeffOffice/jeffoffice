@@ -839,6 +839,125 @@ void WriteTests::aSectionsLineNumbersAreDrawnAndKept()
 }
 
 
+// A section's vertical alignment (w:vAlign): one line on a page is set in the middle of the text area, or at its bottom, by the line's own height; the screen's text box and the
+// lines the paginator reports agree.
+void WriteTests::aPageIsCenteredOrSetAtTheBottomByItsSectionsVerticalAlignment()
+{
+    jp::initCore();
+    for (const char *value : {"center", "bottom"}) {
+        const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), QByteArray("<w:vAlign w:val=\"") + value + "\"/>");
+        auto doc = open(makeDocxWithParts(plainP("alone"), sect, {}));
+        QVERIFY(doc);
+        flow::Paginator &pg = doc->pager();
+        QCOMPARE(pg.pageCount(), 1);
+        const auto lines = pg.lines(0);
+        QCOMPARE(int(lines.size()), 1);
+        const double height = pg.page(0).content.height(), text = lines[0].rect.height() - lines[0].below;
+        const double want = QByteArray(value) == "center" ? (height - text) / 2 : height - text;
+        QVERIFY2(std::abs(lines[0].rect.top() - want) < 0.5, qPrintable(QString::number(lines[0].rect.top()) + " vs " + QString::number(want)));
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        QCOMPARE(int(page->boxes.size()), 1);
+        std::shared_ptr<Item> box;
+        for (const auto &it : page->doc->pages[0]->items)
+            if (it->id == page->boxes[0]) box = it;
+        QVERIFY(box);
+        QVERIFY2(std::abs((box->rect.top() - page->bodyArea.top()) - want) < 0.5, qPrintable(QString::number(box->rect.top() - page->bodyArea.top())));
+    }
+}
+
+
+// Justified: the free height goes in equal parts to the gaps between the page's paragraphs.
+void WriteTests::justifiedVerticalAlignmentSpreadsTheFreeHeightBetweenParagraphsEqually()
+{
+    jp::initCore();
+    const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:vAlign w:val=\"both\"/>");
+    auto doc = open(makeDocxWithParts(plainP("one") + plainP("two") + plainP("three"), sect, {}));
+    QVERIFY(doc);
+    flow::Paginator &pg = doc->pager();
+    const auto lines = pg.lines(0);
+    QCOMPARE(int(lines.size()), 3);
+    const double first = lines[1].rect.top() - (lines[0].rect.bottom() - lines[0].below), second = lines[2].rect.top() - (lines[1].rect.bottom() - lines[1].below);
+    QVERIFY2(std::abs(first - second) < 0.5, qPrintable(QString::number(first) + " " + QString::number(second)));
+    // (Spread by at most four lines each, so three short lines do not fill the page.)
+    auto plain = open(makeDocxWithParts(plainP("one") + plainP("two") + plainP("three"), sectionXml(12240, 15840, 1440), {}));
+    QVERIFY(plain);
+    const auto flat = plain->pager().lines(0);
+    const double extra = lines[1].rect.top() - flat[1].rect.top();
+    QVERIFY2(extra > 1 && extra <= 4 * lines[0].rect.height() + 0.5, qPrintable(QString::number(extra)));
+    QVERIFY(std::abs((lines[2].rect.top() - flat[2].rect.top()) - 2 * extra) < 0.5);
+    // The text the page draws has the same gaps: its box is as tall as the lines are.
+    const auto page = pg.materialize(0);
+    QVERIFY(page);
+    std::shared_ptr<Item> box;
+    for (const auto &it : page->doc->pages[0]->items)
+        if (it->id == page->boxes[0]) box = it;
+    QVERIFY(box);
+    QVERIFY2(std::abs(box->rect.height() - (lines[2].rect.bottom() - lines[2].below)) < 1.0, qPrintable(QString::number(box->rect.height())));
+}
+
+
+// A page that is full does not move, and a page that a break ends in the middle of its section stays at the top; the section's last page is aligned.
+void WriteTests::aFullPageAndAPageEndedByABreakStayAtTheTop()
+{
+    jp::initCore();
+    const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:vAlign w:val=\"center\"/>"), plain = sectionXml(12240, 15840, 1440);
+    QByteArray body;
+    for (int i = 0; i < 80; ++i) body += plainP(wordsOf("line", 6));
+    auto aligned = open(makeDocxWithParts(body, sect, {})), top = open(makeDocxWithParts(body, plain, {}));
+    QVERIFY(aligned && top);
+    QVERIFY(aligned->pager().pageCount() >= 2);
+    const auto a = aligned->pager().lines(0), b = top->pager().lines(0);
+    QCOMPARE(a.size(), b.size());
+    // (A page the text nearly fills moves by half of what is left, less than a line.)
+    for (int i = 0; i < a.size(); ++i) QVERIFY2(std::abs(a[i].rect.top() - b[i].rect.top()) < a[0].rect.height(), qPrintable(QString::number(a[i].rect.top() - b[i].rect.top())));
+    // A break, then a last page.
+    auto broken = open(makeDocxWithParts(plainP("before") + "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>" + plainP("after"), sect, {}));
+    QVERIFY(broken);
+    flow::Paginator &pg = broken->pager();
+    QCOMPARE(pg.pageCount(), 2);
+    QVERIFY(std::abs(pg.lines(0)[0].rect.top()) < 0.5);
+    QVERIFY(pg.lines(1)[0].rect.top() > 100);
+}
+
+
+// w:vAlign is read into the section, kept as written on a section the person did not touch, changed by Page Setup (one element, none for the top), and a value that is none of the
+// four is the top. An .odt has no counterpart: a saved center page opens at the top there, and the .docx keeps it.
+void WriteTests::verticalAlignmentIsKeptChangedByPageSetupAndLostInAnOdt()
+{
+    jp::initCore();
+    auto count = [](const QByteArray &xml, const char *needle) { return int(xml.count(needle)); };
+    const QByteArray sect = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:vAlign w:val=\"center\"/>");
+    auto doc = open(makeDocxWithParts(plainP("x"), sect, {}));
+    QVERIFY(doc);
+    QVERIFY(doc->flow().section(0).pageAlign == flow::Section::PageAlign::Center);
+    QCOMPARE(count(documentXml(doc->toDocx()), "<w:vAlign w:val=\"center\"/>"), 1);
+    const SectionSetup before = pageSetupOf(doc->sectionProps(0), false);
+    QVERIFY(before.pageAlign == flow::Section::PageAlign::Center);
+    SectionSetup after = before;
+    after.pageAlign = flow::Section::PageAlign::Bottom;
+    QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::ThisSection, before, after) >= 1);
+    QVERIFY(doc->flow().section(0).pageAlign == flow::Section::PageAlign::Bottom);
+    const QByteArray xml = documentXml(doc->toDocx());
+    QCOMPARE(count(xml, "<w:vAlign "), 1);
+    QCOMPARE(count(xml, "<w:vAlign w:val=\"bottom\"/>"), 1);
+    // The .odt: top-aligned there.
+    QString err;
+    auto odt = WriteDoc::fromFile(doc->toOdt(), &err);
+    QVERIFY2(odt, qPrintable(err));
+    QVERIFY(odt->flow().section(0).pageAlign == flow::Section::PageAlign::Top);
+    // Back to the top: no element. Unknown values are the top and stay as written until changed.
+    SectionSetup top = after;
+    top.pageAlign = flow::Section::PageAlign::Top;
+    QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::ThisSection, after, top) >= 1);
+    QCOMPARE(count(documentXml(doc->toDocx()), "<w:vAlign"), 0);
+    auto odd = open(makeDocxWithParts(plainP("x"), sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:vAlign w:val=\"sideways\"/>"), {}));
+    QVERIFY(odd);
+    QVERIFY(odd->flow().section(0).pageAlign == flow::Section::PageAlign::Top);
+    QCOMPARE(count(documentXml(odd->toDocx()), "<w:vAlign w:val=\"sideways\"/>"), 1);
+}
+
+
 // A section's line numbers skip as many numbers as the file's start says (3: the first line is 4), then go on from page to page when the file says they run on (w:restart
 // "continuous") and begin again at each page when it says nothing.
 void WriteTests::aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays()

@@ -1108,6 +1108,9 @@ private:
 };
 
 // The section a flowing document shows for a section the file states, and back.
+// A section's vertical alignment of its pages (w:vAlign, kept among the section's properties as written); setting it puts the element in place of the one there (none for the top).
+flow::Section::PageAlign pageAlignOf(const office::wml::SectionProps &props);
+void setPageAlign(office::wml::SectionProps *props, flow::Section::PageAlign align);
 flow::Section flowSectionOf(const office::wml::SectionProps &props, bool evenAndOdd);
 void updateSectionProps(office::wml::SectionProps *props, const flow::Section &section);
 

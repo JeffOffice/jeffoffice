@@ -1517,6 +1517,10 @@ private Q_SLOTS:
     void deletingARowBesideAContentControlKeepsTheTableAndTheControlsValid();
     void aTableWhoseRowsAndCellsAreInContentControlsShowsThemAndKeepsThem();
     void aSectionsLineNumbersAreDrawnAndKept();
+    void aPageIsCenteredOrSetAtTheBottomByItsSectionsVerticalAlignment();
+    void justifiedVerticalAlignmentSpreadsTheFreeHeightBetweenParagraphsEqually();
+    void aFullPageAndAPageEndedByABreakStayAtTheTop();
+    void verticalAlignmentIsKeptChangedByPageSetupAndLostInAnOdt();
     void aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays();
     void rubyInAHeaderIsShown();
     void anEquationIsDrawnAsALineOfText();

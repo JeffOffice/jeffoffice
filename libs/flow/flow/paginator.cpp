@@ -1484,7 +1484,46 @@ int Paginator::paragraphStartOf(int position) const
 // (If the page begins in the middle of a paragraph, that is the rest of it: with no space before it or first-line indent, and no bullet
 // or number.) The paragraph the page ends in is whole, so that its last line on the page is set as it is in the document, the lines that
 // don't fit being left out of the frame.
-std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore)
+// The most gaps between paragraphs that a page's free height is spread over, and the most extra height each gets (in lines).
+constexpr int kMostAlignGaps = 1000;
+constexpr double kMostGapLines = 4;
+
+Paginator::PageShift Paginator::alignOf(const Run &run, const Section &sec, int section) const
+{
+    PageShift shift;
+    if (sec.pageAlign == Section::PageAlign::Top || run.blank || run.kept <= 0 || run.columns != 1 || run.cols.size() != 1) return shift;
+    // A page that a break ends, with the section going on, stays at the top; the section's last page (and the one a section break ends) follows its alignment. Objects the text goes
+    // round, and notes, are set from where the lines are, so those pages stay at the top too.
+    if (run.hasNext && run.next.hard && run.next.section == section) return shift;
+    if (!run.wrapped.isEmpty() || !run.notes.isEmpty() || !run.advanceWalls.isEmpty()) return shift;
+    double used = 0;
+    for (int i = 0; i < run.kept; ++i) used = std::max(used, run.lines[i].rect.bottom() - run.lines[i].below);
+    const double free = run.cols[0].height() - used;
+    if (!(free > 0.01)) return shift;
+    if (sec.pageAlign == Section::PageAlign::Center) shift.top = free / 2;
+    else if (sec.pageAlign == Section::PageAlign::Bottom) shift.top = free;
+    else if (run.groups.empty()) {
+        for (int i = 1; i < run.kept && shift.gapBlocks.size() < kMostAlignGaps; ++i)
+            if (run.lines[i].line == 0 && run.lines[i].block != run.lines[i - 1].block) shift.gapBlocks << run.lines[i].block;
+        if (shift.gapBlocks.isEmpty()) return shift;
+        const double lineHeight = std::max(1.0, run.lines[0].rect.height());
+        shift.gap = std::min(free / shift.gapBlocks.size(), kMostGapLines * lineHeight);
+    }
+    return shift;
+}
+
+void Paginator::applyShift(Run *run, const PageShift &shift) const
+{
+    for (QRectF &col : run->cols) col.translate(0, shift.top);
+    if (shift.gapBlocks.isEmpty()) return;
+    int gaps = 0;
+    for (int i = 0; i < run->kept; ++i) {
+        if (i > 0 && run->lines[i].line == 0 && run->lines[i].block != run->lines[i - 1].block && std::binary_search(shift.gapBlocks.cbegin(), shift.gapBlocks.cend(), run->lines[i].block)) ++gaps;
+        run->lines[i].rect.translate(0, gaps * shift.gap);
+    }
+}
+
+std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore, const QVector<int> &gapBlocks, double gap)
 {
     const QTextDocument *main = m_doc->story();
     const QVector<StoryLayout::LineBrief> &L = run.lines;
@@ -1610,6 +1649,7 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
         // none where the section below begins at its top (the text after it would be put in the box that has the room of its line).
         if (run.freeBreak && run.splitEnds.contains(b.position() + b.length()) && bf.boolProperty(tp::OutOfFlow) && b != firstBlock) bf.setProperty(tp::OutOfLayout, true);
         if (inFirst && ((tail && !run.keepsSpace) || !run.firstSpace)) bf.setTopMargin(0);
+        if (gap > 0 && b != firstBlock && std::binary_search(gapBlocks.cbegin(), gapBlocks.cend(), b.position())) bf.setTopMargin(bf.topMargin() + gap);
         // A paragraph's box that began on the page before, or goes on to the next, is open at that end.
         auto sameBox = [](const QTextBlock &x, const QTextBlock &y) {
             if (!x.isValid() || !y.isValid()) return false;
@@ -1975,8 +2015,14 @@ QVector<StoryLayout::LineBrief> Paginator::lines(int index)
     paginate(index);
     if (index < 0 || index >= m_starts.size()) return {};
     Run run = layoutPage(index, m_starts[index]);
+    Section mirrored;
+    const PageShift shift = alignOf(run, sectionOf(m_starts[index], numberOf(index), &mirrored), m_starts[index].section);
+    applyShift(&run, shift);
     QVector<StoryLayout::LineBrief> out = run.lines.mid(0, run.kept);
-    for (auto &l : out) l.frame -= run.firstFrame;
+    for (auto &l : out) {
+        l.frame -= run.firstFrame;
+        l.rect.translate(0, shift.top);   // (the lines are in the column, which the shift moved)
+    }
     return out;
 }
 
@@ -1985,7 +2031,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     paginate(index);
     if (index < 0 || index >= m_starts.size()) return nullptr;
     const PageStart st = m_starts[index];
-    const Run run = layoutPage(index, st);
+    Run run = layoutPage(index, st);
     // (A page with none of the body's lines is a page of notes that go on from the page before, when it has them.)
     if (run.kept <= 0 && !run.blank && st.carried.isEmpty()) return nullptr;
     const bool bodyless = run.kept <= 0 && !run.blank;
@@ -1998,6 +2044,8 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
     out->section = st.section;
     out->number = number;
     out->size = sec.pageSize();
+    const PageShift shift = alignOf(run, sec, st.section);
+    applyShift(&run, shift);
 
     auto d = Document::blank(out->size, QString(), 1);
     d->pages[0]->masterId.clear();
@@ -2052,7 +2100,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
         const size_t front = d->pages[0]->items.size();
         auto story = std::make_shared<Story>();
         story->id = QStringLiteral("flow-story-%1").arg(index);
-        story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore);
+        story->doc = sliceOf(run, st, &out->storyFrom, &out->continuesFromBefore, shift.gapBlocks, shift.gap);
         resolveImages(story->doc.get(), d.get());
         d->stories.insert(story->id, story);
         if (!run.groups.empty()) {
