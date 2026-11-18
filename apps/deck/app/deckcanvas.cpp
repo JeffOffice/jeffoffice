@@ -1,10 +1,12 @@
 #include "app/deckcanvas.h"
 
 #include "app/editormedia.h"
+#include "app/icons.h"
 #include "core/deck.h"
 #include "core/masteredit.h"
 
 #include <QContextMenuEvent>
+#include <QCoreApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
@@ -36,6 +38,16 @@ void DeckCanvas::setAnimationBadges(const QVector<AnimationBadge> &badges)
 {
     if (badges.size() == m_badges.size() && std::equal(badges.begin(), badges.end(), m_badges.begin(), [](const AnimationBadge &a, const AnimationBadge &b) { return a.at == b.at && a.text == b.text && a.picked == b.picked && a.slot == b.slot; })) return;
     m_badges = badges;
+    viewport()->update();
+}
+
+void DeckCanvas::setReviewMarks(const QVector<ReviewMark> &marks, int slideLevel)
+{
+    const bool same = slideLevel == m_slideMarks && marks.size() == m_marks.size()
+                      && std::equal(marks.begin(), marks.end(), m_marks.begin(), [](const ReviewMark &a, const ReviewMark &b) { return a.rect == b.rect && a.current == b.current && a.added == b.added; });
+    if (same) return;
+    m_marks = marks;
+    m_slideMarks = slideLevel;
     viewport()->update();
 }
 
@@ -179,6 +191,31 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
             p.drawRoundedRect(tag, 5, 5);
             p.setPen(b.picked ? Qt::white : QColor(0xB6, 0x42, 0x0F));
             p.drawText(tag, Qt::AlignCenter, b.text);
+        }
+    }
+    // Compare's marks: a frame round each object with a change pending, and a tag for the slide's own changes.
+    if (!m_marks.isEmpty() || m_slideMarks > 0) {
+        const QColor mark = uiAccent();
+        p.setBrush(Qt::NoBrush);
+        for (const ReviewMark &m : std::as_const(m_marks)) {
+            QPen pen(mark, m.current ? 3 : 2, m.added ? Qt::DashLine : Qt::SolidLine);
+            p.setPen(pen);
+            const QRectF box(pageToView(m.rect.topLeft()), pageToView(m.rect.bottomRight()));
+            p.drawRoundedRect(box.adjusted(-3, -3, 3, 3), 4, 4);
+        }
+        if (m_slideMarks > 0) {
+            QFont f = p.font();
+            f.setPixelSize(11);
+            f.setBold(true);
+            p.setFont(f);
+            const QString text = QCoreApplication::translate("DeckCanvas", "%n change(s) on this slide", nullptr, m_slideMarks);
+            const QSizeF size(p.fontMetrics().horizontalAdvance(text) + 16, 20);
+            const QRectF tag(slide.right() - size.width() - 6, slide.top() + 6, size.width(), size.height());
+            p.setPen(Qt::NoPen);
+            p.setBrush(mark);
+            p.drawRoundedRect(tag, 6, 6);
+            p.setPen(Qt::white);
+            p.drawText(tag, Qt::AlignCenter, text);
         }
     }
 }

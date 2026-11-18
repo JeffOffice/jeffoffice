@@ -39,6 +39,10 @@ class QStackedWidget;
 
 namespace jp {
 
+namespace deck {
+struct DeckComparison;
+}
+class DeckReviewPane;
 class AnimationPane;
 class ColorButton;
 class ChartActions;
@@ -113,6 +117,21 @@ public:
     ReusePane *reusePane() const { return m_reuse; }
     void showReusePane();
     void reuseSlide(int slide, bool keepFormatting);
+    // Review > Compare (deckwindow_compare.cpp): another presentation is compared with this one, the changes it has are listed in the Reviewing Pane and marked on
+    // the slides, and each is accepted into this presentation or rejected (this one kept) as one undo step. The changes not decided are kept in the file.
+    // The Compare command asks for the file with compareFileChooser when that is set (a test sets it), else a file dialog.
+    std::function<QString()> compareFileChooser;
+    // Compares with the presentation at `path`; false, with the reason in `error`, when it can't be read. Replaces a comparison that was going on.
+    bool compareWith(const QString &path, QString *error = nullptr);
+    DeckReviewPane *reviewPane() const { return m_reviewPane; }
+    const deck::DeckComparison *comparison() const { return m_cmp.get(); }
+    void showReviewPane(bool on);
+    // Accept or reject change `index` of the comparison, all of the pending ones, or go to the next (previous) pending change; each decision is one undo step.
+    bool acceptChange(int index);
+    bool rejectChange(int index);
+    void acceptAllChanges();
+    void rejectAllChanges();
+    void stepChange(bool forward);
     // The ways to see the slides: Normal (the thumbnails, the slide, and its
     // notes), Outline (the text in the thumbnails' place), the Slide Sorter, and
     // Slide Master view (the slide masters and layouts in the thumbnails' place,
@@ -470,6 +489,15 @@ private:
     void createSaveActions();     // deckwindow_save.cpp
     void createDialogActions();   // deckwindow_dialogs.cpp
     void createCommentActions();  // deckwindow_comments.cpp
+    void createReviewActions();   // deckwindow_compare.cpp
+    // Makes the comparison, and the pane's rows, what the presentation's appData says: after an undo or redo, and when a presentation is opened (the changes are found again
+    // against the other presentation the file holds). `fresh`: a presentation was opened or replaced.
+    void syncComparison(bool fresh);
+    void recordComparison();   // the states of the changes, into appData (inside a change: it is undone with it)
+    void updateReviewMarks();
+    void updateReviewActions();
+    void dropComparison();
+    void followChange(int index);
     void createSectionActions();  // deckwindow_sections.cpp
     void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
     void createAnimationActions();   // deckwindow_animations.cpp
@@ -556,6 +584,12 @@ private:
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;
+    std::shared_ptr<deck::DeckComparison> m_cmp;
+    DeckReviewPane *m_reviewPane = nullptr;
+    QDockWidget *m_reviewDock = nullptr;
+    QString m_cmpKey;                 // the key of the other presentation's bytes in the store (io/pptxreview.h)
+    QTimer m_marksTimer;
+    bool m_syncingReview = false;
     ReusePane *m_reuse = nullptr;
     QDockWidget *m_reuseDock = nullptr;
     OnlinePicturesPane *m_online = nullptr;

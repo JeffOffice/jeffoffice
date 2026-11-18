@@ -32,6 +32,16 @@ public:
     };
     void setAnimationBadges(const QVector<AnimationBadge> &badges);
     const QVector<AnimationBadge> &animationBadges() const { return m_badges; }
+    // Compare's marks on the slide: a frame round each object that has a change pending (dashed for an object the other presentation added, thick for the
+    // one chosen in the Reviewing Pane), and a tag at the slide's top right for the changes that are the slide's own (`slideLevel` of them, 0 for none).
+    struct ReviewMark {
+        QRectF rect;          // in the page's coordinates
+        bool current = false;
+        bool added = false;
+    };
+    void setReviewMarks(const QVector<ReviewMark> &marks, int slideLevel);
+    const QVector<ReviewMark> &reviewMarks() const { return m_marks; }
+    int reviewSlideLevel() const { return m_slideMarks; }
     // Where the menu opens when the keyboard asks for it (Shift+F10, the Menu key), on the screen: below the text cursor,
     // else in the middle of the selection, else in the middle of the view.
     QPoint menuAnchor() const;
@@ -49,6 +59,8 @@ private:
     void paintMasterPlaceholders();
     bool m_grid = false;
     QVector<AnimationBadge> m_badges;
+    QVector<ReviewMark> m_marks;
+    int m_slideMarks = 0;
     EditorMedia *m_media = nullptr;
 };
 

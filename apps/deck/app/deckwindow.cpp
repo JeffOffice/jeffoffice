@@ -341,6 +341,7 @@ void DeckWindow::createActions()
     createDialogActions();
     createEditingActions();
     createCommentActions();
+    createReviewActions();
     createSectionActions();
     createOutputActions();
     createHelpActions();
