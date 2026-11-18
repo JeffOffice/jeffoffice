@@ -220,6 +220,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.shadeFields = d.shadeFields && !d.output;
     ctx.opt.grayscale = d.grayscale;
     ctx.opt.maxImageDpi = d.maxImageDpi;
+    ctx.opt.flattenTransparency = d.flattenTransparency;
     ctx.opt.exactImageDpi = true;
     if (d.tagger) d.tagger->install(&ctx, page);
     const QString bodyId = bodyStoryId(page);

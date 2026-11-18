@@ -13,6 +13,7 @@
 #include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include "io/qtpdf.h"
+#include "io/pdftransparency.h"
 #include "sheet/links.h"
 #include "core/editsession.h"
 #include "app/passworddialogs.h"
@@ -386,6 +387,50 @@ void CrunchPrintTests::aPdfCanBeExportedAsPdfA()
     QVERIFY(archive.contains("/OutputIntents"));
     QVERIFY(archive.contains("pdfaid:part=\"1\""));
     QVERIFY(!archive.contains("pdfaid:part=\"2\""));
+}
+
+
+// PDF/A-1 allows no transparency: a chart and a shape on a sheet are made into pictures with clear corners, which a PDF holds with a soft mask; in a PDF/A export they are
+// drawn solid over the page (the usual export keeps them as they are).
+void CrunchPrintTests::aPdfAFileOfASheetWithObjectsHasNoTransparency()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(30, {})));
+    e.view()->selectRange(0, 0, 3, 2);
+    QVERIFY(e.win.w.insertChart(jp::office::sheet::ChartKind::Column));
+    QVERIFY(e.win.w.insertShape(QStringLiteral("ellipse")));
+    QVERIFY(e.settle());
+    QImage looks[2];
+    for (const bool archival : {true, false}) {
+        const QString path = e.folder.dir.filePath(archival ? QStringLiteral("a.pdf") : QStringLiteral("p.pdf"));
+        crunch::PrintJobOptions options;
+        options.archival = archival;
+        QString why;
+        QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        const jp::PdfTransparency found = jp::pdfTransparency(bytes);
+        QCOMPARE(found.found, !archival);
+        const PdfDocument pdf(bytes);
+        QVERIFY(pdf.isValid());
+        QImage page(pdf.pageSize(0).toSize() * 2, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        {
+            QPainter on(&page);
+            on.drawImage(0, 0, pdf.render(0, page.size()));
+        }
+        looks[archival ? 1 : 0] = page;
+    }
+    // the page looks the same (the clear corners of the pictures are not white boxes over the cells beneath)
+    QCOMPARE(looks[0].size(), looks[1].size());
+    int far = 0;
+    for (int y = 0; y < looks[0].height(); ++y)
+        for (int x = 0; x < looks[0].width(); ++x) {
+            const QRgb a = looks[0].pixel(x, y), b = looks[1].pixel(x, y);
+            far += std::abs(qGray(a) - qGray(b)) > 60;
+        }
+    QVERIFY2(far < looks[0].width() * looks[0].height() / 500, qPrintable(QString::number(far)));
 }
 
 

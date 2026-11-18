@@ -77,7 +77,7 @@ void PageObjectPainter::trim()
     }
 }
 
-void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom)
+void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom, const Backdrop &under, int stopAt)
 {
     if (m_items.empty() || page.row2 < page.row1 || page.col2 < page.col1) return;
     const qint64 bx = m_cols.position(page.col1), by = m_rows.position(page.row1);
@@ -89,6 +89,8 @@ void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom)
     p->save();
     p->setClipRect(body);
     for (Item &item : m_items) {
+        const int index = int(&item - m_items.data());
+        if (stopAt >= 0 && index >= stopAt) break;
         if (item.object.thin ? item.box.isNothing() : item.box.isEmpty()) continue;
         if (!item.settled) {
             item.settled = true;
@@ -125,6 +127,17 @@ void PageObjectPainter::paint(QPainter *p, const PageCut &page, double zoom)
         item.used = m_tick;
         if (image.isNull()) continue;
         p->setRenderHint(QPainter::SmoothPixmapTransform, true);
+        if (under && image.hasAlphaChannel()) {
+            QImage flat = under(p->transform().mapRect(whole), image.size(), index);
+            if (!flat.isNull()) {
+                QPainter on(&flat);
+                on.setRenderHint(QPainter::SmoothPixmapTransform, true);
+                on.drawImage(QRect(QPoint(0, 0), flat.size()), image);
+                on.end();
+                p->drawImage(whole, flat);
+                continue;
+            }
+        }
         p->drawImage(whole, image);
     }
     p->restore();

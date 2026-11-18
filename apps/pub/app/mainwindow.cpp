@@ -86,6 +86,7 @@
 #include <QPdfWriter>
 #include "io/pdfbookmarks.h"
 #include "io/pdftags.h"
+#include "io/pdftransparency.h"
 #include "render/pagetags.h"
 #include <QPrintDialog>
 #include "app/filedialogs.h"
@@ -1531,6 +1532,21 @@ bool MainWindow::exportPdfTo(const QString &path, const PdfSettings &sIn)
                 memory.buffer() = spotted;
         } else if (!addPdfSpotColors(path, d->print.spotColors, names, &spotErr))
             jp::plainWarning(this, tr("Create PDF"), tr("The PDF was made, but its spot colors are process colors: %1").arg(spotErr));
+    }
+    // PDF/A-1 allows no transparency: what could not be flattened is not left as a file that claims to be one.
+    if (s.archival && !encrypted) {
+        QFile in(path);
+        const PdfTransparency clear = in.open(QIODevice::ReadOnly) ? pdfTransparency(in.readAll()) : PdfTransparency();
+        in.close();
+        if (clear.found) {
+            QStringList named;
+            for (int page : clear.pages) named << QString::number(page);
+            QFile::remove(path);
+            QApplication::restoreOverrideCursor();
+            jp::plainWarning(this, tr("Create PDF"), named.isEmpty() ? tr("A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
+                                                                      : tr("A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", "))));
+            return false;
+        }
     }
     // PDF/X: pictures in CMYK, the page's trim and bleed, and (PDF/X-1a)
     // the printing condition.

@@ -53,7 +53,7 @@ struct PrintJobOptions {
     bool ignorePrintArea = false;
     bool grayscale = false;                     // every page is painted in shades of gray, in the preview, on paper, and in a PDF
     bool archival = false;                      // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency)
-    bool pdfTags = false;                       // for a PDF: tagged for screen readers (each page's cells are a table; not for a gray job, whose pages are pictures)
+    bool pdfTags = false;                       // for a PDF: tagged for screen readers (each page's cells are a table)
     // what the person chose for this job, over what the sheets say
     bool setOrientation = false;
     jp::office::sheet::PageOrientation orientation = jp::office::sheet::PageOrientation::Default;
@@ -280,6 +280,9 @@ private:
     bool m_lastMissed = false;
     quint64 m_tick = 0;
     bool m_cancelled = false;
+    int m_stopObjectsAt = -1;   // PDF/A: a page is being painted into the pixels beneath an object, which leave out that object and those after it
+    bool m_inBackdrop = false;
+    bool m_grayInPdf = false;  // a PDF is made gray by its own color model: the pages are painted in color as they are
     bool m_inGray = false;     // a page is being painted in color into the pixels that will be made gray
     QDateTime m_now;
     int m_totalNumbers = 0;

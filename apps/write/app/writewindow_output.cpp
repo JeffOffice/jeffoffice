@@ -12,6 +12,7 @@
 #include "app/writetags.h"
 #include "core/booklet.h"
 #include "io/pdftags.h"
+#include "io/pdftransparency.h"
 #include "core/editops.h"
 #include "core/epubexport.h"
 #include "app/pageview.h"
@@ -113,6 +114,7 @@ write::PrintLook WriteWindow::printLook(const WriteOutputOptions &options, const
     look.markup = options.markup;
     look.hidden = options.hidden;
     look.background = options.background;
+    look.flatten = options.pdfArchive;
     // (the marks are the window's: what its page view shows, for the document it holds)
     if (options.markup && m_doc.get() == &source) {
         const write::PageView::ReviewMarks shown = m_view->reviewMarks();
@@ -320,6 +322,17 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         return {};
     }
     QByteArray bytes = made.data();
+    // PDF/A-1 allows no transparency: what could not be flattened is not made into a file that claims to be one.
+    if (options.pdfArchive) {
+        const PdfTransparency clear = pdfTransparency(bytes);
+        if (clear.found) {
+            QStringList named;
+            for (int page : clear.pages) named << QString::number(page);
+            if (error) *error = named.isEmpty() ? tr("A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
+                                                : tr("A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", ")));
+            return {};
+        }
+    }
     if (tagging) {
         QString language = source.proofingLanguage();
         language.replace(QLatin1Char('_'), QLatin1Char('-'));

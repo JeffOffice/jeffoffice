@@ -415,6 +415,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         d.pageCount = pageCount;
         d.grayscale = grayscale;
         d.maxImageDpi = maxImageDpi;
+        d.flattenTransparency = look && look->flatten;
         d.tagger = tagger;
         if (tagger) tagger->beginPage();
         paintPage(&p, page, &cache, d);

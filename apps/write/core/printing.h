@@ -21,6 +21,7 @@ struct PrintLook {
     bool hidden = false;
     std::optional<bool> background;
     MarkupMarks marks;   // what is drawn over the pages (empty without the markup)
+    bool flatten = false;   // PDF/A-1: anything see-through is drawn as opaque pixels over what lies beneath it
 };
 // The names of the choices in the settings, as they are kept ("print/markup" and the others).
 QString printMarkupKey();

@@ -11,6 +11,7 @@
 #include "office/hyperlink.h"
 #include "core/reuse.h"
 #include "io/pdfbookmarks.h"
+#include "io/pdftransparency.h"
 #include "render/pagetags.h"
 #include "render/svgexport.h"
 #include "text/textengine.h"
@@ -591,7 +592,8 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     // The PDF is made in memory when it has a password (the plain PDF is never on the disk) or the bookmarks and the tags are to be added to the finished file; otherwise it goes
     // straight to the file.
     const QVector<PdfLink> links = slideLinks(d, o, outputSlides(d, o));
-    const bool inMemory = encrypted || tagging || bookmarking || !links.isEmpty();
+    const bool archiving = o.archive && !encrypted;
+    const bool inMemory = encrypted || tagging || bookmarking || archiving || !links.isEmpty();
     QBuffer memory;
     if (inMemory) memory.open(QIODevice::WriteOnly);
     auto make = [&](PdfTagger *tagger) {
@@ -629,6 +631,17 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         return fail(QCoreApplication::translate("DeckOutput", "The PDF can't be started."));
     }
     QByteArray bytes = inMemory ? memory.data() : QByteArray();
+    // PDF/A-1 allows no transparency: what could not be flattened is not made into a file that claims to be one.
+    if (archiving) {
+        const PdfTransparency clear = pdfTransparency(bytes);
+        if (clear.found) {
+            file.cancelWriting();
+            QStringList named;
+            for (int page : clear.pages) named << QString::number(page);
+            return fail(named.isEmpty() ? QCoreApplication::translate("DeckOutput", "A PDF/A file can't have see-through parts, and some could not be made solid. Turn PDF/A off to export it.")
+                                        : QCoreApplication::translate("DeckOutput", "A PDF/A file can't have see-through parts, and some on page %1 could not be made solid. Turn PDF/A off to export it.").arg(named.join(QStringLiteral(", "))));
+        }
+    }
     if (tagging) {
         PdfTagResult made = tagPdf(bytes, tagger, {documentLanguage(d), title});
         if (made.pdf.isEmpty()) {

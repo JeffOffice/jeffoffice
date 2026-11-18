@@ -20,6 +20,8 @@
 #include "core/refops.h"
 #include "core/tocops.h"
 #include "io/qtpdf.h"
+#include "io/pdftransparency.h"
+#include "core/items.h"
 #include "app/pdfprotection.h"
 #include "core/printing.h"
 #include "app/versionstore.h"
@@ -37,6 +39,8 @@
 #include <QLineEdit>
 #include <QSpinBox>
 #include <QBuffer>
+#include <QScopeGuard>
+#include "app/pagepaint.h"
 #include <QFile>
 #include <QFileInfo>
 #include <QPainter>
@@ -176,6 +180,26 @@ void moveTo(WriteWindow &w, int pos)
 }
 
 } // namespace
+
+// How many pixels of the first page of two PDFs differ by more than a little, drawn on white at the same size.
+static int farPixels(const QByteArray &a, const QByteArray &b, const QSize &size)
+{
+    auto draw = [&](const QByteArray &bytes) {
+        const PdfDocument pdf(bytes);
+        QImage page(size, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        if (pdf.isValid()) {
+            QPainter on(&page);
+            on.drawImage(0, 0, pdf.render(0, size));
+        }
+        return page;
+    };
+    const QImage x = draw(a), y = draw(b);
+    int far = 0;
+    for (int j = 0; j < size.height(); ++j)
+        for (int i = 0; i < size.width(); ++i) far += std::abs(qGray(x.pixel(i, j)) - qGray(y.pixel(i, j))) > 60;
+    return far;
+}
 
 class FileTests : public QObject {
     Q_OBJECT
@@ -704,6 +728,36 @@ private Q_SLOTS:
         WriteOutputOptions plain;
         QVERIFY(w.exportPdfPages(plain));
         QVERIFY(!fileBytes(target).contains("pdfaid"));
+    }
+
+    // PDF/A-1 allows no transparency: a shape at 50% on a page is drawn as opaque pixels in a PDF/A file (and stays see-through in a plain one).
+    void aPdfA1bFileHasNoTransparency()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        const QString target = dir.filePath(QStringLiteral("archive.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        const auto off = qScopeGuard([] { setPaintObserver(nullptr); });
+        setPaintObserver([](const flow::MaterializedPage &page, const PageDrawing &) {
+            auto shape = std::make_shared<jp::ShapeItem>();
+            shape->rect = QRectF(100, 100, 200, 100);
+            shape->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
+            shape->fill.transparency = 0.5;
+            page.doc->pages[0]->items.push_back(shape);
+        });
+        QByteArray made[2];
+        for (const bool archive : {true, false}) {
+            WriteOutputOptions o;
+            o.pdfArchive = archive;
+            QVERIFY(w.exportPdfPages(o));
+            const QByteArray bytes = fileBytes(target);
+            QCOMPARE(jp::pdfTransparency(bytes).found, !archive);
+            made[archive] = bytes;
+        }
+        // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the shape solid: it is flattened first, so the page looks the same)
+        QVERIFY2(farPixels(made[0], made[1], QSize(306, 396)) < 306 * 396 / 200, qPrintable(QString::number(farPixels(made[0], made[1], QSize(306, 396)))));
     }
 
     // The links of a PDF are clickable: a web address goes to its address, and a table of contents entry and a cross-reference go to the page of their heading, in a normal PDF and in a

@@ -1,5 +1,6 @@
 // Make an Email: the workbook, or the workbook as a PDF, in a message file for an email program. The message is written by libs/shell/app/emailops.cpp.
 
+#include "app/settings.h"
 #include "app/crunchwindow.h"
 #include "app/pdfprotection.h"
 
@@ -62,6 +63,7 @@ bool CrunchWindow::exportEmail(EmailWhat what, const PdfProtection &protect)
         QTemporaryDir dir;
         crunch::PrintJobOptions options = m_printChoices->job;
         options.what = crunch::PrintWhat::Workbook;
+        options.pdfTags = Settings::get().value(QStringLiteral("export/pdfTags"), true).toBool();   // (tagged for screen readers, as an export is)
         const QString path = dir.filePath(QStringLiteral("workbook.pdf"));
         if (dir.isValid() && exportPdfTo(path, options, QString(), &err, nullptr, &protect)) {
             QFile f(path);

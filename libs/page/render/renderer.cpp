@@ -13,6 +13,7 @@
 #include "core/texteffects.h"
 #include "core/wrapoutline.h"
 #include "wml/wmlmathpath.h"
+#include "text/textprops.h"
 
 #include <atomic>
 #include <QCache>
@@ -1699,6 +1700,28 @@ static void paintCatalogCells(QPainter *p, const PaintContext &c, const Page &pg
     }
 }
 
+// A story whose letters are drawn see-through or with an effect list (a shadow, a glow, a reflection: made as soft pictures).
+static bool storyUsesTransparency(const Document &doc, const QString &id)
+{
+    if (id.isEmpty()) return false;
+    const Story *st = doc.story(id);
+    if (!st || !st->doc) return false;
+    for (const QTextFormat &f : st->doc->allFormats()) {
+        if (!f.isCharFormat()) continue;
+        if (!f.stringProperty(tp::TextFx).isEmpty()) return true;
+        if (f.hasProperty(QTextFormat::ForegroundBrush) && f.foreground().color().alpha() < 255) return true;
+    }
+    return false;
+}
+
+static bool fillUsesTransparency(const Fill &f)
+{
+    if (f.transparency > 0 || blipEffectsClear(f.blipEffects)) return true;
+    for (const GradientStop &st : f.stops)
+        if (st.transparency > 0) return true;
+    return false;
+}
+
 void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
 {
     const Document &doc = *ctx.doc;
@@ -1715,10 +1738,37 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     const QVector<MasterPage *> chain = doc.masterChain(m);
     const Fill bg = backgroundOf(pg, chain);
     if (ctx.markArtifact) ctx.markArtifact(p, true);
-    paintBackground(p, c, bg, pr);
-    if (m && !ctx.opt.noMaster) {
-        const bool right = (pageIndex + 1) % 2 == 1;
-        paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
+    // Flattened output: a background or a master object that is see-through is made into one opaque picture of the page beneath the items.
+    bool underClear = false;
+    if (ctx.opt.flattenTransparency) {
+        underClear = fillUsesTransparency(bg);
+        if (m && !ctx.opt.noMaster && pg.showMasterItems)
+            for (const MasterPage *mp : chain)
+                for (const auto &it : mp->items)
+                    if (!underClear && usesTransparency(doc, *it)) underClear = true;
+    }
+    if (underClear) {
+        const double scale = ctx.opt.flattenDpi / 72.0;
+        QImage under(QSize(int(std::lround(pr.width() * scale)), int(std::lround(pr.height() * scale))).expandedTo(QSize(1, 1)), QImage::Format_RGB32);
+        under.fill(Qt::white);
+        {
+            QPainter pp(&under);
+            pp.setRenderHint(QPainter::Antialiasing);
+            pp.setRenderHint(QPainter::TextAntialiasing);
+            pp.setRenderHint(QPainter::SmoothPixmapTransform);
+            pp.scale(scale, scale);
+            PaintContext plain = c;
+            plain.opt.flattenTransparency = false;
+            paintBackground(&pp, plain, bg, pr);
+            if (m && !ctx.opt.noMaster) paintMastersUnder(&pp, plain, pg, chain, m->twoPage && (pageIndex + 1) % 2 == 1 ? -doc.pageSize().width() : 0);
+        }
+        p->drawImage(pr, under);
+    } else {
+        paintBackground(p, c, bg, pr);
+        if (m && !ctx.opt.noMaster) {
+            const bool right = (pageIndex + 1) % 2 == 1;
+            paintMastersUnder(p, c, pg, chain, m->twoPage && right ? -doc.pageSize().width() : 0);
+        }
     }
     if (ctx.markArtifact) ctx.markArtifact(p, false);
     if (!ctx.opt.flattenTransparency) {
@@ -1783,6 +1833,10 @@ bool Renderer::usesTransparency(const Document &doc, const Item &it)
     for (const GradientStop &st : it.fill.stops)
         if (st.transparency > 0) return true;
     switch (it.type()) {
+    case ItemType::Text:
+        return storyUsesTransparency(doc, static_cast<const TextItem &>(it).storyId);
+    case ItemType::Shape:
+        return storyUsesTransparency(doc, static_cast<const ShapeItem &>(it).storyId);
     case ItemType::Group:
         for (const auto &ch : static_cast<const GroupItem &>(it).children)
             if (usesTransparency(doc, *ch)) return true;

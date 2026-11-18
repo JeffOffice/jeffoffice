@@ -1,6 +1,7 @@
 // Printing from JeffCrunch's window: the jobs the Print screen, Export to PDF, and the page commands ask for (core/printjob.h). What the person chooses on the Print screen and in the Page
 // Setup dialog is in their own files.
 
+#include "app/settings.h"
 #include "app/crunchwindow.h"
 #include "app/printpage.h"
 #include "app/printsides.h"
@@ -115,7 +116,10 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtect
 bool CrunchWindow::printWith(const crunch::PrintChoices &c)
 {
     QString why;
-    std::unique_ptr<crunch::PrintJob> job = makePrintJob(c.job, &why);
+    // (Save as PDF is tagged for screen readers as an export is, when the Export page's choice, on unless turned off, says so)
+    crunch::PrintJobOptions jobOptions = c.job;
+    if (c.toFile) jobOptions.pdfTags = Settings::get().value(QStringLiteral("export/pdfTags"), true).toBool();
+    std::unique_ptr<crunch::PrintJob> job = makePrintJob(jobOptions, &why);
     if (!job) {
         notice(tr("Print"), why);
         return false;

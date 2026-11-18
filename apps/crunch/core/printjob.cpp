@@ -522,7 +522,7 @@ void PrintJob::setGrayPixelLimitForTest(double pixels) { kMaxGrayPixels = pixels
 
 bool PrintJob::paint(QPainter *painter, int page)
 {
-    if (!m_options.grayscale || m_inGray) return paintColors(painter, page);
+    if (!m_options.grayscale || m_inGray || m_grayInPdf) return paintColors(painter, page);
     if (page < 0 || page >= pageCount()) return false;
     // Gray: the page is painted in color into pixels (as many to the point as the device has, up to 300 to the inch), and drawn from there as gray ones.
     const QSizeF paper = pageSize(page);
@@ -597,6 +597,39 @@ bool PrintJob::paintColors(QPainter *painter, int page)
         return true;
     }
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    // PDF/A: what lies beneath an object's picture is painted into pixels, so that the picture's clear corners are not left clear.
+    const QTransform base = painter->transform();
+    PageObjectPainter::Backdrop under;
+    if (m_options.archival && !m_inBackdrop && c.objects && c.objects->count() > 0) {
+        under = [this, base, page](const QRectF &where, const QSize &pixels, int index) {
+            const QRectF points = base.inverted().mapRect(where);
+            if (pixels.isEmpty() || points.width() <= 0 || points.height() <= 0) return QImage();
+            QImage img(pixels, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            {
+                QPainter ip(&img);
+                ip.setRenderHint(QPainter::Antialiasing);
+                ip.setRenderHint(QPainter::TextAntialiasing);
+                ip.setRenderHint(QPainter::SmoothPixmapTransform);
+                ip.scale(img.width() / points.width(), img.height() / points.height());
+                ip.translate(-points.topLeft());
+                ip.setClipRect(points);
+                PdfTagger *const tagger = m_tagger;
+                m_tagger = nullptr;
+                for (Context &x : m_contexts)
+                    if (x.painter) x.painter->setTagger(nullptr);
+                m_inBackdrop = true;
+                m_stopObjectsAt = index;
+                paintColors(&ip, page);
+                m_stopObjectsAt = -1;
+                m_inBackdrop = false;
+                m_tagger = tagger;
+                for (Context &x : m_contexts)
+                    if (x.painter) x.painter->setTagger(tagger);
+            }
+            return img;
+        };
+    }
     if (info.chart) {
         const jp::grid::PageMetrics m = jp::grid::pageMetrics(info.print, cut, info.setup, info.rows, info.cols);
         if (c.objects && c.objects->count() > 0) {
@@ -605,7 +638,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
             painter->scale(m.unit, m.unit);
             painter->setClipRect(QRect(0, 0, int(m.widthUnits), int(m.heightUnits)));
             c.painter->markDecoration(painter, true);   // (a chart has no tag: it is left out of the reading order)
-            c.objects->paint(painter, cut, m.zoom);
+            c.objects->paint(painter, cut, m.zoom, under, m_stopObjectsAt);
             c.painter->markDecoration(painter, false);
             painter->restore();
         }
@@ -613,7 +646,7 @@ bool PrintJob::paintColors(QPainter *painter, int page)
         return true;
     }
     jp::grid::PageObjects objects;
-    if (c.objects && c.objects->count() > 0) objects = [&c, &cut](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom()); };
+    if (c.objects && c.objects->count() > 0) objects = [&c, &cut, under, this](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom(), under, m_stopObjectsAt); };
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
     m_lastStats = c.painter->stats();
     m_lastMissed = c.painter->missedPictures();
@@ -961,7 +994,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     }
     const QVector<jp::PdfLink> links = perSheet == 1 && !sheets ? pdfLinks(pdfPageOf) : QVector<jp::PdfLink>();
     const QVector<jp::PdfBookmark> marks = pdfBookmarks(pdfPageOf);
-    const bool tagging = m_options.pdfTags && !m_options.grayscale;
+    const bool tagging = m_options.pdfTags;
     // The PDF is made in memory (the bookmarks, the links, and the tags are added to the finished file; with a password the plain PDF is never on the disk).
     QSaveFile file(path);
     QBuffer memory;
@@ -986,6 +1019,9 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
             // PDF/A-1b: Qt puts every font in the file, writes the identification (part 1, conformance B) and an sRGB output intent, and leaves transparency out
             if (m_options.archival && !encrypted) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
+            // (a gray job is made gray by the PDF itself, so that its words stay words and can be tagged, and not a picture of each page)
+            if (m_options.grayscale) pdf.setColorModel(QPdfWriter::ColorModel::Grayscale);
+            m_grayInPdf = m_options.grayscale;
             constexpr int kResolution = 1200;
             pdf.setResolution(kResolution);
             QPainter p;
@@ -1023,6 +1059,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             if (started) p.end();
             ok = ok && started;
         }
+        m_grayInPdf = false;
         m_tagger = nullptr;
         for (Context &c : m_contexts)
             if (c.painter) c.painter->setTagger(nullptr);

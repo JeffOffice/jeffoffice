@@ -12,6 +12,7 @@
 #include "io/importers.h"
 #include <QJsonArray>
 #include "io/pdftags.h"
+#include "io/pdftransparency.h"
 #include "../pdfmarkcheck.h"
 #include "../withdialog.h"
 #include <QPdfWriter>
@@ -88,6 +89,26 @@ static QByteArray testCmykProfile()
     QByteArray count;
     u32(count, quint32(list.size()));
     return head + count + table + body;
+}
+
+// How many pixels of the first page of two PDFs differ by more than a little, drawn on white at the same size.
+static int farPixels(const QByteArray &a, const QByteArray &b, const QSize &size)
+{
+    auto draw = [&](const QByteArray &bytes) {
+        const PdfDocument pdf(bytes);
+        QImage page(size, QImage::Format_RGB32);
+        page.fill(Qt::white);
+        if (pdf.isValid()) {
+            QPainter on(&page);
+            on.drawImage(0, 0, pdf.render(0, size));
+        }
+        return page;
+    };
+    const QImage x = draw(a), y = draw(b);
+    int far = 0;
+    for (int j = 0; j < size.height(); ++j)
+        for (int i = 0; i < size.width(); ++i) far += std::abs(qGray(x.pixel(i, j)) - qGray(y.pixel(i, j))) > 60;
+    return far;
 }
 
 class PubPdfTests : public QObject {
@@ -1413,6 +1434,130 @@ private Q_SLOTS:
         QVERIFY(pdf.size() > 10000);
         QVERIFY2(pdf.contains("pdfaid:part"), "no PDF/A identification in the XMP metadata");
         QVERIFY2(pdf.contains("GTS_PDFA1"), "no PDF/A output intent");
+    }
+
+    // PDF/A-1b allows no transparency: a picture at 50%, a shape at 50%, and a see-through SVG are flattened onto what is beneath them, so the file has no
+    // constant alpha below 1 and no soft mask, and the page looks the same as the plain PDF's.
+    void pdfaFlattensHalfSeeThroughObjects()
+    {
+        auto doc = jp::Document::blank(QSizeF(300, 300));
+        doc->pages[0]->background = jp::Fill::solid(jp::ColorRef::rgb(QColor(230, 235, 250)));
+        auto back = std::make_shared<jp::ShapeItem>();
+        back->rect = QRectF(0, 100, 300, 60);
+        back->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(20, 90, 40)));
+        doc->pages[0]->items.push_back(back);
+        QImage img(40, 40, QImage::Format_RGB32);
+        img.fill(QColor(200, 30, 30));
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<jp::PictureItem>();
+        pic->imageId = doc->addImage(png, "png");
+        pic->rect = QRectF(20, 80, 80, 80);
+        pic->imgRect = QRectF(0, 0, 80, 80);
+        pic->transparency = 0.5;
+        doc->pages[0]->items.push_back(pic);
+        auto shape = std::make_shared<jp::ShapeItem>();
+        shape->rect = QRectF(110, 80, 80, 80);
+        shape->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
+        shape->fill.transparency = 0.5;
+        doc->pages[0]->items.push_back(shape);
+        const QByteArray svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"80\" height=\"80\" viewBox=\"0 0 80 80\">"
+                               "<rect x=\"0\" y=\"0\" width=\"80\" height=\"80\" fill=\"#e0a000\" opacity=\"0.5\"/></svg>";
+        auto vec = std::make_shared<jp::PictureItem>();
+        vec->imageId = doc->addImage(svg, QStringLiteral("svg"));
+        vec->rect = QRectF(200, 80, 80, 80);
+        vec->imgRect = QRectF(0, 0, 80, 80);
+        doc->pages[0]->items.push_back(vec);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QImage looks[2];
+        for (int archival = 0; archival < 2; ++archival) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = archival;
+            const QString path = dir.filePath(QStringLiteral("t%1.pdf").arg(archival));
+            QVERIFY(w.exportPdfTo(path, s));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            f.close();
+            const jp::PdfTransparency found = jp::pdfTransparency(bytes);
+            if (archival) {
+                QVERIFY2(!found.found, "a PDF/A file has constant alpha below 1 or a soft mask");
+                QVERIFY(!QRegularExpression(QStringLiteral("/SMask\\s+[0-9<]")).match(QString::fromLatin1(bytes)).hasMatch());
+            } else {
+                QVERIFY2(found.found && found.pages == QVector<int>{1}, "the plain file keeps its transparency (and the check finds the page)");
+            }
+            const PdfDocument pdf(bytes);
+            QVERIFY(pdf.isValid());
+            QImage page(300, 300, QImage::Format_RGB32);
+            page.fill(Qt::white);
+            {
+                QPainter on(&page);
+                on.drawImage(0, 0, pdf.render(0, page.size()));
+            }
+            looks[archival] = page;
+        }
+        long long sum = 0;
+        int far = 0;
+        for (int y = 0; y < 300; ++y)
+            for (int x = 0; x < 300; ++x) {
+                const QRgb a = looks[0].pixel(x, y), b = looks[1].pixel(x, y);
+                const int d = std::abs(qRed(a) - qRed(b)) + std::abs(qGreen(a) - qGreen(b)) + std::abs(qBlue(a) - qBlue(b));
+                sum += d;
+                far += d > 60;
+            }
+        QVERIFY2(sum < 300LL * 300 * 3, qPrintable(QString::number(sum)));
+        QVERIFY2(far < 300 * 300 / 50, qPrintable(QString::number(far)));
+        // and the objects are really drawn blended (not dropped): the middle of each is not the page's color
+        for (const QPoint &at : {QPoint(60, 120), QPoint(150, 120), QPoint(240, 120)}) QVERIFY(looks[1].pixelColor(at) != QColor(230, 235, 250));
+    }
+
+    // The same for what is not on the page itself: a see-through object of the master page, a see-through page color, and letters with a color that is
+    // see-through or an effect (a shadow is made of soft pictures): a PDF/A file has none of them as transparency.
+    void pdfaFlattensMastersAndText()
+    {
+        auto doc = jp::Document::blank(QSizeF(300, 300));
+        QVERIFY(!doc->masters.isEmpty());
+        auto band = std::make_shared<jp::ShapeItem>();
+        band->rect = QRectF(0, 0, 300, 120);
+        band->fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(0, 0, 200)));
+        band->fill.transparency = 0.5;
+        doc->masters[0]->items.push_back(band);
+        auto text = std::make_shared<jp::TextItem>();
+        text->rect = QRectF(20, 150, 260, 60);
+        text->storyId = doc->createStory(QStringLiteral("Half see-through words"));
+        {
+            QTextCursor cur(doc->storyDoc(text->storyId));
+            cur.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setForeground(QColor(0, 0, 0, 128));
+            f.setFontPointSize(24);
+            cur.mergeCharFormat(f);
+        }
+        doc->pages[0]->items.push_back(text);
+        jp::MainWindow w;
+        w.editor()->setDocument(std::move(doc));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray made[2];
+        for (int archival = 0; archival < 2; ++archival) {
+            jp::MainWindow::PdfSettings s;
+            s.archival = archival;
+            const QString path = dir.filePath(QStringLiteral("m%1.pdf").arg(archival));
+            QVERIFY(w.exportPdfTo(path, s));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray bytes = f.readAll();
+            const jp::PdfTransparency found = jp::pdfTransparency(bytes);
+            QCOMPARE(found.found, !archival);
+            made[archival] = bytes;
+        }
+        // (the writer leaves a see-through color out of a PDF/A file without a word, which would turn the band and the letters solid: they are flattened first, so it looks the same)
+        QVERIFY2(farPixels(made[0], made[1], QSize(300, 300)) < 300 * 300 / 200, qPrintable(QString::number(farPixels(made[0], made[1], QSize(300, 300)))));
     }
 
     // The words of an SVG picture are in a PDF as text with no ink (a pen with no color, which Qt writes as a transparent fill), but not where the

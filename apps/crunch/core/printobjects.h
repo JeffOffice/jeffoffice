@@ -3,6 +3,7 @@
 // clipped to the cells of the page (an object across two pages is on both, cut at the edge). The objects come from SheetObjects::printObjects (each draws itself when asked, on a
 // worker for a chart); the pictures are made here, one at a time, at the resolution the page is painted at (kMaxPixels at the most for one), and kept for the pages that follow.
 
+#include <functional>
 #include "grid/axis.h"
 #include "grid/objectlayer.h"
 #include "grid/printlayout.h"
@@ -31,7 +32,11 @@ public:
     void fitFirstTo(double width, double height);
 
     // Draws the objects that reach the page, in the painter set up as the cells were drawn (its origin the page's cells, a unit one pixel of the sheet at `zoom`).
-    void paint(QPainter *painter, const jp::grid::PageCut &page, double zoom);
+    // `under`, for a PDF/A page (which can have no clear pixels): given the area an object's picture covers (in the device's units), the pixels it is made of, and the object's number, the
+    // picture of what lies beneath it as opaque pixels, which the object's picture is drawn on, so that the page shows the same with no transparency. Objects from `stopAt` on are left
+    // out (-1: none are), which is how what lies beneath an object is drawn.
+    using Backdrop = std::function<QImage(const QRectF &where, const QSize &pixels, int index)>;
+    void paint(QPainter *painter, const jp::grid::PageCut &page, double zoom, const Backdrop &under = Backdrop(), int stopAt = -1);
     // Pictures made so far (a test counts them to see that a picture is made once for the pages an object is on).
     int picturesMade() const { return m_made; }
 

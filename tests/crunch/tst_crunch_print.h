@@ -192,6 +192,7 @@ private Q_SLOTS:
     void theSelectedSheetsPrintTogether();
     void aSelectionPrintsAlone();
     void aPdfCanBeExportedAsPdfA();
+    void aPdfAFileOfASheetWithObjectsHasNoTransparency();
     void aPdfHasABookmarkForEachSheet();
     void aPdfOfThousandsOfSheetsHasBoundedBookmarks();
     void aTaggedPdfHasTheCellsAsATable();
