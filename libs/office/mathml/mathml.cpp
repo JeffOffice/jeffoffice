@@ -695,7 +695,7 @@ private:
             } else if (name == QLatin1String("mspace")) {
                 // a space only if it is wide enough to be one (0.2em); a wider one is as many spaces as it is wide, up to 32
                 const double w = spaceWidth(m_t.attr(n, "width"));
-                if (w >= 0.2) out += run(QString(qBound(1, qRound(w / 0.278), 32), QLatin1Char(' ')));
+                if (w >= 0.2) out += run(QString(qBound(1, qRound(qMin(w, 32 * 0.278) / 0.278), 32), QLatin1Char(' ')));
             } else if (name == QLatin1String("mrow")) {
                 QByteArray d;
                 out += fence(n, &d) ? d : seq(kids);

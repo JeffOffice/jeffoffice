@@ -453,6 +453,7 @@ private Q_SLOTS:
         QCOMPARE(toOmml(mml("<mi>a</mi><mspace width=\"0.19em\"/><mi>b</mi>")).count("preserve"), 0);
         QCOMPARE(toOmml(mml("<mi>a</mi><mspace width=\"3\"/><mi>b</mi>")).count("preserve"), 0);
         QVERIFY(toOmml(mml("<mspace width=\"1000000em\"/>")).contains("<m:t xml:space=\"preserve\">" + QByteArray(32, ' ') + "</m:t>"));
+        QVERIFY(toOmml(mml("<mspace width=\"1" + QByteArray(300, '0') + "em\"/>")).contains("<m:t xml:space=\"preserve\">" + QByteArray(32, ' ') + "</m:t>"));
         // ms keeps its quotes, and its own if it names them.
         QVERIFY(toOmml(mml("<ms lquote=\"'\" rquote=\"'\">s</ms>")).contains("<m:t>'s'</m:t>"));
         // menclose: a box is the markup's border box, and comes back as one; another kind is looked through.
