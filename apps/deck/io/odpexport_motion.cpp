@@ -193,22 +193,24 @@ QString presetName(EffectClass cls, int id, int sub, QString *subType)
         case 31: return base + QStringLiteral("turn-and-grow");
         case 3: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("venetian-blinds");
         case 4: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("box");
-        case 5: *subType = sub == 5 ? QStringLiteral("down") : QStringLiteral("across"); return base + QStringLiteral("checkerboard");
+        case 5: *subType = sub == 5 ? QStringLiteral("downward") : QStringLiteral("across"); return base + QStringLiteral("checkerboard");
         case 6: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("circle");
         case 8: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("diamond");
         case 13: *subType = sub == 32 ? QStringLiteral("out") : QStringLiteral("in"); return base + QStringLiteral("plus");
-        case 9: return base + (entrance ? QStringLiteral("dissolve-in") : QStringLiteral("dissolve-out"));
+        case 9: return base + (entrance ? QStringLiteral("dissolve-in") : QStringLiteral("dissolve"));
         case 14: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("random-bars");
-        case 21: *subType = QString::number(sub) + QStringLiteral("-spoke"); return base + QStringLiteral("wheel");
+        case 21: *subType = QString::number(sub); return base + QStringLiteral("wheel");   // the spoke count alone: 1, 2, 3, 4, or 8
         case 12:
             *subType = direction(sub);
             return base + (entrance ? QStringLiteral("peek-in") : QStringLiteral("peek-out"));
         case 11: return base + QStringLiteral("flash-once");
         case 17:
-            *subType = sub == 10 ? QStringLiteral("across") : direction(sub);
-            return base + (entrance ? QStringLiteral("stretch") : QStringLiteral("contract"));
+            if (entrance) *subType = sub == 10 ? QStringLiteral("across") : sub == 5 ? QStringLiteral("downward") : direction(sub);
+            return base + (entrance ? QStringLiteral("stretchy") : QStringLiteral("contract"));   // the exit has no direction
         case 19: *subType = sub == 5 ? QStringLiteral("vertical") : QStringLiteral("horizontal"); return base + QStringLiteral("swivel");
-        case 55: return base + (entrance ? QStringLiteral("expand") : QStringLiteral("collapse"));
+        case 55:
+            if (!entrance) *subType = QStringLiteral("across");
+            return base + (entrance ? QStringLiteral("expand") : QStringLiteral("collapse"));
         case 15: return base + (entrance ? QStringLiteral("spiral-in") : QStringLiteral("spiral-out"));
         case 26: return base + QStringLiteral("bounce");
         case 53:

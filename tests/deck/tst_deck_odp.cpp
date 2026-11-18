@@ -1421,9 +1421,14 @@ private Q_SLOTS:
                               {"exit.circle", "in", "ooo-exit-circle", "ellipseWipe", "circle"}, {"entr.diamond", "in", "ooo-entrance-diamond", "irisWipe", "diamond"},
                               {"entr.plus", "in", "ooo-entrance-plus", "fourBoxWipe", "cornersIn"}, {"entr.wheel", "s3", "ooo-entrance-wheel", "pinWheelWipe", "threeBlade"},
                               {"entr.dissolve", "none", "ooo-entrance-dissolve-in", "dissolve", "default"}, {"entr.peek", "left", "ooo-entrance-peek-in", "barWipe", "leftToRight"},
-                              {"exit.dissolve", "none", "ooo-exit-dissolve-out", "dissolve", "default"}, {"entr.flash", "none", "ooo-entrance-flash-once", "", ""},
-                              {"entr.stretch", "left", "ooo-entrance-stretch", "", ""}, {"entr.swivel", "vertical", "ooo-entrance-swivel", "fade", "crossfade"}, {"entr.spiral", "none", "ooo-entrance-spiral-in", "", ""},
-                              {"entr.bounce", "none", "ooo-entrance-bounce", "fade", "crossfade"}, {"emph.transparency", "none", "ooo-emphasis-transparency", "", ""}};
+                              {"exit.dissolve", "none", "ooo-exit-dissolve", "dissolve", "default"}, {"entr.flash", "none", "ooo-entrance-flash-once", "", ""},
+                              {"entr.stretch", "left", "ooo-entrance-stretchy", "", ""}, {"entr.swivel", "vertical", "ooo-entrance-swivel", "fade", "crossfade"}, {"entr.spiral", "none", "ooo-entrance-spiral-in", "", ""},
+                              {"entr.bounce", "none", "ooo-entrance-bounce", "fade", "crossfade"}, {"emph.transparency", "none", "ooo-emphasis-transparency", "", ""},
+                              {"entr.wheel", "s1", "ooo-entrance-wheel", "pinWheelWipe", "oneBlade"}, {"exit.wheel", "s8", "ooo-exit-wheel", "pinWheelWipe", "eightBlade"},
+                              {"exit.stretch", "across", "ooo-exit-contract", "", ""}, {"exit.checkerboard", "down", "ooo-exit-checkerboard", "checkerBoardWipe", "down"}};
+        // presentation:preset-sub-type as the presentation program's own effect list spells it: a spoke count alone, "downward", and so on
+        const char *const subs[] = {"vertical", "downward", "horizontal", "out", "in", "in", "in", "3", "", "from-left", "", "", "from-left", "vertical", "", "", "", "1", "8", "", "downward"};
+        static_assert(std::size(subs) == 21, "one sub-type for each case");
         for (const Case &c : cases) {
             deck::Anim an = deck::makeAnim(QString::fromLatin1(c.kind), number);
             an.variant = QString::fromLatin1(c.variant);
@@ -1449,6 +1454,7 @@ private Q_SLOTS:
         QCOMPARE(int(presets.size()), int(std::size(cases)));
         for (size_t i = 0; i < std::size(cases); ++i) {
             QCOMPARE(presets[int(i)], QString::fromLatin1(cases[i].preset));
+            QCOMPARE(odptest::attrOf(effects[int(i)], "presentation:preset-sub-type"), QString::fromLatin1(subs[i]));
             const QList<QDomElement> filters = odptest::byName(effects[int(i)], "anim:transitionFilter");
             if (!*cases[i].type) {
                 QVERIFY2(filters.isEmpty(), cases[i].kind);
