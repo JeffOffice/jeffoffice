@@ -160,6 +160,9 @@ private Q_SLOTS:
             w->hideFileScreen();
             w->setView(DeckWindow::View::Normal);
             for (QDockWidget *dock : w->findChildren<QDockWidget *>()) dock->hide();
+            // (the Comments pane is no dock: a window that kept it open from the context "a comment, chosen" fits the slide into a narrower canvas, so Collapse the Ribbon
+            // changed the zoom by the menu in one window and by its key in a reset one, and the check found the two different)
+            w->showComments(false);
             w->editor()->endTextEdit();
             w->editor()->setTool(Tool::Select);
             w->editor()->clearSelection();
