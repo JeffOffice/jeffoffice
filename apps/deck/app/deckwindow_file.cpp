@@ -59,6 +59,7 @@ void DeckWindow::setReadOnly(bool on)
     // The commands that change the document are turned off (and refused if something still runs one).
     for (const QString &id : actionIds())
         if (QAction *a = act(id); a && !commandAllowedReadOnly(id)) a->setEnabled(!on);
+    if (!on) updateReviewActions();   // (the commands of Compare are on only when there is a change to act on)
     updateTitle();
 }
 

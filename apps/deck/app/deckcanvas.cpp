@@ -208,7 +208,7 @@ void DeckCanvas::paintEvent(QPaintEvent *e)
             f.setPixelSize(11);
             f.setBold(true);
             p.setFont(f);
-            const QString text = QCoreApplication::translate("DeckCanvas", "%n change(s) on this slide", nullptr, m_slideMarks);
+            const QString text = QCoreApplication::translate("DeckCanvas", "Changes on this slide: %1").arg(m_slideMarks);
             const QSizeF size(p.fontMetrics().horizontalAdvance(text) + 16, 20);
             const QRectF tag(slide.right() - size.width() - 6, slide.top() + 6, size.width(), size.height());
             p.setPen(Qt::NoPen);

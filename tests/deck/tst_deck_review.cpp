@@ -1821,6 +1821,30 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // With no comparison the commands that act on one are dimmed, in a new window, in one that opened a file, and after a comparison is undone.
+    void compareCommandsAreDimmedUntilThereIsAComparison()
+    {
+        const QStringList ids = {QStringLiteral("review.accept"), QStringLiteral("review.reject"), QStringLiteral("review.acceptAll"), QStringLiteral("review.rejectAll"), QStringLiteral("review.prev"), QStringLiteral("review.next")};
+        DeckWindow fresh;
+        for (const QString &id : ids) QVERIFY2(!fresh.act(id)->isEnabled(), qPrintable(id));
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        for (const QString &id : ids) QVERIFY2(w.act(id)->isEnabled(), qPrintable(id));
+        w.editor()->undo();
+        QTRY_VERIFY(!w.comparison());
+        for (const QString &id : ids) QVERIFY2(!w.act(id)->isEnabled(), qPrintable(id));
+        w.editor()->markSaved();
+        // A window that opens a file has none either.
+        DeckWindow opened;
+        QVERIFY(opened.openFile(dir.filePath(QStringLiteral("mine.pptx"))));
+        for (const QString &id : ids) QVERIFY2(!opened.act(id)->isEnabled(), qPrintable(id));
+        opened.showReviewPane(true);
+        for (const QString &id : ids) QVERIFY2(!opened.act(id)->isEnabled(), qPrintable(id));
+    }
+
     void compareAcceptOneIsOneUndoStepAndUndoMakesItPendingAgain()
     {
         QTemporaryDir dir;

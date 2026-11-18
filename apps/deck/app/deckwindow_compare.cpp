@@ -269,7 +269,7 @@ bool DeckWindow::compareWith(const QString &path, QString *error)
     m_marksTimer.start();
     updateReviewActions();
     const int n = m_cmp->changes.size();
-    statusBar()->showMessage(n == 0 ? tr("The two presentations are the same.") : tr("%n change(s) found.", nullptr, n), 6000);
+    statusBar()->showMessage(n == 0 ? tr("The two presentations are the same.") : tr("Changes found: %1").arg(n), 6000);
     return true;
 }
 

@@ -371,7 +371,10 @@ private Q_SLOTS:
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
         };
-        m_app.neverRun = {{QStringLiteral("review.compare"), QStringLiteral("it has no command until the compare window makes one: a hidden command stands in for it, and its button is not shown")}, {QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
+        m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
+        // The commands of Compare act on the change chosen in the Reviewing Pane, which has one only when another presentation has been chosen; DeckReviewTests::compare* run each of them on a comparison.
+        for (const char *id : {"review.accept", "review.reject", "review.acceptAll", "review.rejectAll", "review.prev", "review.next"})
+            m_app.neverRun.insert(QString::fromLatin1(id), QStringLiteral("it acts on a change of a comparison with another presentation, and the checks make none (DeckReviewTests::compare* do)"));
         // The Effect Options of the newer transitions are dimmed unless the current slide has a transition that has them (the checks use Push, Zoom, and Morph); DeckTransitionTests::effectOptionsOfTheCommonTransitions chooses each.
         for (const char *id : {"transition.dir.h", "transition.dir.v", "transition.dir.ru", "transition.dir.lu", "transition.dir.rd", "transition.dir.ld", "transition.by.1", "transition.by.2",
                                "transition.by.3", "transition.by.4", "transition.by.8", "transition.by.circle", "transition.by.diamond", "transition.by.plus"})

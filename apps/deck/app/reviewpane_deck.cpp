@@ -316,7 +316,7 @@ void DeckReviewPane::refresh()
     const review::ChangeList *l = m_src.list;
     if (!l) m_status->setText(tr("No presentation is being compared."));
     else if (l->isEmpty()) m_status->setText(tr("The two presentations are the same."));
-    else m_status->setText(tr("%1 of %2 changes are pending.").arg(l->pending()).arg(l->size()) + (l->tooMany ? QLatin1Char(' ') + tr("There are more changes than are listed here.") : QString()));
+    else m_status->setText(tr("Changes pending: %1 of %2").arg(l->pending()).arg(l->size()) + (l->tooMany ? QLatin1Char(' ') + tr("There are more changes than are listed here.") : QString()));
     showDetail();
     updateButtons();
 }
