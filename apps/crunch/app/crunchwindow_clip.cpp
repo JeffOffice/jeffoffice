@@ -1,6 +1,7 @@
 // Cut, Copy, and Paste: the cells go on the clipboard as text, as an HTML table, and whole (see core/clipdata.h), and come back from it, from this program and from others. A cut and
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
 #include "app/crunchwindow.h"
+#include "app/objects.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
 

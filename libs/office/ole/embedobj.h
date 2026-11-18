@@ -20,7 +20,7 @@ struct Limits {
     int objects = 2000;
     qint64 pictureBytes = 16LL * 1024 * 1024;        // one saved picture
     int pictureSide = 8192;                          // pixels, either way
-    qint64 expandedBytes = 1024LL * 1024 * 1024;     // what a package's entries say they hold once unpacked
+    qint64 expandedBytes = 64LL * 1024 * 1024;       // what a package's entries say they hold once unpacked
     int packageEntries = 10000;
 };
 const Limits &limits();

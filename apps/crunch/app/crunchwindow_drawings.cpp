@@ -106,7 +106,6 @@ void CrunchWindow::setupObjects()
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int id) {
         QString line;
         if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
-        else if (carriedAt(m_sheet, id)) editCarriedObject(m_sheet, id);   // (an object of another app opens in it)
         else if (!beginShapeTextEdit(id)) propertiesDialog();   // (a shape or text box: its words are typed in place)
     });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::selectionChanged, this, [this](int) {

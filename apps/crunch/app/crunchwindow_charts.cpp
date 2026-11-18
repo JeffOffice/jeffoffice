@@ -5,6 +5,7 @@
 #include "app/equationtab.h"
 #include "app/uistyle.h"
 #include "app/crunchwindow.h"
+#include "app/objects.h"
 
 #include "app/chartdialogs.h"
 #include "app/icons.h"

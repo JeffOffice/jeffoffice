@@ -45,6 +45,10 @@ JO_COMMON_EXPORT bool packageHasChart(const QByteArray &package);
 JO_COMMON_EXPORT QImage sheetPicture(const QByteArray &package, qint64 widthEmu, qint64 heightEmu, int scale);
 JO_COMMON_EXPORT QImage pagePicture(const QByteArray &package, qint64 widthEmu, qint64 heightEmu, int scale);
 JO_COMMON_EXPORT office::ole::PictureFn pictureFor(office::ole::Kind kind);
+// Where the program of the other app is looked for, in the order tried: beside this one (an app of the Mac is a bundle, so the other's bundle is three folders out), for a platform.
+enum class Platform { Linux, Windows, Mac };
+JO_COMMON_EXPORT Platform thisPlatform();
+JO_COMMON_EXPORT QStringList siblingPaths(const QString &appDir, const QString &name, Platform platform);
 // Opens the package in the app that made that kind (the program of the same folder as this one); false when that program is not there.
 JO_COMMON_EXPORT bool openInOwnApp(const QString &path, office::ole::Kind kind);
 // Gives an editor these pictures for both kinds, to draw an object again after a save.
@@ -71,16 +75,6 @@ JO_COMMON_EXPORT Grid gridFromText(const QString &text);
 // The values of a range written as a workbook (the package a range object is), and the size in points the range's picture is made at.
 JO_COMMON_EXPORT QByteArray rangePackage(const Grid &grid);
 JO_COMMON_EXPORT QSizeF rangeSize(const Grid &grid);
-
-// ---- an object kept in a picture: for a program whose pictures are the objects it can place (a sheet's drawing), the object is its picture with a private chunk of the PNG that holds the
-// package, which a program that does not know the object shows as the picture and which every save of the picture keeps byte for byte. `token` names the object across saves (made when
-// empty); the picture is the object's own, so the result is the PNG a window gives its sheet.
-struct Carried {
-    office::ole::EmbeddedObject object;
-    QString token;
-};
-JO_COMMON_EXPORT QByteArray carryObject(const office::ole::EmbeddedObject &object, const QString &token = QString());
-JO_COMMON_EXPORT std::optional<Carried> carriedObject(const QByteArray &png);
 
 // ---- the clipboard
 constexpr char kMime[] = "application/x-jeffoffice-object";

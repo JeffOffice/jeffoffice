@@ -758,7 +758,6 @@ void CrunchWindow::createActions()
     m_design = new ChartDesign(this, this);
     createChartActions();
     createInsertObjectActions();
-    createObjectActions();
     createControlActions();
     createArrangeActions();
     createObjectFormatActions();

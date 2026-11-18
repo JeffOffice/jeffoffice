@@ -64,10 +64,6 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
     h.protectStructure = [this] { protectWorkbook(); };
     h.checkCompatibility = [this] { checkCompatibility(); };
     h.versionHistory = [this] { versionHistory(); };
-    h.extraCards.push_back({QStringLiteral("objectsCard"), QStringLiteral("boxes"), tr("Objects"), tr("The pieces of other programs in the workbook: what each is, and opening, turning into a picture, or deleting it."), [this] {
-        hideFileScreen();
-        showObjects();
-    }});
     h.extraCards.push_back({QStringLiteral("infoCheckCsv"), QStringLiteral("list-checks"), tr("Check .csv Compatibility"), tr("See what a .csv file would leave out of this workbook, without saving."), [this] { checkCsvCompatibility(); }});
     return jp::buildInfoPage(parent, h);
 }

@@ -15,7 +15,6 @@
 #include <QCoreApplication>
 #include <QDataStream>
 #include <QDir>
-#include <QUuid>
 #include <QFile>
 #include <QLocale>
 #include <QFileInfo>
@@ -28,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <memory>
 
 namespace jp::objects {
 
@@ -39,7 +39,9 @@ constexpr double kRowHeight = 18;       // points
 constexpr double kPageWidth = 612, kPageHeight = 792;
 constexpr double kChartWidth = 360, kChartHeight = 216;
 constexpr char kPageNote[] = "jeffoffice-page.txt";
-constexpr qint64 kMostInflated = qint64(512) << 20;
+// What a picture of one range, chart, or page is drawn from: no more than this many bytes unpacked (a picture of a page is laid out from at most the second).
+constexpr qint64 kMostInflated = qint64(64) << 20;
+constexpr qint64 kMostPageBytes = qint64(16) << 20;
 
 void say(QString *why, const QString &text)
 {
@@ -183,6 +185,10 @@ int pageNoteOf(const QByteArray &zip)
 
 bool layOutPages(const QByteArray &docx, QTextDocument *doc)
 {
+    // (A document is laid out only when it, and what it unpacks to, are of a size a page's picture needs: the unpacking is counted as it is done, whatever the file says it holds.)
+    if (docx.size() > kMostPageBytes || !packageWithinLimits(docx)) return false;
+    office::Package unpacked;
+    if (!unpacked.read(docx, nullptr, kMostInflated)) return false;
     office::wml::Document words;
     QString error;
     if (!office::wml::readDocx(docx, &words, &error)) return false;
@@ -314,13 +320,31 @@ void usePictures(EmbeddedEdit *edit)
     edit->setPicture(Kind::Page, pagePicture);
 }
 
+Platform thisPlatform()
+{
+#if defined(Q_OS_WIN)
+    return Platform::Windows;
+#elif defined(Q_OS_MACOS)
+    return Platform::Mac;
+#else
+    return Platform::Linux;
+#endif
+}
+
+QStringList siblingPaths(const QString &appDir, const QString &name, Platform platform)
+{
+    const QDir folder(appDir);
+    if (platform == Platform::Windows) return {folder.filePath(name + QStringLiteral(".exe"))};
+    if (platform == Platform::Mac) return {QDir::cleanPath(appDir + QStringLiteral("/../../../") + name + QStringLiteral(".app/Contents/MacOS/") + name)};
+    return {folder.filePath(name), folder.filePath(name.toLower())};
+}
+
 bool openInOwnApp(const QString &path, Kind kind)
 {
     const QString name = kind == Kind::Sheet ? QStringLiteral("JeffCrunch") : kind == Kind::Page ? QStringLiteral("JeffWrite") : QString();
     if (name.isEmpty()) return false;
-    const QDir folder(QCoreApplication::applicationDirPath());
-    for (const QString &file : {name, name + QStringLiteral(".exe"), name.toLower()}) {
-        const QFileInfo exe(folder.filePath(file));
+    for (const QString &candidate : siblingPaths(QCoreApplication::applicationDirPath(), name, thisPlatform())) {
+        const QFileInfo exe(candidate);
         if (exe.isFile() && exe.isExecutable()) return QProcess::startDetached(exe.absoluteFilePath(), {path});
     }
     return false;
@@ -485,6 +509,10 @@ int pageCountOf(const QByteArray &docx)
 
 std::optional<EmbeddedObject> pageObject(const QByteArray &docx, int page, QString *why)
 {
+    if (docx.size() > kMostPageBytes) {
+        say(why, QCoreApplication::translate("jp::Objects", "The document is too large to put in as an object."));
+        return std::nullopt;
+    }
     const int pages = pageCountOf(docx);
     if (pages == 0) {
         say(why, QCoreApplication::translate("jp::Objects", "This is not a document that can be read."));
@@ -507,72 +535,6 @@ std::optional<EmbeddedObject> pageObjectFromFile(const QString &path, int page, 
     const QByteArray bytes = fileBytes(path, why);
     if (bytes.isEmpty()) return std::nullopt;
     return pageObject(bytes, page, why);
-}
-
-namespace {
-constexpr char kChunk[] = "joBj";   // (not needed to show the picture, private, and safe to copy)
-constexpr int kMostChunks = 4096;
-
-void put32(QByteArray *out, quint32 v)
-{
-    for (int shift = 24; shift >= 0; shift -= 8) out->append(char((v >> shift) & 0xFF));
-}
-
-quint32 get32(const QByteArray &b, qsizetype at)
-{
-    return (quint32(quint8(b[at])) << 24) | (quint32(quint8(b[at + 1])) << 16) | (quint32(quint8(b[at + 2])) << 8) | quint32(quint8(b[at + 3]));
-}
-} // namespace
-
-QByteArray carryObject(const EmbeddedObject &object, const QString &token)
-{
-    const QByteArray &png = object.previewPng;
-    // (an IHDR, which is 25 bytes after the 8 of the signature, is what the chunk goes after)
-    if (png.size() < 33 || !png.startsWith("\x89PNG\r\n\x1a\n") || png.mid(12, 4) != "IHDR") return QByteArray();
-    QByteArray data;
-    QDataStream s(&data, QIODevice::WriteOnly);
-    s.setVersion(QDataStream::Qt_6_0);
-    s << QByteArray("JOOBJ1") << (token.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : token) << object.progId << qint64(object.widthEmu) << qint64(object.heightEmu) << object.partBytes;
-    QByteArray chunk;
-    put32(&chunk, quint32(data.size()));
-    const QByteArray typed = QByteArray(kChunk, 4) + data;
-    chunk += typed;
-    put32(&chunk, crc32(typed));
-    QByteArray out = png.left(33);
-    out += chunk;
-    out += png.mid(33);
-    return out;
-}
-
-std::optional<Carried> carriedObject(const QByteArray &png)
-{
-    if (png.size() < 45 || !png.startsWith("\x89PNG\r\n\x1a\n")) return std::nullopt;
-    qsizetype at = 8;
-    for (int n = 0; n < kMostChunks && at + 12 <= png.size(); ++n) {
-        const quint32 length = get32(png, at);
-        const QByteArray type = png.mid(at + 4, 4);
-        if (qint64(length) > qint64(png.size()) || at + 12 + qsizetype(length) > png.size()) return std::nullopt;
-        if (type == "IDAT" || type == "IEND") return std::nullopt;   // (the chunk is before the picture's data)
-        if (type == kChunk) {
-            const QByteArray data = png.mid(at + 8, qsizetype(length));
-            if (crc32(png.mid(at + 4, 4 + qsizetype(length))) != get32(png, at + 8 + qsizetype(length))) return std::nullopt;
-            QDataStream s(data);
-            s.setVersion(QDataStream::Qt_6_0);
-            QByteArray magic, part;
-            QString token, progId;
-            qint64 w = 0, h = 0;
-            s >> magic >> token >> progId >> w >> h >> part;
-            if (s.status() != QDataStream::Ok || magic != "JOOBJ1") return std::nullopt;
-            // (what the object shows is the picture that carries it, without the chunk)
-            QByteArray plain = png.left(at) + png.mid(at + 12 + qsizetype(length));
-            ObjectBudget budget;
-            auto object = keepObject(progId, part, plain, std::clamp<qint64>(w, 0, kMaxEmu), std::clamp<qint64>(h, 0, kMaxEmu), budget);
-            if (!object) return std::nullopt;
-            return Carried{*object, token};
-        }
-        at += 12 + qsizetype(length);
-    }
-    return std::nullopt;
 }
 
 QByteArray encode(const EmbeddedObject &object)
@@ -602,14 +564,20 @@ namespace {
 
 class ObjectMime : public QMimeData {
 public:
-    explicit ObjectMime(std::function<std::optional<EmbeddedObject>()> make) : m_make(std::move(make)) {}
-    QStringList formats() const override { return QMimeData::formats() << QString::fromLatin1(kMime); }
-    bool hasFormat(const QString &mimeType) const override { return mimeType == QLatin1String(kMime) || QMimeData::hasFormat(mimeType); }
+    ObjectMime(std::unique_ptr<QMimeData> inner, std::function<std::optional<EmbeddedObject>()> make) : m_inner(std::move(inner)), m_make(std::move(make)) {}
+    // (The formats of the copy are the copy's own, asked of it when something asks: a picture on it is not made into bytes for a copy.)
+    QStringList formats() const override
+    {
+        QStringList all = m_inner->formats();
+        if (!all.contains(QLatin1String(kMime))) all << QString::fromLatin1(kMime);
+        return all;
+    }
+    bool hasFormat(const QString &mimeType) const override { return mimeType == QLatin1String(kMime) || m_inner->hasFormat(mimeType); }
 
 protected:
     QVariant retrieveData(const QString &mimeType, QMetaType type) const override
     {
-        if (mimeType != QLatin1String(kMime)) return QMimeData::retrieveData(mimeType, type);
+        if (mimeType != QLatin1String(kMime)) return type.id() == QMetaType::QImage ? m_inner->imageData() : QVariant(m_inner->data(mimeType));
         if (!m_made) {
             m_made = true;
             if (const auto object = m_make()) m_bytes = encode(*object);
@@ -618,6 +586,7 @@ protected:
     }
 
 private:
+    std::unique_ptr<QMimeData> m_inner;
     std::function<std::optional<EmbeddedObject>()> m_make;
     mutable bool m_made = false;
     mutable QByteArray m_bytes;
@@ -627,11 +596,7 @@ private:
 
 QMimeData *withObject(QMimeData *mime, std::function<std::optional<EmbeddedObject>()> make)
 {
-    auto *wrapped = new ObjectMime(std::move(make));
-    for (const QString &format : mime->formats()) wrapped->setData(format, mime->data(format));
-    if (mime->hasImage()) wrapped->setImageData(mime->imageData());
-    delete mime;
-    return wrapped;
+    return new ObjectMime(std::unique_ptr<QMimeData>(mime), std::move(make));
 }
 
 bool hasObject(const QMimeData *mime) { return mime && mime->hasFormat(QString::fromLatin1(kMime)); }
