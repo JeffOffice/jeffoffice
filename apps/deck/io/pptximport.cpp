@@ -800,7 +800,7 @@ void Importer::sayWhatRanOut()
     if (m_keptRanOut)
         note(QCoreApplication::translate("PptxImport", "The file holds more than %1 MB of animation, transition, and other settings in all; what is past that is left out.").arg(kMaxKeptXmlBytes >> 20));
     if (m_objectsPastLimit > 0)
-        note(QCoreApplication::translate("PptxImport", "%n embedded object(s) kept as picture only: the file holds more objects than can be kept, or this one is too large.", nullptr, m_objectsPastLimit));
+        note(QCoreApplication::translate("PptxImport", "Some embedded objects are kept as pictures only (%1 in all): the file holds more objects than can be kept, or they are too large.").arg(m_objectsPastLimit));
     if (m_chartsPastLimit > 0)
         note(QCoreApplication::translate("PptxImport", "The file holds more charts than can be changed in one file (%1, or %2 MB of them), so the charts past them (%3 in all) are kept as pictures only.").arg(office::sheet::kMostChartsInFile).arg(office::sheet::kMostChartBytesInFile >> 20).arg(m_chartsPastLimit));
     if (m_chartsRanOut)
