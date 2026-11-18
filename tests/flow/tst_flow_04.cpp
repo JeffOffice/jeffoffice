@@ -851,6 +851,95 @@ void FlowTests::aParagraphOutOfLayoutHasNoLinesAndNoRoom()
     }
 }
 
+// An object set in the text with a bottom distance of nothing or more sits on its line's baseline, raised by it, and the line is as it was (guard: a negative distance is below).
+void FlowTests::anObjectWithNoNegativeBottomDistanceSitsOnTheBaselineAsBefore()
+{
+    struct Seen { QRectF object; double baseline = 0, top = 0, bottom = 0; };
+    auto lay = [](double height, double bottom) {
+        auto story = makeStory(1, 5, {}, 3, 5);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 40, height);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = 0;
+        item->wrap.bottom = bottom;
+        QTextCursor c(story.get());
+        c.setPosition(2);
+        QTextCharFormat inl;
+        inl.setFontPointSize(11);
+        inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+        c.insertText(QString(QChar(0xFFFC)), inl);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout l;
+        l.build(story.get(), {plainFrame(600, 600)}, env);
+        Seen s;
+        if (l.inlineObjects().size() != 1) return s;
+        s.object = l.inlineObjects().first().rect;
+        const auto info = l.lineInfo(0);
+        for (const auto &line : info)
+            if (line.rect.top() <= s.object.top() + 0.01 && line.rect.bottom() >= s.object.top() - 0.01) {
+                s.baseline = line.baseline;
+                s.top = line.rect.top();
+                s.bottom = line.rect.bottom();
+                break;
+            }
+        return s;
+    };
+    const Seen plain = lay(30, 0), raised = lay(30, 4);
+    QVERIFY(plain.object.height() > 0 && raised.object.height() > 0);
+    QCOMPARE(plain.object.bottom(), plain.baseline);
+    QCOMPARE(raised.object.bottom(), raised.baseline - 4);
+    QVERIFY(qAbs((raised.bottom - raised.top) - (plain.bottom - plain.top + 4)) < 0.01);
+}
+
+// An object set in the text with a negative bottom distance hangs below the baseline by it, and its line has that room under the baseline (an equation's descent).
+void FlowTests::anObjectWithANegativeBottomDistanceHangsBelowTheBaseline()
+{
+    struct Seen { QRectF object; double baseline = 0, top = 0, bottom = 0; };
+    auto lay = [](double height, double bottom) {
+        auto story = makeStory(1, 5, {}, 3, 5);
+        auto item = std::make_shared<PictureItem>();
+        item->rect = QRectF(0, 0, 40, height);
+        item->imageId = QStringLiteral("flow-img:0");
+        item->wrap.left = item->wrap.right = item->wrap.top = 0;
+        item->wrap.bottom = bottom;
+        QTextCursor c(story.get());
+        c.setPosition(2);
+        QTextCharFormat inl;
+        inl.setFontPointSize(11);
+        inl.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(item->toJson()).toJson(QJsonDocument::Compact)));
+        c.insertText(QString(QChar(0xFFFC)), inl);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout l;
+        l.build(story.get(), {plainFrame(600, 600)}, env);
+        Seen s;
+        if (l.inlineObjects().size() != 1) return s;
+        s.object = l.inlineObjects().first().rect;
+        const auto info = l.lineInfo(0);
+        for (const auto &line : info)
+            if (line.rect.top() <= s.object.top() + 0.01 && line.rect.bottom() >= s.object.top() - 0.01) {
+                s.baseline = line.baseline;
+                s.top = line.rect.top();
+                s.bottom = line.rect.bottom();
+                break;
+            }
+        return s;
+    };
+    // Below it: a 30 point object with 20 points under the baseline is 10 above it, and the line is that high with the 20 below.
+    const Seen low = lay(30, -20), control = lay(10, 0);
+    QVERIFY(low.object.height() > 0 && control.object.height() > 0);
+    QCOMPARE(low.object.bottom(), low.baseline + 20);
+    QCOMPARE(low.object.top(), control.object.top());
+    QCOMPARE(low.baseline, control.baseline);
+    QVERIFY(qAbs(low.bottom - (low.baseline + 20)) < 0.01);
+    QVERIFY(low.bottom - low.top > control.bottom - control.top);
+    // A distance that is not a number, or far out, is kept inside the limits.
+    const Seen far = lay(30, -1e9);
+    QCOMPARE(far.object.bottom(), far.baseline + 1000);
+}
+
+
 
 // A stretch of text that stops at a frame (a page's, laid out to see what goes past it) does not stop at a paragraph with no lines, which has put nothing in the frame: the
 // text after it is laid out, and is what lands in the frame.

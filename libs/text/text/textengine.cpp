@@ -3659,7 +3659,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // Sizes from a file: finite and within a page or so.
                         auto sane = [](double v, double most) { return std::isfinite(v) ? std::clamp(v, 0.0, most) : 0.0; };
                         box.size = QSizeF(sane(item->rect.width(), 20000), sane(item->rect.height(), 20000));
-                        box.pad = QMarginsF(sane(item->wrap.left, 1000), sane(item->wrap.top, 1000), sane(item->wrap.right, 1000), sane(item->wrap.bottom, 1000));
+                        box.pad = QMarginsF(sane(item->wrap.left, 1000), sane(item->wrap.top, 1000), sane(item->wrap.right, 1000), std::isfinite(item->wrap.bottom) ? std::clamp(item->wrap.bottom, -1000.0, 1000.0) : 0.0);
                     }
                     QTextCharFormat of = rf;
                     of.setFontLetterSpacingType(QFont::AbsoluteSpacing);
@@ -4839,10 +4839,13 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     // box in 12 pt Times gave the line 2.88 + 72 + 2.88 above the
                     // baseline, single or double spaced, and the next line its
                     // usual distance).
-                    double objUp = 0;
+                    // (A negative bottom distance sets the object below the baseline, as an equation's descent is: the line has that much room under it.)
+                    double objUp = 0, objDown = 0;
                     for (const auto &ob : B->objects)
-                        if (ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength())
+                        if (ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength()) {
                             objUp = std::max(objUp, ob.pad.bottom() + ob.size.height() + ob.pad.top());
+                            objDown = std::max(objDown, -ob.pad.bottom());
+                        }
                     // A word processor's line: the text's ascent above the baseline, the descent and leading below it, and what a multiple of single
                     // spacing adds under that (an exact height keeps the line's parts in proportion, an at-least height the baseline a descent above the
                     // line's bottom). The whole line must fit.
@@ -4879,6 +4882,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     h += rise;
                     textH += rise;
                     baseDown += rise;
+                    if (objDown > h - baseDown && bf.lineHeightType() != QTextBlockFormat::FixedHeight) {
+                        textH += objDown - (h - baseDown);
+                        h = baseDown + objDown;
+                    }
                     // A line of nothing but objects has no text above or below
                     // them: it is as tall as the tallest, inside its distances,
                     // whatever the paragraph's font, and single or wider spaced
@@ -4892,7 +4899,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             onlyObjects = std::any_of(B->objects.cbegin(), B->objects.cend(), [k](const auto &ob) { return ob.disp == k; });
                         }
                         if (onlyObjects) {
-                            h = textH = baseDown = objUp;
+                            baseDown = objUp;
+                            h = textH = objUp + objDown;
                             below = 0;
                             roomUnder = 0;
                         }
