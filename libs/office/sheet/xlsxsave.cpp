@@ -1973,7 +1973,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 OleTailEdit::Add a;
                 QString picturePart;
                 if (!putParts(add.object, &a.objectRel, &a.pictureRel, &picturePart, true, !add.object.isOurs)) return tooMany();
-                a.progId = add.object.progId;
+                a.progId = add.object.odfForm != ole::OdfForm::None ? ole::odfProgId(add.object.odfForm, add.object.mediaType) : add.object.progId;
                 a.shapeId = ++shape;
                 a.anchor = add.anchor;
                 if (!picturePart.isEmpty()) w.shapes.push_back({OleWrite::Shape::What::Add, a.shapeId, picturePart, add.anchor});

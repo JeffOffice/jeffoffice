@@ -37,6 +37,10 @@ enum class Kind { Sheet, Page, Other };
 enum class OdfForm { None, Folder, Binary };
 QString odfFormName(OdfForm form);               // "folder" or "binary", empty for None
 OdfForm odfFormOfName(const QString &name);      // None for any other name
+// An object of another program that an OpenDocument file held has no program ID; where a file of the other kind must name one, it is this (it says how the object was held and the media
+// type it had), and parsing gives them back (false for any other program ID).
+QString odfProgId(OdfForm form, const QString &mediaType);
+bool parseOdfProgId(const QString &progId, OdfForm *form, QString *mediaType);
 
 struct EmbeddedObject {
     QString progId;

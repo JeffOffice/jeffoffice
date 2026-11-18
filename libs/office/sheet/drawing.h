@@ -165,6 +165,15 @@ struct SheetOleObject {
     QString objectRel, pictureRel;  // the ids of the sheet's relationships that name the object's bytes and its picture (what a later read finds the same object by)
 };
 
+// An object an OpenDocument spreadsheet held in a frame, as a window holds it: the object (its package or binary part, its picture) and where its frame was. A window that holds these does not
+// show them as pictures of the drawing: it puts them in the sheet with the other objects, and a file written from it has them as embedded objects (the odf form of the object says how an
+// OpenDocument file is given it back).
+struct HeldObject {
+    ole::EmbeddedObject object;
+    DrawingAnchor anchor;
+};
+using HeldObjects = std::vector<std::vector<HeldObject>>;   // by the sheet's place
+
 // What reading the objects of the sheets of a workbook keeps between sheets: the count and bytes so far, the parts already inflated, and the parts refused (too large, or over the caps).
 struct OleReadState {
     ole::ObjectBudget budget;

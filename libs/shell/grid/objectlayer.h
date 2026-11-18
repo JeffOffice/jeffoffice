@@ -121,6 +121,8 @@ public:
     ObjectBox lastBox(int id, bool *placed = nullptr) const;
     // Where the anchor puts the object on the layout's rows and columns now (placing it if need be); false in `ok` if the layer has no layout yet or no such object.
     ObjectBox boxNow(int id, bool *ok = nullptr) const;
+    // Where an anchor puts an object on the layout's rows and columns now (false in `ok` if the layer has no layout yet).
+    ObjectBox boxOfAnchor(const jp::office::sheet::DrawingAnchor &anchor, bool *ok = nullptr) const;
     // Its cells changed: the picture is made again, a moment later (the old one is drawn until it is, and a calculation that tells many changes makes one picture). invalidateAll for every object.
     void invalidate(int id);
     void invalidateAll();

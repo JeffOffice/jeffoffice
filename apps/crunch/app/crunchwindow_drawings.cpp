@@ -131,6 +131,7 @@ void CrunchWindow::openObjects()
         static const std::vector<jp::office::sheet::StructEdit> none;
         return m_session ? m_session->structureEdits() : none;
     });
+    m_objects->setCopySource([this](int sheet) { return m_session ? m_session->copiedFrom(sheet) : -1; });
     m_objects->setSheetOpsSource([this]() -> const std::vector<jp::office::sheet::SheetOp> & {
         static const std::vector<jp::office::sheet::SheetOp> none;
         return m_session ? m_session->sheetOperations() : none;

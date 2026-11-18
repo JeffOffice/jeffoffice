@@ -1476,12 +1476,21 @@ struct ImportedObject {
     QString mediaType;
     QByteArray bytes;
 };
+// A frame that holds an embedded object of another kind: the place of the object among `objects`, where the frame is (the cell its corner is in and the cell its far corner is in, with the
+// offsets in them, in EMU), and the place of its picture among `media` (-1: none). The anchor of its picture is among `anchors`, marked as odsdraw.h says.
+struct ImportedFrame {
+    int object = -1;
+    int media = -1;
+    quint32 fromCol = 0, fromRow = 0, toCol = 0, toRow = 0;
+    qint64 fromColOff = 0, fromRowOff = 0, toColOff = 0, toRowOff = 0;
+};
 struct ImportedDrawing {
     QVector<QByteArray> anchors;
     QVector<ImportedRel> rels;
     QVector<ImportedMedia> media;
     QVector<QByteArray> charts;   // the chart parts (c:chartSpace) of the charts the anchors hold, made from an OpenDocument chart (odschart.h)
     QVector<ImportedObject> objects;   // the embedded objects the pictures stand for: an anchor names one by the id of a relationship (see odsdraw.h)
+    QVector<ImportedFrame> frames;     // the frames that hold them, in the order of their anchors (a person's window holds these as objects: see HeldObject)
     QStringList notRead;   // what was left out, in words (objects past the limits, kinds that are not read)
     bool isEmpty() const { return anchors.isEmpty(); }
 };

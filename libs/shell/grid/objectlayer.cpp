@@ -267,6 +267,12 @@ ObjectBox ObjectLayer::boxNow(int id, bool *ok) const
     return m_entries[i].box;
 }
 
+ObjectBox ObjectLayer::boxOfAnchor(const jp::office::sheet::DrawingAnchor &anchor, bool *ok) const
+{
+    if (ok) *ok = m_layout != nullptr;
+    return m_layout ? anchorBox(anchor, m_layout->rows, m_layout->cols) : ObjectBox();
+}
+
 void ObjectLayer::invalidate(int id)
 {
     const size_t i = entryOf(id);

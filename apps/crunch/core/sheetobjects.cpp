@@ -314,6 +314,7 @@ void SheetObjects::sheetsChanged()
     if (!m_book) return;
     // room for the sheets there are (one added or copied has no drawing; one taken away by Undo is let go of)
     m_sheets.resize(size_t(m_book->info().sheets.size()));
+    m_embeds.sheetsChanged();
     if (m_shown >= int(m_sheets.size())) m_shown = -1;
     qint64 budget = kMaxMovedChartCells;
     for (size_t i = 0; i < m_sheets.size(); ++i)
@@ -1970,7 +1971,16 @@ bool SheetObjects::printsOf(int sheet, int id)
 
 ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anchor)
 {
-    if (isEmbedId(id)) return m_embeds.stateMoved(sheet, id, anchor, m_epoch);
+    if (isEmbedId(id)) {
+        // (the size the anchor gives on the rows and columns now: an object of ours that is sized has its picture drawn again at it)
+        QSizeF units;
+        bool ok = false;
+        if (sheet == m_shown) {
+            const jp::grid::ObjectBox box = m_layer.boxOfAnchor(anchor, &ok);
+            if (ok) units = QSizeF(box.w, box.h);
+        }
+        return m_embeds.stateMoved(sheet, id, anchor, m_epoch, units);
+    }
     ObjectState st = stateOf(sheet, id);
     st.placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
     return st;

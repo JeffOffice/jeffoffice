@@ -31,6 +31,8 @@
 
 namespace jp::office::sheet {
 
+struct HeldObject;   // (sheet/drawing.h)
+
 using jp::calc::DateSystem;
 
 class XlsBook;
@@ -301,6 +303,10 @@ public:
     // the file), named as the .xlsx a save writes names them, so that what the window says of an object is true of that file; for any other workbook, its own.
     const Package &objectPackage() const { return m_objectPackage ? *m_objectPackage : m_package; }
     void setObjectPackage(std::shared_ptr<const Package> package) { m_objectPackage = std::move(package); }
+    // The embedded objects the OpenDocument spreadsheet held (makeObjectPackage gives them), by the sheet's place; null for any other workbook, or one that held none. A workbook that has them is
+    // written without them in its drawings (see sheet/drawing.h, HeldObject).
+    const std::shared_ptr<const std::vector<std::vector<HeldObject>>> &heldObjects() const { return m_heldObjects; }
+    void setHeldObjects(std::shared_ptr<const std::vector<std::vector<HeldObject>>> held) { m_heldObjects = std::move(held); }
     // The pictures of a sheet's headers and footers, read from the legacy drawing its `legacyDrawingHF` names (readSheet does this for a sheet that has one). Bounded: the shapes looked at, the
     // pictures kept, the bytes of one and of all those a workbook reads (an image shared by several sheets is read once).
     void readHeaderPictures(const QString &sheetPart, HeaderFooter *out) const;
@@ -519,6 +525,7 @@ private:
     std::shared_ptr<const XlsBook> m_xls;
     std::shared_ptr<const ForeignBook> m_foreign;
     std::shared_ptr<const Package> m_objectPackage;
+    std::shared_ptr<const std::vector<std::vector<HeldObject>>> m_heldObjects;
     QString m_mainPart, m_sharedPart, m_stylesPart;
     qint64 m_sharedInFile = 0, m_formatsInFile = 0;
     QStringList m_sharedAdded;

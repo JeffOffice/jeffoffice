@@ -573,6 +573,12 @@ bool readSheetOleObjects(const Package &package, const QString &sheetPart, OleRe
             ++state->pastLimit;
             continue;
         }
+        // (an object an OpenDocument file held that is not one of ours: its program ID says how it was held)
+        if (ole::OdfForm form = ole::OdfForm::None; ole::parseOdfProgId(c.progId, &form, &kept->mediaType)) {
+            kept->odfForm = form;
+            kept->progId.clear();
+            kept->isOurs = false;
+        }
         // (what a file that holds the object as parts has of it that is not kept otherwise, to put it back as it was: a picture that is not a PNG, and the type of the part)
         kept->partType = package.contentType(rel.target);
         kept->relType = rel.type.mid(rel.type.lastIndexOf(QLatin1Char('/')) + 1);

@@ -65,7 +65,21 @@ int CrunchWindow::placeObject(const office::ole::EmbeddedObject &object, const Q
     const double fit = std::min({1.0, 560.0 / w, 420.0 / h});
     w *= fit;
     h *= fit;
-    const office::sheet::DrawingAnchor anchor = at ? *at : newObjectAnchor(w, h);
+    // (at the selected cell, at its corner: where the Help says it goes)
+    office::sheet::DrawingAnchor anchor;
+    if (at) {
+        anchor = *at;
+    } else {
+        const grid::GridLayout &L = m_view->sheet().layout();
+        const grid::Selection &selected = m_view->selection();
+        grid::ObjectBox box;
+        box.x = double(L.cols.position(selected.activeCol));
+        box.y = double(L.rows.position(selected.activeRow));
+        box.w = w;
+        box.h = h;
+        m_objects->layer()->attach(&L);
+        if (!m_objects->layer()->anchorAtBox(box, office::sheet::AnchorKind::TwoCell, &anchor)) anchor = newObjectAnchor(w, h);
+    }
     QString why;
     const int id = m_objects->embeds()->make(m_sheet, object, anchor, &why);
     if (id < 0) {
@@ -194,7 +208,11 @@ void CrunchWindow::objectSaved(int editId, const QByteArray &part, const QByteAr
     if (!m_objectEdits.contains(editId) || !m_session || !m_objects) return;
     const EmbedEditing target = m_objectEdits.value(editId);
     const auto now = m_objects->embeds()->objectOf(target.sheet, target.id);
-    if (!now || m_objects->embeds()->isGone(target.sheet, target.id)) return;
+    if (!now || m_objects->embeds()->isGone(target.sheet, target.id)) {
+        // (the object was taken away while it was open in the app that made it: the change has nowhere to go, and a person who saved it is told so)
+        setStatus(tr("The object was deleted, so the change wasn't kept."));
+        return;
+    }
     office::ole::EmbeddedObject object = *now;
     office::ole::SavedObject saved;
     saved.partBytes = part;

@@ -1033,6 +1033,7 @@ private:
                 .arg(ctx.nextShapeId++).arg(xmlText(eq.name), xmlText(eq.altText)).arg(cx).arg(cy).arg(math);
         };
         int chartNumber = 0;
+        QVector<QString> frameEmbeds;   // the id of each frame's picture (by the place of the frame in `frames`)
         for (const Placed &p : placed) {
             if (p.chart >= 0) {
                 const QString id = QStringLiteral("rIdC%1").arg(chartNumber + 1);
@@ -1074,7 +1075,36 @@ private:
                     const qsizetype close = anchor.indexOf("</xdr:cNvPr>", end);
                     if (close > 0) anchor.insert(close, mark);
                 }
-                if (anchor.contains(kObjectUri)) m_out->rels.push_back({QString::fromLatin1(id), -1, -1, p.object});
+                if (anchor.contains(kObjectUri)) {
+                    m_out->rels.push_back({QString::fromLatin1(id), -1, -1, p.object});
+                    // (and where the frame is, in cells, and the id its picture has: the object is put in a window as an object, from this)
+                    const DrawingAnchor a = anchorOf(p);
+                    ImportedFrame f;
+                    f.object = p.object;
+                    f.fromCol = a.from.col;
+                    f.fromRow = a.from.row;
+                    f.fromColOff = a.from.colOff;
+                    f.fromRowOff = a.from.rowOff;
+                    if (a.kind == AnchorKind::TwoCell) {
+                        f.toCol = a.to.col;
+                        f.toRow = a.to.row;
+                        f.toColOff = a.to.colOff;
+                        f.toRowOff = a.to.rowOff;
+                    } else {
+                        quint32 col = 0, row = 0;
+                        qint64 dx = 0, dy = 0;
+                        m_grid.columnAt(p.x + p.cx, &col, &dx);
+                        m_grid.rowAt(p.y + p.cy, &row, &dy);
+                        f.toCol = col;
+                        f.toRow = row;
+                        f.toColOff = dx;
+                        f.toRowOff = dy;
+                    }
+                    static const QRegularExpression embed(QStringLiteral("r:embed=\"([^\"]+)\""));
+                    const QRegularExpressionMatch m = embed.match(QString::fromUtf8(element));
+                    frameEmbeds.push_back(m.hasMatch() ? m.captured(1) : QString());
+                    m_out->frames.push_back(f);
+                }
             }
             // (a shape of math is the choice of the programs that read it)
             if (p.item->type() == ItemType::Equation)
@@ -1100,6 +1130,12 @@ private:
             }
             m_out->rels.push_back({rel.id, index});
         }
+        for (int i = 0; i < m_out->frames.size() && i < frameEmbeds.size(); ++i)
+            for (const ImportedRel &r : std::as_const(m_out->rels))
+                if (r.object < 0 && r.chart < 0 && r.media >= 0 && r.id == frameEmbeds[i]) {
+                    m_out->frames[i].media = r.media;
+                    break;
+                }
     }
 };
 

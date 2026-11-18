@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <map>
 
 namespace jp::office::sheet {
@@ -749,10 +750,74 @@ private:
 
 } // namespace
 
-std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
+namespace {
+
+// The drawing without the frames of embedded objects of another kind (the anchors that name an object, and the relationships and packages they used): a window that holds the objects as objects
+// has them written in the sheet instead. The pictures of the frames are left in the media the drawing has, with no anchor that names them.
+void dropFramesOfObjects(ImportedDrawing *d)
 {
+    if (d->objects.isEmpty() && d->frames.isEmpty()) return;
+    const QByteArray mark = "<a:ext uri=\"" + QByteArray(odsdraw::kObjectUri) + "\"";
+    QVector<QByteArray> kept;
+    for (const QByteArray &a : std::as_const(d->anchors))
+        if (!a.contains(mark)) kept.push_back(a);
+    d->anchors = kept;
+    QVector<ImportedRel> rels;
+    for (const ImportedRel &r : std::as_const(d->rels))
+        if (r.object < 0) rels.push_back(r);
+    d->rels = rels;
+    d->objects.clear();
+    d->frames.clear();
+}
+
+// What a frame of an embedded object of another kind is as an object: its package or binary part, the picture the file gave it (a PNG kept as it is, any other kind as the file had it), and
+// its place in cells. Nothing if the caps do not let it be held (the budget is the workbook's).
+std::optional<HeldObject> heldObjectOf(const ImportedDrawing &d, const ImportedFrame &f, ole::ObjectBudget *budget)
+{
+    if (f.object < 0 || f.object >= d.objects.size()) return std::nullopt;
+    const ImportedObject &o = d.objects[f.object];
+    QByteArray picture, extension;
+    if (f.media >= 0 && f.media < d.media.size()) {
+        picture = d.media[f.media].bytes;
+        extension = d.media[f.media].name.mid(d.media[f.media].name.lastIndexOf(QLatin1Char('.')) + 1).toLower().toLatin1();
+    }
+    const bool ours = o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other;
+    // (a picture that is not a PNG is kept as it is: the object core keeps only a PNG as its picture)
+    std::optional<ole::EmbeddedObject> kept = ole::keepObject(ours ? o.progId : QString(), o.bytes, picture, 0, 0, *budget);
+    if (!kept) return std::nullopt;
+    if (!ours) {
+        kept->progId.clear();
+        kept->isOurs = false;
+        kept->odfForm = ole::odfFormOfName(o.odf);
+        kept->mediaType = o.mediaType;
+    }
+    if (kept->previewPng.isEmpty() && !picture.isEmpty() && budget->admit(0, picture.size())) {
+        kept->otherPicture = picture;
+        kept->otherPictureExt = QString::fromLatin1(extension);
+        const char *type = odt::contentTypeOf(QString::fromLatin1(extension));
+        kept->otherPictureType = type ? QString::fromLatin1(type) : QString();
+    }
+    HeldObject h;
+    h.object = *kept;
+    h.anchor.kind = AnchorKind::TwoCell;
+    h.anchor.from = {f.fromCol, f.fromRow, f.fromColOff, f.fromRowOff};
+    h.anchor.to = {f.toCol, f.toRow, f.toColOff, f.toRowOff};
+    // (the size the cells give it, as a reader of an embedded object's place measures it)
+    h.object.widthEmu = std::max<qint64>(0, (qint64(f.toCol) - qint64(f.fromCol)) * 609600 + f.toColOff - f.fromColOff);
+    h.object.heightEmu = std::max<qint64>(0, (qint64(f.toRow) - qint64(f.fromRow)) * 190500 + f.toRowOff - f.fromRowOff);
+    return h;
+}
+
+} // namespace
+
+std::shared_ptr<const Package> makeObjectPackage(const Workbook &book, std::shared_ptr<const std::vector<std::vector<HeldObject>>> *heldOut)
+{
+    if (heldOut) heldOut->reset();
     const ForeignBook *foreign = book.foreignBook();
     if (!foreign) return nullptr;
+    auto held = std::make_shared<std::vector<std::vector<HeldObject>>>(size_t(book.info().sheets.size()));
+    ole::ObjectBudget heldBudget;
+    bool anyHeld = false;
     const QString drawingType = QString(kRelNs) + QStringLiteral("/drawing"), imageType = QString(kRelNs) + QStringLiteral("/image");
     PackageWriter writer;
     int drawings = 0, mediaFiles = 0, chartFiles = 0, objectFiles = 0;
@@ -761,6 +826,13 @@ std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
         if (!foreign->mayHaveDrawings(i)) continue;
         Sheet sheet;
         if (!book.readSheet(i, &sheet) || sheet.importedDrawing.isEmpty()) continue;
+        for (const ImportedFrame &f : std::as_const(sheet.importedDrawing.frames))
+            if (const std::optional<HeldObject> h = heldObjectOf(sheet.importedDrawing, f, &heldBudget)) {
+                (*held)[size_t(i)].push_back(*h);
+                anyHeld = true;
+            }
+        dropFramesOfObjects(&sheet.importedDrawing);
+        if (sheet.importedDrawing.isEmpty()) continue;
         const ImportedDrawing &d = sheet.importedDrawing;
         const QString sheetPart = baseSheetPart(i), drawingPart = QStringLiteral("/xl/drawings/drawing%1.xml").arg(++drawings);
         writer.addPart(sheetPart, QByteArray("<worksheet/>"), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"));
@@ -794,6 +866,7 @@ std::shared_ptr<const Package> makeObjectPackage(const Workbook &book)
             else if (r.chart >= 0 && r.chart < partOfChart.size()) writer.addRelationshipWithId(drawingPart, r.id, chartType, partOfChart[r.chart]);
         }
     }
+    if (heldOut && anyHeld) *heldOut = held;
     if (drawings == 0) return nullptr;
     auto package = std::make_shared<Package>();
     QString why;
@@ -898,6 +971,11 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             if (drawingOf[size_t(i)] != 0 || !foreign->mayHaveDrawings(i)) continue;
             Sheet look;
             if (!book.readSheet(i, &look) || look.importedDrawing.isEmpty()) continue;
+            // (a workbook that a window holds the objects of has them written in the sheets as objects, not in the drawings)
+            if (book.heldObjects()) {
+                dropFramesOfObjects(&look.importedDrawing);
+                if (look.importedDrawing.isEmpty()) continue;
+            }
             importedOf[size_t(i)] = std::move(look.importedDrawing);
             if (!keepOdfObjects && dropForeignObjects(&importedOf[size_t(i)]) && notes && !notes->contains(foreignNote)) notes->append(foreignNote);
             readFirst[size_t(i)] = std::make_unique<Sheet>(std::move(look));

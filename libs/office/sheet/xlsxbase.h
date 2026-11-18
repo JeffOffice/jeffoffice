@@ -27,7 +27,9 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullp
 
 // For a workbook read from an OpenDocument spreadsheet: a package with the drawing parts, relationships, and pictures of the sheets that have drawing objects (each sheet's part is a stand-in), named as
 // writeBaseXlsx names them. Null if the workbook has none. The sheets that may have objects are read whole to find them.
-std::shared_ptr<const Package> makeObjectPackage(const Workbook &book);
+// The embedded objects the OpenDocument file held (sheet/drawing.h, HeldObject) are not in the package's drawings: they are given in `held` (if given; null if there are none), which the
+// workbook is then given (Workbook::setHeldObjects), so that the .xlsx a save writes does not have them in its drawings either: a window puts them in the sheets as objects.
+std::shared_ptr<const Package> makeObjectPackage(const Workbook &book, std::shared_ptr<const std::vector<std::vector<HeldObject>>> *held = nullptr);
 
 // The XML of one font, fill, border, cell format (`xfId` is the style format it follows; `cellFormat` writes the apply attributes of a cell format) as the styles part has it, without a
 // prefix, for putting in a styles part that is changed (see xlsxsave.h); and the alignment element of a format, empty if it has none.

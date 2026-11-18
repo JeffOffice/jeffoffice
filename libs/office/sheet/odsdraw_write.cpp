@@ -10,13 +10,16 @@
 #include "office/drawingml.h"
 #include "office/drawingml_write.h"
 #include "office/package.h"
+#include "render/metafile.h"
 #include "office/mathobject.h"
 #include "office/chart.h"
 #include "office/theme.h"
 #include "office/xml.h"
 #include "wml/wmlmathpath.h"
 
+#include <QBuffer>
 #include <QCryptographicHash>
+#include <QImageReader>
 #include <QCoreApplication>
 #include <QDomDocument>
 #include <QTextBlock>
@@ -160,15 +163,23 @@ public:
                 note(QCoreApplication::translate("Sheet", "drawing objects past the %1 a workbook may have").arg(kMaxWorkbookObjects));
                 break;
             }
-            if (o.object.previewPng.isEmpty() || o.object.partBytes.isEmpty()) {
-                note(QCoreApplication::translate("Sheet", "embedded objects that have no picture"));
-                continue;
+            if (o.object.partBytes.isEmpty()) continue;
+            // the replacement image is the object's PNG, or the picture the file had drawn as one (a metafile, or a kind of picture Qt reads); an object with none is kept without one
+            QByteArray png = o.object.previewPng;
+            if (png.isEmpty() && !o.object.otherPicture.isEmpty()) png = pngOfOtherPicture(o.object.otherPicture);
+            const bool withPicture = !png.isEmpty();
+            if (!withPicture) {
+                note(QCoreApplication::translate("Sheet", "embedded objects whose picture can't be drawn (saved without one)"));
+                QImage blank(1, 1, QImage::Format_ARGB32);
+                blank.fill(Qt::transparent);
+                png = ole::pngOf(blank);   // (stands in while the frame is made, and is taken out of it)
             }
             qint64 x = 0, y = 0, cx = 0, cy = 0;
             m_grid.boxOf(o.anchor, &x, &y, &cx, &cy);
             const QString imageId = QStringLiteral("ole%1").arg(m_images.size() + 1);
-            m_images[imageId] = o.object.previewPng;
+            m_images[imageId] = png;
             m_imageFormats[imageId] = QStringLiteral("png");
+            const qsizetype picturesBefore = m_out->pictures.size();
             PictureItem pic;
             pic.name = QStringLiteral("Object %1").arg(z + 1);
             pic.fill = Fill();
@@ -178,7 +189,20 @@ public:
             pic.imgRect = pic.rect;
             QString xml = emit(pic, double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0, &o.anchor, z);
             if (xml.isEmpty()) continue;
-            objectFrame(o.object, &xml);
+            qsizetype at = -1;
+            if (!withPicture) {
+                // (no picture: the stand-in is taken out of the frame and of the file, and the object's element goes where it was)
+                at = xml.indexOf(QLatin1String("<draw:image"));
+                const qsizetype end = at < 0 ? -1 : xml.indexOf(QLatin1String("/>"), at);
+                if (end > at) xml.remove(at, end + 2 - at);
+                while (m_out->pictures.size() > picturesBefore) {
+                    m_pictureNames.remove(m_out->pictures.back().first);
+                    *m_pictureBytes -= m_out->pictures.back().second.size();
+                    m_out->pictures.pop_back();
+                }
+                m_fileOfImage.remove(imageId);
+            }
+            objectFrame(o.object, &xml, at);
             ++z;
             quint32 bottom = 0;
             qint64 inRow = 0;
@@ -498,10 +522,30 @@ private:
         frame->insert(at, QStringLiteral("<draw:%1 xlink:href=\"./%2\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>").arg(done.value().second ? QStringLiteral("object") : QStringLiteral("object-ole"), done.value().first));
     }
 
-    // An object's package written as the parts of the file, and the frame given the object's element before its picture's (an object over the caps is left as its picture).
-    void objectFrame(const ole::EmbeddedObject &object, QString *frame)
+    // A picture the file had that is not a PNG, as a PNG: a metafile is drawn, any other kind that Qt reads is read (empty if it can't be, or it is larger than the object core's caps).
+    static QByteArray pngOfOtherPicture(const QByteArray &bytes)
     {
-        const qsizetype at = frame->indexOf(QLatin1String("<draw:image"));
+        QImage image;
+        if (Metafile::looksLikeMetafile(bytes)) {
+            Metafile mf;
+            if (mf.load(bytes) && mf.isValid()) image = mf.toImage(1600);
+        } else {
+            QBuffer buffer;
+            buffer.setData(bytes);
+            buffer.open(QIODevice::ReadOnly);
+            QImageReader reader(&buffer);
+            const QSize size = reader.size();
+            if (!size.isValid() || size.width() > ole::limits().pictureSide || size.height() > ole::limits().pictureSide || qint64(size.width()) * size.height() * 4 > (qint64(64) << 20)) return QByteArray();
+            image = reader.read();
+        }
+        return ole::pngOf(image);
+    }
+
+    // An object's package written as the parts of the file, and the frame given the object's element before its picture's (an object over the caps is left as its picture).
+    // `insertAt`, when it is not -1, is where the element goes (the frame has no picture to go before).
+    void objectFrame(const ole::EmbeddedObject &object, QString *frame, qsizetype insertAt = -1)
+    {
+        const qsizetype at = insertAt >= 0 ? insertAt : frame->indexOf(QLatin1String("<draw:image"));
         const qint64 size = object.partBytes.size();
         if (!m_objectBudget || at < 0) return;
         if (size <= 0 || size > ole::limits().objectBytes || !m_objectBudget->admit(size)) {

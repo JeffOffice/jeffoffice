@@ -87,6 +87,8 @@ public:
         m_embeds.setEditsSource(m_edits);
     }
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
+    // Where the sheet a sheet was copied from is asked (-1: it is no copy): a copy has objects of its own.
+    void setCopySource(SheetEmbeds::CopySource source) { m_embeds.setCopySource(std::move(source)); }
     // Where the text of a cell is asked (as a barcode linked to the cell holds it).
     using CellTextSource = std::function<QString(int sheet, quint32 row, quint32 col)>;
     void setCellTextSource(CellTextSource text) { m_cellText = std::move(text); }

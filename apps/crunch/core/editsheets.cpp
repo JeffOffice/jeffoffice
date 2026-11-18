@@ -147,6 +147,12 @@ const EditSession::CopyPoint *EditSession::copyPointOf(int sheet) const
     return nullptr;
 }
 
+int EditSession::copiedFrom(int sheet) const
+{
+    const CopyPoint *c = copyPointOf(sheet);
+    return c ? c->source : -1;
+}
+
 // What a copy of the sheet does not have, in a sentence for the person (empty if the copy has all of it): the pictures, charts, notes, and the like that the sheet's part is related to, the
 // extensions of its file that the program keeps no model of, and the names that belong to the sheet alone.
 QString EditSession::notCopiedNote(int sheet) const
@@ -164,10 +170,20 @@ QString EditSession::notCopiedNote(int sheet) const
         };
         const Kind kinds[] = {{"/drawing", tr("pictures and charts")}, {"/image", tr("pictures and charts")}, {"/comments", tr("notes")}, {"/vmlDrawing", tr("notes")},
                               {"/legacyDrawing", tr("notes")}, {"/threadedComment", tr("notes")}, {"/pivotTable", tr("pivot tables")}, {"/queryTable", tr("connections to outside data")},
-                              {"/ctrlProp", tr("form controls")}, {"/control", tr("form controls")}, {"/oleObject", tr("embedded objects")}, {"/package", tr("embedded objects")},
-                              {"/slicer", tr("slicers")}, {"/timeline", tr("slicers")}};
-        for (const Kind &k : kinds)
-            if (!book.package().relationshipsOfType(part, QString::fromLatin1(k.type)).isEmpty()) add(k.what);
+                              {"/ctrlProp", tr("form controls")}, {"/control", tr("form controls")}, {"/slicer", tr("slicers")}, {"/timeline", tr("slicers")}};
+        // (the embedded objects are copied with the sheet, and so are their pictures: an image the sheet is related to for an object is no picture left behind)
+        QSet<QString> objectPictures;
+        std::vector<jp::office::sheet::OleChild> children;
+        if (jp::office::sheet::readSheetOleChildren(book.package(), part, &children))
+            for (const jp::office::sheet::OleChild &c : children) objectPictures.insert(c.pictureRel);
+        for (const Kind &k : kinds) {
+            const QVector<jp::office::Relationship> rels = book.package().relationshipsOfType(part, QString::fromLatin1(k.type));
+            for (const jp::office::Relationship &r : rels)
+                if (!(QLatin1String(k.type) == QLatin1String("/image") && objectPictures.contains(r.id))) {
+                    add(k.what);
+                    break;
+                }
+        }
     }
     if (!m_book->book->pivots().tablesOn(sheet).empty()) add(tr("pivot tables"));   // (a table made in this session has no part in the package yet)
     for (const QString &id : m_book->calc->sheet(sheet).notKept) {

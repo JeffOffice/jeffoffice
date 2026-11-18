@@ -1053,6 +1053,8 @@ public:
 
     // The edits that insert or delete rows, columns, or cells since the file was read or saved that are done (not undone), in order: what the objects over the cells are moved by.
     const std::vector<jp::office::sheet::StructEdit> &structureEdits() const { return m_edits; }
+    // The sheet the sheet is a copy of (made since the file was read or saved, and done), or -1.
+    int copiedFrom(int sheet) const;
     // The renames and deletes of sheets since the file was read or saved that are done (not undone), in order: what the charts' references follow.
     const std::vector<jp::office::sheet::SheetOp> &sheetOperations() const { return m_sheetOps; }
 

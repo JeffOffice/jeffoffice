@@ -911,7 +911,9 @@ void CrunchWindow::updateChartState()
     act(QStringLiteral("chartdesign.saveAsPicture"))->setEnabled(chart);
     act(QStringLiteral("chartdesign.saveTemplate"))->setEnabled(chart);
     act(QStringLiteral("chartdesign.applyTemplate"))->setEnabled(editable);
-    for (const char *name : {"object.properties", "object.front", "object.forward", "object.backward", "object.back", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
+    for (const char *name : {"object.properties", "object.delete"}) act(QString::fromLatin1(name))->setEnabled(picked);
+    // (an object from another app is not one of the drawing's: it has no place in their order to bring forward or send back)
+    for (const char *name : {"object.front", "object.forward", "object.backward", "object.back"}) act(QString::fromLatin1(name))->setEnabled(picked && !crunch::isEmbedId(id));
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Chart"), chart);
     {
         const ObjectKind kind = picked ? m_objects->kindOf(m_sheet, id) : ObjectKind::Other;

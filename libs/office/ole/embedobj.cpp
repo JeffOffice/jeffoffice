@@ -153,6 +153,28 @@ OdfForm odfFormOfName(const QString &name)
     return name == QLatin1String("folder") ? OdfForm::Folder : name == QLatin1String("binary") ? OdfForm::Binary : OdfForm::None;
 }
 
+namespace {
+const QLatin1String kOdfProgIdPrefix("jeffoffice-odf:");
+}
+
+QString odfProgId(OdfForm form, const QString &mediaType)
+{
+    return form == OdfForm::None ? QString() : kOdfProgIdPrefix + odfFormName(form) + QLatin1Char(':') + mediaType;
+}
+
+bool parseOdfProgId(const QString &progId, OdfForm *form, QString *mediaType)
+{
+    if (!progId.startsWith(kOdfProgIdPrefix)) return false;
+    const QString rest = progId.mid(kOdfProgIdPrefix.size());
+    const qsizetype colon = rest.indexOf(QLatin1Char(':'));
+    if (colon < 0) return false;
+    const OdfForm f = odfFormOfName(rest.left(colon));
+    if (f == OdfForm::None) return false;
+    *form = f;
+    *mediaType = rest.mid(colon + 1);
+    return true;
+}
+
 std::optional<EmbeddedObject> keepObject(const QString &progId, const QByteArray &partBytes, const QByteArray &previewPng, qint64 widthEmu, qint64 heightEmu, ObjectBudget &budget, const QString &origin)
 {
     if (partBytes.size() > limits().objectBytes) return std::nullopt;
