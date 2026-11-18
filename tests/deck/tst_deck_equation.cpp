@@ -830,8 +830,8 @@ private Q_SLOTS:
         QCOMPARE(firstEquation(*ed->doc())->markup, markup);
     }
 
-    // Review > Compare has its button on the ribbon, and it is hidden while the command has not been made (the compare window makes it): a hidden command stands in, and the button follows it.
-    void theCompareButtonIsOnTheReviewTabAndHiddenWhileItHasNoCommand()
+    // Review > Compare has its button on the ribbon and shows (the window makes the command), and a button follows its command: hidden, it and the group that holds only it show nothing.
+    void theCompareButtonIsOnTheReviewTabAndFollowsItsCommand()
     {
         DeckWindow w;
         QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
@@ -844,20 +844,20 @@ private Q_SLOTS:
         };
         QToolButton *b = button();
         QVERIFY(b);
-        QVERIFY(!compare->isVisible());
-        QVERIFY(b->isHidden());
-        // (the group that holds only it shows nothing either: no empty box on the tab)
+        QVERIFY(compare->isVisible());
+        QVERIFY(!b->isHidden());
         RibbonGroup *group = nullptr;
         for (RibbonGroup *g : w.ribbon()->tab(QStringLiteral("Review"))->groups())
             if (g->title() == QLatin1String("Compare")) group = g;
         QVERIFY(group);
+        QVERIFY(!group->userHidden());
+        // (hidden, the group that holds only it shows nothing either: no empty box on the tab)
+        compare->setVisible(false);
+        QVERIFY(b->isHidden());
         QVERIFY(group->userHidden());
         compare->setVisible(true);
         QVERIFY(!b->isHidden());
         QVERIFY(!group->userHidden());
-        compare->setVisible(false);
-        QVERIFY(b->isHidden());
-        QVERIFY(group->userHidden());
     }
 
     // A group the person hid in Customize stays hidden when its command comes (the button group's own "nothing to show" is not the person's choice), and applying leaves other groups alone.
