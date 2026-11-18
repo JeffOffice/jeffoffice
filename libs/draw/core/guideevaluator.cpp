@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace jp::office {
+namespace jp {
 
 namespace {
 
@@ -48,7 +48,13 @@ GuideEvaluator::GuideEvaluator(double width, double height)
 void GuideEvaluator::define(const QString &name, const QString &formula)
 {
     if (name.isEmpty() || m_values.contains(name) || m_formulas.contains(name) || m_formulas.size() >= kMaxGuides) return;
-    m_formulas.insert(name, formula);
+    m_formulas.insert(name, formula.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts));
+}
+
+void GuideEvaluator::define(const QString &name, const QStringList &words)
+{
+    if (name.isEmpty() || m_values.contains(name) || m_formulas.contains(name) || m_formulas.size() >= kMaxGuides) return;
+    m_formulas.insert(name, words);
 }
 
 void GuideEvaluator::set(const QString &name, double value)
@@ -78,9 +84,8 @@ double GuideEvaluator::value(const QString &token)
     return ok ? finite(number) : 0.0;
 }
 
-double GuideEvaluator::evaluate(const QString &formula)
+double GuideEvaluator::evaluate(const QStringList &parts)
 {
-    const QStringList parts = formula.simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
     if (parts.isEmpty()) return 0;
     const QString &op = parts[0];
     auto arg = [&](int i) { return i < parts.size() ? value(parts[i]) : 0.0; };
@@ -106,4 +111,4 @@ double GuideEvaluator::evaluate(const QString &formula)
     return finite(r);
 }
 
-} // namespace jp::office
+} // namespace jp

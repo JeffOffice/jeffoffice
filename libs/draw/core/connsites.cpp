@@ -2,6 +2,8 @@
 
 #include "core/guideevaluator.h"
 
+#include <QSet>
+
 #include <algorithm>
 #include <cmath>
 
@@ -27,6 +29,51 @@ const Entry *entryOf(const QString &name)
         return m;
     }();
     return byName.value(name, nullptr);
+}
+
+// A preset's lists, split once: its guides' formulas as words, and its sites' three names.
+struct Guide {
+    QString name;
+    QStringList words;
+};
+struct Site {
+    QString angle, x, y;
+};
+struct Parsed {
+    QVector<Guide> adjustments, guides;
+    QSet<QString> adjustmentNames;
+    QVector<Site> sites;
+};
+
+QVector<Guide> guidesOf(const char *text)
+{
+    QVector<Guide> out;
+    for (const QString &line : QString::fromLatin1(text).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+        const QStringList words = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+        if (words.size() >= 2) out.push_back({words[0], words.mid(1)});
+    }
+    return out;
+}
+
+const Parsed *parsedOf(const QString &name)
+{
+    static const QHash<QString, Parsed> table = [] {
+        QHash<QString, Parsed> m;
+        for (const Entry &e : kPresets) {
+            Parsed p;
+            p.adjustments = guidesOf(e.adjustments);
+            p.guides = guidesOf(e.guides);
+            for (const Guide &g : p.adjustments) p.adjustmentNames.insert(g.name);
+            for (const QString &line : QString::fromLatin1(e.sites).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
+                const QStringList parts = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+                if (parts.size() == 3) p.sites.push_back({parts[0], parts[1], parts[2]});
+            }
+            m.insert(QString::fromLatin1(e.name), p);
+        }
+        return m;
+    }();
+    const auto it = table.constFind(name);
+    return it == table.constEnd() ? nullptr : &*it;
 }
 
 // The standard's names for the shape library's own where they differ.
@@ -100,6 +147,15 @@ int standardConnectionSiteCount(const QString &preset)
     return e ? e->count : -1;
 }
 
+QStringList presetAdjustmentNames(const QString &preset)
+{
+    const Parsed *p = parsedOf(standardName(preset));
+    QStringList out;
+    if (p)
+        for (const Guide &g : p->adjustments) out << g.name;
+    return out;
+}
+
 bool hasConnectionSites(const QString &preset)
 {
     return entryOf(standardName(preset)) != nullptr;
@@ -107,34 +163,31 @@ bool hasConnectionSites(const QString &preset)
 
 QVector<ConnectionSite> connectionSites(const QString &preset, const QSizeF &size, const QHash<QString, double> &adj)
 {
-    const Entry *e = entryOf(standardName(preset));
-    if (!e || !(size.width() >= 0) || !(size.height() >= 0) || !std::isfinite(size.width()) || !std::isfinite(size.height())) return sidesOf(size);
+    const Parsed *p = parsedOf(standardName(preset));
+    if (!p || !(size.width() >= 0) || !(size.height() >= 0) || !std::isfinite(size.width()) || !std::isfinite(size.height())) return sidesOf(size);
     // (The formulas run in points: they are ratios of the box's sides.)
-    office::GuideEvaluator ev(size.width(), size.height());
-    for (auto it = adj.constBegin(); it != adj.constEnd(); ++it) ev.set(it.key(), it.value());
-    const auto each = [](const char *text, const auto &fn) {
-        for (const QString &line : QString::fromLatin1(text).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-            const qsizetype space = line.indexOf(QLatin1Char(' '));
-            if (space > 0) fn(line.left(space), line.mid(space + 1));
-        }
-    };
-    each(e->adjustments, [&](const QString &name, const QString &formula) { ev.define(name, formula); });
-    each(e->guides, [&](const QString &name, const QString &formula) { ev.define(name, formula); });
+    GuideEvaluator ev(size.width(), size.height());
+    // Only the adjustments the preset itself defines are taken: a file cannot reach the built-in names (w, h, ss, cd2) or the guides through them.
+    for (auto it = adj.constBegin(); it != adj.constEnd(); ++it)
+        if (p->adjustmentNames.contains(it.key())) ev.set(it.key(), it.value());
+    for (const Guide &g : p->adjustments) ev.define(g.name, g.words);
+    for (const Guide &g : p->guides) ev.define(g.name, g.words);
     QVector<ConnectionSite> out;
-    for (const QString &line : QString::fromLatin1(e->sites).split(QLatin1Char('\n'), Qt::SkipEmptyParts)) {
-        const QStringList parts = line.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-        if (parts.size() != 3) continue;
-        out.push_back({QPointF(ev.value(parts[1]), ev.value(parts[2])), degrees(ev.value(parts[0]))});
-    }
+    out.reserve(p->sites.size());
+    for (const Site &s : p->sites) out.push_back({QPointF(ev.value(s.x), ev.value(s.y)), degrees(ev.value(s.angle))});
     return out;
 }
 
 int sideConnectionSite(const QString &preset, const QSizeF &size, const QHash<QString, double> &adj, int side)
 {
+    return sideConnectionSite(connectionSites(preset, size, adj), size, side);
+}
+
+int sideConnectionSite(const QVector<ConnectionSite> &sites, const QSizeF &size, int side)
+{
     static const double angles[4] = {270, 180, 90, 0};
     static const QPointF middles[4] = {{0.5, 0}, {0, 0.5}, {0.5, 1}, {1, 0.5}};
     if (side < 0 || side > 3) return -1;
-    const QVector<ConnectionSite> sites = connectionSites(preset, size, adj);
     const QPointF mid(middles[side].x() * size.width(), middles[side].y() * size.height());
     int best = -1;
     double nearest = 0;

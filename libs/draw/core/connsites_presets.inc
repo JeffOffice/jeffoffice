@@ -4619,6 +4619,18 @@ cd4 l b
 cd4 x2 b
 cd4 r b
 0 x3 vc)"},
+{"upArrow", 4,
+R"(adj1 val 50000
+adj2 val 50000)",
+R"(maxAdj2 */ 100000 h ss
+a1 pin 0 adj1 100000
+a2 pin 0 adj2 maxAdj2
+dy2 */ ss a2 100000
+y2 +- t dy2 0)",
+R"(3cd4 hc t
+cd2 l y2
+cd4 hc b
+0 r y2)"},
 {"upArrowCallout", 4,
 R"(adj1 val 25000
 adj2 val 25000
@@ -4646,28 +4658,6 @@ y3 +/ y2 b 2)",
 R"(3cd4 hc t
 cd2 l y2
 cd4 hc b
-0 r y2)"},
-{"upDownArrow", 8,
-R"(adj1 val 50000
-adj2 val 50000)",
-R"(maxAdj2 */ 50000 h ss
-a1 pin 0 adj1 100000
-a2 pin 0 adj2 maxAdj2
-y2 */ ss a2 100000
-y3 +- b 0 y2
-dx1 */ w a1 200000
-x1 +- hc 0 dx1
-x2 +- hc dx1 0
-dy1 */ x1 y2 wd2
-y1 +- y2 0 dy1
-y4 +- y3 dy1 0)",
-R"(3cd4 hc t
-cd2 l y2
-cd2 x1 vc
-cd2 l y3
-cd4 hc b
-0 r y3
-0 x2 vc
 0 r y2)"},
 {"upDownArrow", 8,
 R"(adj1 val 50000

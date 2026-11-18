@@ -3615,18 +3615,33 @@ bool connectionSite(const QRectF &r, const QString &preset, const QHash<QString,
     return true;
 }
 
-// The adjustments a shape's geometry names, by the standard's names ("adj1"), in the standard's units.
+// The adjustments a shape's geometry (its a:prstGeom, under any prefix) gives, by the standard's names ("adj1"), in the standard's units: the `val N` entries whose names the preset itself defines.
 QHash<QString, double> adjustmentsOf(const QByteArray &graphic)
 {
     QHash<QString, double> out;
-    const qsizetype start = graphic.indexOf("<a:prstGeom");
-    const qsizetype end = start < 0 ? -1 : graphic.indexOf("</a:prstGeom>", start);
-    if (end < 0) return out;
-    static const QRegularExpression gd(QStringLiteral("<a:gd\\s+name=\"([A-Za-z0-9]{1,16})\"\\s+fmla=\"val\\s+(-?[0-9]{1,15})\""));
-    const QString text = QString::fromUtf8(graphic.mid(start, end - start));
-    for (auto it = gd.globalMatch(text); it.hasNext() && out.size() < 16;) {
-        const auto m = it.next();
-        out.insert(m.captured(1), m.captured(2).toDouble());
+    QXmlStreamReader r(graphic);
+    r.setNamespaceProcessing(false);
+    const auto local = [](const QStringView name) { return name.mid(name.lastIndexOf(QLatin1Char(':')) + 1); };
+    QStringList allowed;
+    bool inGeometry = false;
+    int seen = 0;
+    while (!r.atEnd() && ++seen < 4096) {
+        const QXmlStreamReader::TokenType t = r.readNext();
+        if (t == QXmlStreamReader::StartElement) {
+            const QStringView name = local(r.qualifiedName());
+            if (!inGeometry && name == QLatin1String("prstGeom")) {
+                inGeometry = true;
+                allowed = presetAdjustmentNames(r.attributes().value(QLatin1String("prst")).toString());
+            } else if (inGeometry && name == QLatin1String("gd")) {
+                const QString gdName = r.attributes().value(QLatin1String("name")).toString();
+                const QStringList fmla = r.attributes().value(QLatin1String("fmla")).toString().simplified().split(QLatin1Char(' '));
+                bool ok = false;
+                const double value = fmla.size() == 2 && fmla[0] == QLatin1String("val") ? fmla[1].toDouble(&ok) : 0.0;
+                if (ok && std::isfinite(value) && allowed.contains(gdName)) out.insert(gdName, value);
+            }
+        } else if (t == QXmlStreamReader::EndElement && inGeometry && local(r.qualifiedName()) == QLatin1String("prstGeom")) {
+            break;
+        }
     }
     return out;
 }

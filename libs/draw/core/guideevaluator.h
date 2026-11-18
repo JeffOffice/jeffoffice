@@ -5,8 +5,9 @@
 #include <QHash>
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
-namespace jp::office {
+namespace jp {
 
 // Evaluates guide formulas, such as "*/ w adj1 100000" (x * y / z). The
 // operators are */ +- +/ ?: abs at2 cat2 cos max min mod pin sat2 sin sqrt
@@ -21,18 +22,20 @@ public:
     GuideEvaluator(double width, double height);
     // Defines a guide by its formula; a name defined already keeps its value.
     void define(const QString &name, const QString &formula);
+    // The same for a formula already split into its words (a list that is used again and again splits once).
+    void define(const QString &name, const QStringList &words);
     // Defines a name as a number.
     void set(const QString &name, double value);
     // The value of a name or of a number written out.
     double value(const QString &token);
 
 private:
-    double evaluate(const QString &formula);
+    double evaluate(const QStringList &parts);
 
     QHash<QString, double> m_values;
-    QHash<QString, QString> m_formulas;
+    QHash<QString, QStringList> m_formulas;
     QSet<QString> m_active;
     int m_depth = 0;
 };
 
-} // namespace jp::office
+} // namespace jp

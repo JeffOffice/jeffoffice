@@ -21,6 +21,8 @@
 
 namespace jp::office {
 
+using jp::GuideEvaluator;
+
 // One a:path, in points relative to the shape's frame.
 struct GeometryPath {
     // How the path is filled: not at all, or as the shape's fill, or with that

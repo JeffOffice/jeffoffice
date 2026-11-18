@@ -22,6 +22,7 @@
 #include "core/barcode.h"
 #include "core/svg.h"
 #include "core/connsites.h"
+#include "render/shapes.h"
 #include <QScrollBar>
 #include <QSvgRenderer>
 #include "app/onlinepictures.h"
@@ -280,6 +281,24 @@ QByteArray gluedConnector(int id, int startId, int startSite, int endId, int end
 {
     return anchoredGraphic(id, kShapeUri, plainShape(100, 10, "straightConnector1", xfrm, "<wps:cNvCnPr><a:stCxn id=\"" + QByteArray::number(startId) + "\" idx=\"" + QByteArray::number(startSite) + "\"/><a:endCxn id=\"" +
                                                QByteArray::number(endId) + "\" idx=\"" + QByteArray::number(endSite) + "\"/></wps:cNvCnPr>", ""), 300, 300, 100, 10);
+}
+
+
+// A connector glued to site 5 of an octagon (the left side, x1 down from the top) at (100, 600), 100 by 100, and to a rectangle at (400, 400); the connector's frame tells where the site is.
+bool octagonSiteFrame(const QByteArray &geometry, PictureInfo *out)
+{
+    QByteArray octagon = plainShape(100, 100, "octagon");
+    octagon.replace("<a:prstGeom prst=\"octagon\"><a:avLst/></a:prstGeom>", geometry);
+    auto doc = open(makeDocx("<w:p>" + anchoredGraphic(5, kShapeUri, octagon, 100, 600, 100, 100) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 400, 400, 40, 40) +
+                             gluedConnector(4, 5, 5, 2, 0) + "</w:p>"));
+    if (!doc) return false;
+    if (rerouteConnectors(*doc, {{0, QRectF(100, 600, 100, 100)}}, [](int, QRectF *r) {
+            *r = QRectF(400, 400, 40, 40);
+            return true;
+        }) != 1)
+        return false;
+    *out = pictureAt(*doc, doc->story(), 2);
+    return true;
 }
 
 
@@ -3777,9 +3796,15 @@ private Q_SLOTS:
 
     void everyPresetHasTheStandardsSiteCountAndItsSitesLieInTheBox()
     {
-        // Every preset that the standard gives sites to (174 of its 187) has as many as the standard lists, at any size.
+        // Every preset that the standard gives sites to (174 of its 187, the up arrow among them) has as many as the standard lists, at any size.
         const QStringList presets = jp::presetsWithConnectionSites();
         QCOMPARE(int(presets.size()), 174);
+        QVERIFY(presets.contains(QStringLiteral("upArrow")));
+        QCOMPARE(jp::standardConnectionSiteCount(QStringLiteral("upArrow")), 4);
+        // The up arrow's sites are the tip, the left and right where the head ends, and the middle of the foot.
+        const QVector<jp::ConnectionSite> up = jp::connectionSites(QStringLiteral("upArrow"), QSizeF(100, 200));
+        QCOMPARE(int(up.size()), 4);
+        QVERIFY(std::abs(up[0].at.x() - 50) < 1e-6 && std::abs(up[0].at.y()) < 1e-6 && std::abs(up[2].at.y() - 200) < 1e-6 && std::abs(up[1].at.x()) < 1e-6 && std::abs(up[1].at.y() - 50) < 1e-6 && std::abs(up[3].at.x() - 100) < 1e-6);
         for (const QString &name : presets)
             for (const QSizeF size : {QSizeF(100, 100), QSizeF(300, 40), QSizeF(30, 200)}) {
                 const int count = jp::standardConnectionSiteCount(name);
@@ -3895,6 +3920,34 @@ private Q_SLOTS:
         w.setDocument(std::move(doc), QString());
         w.view()->refresh();
         QVERIFY(w.grab().save(dir + QStringLiteral("/connsites.png")));
+    }
+
+    void aFileCannotCollapseTheSitesWithBuiltInOrGuideNames()
+    {
+        PictureInfo plain, crafted;
+        QVERIFY(octagonSiteFrame("<a:prstGeom prst=\"octagon\"><a:avLst/></a:prstGeom>", &plain));
+        QVERIFY(std::abs(plain.height - 229.289) < 0.01);
+        // Names the octagon does not define as adjustments (the box's own, a guide, a bare constant) change nothing.
+        QVERIFY(octagonSiteFrame("<a:prstGeom prst=\"octagon\"><a:avLst><a:gd name=\"w\" fmla=\"val 0\"/><a:gd name=\"h\" fmla=\"val 0\"/><a:gd name=\"ss\" fmla=\"val 0\"/>"
+                                 "<a:gd name=\"cd2\" fmla=\"val 0\"/><a:gd name=\"x1\" fmla=\"val 0\"/><a:gd name=\"a\" fmla=\"val 0\"/><a:gd name=\"r\" fmla=\"val 0\"/></a:avLst></a:prstGeom>", &crafted));
+        QVERIFY2(std::abs(crafted.top - plain.top) < 1e-6 && std::abs(crafted.height - plain.height) < 1e-6, qPrintable(QString("%1 %2").arg(crafted.top).arg(crafted.height)));
+    }
+
+    void adjustmentsAreReadWhateverThePrefixQuotesOrAttributeOrder()
+    {
+        // The octagon's adj of 50000 puts site 5 half way down the left side, at 650; the frame then runs from there up to 400.
+        const char *ns = "http://schemas.openxmlformats.org/drawingml/2006/main";
+        const QVector<QByteArray> forms = {
+            "<a:prstGeom prst=\"octagon\"><a:avLst><a:gd name=\"adj\" fmla=\"val 50000\"/></a:avLst></a:prstGeom>",
+            "<a:prstGeom prst=\"octagon\"><a:avLst><a:gd fmla=\"val 50000\" name=\"adj\"/></a:avLst></a:prstGeom>",
+            "<a:prstGeom prst='octagon'><a:avLst><a:gd name='adj' fmla='val  50000'/></a:avLst></a:prstGeom>",
+            "<a:prstGeom prst=\"octagon\"><a:avLst><a:gd name=\"adj\" fmla=\"val 50000\"></a:gd></a:avLst></a:prstGeom>",
+            QByteArray("<x:prstGeom xmlns:x=\"") + ns + "\" prst=\"octagon\"><x:avLst><x:gd name=\"adj\" fmla=\"val 50000\"/></x:avLst></x:prstGeom>"};
+        for (const QByteArray &form : forms) {
+            PictureInfo info;
+            QVERIFY2(octagonSiteFrame(form, &info), form.constData());
+            QVERIFY2(std::abs(info.top - 400) < 0.01 && std::abs(info.height - 250) < 0.01, qPrintable(QString::fromLatin1(form) + QStringLiteral(" -> %1 %2").arg(info.top).arg(info.height)));
+        }
     }
 
     void connectPicksTheNearestRealSites()
