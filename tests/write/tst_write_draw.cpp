@@ -3861,6 +3861,58 @@ private Q_SLOTS:
         QVERIFY(near(jp::connectionSites(QStringLiteral("roundRect"), QSizeF(100, 60), {{QStringLiteral("adj"), 50000}})[1].at, QPointF(0, 30)));
     }
 
+    // The sites are where the standard puts them; the library must draw the shapes the same way, so every site lies on the drawn outline (JW_SITE_TABLE=1 prints every preset's worst distance).
+    void everyConnectionSiteLiesOnTheDrawnOutline()
+    {
+        const auto distance = [](const QVector<QPolygonF> &polys, const QPointF &p) {
+            double best = 1e18;
+            for (const QPolygonF &poly : polys)
+                for (int i = 0; i + 1 < poly.size(); ++i) {
+                    const QPointF a = poly[i], b = poly[i + 1], d = b - a;
+                    const double len2 = d.x() * d.x() + d.y() * d.y();
+                    const double t = len2 > 0 ? std::clamp(((p.x() - a.x()) * d.x() + (p.y() - a.y()) * d.y()) / len2, 0.0, 1.0) : 0.0;
+                    best = std::min(best, std::hypot(p.x() - (a.x() + t * d.x()), p.y() - (a.y() + t * d.y())));
+                }
+            return best;
+        };
+        // The presets whose drawing is not the standard's yet, with the worst distance measured (a limit: it may not grow, and a shape that comes within 1 pt must leave the list).
+        // The standard puts a site at the middle of an arc's, a chord's, and a block arc's sector, and at the top and bottom of a bracket or brace pair where only the fill covers the box;
+        // the library draws no fill there. The rest are shapes the library draws its own way: the curved, circular, and U-turn arrows, the ribbons, the clouds, and the not-equal sign.
+        // (The file reader draws arc, chord, and block arc from the standard's own paths already.) The multi-document's site is off its curve in the standard's own numbers.
+        const QHash<QString, double> exceptions = {
+            {"curvedUpArrow", 87.3}, {"curvedRightArrow", 87.3}, {"curvedLeftArrow", 87.3}, {"curvedDownArrow", 87.3}, {"bracketPair", 83.4}, {"bracePair", 66.7},
+            {"arc", 50.0}, {"chord", 45.7}, {"ellipseRibbon2", 38.0}, {"ellipseRibbon", 38.0}, {"uturnArrow", 37.5}, {"circularArrow", 37.3}, {"cloudCallout", 35.2},
+            {"ribbon2", 26.7}, {"ribbon", 26.7}, {"blockArc", 25.0}, {"cloud", 17.2}, {"mathNotEqual", 13.9}, {"fcMultidocument", 2.6}};
+        QVector<std::pair<double, QString>> bad, all;
+        for (const jp::ShapeDef &def : jp::shapeLibrary()) {
+            if (!jp::hasConnectionSites(def.id)) continue;
+            double worst = 0;
+            QString where;
+            for (const QSizeF size : {QSizeF(200, 100), QSizeF(100, 200), QSizeF(100, 100)}) {
+                QTransform flat;
+                const QVector<QPolygonF> polys = jp::shapePath(def.id, size).toSubpathPolygons(flat);
+                for (const jp::ConnectionSite &site : jp::connectionSites(def.id, size)) {
+                    const double d = distance(polys, site.at);
+                    if (d > worst) {
+                        worst = d;
+                        where = QStringLiteral("%1x%2").arg(size.width()).arg(size.height());
+                    }
+                }
+            }
+            all.push_back({worst, def.id});
+            if (worst > 1.0 && !exceptions.contains(def.id)) bad.push_back({worst, def.id + QLatin1Char(' ') + where});
+            else if (exceptions.contains(def.id) && (worst > exceptions.value(def.id) || worst <= 1.0)) bad.push_back({worst, def.id + QStringLiteral(" (an exception that is no longer true) ") + where});
+        }
+        std::sort(all.begin(), all.end(), std::greater<>());
+        if (qEnvironmentVariableIsSet("JW_SITE_TABLE"))
+            for (const auto &a : all) qDebug("SITE %s %.2f", qPrintable(a.second), a.first);
+        std::sort(bad.begin(), bad.end(), std::greater<>());
+        QStringList lines;
+        for (const auto &b : bad) lines << QStringLiteral("%1 %2").arg(b.second).arg(b.first, 0, 'f', 1);
+        QVERIFY2(bad.isEmpty(), qPrintable(QString::number(bad.size()) + QStringLiteral(" presets off the outline, worst first: ") + lines.join(QStringLiteral("; "))));
+        QVERIFY(all.size() > 100);
+    }
+
     void aConnectorGluedToANonSideSiteFollowsItsShapeAndAnIndexPastTheCountStaysPut()
     {
         auto doc = open(makeDocx("<w:p>" + anchoredGraphic(1, kShapeUri, plainShape(100, 100, "ellipse"), 100, 100, 100, 100) + anchoredGraphic(2, kShapeUri, plainShape(40, 40, "rect"), 400, 400, 40, 40) +

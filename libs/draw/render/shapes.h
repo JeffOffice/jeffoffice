@@ -18,6 +18,7 @@ struct AdjHandle {
     bool fromEnd = false;
     double other = 0;      // fixed position on the other axis, as a fraction of that dimension
     double min = 0, max = 0.5;
+    double limit = 0;      // above 0: the handle stays inside this fraction of the box along its axis (the shape's own range depends on the box's proportions)
 };
 
 using PathFn = QPainterPath (*)(double w, double h, const QVector<double> &a);

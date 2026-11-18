@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QtMath>
+#include <algorithm>
 #include <cmath>
 
 namespace jp {
@@ -75,24 +76,36 @@ QPainterPath polyV(const QVector<QPointF> &pts)
     return p;
 }
 
-QPainterPath starPath(double w, double h, int n, double inner)
+// Points on a circle of radius 1 (the first at `first` degrees, going clockwise), stretched so that the outer ones fill the box, as the standard draws the regular polygons and the stars
+// (their corners at the box's edges, the center not always in its middle). `inner` is the radius of the points between the outer ones.
+QPainterPath stretchedPolygon(double w, double h, int n, double firstDeg, double inner)
 {
+    const double step = 2 * M_PI / n, first = firstDeg * M_PI / 180;
+    double x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9;
+    for (int i = 0; i < n; ++i) {
+        x0 = std::min(x0, std::cos(first + i * step));
+        x1 = std::max(x1, std::cos(first + i * step));
+        y0 = std::min(y0, std::sin(first + i * step));
+        y1 = std::max(y1, std::sin(first + i * step));
+    }
+    const double sx = w / (x1 - x0), sy = h / (y1 - y0);
+    const auto at = [&](double r, double ang) { return QPointF((r * std::cos(ang) - x0) * sx, (r * std::sin(ang) - y0) * sy); };
     QVector<QPointF> pts;
-    for (int i = 0; i < n * 2; ++i) {
-        const double ang = M_PI * i / n - M_PI / 2, r = (i % 2) ? inner : 1.0;
-        pts << QPointF(w / 2 + std::cos(ang) * r * w / 2, h / 2 + std::sin(ang) * r * h / 2);
+    for (int i = 0; i < n; ++i) {
+        pts << at(1.0, first + i * step);
+        if (inner > 0) pts << at(inner, first + (i + 0.5) * step);
     }
     return polyV(pts);
 }
 
-QPainterPath ngon(double w, double h, int n)
+QPainterPath starPath(double w, double h, int n, double inner)
 {
-    QVector<QPointF> pts;
-    for (int i = 0; i < n; ++i) {
-        const double ang = -M_PI / 2 + 2 * M_PI * i / n;
-        pts << QPointF(w / 2 + std::cos(ang) * w / 2, h / 2 + std::sin(ang) * h / 2);
-    }
-    return polyV(pts);
+    return stretchedPolygon(w, h, n, -90, inner);
+}
+
+QPainterPath ngon(double w, double h, int n, double firstDeg = -90)
+{
+    return stretchedPolygon(w, h, n, firstDeg, 0);
 }
 
 double A(V a, int i, double d) { return i < a.size() ? a[i] : d; }
@@ -169,14 +182,66 @@ QPainterPath wavePath(double w, double h, double amp, int waves)
     return p;
 }
 
-QPainterPath calloutTail(const QPainterPath &body, double w, double h, double tx, double ty, double baseX, double baseY, double spread)
+// A callout whose pointer is drawn as the standard draws it: the box fills the frame, the pointer's tip lies at (adj1, adj2) of the box's width and height from its center (the
+// default is below the box, a fifth of the width to the left of the middle), and it leaves from the side the tip is nearest, 7/12 to 10/12 along it from the far corner.
+struct WedgePoints {
+    double x1, x2, y1, y2, xl, yl, xt, yt, xr, yr, xb, yb;
+};
+
+WedgePoints wedgePoints(double w, double h, double adj1, double adj2)
 {
-    QPainterPath tail;
-    tail.moveTo(baseX - spread, baseY);
-    tail.lineTo(tx * w, ty * h);
-    tail.lineTo(baseX + spread, baseY);
-    tail.closeSubpath();
-    return body.united(tail).simplified();
+    const double dx = w * adj1, dy = h * adj2, xPos = w / 2 + dx, yPos = h / 2 + dy;
+    const double dz = std::abs(dy) - std::abs(dx * h / w);
+    WedgePoints q;
+    q.x1 = w * (dx > 0 ? 7 : 2) / 12;
+    q.x2 = w * (dx > 0 ? 10 : 5) / 12;
+    q.y1 = h * (dy > 0 ? 7 : 2) / 12;
+    q.y2 = h * (dy > 0 ? 10 : 5) / 12;
+    q.xl = dz > 0 || dx > 0 ? 0 : xPos;
+    q.xt = dz > 0 ? (dy > 0 ? q.x1 : xPos) : q.x1;
+    q.xr = dz > 0 || dx <= 0 ? w : xPos;
+    q.xb = dz > 0 ? (dy > 0 ? xPos : q.x1) : q.x1;
+    q.yl = dz > 0 || dx > 0 ? q.y1 : yPos;
+    q.yt = dz > 0 ? (dy > 0 ? 0 : yPos) : 0;
+    q.yr = dz > 0 || dx <= 0 ? q.y1 : yPos;
+    q.yb = dz > 0 ? (dy > 0 ? yPos : h) : h;
+    return q;
+}
+
+QPainterPath wedgeRect(double w, double h, double adj1, double adj2)
+{
+    const WedgePoints q = wedgePoints(w, h, adj1, adj2);
+    return poly({{0, 0}, {q.x1, 0}, {q.xt, q.yt}, {q.x2, 0}, {w, 0}, {w, q.y1}, {q.xr, q.yr}, {w, q.y2}, {w, h}, {q.x2, h}, {q.xb, q.yb}, {q.x1, h}, {0, h}, {0, q.y2}, {q.xl, q.yl}, {0, q.y1}});
+}
+
+QPainterPath wedgeRoundRect(double w, double h, double adj1, double adj2, double adj3)
+{
+    const WedgePoints q = wedgePoints(w, h, adj1, adj2);
+    const double u = std::clamp(adj3, 0.0, 0.5) * mn(w, h);
+    QPainterPath p;
+    p.moveTo(0, u);
+    p.arcTo(QRectF(0, 0, 2 * u, 2 * u), 180, -90);
+    p.lineTo(q.x1, 0); p.lineTo(q.xt, q.yt); p.lineTo(q.x2, 0); p.lineTo(w - u, 0);
+    p.arcTo(QRectF(w - 2 * u, 0, 2 * u, 2 * u), 90, -90);
+    p.lineTo(w, q.y1); p.lineTo(q.xr, q.yr); p.lineTo(w, q.y2); p.lineTo(w, h - u);
+    p.arcTo(QRectF(w - 2 * u, h - 2 * u, 2 * u, 2 * u), 0, -90);
+    p.lineTo(q.x2, h); p.lineTo(q.xb, q.yb); p.lineTo(q.x1, h); p.lineTo(u, h);
+    p.arcTo(QRectF(0, h - 2 * u, 2 * u, 2 * u), 270, -90);
+    p.lineTo(0, q.y2); p.lineTo(q.xl, q.yl); p.lineTo(0, q.y1);
+    p.closeSubpath();
+    return p;
+}
+
+// The oval's outline runs all the way round except for 22 degrees at the pointer, which is drawn from the two ends of the gap to the tip.
+QPainterPath wedgeEllipse(double w, double h, double adj1, double adj2)
+{
+    const double dx = w * adj1, dy = h * adj2;
+    const double start = std::atan2(dy * w, dx * h) + 11 * M_PI / 180, sweep = 2 * M_PI - 22 * M_PI / 180;
+    QVector<QPointF> pts;
+    constexpr int kSteps = 180;
+    for (int i = 0; i <= kSteps; ++i) pts << QPointF(w / 2 + w / 2 * std::cos(start + sweep * i / kSteps), h / 2 + h / 2 * std::sin(start + sweep * i / kSteps));
+    pts << QPointF(w / 2 + dx, h / 2 + dy);
+    return polyV(pts);
 }
 
 } // namespace
@@ -237,21 +302,20 @@ static QVector<ShapeDef> build()
     add("rtTriangle", QT_TRANSLATE_NOOP("Render", "Right Triangle"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return poly({{0, 0}, {w, h}, {0, h}}); }, {}, {},
         0, [](double w, double h, V) { return QRectF(w * 0.06, h * 0.5, w * 0.5, h * 0.45); });
     add("parallelogram", QT_TRANSLATE_NOOP("Render", "Parallelogram"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
-        const double s = A(a, 0, 0.25) * w; return poly({{s, 0}, {w, 0}, {w - s, h}, {0, h}}); }, {0.25}, {{0, 0, 0, false, 0, 0, 1}}, 0.15);
+        const double s = std::clamp(A(a, 0, 0.25), 0.0, w / mn(w, h)) * mn(w, h); return poly({{s, 0}, {w, 0}, {w - s, h}, {0, h}}); }, {0.25}, {{0, 0, 2, false, 0, 0, 100, 1}}, 0.15, nullptr);
     add("trapezoid", QT_TRANSLATE_NOOP("Render", "Trapezoid"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
-        const double s = A(a, 0, 0.25) * w; return poly({{s, 0}, {w - s, 0}, {w, h}, {0, h}}); }, {0.25}, {{0, 0, 0, false, 0, 0, 0.5}}, 0.15);
+        const double s = std::clamp(A(a, 0, 0.25), 0.0, 0.5 * w / mn(w, h)) * mn(w, h); return poly({{s, 0}, {w - s, 0}, {w, h}, {0, h}}); }, {0.25}, {{0, 0, 2, false, 0, 0, 100, 0.5}}, 0.15, nullptr);
     add("diamond", QT_TRANSLATE_NOOP("Render", "Diamond"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return poly({{w / 2, 0}, {w, h / 2}, {w / 2, h}, {0, h / 2}}); }, {}, {}, 0.25);
-    add("pentagon", QT_TRANSLATE_NOOP("Render", "Regular Pentagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 5); }, {}, {}, 0.2);
+    add("pentagon", QT_TRANSLATE_NOOP("Render", "Regular Pentagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 5, -90); }, {}, {}, 0.2, nullptr);
     add("hexagon", QT_TRANSLATE_NOOP("Render", "Hexagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
-        const double s = A(a, 0, 0.25) * w; return poly({{s, 0}, {w - s, 0}, {w, h / 2}, {w - s, h}, {s, h}, {0, h / 2}}); },
-        {0.25}, {{0, 0, 0, false, 0, 0, 0.5}}, 0.15);
-    add("heptagon", QT_TRANSLATE_NOOP("Render", "Heptagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 7); }, {}, {}, 0.18);
+        const double s = std::clamp(A(a, 0, 0.25), 0.0, 0.5 * w / mn(w, h)) * mn(w, h); return poly({{s, 0}, {w - s, 0}, {w, h / 2}, {w - s, h}, {s, h}, {0, h / 2}}); }, {0.25}, {{0, 0, 2, false, 0, 0, 100, 0.5}}, 0.15, nullptr);
+    add("heptagon", QT_TRANSLATE_NOOP("Render", "Heptagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 7, -90); }, {}, {}, 0.18, nullptr);
     add("octagon", QT_TRANSLATE_NOOP("Render", "Octagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
         const double s = A(a, 0, 0.29) * mn(w, h);
         return poly({{s, 0}, {w - s, 0}, {w, s}, {w, h - s}, {w - s, h}, {s, h}, {0, h - s}, {0, s}}); },
         {0.29}, {{0, 0, 2, false, 0, 0, 0.5}}, 0.12);
-    add("decagon", QT_TRANSLATE_NOOP("Render", "Decagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 10); }, {}, {}, 0.12);
-    add("dodecagon", QT_TRANSLATE_NOOP("Render", "Dodecagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 12); }, {}, {}, 0.12);
+    add("decagon", QT_TRANSLATE_NOOP("Render", "Decagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 10, 0); }, {}, {}, 0.12, nullptr);
+    add("dodecagon", QT_TRANSLATE_NOOP("Render", "Dodecagon"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) { return ngon(w, h, 12, -75); }, {}, {}, 0.12, nullptr);
     add("pie", QT_TRANSLATE_NOOP("Render", "Partial Circle"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
         QPainterPath p; p.moveTo(w / 2, h / 2); p.arcTo(QRectF(0, 0, w, h), 0, A(a, 0, 0.75) * 360); p.closeSubpath(); return p; },
         {0.75}, {}, 0.2);
@@ -265,8 +329,8 @@ static QVector<ShapeDef> build()
         const double t = A(a, 0, 0.125) * mn(w, h); QPainterPath p; p.addRect(0, 0, w, h); p.addRect(t, t, w - 2 * t, h - 2 * t); return p; },
         {0.125}, {{0, 0, 2, false, 0, 0, 0.5}}, 0.12);
     add("halfFrame", QT_TRANSLATE_NOOP("Render", "Half Frame"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.333) * mn(w, h);
-        return poly({{0, 0}, {w, 0}, {w - t * w / h * 0.0 - t, t}, {t, t}, {t, h - t}, {0, h}}); }, {0.333}, {}, 0.1);
+        const double ss = mn(w, h), x1 = std::clamp(A(a, 1, 0.33333), 0.0, w / ss) * ss, y1 = std::clamp(A(a, 0, 0.33333), 0.0, (h - h * x1 / w) / ss) * ss;
+        return poly({{0, 0}, {w, 0}, {w - y1 * w / h, y1}, {x1, y1}, {x1, h - x1 * h / w}, {0, h}}); }, {0.33333, 0.33333}, {}, 0.1, nullptr);
     add("corner", QT_TRANSLATE_NOOP("Render", "L-Shape"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
         const double t = A(a, 0, 0.5) * mn(w, h); return poly({{0, 0}, {t, 0}, {t, h - t}, {w, h - t}, {w, h}, {0, h}}); },
         {0.5}, {{0, 0, 2, false, 0.5, 0, 1}}, 0.1);
@@ -324,8 +388,11 @@ static QVector<ShapeDef> build()
         p.cubicTo(w * 0.7, h * 0.75, w * 1.04, h * 0.58, w * 0.98, h * 0.3);
         p.cubicTo(w * 0.92, -h * 0.02, w / 2, h * 0.05, w / 2, h * 0.25); p.closeSubpath(); return p; }, {}, {}, 0.25);
     add("lightning", QT_TRANSLATE_NOOP("Render", "Lightning Bolt"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V) {
-        return poly({{w * 0.39, 0}, {w * 0.61, h * 0.29}, {w * 0.52, h * 0.34}, {w * 0.79, h * 0.6}, {w * 0.7, h * 0.65}, {w, h},
-                     {w * 0.48, h * 0.71}, {w * 0.58, h * 0.67}, {w * 0.18, h * 0.45}, {w * 0.3, h * 0.4}, {0, h * 0.17}}); }, {}, {}, 0.3);
+        // (The standard's points, in 21600ths of the box.)
+        static const int pts[][2] = {{8472, 0}, {12860, 6080}, {11050, 6797}, {16577, 12007},
+                                        {14767, 12877}, {21600, 21600}, {10012, 14915}, {12222, 13987},
+                                        {5022, 9705}, {7602, 8382}, {0, 3890}};
+        QVector<QPointF> v; for (const auto &p : pts) v << QPointF(p[0] * w / 21600, p[1] * h / 21600); return polyV(v); }, {}, {}, 0.3, nullptr);
     add("sun", QT_TRANSLATE_NOOP("Render", "Sun"), QT_TRANSLATE_NOOP("Render", "Basic Shapes"), [](double w, double h, V a) {
         const double r = A(a, 0, 0.25); QPainterPath p; p.addEllipse(QRectF(w * r, h * r, w * (1 - 2 * r), h * (1 - 2 * r)));
         for (int i = 0; i < 8; ++i) {
@@ -417,10 +484,10 @@ static QVector<ShapeDef> build()
         p.lineTo(2 * r - t, h - hl); p.lineTo(2 * r - t, r); p.arcTo(QRectF(t, t, 2 * r - 2 * t, 2 * r - 2 * t), 0, 180); p.lineTo(t, h);
         p.closeSubpath(); return p; }, {0.25, 0.25}, {}, 0.2);
     add("leftUpArrow", QT_TRANSLATE_NOOP("Render", "Left-Up Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
-        const double m = mn(w, h), t = A(a, 0, 0.18) * m, hw = A(a, 1, 0.22) * m;
+        const double m = mn(w, h), t = A(a, 0, 0.25) * m, hw = A(a, 1, 0.25) * m;
         return poly({{0, h - hw}, {hw, h - 2 * hw}, {hw, h - hw - t / 2}, {w - hw - t / 2, h - hw - t / 2}, {w - hw - t / 2, hw}, {w - 2 * hw, hw},
                      {w - hw, 0}, {w, hw}, {w - hw + t / 2, hw}, {w - hw + t / 2, h - hw + t / 2}, {hw, h - hw + t / 2}, {hw, h}}); },
-        {0.18, 0.22}, {}, 0.25);
+        {0.25, 0.25}, {}, 0.25);
     add("bentUpArrow", QT_TRANSLATE_NOOP("Render", "Bent-Up Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double m = mn(w, h), t = A(a, 0, 0.25) * m, hw = A(a, 1, 0.25) * m;
         return poly({{0, h - t}, {w - hw - t / 2, h - t}, {w - hw - t / 2, hw}, {w - 2 * hw, hw}, {w - hw, 0}, {w, hw}, {w - hw + t / 2, hw},
@@ -447,8 +514,8 @@ static QVector<ShapeDef> build()
         p.addRect(0, y0, s, y1 - y0); p.addRect(s * 2, y0, s, y1 - y0); return p; }, {0.5, 0.5}, {}, 0.2);
     add("notchedRightArrow", QT_TRANSLATE_NOOP("Render", "Notched Right Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double t = A(a, 0, 0.5), hd = std::min(w, A(a, 1, 0.5) * mn(w, h));
-        const double y0 = h * (0.5 - t / 2), y1 = h * (0.5 + t / 2), n = (y1 - y0) / 2;
-        return poly({{0, y0}, {w - hd, y0}, {w - hd, 0}, {w, h / 2}, {w - hd, h}, {w - hd, y1}, {0, y1}, {n, h / 2}}); }, {0.5, 0.5}, {}, 0.2);
+        const double y0 = h * (0.5 - t / 2), y1 = h * (0.5 + t / 2), n = t * hd;
+        return poly({{0, y0}, {w - hd, y0}, {w - hd, 0}, {w, h / 2}, {w - hd, h}, {w - hd, y1}, {0, y1}, {n, h / 2}}); }, {0.5, 0.5}, {}, 0.2, nullptr);
     add("homePlate", QT_TRANSLATE_NOOP("Render", "Pentagon Arrow"), QT_TRANSLATE_NOOP("Render", "Block Arrows"), [](double w, double h, V a) {
         const double s = std::min(w, A(a, 0, 0.5) * mn(w, h)); return poly({{0, 0}, {w - s, 0}, {w, h / 2}, {w - s, h}, {0, h}}); },
         {0.5}, {{0, 0, 2, true, 0, 0, 1}}, 0.08);
@@ -472,24 +539,29 @@ static QVector<ShapeDef> build()
 
     // ---------------- Equation Shapes ----------------
     add("mathPlus", QT_TRANSLATE_NOOP("Render", "Plus"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * mn(w, h), cx = w / 2, cy = h / 2, ex = w * 0.38, ey = h * 0.38;
+        const double t = A(a, 0, 0.2352) * mn(w, h), cx = w / 2, cy = h / 2, ex = w * 0.36745, ey = h * 0.36745;
         return poly({{cx - t / 2, cy - ey}, {cx + t / 2, cy - ey}, {cx + t / 2, cy - t / 2}, {cx + ex, cy - t / 2}, {cx + ex, cy + t / 2},
                      {cx + t / 2, cy + t / 2}, {cx + t / 2, cy + ey}, {cx - t / 2, cy + ey}, {cx - t / 2, cy + t / 2}, {cx - ex, cy + t / 2},
-                     {cx - ex, cy - t / 2}, {cx - t / 2, cy - t / 2}}); }, {0.235}, {}, 0.3);
+                     {cx - ex, cy - t / 2}, {cx - t / 2, cy - t / 2}}); }, {0.2352}, {}, 0.3, nullptr);
     add("mathMinus", QT_TRANSLATE_NOOP("Render", "Minus"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * h; QPainterPath p; p.addRect(w * 0.12, h / 2 - t / 2, w * 0.76, t); return p; }, {0.235}, {}, 0.3);
+        const double t = A(a, 0, 0.2352) * h; QPainterPath p; p.addRect(w * 0.13255, h / 2 - t / 2, w * 0.7349, t); return p; }, {0.2352}, {}, 0.3, nullptr);
     add("mathMultiply", QT_TRANSLATE_NOOP("Render", "Multiply"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * mn(w, h); QPainterPath bar; bar.addRect(-w * 0.4, -t / 2, w * 0.8, t);
-        QTransform r1; r1.translate(w / 2, h / 2); r1.rotate(45);
-        QTransform r2; r2.translate(w / 2, h / 2); r2.rotate(-45);
-        return r1.map(bar).united(r2.map(bar)); }, {0.235}, {}, 0.3);
+        // (Two bars along the box's diagonals, as long as 51965 hundred-thousandths of the diagonal leaves room for.)
+        const double th = std::clamp(A(a, 0, 0.2352), 0.0, 0.51965) * mn(w, h), ang = std::atan2(h, w), sa = std::sin(ang), ca = std::cos(ang), ta = std::tan(ang);
+        const double dl = std::hypot(w, h), lM = dl - dl * 0.51965, xM = ca * lM / 2, yM = sa * lM / 2, dxAM = sa * th / 2, dyAM = ca * th / 2;
+        const double xA = xM - dxAM, yA = yM + dyAM, xB = xM + dxAM, yB = yM - dyAM, yC = (w / 2 - xB) * ta + yB;
+        const double xD = w - xB, xE = w - xA, xFE = (h / 2 - yA) / ta, xF = xE - xFE, xL = xA + xFE, yG = h - yA, yH = h - yB, yI = h - yC;
+        return poly({{xA, yA}, {xB, yB}, {w / 2, yC}, {xD, yB}, {xE, yA}, {xF, h / 2}, {xE, yG}, {xD, yH}, {w / 2, yI}, {xB, yH}, {xA, yG}, {xL, h / 2}}); }, {0.2352}, {}, 0.3, nullptr);
     add("mathDivide", QT_TRANSLATE_NOOP("Render", "Division"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * h * 0.6; QPainterPath p; p.addRect(w * 0.12, h / 2 - t / 2, w * 0.76, t);
-        const double d = t * 1.1; p.addEllipse(QRectF(w / 2 - d / 2, h / 2 - t / 2 - d * 1.6, d, d)); p.addEllipse(QRectF(w / 2 - d / 2, h / 2 + t / 2 + d * 0.6, d, d));
-        return p; }, {0.235}, {}, 0.3);
+        // (A bar with a dot above and below it; the standard keeps the three inside the box by pinning their sizes against each other.)
+        const double a1 = std::clamp(A(a, 0, 0.2352), 0.01, 0.36745), a3 = std::clamp(A(a, 2, 0.1176), 0.01, std::min((0.7349 - a1) / 4, 0.36745 * w / h));
+        const double a2 = std::clamp(A(a, 1, 0.0588), 0.0, 0.7349 - 4 * a3 - a1);
+        const double dy1 = h * a1 / 2, rad = h * a3, dx1 = w * 0.36745, y3 = h / 2 - dy1, y2 = y3 - (h * a2 + rad), y1 = y2 - rad;
+        QPainterPath p; p.addRect(w / 2 - dx1, y3, 2 * dx1, 2 * dy1);
+        p.addEllipse(QRectF(w / 2 - rad, y1, 2 * rad, 2 * rad)); p.addEllipse(QRectF(w / 2 - rad, h - y1 - 2 * rad, 2 * rad, 2 * rad)); return p; }, {0.2352, 0.0588, 0.1176}, {}, 0.3, nullptr);
     add("mathEqual", QT_TRANSLATE_NOOP("Render", "Equal"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
-        const double t = A(a, 0, 0.235) * h * 0.8, g = t * 0.6; QPainterPath p;
-        p.addRect(w * 0.12, h / 2 - g / 2 - t, w * 0.76, t); p.addRect(w * 0.12, h / 2 + g / 2, w * 0.76, t); return p; }, {0.235}, {}, 0.3);
+        const double t = A(a, 0, 0.2352) * h, g = A(a, 1, 0.1176) * h; QPainterPath p;
+        p.addRect(w * 0.13255, h / 2 - g / 2 - t, w * 0.7349, t); p.addRect(w * 0.13255, h / 2 + g / 2, w * 0.7349, t); return p; }, {0.2352, 0.1176}, {}, 0.3, nullptr);
     add("mathNotEqual", QT_TRANSLATE_NOOP("Render", "Not Equal"), QT_TRANSLATE_NOOP("Render", "Equation Shapes"), [](double w, double h, V a) {
         const double t = A(a, 0, 0.235) * h * 0.8, g = t * 0.6; QPainterPath p;
         p.addRect(w * 0.12, h / 2 - g / 2 - t, w * 0.76, t); p.addRect(w * 0.12, h / 2 + g / 2, w * 0.76, t);
@@ -508,19 +580,17 @@ static QVector<ShapeDef> build()
         QPainterPath p; p.addRect(0, 0, w, h); p.moveTo(w * 0.15, 0); p.lineTo(w * 0.15, h); p.moveTo(0, h * 0.15); p.lineTo(w, h * 0.15); return p; },
         {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.15, h * 0.15, w * 0.85, h * 0.85); });
     add("fcDocument", QT_TRANSLATE_NOOP("Render", "Flowchart: Document"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
-        QPainterPath p; p.moveTo(0, 0); p.lineTo(w, 0); p.lineTo(w, h * 0.8); p.cubicTo(w * 0.75, h * 0.62, w * 0.5, h * 0.95, w * 0.25, h * 1.0);
-        p.cubicTo(w * 0.12, h * 1.02, w * 0.04, h * 0.95, 0, h * 0.9); p.closeSubpath(); return p; }, {}, {}, 0,
-        [](double w, double h, V) { return QRectF(0, 0, w, h * 0.78); });
+        QPainterPath p; p.moveTo(0, 0); p.lineTo(w, 0); p.lineTo(w, h * 17322 / 21600); p.cubicTo(w / 2, h * 17322 / 21600, w / 2, h * 23922 / 21600, 0, h * 20172 / 21600);
+        p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(0, 0, w, h * 17322 / 21600); });
     add("fcMultidocument", QT_TRANSLATE_NOOP("Render", "Flowchart: Multidocument"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
+        // (The standard's three sheets, in 21600ths of the box.)
+        const auto P = [&](double x, double y) { return QPointF(x * w / 21600, y * h / 21600); };
         QPainterPath p;
-        for (int i = 2; i >= 0; --i) {
-            const double ox = w * 0.06 * i, oy = h * 0.08 * (2 - i), ww = w * 0.88, hh = h * 0.84;
-            QPainterPath d; d.moveTo(ox, oy); d.lineTo(ox + ww, oy); d.lineTo(ox + ww, oy + hh * 0.8);
-            d.cubicTo(ox + ww * 0.75, oy + hh * 0.62, ox + ww * 0.5, oy + hh * 0.95, ox + ww * 0.25, oy + hh);
-            d.cubicTo(ox + ww * 0.12, oy + hh * 1.02, ox + ww * 0.04, oy + hh * 0.95, ox, oy + hh * 0.9); d.closeSubpath();
-            p = p.united(d);
-        }
-        return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(0, h * 0.2, w * 0.86, h * 0.6); });
+        p.moveTo(P(0, 20782)); p.cubicTo(P(9298, 23542), P(9298, 18022), P(18595, 18022)); p.lineTo(P(18595, 3675)); p.lineTo(P(0, 3675)); p.closeSubpath();
+        p.moveTo(P(1532, 3675)); p.lineTo(P(1532, 1815)); p.lineTo(P(20000, 1815)); p.lineTo(P(20000, 16252)); p.cubicTo(P(19298, 16252), P(18595, 16352), P(18595, 16352));
+        p.lineTo(P(18595, 3675)); p.closeSubpath();
+        p.moveTo(P(2972, 1815)); p.lineTo(P(2972, 0)); p.lineTo(P(21600, 0)); p.lineTo(P(21600, 14392)); p.cubicTo(P(20800, 14392), P(20000, 14467), P(20000, 14467));
+        p.lineTo(P(20000, 1815)); p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(0, h * 0.2, w * 0.86, h * 0.6); });
     add("fcTerminator", QT_TRANSLATE_NOOP("Render", "Flowchart: Terminator"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { return roundRect(w, h, h / 2); }, {}, {}, 0.1);
     add("fcPreparation", QT_TRANSLATE_NOOP("Render", "Flowchart: Preparation"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
         return poly({{w * 0.2, 0}, {w * 0.8, 0}, {w, h / 2}, {w * 0.8, h}, {w * 0.2, h}, {0, h / 2}}); }, {}, {}, 0.18);
@@ -533,7 +603,10 @@ static QVector<ShapeDef> build()
         return poly({{0, 0}, {w, 0}, {w, h * 0.8}, {w / 2, h}, {0, h * 0.8}}); }, {}, {}, 0, [](double w, double h, V) { return QRectF(0, 0, w, h * 0.8); });
     add("fcCard", QT_TRANSLATE_NOOP("Render", "Flowchart: Card"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { return poly({{w * 0.2, 0}, {w, 0}, {w, h}, {0, h}, {0, h * 0.2}}); },
         {}, {}, 0, [](double w, double h, V) { return QRectF(0, h * 0.2, w, h * 0.8); });
-    add("fcPunchedTape", QT_TRANSLATE_NOOP("Render", "Flowchart: Punched Tape"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { return wavePath(w, h, 0.1, 1); }, {}, {}, 0.2);
+    add("fcPunchedTape", QT_TRANSLATE_NOOP("Render", "Flowchart: Punched Tape"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
+        // (Each edge is two half ellipses, a quarter of the width by a tenth of the height each: a dip and a bulge.)
+        QPainterPath p; p.moveTo(0, h / 10); p.arcTo(QRectF(0, 0, w / 2, h / 5), 180, 180); p.arcTo(QRectF(w / 2, 0, w / 2, h / 5), 180, -180); p.lineTo(w, h * 0.9);
+        p.arcTo(QRectF(w / 2, h * 0.8, w / 2, h / 5), 0, 180); p.arcTo(QRectF(0, h * 0.8, w / 2, h / 5), 0, -180); p.closeSubpath(); return p; }, {}, {}, 0.2, nullptr);
     add("fcSummingJunction", QT_TRANSLATE_NOOP("Render", "Flowchart: Summing Junction"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
         QPainterPath p = ellipse(w, h); const double k = 0.3536;
         p.moveTo(w * (0.5 - k), h * (0.5 - k)); p.lineTo(w * (0.5 + k), h * (0.5 + k)); p.moveTo(w * (0.5 + k), h * (0.5 - k)); p.lineTo(w * (0.5 - k), h * (0.5 + k));
@@ -550,46 +623,54 @@ static QVector<ShapeDef> build()
     add("fcMerge", QT_TRANSLATE_NOOP("Render", "Flowchart: Merge"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) { return poly({{0, 0}, {w, 0}, {w / 2, h}}); },
         {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.25, 0, w * 0.5, h * 0.5); });
     add("fcStoredData", QT_TRANSLATE_NOOP("Render", "Flowchart: Stored Data"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
-        QPainterPath p; p.moveTo(w * 0.17, 0); p.lineTo(w, 0); p.quadTo(w * 0.83, h / 2, w, h); p.lineTo(w * 0.17, h); p.quadTo(-w * 0.17, h / 2, w * 0.17, 0);
-        p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.17, 0, w * 0.66, h); });
+        QPainterPath p; p.moveTo(w / 6, 0); p.lineTo(w, 0); p.arcTo(QRectF(w * 5 / 6, 0, w / 3, h), 90, 180); p.lineTo(w / 6, h); p.arcTo(QRectF(0, 0, w / 3, h), 270, -180);
+        p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w / 6, 0, w * 2 / 3, h); });
     add("fcDelay", QT_TRANSLATE_NOOP("Render", "Flowchart: Delay"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
         QPainterPath p; p.moveTo(0, 0); p.lineTo(w / 2, 0); p.arcTo(QRectF(0, 0, w, h), 90, -180); p.lineTo(0, h); p.closeSubpath(); return p; },
         {}, {}, 0, [](double w, double h, V) { return QRectF(0, h * 0.15, w * 0.85, h * 0.7); });
     add("fcSequential", QT_TRANSLATE_NOOP("Render", "Flowchart: Sequential Access Storage"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
         QPainterPath p = ellipse(w, h); p.moveTo(w / 2, h); p.lineTo(w, h); p.lineTo(w, h * 0.85); return p; }, {}, {}, 0.15);
     add("fcMagneticDisk", QT_TRANSLATE_NOOP("Render", "Flowchart: Magnetic Disk"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
-        const double e = h * 0.25; QPainterPath p; p.moveTo(0, e / 2); p.arcTo(QRectF(0, 0, w, e), 180, -180); p.lineTo(w, h - e / 2);
+        const double e = h / 3; QPainterPath p; p.moveTo(0, e / 2); p.arcTo(QRectF(0, 0, w, e), 180, -180); p.lineTo(w, h - e / 2);
         p.arcTo(QRectF(0, h - e, w, e), 0, -180); p.closeSubpath(); p.moveTo(0, e / 2); p.arcTo(QRectF(0, 0, w, e), 180, 180); return p; },
         {}, {}, 0, [](double w, double h, V) { return QRectF(0, h * 0.25, w, h * 0.62); });
     add("fcDirectAccess", QT_TRANSLATE_NOOP("Render", "Flowchart: Direct Access Storage"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
-        const double e = w * 0.25; QPainterPath p; p.moveTo(e / 2, 0); p.lineTo(w - e / 2, 0); p.arcTo(QRectF(w - e, 0, e, h), 90, -180);
+        const double e = w / 3; QPainterPath p; p.moveTo(e / 2, 0); p.lineTo(w - e / 2, 0); p.arcTo(QRectF(w - e, 0, e, h), 90, -180);
         p.lineTo(e / 2, h); p.arcTo(QRectF(0, 0, e, h), 270, -180); p.closeSubpath(); p.moveTo(w - e / 2, 0); p.arcTo(QRectF(w - e, 0, e, h), 90, 180); return p; },
         {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.12, 0, w * 0.62, h); });
     add("fcDisplay", QT_TRANSLATE_NOOP("Render", "Flowchart: Display"), QT_TRANSLATE_NOOP("Render", "Flowchart"), [](double w, double h, V) {
-        QPainterPath p; p.moveTo(0, h / 2); p.lineTo(w * 0.17, 0); p.lineTo(w * 0.83, 0); p.quadTo(w * 1.08, h / 2, w * 0.83, h); p.lineTo(w * 0.17, h);
-        p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.17, 0, w * 0.66, h); });
-
+        QPainterPath p; p.moveTo(0, h / 2); p.lineTo(w / 6, 0); p.lineTo(w * 5 / 6, 0); p.arcTo(QRectF(w * 2 / 3, 0, w / 3, h), 90, -180); p.lineTo(w / 6, h);
+        p.closeSubpath(); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w / 6, 0, w * 2 / 3, h); });
     // ---------------- Stars and Banners ----------------
     add("irregularSeal1", QT_TRANSLATE_NOOP("Render", "Explosion 1"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V) {
-        static const double pts[][2] = {{0.42, 0.25}, {0.56, 0}, {0.6, 0.24}, {0.82, 0.12}, {0.74, 0.32}, {1, 0.36}, {0.78, 0.48}, {0.95, 0.68},
-                                        {0.7, 0.62}, {0.72, 0.9}, {0.55, 0.7}, {0.46, 1}, {0.38, 0.72}, {0.18, 0.86}, {0.24, 0.62}, {0, 0.6},
-                                        {0.18, 0.46}, {0.02, 0.28}, {0.26, 0.32}, {0.2, 0.06}};
-        QVector<QPointF> v; for (const auto &p : pts) v << QPointF(p[0] * w, p[1] * h); return polyV(v); }, {}, {}, 0.3);
+        // (The standard's points, in 21600ths of the box.)
+        static const int pts[][2] = {{10800, 5800}, {14522, 0}, {14155, 5325}, {18380, 4457},
+                                        {16702, 7315}, {21097, 8137}, {17607, 10475}, {21600, 13290},
+                                        {16837, 12942}, {18145, 18095}, {14020, 14457}, {13247, 19737},
+                                        {10532, 14935}, {8485, 21600}, {7715, 15627}, {4762, 17617},
+                                        {5667, 13937}, {135, 14587}, {3722, 11775}, {0, 8615},
+                                        {4627, 7617}, {370, 2295}, {7312, 6320}, {8352, 2295}};
+        QVector<QPointF> v; for (const auto &p : pts) v << QPointF(p[0] * w / 21600, p[1] * h / 21600); return polyV(v); }, {}, {}, 0.3, nullptr);
     add("irregularSeal2", QT_TRANSLATE_NOOP("Render", "Explosion 2"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V) {
-        static const double pts[][2] = {{0.5, 0.18}, {0.62, 0}, {0.66, 0.2}, {0.86, 0.06}, {0.8, 0.28}, {1, 0.32}, {0.84, 0.44}, {0.98, 0.58},
-                                        {0.8, 0.6}, {0.9, 0.82}, {0.68, 0.72}, {0.64, 0.96}, {0.5, 0.76}, {0.38, 1}, {0.32, 0.76}, {0.1, 0.88},
-                                        {0.18, 0.64}, {0, 0.56}, {0.16, 0.44}, {0.04, 0.22}, {0.28, 0.28}, {0.3, 0.04}};
-        QVector<QPointF> v; for (const auto &p : pts) v << QPointF(p[0] * w, p[1] * h); return polyV(v); }, {}, {}, 0.3);
-    add("star4", QT_TRANSLATE_NOOP("Render", "4-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 4, A(a, 0, 0.25) * 2); }, {0.19}, {}, 0.3);
-    add("star5", QT_TRANSLATE_NOOP("Render", "5-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 5, A(a, 0, 0.38) * 1.0); }, {0.38}, {}, 0.32);
-    add("star6", QT_TRANSLATE_NOOP("Render", "6-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 6, A(a, 0, 0.58)); }, {0.58}, {}, 0.25);
-    add("star7", QT_TRANSLATE_NOOP("Render", "7-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 7, A(a, 0, 0.6)); }, {0.6}, {}, 0.25);
-    add("star8", QT_TRANSLATE_NOOP("Render", "8-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 8, A(a, 0, 0.72)); }, {0.72}, {}, 0.22);
-    add("star10", QT_TRANSLATE_NOOP("Render", "10-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 10, A(a, 0, 0.76)); }, {0.76}, {}, 0.2);
-    add("star12", QT_TRANSLATE_NOOP("Render", "12-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 12, A(a, 0, 0.78)); }, {0.78}, {}, 0.2);
-    add("star16", QT_TRANSLATE_NOOP("Render", "16-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 16, A(a, 0, 0.82)); }, {0.82}, {}, 0.18);
-    add("star24", QT_TRANSLATE_NOOP("Render", "24-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 24, A(a, 0, 0.86)); }, {0.86}, {}, 0.16);
-    add("star32", QT_TRANSLATE_NOOP("Render", "32-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 32, A(a, 0, 0.88)); }, {0.88}, {}, 0.15);
+        // (The standard's points, in 21600ths of the box.)
+        static const int pts[][2] = {{11462, 4342}, {14790, 0}, {14525, 5777}, {18007, 3172},
+                                        {16380, 6532}, {21600, 6645}, {16985, 9402}, {18270, 11290},
+                                        {16380, 12310}, {18877, 15632}, {14640, 14350}, {14942, 17370},
+                                        {12180, 15935}, {11612, 18842}, {9872, 17370}, {8700, 19712},
+                                        {7527, 18125}, {4917, 21600}, {4805, 18240}, {1285, 17825},
+                                        {3330, 15370}, {0, 12877}, {3935, 11592}, {1172, 8270},
+                                        {5372, 7817}, {4502, 3625}, {8550, 6382}, {9722, 1887}};
+        QVector<QPointF> v; for (const auto &p : pts) v << QPointF(p[0] * w / 21600, p[1] * h / 21600); return polyV(v); }, {}, {}, 0.3, nullptr);
+    add("star4", QT_TRANSLATE_NOOP("Render", "4-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 4, A(a, 0, 0.125) * 2); }, {0.125}, {}, 0.3);
+    add("star5", QT_TRANSLATE_NOOP("Render", "5-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 5, A(a, 0, 0.38197) * 1.0); }, {0.38197}, {}, 0.32);
+    add("star6", QT_TRANSLATE_NOOP("Render", "6-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 6, A(a, 0, 0.57736)); }, {0.57736}, {}, 0.25);
+    add("star7", QT_TRANSLATE_NOOP("Render", "7-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 7, A(a, 0, 0.69202)); }, {0.69202}, {}, 0.25);
+    add("star8", QT_TRANSLATE_NOOP("Render", "8-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 8, A(a, 0, 0.75)); }, {0.75}, {}, 0.22);
+    add("star10", QT_TRANSLATE_NOOP("Render", "10-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 10, A(a, 0, 0.85066)); }, {0.85066}, {}, 0.2);
+    add("star12", QT_TRANSLATE_NOOP("Render", "12-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 12, A(a, 0, 0.75)); }, {0.75}, {}, 0.2);
+    add("star16", QT_TRANSLATE_NOOP("Render", "16-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 16, A(a, 0, 0.75)); }, {0.75}, {}, 0.18);
+    add("star24", QT_TRANSLATE_NOOP("Render", "24-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 24, A(a, 0, 0.75)); }, {0.75}, {}, 0.16);
+    add("star32", QT_TRANSLATE_NOOP("Render", "32-Point Star"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return starPath(w, h, 32, A(a, 0, 0.75)); }, {0.75}, {}, 0.15);
     add("ribbon2", QT_TRANSLATE_NOOP("Render", "Up Ribbon"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V) {
         QPainterPath p = poly({{0, h * 0.2}, {w * 0.12, h * 0.2}, {w * 0.12, 0}, {w * 0.88, 0}, {w * 0.88, h * 0.2}, {w, h * 0.2}, {w * 0.93, h * 0.55},
                                {w, h * 0.9}, {w * 0.88, h * 0.9}, {w * 0.88, h * 0.7}, {w * 0.12, h * 0.7}, {w * 0.12, h * 0.9}, {0, h * 0.9}, {w * 0.07, h * 0.55}});
@@ -622,18 +703,9 @@ static QVector<ShapeDef> build()
     add("doubleWave", QT_TRANSLATE_NOOP("Render", "Double Wave"), QT_TRANSLATE_NOOP("Render", "Stars and Banners"), [](double w, double h, V a) { return wavePath(w, h, A(a, 0, 0.0625), 2); }, {0.0625}, {}, 0.15);
 
     // ---------------- Callouts ----------------
-    add("wedgeRectCallout", QT_TRANSLATE_NOOP("Render", "Rectangular Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) {
-        QPainterPath b; b.addRect(0, 0, w, h * 0.78);
-        return calloutTail(b, w, h, A(a, 0, 0.2), A(a, 1, 1.0), w * 0.3, h * 0.78 - 0.5, w * 0.08); }, {0.2, 1.0}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.7); });
-    add("wedgeRoundRectCallout", QT_TRANSLATE_NOOP("Render", "Rounded Rectangular Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) {
-        QPainterPath b = roundRect(w, h * 0.78, mn(w, h * 0.78) * 0.16);
-        return calloutTail(b, w, h, A(a, 0, 0.2), A(a, 1, 1.0), w * 0.3, h * 0.78 - 1, w * 0.08); }, {0.2, 1.0}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.06, h * 0.05, w * 0.88, h * 0.68); });
-    add("wedgeEllipseCallout", QT_TRANSLATE_NOOP("Render", "Oval Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) {
-        QPainterPath b = ellipse(w, h * 0.8);
-        return calloutTail(b, w, h, A(a, 0, 0.18), A(a, 1, 1.0), w * 0.32, h * 0.66, w * 0.08); }, {0.18, 1.0}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.15, h * 0.12, w * 0.7, h * 0.56); });
+    add("wedgeRectCallout", QT_TRANSLATE_NOOP("Render", "Rectangular Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) { return wedgeRect(w, h, A(a, 0, -0.20833), A(a, 1, 0.625)); }, {-0.20833, 0.625}, {}, 0, [](double w, double h, V) { return QRectF(0, 0, w, h); });
+    add("wedgeRoundRectCallout", QT_TRANSLATE_NOOP("Render", "Rounded Rectangular Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) { return wedgeRoundRect(w, h, A(a, 0, -0.20833), A(a, 1, 0.625), A(a, 2, 0.16667)); }, {-0.20833, 0.625, 0.16667}, {}, 0, [](double w, double h, V a) { const double u = std::clamp(A(a, 2, 0.16667), 0.0, 0.5) * mn(w, h) * 0.29289; return QRectF(u, u, w - 2 * u, h - 2 * u); });
+    add("wedgeEllipseCallout", QT_TRANSLATE_NOOP("Render", "Oval Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V a) { return wedgeEllipse(w, h, A(a, 0, -0.20833), A(a, 1, 0.625)); }, {-0.20833, 0.625}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.14645, h * 0.14645, w * 0.70711, h * 0.70711); });
     add("cloudCallout", QT_TRANSLATE_NOOP("Render", "Cloud Callout"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V) {
         QPainterPath p;
         const QRectF c[] = {{0.05, 0.25, 0.35, 0.35}, {0.2, 0.05, 0.35, 0.35}, {0.45, 0.03, 0.35, 0.37}, {0.62, 0.2, 0.36, 0.38},
@@ -643,18 +715,14 @@ static QVector<ShapeDef> build()
         p.addEllipse(QRectF(w * 0.18, h * 0.82, w * 0.08, h * 0.07)); p.addEllipse(QRectF(w * 0.1, h * 0.92, w * 0.05, h * 0.05)); return p; },
         {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.18, h * 0.15, w * 0.64, h * 0.52); });
     add("borderCallout1", QT_TRANSLATE_NOOP("Render", "Line Callout 1"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V) {
-        QPainterPath p; p.addRect(0, 0, w, h * 0.7); p.moveTo(w * 0.1, h * 0.7); p.lineTo(-w * 0.05, h); return p; }, {}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.62); });
+        QPainterPath p; p.addRect(0, 0, w, h); p.moveTo(-w * 0.08333, h * 0.1875); p.lineTo(-w * 0.38333, h * 1.125); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.92); });
     add("borderCallout2", QT_TRANSLATE_NOOP("Render", "Line Callout 2"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V) {
-        QPainterPath p; p.addRect(0, 0, w, h * 0.7); p.moveTo(0, h * 0.35); p.lineTo(-w * 0.1, h * 0.35); p.lineTo(-w * 0.2, h); return p; }, {}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.62); });
+        QPainterPath p; p.addRect(0, 0, w, h); p.moveTo(-w * 0.08333, h * 0.1875); p.lineTo(-w * 0.16667, h * 0.1875); p.lineTo(-w * 0.46667, h * 1.125); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.92); });
     add("accentCallout1", QT_TRANSLATE_NOOP("Render", "Line Callout 1 (Accent Bar)"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V) {
-        QPainterPath p; p.addRect(0, 0, w, h * 0.7); p.moveTo(-w * 0.04, 0); p.lineTo(-w * 0.04, h * 0.7); p.moveTo(-w * 0.04, h * 0.35);
-        p.lineTo(-w * 0.2, h); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.62); });
+        QPainterPath p; p.addRect(0, 0, w, h); p.moveTo(-w * 0.08333, 0); p.lineTo(-w * 0.08333, h); p.moveTo(-w * 0.08333, h * 0.1875);
+        p.lineTo(-w * 0.38333, h * 1.125); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.92); });
     add("callout1", QT_TRANSLATE_NOOP("Render", "Line Callout 1 (No Border)"), QT_TRANSLATE_NOOP("Render", "Callouts"), [](double w, double h, V) {
-        QPainterPath p; p.addRect(0, 0, w, h * 0.7); p.moveTo(w * 0.1, h * 0.7); p.lineTo(-w * 0.05, h); return p; }, {}, {},
-        0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.62); });
-
+        QPainterPath p; p.addRect(0, 0, w, h); p.moveTo(-w * 0.08333, h * 0.1875); p.lineTo(-w * 0.38333, h * 1.125); return p; }, {}, {}, 0, [](double w, double h, V) { return QRectF(w * 0.04, h * 0.04, w * 0.92, h * 0.92); });
     // ---------------- Action / misc ----------------
     add("actionButtonBlank", QT_TRANSLATE_NOOP("Render", "Action Button: Blank"), QT_TRANSLATE_NOOP("Render", "Action Buttons"), [](double w, double h, V) {
         QPainterPath p; p.addRect(0, 0, w, h); const double d = mn(w, h) * 0.08; p.addRect(d, d, w - 2 * d, h - 2 * d); return p; }, {}, {}, 0.1);
@@ -752,7 +820,8 @@ double adjFromPoint(const AdjHandle &hd, const QSizeF &s, const QPointF &p)
     const double basis = std::max(0.01, hd.basis == 0 ? s.width() : hd.basis == 1 ? s.height() : std::min(s.width(), s.height()));
     double v = hd.axis == 0 ? p.x() : p.y();
     if (hd.fromEnd) v = (hd.axis == 0 ? s.width() : s.height()) - v;
-    return std::clamp(v / basis, hd.min, hd.max);
+    const double most = hd.limit > 0 ? hd.limit * (hd.axis == 0 ? s.width() : s.height()) / basis : hd.max;
+    return std::clamp(v / basis, hd.min, std::max(hd.min, most));
 }
 
 } // namespace jp

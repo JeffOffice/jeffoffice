@@ -482,15 +482,10 @@ const AdjustSpec kAdjustments[] = {
     {"round2SameRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
     {"round2DiagRect", 2, {16667, 0}, SIDE_FRACTION(50000)},
     {"triangle", 1, {50000}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 100000) / 100000}; }},
-    {"parallelogram", 1, {25000}, [](const double *a, double w, double h) {
-        const double ss = side(w, h);
-        return QVector<double>{over(ss * pin(0, a[0], over(100000 * w, ss)) / 100000, w)}; }},
-    {"trapezoid", 1, {25000}, [](const double *a, double w, double h) {
-        const double ss = side(w, h);
-        return QVector<double>{over(ss * pin(0, a[0], over(50000 * w, ss)) / 100000, w)}; }},
-    {"hexagon", 1, {25000}, [](const double *a, double w, double h) {
-        const double ss = side(w, h);
-        return QVector<double>{over(ss * pin(0, a[0], over(50000 * w, ss)) / 100000, w)}; }},
+    // The sizes across are fractions of the shorter side, as the standard has them; the most one can be depends on the frame's proportions.
+    {"parallelogram", 1, {25000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(100000 * w, side(w, h))) / 100000}; }},
+    {"trapezoid", 1, {25000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(50000 * w, side(w, h))) / 100000}; }},
+    {"hexagon", 1, {25000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(50000 * w, side(w, h))) / 100000}; }},
     {"octagon", 1, {29289}, SIDE_FRACTION(50000)},
     {"plaque", 1, {16667}, SIDE_FRACTION(50000)},
     {"homePlate", 1, {50000}, [](const double *a, double w, double h) { return QVector<double>{pin(0, a[0], over(100000 * w, side(w, h))) / 100000}; }},
@@ -498,7 +493,7 @@ const AdjustSpec kAdjustments[] = {
     {"donut", 1, {25000}, SIDE_FRACTION(50000)},
     {"noSmoking", 1, {18750}, SIDE_FRACTION(50000)},
     {"frame", 1, {12500}, SIDE_FRACTION(50000)},
-    {"halfFrame", 2, {33333, 33333}, SIDE_FRACTION(100000)},
+    {"halfFrame", 2, {33333, 33333}, [](const double *a, double, double) { return QVector<double>{a[0] / 100000, a[1] / 100000}; }},
     {"corner", 2, {50000, 50000}, SIDE_FRACTION(100000)},
     {"diagStripe", 1, {50000}, SIDE_FRACTION(100000)},
     {"plus", 1, {25000}, SIDE_FRACTION(50000)},
@@ -544,8 +539,8 @@ const AdjustSpec kAdjustments[] = {
     {"mathPlus", 1, {23520}, SIDE_FRACTION(73490)},
     {"mathMinus", 1, {23520}, SIDE_FRACTION(100000)},
     {"mathMultiply", 1, {23520}, SIDE_FRACTION(51965)},
-    {"mathDivide", 3, {23520, 5882, 11760}, SIDE_FRACTION(36745)},
-    {"mathEqual", 2, {23520, 11760}, SIDE_FRACTION(36745)},
+    {"mathDivide", 3, {23520, 5882, 11760}, [](const double *a, double, double) { return QVector<double>{a[0] / 100000, a[1] / 100000, a[2] / 100000}; }},
+    {"mathEqual", 2, {23520, 11760}, [](const double *a, double, double) { return QVector<double>{pin(0, a[0], 36745) / 100000, pin(0, a[1], 100000 - 2 * pin(0, a[0], 36745)) / 100000}; }},
     {"mathNotEqual", 3, {23520, 6600000, 11760}, SIDE_FRACTION(50000)},
     // Stars: the inner points' distance from the center, over the outer's, in half of 100,000ths.
     {"star4", 1, {12500}, SIDE_FRACTION(50000)},
@@ -663,8 +658,6 @@ QVector<QPair<QString, double>> presetAdjustments(const QString &prst, const QVe
     if (prst == QLatin1String("snip2DiagRect")) slots = {{1, 100000}};
     else if (prst == QLatin1String("uturnArrow")) slots = {{0, 100000}, {2, 100000}};
     else if (prst == QLatin1String("quadArrow")) slots = {{0, 200000}, {1, 100000}, {2, 100000}};
-    else if (prst == QLatin1String("parallelogram") || prst == QLatin1String("trapezoid") || prst == QLatin1String("hexagon"))
-        slots = {{0, side(w, h) > 0 ? 100000 * w / side(w, h) : 100000}};
     else if (prst.startsWith(QLatin1String("star")) && prst != QLatin1String("star4")) slots = {{0, 50000}};
     else if (prst == QLatin1String("doubleWave")) slots = {{0, 200000}};
     else if (prst == QLatin1String("arc") || prst == QLatin1String("chord") || prst == QLatin1String("pie")) slots = {{0, 21600000}, {1, 21600000}};

@@ -39,7 +39,7 @@ GuideEvaluator::GuideEvaluator(double width, double height)
         {"w", width}, {"h", height}, {"l", 0}, {"t", 0}, {"r", width}, {"b", height}, {"hc", width / 2}, {"vc", height / 2},
         {"wd2", width / 2}, {"wd3", width / 3}, {"wd4", width / 4}, {"wd5", width / 5}, {"wd6", width / 6}, {"wd8", width / 8},
         {"wd10", width / 10}, {"wd32", width / 32},
-        {"hd2", height / 2}, {"hd3", height / 3}, {"hd4", height / 4}, {"hd5", height / 5}, {"hd6", height / 6}, {"hd8", height / 8},
+        {"hd2", height / 2}, {"hd3", height / 3}, {"hd4", height / 4}, {"hd5", height / 5}, {"hd6", height / 6}, {"hd8", height / 8}, {"hd10", height / 10},
         {"ss", ss}, {"ls", ls}, {"ssd2", ss / 2}, {"ssd4", ss / 4}, {"ssd6", ss / 6}, {"ssd8", ss / 8}, {"ssd16", ss / 16}, {"ssd32", ss / 32},
         {"cd2", 10800000}, {"cd4", 5400000}, {"cd8", 2700000}, {"3cd4", 16200000}, {"3cd8", 8100000}, {"5cd8", 13500000}, {"7cd8", 18900000}};
     for (const auto &n : names) m_values.insert(QString::fromLatin1(n.name), n.value);
