@@ -79,7 +79,7 @@ A new window opens with the original text and the changes that turn it into the 
 
 Compare looks at the text of the body of the document. It does not look at tables, headers, footers, or footnotes.
 
-A paragraph of 12 words or more that was cut from one place and put in another is shown as a **move**: one record where the text left, and one where it arrived. Accepting or rejecting one of them takes both. The paragraph has to be the same, or at least 9 words in 10 the same, or it is shown as a deletion and an insertion instead.
+A paragraph of 12 words or more that was cut from one place and put in another is shown as a **move**: one record where the text left, and one where it arrived. Accepting or rejecting one of them takes both. The paragraph has to be the same, or at least 9 words in 10 the same and mostly in the same order, or it is shown as a deletion and an insertion instead. Words that differ inside a moved paragraph are shown as insertions and deletions inside the move.
 
 Text that is the same in both versions but looks different is shown as a **formatting change**. Compare checks bold, italic, underline, size, font, color, highlight, and a paragraph's style, alignment, indents, and spacing. Rejecting the change gives the old look back.
 

@@ -21,8 +21,6 @@ namespace {
 
 using textdiff::commonRun;
 
-CompareWork g_work;
-
 constexpr int kMostParagraphs = 20000;   // the most paragraphs of a text that are compared
 constexpr qint64 kMostTableCells = 4000000;   // the most cells of the table of lengths for the paragraphs between two anchors (16 MB)
 
@@ -103,7 +101,7 @@ QString lookKey(const QTextCharFormat &f)
     return k.join(QLatin1Char('|'));
 }
 
-QVector<Para> paragraphsOf(WriteDoc &doc, bool *tooMany, bool withLooks)
+QVector<Para> paragraphsOf(WriteDoc &doc, bool *tooMany, bool withLooks, CompareContext &ctx, bool *looksCut)
 {
     QVector<Para> out;
     *tooMany = false;
@@ -128,7 +126,16 @@ QVector<Para> paragraphsOf(WriteDoc &doc, bool *tooMany, bool withLooks)
                     p.text += text.at(k);
                     p.places.push_back(f.position() + k);
                 }
-                if (withLooks && p.text.size() > before) p.runs.push_back({before, lookKey(cf), cf});
+                if (withLooks && p.text.size() > before) {
+                    if (ctx.work.formatFragments >= ctx.limits.formatFragments) {
+                        *looksCut = true;   // (the looks of the rest are not held)
+                        withLooks = false;
+                        p.runs.clear();
+                    } else {
+                        ++ctx.work.formatFragments;
+                        p.runs.push_back({before, lookKey(cf), cf});
+                    }
+                }
             }
         }
         out.push_back(p);
@@ -213,12 +220,14 @@ QString idOfTag(const QByteArray &tag)
 
 // Which paragraphs only in the first text are the same (or nearly) as paragraphs only in the second, in another place: as (first, second). `gapA` and `gapB` say which stretch between the kept paragraphs each is in; a
 // paragraph that moved is in two different ones. Only paragraphs of at least `options.minMoveWords` words are looked at. The same words are found by hash; the rest by how many words they share (at least 90%),
-// within the limits (`skipped` says they were reached, and no move is then looked for, or the looking stopped).
+// within the limits (`skipped` says they were reached, and no move is then looked for, or the looking stopped). Of the paragraphs that share enough words, the words must also be mostly in the same order (a
+// longest run of the same words, in order, of at least 90%).
 QVector<QPair<int, int>> findMoves(const QVector<Para> &a, const QVector<Para> &b, const QStringList &ka, const QStringList &kb, const QVector<int> &gapA, const QVector<int> &gapB,
-                                   const QVector<char> &matchedA, const QVector<char> &matchedB, const CompareOptions &options, bool *skipped)
+                                   const QVector<char> &matchedA, const QVector<char> &matchedB, const CompareOptions &options, CompareContext &ctx, bool *skipped)
 {
     QVector<QPair<int, int>> found;
-    const CompareLimits &limit = compareLimitsForTest();
+    const CompareLimits &limit = ctx.limits;
+    CompareWork &work = ctx.work;
     qint64 chars = 0;
     for (int i = 0; i < a.size(); ++i)
         if (!matchedA.at(i) && a.at(i).ok) chars += a.at(i).text.size();
@@ -232,6 +241,7 @@ QVector<QPair<int, int>> findMoves(const QVector<Para> &a, const QVector<Para> &
     struct Cand {
         int index;
         QVector<uint> words;   // the hashes of its words, in order of value
+        QVector<uint> order;   // the same, in the order of the paragraph
     };
     auto candidates = [&](const QVector<Para> &paras, const QStringList &keys, const QVector<char> &matched) {
         QVector<Cand> out;
@@ -241,7 +251,8 @@ QVector<QPair<int, int>> findMoves(const QVector<Para> &a, const QVector<Para> &
             if (words.size() < options.minMoveWords) continue;
             Cand c;
             c.index = i;
-            for (const QString &w : words) c.words.push_back(qHash(w));
+            for (const QString &w : words) c.order.push_back(qHash(w));
+            c.words = c.order;
             std::sort(c.words.begin(), c.words.end());
             out.push_back(std::move(c));
         }
@@ -277,13 +288,13 @@ QVector<QPair<int, int>> findMoves(const QVector<Para> &a, const QVector<Para> &
             const QVector<uint> &wb = ib.at(j).words;
             const qint64 total = qint64(wa.size()) + wb.size();
             if (qint64(std::min(wa.size(), wb.size())) * 20 < total * 9) continue;   // (the one that is shorter can't share 90%)
-            if (g_work.moveWords + total > limit.moveWork) {
+            if (work.moveWords + total > limit.moveWork) {
                 *skipped = true;
                 i = int(da.size());
                 break;
             }
-            g_work.moveWords += total;
-            ++g_work.moveComparisons;
+            work.moveWords += total;
+            ++work.moveComparisons;
             qint64 shared = 0;
             for (int x = 0, y = 0; x < wa.size() && y < wb.size();) {
                 if (wa.at(x) == wb.at(y)) {
@@ -297,7 +308,33 @@ QVector<QPair<int, int>> findMoves(const QVector<Para> &a, const QVector<Para> &
                 }
             }
             if (shared * 20 < total * 9) continue;
-            const double similarity = double(shared) / double(total);
+            // (Only now, for the pair that passed: the words in order, with what the two start and end with in common left out.)
+            const QVector<uint> &oa = da.at(i).order, &ob = ib.at(j).order;
+            int lo = 0, ea = int(oa.size()), eb = int(ob.size());
+            while (lo < ea && lo < eb && oa.at(lo) == ob.at(lo)) ++lo;
+            while (ea > lo && eb > lo && oa.at(ea - 1) == ob.at(eb - 1)) {
+                --ea;
+                --eb;
+            }
+            const qint64 cells = qint64(ea - lo + 1) * qint64(eb - lo + 1);
+            if (work.moveCells + cells > limit.moveCells) {
+                *skipped = true;
+                i = int(da.size());
+                break;
+            }
+            work.moveCells += cells;
+            QVector<int> row(eb - lo + 1, 0);
+            for (int x = lo; x < ea; ++x) {
+                int diagonal = 0;
+                for (int y = lo; y < eb; ++y) {
+                    const int up = row.at(y - lo + 1);
+                    row[y - lo + 1] = oa.at(x) == ob.at(y) ? diagonal + 1 : std::max(up, row.at(y - lo));
+                    diagonal = up;
+                }
+            }
+            const qint64 ordered = qint64(lo) + (int(oa.size()) - ea) + row.at(eb - lo);
+            if (ordered * 20 < total * 9) continue;
+            const double similarity = double(ordered) / double(total);
             if (similarity > bestSimilarity) {
                 bestSimilarity = similarity;
                 best = j;
@@ -386,6 +423,62 @@ void makeMove(WriteDoc &out, int blockPos, int markPos, const QString &name, boo
     refreshRevisionLook(out, story->findBlock(blockPos));
 }
 
+// In the text put in by a move (the paragraph at `blockPos`, the revised one's words), what differs from the paragraph it was moved from: the words that are not in the first are put in as insertions inside the
+// move, and the words of the first that are not in the second as deletions beside them. `edits` turn `fromText` into the moved text. What is accepted is the revised text, and rejecting the move takes all of it away.
+void markMovedEdits(WriteDoc &out, int blockPos, const QString &fromText, const QVector<TextEdit> &edits)
+{
+    if (edits.isEmpty()) return;
+    const UntrackedEdit untracked;
+    QTextDocument *story = out.story();
+    QVector<int> places;   // for each character of the moved text, its place (what the marks of the changes are is left out)
+    for (QTextBlock::iterator it = story->findBlock(blockPos).begin(); !it.atEnd(); ++it) {
+        const QTextFragment f = it.fragment();
+        if (f.charFormat().hasProperty(prop::Atom)) continue;
+        const QString text = f.text();
+        for (int k = 0; k < text.size(); ++k)
+            if (text.at(k) != QChar::ObjectReplacementCharacter) places.push_back(f.position() + k);
+    }
+    QVector<int> starts;   // where each edit's inserted words begin, in the moved text
+    int delta = 0;
+    for (const TextEdit &ed : edits) {
+        starts.push_back(ed.deleteFrom + delta);
+        delta += int(ed.insertText.size()) - (ed.deleteTo - ed.deleteFrom);
+    }
+    auto formatAt = [&](int place) {
+        QTextCursor q(story);
+        q.setPosition(place + 1);
+        return q.charFormat();
+    };
+    for (int e = int(edits.size()) - 1; e >= 0; --e) {
+        const TextEdit &ed = edits.at(e);
+        const int b0 = starts.at(e), n = int(ed.insertText.size());
+        if (b0 < 0 || b0 + n > places.size() || places.isEmpty()) continue;
+        // The inserted words, in pieces that touch (so that no piece starts in one of the move's marks and ends in another).
+        for (int end = b0 + n; end > b0;) {
+            int begin = end - 1;
+            while (begin > b0 && places.at(begin - 1) + 1 == places.at(begin)) --begin;
+            const QByteArray tag = revisionStartTag(out, QStringLiteral("ins"));
+            const QTextCharFormat like = formatAt(places.at(begin));
+            QTextCursor t(story);
+            t.setPosition(places.at(end - 1) + 1);
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), false, like));
+            t.setPosition(places.at(begin));
+            t.insertText(QString(QChar::ObjectReplacementCharacter), revisionPiece(tag, QStringLiteral("ins"), true, like));
+            end = begin;
+        }
+        if (ed.deleteTo > ed.deleteFrom) {
+            const int at = b0 > 0 ? places.at(b0 - 1) + 1 : places.first();
+            const QTextCharFormat like = formatAt(places.at(std::min(b0, int(places.size()) - 1)));
+            QTextCursor t(story);
+            t.setPosition(at);
+            const QString gone = fromText.mid(ed.deleteFrom, ed.deleteTo - ed.deleteFrom);
+            t.insertText(gone, like);
+            markDeleted(out, story, at, at + int(gone.size()));
+        }
+    }
+    refreshRevisionLook(out, story->findBlock(blockPos));
+}
+
 // ---- looks
 
 struct Segment {
@@ -422,10 +515,10 @@ int runIndexAt(const QVector<Para::Run> &runs, int index)
 }
 
 // Records the changes of the look of the letters of text that is the same in both: the old look is kept as a change of properties and the new look is the revised one's.
-int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector<Segment> &same, bool *capped)
+int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector<Segment> &same, bool *capped, CompareContext &ctx)
 {
     int made = 0;
-    CompareWork &work = g_work;
+    CompareWork &work = ctx.work;
     for (const Segment &s : same) {
         for (int i = s.from; i < s.from + s.length;) {
             const int ra = runIndexAt(pa.runs, i), rb = runIndexAt(pb.runs, s.to + i - s.from);
@@ -438,7 +531,7 @@ int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector
                 for (int k = i; k < i + span;) {
                     int e = k + 1;
                     while (e < i + span && pa.places.at(e - 1) + 1 == pa.places.at(e)) ++e;
-                    if (work.formatChanges >= compareLimitsForTest().formatChanges) {
+                    if (work.formatChanges >= ctx.limits.formatChanges) {
                         *capped = true;
                         return made;
                     }
@@ -447,8 +540,13 @@ int compareRunLooks(WriteDoc &out, const Para &pa, const Para &pb, const QVector
                     c.setPosition(pa.places.at(e - 1) + 1, QTextCursor::KeepAnchor);
                     const QTextCharFormat look = pb.runs.at(rb).format;
                     changeCharFormat(out, c, [&](QTextCharFormat &g) { giveLook(g, look); });
-                    ++work.formatChanges;
-                    ++made;
+                    // (Only a change that was made is counted: the edit can be refused, or leave the look as it was.)
+                    QTextCursor after(out.story());
+                    after.setPosition(pa.places.at(k) + 1);
+                    if (after.charFormat().boolProperty(tp::RevisionFormat)) {
+                        ++work.formatChanges;
+                        ++made;
+                    }
                     k = e;
                 }
             }
@@ -465,8 +563,8 @@ bool paragraphLooksDiffer(const QTextBlockFormat &x, const QString &xStyle, cons
            !near(x.topMargin(), y.topMargin()) || !near(x.bottomMargin(), y.bottomMargin()) || x.lineHeightType() != y.lineHeightType() || !near(x.lineHeight(), y.lineHeight());
 }
 
-// Records a change of the paragraph's style, alignment, indents, or spacing (the old ones are kept) and gives it the revised paragraph's.
-int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int revisedBlockPos)
+// Records a change of the paragraph's style, alignment, indents, or spacing (the old ones are kept) and gives it the revised paragraph's (with `apply` false, only tells whether they differ).
+int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int revisedBlockPos, bool apply = true)
 {
     QTextBlock blk = out.story()->findBlock(blockPos);
     const QTextBlock src = revised.story()->findBlock(revisedBlockPos);
@@ -478,6 +576,7 @@ int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int re
     const QString ours = styleOf(out, blk), theirs = styleOf(revised, src);
     const QTextBlockFormat sf = src.blockFormat();
     if (!paragraphLooksDiffer(blk.blockFormat(), ours, sf, theirs)) return 0;
+    if (!apply) return 1;
     const QTextBlockFormat was = blk.blockFormat();
     {
         const UntrackedEdit untracked;
@@ -502,20 +601,19 @@ int compareParagraphLooks(WriteDoc &out, int blockPos, WriteDoc &revised, int re
 
 } // namespace
 
-CompareLimits &compareLimitsForTest()
+std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress, QString *note)
 {
-    static CompareLimits limits;
-    return limits;
+    CompareContext context;
+    return compareDocumentsWith(context, original, revised, options, changes, error, progress, note);
 }
 
-const CompareWork &compareWorkForTest() { return g_work; }
-
-std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress, QString *note)
+std::unique_ptr<WriteDoc> compareDocumentsWith(CompareContext &context, WriteDoc &original, WriteDoc &revised, const CompareOptions &options, int *changes, QString *error, const std::function<bool(int, int)> &progress,
+                                               QString *note)
 {
     if (changes) *changes = 0;
     if (error) error->clear();
     if (note) note->clear();
-    g_work = CompareWork();
+    context.work = CompareWork();
     QString err;
     std::unique_ptr<WriteDoc> out = WriteDoc::fromDocx(original.toDocx(&err), &err);
     if (!out) {
@@ -526,8 +624,9 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
     // (A copy that shows the differences is not a protected document, whatever the original was.)
     out->setProtection(std::nullopt);
     bool many1 = false, many2 = false;
-    QVector<Para> a = paragraphsOf(*out, &many1, options.compareFormatting);
-    const QVector<Para> b = paragraphsOf(revised, &many2, options.compareFormatting);
+    bool looksCut = false;
+    QVector<Para> a = paragraphsOf(*out, &many1, options.compareFormatting, context, &looksCut);
+    const QVector<Para> b = paragraphsOf(revised, &many2, options.compareFormatting, context, &looksCut);
     if (many1 || many2) {
         if (error) *error = QCoreApplication::translate("jp::write::Compare", "A document with that many paragraphs can't be compared.");
         return nullptr;
@@ -574,14 +673,31 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
     // Paragraphs that only moved.
     QVector<int> movedA(a.size(), -1), movedB(b.size(), -1);
     QStringList moveNames;
+    QStringList moveFromTexts;
+    QVector<QVector<TextEdit>> moveEdits;   // for each move, the words that differ between its two halves (letter for letter, whatever the options ignore)
     if (options.detectMoves) {
         bool skipped = false;
-        const QVector<QPair<int, int>> moves = findMoves(a, b, ka, kb, gapA, gapB, matchedA, matchedB, options, &skipped);
+        const QVector<QPair<int, int>> moves = findMoves(a, b, ka, kb, gapA, gapB, matchedA, matchedB, options, context, &skipped);
         for (const auto &m : moves) {
             movedA[m.first] = movedB[m.second] = int(moveNames.size());
             moveNames << QStringLiteral("move%1").arg(out->nextRevisionId());
+            QVector<TextEdit> edits;
+            const Para &pa = a.at(m.first), &pb = b.at(m.second);
+            if (pa.text != pb.text) {
+                textdiff::DiffOptions exact;
+                exact.byCharacter = options.byCharacter;
+                const qint64 cells = textdiff::diffCells(pa.text, pb.text, exact);
+                if (context.work.diffCells + cells > context.limits.diffCells) {
+                    edits.push_back({0, int(pa.text.size()), pb.text});
+                } else {
+                    context.work.diffCells += cells;
+                    edits = diffText(pa.text, pb.text, exact);
+                }
+            }
+            moveEdits.push_back(edits);
+            moveFromTexts << pa.text;
         }
-        g_work.moves = moves.size();
+        context.work.moves = moves.size();
         if (skipped) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes to look for all the moved text.") + QLatin1Char(' ');
     }
     for (Gap &g : gaps) {
@@ -597,7 +713,7 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
     };
     QVector<PairInfo> pairList;
     bool wholeReplaced = false;
-    const CompareLimits &limit = compareLimitsForTest();
+    const CompareLimits &limit = context.limits;
     for (int k = 0; k < gaps.size(); ++k) {
         Gap &g = gaps[k];
         const int pairs = int(std::min(g.aOnly.size(), g.bOnly.size()));
@@ -606,11 +722,11 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
             const Para &pa = a.at(p.a), &pb = b.at(p.b);
             if (pa.ok && pb.ok) {
                 const qint64 cells = textdiff::diffCells(pa.text, pb.text, options);
-                if (g_work.diffCells + cells > limit.diffCells) {
+                if (context.work.diffCells + cells > limit.diffCells) {
                     p.edits.push_back({0, int(pa.text.size()), pb.text});
                     wholeReplaced = pa.text != pb.text;
                 } else {
-                    g_work.diffCells += cells;
+                    context.work.diffCells += cells;
                     p.edits = diffText(pa.text, pb.text, options);
                 }
             }
@@ -632,12 +748,20 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
         auto looks = [&](int ai, int bi, const QVector<TextEdit> &edits) {
             const Para &pa = a.at(ai), &pb = b.at(bi);
             if (!pa.ok || !pb.ok || capped) return;
-            made += compareRunLooks(*out, pa, pb, sameStretches(pa, pb, edits, options.ignoreCase), &capped);
-            made += compareParagraphLooks(*out, pa.blockFrom, revised, pb.blockFrom);
+            made += compareRunLooks(*out, pa, pb, sameStretches(pa, pb, edits, options.ignoreCase), &capped, context);
+            if (capped) return;
+            if (context.work.formatChanges >= context.limits.formatChanges) {
+                // (The paragraph's own settings are counted as the looks of letters are.)
+                if (compareParagraphLooks(*out, pa.blockFrom, revised, pb.blockFrom, false) > 0) capped = true;
+                return;
+            }
+            const int changed = compareParagraphLooks(*out, pa.blockFrom, revised, pb.blockFrom);
+            context.work.formatChanges += changed;
+            made += changed;
         };
         for (int k = 0; k < keepA.size(); ++k) looks(keepA.at(k), keepB.at(k), {});
         for (const PairInfo &p : std::as_const(pairList)) looks(p.a, p.b, p.edits);
-        if (capped) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes of formatting to show them all.") + QLatin1Char(' ');
+        if (capped || looksCut) notes += QCoreApplication::translate("jp::write::Compare", "Too many changes of formatting to show them all.") + QLatin1Char(' ');
     }
     // From the last gap to the first, so that a place found before an edit is still its place after the edits after it.
     for (int k = int(gaps.size()) - 1; k >= 0; --k) {
@@ -661,41 +785,52 @@ std::unique_ptr<WriteDoc> compareDocuments(WriteDoc &original, WriteDoc &revised
             const bool atStart = after < 0;
             for (const int t : std::as_const(inserts)) {
                 const int at = insertRevisedParagraph(*out, c, revised, b.at(t), atStart);
-                if (movedB.at(t) >= 0) makeMove(*out, at, atStart ? at : story->findBlock(at).previous().position(), moveNames.at(movedB.at(t)), false);
+                if (movedB.at(t) >= 0) {
+                    makeMove(*out, at, atStart ? at : story->findBlock(at).previous().position(), moveNames.at(movedB.at(t)), false);
+                    markMovedEdits(*out, at, moveFromTexts.at(movedB.at(t)), moveEdits.at(movedB.at(t)));
+                }
                 ++made;
             }
         }
-        // The paragraphs that are only in the original (or are moved away) are deleted, with their marks.
-        QVector<int> deletes = g.aOnly.mid(pairs);
+        // The paragraphs that are only in the original (or are moved away) are deleted, with their marks, and the paragraphs in both that differ have the words told apart. All from the last paragraph of the original
+        // to the first, so that the place found before a change is still its place after the changes after it (a paragraph that moves away is not always after the one that has words changed).
+        struct Op {
+            int a;      // the paragraph of the original
+            int pair;   // which of the gap's pairs (or -1 for a paragraph that is deleted)
+        };
+        QVector<Op> ops;
+        for (int t = 0; t < pairs; ++t) ops.push_back({g.aOnly.at(t), t});
+        for (const int t : g.aOnly.mid(pairs)) ops.push_back({t, -1});
         for (int i = g.a0; i < g.a1; ++i)
-            if (movedA.at(i) >= 0) deletes << i;
-        std::sort(deletes.begin(), deletes.end(), std::greater<int>());
-        for (const int t : std::as_const(deletes)) {
-            if (!a.at(t).ok) continue;
-            QTextCursor c(story);
-            const QTextBlock blk = story->findBlock(a.at(t).blockFrom);
-            // (A paragraph that moved is deleted as the last one is: its text and the mark of the paragraph before it. The marks of the moves' ranges stay in it when the change is accepted, and a
-            // paragraph with its own mark deleted that has them left can't be joined to the next, where this one's mark is the one that is left.)
-            const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
-            const int markPos = !lastWay || !blk.previous().isValid() ? blk.position() : blk.previous().position();
-            c.setPosition(blk.position());
-            if (!lastWay && blk.next().isValid()) {
-                c.setPosition(blk.next().position(), QTextCursor::KeepAnchor);
-            } else if (blk.previous().isValid()) {
-                c.setPosition(blk.previous().position() + blk.previous().length() - 1);
-                c.setPosition(blk.position() + blk.length() - 1, QTextCursor::KeepAnchor);
-            } else {
-                c.setPosition(blk.position() + blk.length() - 1, QTextCursor::KeepAnchor);
+            if (movedA.at(i) >= 0) ops.push_back({i, -1});
+        std::sort(ops.begin(), ops.end(), [](const Op &x, const Op &y) { return x.a > y.a; });
+        for (const Op &op : std::as_const(ops)) {
+            if (op.pair < 0) {
+                const int t = op.a;
+                if (!a.at(t).ok) continue;
+                QTextCursor c(story);
+                const QTextBlock blk = story->findBlock(a.at(t).blockFrom);
+                // (A paragraph that moved is deleted as the last one is: its text and the mark of the paragraph before it. The marks of the moves' ranges stay in it when the change is accepted, and a
+                // paragraph with its own mark deleted that has them left can't be joined to the next, where this one's mark is the one that is left.)
+                const bool lastWay = !blk.next().isValid() || movedA.at(t) >= 0;
+                const int markPos = !lastWay || !blk.previous().isValid() ? blk.position() : blk.previous().position();
+                c.setPosition(blk.position());
+                if (!lastWay && blk.next().isValid()) {
+                    c.setPosition(blk.next().position(), QTextCursor::KeepAnchor);
+                } else if (blk.previous().isValid()) {
+                    c.setPosition(blk.previous().position() + blk.previous().length() - 1);
+                    c.setPosition(blk.position() + blk.length() - 1, QTextCursor::KeepAnchor);
+                } else {
+                    c.setPosition(blk.position() + blk.length() - 1, QTextCursor::KeepAnchor);
+                }
+                if (c.hasSelection()) {
+                    removeSelection(*out, c);
+                    if (movedA.at(t) >= 0) makeMove(*out, a.at(t).blockFrom, markPos, moveNames.at(movedA.at(t)), true);
+                    ++made;
+                }
+                continue;
             }
-            if (c.hasSelection()) {
-                removeSelection(*out, c);
-                if (movedA.at(t) >= 0) makeMove(*out, a.at(t).blockFrom, markPos, moveNames.at(movedA.at(t)), true);
-                ++made;
-            }
-        }
-        // The paragraphs in both that differ: the words are told apart.
-        for (int t = pairs - 1; t >= 0; --t) {
-            const PairInfo &pi = pairList.at(g.pairs.at(t));
+            const PairInfo &pi = pairList.at(g.pairs.at(op.pair));
             const Para &pa = a.at(pi.a);
             if (!pa.ok || !b.at(pi.b).ok) continue;
             const QVector<TextEdit> &edits = pi.edits;
