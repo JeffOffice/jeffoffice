@@ -6,6 +6,7 @@
 #include "app/icons.h"
 
 #include "core/appinfo.h"
+#include "core/collation.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -389,8 +390,7 @@ void CrunchWindow::showChoices()
                     }
                 }
             }
-            QCollator collator;
-            collator.setCaseSensitivity(Qt::CaseInsensitive);
+            const QCollator collator = jp::crunch::sortCollator();     // (the order Sort puts them in, not the person's language's)
             std::sort(choices.begin(), choices.end(), collator);
         }
     }

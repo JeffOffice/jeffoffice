@@ -92,6 +92,7 @@ private Q_SLOTS:
     void ctrlEnterKeepsToTheTopLeftCellOfAMergedArea();
     void todaysDateAndTheTimeByKeys();
     void altDownListsTheColumnsValues();
+    void theColumnListIsInSortOrderInAnyLanguage();
     void enterAfterTabsGoesBackToTheStartColumn();
     void enterAfterMovingByTabsGoesBackToTheStartColumn();
     void f2AndADoubleClickEditWhatTheCellHolds();

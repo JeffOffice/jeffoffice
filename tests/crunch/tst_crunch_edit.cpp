@@ -1,6 +1,7 @@
 #include "tst_crunch_edit.h"
 #include "app/minitoolbar.h"
 #include "app/settings.h"
+#include "core/collation.h"
 #include <QComboBox>
 #include <QScopeGuard>
 #include <QScrollBar>
@@ -1229,6 +1230,36 @@ void CrunchEditTests::altDownListsTheColumnsValues()
     QCOMPARE(none->actions().size(), 1);
     QVERIFY(!none->actions().first()->isEnabled());
     none->close();
+}
+
+
+// The list of the words in a column is in the order Sort uses (English rules: accents with their letters, case ignored), whatever language the person's computer is set to.
+void CrunchEditTests::theColumnListIsInSortOrderInAnyLanguage()
+{
+    auto word = [](int row, const QString &w) { return QStringLiteral("<row r=\"%1\"><c r=\"J%1\" t=\"inlineStr\"><is><t>%2</t></is></c></row>").arg(row).arg(w).toUtf8(); };
+    const QStringList words{QStringLiteral("zebra"), QStringLiteral("\u00e4rlig"), QStringLiteral("apple"), QStringLiteral("Banana"), QStringLiteral("b10"), QStringLiteral("b9")};
+    QByteArray rows;
+    for (int i = 0; i < words.size(); ++i) rows += word(10 + i, words[i]);
+    PinnedLocale swedish(QLocale(QLocale::Swedish, QLocale::Sweden));        // (there an a-umlaut comes after z: a default collator would differ from Sort's)
+    EditWindow e;
+    const bool opened = e.open(editBook(rows));
+    if (opened) {
+        e.select(QStringLiteral("J16"));
+        QTest::keyClick(e.view(), Qt::Key_Down, Qt::AltModifier);
+    }
+    QMenu *menu = e.win.w.findChild<QMenu *>(QStringLiteral("listMenu"));
+    QStringList items;
+    if (menu) for (QAction *a : menu->actions()) items << a->text();
+    if (menu) menu->close();
+    QVERIFY(opened);
+    QVERIFY(menu);
+    QStringList expected = words;
+    const QCollator sortOrder = jp::crunch::sortCollator();
+    std::sort(expected.begin(), expected.end(), sortOrder);
+    QCOMPARE(items, expected);
+    QCOMPARE(items.first(), QStringLiteral("apple"));
+    QCOMPARE(items.indexOf(QStringLiteral("\u00e4rlig")), 1);                  // (with the a's, before Banana)
+    QCOMPARE(items.last(), QStringLiteral("zebra"));
 }
 
 
