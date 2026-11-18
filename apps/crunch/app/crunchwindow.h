@@ -5,6 +5,8 @@
 
 #include "app/appwindow.h"
 #include "app/missingfonts.h"
+#include "app/objects.h"
+#include "app/objectsdialog.h"
 #include "app/packandgo.h"
 #include "app/readaloud.h"
 #include "app/selectionpane.h"
@@ -798,6 +800,13 @@ private:
     bool stopCalculation();   // true if a save that was waiting for the calculation was cancelled
     // the commands on a block of cells (crunchwindow_ops.cpp)
     void createOpsActions();
+    std::function<bool(jp::objects::Source, bool, jp::objects::SourceChoice *)> m_objectAsker;
+    jp::EmbeddedEdit *m_objectEdit = nullptr;
+    struct ObjectEditing {
+        int sheet = 0;
+        QString token;
+    };
+    QHash<int, ObjectEditing> m_objectEdits;   // an edit's number, and which object it is (by the token its picture carries)
     QStringList m_opsActions;   // the commands that work when a workbook is open and nothing is being saved
     void autoSum(const QString &function);
     void fillSelection(crunch::EditSession::FillDirection direction);
@@ -1515,6 +1524,24 @@ public:
     bool insertPictureFile(const QString &path);
     bool insertPictureData(QByteArray bytes, const QString &name, int rasterSide = 0, double sheetSide = 0, const QString &alt = QString());
     bool pictureClip(QByteArray bytes, const QString &name, int rasterSide, double sheetSide, const QString &alt, crunch::ObjectClip *made);
+    // Objects of other apps (Insert > Object, Paste Special, the list in File > Info). An object here is a picture that carries its package (libs/shell/app/objects.h, carryObject), so it moves,
+    // sizes, saves, and undoes as a picture does. The program that edits one, and how it is opened, is the window's own EmbeddedEdit (tests give it an opener of their own); the box that asks
+    // where an object comes from is the shared one unless this stands in for it (tests).
+    jp::EmbeddedEdit *objectEditor();
+    void setObjectSourceAsker(const std::function<bool(jp::objects::Source, bool, jp::objects::SourceChoice *)> &asker) { m_objectAsker = asker; }
+    bool insertObjectFrom(jp::objects::Source source, const QString &path, const QString &detail);
+    bool insertObjectFromCopy();
+    void insertObjectFromAsk(jp::objects::Source source);
+    // The objects of the workbook's sheets: the sheet and the picture of each (in the order of the sheets), and opening one in its own app.
+    struct CarriedObject {
+        int sheet = 0;
+        int id = 0;
+        jp::objects::Carried carried;
+    };
+    std::vector<CarriedObject> carriedObjects();
+    std::optional<jp::objects::Carried> carriedAt(int sheet, int id);
+    bool editCarriedObject(int sheet, int id);
+    void showObjects();
     // Insert > Online Pictures: the pane (null until it was first asked for); a picture downloaded to `path` put on the sheet with its title as alt text and, when `credit` is not empty, a
     // credit line under it, as one step.
     OnlinePicturesPane *onlinePictures() const { return m_online; }
@@ -1624,6 +1651,10 @@ public:
 private:
     void createChartActions();
     void createInsertObjectActions();
+    void createObjectActions();   // crunchwindow_objects.cpp: objects of other apps
+    bool convertCarriedToPicture(int sheet, int id);
+    void carriedObjectSaved(int editId, const QByteArray &part, const QByteArray &png, bool stale);
+    bool placeCarried(const jp::office::ole::EmbeddedObject &object);
     void createControlActions();
     void connectControls();
     void createArrangeActions();

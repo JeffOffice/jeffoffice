@@ -1033,6 +1033,10 @@ bool CrunchWindow::copyObject(bool cut)
     auto *md = new QMimeData;
     clip.toMime(md);
     if (!picture.isNull()) md->setImageData(picture);
+    if (kind == ObjectKind::Chart) {
+        const QByteArray part = clip.chartXml;
+        md = static_cast<QMimeData *>(objects::withObject(md, [part]() -> std::optional<office::ole::EmbeddedObject> { return objects::chartObjectFromPart(part); }));
+    }
     m_settingClipboard = true;
     QApplication::clipboard()->setMimeData(md);
     m_settingClipboard = false;

@@ -318,6 +318,11 @@ void CrunchWindow::publishClipboard(const QString &text)
         md->setHtml(m_pendingHtml);
         md->setData(QLatin1String(crunch::kClipMime), m_pendingClip.toBytes());
     }
+    // (What was copied can also be put in another program as an object: made only when that is asked for.)
+    {
+        const auto shown = std::make_shared<QString>(text.left(1 << 20));
+        md = static_cast<QMimeData *>(objects::withObject(md, [shown]() -> std::optional<office::ole::EmbeddedObject> { return objects::rangeObject(objects::gridFromText(*shown)); }));
+    }
     m_settingClipboard = true;
     QApplication::clipboard()->setMimeData(md);
     m_settingClipboard = false;

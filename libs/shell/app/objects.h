@@ -59,14 +59,28 @@ JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> rangeObjectFromFile(
 // The first chart of a workbook, with the workbook that holds it.
 JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> chartObjectFromFile(const QString &path, QString *why = nullptr);
 JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> chartObject(const QByteArray &workbook, QString *why = nullptr);
+// A chart of a chart part (the XML), with a workbook made to hold it: the object a chart copied in the spreadsheet program is.
+JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> chartObjectFromPart(const QByteArray &chartPartXml, QString *why = nullptr);
 // A page (from 1) of a document: the file, or its bytes (a .docx).
 JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> pageObjectFromFile(const QString &path, int page, QString *why = nullptr);
 JO_COMMON_EXPORT std::optional<office::ole::EmbeddedObject> pageObject(const QByteArray &docx, int page, QString *why = nullptr);
 // How many pages the document has when laid out for a picture, 0 if it can't be read.
 JO_COMMON_EXPORT int pageCountOf(const QByteArray &docx);
+// The cells of the text a copy of cells puts on the clipboard (a tab between cells, a line for each row; a cell in quotes is as it is inside them), no more than the most a range picks up.
+JO_COMMON_EXPORT Grid gridFromText(const QString &text);
 // The values of a range written as a workbook (the package a range object is), and the size in points the range's picture is made at.
 JO_COMMON_EXPORT QByteArray rangePackage(const Grid &grid);
 JO_COMMON_EXPORT QSizeF rangeSize(const Grid &grid);
+
+// ---- an object kept in a picture: for a program whose pictures are the objects it can place (a sheet's drawing), the object is its picture with a private chunk of the PNG that holds the
+// package, which a program that does not know the object shows as the picture and which every save of the picture keeps byte for byte. `token` names the object across saves (made when
+// empty); the picture is the object's own, so the result is the PNG a window gives its sheet.
+struct Carried {
+    office::ole::EmbeddedObject object;
+    QString token;
+};
+JO_COMMON_EXPORT QByteArray carryObject(const office::ole::EmbeddedObject &object, const QString &token = QString());
+JO_COMMON_EXPORT std::optional<Carried> carriedObject(const QByteArray &png);
 
 // ---- the clipboard
 constexpr char kMime[] = "application/x-jeffoffice-object";

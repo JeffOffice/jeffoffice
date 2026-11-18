@@ -15,7 +15,9 @@
 #include <QCoreApplication>
 #include <QDataStream>
 #include <QDir>
+#include <QUuid>
 #include <QFile>
+#include <QLocale>
 #include <QFileInfo>
 #include <QFontMetricsF>
 #include <QProcess>
@@ -134,6 +136,21 @@ QImage gridPicture(const Grid &grid, qint64 widthEmu, qint64 heightEmu, int scal
         }
     }
     return image;
+}
+
+QByteArray withChartPart(const QByteArray &zip, const QByteArray &chartXml)
+{
+    QMap<QString, QByteArray> parts;
+    if (!readZip(zip, parts, nullptr, kMostInflated)) return QByteArray();
+    parts[QStringLiteral("xl/charts/chart1.xml")] = chartXml;
+    QByteArray types = parts.value(QStringLiteral("[Content_Types].xml"));
+    types.replace("</Types>", "<Override PartName=\"/xl/charts/chart1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/></Types>");
+    parts[QStringLiteral("[Content_Types].xml")] = types;
+    ZipWriter zw;
+    zw.add(QStringLiteral("[Content_Types].xml"), parts.value(QStringLiteral("[Content_Types].xml")), true);
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+        if (it.key() != QLatin1String("[Content_Types].xml")) zw.add(it.key(), it.value(), true);
+    return zw.finish();
 }
 
 QByteArray withNote(const QByteArray &zip, const QByteArray &note)
@@ -347,6 +364,30 @@ bool readRangeFile(const QString &path, const QString &range, Grid *grid, QStrin
     return !bytes.isEmpty() && readRange(bytes, range, grid, why);
 }
 
+Grid gridFromText(const QString &text)
+{
+    Grid grid;
+    const QStringList lines = text.left(1 << 20).split(QLatin1Char('\n'));
+    for (int r = 0; r < lines.size() && grid.size() < kMostRows; ++r) {
+        if (r == lines.size() - 1 && lines[r].isEmpty()) break;
+        QVector<CellValue> row;
+        const QStringList cells = lines[r].split(QLatin1Char('\t'));
+        for (int c = 0; c < cells.size() && c < kMostColumns; ++c) {
+            CellValue v;
+            v.text = cells[c];
+            if (v.text.size() >= 2 && v.text.startsWith(QLatin1Char('"')) && v.text.endsWith(QLatin1Char('"'))) v.text = v.text.mid(1, v.text.size() - 2).replace(QLatin1String("\"\""), QLatin1String("\""));
+            if (v.text.endsWith(QLatin1Char('\r'))) v.text.chop(1);
+            if (v.text.size() > kMostCellText) v.text.truncate(kMostCellText);
+            bool number = false;
+            v.value = QLocale::c().toDouble(v.text, &number);
+            v.number = number;
+            row.push_back(v);
+        }
+        grid.push_back(row);
+    }
+    return grid;
+}
+
 QSizeF rangeSize(const Grid &grid)
 {
     double total = 0;
@@ -423,6 +464,18 @@ std::optional<EmbeddedObject> chartObjectFromFile(const QString &path, QString *
     return chartObject(bytes, why);
 }
 
+std::optional<EmbeddedObject> chartObjectFromPart(const QByteArray &chartPartXml, QString *why)
+{
+    Grid none;
+    none.push_back({CellValue()});
+    const QByteArray book = withChartPart(rangePackage(none), chartPartXml);
+    if (book.isEmpty()) {
+        say(why, QCoreApplication::translate("jp::Objects", "This can't be put in as an object."));
+        return std::nullopt;
+    }
+    return chartObject(book, why);
+}
+
 int pageCountOf(const QByteArray &docx)
 {
     QTextDocument doc;
@@ -454,6 +507,72 @@ std::optional<EmbeddedObject> pageObjectFromFile(const QString &path, int page, 
     const QByteArray bytes = fileBytes(path, why);
     if (bytes.isEmpty()) return std::nullopt;
     return pageObject(bytes, page, why);
+}
+
+namespace {
+constexpr char kChunk[] = "joBj";   // (not needed to show the picture, private, and safe to copy)
+constexpr int kMostChunks = 4096;
+
+void put32(QByteArray *out, quint32 v)
+{
+    for (int shift = 24; shift >= 0; shift -= 8) out->append(char((v >> shift) & 0xFF));
+}
+
+quint32 get32(const QByteArray &b, qsizetype at)
+{
+    return (quint32(quint8(b[at])) << 24) | (quint32(quint8(b[at + 1])) << 16) | (quint32(quint8(b[at + 2])) << 8) | quint32(quint8(b[at + 3]));
+}
+} // namespace
+
+QByteArray carryObject(const EmbeddedObject &object, const QString &token)
+{
+    const QByteArray &png = object.previewPng;
+    // (an IHDR, which is 25 bytes after the 8 of the signature, is what the chunk goes after)
+    if (png.size() < 33 || !png.startsWith("\x89PNG\r\n\x1a\n") || png.mid(12, 4) != "IHDR") return QByteArray();
+    QByteArray data;
+    QDataStream s(&data, QIODevice::WriteOnly);
+    s.setVersion(QDataStream::Qt_6_0);
+    s << QByteArray("JOOBJ1") << (token.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : token) << object.progId << qint64(object.widthEmu) << qint64(object.heightEmu) << object.partBytes;
+    QByteArray chunk;
+    put32(&chunk, quint32(data.size()));
+    const QByteArray typed = QByteArray(kChunk, 4) + data;
+    chunk += typed;
+    put32(&chunk, crc32(typed));
+    QByteArray out = png.left(33);
+    out += chunk;
+    out += png.mid(33);
+    return out;
+}
+
+std::optional<Carried> carriedObject(const QByteArray &png)
+{
+    if (png.size() < 45 || !png.startsWith("\x89PNG\r\n\x1a\n")) return std::nullopt;
+    qsizetype at = 8;
+    for (int n = 0; n < kMostChunks && at + 12 <= png.size(); ++n) {
+        const quint32 length = get32(png, at);
+        const QByteArray type = png.mid(at + 4, 4);
+        if (qint64(length) > qint64(png.size()) || at + 12 + qsizetype(length) > png.size()) return std::nullopt;
+        if (type == "IDAT" || type == "IEND") return std::nullopt;   // (the chunk is before the picture's data)
+        if (type == kChunk) {
+            const QByteArray data = png.mid(at + 8, qsizetype(length));
+            if (crc32(png.mid(at + 4, 4 + qsizetype(length))) != get32(png, at + 8 + qsizetype(length))) return std::nullopt;
+            QDataStream s(data);
+            s.setVersion(QDataStream::Qt_6_0);
+            QByteArray magic, part;
+            QString token, progId;
+            qint64 w = 0, h = 0;
+            s >> magic >> token >> progId >> w >> h >> part;
+            if (s.status() != QDataStream::Ok || magic != "JOOBJ1") return std::nullopt;
+            // (what the object shows is the picture that carries it, without the chunk)
+            QByteArray plain = png.left(at) + png.mid(at + 12 + qsizetype(length));
+            ObjectBudget budget;
+            auto object = keepObject(progId, part, plain, std::clamp<qint64>(w, 0, kMaxEmu), std::clamp<qint64>(h, 0, kMaxEmu), budget);
+            if (!object) return std::nullopt;
+            return Carried{*object, token};
+        }
+        at += 12 + qsizetype(length);
+    }
+    return std::nullopt;
 }
 
 QByteArray encode(const EmbeddedObject &object)
@@ -510,6 +629,7 @@ QMimeData *withObject(QMimeData *mime, std::function<std::optional<EmbeddedObjec
 {
     auto *wrapped = new ObjectMime(std::move(make));
     for (const QString &format : mime->formats()) wrapped->setData(format, mime->data(format));
+    if (mime->hasImage()) wrapped->setImageData(mime->imageData());
     delete mime;
     return wrapped;
 }

@@ -111,6 +111,8 @@ ObjectListDialog::ObjectListDialog(const ListHost &host, QWidget *parent)
     m_list->setHeaderLabels({QCoreApplication::translate("jp::Objects", "Name"), QCoreApplication::translate("jp::Objects", "Kind"), QCoreApplication::translate("jp::Objects", "Size")});
     m_list->header()->setStretchLastSection(false);
     m_list->header()->setSectionResizeMode(0, QHeaderView::Stretch);
+    m_list->header()->setSectionResizeMode(1, QHeaderView::ResizeToContents);
+    m_list->header()->setSectionResizeMode(2, QHeaderView::ResizeToContents);
     v->addWidget(m_list, 1);
     auto *buttons = new QHBoxLayout;
     m_open = new QPushButton(QCoreApplication::translate("jp::Objects", "Open"), this);
