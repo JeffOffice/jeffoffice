@@ -516,17 +516,17 @@ QString PackReport::text() const
     if (!ok) return error;
     QStringList lines;
     lines << QCoreApplication::translate("PackAndGo", "Saved %1.").arg(QDir::toNativeSeparators(path));
-    lines << QCoreApplication::translate("PackAndGo", "%n linked file(s) packed.", nullptr, packed());
-    lines << QCoreApplication::translate("PackAndGo", "%n font file(s) packed.", nullptr, int(fontsPacked.size()));
+    lines << QCoreApplication::translate("PackAndGo", "Linked files packed: %1.").arg(packed());
+    lines << QCoreApplication::translate("PackAndGo", "Font files packed: %1.").arg(fontsPacked.size());
     if (!fontsLeftOut.isEmpty()) lines << fontsLeftOutText(fontsLeftOut);
     QStringList left;
     for (const PackItem &i : items)
         if (i.status != PackItem::Packed) left << QStringLiteral("%1 (%2)").arg(i.target.size() > 80 ? i.target.left(40) + QStringLiteral("...") + i.target.right(37) : i.target, i.why);
     if (!left.isEmpty()) {
-        lines << QCoreApplication::translate("PackAndGo", "%n link(s) could not be packed and are as they were:", nullptr, int(left.size()));
+        lines << QCoreApplication::translate("PackAndGo", "Links that could not be packed, left as they were (%1):").arg(left.size());
         const int shown = int(std::min<qsizetype>(left.size(), kMostListed));
         for (int i = 0; i < shown; ++i) lines << QStringLiteral("  ") + left[i];
-        if (left.size() > shown) lines << QCoreApplication::translate("PackAndGo", "and %n more.", nullptr, int(left.size() - shown));
+        if (left.size() > shown) lines << QCoreApplication::translate("PackAndGo", "And %1 more.").arg(left.size() - shown);
     }
     lines << notes;
     return lines.join(QLatin1Char('\n'));
@@ -603,7 +603,7 @@ PackReport packAndGo(PackAndGoSource &source, const QString &destination, PackMo
         report.items.push_back(item);
     }
     if (planned.size() > limits.askFiles || totalBytes > limits.askBytes) {
-        const QString question = QCoreApplication::translate("PackAndGo", "This will pack %n linked file(s), %1 MB in all. Pack them all?", nullptr, int(planned.size())).arg(mebibytes(totalBytes));
+        const QString question = QCoreApplication::translate("PackAndGo", "This will pack %1 linked files, %2 MB in all. Pack them all?").arg(planned.size()).arg(mebibytes(totalBytes));
         if (!ask || !ask(question)) {
             report.cancelled = true;
             report.error = QCoreApplication::translate("PackAndGo", "Nothing was saved.");

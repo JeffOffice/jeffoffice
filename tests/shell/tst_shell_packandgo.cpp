@@ -298,7 +298,7 @@ private Q_SLOTS:
             QVERIFY(r.ok);
             QCOMPARE(r.packed(), 2);
             QCOMPARE(entriesOf(dir.filePath(QStringLiteral("most.zip"))).size(), 1 + 2);
-            QVERIFY(r.text().contains(QStringLiteral("3 link")));
+            QVERIFY(r.text().contains(QStringLiteral("(3)")));
         }
         {
             PackLimits most;
