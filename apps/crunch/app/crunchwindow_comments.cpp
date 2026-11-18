@@ -233,7 +233,7 @@ void CrunchWindow::convertNotesToComments()
     for (const auto &n : m_session->anchors().notes(m_sheet))
         if (!n.second.thread) cells.emplace_back(quint32(n.first >> 32), quint32(n.first & 0xFFFFFFFFu));
     const crunch::EditSession::Outcome o = m_session->convertNotesToComments(m_sheet, cells, commentAuthor(), tr("Convert Notes to Comments"));
-    if (!o.ok) notice(tr("Comment"), o.problem);
+    if (!o.ok || !o.problem.isEmpty()) notice(tr("Comment"), o.problem);
 }
 
 void CrunchWindow::convertCommentsToNotes()

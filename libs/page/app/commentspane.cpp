@@ -4,6 +4,7 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "core/comments.h"
+#include "core/threads.h"
 
 #include <QCoreApplication>
 #include <QDialog>
@@ -18,6 +19,8 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
+#include <QMainWindow>
+#include <QStatusBar>
 #include <QPlainTextEdit>
 #include <QPointer>
 #include <QPushButton>
@@ -257,6 +260,12 @@ QPointF CommentsPane::placeForNew() const
     return QPointF(10, 10);
 }
 
+// Says why an edit was not made, in the status bar of the window the pane is in.
+void CommentsPane::say(const QString &text)
+{
+    if (auto *mw = qobject_cast<QMainWindow *>(window())) mw->statusBar()->showMessage(text, 8000);
+}
+
 void CommentsPane::postNewComment()
 {
     const QString text = m_draft->toPlainText().trimmed();
@@ -266,8 +275,14 @@ void CommentsPane::postNewComment()
     // Attached to the object that is selected (when the app asks for that): the marker follows it.
     const Item *selected = m_anchorToObjects ? m_ed->single() : nullptr;
     const QString itemId = selected ? selected->id : QString();
+    int threadsNow = 0;
+    for (const auto &page : m_ed->doc()->pages) threadsNow += comments::commentCount(*page);
+    if (const auto why = threads::checkNewThread(QString(), threadsNow); why != threads::Refusal::None) {
+        say(threads::refusalText(why));   // (what was typed is kept)
+        return;
+    }
     QString id;
-    change(tr("New Comment"), [&](Page &slide) { id = comments::addComment(slide, who, text, at, QDateTime::currentDateTimeUtc(), itemId); });
+    change(tr("New Comment"), [&](Page &slide) { id = comments::addComment(slide, who, text, at, QDateTime::currentDateTimeUtc(), itemId, m_ed->doc()); });
     m_draft->clear();
     m_draftCard->hide();
     setCurrentComment(id);
@@ -278,6 +293,14 @@ void CommentsPane::postReply(const QString &commentId, const QString &text)
     const QString t = text.trimmed();
     if (t.isEmpty() || !askCommentAuthor(this)) return;
     const comments::CommentAuthor who = comments::commentAuthor();
+    Document *d = m_ed->doc();
+    const int i = m_ed->currentPage();
+    if (d && i >= 0 && i < d->pages.size())
+        if (const auto c = comments::findComment(*d->pages[i], commentId))
+            if (const auto why = threads::checkReply(QString(), int(c->replies.size())); why != threads::Refusal::None) {
+                say(threads::refusalText(why));
+                return;
+            }
     m_replyDrafts.remove(commentId);
     m_current = commentId;
     change(tr("Reply to Comment"), [&](Page &slide) { comments::addReply(slide, commentId, who, t); });

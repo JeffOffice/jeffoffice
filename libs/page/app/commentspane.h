@@ -78,6 +78,7 @@ private:
     void saveEdit(const QString &id, const QString &text);
     void setResolved(const QString &id, bool done);
     void deleteOne(const QString &id);
+    void say(const QString &text);
     void change(const QString &label, const std::function<void(Page &)> &fn);
     QPointF placeForNew() const;
 

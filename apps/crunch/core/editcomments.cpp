@@ -58,15 +58,7 @@ ThreadComment commentBy(const CellAnchors &anchors, const QString &text, const Q
     return c;
 }
 
-// How many cells of the workbook hold a thread (the shared limit counts threads, however many notes there are).
-int threadCount(const CellAnchors &anchors)
-{
-    int n = 0;
-    for (int s = 0; s < anchors.sheetCount(); ++s)
-        for (const auto &note : anchors.notes(s))
-            if (note.second.thread && !note.second.thread->empty()) ++n;
-    return n;
-}
+qint64 g_bookCap = 0;
 
 NoteInfo withThread(const NoteInfo &from, ThreadList list)
 {
@@ -110,7 +102,7 @@ EditSession::Outcome EditSession::newComment(int sheet, quint32 row, quint32 col
     if (const auto r = jp::threads::checkText(text, true); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
     if (m_anchors.noteAt(sheet, row, col)) return refused(tr("This cell has a note or comments already. Reply to the comments, or delete them first."));
     if (qint64(m_anchors.notes(sheet).size()) >= jp::office::sheet::kMaxNotes) return refused(tr("A sheet can have up to %1 notes and comments.").arg(jp::office::sheet::kMaxNotes));
-    if (const auto r = jp::threads::checkNewThread(text, threadCount(m_anchors), true); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
+    if (threadCommentsIn(m_anchors) >= bookCommentCap()) return refused(bookCapText());
     SideEdit::Note n;
     n.row = row;
     n.col = col;
@@ -230,9 +222,16 @@ EditSession::Outcome EditSession::convertNotesToComments(int sheet, const std::v
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
     if (model.isProtected && model.protection.objects) return refused(tr("This sheet is protected, so its comments can't be changed. Take the protection off first."));
     std::vector<SideEdit::Note> notes;
+    qint64 total = threadCommentsIn(m_anchors);
+    bool stopped = false;
     for (const auto &c : cells) {
         const NoteInfo *was = m_anchors.noteAt(sheet, c.first, c.second);
         if (!was || was->thread || was->text.isEmpty()) continue;
+        if (total >= bookCommentCap()) {
+            stopped = true;
+            break;
+        }
+        ++total;
         QString text = was->text;
         if (text.size() > jp::office::sheet::kMaxThreadCommentChars) text.truncate(jp::office::sheet::kMaxThreadCommentChars);
         SideEdit::Note n;
@@ -242,7 +241,10 @@ EditSession::Outcome EditSession::convertNotesToComments(int sheet, const std::v
         n.after = withThread(*was, {commentBy(m_anchors, text, was->author.isEmpty() ? author : was->author, QString())});
         notes.push_back(std::move(n));
     }
-    return pushNoteChanges(sheet, std::move(notes), stepText);
+    if (stopped && notes.empty()) return refused(bookCapText());
+    Outcome out = pushNoteChanges(sheet, std::move(notes), stepText);
+    if (stopped && out.ok) out.problem = tr("%1 The notes that are left stay notes.").arg(bookCapText());
+    return out;
 }
 
 EditSession::Outcome EditSession::convertCommentsToNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText)
@@ -306,6 +308,18 @@ bool stepThread(const CellAnchors &anchors, int sheet, quint32 row, quint32 col,
     *toRow = cells[at].row;
     *toCol = cells[at].col;
     return true;
+}
+
+void setBookCommentCapForTest(qint64 most) { g_bookCap = most; }
+qint64 bookCommentCap() { return g_bookCap > 0 ? g_bookCap : jp::office::sheet::kMaxThreadCommentsPerBook; }
+QString bookCapText() { return QCoreApplication::translate("jp::crunch::EditSession", "A workbook can have up to %1 comments in threads.").arg(bookCommentCap()); }
+qint64 threadCommentsIn(const CellAnchors &anchors)
+{
+    qint64 n = 0;
+    for (int s = 0; s < anchors.sheetCount(); ++s)
+        for (const auto &note : anchors.notes(s))
+            if (note.second.thread) n += qint64(note.second.thread->size());
+    return n;
 }
 
 jp::review::ChangeList threadChanges(const CellAnchors &anchors, const std::function<QString(int)> &sheetName)

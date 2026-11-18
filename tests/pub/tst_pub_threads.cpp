@@ -6,6 +6,8 @@
 #include "core/comments.h"
 #include "core/threads.h"
 #include "sheet/threads.h"
+#include "app/mainwindow.h"
+#include "io/zip.h"
 
 #include <QFile>
 #include <QTemporaryDir>
@@ -86,7 +88,8 @@ private Q_SLOTS:
         QCOMPARE(jp::threads::kMaxChars, 32767);
         QCOMPARE(comments::kMaxComments, jp::threads::kMaxThreads);
         QCOMPARE(comments::kMaxReplies, jp::threads::kMaxReplies);
-        QCOMPARE(comments::kMaxCommentText, jp::threads::kMaxChars);
+        // (what a file may hold is a character more than what is typed: a comment of 32768 characters from a file is kept whole)
+        QCOMPARE(comments::kMaxCommentText, 32768);
         QCOMPARE(jp::office::sheet::kMaxThreadCommentChars, jp::threads::kMaxChars);
         using R = jp::threads::Refusal;
         QCOMPARE(jp::threads::checkNewThread(QString(jp::threads::kMaxChars, QLatin1Char('x')), jp::threads::kMaxThreads - 1), R::None);
@@ -121,6 +124,79 @@ private Q_SLOTS:
     {
         PageThreads p;
         threadscript::run(p, kWho.name);
+    }
+
+    // A comment of 32768 characters, as another file may hold one, opens whole: the limit on what is typed is not the limit on what is read.
+    void aFileCommentOfTheMostCharactersOpensWhole()
+    {
+        QTemporaryDir dir;
+        PageThreads p;
+        comments::Comment c;
+        c.id = QStringLiteral("c-long");
+        c.author = kWho.name;
+        c.text = QString(comments::kMaxCommentText, QLatin1Char('y'));
+        comments::setComments(p.page(), {c});
+        const QString path = dir.filePath(QStringLiteral("long.jpub"));
+        QString err;
+        QVERIFY2(jp::savePublication(*p.doc, path, QImage(), &err), qPrintable(err));
+        auto back = jp::loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(comments::commentsOf(*back->pages[0])[0].text.size(), 32768);
+        QCOMPARE(back->commentsLeftOut, 0);
+        // (and what is typed or edited is held to the shared limit)
+        QVERIFY(!comments::addComment(p.page(), kWho, QString(40000, QLatin1Char('z')), QPointF(1, 1)).isEmpty());
+        QCOMPARE(int(comments::commentsOf(p.page()).last().text.size()), jp::threads::kMaxChars);
+    }
+
+    // A new comment counts the threads of the whole document, as a file's limit does: three slides of two, then a fourth is refused at the total.
+    void aNewCommentIsRefusedAtTheTotalOfTheDocument()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 3);
+        jp::threads::setCapsForTest(3, 0);
+        const QPointF at(10, 10);
+        QVERIFY(!comments::addComment(*doc->pages[0], kWho, QStringLiteral("a"), at, QDateTime::currentDateTimeUtc(), QString(), doc.get()).isEmpty());
+        QVERIFY(!comments::addComment(*doc->pages[1], kWho, QStringLiteral("b"), at, QDateTime::currentDateTimeUtc(), QString(), doc.get()).isEmpty());
+        QVERIFY(!comments::addComment(*doc->pages[1], kWho, QStringLiteral("c"), at, QDateTime::currentDateTimeUtc(), QString(), doc.get()).isEmpty());
+        // (the third slide has none of its own, and the document is full)
+        QVERIFY(comments::addComment(*doc->pages[2], kWho, QStringLiteral("d"), at, QDateTime::currentDateTimeUtc(), QString(), doc.get()).isEmpty());
+        QCOMPARE(comments::commentCount(*doc->pages[2]), 0);
+        QCOMPARE(int(comments::allComments(*doc).size()), 3);
+    }
+
+    // A file over the limits opens with a note that says what was left out (and the document total is what is kept).
+    void aFileOverTheLimitOpensWithANote()
+    {
+        QTemporaryDir dir;
+        auto doc = jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 3);
+        for (int page = 0; page < 3; ++page) {
+            QVector<comments::Comment> list;
+            for (int i = 0; i < 1000; ++i) {
+                comments::Comment c;
+                c.id = QStringLiteral("c%1-%2").arg(page).arg(i);
+                c.author = kWho.name;
+                c.text = QStringLiteral("t");
+                list.append(c);
+            }
+            comments::setComments(*doc->pages[page], list);
+        }
+        const QString path = dir.filePath(QStringLiteral("many.jpub"));
+        QString err;
+        QVERIFY2(jp::savePublication(*doc, path, QImage(), &err), qPrintable(err));
+        auto back = jp::loadPublication(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(comments::allComments(*back).size()), comments::kMaxComments);
+        QCOMPARE(back->commentsLeftOut, 1000);
+        jp::MainWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        QVERIFY(w.openFile(path));
+        QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("more comments than JeffPub keeps")), qPrintable(told.join(QLatin1Char('|'))));
+        // a file within the limits has no such note
+        told.clear();
+        const QString small = dir.filePath(QStringLiteral("small.jpub"));
+        QVERIFY(jp::savePublication(*jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1), small, QImage(), &err));
+        QVERIFY(w.openFile(small));
+        QVERIFY(!told.join(QLatin1Char('|')).contains(QStringLiteral("more comments")));
     }
 
     // Resolving a reply resolves the thread; a reply to a reply is in the first comment's thread.
@@ -162,7 +238,20 @@ private Q_SLOTS:
         QVERIFY2(again, qPrintable(err));
         QCOMPARE(again->pages[0]->props.value(QStringLiteral("comments")), p.page().props.value(QStringLiteral("comments")));
         QVERIFY(!fileBytes(two).isEmpty());
-        QCOMPARE(fileBytes(two), fileBytes(one));
+        // (the parts' contents, not the zip's bytes: a zip holds times and the like)
+        QMap<QString, QByteArray> a, b;
+        QVERIFY(jp::readZip(fileBytes(one), a));
+        QVERIFY(jp::readZip(fileBytes(two), b));
+        QCOMPARE(a.keys(), b.keys());
+        for (auto it = a.cbegin(); it != a.cend(); ++it) {
+            if (it.key() == QLatin1String("document.json")) continue;
+            QVERIFY2(it.value() == b.value(it.key()), qPrintable(it.key()));
+        }
+        const QJsonArray pagesOne = QJsonDocument::fromJson(a.value("document.json")).object().value(QStringLiteral("pages")).toArray(),
+                         pagesTwo = QJsonDocument::fromJson(b.value("document.json")).object().value(QStringLiteral("pages")).toArray();
+        QCOMPARE(pagesOne.size(), pagesTwo.size());
+        for (int i = 0; i < pagesOne.size(); ++i)
+            QCOMPARE(pagesTwo[i].toObject().value(QStringLiteral("props")).toObject().value(QStringLiteral("comments")), pagesOne[i].toObject().value(QStringLiteral("props")).toObject().value(QStringLiteral("comments")));
     }
 };
 

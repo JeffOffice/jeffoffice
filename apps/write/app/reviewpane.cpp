@@ -2,7 +2,9 @@
 
 #include "app/pageview.h"
 #include "app/writewindow.h"
+#include "core/commentops.h"
 #include "core/editops.h"
+#include "core/threads.h"
 
 #include <QComboBox>
 #include <QCoreApplication>
@@ -12,6 +14,7 @@
 #include <QLocale>
 #include <QPushButton>
 #include <QSignalBlocker>
+#include <QStatusBar>
 #include <QTabWidget>
 #include <QTextDocument>
 #include <QTreeWidget>
@@ -328,7 +331,12 @@ bool ReviewPane::postReply()
     const std::optional<write::Comment> c = write::commentById(*doc, id);
     const int root = c && c->parent >= 0 ? c->parent : id;
     const int made = write::replyToComment(*doc, root, text);
-    if (made < 0) return false;
+    if (made < 0) {
+        // (what was typed stays in the field)
+        const auto why = jp::threads::checkReply(text, int(write::threadOf(write::comments(*doc), root).size()) - 1);
+        m_win->statusBar()->showMessage(why != jp::threads::Refusal::None ? jp::threads::refusalText(why) : tr("The reply can't be added here."), 6000);
+        return false;
+    }
     m_reply->clear();
     refresh();
     return true;
@@ -365,7 +373,11 @@ void ReviewPane::editChosen()
     bool ok = false;
     const QString text = QInputDialog::getMultiLineText(this, tr("Edit Comment"), tr("Comment:"), c->text, &ok);
     if (!ok || text == c->text) return;
-    write::setCommentText(*doc, id, text);
+    if (!write::setCommentText(*doc, id, text)) {
+        const auto why = jp::threads::checkText(text);
+        m_win->statusBar()->showMessage(why != jp::threads::Refusal::None ? jp::threads::refusalText(why) : tr("The comment can't be changed here."), 6000);
+        return;
+    }
     refresh();
 }
 

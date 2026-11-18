@@ -656,19 +656,13 @@ int addComment(WriteDoc &doc, QTextCursor &c, const QString &text)
     return cm.id;
 }
 
-namespace {
-QVector<Comment> threadOf(const QVector<Comment> &all, int id);
-}
-
 int replyToComment(WriteDoc &doc, int parentId, const QString &text)
 {
     std::optional<Comment> parent = commentById(doc, parentId);
     if (!parent) return -1;
     // A reply to a reply goes into the thread of the first comment, after the others.
     const QVector<Comment> all = comments(doc);
-    QHash<int, int> parentOf;
-    for (const Comment &k : all) parentOf.insert(k.id, k.parent);
-    const int root = jp::threads::threadRoot(QString::number(parentId), [&](const QString &id) { return parentOf.value(id.toInt(), -1) < 0 ? QString() : QString::number(parentOf.value(id.toInt())); }, int(all.size())).toInt();
+    const int root = threadRootOf(all, parentId);
     if (root != parentId) {
         parentId = root;
         parent = commentById(doc, root);
@@ -725,6 +719,8 @@ void putComment(QTextDocument *d, const Comment &c, int reference)
     t.setCharFormat(f);
 }
 
+} // namespace
+
 // The comments of a thread: the comment and everything that replies to it, down.
 QVector<Comment> threadOf(const QVector<Comment> &all, int id)
 {
@@ -737,14 +733,28 @@ QVector<Comment> threadOf(const QVector<Comment> &all, int id)
     }
     if (root < 0) return out;
     QVector<int> queue{root};
+    QSet<int> seen{root};   // (a loop of parents reaches a comment again: each is taken once)
     for (int at = 0; at < queue.size(); ++at) {
         out.push_back(all[queue[at]]);
-        for (const int child : children.value(all[queue[at]].id)) queue.push_back(child);
+        for (const int child : children.value(all[queue[at]].id))
+            if (!seen.contains(child)) {
+                seen.insert(child);
+                queue.push_back(child);
+            }
     }
     return out;
 }
 
-} // namespace
+int threadRootOf(const QVector<Comment> &all, int id)
+{
+    QHash<int, int> parentOf;
+    for (const Comment &k : all) parentOf.insert(k.id, k.parent);
+    // (a parent that is not among the comments is no parent: the comment is its own root)
+    return jp::threads::threadRoot(QString::number(id), [&](const QString &x) {
+        const int up = parentOf.value(x.toInt(), -1);
+        return up < 0 || !parentOf.contains(up) ? QString() : QString::number(up);
+    }, int(all.size())).toInt();
+}
 
 bool setCommentDone(WriteDoc &doc, int id, bool done)
 {
@@ -832,12 +842,10 @@ int deleteComments(WriteDoc &doc, const QSet<int> &shown)
 {
     // (the threads the comments belong to, whole: a reply that is shown takes its thread, as the first comment's does)
     const QVector<Comment> all = comments(doc);
-    QHash<int, int> parentOf;
-    for (const Comment &c : all) parentOf.insert(c.id, c.parent);
     QSet<int> roots, ids;
     for (const Comment &c : all)
         if (shown.contains(c.id))
-            roots.insert(jp::threads::threadRoot(QString::number(c.id), [&](const QString &id) { return parentOf.value(id.toInt(), -1) < 0 ? QString() : QString::number(parentOf.value(id.toInt())); }, int(all.size())).toInt());
+            roots.insert(threadRootOf(all, c.id));
     for (const int root : roots)
         for (const Comment &t : threadOf(all, root)) ids.insert(t.id);
     if (ids.isEmpty()) return 0;
@@ -1099,9 +1107,14 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
     using jp::review::Change;
     jp::review::ChangeList out;
     const QTextDocument *story = doc.story();
-    const QVector<Revision> revisions = revisionsIn(story, 0, -1, jp::review::kMaxChanges + 1);
+    // The comments are listed first in the budget: the revisions have what they leave (a document of ten thousand changes still lists its comments).
+    const QVector<Comment> all = comments(doc);
+    int threads = 0;
+    for (const Comment &k : all) threads += k.parent < 0;
+    const int commentRoom = std::min(threads, jp::review::kMaxChanges), revisionRoom = jp::review::kMaxChanges - commentRoom;
+    const QVector<Revision> revisions = revisionsIn(story, 0, -1, revisionRoom + 1);
     for (const Revision &r : revisions) {
-        if (out.changes.size() >= jp::review::kMaxChanges) {
+        if (out.changes.size() >= revisionRoom) {
             out.tooMany = true;
             break;
         }
@@ -1124,10 +1137,6 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
         }
         out.changes.push_back(c);
     }
-    const QVector<Comment> all = comments(doc);
-    QHash<int, QVector<int>> repliesOf;
-    for (int i = 0; i < all.size(); ++i)
-        if (all[i].parent >= 0) repliesOf[all[i].parent].push_back(i);
     for (const Comment &k : all) {
         if (k.parent >= 0) continue;
         if (out.changes.size() >= jp::review::kMaxChanges) {
@@ -1143,13 +1152,11 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
         c.summary = k.text.left(120).replace(QLatin1Char('\n'), QLatin1Char(' '));
         c.state = k.done ? jp::review::State::Accepted : jp::review::State::Pending;
         c.position = k.from >= 0 ? k.from : k.reference;
-        // The thread, oldest first: every reply of the thread, down (the places in `all` are the order the references have).
-        QVector<int> queue = repliesOf.value(k.id);
-        for (int at = 0; at < queue.size() && c.replies.size() < jp::review::kMaxReplies; ++at) {
-            const Comment &r = all[queue[at]];
-            c.replies.push_back({r.author, r.date, r.text});
-            queue += repliesOf.value(r.id);
-        }
+        // The thread, oldest first: its replies in the order of their references.
+        QVector<Comment> replies = threadOf(all, k.id);
+        replies.removeFirst();
+        std::stable_sort(replies.begin(), replies.end(), [](const Comment &a, const Comment &b) { return a.reference < b.reference; });
+        for (int at = 0; at < replies.size() && c.replies.size() < jp::review::kMaxReplies; ++at) c.replies.push_back({replies[at].author, replies[at].date, replies[at].text});
         out.changes.push_back(c);
     }
     std::stable_sort(out.changes.begin(), out.changes.end(), [](const Change &a, const Change &b) { return a.position < b.position; });

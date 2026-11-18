@@ -68,6 +68,10 @@ int deleteComment(WriteDoc &doc, int id);
 // The comments that are shown (in the list, as the reviewer filter leaves them) go, each with its whole thread: a reply that is shown takes its thread with it. One step. Returns how many went.
 int deleteComments(WriteDoc &doc, const QSet<int> &shown);
 int deleteAllComments(WriteDoc &doc);
+// The comments of the thread `id` is in, the first one and then the replies, each once however the parents are set (a loop of parents ends); empty when `id` is none of `all`.
+QVector<Comment> threadOf(const QVector<Comment> &all, int id);
+// The first comment of the thread `id` is in: `id` itself when it has no parent, or one that is not in `all`.
+int threadRootOf(const QVector<Comment> &all, int id);
 
 // The document's revisions and comments as the shared model of the Reviewing Pane lists them (libs/base/text/review.h; read only: nothing in the document changes). A revision is a
 // Change of the story "body" (Insertion Added, Deletion Deleted, a move Moved, a change of properties Reformatted); a comment is a Commented change whose replies are its thread

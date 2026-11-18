@@ -4,6 +4,7 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../pub/threadscript.h"
+#include "core/threads.h"
 #include "app/writeinfo.h"
 #include "app/homedialogs.h"
 #include "app/pageview.h"
@@ -31,6 +32,8 @@
 #include <QComboBox>
 #include <QFile>
 #include <QImage>
+#include <QInputDialog>
+#include <QStatusBar>
 #include <QLabel>
 #include <QTimeZone>
 #include <QLineEdit>
@@ -3032,6 +3035,146 @@ private Q_SLOTS:
         const QByteArray resaved = theirs->toDocx();
         for (const char *part : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/commentsIds.xml"})
             QCOMPARE(partOf(resaved, part), partOf(original, part));
+    }
+
+    // A list of comments whose parents loop, or name a comment that is not there, gives each comment once and ends.
+    void threadsOfHostileParentsEndAndEachCommentIsOnceInItsThread()
+    {
+        const auto make = [](int id, int parent) {
+            Comment c;
+            c.id = id;
+            c.parent = parent;
+            return c;
+        };
+        const QVector<Comment> all{make(1, 2), make(2, 1), make(3, -1), make(4, 3), make(5, 99), make(6, 6)};
+        const auto ids = [](const QVector<Comment> &list) {
+            QList<int> out;
+            for (const Comment &c : list) out << c.id;
+            std::sort(out.begin(), out.end());
+            return out;
+        };
+        QCOMPARE(ids(threadOf(all, 1)), (QList<int>{1, 2}));
+        QCOMPARE(ids(threadOf(all, 2)), (QList<int>{1, 2}));
+        QCOMPARE(ids(threadOf(all, 3)), (QList<int>{3, 4}));
+        QCOMPARE(ids(threadOf(all, 5)), (QList<int>{5}));
+        QCOMPARE(ids(threadOf(all, 6)), (QList<int>{6}));
+        QVERIFY(threadOf(all, 77).isEmpty());
+        QCOMPARE(threadRootOf(all, 4), 3);
+        QCOMPARE(threadRootOf(all, 3), 3);
+        // a parent that is not in the document: the comment is its own root
+        QCOMPARE(threadRootOf(all, 5), 5);
+        QCOMPARE(threadRootOf(all, 6), 6);
+        // (a loop ends at some comment of it)
+        const int loopRoot = threadRootOf(all, 1);
+        QVERIFY(loopRoot == 1 || loopRoot == 2);
+    }
+
+    // A reply to a comment whose parent the file names but does not hold works, and deleting takes the comment and its reply.
+    void aCommentWhoseParentIsMissingCanBeRepliedToAndDeleted()
+    {
+        const QByteArray cm = commentElement(1, "Ann", "Question", "0000000A") + commentElement(2, "Bob", "Answer", "0000000B");
+        auto doc = open(makeDocxWithComments(para(run("a ") + commented(1, "range") + commented(2, "range") + run(" b")), cm,
+                                             "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000B\" w15:paraIdParent=\"0000FFFF\" w15:done=\"0\"/>"));
+        QVERIFY(doc);
+        doc->setReviewer(QStringLiteral("Zed Ypsilon"), QStringLiteral("ZY"));
+        const int reply = replyToComment(*doc, 2, QStringLiteral("to the orphan"));
+        QVERIFY(reply > 0);
+        QCOMPARE(commentById(*doc, reply)->parent, 2);
+        QCOMPARE(deleteComment(*doc, 2), 2);
+        QCOMPARE(int(comments(*doc).size()), 1);
+    }
+
+    // A reply to a reply is written under the first comment: its paraIdParent is the paraId of the root.
+    void aReplyToAReplyIsWrittenWithTheRootsParaIdAsItsParent()
+    {
+        WriteThreads w;
+        QVERIFY(w.start(QStringLiteral("Q")));
+        QVERIFY(w.reply(0, 0, QStringLiteral("R1")));
+        QVERIFY(w.reply(0, 1, QStringLiteral("R2")));
+        const QByteArray saved = w.doc->toDocx();
+        const QString commentsXml = QString::fromUtf8(partOf(saved, "/word/comments.xml")), ext = QString::fromUtf8(partOf(saved, "/word/commentsExtended.xml"));
+        QStringList paraIds;
+        QRegularExpressionMatchIterator it = QRegularExpression(QStringLiteral("w14:paraId=\"([0-9A-Fa-f]{8})\"")).globalMatch(commentsXml);
+        while (it.hasNext()) paraIds << it.next().captured(1);
+        QCOMPARE(int(paraIds.size()), 3);
+        QRegularExpressionMatchIterator parents = QRegularExpression(QStringLiteral("w15:paraIdParent=\"([0-9A-Fa-f]{8})\"")).globalMatch(ext);
+        QStringList seen;
+        while (parents.hasNext()) seen << parents.next().captured(1);
+        QCOMPARE(seen, (QStringList{paraIds[0], paraIds[0]}));
+    }
+
+    // Nothing is refused without a word: a reply at the cap, an edit that is too long, and a new comment each say why.
+    void theReviewingPaneAndTheWindowSayWhyAnEditIsRefused()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        const QByteArray cm = commentElement(1, "Ann", "A question", "0000000A");
+        w.setDocument(open(makeDocxWithComments(para(run("see ") + commented(1, "this") + run(" more words here")), cm, "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/>")), QString());
+        w.document()->setReviewer(QStringLiteral("Zed Ypsilon"), QStringLiteral("ZY"));
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        // a reply at the cap
+        jp::threads::setCapsForTest(0, 1);
+        pane->replyField()->setText(QStringLiteral("first"));
+        QVERIFY(pane->postReply());
+        w.statusBar()->clearMessage();
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        pane->replyField()->setText(QStringLiteral("second"));
+        QVERIFY(!pane->postReply());
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("1 replies")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(pane->replyField()->text(), QStringLiteral("second"));   // (what was typed is kept)
+        jp::threads::setCapsForTest(0, 0);
+        // an edit that is too long is said, and the comment is as it was
+        w.statusBar()->clearMessage();
+        pane->commentList()->topLevelItem(0)->setSelected(true);
+        withDialog([&] { Q_EMIT pane->commentList()->itemDoubleClicked(pane->commentList()->topLevelItem(0), 0); }, QString(), [](QDialog *d) {
+            qobject_cast<QInputDialog *>(d)->setTextValue(QString(40000, QLatin1Char('x')));
+        });
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("32767")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(commentById(*w.document(), 1)->text, QStringLiteral("A question"));
+        // a new comment that is too long, and one at the cap, each have their own words
+        w.statusBar()->clearMessage();
+        withDialog([&] { w.act(QStringLiteral("review.newComment"))->trigger(); }, QString(), [](QDialog *d) { qobject_cast<QInputDialog *>(d)->setTextValue(QString(40000, QLatin1Char('x'))); });
+        const QString tooLong = w.statusBar()->currentMessage();
+        QVERIFY2(tooLong.contains(QStringLiteral("32767")), qPrintable(tooLong));
+        w.statusBar()->clearMessage();
+        jp::threads::setCapsForTest(1, 0);
+        withDialog([&] { w.act(QStringLiteral("review.newComment"))->trigger(); }, QString(), [](QDialog *d) { qobject_cast<QInputDialog *>(d)->setTextValue(QStringLiteral("short")); });
+        jp::threads::setCapsForTest(0, 0);
+        const QString atCap = w.statusBar()->currentMessage();
+        QVERIFY2(atCap.contains(QStringLiteral("1 comment threads")), qPrintable(atCap));
+        QVERIFY(atCap != tooLong);
+    }
+
+    // The Reviewing Pane lists a thread's replies in the order of their references, and a document of more changes than the list holds still lists its comments.
+    void theReviewingPaneModelListsRepliesInOrderAndNeverLosesCommentsToRevisions()
+    {
+        WriteThreads w;
+        QVERIFY(w.start(QStringLiteral("Q")));
+        QVERIFY(w.reply(0, 0, QStringLiteral("R1")));
+        QVERIFY(w.reply(0, 1, QStringLiteral("R2")));
+        QVERIFY(w.reply(0, 2, QStringLiteral("R3")));
+        const jp::review::ChangeList list = reviewChanges(*w.doc);
+        QCOMPARE(list.size(), 1);
+        QCOMPARE(list.changes[0].replies.size(), 3);
+        QCOMPARE(list.changes[0].replies[0].text, QStringLiteral("R1"));
+        QCOMPARE(list.changes[0].replies[1].text, QStringLiteral("R2"));
+        QCOMPARE(list.changes[0].replies[2].text, QStringLiteral("R3"));
+        // more revisions than the list holds, and a comment
+        QByteArray body = commented(1, "range");
+        for (int i = 0; i < jp::review::kMaxChanges + 5; ++i) body += inserted(100 + i, "x", "Bob");
+        const QByteArray cm = commentElement(1, "Ann", "Question", "0000000A");
+        auto doc = open(makeDocxWithComments(para(body), cm));
+        QVERIFY(doc);
+        const jp::review::ChangeList big = reviewChanges(*doc);
+        QVERIFY(big.tooMany);
+        QCOMPARE(big.size(), jp::review::kMaxChanges);
+        int commentsListed = 0;
+        for (const auto &c : big.changes) commentsListed += c.kind == jp::review::Kind::Commented;
+        QCOMPARE(commentsListed, 1);
     }
 };
 

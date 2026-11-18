@@ -2155,6 +2155,9 @@ std::unique_ptr<Document> importPackage(const office::Package &pkg, QString *err
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
     doc->props.setFromPackageProps(office::readPackageProps(pkg));
     comments::limitComments(*doc);
+    if (doc->commentsLeftOut > 0 && error)
+        *error += (error->isEmpty() ? QString() : QStringLiteral("\n"))
+                  + QCoreApplication::translate("PptxImport", "This file has more comments than %1 keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.").arg(appInfo().name).arg(comments::kMaxComments).arg(comments::kMaxReplies).arg(doc->commentsLeftOut);
     return doc;
 }
 

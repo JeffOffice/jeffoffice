@@ -8,6 +8,7 @@
 #include "app/spellpane.h"
 #include "app/writefilescreen.h"
 #include "core/commentops.h"
+#include "core/threads.h"
 #include "core/editops.h"
 #include "core/reviewops.h"
 #include "text/textprops.h"
@@ -394,7 +395,10 @@ void WriteWindow::newComment()
     QTextCursor c = m_view->cursor();
     const int id = write::addComment(*m_doc, c, text);
     if (id < 0) {
-        statusBar()->showMessage(tr("A comment can't be added here."), 5000);
+        int threadsNow = 0;
+        for (const write::Comment &k : write::comments(*m_doc)) threadsNow += k.parent < 0;
+        const auto why = jp::threads::checkNewThread(text, threadsNow);
+        statusBar()->showMessage(why != jp::threads::Refusal::None ? jp::threads::refusalText(why) : tr("A comment can't be added here."), 5000);
         return;
     }
     m_view->setCursor(c);

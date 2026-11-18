@@ -62,7 +62,7 @@ std::optional<Comment> findComment(const Page &slide, const QString &id);
 
 // A new comment, marker at `at` (attached to object `itemId` when that is given); returns its id. Text is kept as typed apart
 // from the line ends, which become "\n".
-QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when = QDateTime::currentDateTimeUtc(), const QString &itemId = QString());
+QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when = QDateTime::currentDateTimeUtc(), const QString &itemId = QString(), const Document *inDocument = nullptr);
 // Where the comment's marker stands on its page: at the top right corner of the object it is attached to (looked for on that page only), else where it was put.
 QPointF commentPlace(const Page &page, const Comment &c);
 
@@ -103,7 +103,9 @@ CommentRef stepComment(const Document &d, const CommentRef &from, bool forward);
 
 // Fits a text to what a comment may hold and tidies its line ends.
 QString commentText(const QString &text);
-constexpr int kMaxCommentText = threads::kMaxChars;
+// ... and what a person types or edits: the same, held to the shared limit of new text (core/threads.h), a character fewer than a file may hold.
+QString typedText(const QString &text);
+constexpr int kMaxCommentText = 32768;
 // What a document read from a file may hold: comments in all, replies to one, and (kMaxCommentText) characters in one.
 constexpr int kMaxComments = threads::kMaxThreads;
 constexpr int kMaxReplies = threads::kMaxReplies;
@@ -115,7 +117,7 @@ constexpr double kPlaceMargin = 100;
 // Holds the comments of a document from a file (a .jpub, a .pptx) to those limits (the order is kept, and the first ones stay) and tidies them: what is not a comment goes; a place
 // that is not a number is the default one and any place is brought to the page and its margin; an id that is empty or used again is made anew; an object that is not on the page
 // is let go (the comment keeps its place). Returns how many comments and replies went.
-int limitComments(Document &d);
+int limitComments(Document &d);   // (also what it cut, in d.commentsLeftOut: the window says so when it opens the file)
 
 // While it lives, the authors' names and initials of every comment and reply of the document are empty (when `on`), and come back when it ends: for writing a file with no names in
 // it (Remove personal information when saving). The document is not changed as far as a person can tell: no step of the history, and it is not marked as changed.

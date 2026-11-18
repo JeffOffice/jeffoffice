@@ -334,6 +334,7 @@ public:
     static constexpr int kMaxEquations = 2000;
     static constexpr qint64 kMaxEquationMarkupBytes = qint64(16) << 20;
     int equationsLeftOut = 0;
+    int commentsLeftOut = 0;
     // The most bytes the pictures' decodes kept in `images` come to. Past it,
     // the decodes of the pictures used longest ago are dropped (to three
     // quarters of it), and made again when drawn.

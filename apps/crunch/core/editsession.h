@@ -1449,7 +1449,7 @@ private:
     void forgetNotes();
     // Threads (editcomments.cpp): not ok, with the reason, if the notes of the cell cannot be changed; and the changes to cells' notes put as one step.
     Outcome checkThreadCell(int sheet, quint32 row, quint32 col) const;
-    void pasteThreads(int sheet, const jp::office::sheet::CellRange &target, const ClipData &clip, quint32 blockRows, quint32 blockCols);
+    QString pasteThreads(int sheet, const jp::office::sheet::CellRange &target, const ClipData &clip, quint32 blockRows, quint32 blockCols);
     Outcome pushNoteChanges(int sheet, std::vector<SideEdit::Note> notes, const QString &stepText);
     bool applySheetEdits(Step *step, bool forward, jp::office::sheet::Calculation *calc, jp::office::sheet::Workbook &book);
     Outcome insertSheetOfKind(int before, const QString &name, int *made, bool chartSheet);

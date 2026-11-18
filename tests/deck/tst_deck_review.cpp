@@ -9,6 +9,7 @@
 #include "office/package.h"
 #include "text/review.h"
 #include "core/version.h"
+#include "core/threads.h"
 #include "text/storyio.h"
 #include "deckhelpers.h"
 
@@ -648,7 +649,7 @@ private Q_SLOTS:
 
         // A comment can't hold more than a page of text.
         comments::addComment(slide, pat, QString(comments::kMaxCommentText + 500, QLatin1Char('x')), QPointF(1, 1));
-        QCOMPARE(int(comments::commentsOf(slide)[0].text.size()), int(comments::kMaxCommentText));
+        QCOMPARE(int(comments::commentsOf(slide)[0].text.size()), jp::threads::kMaxChars);
 
         QCOMPARE(comments::initialsFor(QStringLiteral("Pat Doe")), QStringLiteral("PD"));
         QCOMPARE(comments::initialsFor(QStringLiteral("  mary jane watson parker ")), QStringLiteral("MJW"));
@@ -1275,6 +1276,82 @@ private Q_SLOTS:
         QVERIFY(!ed->undoStack()->canUndo());
         st.setValue(QStringLiteral("user/name"), QString());
         st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // Nothing is refused without a word: a reply past the thread's replies, and a new comment past the document's threads, say so in the status bar and change nothing.
+    void commentsPaneSaysWhyACommentOrReplyIsRefused()
+    {
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("user/name"), QStringLiteral("Pat Doe"));
+        st.setValue(QStringLiteral("user/initials"), QStringLiteral("PD"));
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        CommentsPane *pane = w.commentsPane();
+        auto slide = [&]() -> Page & { return *ed->doc()->pages[ed->currentPage()]; };
+        auto card = [&]() { return pane->findChildren<QFrame *>(QStringLiteral("commentCard")).value(0); };
+        auto newOne = [&](const QString &text) {
+            w.act(QStringLiteral("comment.new"))->trigger();
+            pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->setPlainText(text);
+            pane->findChild<QPushButton *>(QStringLiteral("commentPost"))->click();
+        };
+        newOne(QStringLiteral("First"));
+        QCOMPARE(comments::commentCount(slide()), 1);
+        auto reply = [&](const QString &text) {
+            QTRY_VERIFY(card());
+            card()->findChild<QLineEdit *>(QStringLiteral("commentReplyEdit"))->setText(text);
+            card()->findChild<QAbstractButton *>(QStringLiteral("commentReplyPost"))->click();
+        };
+        jp::threads::setCapsForTest(0, 1);
+        reply(QStringLiteral("one"));
+        QCOMPARE(int(comments::commentsOf(slide())[0].replies.size()), 1);
+        w.statusBar()->clearMessage();
+        const int steps = ed->undoStack()->count();
+        reply(QStringLiteral("two"));
+        jp::threads::setCapsForTest(0, 0);
+        QCOMPARE(int(comments::commentsOf(slide())[0].replies.size()), 1);
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("1 replies")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(ed->undoStack()->count(), steps);
+        // a new comment past the threads of the whole presentation (the others are on other slides)
+        w.statusBar()->clearMessage();
+        jp::threads::setCapsForTest(1, 0);
+        newOne(QStringLiteral("Second"));
+        jp::threads::setCapsForTest(0, 0);
+        QCOMPARE(comments::commentCount(slide()), 1);
+        QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("1 comment threads")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(pane->findChild<QPlainTextEdit *>(QStringLiteral("commentDraft"))->toPlainText(), QStringLiteral("Second"));   // (what was typed is kept)
+        st.setValue(QStringLiteral("user/name"), QString());
+        st.setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // A presentation with more comments than are kept opens with a note that says so.
+    void aPresentationOverTheCommentLimitOpensWithANote()
+    {
+        auto d = deck::newPresentation();
+        // (each slide within the limit of a slide, all of them past the limit of the presentation)
+        while (d->pages.size() < 3) d->addPage(-1, d->pages[0]->masterId);
+        for (int page = 0; page < 3; ++page) {
+            QVector<comments::Comment> list;
+            for (int i = 0; i < 700; ++i) {
+                comments::Comment c;
+                c.id = QStringLiteral("c%1-%2").arg(page).arg(i);
+                c.author = QStringLiteral("Pat Doe");
+                c.initials = QStringLiteral("PD");
+                c.text = QStringLiteral("t%1").arg(i);
+                c.at = QPointF(10, 10);
+                list.append(c);
+            }
+            comments::setComments(*d->pages[page], list);
+        }
+        QString err;
+        const QByteArray bytes = deck::exportPresentation(*d, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        err.clear();
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY(back);
+        QCOMPARE(int(comments::allComments(*back).size()), comments::kMaxComments);
+        QVERIFY2(err.contains(QStringLiteral("more comments than")), qPrintable(err));
     }
 
     // The pane asks who is writing the first time, when File > Options has no

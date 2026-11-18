@@ -99,6 +99,11 @@ QString initialsFor(const QString &name)
     return out;
 }
 
+QString typedText(const QString &text)
+{
+    return threads::tidyText(text).left(threads::kMaxChars);
+}
+
 QString commentText(const QString &text)
 {
     return threads::tidyText(text).left(kMaxCommentText);
@@ -131,17 +136,23 @@ std::optional<Comment> findComment(const Page &slide, const QString &id)
     return std::nullopt;
 }
 
-QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when, const QString &itemId)
+QString addComment(Page &slide, const CommentAuthor &who, const QString &text, const QPointF &at, const QDateTime &when, const QString &itemId, const Document *inDocument)
 {
+
     Comment c;
     c.id = newId("c");
     c.author = who.name;
     c.initials = who.initials.isEmpty() ? initialsFor(who.name) : who.initials;
     c.date = when.toUTC();
-    c.text = commentText(text);
+    c.text = typedText(text);
     c.at = at;
     c.itemId = itemId;
-    if (threads::checkNewThread(QString(), commentCount(slide)) != threads::Refusal::None) return QString();
+    int threadsNow = commentCount(slide);
+    if (inDocument) {
+        threadsNow = 0;
+        for (const auto &page : inDocument->pages) threadsNow += commentCount(*page);
+    }
+    if (threads::checkNewThread(QString(), threadsNow) != threads::Refusal::None) return QString();
     QVector<Comment> list = commentsOf(slide);
     list.append(c);
     setComments(slide, list);
@@ -210,7 +221,7 @@ QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who
     r.author = who.name;
     r.initials = who.initials.isEmpty() ? initialsFor(who.name) : who.initials;
     r.date = when.toUTC();
-    r.text = commentText(text);
+    r.text = typedText(text);
     const bool added = edit(slide, [&](QVector<Comment> &list) {
         for (Comment &c : list) {
             bool in = c.id == commentId;
@@ -227,7 +238,7 @@ QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who
 
 bool editComment(Page &slide, const QString &id, const QString &text)
 {
-    const QString t = commentText(text);
+    const QString t = typedText(text);
     return edit(slide, [&](QVector<Comment> &list) {
         for (Comment &c : list) {
             if (c.id == id) {
@@ -401,6 +412,7 @@ int limitComments(Document &d)
         if (kept.isEmpty()) page->props.remove(kKey);
         else page->props[kKey] = kept;
     }
+    d.commentsLeftOut = cut;
     return cut;
 }
 

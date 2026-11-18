@@ -178,6 +178,7 @@ quint32 styleAt(EditWindow &e, quint32 r, quint32 c)
 
 // The threads of the first sheet as the shared thread script (tests/pub/threadscript.h) sees them: the n-th thread is the n-th cell that holds one, in the order of the sheet.
 struct CrunchThreads {
+    static constexpr bool sharedThreadCap = false;   // (its own limit on a workbook's comments instead)
     crunch::EditSession *s;
     explicit CrunchThreads(crunch::EditSession *session) : s(session) {}
     QString who = QStringLiteral("Zed Ypsilon");
@@ -194,10 +195,15 @@ struct CrunchThreads {
         return t >= 0 && size_t(t) < c.size() ? s->anchors().noteAt(0, c[size_t(t)].first, c[size_t(t)].second) : nullptr;
     }
     bool start(const QString &text) { return s->newComment(0, quint32(10 + 2 * cells().size()), 0, text, who, QStringLiteral("New Comment")).ok; }
-    bool reply(int t, int, const QString &text)
+    // A reply to comment e goes into the thread, last, and is a reply of the first comment (a reply to a reply is not nested).
+    bool reply(int t, int e, const QString &text)
     {
         const auto c = cells();
-        return t >= 0 && size_t(t) < c.size() && s->replyToComment(0, c[size_t(t)].first, c[size_t(t)].second, text, who, QStringLiteral("Reply")).ok;
+        if (t < 0 || size_t(t) >= c.size() || e < 0 || e >= entries(t)) return false;
+        const size_t before = at(t)->thread->size();
+        if (!s->replyToComment(0, c[size_t(t)].first, c[size_t(t)].second, text, who, QStringLiteral("Reply")).ok) return false;
+        const jp::office::sheet::ThreadList &list = *at(t)->thread;
+        return list.size() == before + 1 && list.back().text == text && list.back().parentId == list.front().id;
     }
     bool edit(int t, int e, const QString &text)
     {
@@ -249,6 +255,54 @@ QMap<QString, QByteArray> partsNamed(const QString &path, const QString &word)
     for (auto it = all.begin(); it != all.end(); ++it)
         if (it.key().contains(word)) out.insert(it.key(), it.value());
     return out;
+}
+
+// A workbook as another program writes it: legacy notes (two of its own, and the stand-ins of the two threads), the threads (one whose last reply answers a reply), the persons part, and
+// an extension list on the sheet. `moreReplies` makes the first thread that long.
+QByteArray foreignBook(int moreReplies = 0)
+{
+    const char *kLegacy =
+        "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author><author>Bob</author>"
+        "<author>tc={11111111-2222-3333-4444-555555555555}</author><author>tc={66666666-2222-3333-4444-555555555555}</author></authors><commentList>"
+        "<comment ref=\"A1\" authorId=\"0\" shapeId=\"0\"><text><t>Ann says check the total</t></text></comment>"
+        "<comment ref=\"C3\" authorId=\"1\" shapeId=\"0\"><text><t>Bob says hi</t></text></comment>"
+        "<comment ref=\"D2\" authorId=\"2\" shapeId=\"0\"><text><t>[Threaded comment] fallback</t></text></comment>"
+        "<comment ref=\"B3\" authorId=\"3\" shapeId=\"0\"><text><t>[Threaded comment] fallback</t></text></comment></commentList></comments>";
+    const char *kVmlOf =
+        "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+        "<v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"><v:stroke joinstyle=\"miter\"/><v:path gradientshapeok=\"t\" o:connecttype=\"rect\"/></v:shapetype>"
+        "<v:shape id=\"_x0000_s1025\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:1;visibility:hidden\"><x:ClientData ObjectType=\"Note\"><x:Anchor>1, 15, 0, 2, 3, 15, 3, 16</x:Anchor><x:Row>0</x:Row><x:Column>0</x:Column></x:ClientData></v:shape>"
+        "<v:shape id=\"_x0000_s1026\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:2;visibility:hidden\"><x:ClientData ObjectType=\"Note\"><x:Anchor>3, 15, 1, 2, 5, 15, 4, 16</x:Anchor><x:Row>2</x:Row><x:Column>2</x:Column></x:ClientData></v:shape>"
+        "<v:shape id=\"_x0000_s1027\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:3;visibility:hidden\"><x:ClientData ObjectType=\"Note\"><x:Anchor>2, 15, 3, 2, 4, 15, 6, 16</x:Anchor><x:Row>1</x:Row><x:Column>3</x:Column></x:ClientData></v:shape>"
+        "<v:shape id=\"_x0000_s1028\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:4;visibility:hidden\"><x:ClientData ObjectType=\"Note\"><x:Anchor>2, 15, 3, 2, 4, 15, 6, 16</x:Anchor><x:Row>2</x:Row><x:Column>1</x:Column></x:ClientData></v:shape></xml>";
+    QByteArray threads = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\">"
+                         "<threadedComment ref=\"D2\" dT=\"2024-01-01T10:00:00.00\" personId=\"{AAAA}\" id=\"{11111111-2222-3333-4444-555555555555}\"><text>Q1</text></threadedComment>"
+                         "<threadedComment ref=\"D2\" dT=\"2024-01-01T10:01:00.00\" personId=\"{AAAA}\" id=\"{R1}\" parentId=\"{11111111-2222-3333-4444-555555555555}\"><text>R1</text></threadedComment>"
+                         "<threadedComment ref=\"D2\" dT=\"2024-01-01T10:02:00.00\" personId=\"{AAAA}\" id=\"{R2}\" parentId=\"{R1}\"><text>R2</text></threadedComment>";
+    for (int i = 0; i < moreReplies; ++i)
+        threads += "<threadedComment ref=\"D2\" dT=\"2024-01-01T10:03:00.00\" personId=\"{AAAA}\" id=\"{M" + QByteArray::number(i) + "}\" parentId=\"{11111111-2222-3333-4444-555555555555}\"><text>more " + QByteArray::number(i) + "</text></threadedComment>";
+    threads += "<threadedComment ref=\"B3\" dT=\"2024-01-02T10:00:00.00\" personId=\"{AAAA}\" id=\"{66666666-2222-3333-4444-555555555555}\"><text>Q2</text></threadedComment></ThreadedComments>";
+    const char *kPersons = "<personList xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\" xmlns:x=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
+                           "<person displayName=\"Ann Lee\" id=\"{AAAA}\" userId=\"ann@example.test\" providerId=\"None\"/></personList>";
+    QVector<ExtraPart> parts;
+    parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kLegacy), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rId11"), QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), QByteArray(kVmlOf), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rId12"), QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
+    parts.push_back({QStringLiteral("xl/threadedComments/threadedComment1.xml"), threads, QStringLiteral("application/vnd.ms-excel.threadedcomments+xml"), 0, QStringLiteral("rId13"), QStringLiteral("threadedComment"), QStringLiteral("../threadedComments/threadedComment1.xml")});
+    parts.push_back({QStringLiteral("xl/persons/person.xml"), QByteArray(kPersons), QStringLiteral("application/vnd.ms-excel.person+xml"), -1, QString(), QString(), QString()});
+    QMap<QString, QByteArray> all;
+    jp::readZip(withParts(editBook(), parts), all);
+    QByteArray sheetRels = all.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"));
+    sheetRels.replace("http://schemas.openxmlformats.org/officeDocument/2006/relationships/threadedComment", "http://schemas.microsoft.com/office/2017/10/relationships/threadedComment");
+    all[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")] = sheetRels;
+    QByteArray bookRels = all.value(QStringLiteral("xl/_rels/workbook.xml.rels"));
+    bookRels.replace("</Relationships>", "<Relationship Id=\"rIdPerson\" Type=\"http://schemas.microsoft.com/office/2017/10/relationships/person\" Target=\"persons/person.xml\"/></Relationships>");
+    all[QStringLiteral("xl/_rels/workbook.xml.rels")] = bookRels;
+    QByteArray sheet = all.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+    sheet.replace("</worksheet>", "<legacyDrawing r:id=\"rId12\"/><extLst><ext uri=\"{05C60535-1F16-4fd2-B633-F4F36F0B64E0}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:sparklineGroups/></ext></extLst></worksheet>");
+    all[QStringLiteral("xl/worksheets/sheet1.xml")] = sheet;
+    jp::ZipWriter z;
+    for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
 }
 
 } // namespace
@@ -785,8 +839,8 @@ private Q_SLOTS:
         threadscript::run(t, QStringLiteral("Zed Ypsilon"));
     }
 
-    // The file keeps a thread with its replies both ways; one nobody touched is written with the same thread parts; the Reviewing Pane's list has the thread as a Commented change.
-    void threadsAreKeptBothWaysAndAnUntouchedFileKeepsItsParts()
+    // The file keeps a thread with its replies both ways; our own file, with a note added somewhere else, is written with the same thread parts; the Reviewing Pane's list has the thread as a Commented change.
+    void threadsAreKeptBothWaysAndOurOwnFileKeepsItsParts()
     {
         EditWindow e;
         QVERIFY(e.open(editBook()));
@@ -822,6 +876,118 @@ private Q_SLOTS:
         QVERIFY(second.w.save());
         QVERIFY2(savedOk(again), "the second save failed");
         QCOMPARE(partsNamed(copy, QStringLiteral("hreaded")), before);
+    }
+
+    // A file another program made: every note and every thread is there after it is opened, changed somewhere else, and saved, and the persons part and the thread parts are still in it.
+    void aForeignWorkbookKeepsEveryNoteAndThreadThroughOpenAndSave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(foreignBook()));
+        crunch::EditSession *s = e.win.w.session();
+        CrunchThreads t(s);
+        QCOMPARE(t.state(), (QStringList{QStringLiteral("Q1 | R1 | R2"), QStringLiteral("Q2")}));   // (by place in the sheet: D2 is row 2)
+        QCOMPARE(s->anchors().noteAt(0, 0, 0)->text, QStringLiteral("Ann says check the total"));
+        QCOMPARE(s->anchors().noteAt(0, 2, 2)->text, QStringLiteral("Bob says hi"));
+        QVERIFY(s->setNote(0, 4, 4, QStringLiteral("elsewhere"), QStringLiteral("Zed"), false, QStringLiteral("Edit Note")).ok);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        const QString copy = e.copyOfFile();
+        Window second;
+        QVERIFY(second.open(copy));
+        CrunchThreads r(second.w.session());
+        QCOMPARE(r.state(), t.state());
+        QCOMPARE(second.w.session()->anchors().noteAt(0, 0, 0)->text, QStringLiteral("Ann says check the total"));
+        QCOMPARE(second.w.session()->anchors().noteAt(0, 2, 2)->text, QStringLiteral("Bob says hi"));
+        QCOMPARE(second.w.session()->anchors().noteAt(0, 4, 4)->text, QStringLiteral("elsewhere"));
+        QCOMPARE(int(second.w.session()->anchors().notes(0).size()), 5);
+        QCOMPARE(r.author(0, 2), QStringLiteral("Ann Lee"));
+        QVERIFY(!partsNamed(copy, QStringLiteral("person")).isEmpty());
+        const QString threadPart = QString::fromUtf8(partsNamed(copy, QStringLiteral("hreadedComment")).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")));
+        QCOMPARE(int(threadPart.count(QStringLiteral("<threadedComment "))), 4);
+    }
+
+    // Past the thread limits a person may add, a thread from a file is still theirs to edit, resolve, and delete.
+    void aThreadOfAFileLongerThanReplyingAllowsCanStillBeEditedResolvedAndDeleted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(foreignBook(300)));
+        crunch::EditSession *s = e.win.w.session();
+        CrunchThreads t(s);
+        QCOMPARE(t.entries(0), 303);
+        QVERIFY(!t.reply(0, 0, QStringLiteral("one more")));
+        QCOMPARE(t.entries(0), 303);
+        QVERIFY(t.edit(0, 250, QStringLiteral("edited")));
+        QVERIFY(t.resolve(0, true));
+        QVERIFY(t.remove(0, 250));
+        QCOMPARE(t.entries(0), 302);
+        QVERIFY(t.remove(0, 0));
+        QCOMPARE(t.threadCount(), 1);
+    }
+
+    // The limit on the comments of a workbook is the reader's, not the 2000 threads of the other apps.
+    void newCommentsStopAtTheWorkbookLimitAndNotAtTheOtherAppsThreadLimit()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        CrunchThreads t(s);
+        jp::threads::setCapsForTest(2, 0);
+        QVERIFY(t.start(QStringLiteral("one")));
+        QVERIFY(t.start(QStringLiteral("two")));
+        QVERIFY(t.start(QStringLiteral("three")));
+        jp::threads::setCapsForTest(0, 0);
+        QCOMPARE(t.threadCount(), 3);
+        crunch::setBookCommentCapForTest(3);
+        const auto refused = s->newComment(0, 40, 0, QStringLiteral("four"), t.who, QStringLiteral("New Comment"));
+        crunch::setBookCommentCapForTest(0);
+        QVERIFY(!refused.ok);
+        QVERIFY2(refused.problem.contains(QStringLiteral("workbook")), qPrintable(refused.problem));
+        QCOMPARE(t.threadCount(), 3);
+    }
+
+    void convertingNotesStopsAtTheWorkbookLimitAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        CrunchThreads t(s);
+        QVERIFY(t.start(QStringLiteral("a thread")));
+        std::vector<std::pair<quint32, quint32>> cells;
+        for (quint32 i = 0; i < 4; ++i) {
+            QVERIFY(s->setNote(0, 30 + i, 2, QStringLiteral("note %1").arg(i), QStringLiteral("Zed"), false, QStringLiteral("Edit Note")).ok);
+            cells.emplace_back(30 + i, 2);
+        }
+        crunch::setBookCommentCapForTest(3);
+        const auto done = s->convertNotesToComments(0, cells, t.who, QStringLiteral("Convert Notes to Comments"));
+        crunch::setBookCommentCapForTest(0);
+        QVERIFY(done.ok);
+        QVERIFY2(done.problem.contains(QStringLiteral("workbook")), qPrintable(done.problem));
+        QCOMPARE(t.threadCount(), 3);   // (the first thread, and two of the four notes)
+        int notes = 0;
+        for (const auto &c : cells) notes += !s->anchors().noteAt(0, c.first, c.second)->thread;
+        QCOMPARE(notes, 2);
+    }
+
+    void pastingThreadsStopsAtTheWorkbookLimitAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        crunch::EditSession *s = e.win.w.session();
+        CrunchThreads t(s);
+        QVERIFY(t.start(QStringLiteral("a thread")));
+        jp::office::sheet::CellRange src, target;
+        jp::office::sheet::parseRangeRef(QStringLiteral("A11"), &src);
+        jp::office::sheet::parseRangeRef(QStringLiteral("F20:F24"), &target);
+        crunch::ClipData copied = s->copyCells(0, src, false), clip;
+        QVERIFY(crunch::ClipData::fromBytes(copied.toBytes(), &clip));
+        QVERIFY(!clip.threads.empty());
+        crunch::setBookCommentCapForTest(3);
+        const auto pasted = s->paste(0, target, clip, crunch::EditSession::PasteOptions());
+        crunch::setBookCommentCapForTest(0);
+        QVERIFY2(pasted.ok, qPrintable(pasted.problem));
+        QVERIFY2(pasted.problem.contains(QStringLiteral("workbook")), qPrintable(pasted.problem));
+        QCOMPARE(t.threadCount(), 3);   // (the thread and two of its five copies)
     }
 };
 

@@ -653,6 +653,7 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     if (doc->props.title.isEmpty()) doc->props.title = QFileInfo(path).completeBaseName();
     const int chartsAsPictures = doc->chartsKeptAsPictures;
     const int equationsLeftOut = doc->equationsLeftOut;
+    const int commentsLeftOut = doc->commentsLeftOut;
     setReadOnly(false);
     m_readOnlyByChoice = false;
     // (a copy of a protected publication is protected too)
@@ -695,6 +696,11 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     }
     if (equationsLeftOut > 0) {
         const QString text = tr("\"%1\" has more equations than JeffPub keeps (%2, or %3 MB of them), so the equations past that were left out.").arg(QFileInfo(path).fileName()).arg(Document::kMaxEquations).arg(Document::kMaxEquationMarkupBytes >> 20);
+        if (m_notifier) m_notifier(tr("Open"), text);
+        else jp::plainInformation(this, tr("Open"), text);
+    }
+    if (commentsLeftOut > 0) {
+        const QString text = tr("\"%1\" has more comments than JeffPub keeps (%2 threads in all, and %3 replies to each), so %4 past that were left out.").arg(QFileInfo(path).fileName()).arg(comments::kMaxComments).arg(comments::kMaxReplies).arg(commentsLeftOut);
         if (m_notifier) m_notifier(tr("Open"), text);
         else jp::plainInformation(this, tr("Open"), text);
     }

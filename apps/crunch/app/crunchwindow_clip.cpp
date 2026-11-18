@@ -632,6 +632,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
         if (!o.confirm) notice(tr("Paste"), o.problem);
         return;
     }
+    if (!o.problem.isEmpty()) notice(tr("Paste"), o.problem);   // (done, but the threads past the limit are not pasted)
     if (m_loader.changesMade() != before) m_calculating = true;
     if (o.range.valid) {
         widenForCells(m_sheet, o.range);

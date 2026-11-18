@@ -11,13 +11,21 @@
 //   int step(t, bool forward)        the thread Next (Previous) reaches from thread t, -1 for none
 //   int entries(t)                   how many comments the thread holds
 //   int threadCount()
-// The three caps (core/threads.h) are asserted at their exact values: the 200th reply is accepted and the 201st refused.
+// The caps (core/threads.h) are asserted at their exact values: the 200th reply is accepted and the 201st refused.
 
 #include "core/threads.h"
 
 #include <QTest>
+#include <type_traits>
 
 namespace threadscript {
+
+// Whether an adapter's app holds a person to the shared cap on threads (core/threads.h kMaxThreads). JeffCrunch keeps its own, the reader's limit on a workbook's comments, so as not
+// to lower what its users could add; an adapter says `static constexpr bool sharedThreadCap = false;`.
+template <class Adapter, class = void>
+struct SharedThreadCap : std::true_type {};
+template <class Adapter>
+struct SharedThreadCap<Adapter, std::void_t<decltype(Adapter::sharedThreadCap)>> : std::bool_constant<Adapter::sharedThreadCap> {};
 
 template <class Adapter>
 void run(Adapter &a, const QString &who)
@@ -94,8 +102,12 @@ void run(Adapter &a, const QString &who)
     while (replies < 10 && a.reply(0, 0, QStringLiteral("x"))) ++replies;
     const int threads = a.threadCount();
     jp::threads::setCapsForTest(0, 0);
-    QVERIFY(one && two && !three);
-    QCOMPARE(threads, 2);
+    if constexpr (SharedThreadCap<Adapter>::value) {
+        QVERIFY(one && two && !three);
+        QCOMPARE(threads, 2);
+    } else {
+        QVERIFY(one && two && three);
+    }
     QCOMPARE(replies, 3);
     a.removeAll();
 }
