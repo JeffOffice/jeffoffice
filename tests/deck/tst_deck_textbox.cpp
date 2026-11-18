@@ -344,7 +344,7 @@ private Q_SLOTS:
             QVERIFY2(first > 0, back ? "270" : "90");
             const QString label = QStringLiteral("turned back %1").arg(back);
             QTest::qWait(QApplication::doubleClickInterval() + 50);
-            QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, viewOf(w, at(first + 0.3)));
+            QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, viewOf(w, at(first + 2)));
             QVERIFY2(ed->isEditingText(), qPrintable(label));
             QVERIFY2(ed->cursor().position() <= 1, qPrintable(label + QStringLiteral(": caret at %1").arg(ed->cursor().position())));
             // (and far along the line it is far along the words)
