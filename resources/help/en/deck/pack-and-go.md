@@ -29,6 +29,8 @@ A link that Pack and Go can't follow stays as it was, and the message lists it. 
 - A web address. Those stay as they are.
 - A file on another computer on your network.
 - A link that goes up and out of the presentation's folder, such as **../../notes.png**.
+- A document, workbook, or other object that is not in the presentation's own folder (or a folder inside it), even when the link gives its whole path. Only pictures, movies, and sounds are packed from anywhere.
+- A link that comes out of the presentation's folder through a shortcut to another folder (a symbolic link).
 - A link to the presentation itself.
 - A file that is not a picture, movie, sound, or document. A program is never packed.
 
