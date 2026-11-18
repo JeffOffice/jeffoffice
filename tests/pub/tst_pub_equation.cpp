@@ -47,6 +47,12 @@ class PubEquationTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { initPubTestCase(); }
+    // Each test starts from the default equation format: the format choice is remembered, and a runner that keeps its settings between runs (or an earlier test) must not change what the dialog opens in.
+    void init()
+    {
+        jp::Settings::get().remove(QStringLiteral("equation/syntax"));
+        jp::Settings::get().remove(QStringLiteral("equation/linear"));
+    }
 
     // The gallery of the program's other equation editors is on the Insert tab, and each design puts an equation on the page that undoes and redoes.
     void insertingAnEquationUndoesAndRedoes()
