@@ -20,6 +20,7 @@
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxview.h"
+#include "io/pptxreview.h"
 #include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "office/chart.h"
@@ -2134,6 +2135,11 @@ QByteArray Exporter::run(QString *error)
     m_pkg.addRelationship(QStringLiteral("/"), kRelBase + QStringLiteral("extended-properties"), QStringLiteral("/docProps/app.xml"));
     if (!m_doc.props.custom.isEmpty()) m_pkg.addRelationship(QStringLiteral("/"), QLatin1String(office::kCustomRelationship), QStringLiteral("/docProps/custom.xml"));
     if (!m_thumbnail.isEmpty()) m_pkg.addRelationship(QStringLiteral("/"), kPackageRelBase + QStringLiteral("metadata/thumbnail"), QStringLiteral("/docProps/thumbnail.jpeg"));
+    // The changes Compare found that nobody has decided yet (a part other programs do not know and leave alone).
+    if (const QByteArray review = reviewPartOf(m_doc); !review.isEmpty()) {
+        m_pkg.addPart(reviewPartName(), review, QStringLiteral("application/json"));
+        m_pkg.addRelationship(QStringLiteral("/"), QStringLiteral("http://jeffoffice.com/relationships/review"), reviewPartName());
+    }
 
     for (MasterOut &m : m_masters) m.rel = m_pkg.addRelationship(kPresentationPart, kRelBase + QStringLiteral("slideMaster"), m.part);
     for (int i = 0; i < int(m_doc.pages.size()); ++i)

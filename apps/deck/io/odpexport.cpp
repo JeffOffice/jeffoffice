@@ -4,6 +4,7 @@
 #include "core/blipeffects.h"
 
 #include "io/odpexport_p.h"
+#include "io/pptxreview.h"
 
 #include "core/comments.h"
 #include "core/fonts.h"
@@ -1102,6 +1103,8 @@ QByteArray Exporter::run(QString *error)
     writeContent(body.str());
     writeStyles(masterBody, presentationStyles);
     writeMeta();
+    // The changes Compare found that nobody has decided yet (listed in the manifest, which other programs skip over).
+    if (const QByteArray review = reviewPartOf(m_doc); !review.isEmpty()) addFile(reviewOdfName(), review, QStringLiteral("application/json"), true);
     // The manifest lists the parts in the order they are written; the standard parts first.
     const QStringList pictures = m_order;
     m_order = {QStringLiteral("Thumbnails/thumbnail.png"), QStringLiteral("styles.xml"), QStringLiteral("content.xml"), QStringLiteral("meta.xml")};

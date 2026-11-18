@@ -1,4 +1,5 @@
 #include "io/odpimport.h"
+#include "io/pptxreview.h"
 #include "core/items.h"
 
 #include "io/odpimport_p.h"
@@ -825,6 +826,7 @@ bool Reader::run(QString *error)
     if (m_masters.empty()) return fail(QCoreApplication::translate("OdpImport", "The presentation has no master page that can be read."));
     readSlides(presentation);
     if (!ensureASlide(m_doc)) return fail(QCoreApplication::translate("OdpImport", "The presentation has no slides."));
+    readReviewPart(m_pkg.part(QLatin1Char('/') + reviewOdfName()), m_doc);
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);
 
     // The theme: the colors the first master names, and the fonts of its title and outline.

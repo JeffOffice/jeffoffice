@@ -15,6 +15,7 @@
 #include "io/pptxfonts.h"
 #include "io/pptxshow.h"
 #include "io/pptxview.h"
+#include "io/pptxreview.h"
 #include "io/pptxtablestyles.h"
 #include "io/pptxtransition.h"
 #include "io/presentationfile.h"
@@ -2040,6 +2041,7 @@ bool Importer::run(const QString &mainPart, QString *error)
         readTableStyleDefs(tableStyles(), [](const QDomElement &e) { return standaloneXml(e); }, m_doc, &notes);
         for (const QString &text : std::as_const(notes)) note(text);
     }
+    readReviewPart(m_pkg.part(reviewPartName()), m_doc);
     m_doc.appData[QStringLiteral("footers")] = m_footers;
     sayWhatRanOut();
     for (const QString &text : leftOutNotes(m_doc.imagesLeftOut, m_pkg.skippedCount())) note(text);

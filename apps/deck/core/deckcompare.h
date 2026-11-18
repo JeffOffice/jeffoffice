@@ -25,6 +25,7 @@
 #include "text/review.h"
 
 #include <QHash>
+#include <QRectF>
 #include <QSet>
 #include <QString>
 #include <QVector>
@@ -95,5 +96,19 @@ int acceptAll(Document &working, DeckComparison &cmp);
 // Every pending change (and, with `alsoAccepted`, the accepted ones too, so that the working presentation is `mine` again), in the order that
 // gives `mine`. How many were rejected.
 int rejectAll(Document &working, DeckComparison &cmp, bool alsoAccepted = false);
+
+// Where change `index` shows in the working presentation, for the marks on the slides: the slide it is on (-1 when it is on none now: a slide
+// added that is not taken in yet), and the object's place on the page when it is about an object (one added that is not taken in yet is where it
+// is in theirs). A change not found gives slide -1 and no rectangle.
+struct ChangeMark {
+    int slide = -1;
+    QRectF rect;
+    bool hasRect = false;
+};
+ChangeMark markOf(const Document &working, DeckComparison &cmp, int index);
+// The whole text of an object before (mine) and after (theirs) a text change, for the word-level view; false for a change that is not one.
+bool textChangeOf(const DeckComparison &cmp, int index, QString *oldText, QString *newText);
+// What tells a change apart from the others across a new comparison (ids are ordinals and are made again): kind, what changed, and the words.
+QString changeKey(const review::Change &c);
 
 } // namespace jp::deck

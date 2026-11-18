@@ -1240,4 +1240,51 @@ int rejectAll(Document &working, DeckComparison &cmp, bool alsoAccepted)
     return n;
 }
 
+ChangeMark markOf(const Document &working, DeckComparison &cmp, int index)
+{
+    ChangeMark out;
+    if (index < 0 || index >= cmp.changes.changes.size()) return out;
+    const Change &ch = cmp.changes.changes[index];
+    const int ms = dataInt(ch, "ms"), ts = dataInt(ch, "ts");
+    const QString mid = dataString(ch, "mid");
+    if (!mid.isEmpty()) {
+        const Document::Loc loc = working.find(mid);
+        if (loc.item && loc.page >= 0 && loc.item->id == mid) {
+            out.slide = loc.page;
+            out.rect = loc.item->rect;
+            out.hasRect = true;
+            return out;
+        }
+    }
+    if (ms >= 0 && ms < cmp.workOfMine.size()) out.slide = findSlide(working, cmp, cmp.workOfMine[ms]);
+    else if (ts >= 0 && ts < cmp.workOfTheirs.size()) out.slide = findSlide(working, cmp, cmp.workOfTheirs[ts]);
+    if (ch.target.path == QLatin1String("object") && ch.kind == Kind::Added && ts >= 0 && ts < cmp.theirs->pages.size()) {
+        if (const Item *it = itemAtPath(cmp.theirs->pages[ts]->items, dataString(ch, "ti"))) {
+            out.rect = it->rect;
+            out.hasRect = true;
+        }
+    }
+    return out;
+}
+
+bool textChangeOf(const DeckComparison &cmp, int index, QString *oldText, QString *newText)
+{
+    if (index < 0 || index >= cmp.changes.changes.size()) return false;
+    const Change &ch = cmp.changes.changes[index];
+    if (ch.target.path != QLatin1String("text") || !cmp.mine || !cmp.theirs) return false;
+    const int ms = dataInt(ch, "ms"), ts = dataInt(ch, "ts");
+    if (ms < 0 || ts < 0 || ms >= cmp.mine->pages.size() || ts >= cmp.theirs->pages.size()) return false;
+    const Item *a = itemAtPath(cmp.mine->pages[ms]->items, dataString(ch, "mi"));
+    const Item *b = itemAtPath(cmp.theirs->pages[ts]->items, dataString(ch, "ti"));
+    if (!a || !b) return false;
+    Budget budget;
+    bool cut = false;
+    const QString before = textOf(*cmp.mine, *a, budget, cut), after = textOf(*cmp.theirs, *b, budget, cut);
+    if (oldText) *oldText = before;
+    if (newText) *newText = after;
+    return true;
+}
+
+QString changeKey(const Change &c) { return kindKey(c.kind) + QLatin1Char('|') + c.target.path + QLatin1Char('|') + c.summary; }
+
 }   // namespace jp::deck
