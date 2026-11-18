@@ -727,10 +727,12 @@ def run_help(lang, api, dry, report):
                 mine = sha(f.read())
             if rec and rec["en"] == sha(en):
                 continue
-            if rec and rec["out"] == mine:
-                todo.append((key, tid, en))   # the English changed under the machine's version
-            else:
-                report.problem(f"Help topic {key}: the English changed, but a person edited the {LANGUAGES[lang]}; update it by hand")
+            # The English changed: translate it again. (Until Nov 18 a translation that differed from the translator's own last version was
+            # taken for a person's edit and skipped for good. No person edits these pages: the differences were our own commits, such as a
+            # link or a section added in every language at once, and 65 pages had stopped following their English. The English is the source.)
+            if rec and rec["out"] != mine:
+                report.note(f"Help topic {key}: the {LANGUAGES[lang]} was changed outside the translator; translated again from the English")
+            todo.append((key, tid, en))
         report.note(f"{app + ' Help topics' if folder else 'Help topics'}: {len(todo)} to translate ({sum(len(en.split()) for _, _, en in todo):,} words)")
         if dry or not todo:
             continue
