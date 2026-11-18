@@ -1,6 +1,12 @@
 // JeffDeck's tests of spelling, comments, the options, and telemetry.
 #include "../plainprobe.h"
+#include "app/reviewpane_deck.h"
+#include "app/theme.h"
 #include "core/deckcompare.h"
+#include "io/pptxexport.h"
+#include "io/pptxreview.h"
+#include "io/presentationfile.h"
+#include "office/package.h"
 #include "text/review.h"
 #include "core/version.h"
 #include "text/storyio.h"
@@ -16,6 +22,13 @@ using jp::deck::acceptAll;
 using jp::deck::applyChange;
 using jp::deck::compareDecks;
 using jp::deck::rejectAll;
+
+// A window holding the base deck, with theirs saved and chosen by Compare (the compare tests of the window below).
+struct CompareRun {
+    std::unique_ptr<DeckWindow> w;
+    std::unique_ptr<Document> base, mine, fileTheirs;
+    int expected = 0;
+};
 
 class DeckReviewTests : public QObject {
     Q_OBJECT
@@ -1759,6 +1772,342 @@ private Q_SLOTS:
         // The states are the caller's to rewind after an undo; accepting again looks at the document, not at the state, and works.
         ed->change(QStringLiteral("Accept"), [&] { QVERIFY(applyChange(*ed->doc(), cmp, 0)); });
         QCOMPARE(compareDecks(*ed->doc(), *theirs).changes.size(), 5);
+    }
+
+    // ---- Compare in the window: Review > Compare, the Reviewing Pane, the marks, and what the file keeps ----
+
+    // A window holding the base deck, with theirs saved at `path` (a .pptx or .odp) and chosen by Compare; the number of changes the file's own presentation gives is `expected`.
+    static void startCompare(CompareRun &run, const QString &path)
+    {
+        // Both presentations go through a file, so that what the reader makes of each is the same on both sides.
+        run.base = compareBase();
+        auto theirs = changedBase(*run.base);
+        QString err;
+        const QString minePath = QFileInfo(path).dir().filePath(QStringLiteral("mine.pptx"));
+        QVERIFY2(deck::savePresentationFile(*run.base, minePath, &err), qPrintable(err));
+        QVERIFY2(deck::savePresentationFile(*theirs, path, &err), qPrintable(err));
+        run.fileTheirs = deck::importAnyPresentationFile(path, &err);
+        QVERIFY2(run.fileTheirs, qPrintable(err));
+        run.w = std::make_unique<DeckWindow>();
+        QVERIFY(run.w->openFile(minePath));
+        run.mine = copyOf(*run.w->editor()->doc());
+        run.expected = compareDecks(*run.w->editor()->doc(), *run.fileTheirs).changes.size();
+        QVERIFY2(run.expected >= 5 && run.expected <= 8, qPrintable(QString::number(run.expected)));
+        run.w->compareFileChooser = [path] { return path; };
+        run.w->act(QStringLiteral("review.compare"))->trigger();
+    }
+
+    void compareWindowListsTheChangesInThePane()
+    {
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        QTRY_VERIFY(w.reviewPane() && w.reviewPane()->isVisibleTo(&w));
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        QVERIFY(w.comparison());
+        QCOMPARE(w.comparison()->changes.size(), run.expected);
+        QCOMPARE(w.reviewPane()->list()->model()->rowCount(), run.expected);
+        // The step that made it undoes it, and the pane goes with it.
+        QCOMPARE(w.editor()->undoStack()->undoText(), QStringLiteral("Compare Presentations"));
+        w.editor()->undo();
+        QTRY_VERIFY(!w.comparison());
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), 0);
+        w.editor()->redo();
+        QTRY_VERIFY(w.comparison());
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        // The commands for the ribbon exist under their ids.
+        for (const char *id : {"review.compare", "review.accept", "review.reject", "review.prev", "review.next", "review.pane"}) QVERIFY2(w.act(QString::fromLatin1(id)), id);
+        w.editor()->markSaved();
+    }
+
+    void compareAcceptOneIsOneUndoStepAndUndoMakesItPendingAgain()
+    {
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        Editor *ed = w.editor();
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        QTRY_VERIFY(w.reviewPane()->currentChange() >= 0);
+        const QJsonObject before = ed->doc()->toJson();
+        const int depth = ed->undoStack()->index();
+        const int one = w.reviewPane()->currentChange();
+        w.reviewPane()->findChild<QPushButton *>(QStringLiteral("reviewAccept"))->click();
+        QCOMPARE(ed->undoStack()->index(), depth + 1);
+        QCOMPARE(w.comparison()->changes.changes[one].state, review::State::Accepted);
+        QVERIFY(ed->doc()->toJson() != before);
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected - 1);
+        // Undo: the slides come back, and the change is pending and listed again.
+        ed->undo();
+        QCOMPARE(ed->undoStack()->index(), depth);
+        QCOMPARE(w.comparison()->changes.changes[one].state, review::State::Pending);
+        QCOMPARE(w.comparison()->changes.pending(), run.expected);
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        // Redo takes it again.
+        ed->redo();
+        QCOMPARE(w.comparison()->changes.changes[one].state, review::State::Accepted);
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected - 1);
+        // Reject of a change is one step too, and it leaves the slides alone.
+        const QJsonObject mid = ed->doc()->toJson();
+        const int two = w.reviewPane()->currentChange();
+        QVERIFY(two >= 0);
+        const int depth2 = ed->undoStack()->index();
+        w.reviewPane()->findChild<QPushButton *>(QStringLiteral("reviewReject"))->click();
+        QCOMPARE(ed->undoStack()->index(), depth2 + 1);
+        QCOMPARE(w.comparison()->changes.changes[two].state, review::State::Rejected);
+        QCOMPARE(ed->doc()->toJson().value(QStringLiteral("pages")), mid.value(QStringLiteral("pages")));
+        ed->undo();
+        QCOMPARE(w.comparison()->changes.changes[two].state, review::State::Pending);
+        ed->markSaved();
+    }
+
+    void compareAcceptAllGivesTheirsAndRejectAllGivesMine()
+    {
+        QTemporaryDir dir;
+        {
+            CompareRun run;
+            startCompare(run, dir.filePath(QStringLiteral("a.pptx")));
+            DeckWindow &w = *run.w;
+            QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+            const int depth = w.editor()->undoStack()->index();
+            w.reviewPane()->findChild<QPushButton *>(QStringLiteral("reviewAcceptAll"))->click();
+            QCOMPARE(w.editor()->undoStack()->index(), depth + 1);
+            QCOMPARE(lookOf(*w.editor()->doc()), lookOf(*run.fileTheirs));
+            QCOMPARE(w.comparison()->changes.pending(), 0);
+            QTRY_COMPARE(w.reviewPane()->visibleCount(), 0);
+            w.editor()->undo();
+            QCOMPARE(lookOf(*w.editor()->doc()), lookOf(*run.mine));
+            QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+            w.editor()->markSaved();
+        }
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("b.pptx")));
+        DeckWindow &w = *run.w;
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        w.reviewPane()->findChild<QPushButton *>(QStringLiteral("reviewRejectAll"))->click();
+        QCOMPARE(lookOf(*w.editor()->doc()), lookOf(*run.mine));
+        QCOMPARE(w.comparison()->changes.count(review::State::Rejected), run.expected);
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), 0);
+        w.editor()->markSaved();
+    }
+
+    void compareMarksPendingChangesOnTheSlidesAndFiltersAndStepsWork()
+    {
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        Editor *ed = w.editor();
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        // Every pending change with a place is marked on the slide it is on, or counted in the tag of the slide's own.
+        int marked = 0;
+        for (int page = 0; page < ed->doc()->pages.size(); ++page) {
+            ed->setCurrentPage(page);
+            QTRY_COMPARE(ed->currentPage(), page);
+            QTest::qWait(0);
+            marked += int(w.canvas()->reviewMarks().size()) + w.canvas()->reviewSlideLevel();
+        }
+        QVERIFY2(marked >= 4, qPrintable(QString::number(marked)));
+        // Next goes to the change after the chosen one, and the slide follows it.
+        int shown = w.reviewPane()->currentChange();
+        QSet<int> seen{shown};
+        for (int i = 1; i < run.expected; ++i) {
+            w.act(QStringLiteral("review.next"))->trigger();
+            const int now = w.reviewPane()->currentChange();
+            QVERIFY2(now >= 0 && !seen.contains(now), qPrintable(QStringLiteral("step %1 now %2 enabled %3 rows %4").arg(i).arg(now).arg(w.act(QStringLiteral("review.next"))->isEnabled()).arg(w.reviewPane()->visibleCount())));
+            seen.insert(now);
+        }
+        QCOMPARE(int(seen.size()), run.expected);
+        w.act(QStringLiteral("review.next"))->trigger();   // (round to the first)
+        QCOMPARE(w.reviewPane()->currentChange(), shown);
+        w.act(QStringLiteral("review.prev"))->trigger();
+        QVERIFY(w.reviewPane()->currentChange() != shown);
+        // The marks of a decided change are gone.
+        w.acceptAllChanges();
+        for (int page = 0; page < ed->doc()->pages.size(); ++page) {
+            ed->setCurrentPage(page);
+            QTRY_COMPARE(int(w.canvas()->reviewMarks().size()) + w.canvas()->reviewSlideLevel(), 0);
+        }
+        // The author filter and the state filter: all, accepted, and rejected.
+        auto *state = w.reviewPane()->findChild<QComboBox *>(QStringLiteral("reviewStateFilter"));
+        state->setCurrentIndex(state->findText(QStringLiteral("Accepted")));
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        state->setCurrentIndex(state->findText(QStringLiteral("Rejected")));
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), 0);
+        ed->markSaved();
+    }
+
+    void compareFiltersBySlideAndTheDetailSetsOutTheWordsOfATextChange()
+    {
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        auto *slide = w.reviewPane()->findChild<QComboBox *>(QStringLiteral("reviewSlideFilter"));
+        QVERIFY(slide->count() >= 3);   // all slides, then one for each slide that has a change
+        slide->setCurrentIndex(1);
+        QTRY_VERIFY(w.reviewPane()->visibleCount() >= 1 && w.reviewPane()->visibleCount() < run.expected);
+        slide->setCurrentIndex(0);
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        int text = -1;
+        for (int i = 0; i < w.comparison()->changes.size(); ++i)
+            if (w.comparison()->changes.changes[i].target.path == QLatin1String("text")) text = i;
+        QVERIFY(text >= 0);
+        w.reviewPane()->setCurrentChange(text);
+        auto *detail = w.reviewPane()->findChild<QTextBrowser *>(QStringLiteral("reviewDetail"));
+        // "box C" became "box C, changed": the words that came are underlined and the ones that stayed are not.
+        QTRY_VERIFY(detail->toHtml().contains(QStringLiteral("underline")));
+        QVERIFY2(detail->toPlainText().contains(QStringLiteral("changed")), qPrintable(detail->toPlainText()));
+        QVERIFY(!detail->toHtml().contains(QStringLiteral("line-through")));
+        w.editor()->markSaved();
+    }
+
+    void compareKeepsPendingAndRejectedChangesWhenTheFileIsSavedAndOpened()
+    {
+        for (const QString &name : {QStringLiteral("keep.pptx"), QStringLiteral("keep.odp")}) {
+            QTemporaryDir dir;
+            CompareRun run;
+            startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+            DeckWindow &w = *run.w;
+            QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+            // One accepted, one rejected, the rest pending.
+            QVERIFY(w.acceptChange(0));
+            QVERIFY(w.rejectChange(1));
+            const int pending = run.expected - 2;
+            QCOMPARE(w.comparison()->changes.pending(), pending);
+            const QString path = dir.filePath(name);
+            QString err;
+            QVERIFY2(deck::savePresentationFile(*w.editor()->doc(), path, &err), qPrintable(err));
+            w.editor()->markSaved();
+            // Another window opens the file: the same changes are pending, the rejected one is still rejected and not listed, and the slides are as they were saved.
+            DeckWindow second;
+            QVERIFY(second.openFile(path));
+            QTRY_VERIFY(second.comparison());
+            QCOMPARE(second.comparison()->changes.pending(), pending);
+            QCOMPARE(second.comparison()->changes.count(review::State::Rejected), 1);
+            QCOMPARE(second.comparison()->changes.size(), pending + 1);
+            QTRY_COMPARE(second.reviewPane()->visibleCount(), pending);
+            QVERIFY(second.reviewPane()->isVisibleTo(&second));
+            QCOMPARE(lookOf(*second.editor()->doc()).size() > 0, true);
+            // What was pending can still be accepted there: all of it gives their presentation, bar the rejected change.
+            second.acceptAllChanges();
+            QCOMPARE(second.comparison()->changes.pending(), 0);
+            second.editor()->markSaved();
+            // A file saved with nothing compared holds no part for it.
+            DeckWindow plain;
+            plain.editor()->setDocument(copyOf(*run.mine));
+            const QString clean = dir.filePath(QStringLiteral("clean.") + name.section(QLatin1Char('.'), -1));
+            QVERIFY(deck::savePresentationFile(*plain.editor()->doc(), clean, &err));
+            office::Package pkg;
+            QFile f(clean);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            const QByteArray zip = f.readAll();
+            QVERIFY(name.endsWith(QLatin1String(".odp")) ? pkg.readOpenDocument(zip) : pkg.read(zip));
+            QVERIFY(!pkg.hasPart(QLatin1Char('/') + deck::reviewOdfName()));
+            // ... and the one with a comparison holds exactly one.
+            QFile g(path);
+            QVERIFY(g.open(QIODevice::ReadOnly));
+            office::Package kept;
+            const QByteArray bytes = g.readAll();
+            QVERIFY(name.endsWith(QLatin1String(".odp")) ? kept.readOpenDocument(bytes) : kept.read(bytes));
+            QCOMPARE(int(kept.partNames().filter(QStringLiteral("review.json")).size()), 1);
+            plain.editor()->markSaved();
+        }
+    }
+
+    // Pictures of the window with a compared presentation, for Jeff and the docs, when JO_SHOT_DIR names a folder.
+    void compareScreenshotsOfTheReviewingPane()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR names no folder");
+        jp::applyUiTheme(1);
+        QTemporaryDir dir;
+        CompareRun run;
+        startCompare(run, dir.filePath(QStringLiteral("theirs.pptx")));
+        DeckWindow &w = *run.w;
+        w.resize(1440, 900);
+        w.show();
+        QTRY_COMPARE(w.reviewPane()->visibleCount(), run.expected);
+        int text = -1;
+        for (int i = 0; i < w.comparison()->changes.size(); ++i)
+            if (w.comparison()->changes.changes[i].target.path == QLatin1String("text")) text = i;
+        QVERIFY(text >= 0);
+        w.reviewPane()->setCurrentChange(text);
+        QTRY_VERIFY(!w.canvas()->reviewMarks().isEmpty());
+        QCoreApplication::processEvents();
+        shotOf(&w, QStringLiteral("deck-compare-text-change"));
+        QVERIFY(w.acceptChange(text));
+        auto *state = w.reviewPane()->findChild<QComboBox *>(QStringLiteral("reviewStateFilter"));
+        state->setCurrentIndex(state->findText(QStringLiteral("All")));
+        w.reviewPane()->setCurrentChange(0);
+        QCoreApplication::processEvents();
+        shotOf(&w, QStringLiteral("deck-compare-after-accept"));
+        w.editor()->markSaved();
+    }
+
+    // A part from a file is bounded: at most 10,000 keys, the store keeps four other presentations, and a part that is not what it should be is refused.
+    void comparePartFromAFileIsBounded()
+    {
+        deck::clearReviewStore();
+        auto doc = compareBase();
+        QJsonArray keys;
+        for (int i = 0; i < deck::kMaxReviewKeys + 50; ++i) keys.append(QStringLiteral("edited|text|%1").arg(i));
+        QJsonObject part;
+        part[QStringLiteral("format")] = 1;
+        part[QStringLiteral("theirs")] = QString::fromLatin1(QByteArray("some bytes").toBase64());
+        part[QStringLiteral("rejected")] = keys;
+        QVERIFY(deck::readReviewPart(QJsonDocument(part).toJson(QJsonDocument::Compact), *doc));
+        QCOMPARE(int(doc->appData.value(QStringLiteral("compare")).toObject().value(QStringLiteral("rejected")).toArray().size()), deck::kMaxReviewKeys);
+        // Not a part we wrote: refused, and the document has no comparison.
+        auto other = compareBase();
+        QVERIFY(!deck::readReviewPart(QByteArray("not json"), *other));
+        part[QStringLiteral("format")] = 2;
+        QVERIFY(!deck::readReviewPart(QJsonDocument(part).toJson(QJsonDocument::Compact), *other));
+        QVERIFY(other->appData.value(QStringLiteral("compare")).toObject().isEmpty());
+        // The store keeps the most recent four.
+        deck::clearReviewStore();
+        QString first;
+        for (int i = 0; i < deck::kReviewStoreMost + 2; ++i) {
+            const QString key = deck::storeReviewTheirs(QByteArray("deck %1").replace("%1", QByteArray::number(i)));
+            if (i == 0) first = key;
+        }
+        QCOMPARE(deck::storedReviewCount(), deck::kReviewStoreMost);
+        QVERIFY(deck::storedReviewTheirs(first).isEmpty());
+    }
+
+    // The pane lists at most 10,000 rows, and looks up the words for at most 2,000 slides.
+    void compareReviewPaneListsAtMost10000RowsAndFiltersBy2000Slides()
+    {
+        review::ChangeList list;
+        QSet<QString> seen;
+        for (int i = 0; i < review::kMaxChanges + 50; ++i) {
+            review::Change c;
+            c.id = QStringLiteral("c%1").arg(i + 1);
+            c.target.container = QStringLiteral("slide%1").arg(i % 5000);
+            c.author = QStringLiteral("a%1").arg(i % 7);
+            c.summary = QStringLiteral("change %1").arg(i);
+            list.changes << c;
+        }
+        DeckReviewPane pane;
+        pane.resize(320, 600);
+        int labels = 0;
+        DeckReviewPane::Source src;
+        src.list = &list;
+        src.slideLabel = [&labels](const QString &container) {
+            ++labels;
+            return container;
+        };
+        pane.setSource(src);
+        QCOMPARE(pane.visibleCount(), review::kMaxChanges);
+        QVERIFY2(labels <= 2000, qPrintable(QString::number(labels)));
+        auto *author = pane.findChild<QComboBox *>(QStringLiteral("reviewAuthorFilter"));
+        author->setCurrentIndex(1);
+        QTRY_VERIFY(pane.visibleCount() < review::kMaxChanges && pane.visibleCount() > 1000);
+        pane.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&pane));
+        // (the view asks only for the rows it shows)
+        QVERIFY(pane.list()->indexAt(QPoint(10, 10)).isValid());
     }
 
     // Ids repeated all through a file (hostile) still give a list, and accepting changes the slide the change is about.

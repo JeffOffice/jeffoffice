@@ -1,10 +1,11 @@
 # Review tab
-<!-- keywords: review tab, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments, language, proofing language, set language, do not check spelling, translate, translation, libretranslate, grammar, grammar check, style, blue line, dotted line, check grammar as you type -->
+<!-- keywords: review tab, compare, reviewing pane, accept, reject, ribbon, proofing, spelling, thesaurus, word count, comments, new comment, delete comment, previous, next, show comments, language, proofing language, set language, do not check spelling, translate, translation, libretranslate, grammar, grammar check, style, blue line, dotted line, check grammar as you type -->
 
 The **Review** tab checks your words, translates them, and handles comments.
 
 - **Proofing** has **Spelling** (F7), **Thesaurus** (Shift+F7), **Word Count**, and **Check Accessibility**. See [Type and format text](text).
 - **Language** has **Translate**, **Set Proofing Language**, and **Do Not Check Spelling**. See below.
+- **Compare** has **Compare**, **Accept**, **Reject**, **Previous**, **Next**, and **Reviewing Pane**. See [Compare presentations](compare).
 - **Comments** has **New Comment** (Ctrl+Alt+M), **Delete** with its menu, **Previous**, **Next**, and **Show Comments**. See [Comments](comments).
 
 ## Check grammar as you type
@@ -38,5 +39,6 @@ Your web browser then opens a translation service called LibreTranslate, with yo
 
 ## Related
 
+- [Compare presentations](compare)
 - [Comments](comments)
 - [Type and format text](text)

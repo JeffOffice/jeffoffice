@@ -26,6 +26,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [The Format Shape pane and the Shape Format tab](format-shape)
 - [Speaker notes](notes)
 - [Comments](comments)
+- [Compare presentations](compare)
 
 ## Motion
 
