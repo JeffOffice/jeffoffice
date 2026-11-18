@@ -25,6 +25,8 @@
 #include <cmath>
 #include <map>
 #include <set>
+#include <utility>
+#include <QSet>
 
 namespace jp::office::sheet::odsdraw {
 
@@ -90,6 +92,9 @@ private:
     const ChartMaker &m_charts;
     int m_chartCount = 0;
     int m_objectsSeen = 0, m_objectsHandled = 0;
+    QSet<QString> m_notMath;   // the objects found not to be formulas, so that a frame that names one again does not read it again
+    QString m_stashPath;       // the object whose document was read to see what it is, and the bytes (for the chart that is read next)
+    QByteArray m_stash;
     QHash<QString, int> m_chartOfHref;   // the chart part made of each Object the frames name (-1 for one that could not be): read and kept once, whatever number of frames show it
     Budget *m_budget;
     ImportedDrawing *m_out;
@@ -520,9 +525,15 @@ private:
         while (path.endsWith(QLatin1Char('/'))) path.chop(1);
         if (path.isEmpty() || path.contains(QLatin1String("..")) || path.contains(QLatin1Char(':')) || path.startsWith(QLatin1Char('/')) || path.startsWith(QLatin1Char('#')) || path.contains(QLatin1Char('\\')))
             return false;
+        if (m_notMath.contains(path)) return false;
         const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
-        // (only a document that is a formula is looked at: a chart goes on its way)
-        if (content.isEmpty() || !content.left(4096).contains("math")) return false;
+        // (only a document that is a formula is looked at: a chart goes on its way, with the bytes read, which it takes)
+        if (content.isEmpty() || !content.left(4096).contains("math")) {
+            m_notMath.insert(path);
+            m_stashPath = path;
+            m_stash = content;
+            return false;
+        }
         const QByteArray markup = mathObjectToOmml(content);
         if (markup.isEmpty()) return false;
         auto item = std::make_shared<EquationItem>();
@@ -569,7 +580,8 @@ private:
             index = known.value();
         } else {
             // (the document is read from the package and made into a chart part once; frames that name it again share the part)
-            const QByteArray content = m_parts(path + QStringLiteral("/content.xml"));
+            const QByteArray content = m_stashPath == path ? std::exchange(m_stash, QByteArray()) : m_parts(path + QStringLiteral("/content.xml"));
+            if (m_stashPath == path) m_stashPath.clear();
             if (content.isEmpty()) {
                 m_notRead.insert(QCoreApplication::translate("jp::office::sheet::Ods", "charts the file does not hold"));
             } else if (isMath(content)) {
