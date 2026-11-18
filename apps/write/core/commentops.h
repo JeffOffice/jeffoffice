@@ -6,7 +6,10 @@
 
 #include "core/writedoc.h"
 
+#include "text/review.h"
+
 #include <QDateTime>
+#include <QSet>
 #include <optional>
 
 namespace jp::write {
@@ -62,6 +65,13 @@ bool setCommentDone(WriteDoc &doc, int id, bool done);
 bool setCommentText(WriteDoc &doc, int id, const QString &text);
 // Takes a comment and its replies out (the marks of their ranges and references). One step. Returns how many were taken out.
 int deleteComment(WriteDoc &doc, int id);
+// The comments that are shown (in the list, as the reviewer filter leaves them) go, each with its whole thread: a reply that is shown takes its thread with it. One step. Returns how many went.
+int deleteComments(WriteDoc &doc, const QSet<int> &shown);
 int deleteAllComments(WriteDoc &doc);
+
+// The document's revisions and comments as the shared model of the Reviewing Pane lists them (libs/base/text/review.h; read only: nothing in the document changes). A revision is a
+// Change of the story "body" (Insertion Added, Deletion Deleted, a move Moved, a change of properties Reformatted); a comment is a Commented change whose replies are its thread
+// and whose state is Accepted once it is resolved. Sorted by position in the story.
+jp::review::ChangeList reviewChanges(WriteDoc &doc);
 
 } // namespace jp::write

@@ -1,6 +1,9 @@
 // The threads of comments on cells: starting one, replying, editing, resolving, deleting, and turning notes into threads and back. One step of Undo each; the model they are kept in is
 // core/anchors.h (a thread is the `thread` of the cell's NoteInfo).
+#include "core/editcomments.h"
 #include "core/editsession.h"
+#include "core/threads.h"
+#include "sheet/cellref.h"
 #include <QCoreApplication>
 
 namespace jp::crunch {
@@ -55,6 +58,16 @@ ThreadComment commentBy(const CellAnchors &anchors, const QString &text, const Q
     return c;
 }
 
+// How many cells of the workbook hold a thread (the shared limit counts threads, however many notes there are).
+int threadCount(const CellAnchors &anchors)
+{
+    int n = 0;
+    for (int s = 0; s < anchors.sheetCount(); ++s)
+        for (const auto &note : anchors.notes(s))
+            if (note.second.thread && !note.second.thread->empty()) ++n;
+    return n;
+}
+
 NoteInfo withThread(const NoteInfo &from, ThreadList list)
 {
     NoteInfo n = from;
@@ -94,10 +107,10 @@ EditSession::Outcome EditSession::newComment(int sheet, quint32 row, quint32 col
 {
     const Outcome checked = checkThreadCell(sheet, row, col);
     if (!checked.ok) return checked;
-    if (text.trimmed().isEmpty()) return refused(tr("A comment needs some words."));
-    if (text.size() > jp::office::sheet::kMaxThreadCommentChars) return refused(tr("A comment can have up to %1 characters. Shorten it, and try again.").arg(jp::office::sheet::kMaxThreadCommentChars));
+    if (const auto r = jp::threads::checkText(text, true); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
     if (m_anchors.noteAt(sheet, row, col)) return refused(tr("This cell has a note or comments already. Reply to the comments, or delete them first."));
     if (qint64(m_anchors.notes(sheet).size()) >= jp::office::sheet::kMaxNotes) return refused(tr("A sheet can have up to %1 notes and comments.").arg(jp::office::sheet::kMaxNotes));
+    if (const auto r = jp::threads::checkNewThread(text, threadCount(m_anchors), true); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
     SideEdit::Note n;
     n.row = row;
     n.col = col;
@@ -113,7 +126,7 @@ EditSession::Outcome EditSession::replyToComment(int sheet, quint32 row, quint32
     if (!was || !was->thread || was->thread->empty()) return refused(tr("There are no comments on this cell to reply to."));
     if (was->threadCut || was->thread->size() >= size_t(jp::office::sheet::kMaxThreadComments)) return refused(tr("This thread has more comments than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't add to them.").arg(jp::office::sheet::kMaxThreadComments));
     if (text.trimmed().isEmpty()) return refused(tr("A reply needs some words."));
-    if (text.size() > jp::office::sheet::kMaxThreadCommentChars) return refused(tr("A comment can have up to %1 characters. Shorten it, and try again.").arg(jp::office::sheet::kMaxThreadCommentChars));
+    if (const auto r = jp::threads::checkReply(text, int(was->thread->size()) - 1); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
     ThreadList list = *was->thread;
     list.push_back(commentBy(m_anchors, text, author, list.front().id));
     SideEdit::Note n;
@@ -131,8 +144,7 @@ EditSession::Outcome EditSession::editComment(int sheet, quint32 row, quint32 co
     const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
     if (!was || !was->thread || index < 0 || size_t(index) >= was->thread->size()) return refused(tr("There is no such comment."));
     if (was->threadCut) return refused(tr("This thread has more comments than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't change them.").arg(jp::office::sheet::kMaxThreadComments));
-    if (text.trimmed().isEmpty()) return refused(tr("A comment needs some words."));
-    if (text.size() > jp::office::sheet::kMaxThreadCommentChars) return refused(tr("A comment can have up to %1 characters. Shorten it, and try again.").arg(jp::office::sheet::kMaxThreadCommentChars));
+    if (const auto r = jp::threads::checkText(text, true); r != jp::threads::Refusal::None) return refused(jp::threads::refusalText(r));
     if (was->thread->at(size_t(index)).text == text) return Outcome();
     ThreadList list = *was->thread;
     list[size_t(index)].text = text;
@@ -261,6 +273,70 @@ EditSession::Outcome EditSession::convertCommentsToNotes(int sheet, const std::v
         notes.push_back(std::move(n));
     }
     return pushNoteChanges(sheet, std::move(notes), stepText);
+}
+
+// ---- one set of rules with the other apps (core/threads.h), and the Reviewing Pane's model
+
+namespace {
+
+struct ThreadAt {
+    int sheet;
+    quint32 row, col;
+};
+
+QVector<ThreadAt> threadCells(const CellAnchors &anchors)
+{
+    QVector<ThreadAt> out;
+    for (int s = 0; s < anchors.sheetCount(); ++s)
+        for (const auto &n : anchors.notes(s))
+            if (n.second.thread && !n.second.thread->empty()) out.push_back({s, quint32(n.first >> 32), quint32(n.first & 0xffffffffu)});
+    return out;
+}
+
+} // namespace
+
+bool stepThread(const CellAnchors &anchors, int sheet, quint32 row, quint32 col, bool forward, int *toSheet, quint32 *toRow, quint32 *toCol)
+{
+    const QVector<ThreadAt> cells = threadCells(anchors);
+    QVector<qint64> keys;
+    for (const ThreadAt &t : cells) keys.push_back(jp::review::crunchPosition(t.sheet, int(t.row), int(t.col)));
+    const int at = jp::threads::stepIndex(keys, jp::review::crunchPosition(sheet, int(row), int(col)), forward);
+    if (at < 0) return false;
+    *toSheet = cells[at].sheet;
+    *toRow = cells[at].row;
+    *toCol = cells[at].col;
+    return true;
+}
+
+jp::review::ChangeList threadChanges(const CellAnchors &anchors, const std::function<QString(int)> &sheetName)
+{
+    jp::review::ChangeList out;
+    for (const ThreadAt &t : threadCells(anchors)) {
+        if (out.changes.size() >= jp::review::kMaxChanges) {
+            out.tooMany = true;
+            break;
+        }
+        const NoteInfo *note = anchors.noteAt(t.sheet, t.row, t.col);
+        if (!note || !note->thread) continue;
+        const ThreadList &list = *note->thread;
+        jp::review::Change c;
+        const QString cell = jp::office::sheet::cellName(t.row, t.col);
+        const QString sheetLabel = sheetName ? sheetName(t.sheet) : QString::number(t.sheet);
+        c.id = sheetLabel + QLatin1Char('!') + cell;
+        c.kind = jp::review::Kind::Commented;
+        c.author = list.front().author;
+        c.when = QDateTime::fromString(list.front().time, Qt::ISODate);
+        c.target = {sheetLabel, cell, QStringLiteral("thread")};
+        c.summary = list.front().text.left(120).replace(QLatin1Char('\n'), QLatin1Char(' '));
+        c.state = list.front().done ? jp::review::State::Accepted : jp::review::State::Pending;
+        c.position = jp::review::crunchPosition(t.sheet, int(t.row), int(t.col));
+        for (size_t i = 1; i < list.size() && c.replies.size() < jp::review::kMaxReplies; ++i)
+            c.replies.push_back({list[i].author, QDateTime::fromString(list[i].time, Qt::ISODate), list[i].text});
+        c.data.insert(QStringLiteral("resolved"), list.front().done);
+        out.changes.push_back(c);
+    }
+    std::stable_sort(out.changes.begin(), out.changes.end(), [](const jp::review::Change &a, const jp::review::Change &b) { return a.position < b.position; });
+    return out;
 }
 
 } // namespace jp::crunch

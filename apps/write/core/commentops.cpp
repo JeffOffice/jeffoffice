@@ -4,12 +4,14 @@
 
 #include "core/editops.h"
 #include "core/reviewops.h"
+#include "core/threads.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
 
+#include <QCoreApplication>
 #include <QDataStream>
 #include <QMap>
 #include <QSet>
@@ -523,21 +525,27 @@ std::optional<Comment> commentAt(WriteDoc &doc, int position)
     return best;
 }
 
-std::optional<Comment> nextComment(WriteDoc &doc, int position)
+namespace {
+
+// The first comment of each thread and its place, for stepping along them (the shared rule: core/threads.h).
+std::optional<Comment> stepThread(WriteDoc &doc, int position, bool forward)
 {
-    std::optional<Comment> best;
+    QVector<Comment> firsts;
+    QVector<qint64> keys;
     for (const Comment &c : comments(doc))
-        if (c.parent < 0 && c.from > position && (!best || c.from < best->from)) best = c;
-    return best;
+        if (c.parent < 0) {
+            firsts.push_back(c);
+            keys.push_back(c.from);
+        }
+    const int at = jp::threads::stepIndex(keys, position, forward);
+    return at < 0 ? std::nullopt : std::optional<Comment>(firsts[at]);
 }
 
-std::optional<Comment> previousComment(WriteDoc &doc, int position)
-{
-    std::optional<Comment> best;
-    for (const Comment &c : comments(doc))
-        if (c.parent < 0 && c.from < position && (!best || c.from > best->from)) best = c;
-    return best;
-}
+} // namespace
+
+std::optional<Comment> nextComment(WriteDoc &doc, int position) { return stepThread(doc, position, true); }
+
+std::optional<Comment> previousComment(WriteDoc &doc, int position) { return stepThread(doc, position, false); }
 
 QVector<Comment> repliesTo(WriteDoc &doc, int id)
 {
@@ -625,6 +633,9 @@ int addComment(WriteDoc &doc, QTextCursor &c, const QString &text)
 {
     QTextDocument *d = c.document();
     if (d != doc.story() || !intoBody(c)) return -1;
+    int threadsNow = 0;
+    for (const Comment &k : comments(doc)) threadsNow += k.parent < 0;
+    if (jp::threads::checkNewThread(text, threadsNow) != jp::threads::Refusal::None) return -1;
     const int from = c.selectionStart(), to = c.selectionEnd();
     if (isLocked(d->findBlock(from)) || isLocked(d->findBlock(to))) return -1;
     sourceOf(doc);
@@ -645,10 +656,25 @@ int addComment(WriteDoc &doc, QTextCursor &c, const QString &text)
     return cm.id;
 }
 
+namespace {
+QVector<Comment> threadOf(const QVector<Comment> &all, int id);
+}
+
 int replyToComment(WriteDoc &doc, int parentId, const QString &text)
 {
-    const std::optional<Comment> parent = commentById(doc, parentId);
+    std::optional<Comment> parent = commentById(doc, parentId);
     if (!parent) return -1;
+    // A reply to a reply goes into the thread of the first comment, after the others.
+    const QVector<Comment> all = comments(doc);
+    QHash<int, int> parentOf;
+    for (const Comment &k : all) parentOf.insert(k.id, k.parent);
+    const int root = jp::threads::threadRoot(QString::number(parentId), [&](const QString &id) { return parentOf.value(id.toInt(), -1) < 0 ? QString() : QString::number(parentOf.value(id.toInt())); }, int(all.size())).toInt();
+    if (root != parentId) {
+        parentId = root;
+        parent = commentById(doc, root);
+        if (!parent) return -1;
+    }
+    if (jp::threads::checkReply(text, int(threadOf(all, root).size()) - 1) != jp::threads::Refusal::None) return -1;
     QTextDocument *d = doc.story();
     const UntrackedEdit untracked;
     EditScope scope(doc, d);
@@ -660,10 +686,14 @@ int replyToComment(WriteDoc &doc, int parentId, const QString &text)
         if (a.id == parentId) pa = &a;
     if (!pa || pa->reference < 0) return -1;
     const Anchor anchor = *pa;
-    const QTextCharFormat like = formatAt(d, anchor.reference + 1);
+    // The reference goes after the last of the thread's own, so that the replies stand in the order they were made.
+    int lastReference = anchor.reference;
+    for (const Comment &k : threadOf(all, root))
+        lastReference = std::max(lastReference, k.reference);
+    const QTextCharFormat like = formatAt(d, lastReference + 1);
     QTextCursor t(d);
     t.beginEditBlock();
-    t.setPosition(anchor.reference + 1);
+    t.setPosition(lastReference + 1);
     t.insertText(QString(QChar::ObjectReplacementCharacter), commentMark(like, referenceAtom(cm)));
     if (anchor.end >= 0) {
         t.setPosition(anchor.end + 1);
@@ -739,6 +769,7 @@ bool setCommentText(WriteDoc &doc, int id, const QString &text)
 {
     const std::optional<Comment> found = commentById(doc, id);
     if (!found || found->reference < 0) return false;
+    if (jp::threads::checkText(text) != jp::threads::Refusal::None) return false;
     Comment c = *found;
     c.text = text;
     const UntrackedEdit untracked;
@@ -795,6 +826,23 @@ int deleteComment(WriteDoc &doc, int id)
     for (const Comment &c : thread) ids.insert(c.id);
     removeMarksOf(doc, ids);
     return int(thread.size());
+}
+
+int deleteComments(WriteDoc &doc, const QSet<int> &shown)
+{
+    // (the threads the comments belong to, whole: a reply that is shown takes its thread, as the first comment's does)
+    const QVector<Comment> all = comments(doc);
+    QHash<int, int> parentOf;
+    for (const Comment &c : all) parentOf.insert(c.id, c.parent);
+    QSet<int> roots, ids;
+    for (const Comment &c : all)
+        if (shown.contains(c.id))
+            roots.insert(jp::threads::threadRoot(QString::number(c.id), [&](const QString &id) { return parentOf.value(id.toInt(), -1) < 0 ? QString() : QString::number(parentOf.value(id.toInt())); }, int(all.size())).toInt());
+    for (const int root : roots)
+        for (const Comment &t : threadOf(all, root)) ids.insert(t.id);
+    if (ids.isEmpty()) return 0;
+    removeMarksOf(doc, ids);
+    return int(ids.size());
 }
 
 int deleteAllComments(WriteDoc &doc)
@@ -1042,6 +1090,70 @@ void WriteDoc::writeCommentParts(office::wml::Document *out)
             putPart(out, peopleName, pp, kPeopleType, kPeopleRel, nullptr);
         }
     }
+}
+
+// ---- the Reviewing Pane's model
+
+jp::review::ChangeList reviewChanges(WriteDoc &doc)
+{
+    using jp::review::Change;
+    jp::review::ChangeList out;
+    const QTextDocument *story = doc.story();
+    const QVector<Revision> revisions = revisionsIn(story, 0, -1, jp::review::kMaxChanges + 1);
+    for (const Revision &r : revisions) {
+        if (out.changes.size() >= jp::review::kMaxChanges) {
+            out.tooMany = true;
+            break;
+        }
+        Change c;
+        c.id = QStringLiteral("rev:") + r.id;
+        c.author = r.author;
+        c.when = r.date;
+        c.target = {QStringLiteral("body"), r.id, QStringLiteral("%1-%2").arg(r.from).arg(r.to)};
+        c.position = r.from;
+        const QString words = revisionText(story, r);
+        switch (r.kind) {
+        case Revision::Insertion:
+        case Revision::MarkInserted: c.kind = jp::review::Kind::Added; c.summary = words.isEmpty() ? QCoreApplication::translate("jp::write::Review", "Inserted") : QCoreApplication::translate("jp::write::Review", "Inserted: %1").arg(words); break;
+        case Revision::Deletion:
+        case Revision::MarkDeleted: c.kind = jp::review::Kind::Deleted; c.summary = words.isEmpty() ? QCoreApplication::translate("jp::write::Review", "Deleted") : QCoreApplication::translate("jp::write::Review", "Deleted: %1").arg(words); break;
+        case Revision::MovedFrom:
+        case Revision::MovedTo: c.kind = jp::review::Kind::Moved; c.summary = words.isEmpty() ? QCoreApplication::translate("jp::write::Review", "Moved") : QCoreApplication::translate("jp::write::Review", "Moved: %1").arg(words); break;
+        case Revision::Format:
+        case Revision::ParagraphFormat: c.kind = jp::review::Kind::Reformatted; c.summary = QCoreApplication::translate("jp::write::Review", "Formatted"); break;
+        }
+        out.changes.push_back(c);
+    }
+    const QVector<Comment> all = comments(doc);
+    QHash<int, QVector<int>> repliesOf;
+    for (int i = 0; i < all.size(); ++i)
+        if (all[i].parent >= 0) repliesOf[all[i].parent].push_back(i);
+    for (const Comment &k : all) {
+        if (k.parent >= 0) continue;
+        if (out.changes.size() >= jp::review::kMaxChanges) {
+            out.tooMany = true;
+            break;
+        }
+        Change c;
+        c.id = QStringLiteral("cmt:") + QString::number(k.id);
+        c.kind = jp::review::Kind::Commented;
+        c.author = k.author;
+        c.when = k.date;
+        c.target = {QStringLiteral("body"), QString::number(k.id), QStringLiteral("%1-%2").arg(k.from).arg(k.to)};
+        c.summary = k.text.left(120).replace(QLatin1Char('\n'), QLatin1Char(' '));
+        c.state = k.done ? jp::review::State::Accepted : jp::review::State::Pending;
+        c.position = k.from >= 0 ? k.from : k.reference;
+        // The thread, oldest first: every reply of the thread, down (the places in `all` are the order the references have).
+        QVector<int> queue = repliesOf.value(k.id);
+        for (int at = 0; at < queue.size() && c.replies.size() < jp::review::kMaxReplies; ++at) {
+            const Comment &r = all[queue[at]];
+            c.replies.push_back({r.author, r.date, r.text});
+            queue += repliesOf.value(r.id);
+        }
+        out.changes.push_back(c);
+    }
+    std::stable_sort(out.changes.begin(), out.changes.end(), [](const Change &a, const Change &b) { return a.position < b.position; });
+    return out;
 }
 
 } // namespace jp::write

@@ -101,10 +101,7 @@ QString initialsFor(const QString &name)
 
 QString commentText(const QString &text)
 {
-    QString t = text;
-    t.replace(QLatin1String("\r\n"), QLatin1String("\n")).replace(QLatin1Char('\r'), QLatin1Char('\n'));
-    t.replace(QChar(QChar::LineSeparator), QLatin1Char('\n')).replace(QChar(QChar::ParagraphSeparator), QLatin1Char('\n'));
-    return t.left(kMaxCommentText);
+    return threads::tidyText(text).left(kMaxCommentText);
 }
 
 QVector<Comment> commentsOf(const Page &slide)
@@ -144,6 +141,7 @@ QString addComment(Page &slide, const CommentAuthor &who, const QString &text, c
     c.text = commentText(text);
     c.at = at;
     c.itemId = itemId;
+    if (threads::checkNewThread(QString(), commentCount(slide)) != threads::Refusal::None) return QString();
     QVector<Comment> list = commentsOf(slide);
     list.append(c);
     setComments(slide, list);
@@ -214,11 +212,14 @@ QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who
     r.date = when.toUTC();
     r.text = commentText(text);
     const bool added = edit(slide, [&](QVector<Comment> &list) {
-        for (Comment &c : list)
-            if (c.id == commentId) {
-                c.replies.append(r);
-                return true;
-            }
+        for (Comment &c : list) {
+            bool in = c.id == commentId;
+            for (const CommentReply &x : c.replies) in = in || x.id == commentId;
+            if (!in) continue;
+            if (threads::checkReply(QString(), int(c.replies.size())) != threads::Refusal::None) return false;
+            c.replies.append(r);
+            return true;
+        }
         return false;
     });
     return added ? r.id : QString();
@@ -246,11 +247,13 @@ bool editComment(Page &slide, const QString &id, const QString &text)
 bool resolveComment(Page &slide, const QString &id, bool done)
 {
     return edit(slide, [&](QVector<Comment> &list) {
-        for (Comment &c : list)
-            if (c.id == id) {
-                c.done = done;
-                return true;
-            }
+        for (Comment &c : list) {
+            bool in = c.id == id;
+            for (const CommentReply &x : c.replies) in = in || x.id == id;
+            if (!in) continue;
+            c.done = done;
+            return true;
+        }
         return false;
     });
 }
@@ -305,6 +308,22 @@ QVector<CommentRef> allComments(const Document &d)
     for (int i = 0; i < d.pages.size(); ++i)
         for (const QJsonValue &v : d.pages[i]->props.value(kKey).toArray()) out.append(CommentRef{i, v.toObject().value(QStringLiteral("id")).toString()});
     return out;
+}
+
+CommentRef stepComment(const Document &d, const CommentRef &from, bool forward)
+{
+    const QVector<CommentRef> all = allComments(d);
+    // The place of a comment in the order: its slide, then where it stands among that slide's.
+    auto key = [&](int i) { return qint64(all[i].slide) * 4294967296LL + i; };
+    QVector<qint64> keys;
+    for (int i = 0; i < all.size(); ++i) keys.append(key(i));
+    // (a `from` that is no comment but only a slide: forward is the first comment from that slide on, back the last before it)
+    qint64 at = (qint64(from.slide) * 4294967296LL) - (forward ? 1 : 0);
+    for (int i = 0; i < all.size(); ++i)
+        if (all[i] == from) at = key(i);
+    if (all.isEmpty()) return CommentRef();
+    const int k = threads::stepIndex(keys, at, forward);
+    return k < 0 ? CommentRef() : all[k];
 }
 
 int limitComments(Document &d)

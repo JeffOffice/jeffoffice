@@ -3,6 +3,7 @@
 
 #include "../isolatesettings.h"
 #include "../withdialog.h"
+#include "../pub/threadscript.h"
 #include "app/writeinfo.h"
 #include "app/homedialogs.h"
 #include "app/pageview.h"
@@ -247,6 +248,75 @@ QByteArray commentElement(int id, const char *author, const char *text, const ch
 
 // A paragraph with a comment on the words in it.
 QByteArray commented(int id, const char *words) { return "<w:commentRangeStart w:id=\"" + QByteArray::number(id) + "\"/>" + run(words) + "<w:commentRangeEnd w:id=\"" + QByteArray::number(id) + "\"/><w:r><w:commentReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; }
+
+// The comments of a document as the shared thread script (tests/pub/threadscript.h) sees them: the n-th thread is the n-th comment that is not a reply, in the order of the text.
+struct WriteThreads {
+    std::unique_ptr<WriteDoc> doc;
+    WriteThreads()
+    {
+        doc = open(makeDocx(para(run(QByteArray(400, 'a').constData()))));
+        doc->setReviewer(QStringLiteral("Zed Ypsilon"), QStringLiteral("ZY"));
+    }
+    QVector<Comment> roots()
+    {
+        QVector<Comment> out;
+        for (const Comment &c : comments(*doc))
+            if (c.parent < 0) out.push_back(c);
+        std::stable_sort(out.begin(), out.end(), [](const Comment &a, const Comment &b) { return a.from < b.from; });
+        return out;
+    }
+    // The comments of thread t, the first one and then the replies in the order they were made.
+    QVector<Comment> entriesOf(int t)
+    {
+        const QVector<Comment> r = roots();
+        QVector<Comment> out;
+        if (t < 0 || t >= r.size()) return out;
+        out.push_back(r[t]);
+        QVector<Comment> replies = repliesTo(*doc, r[t].id);
+        std::stable_sort(replies.begin(), replies.end(), [](const Comment &a, const Comment &b) { return a.id < b.id; });
+        out += replies;
+        return out;
+    }
+    int idOf(int t, int e) { return entriesOf(t).value(e, Comment()).id; }
+    bool start(const QString &text)
+    {
+        QTextCursor c(doc->story());
+        c.setPosition(doc->story()->characterCount() - 2);
+        return addComment(*doc, c, text) > 0;
+    }
+    bool reply(int t, int e, const QString &text)
+    {
+        const int id = idOf(t, e);
+        return id >= 0 && replyToComment(*doc, id, text) > 0;
+    }
+    bool edit(int t, int e, const QString &text) { return setCommentText(*doc, idOf(t, e), text); }
+    bool resolve(int t, bool done) { return setCommentDone(*doc, idOf(t, 0), done); }
+    bool remove(int t, int e) { return deleteComment(*doc, idOf(t, e)) > 0; }
+    void removeAll() { deleteAllComments(*doc); }
+    QStringList state()
+    {
+        QStringList out;
+        for (int t = 0; t < roots().size(); ++t) {
+            QStringList words;
+            for (const Comment &c : entriesOf(t)) words << c.text;
+            out << words.join(QLatin1String(" | ")) + (roots()[t].done ? QStringLiteral(" [resolved]") : QString());
+        }
+        return out;
+    }
+    QString author(int t, int e) { return entriesOf(t).value(e).author; }
+    int step(int t, bool forward)
+    {
+        const QVector<Comment> r = roots();
+        const int from = r[t].from;
+        const std::optional<Comment> to = forward ? nextComment(*doc, from) : previousComment(*doc, from);
+        if (!to) return -1;
+        for (int i = 0; i < r.size(); ++i)
+            if (r[i].id == to->id) return i;
+        return -1;
+    }
+    int entries(int t) { return int(entriesOf(t).size()); }
+    int threadCount() { return int(roots().size()); }
+};
 
 } // namespace
 
@@ -2903,6 +2973,65 @@ private Q_SLOTS:
         QCOMPARE(textWithDeletions(*doc), QStringLiteral("x"));
         QCOMPARE(revisionCount(doc->story()), 0);
         QVERIFY(!documentXml(doc->toDocx()).isEmpty());
+    }
+    // The twelve-step script every app's threads are run through (tests/pub/threadscript.h): the same observable result as JeffDeck's and JeffCrunch's.
+    void commentThreadsRunTheSharedScript()
+    {
+        WriteThreads w;
+        threadscript::run(w, QStringLiteral("Zed Ypsilon"));
+    }
+
+    // Delete the comments that are shown: each with its whole thread (a reply that is shown takes its thread), the others stay.
+    void deletingTheCommentsShownTakesTheirThreadsAndNoOthers()
+    {
+        WriteThreads w;
+        QVERIFY(w.start(QStringLiteral("One")));
+        QVERIFY(w.start(QStringLiteral("Two")));
+        QVERIFY(w.start(QStringLiteral("Three")));
+        QVERIFY(w.reply(1, 0, QStringLiteral("Two, reply")));
+        QVERIFY(w.reply(1, 1, QStringLiteral("Two, reply to reply")));
+        QVERIFY(w.reply(2, 0, QStringLiteral("Three, reply")));
+        const int shownReply = w.idOf(1, 2), shownFirst = w.idOf(2, 0);
+        QCOMPARE(deleteComments(*w.doc, QSet<int>{shownReply, shownFirst}), 5);
+        QCOMPARE(w.state(), QStringList{QStringLiteral("One")});
+        QCOMPARE(deleteComments(*w.doc, QSet<int>()), 0);
+        QCOMPARE(deleteComments(*w.doc, QSet<int>{12345}), 0);
+        QCOMPARE(w.state(), QStringList{QStringLiteral("One")});
+        QVERIFY(w.doc->undo());
+        QCOMPARE(w.threadCount(), 3);
+    }
+
+    // The file keeps a thread with its replies both ways; and a file whose comments are not touched is written with the same comment parts.
+    void threadsAreKeptBothWaysAndAnUntouchedFileKeepsItsParts()
+    {
+        WriteThreads w;
+        QVERIFY(w.start(QStringLiteral("Q")));
+        QVERIFY(w.reply(0, 0, QStringLiteral("R1")));
+        QVERIFY(w.reply(0, 1, QStringLiteral("R2")));
+        QVERIFY(w.resolve(0, true));
+        const QByteArray saved = w.doc->toDocx();
+        auto back = open(saved);
+        QVERIFY(back);
+        WriteThreads r;
+        r.doc = std::move(back);
+        QCOMPARE(r.state(), QStringList{QStringLiteral("Q | R1 | R2 [resolved]")});
+        QCOMPARE(r.author(0, 2), QStringLiteral("Zed Ypsilon"));
+        // saved again with nothing changed: the same parts, byte for byte (and they are there)
+        QVERIFY(!partOf(saved, "/word/comments.xml").isEmpty() && partOf(saved, "/word/commentsExtended.xml").contains("paraIdParent"));
+        const QByteArray again = r.doc->toDocx();
+        for (const char *part : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/commentsIds.xml", "/word/people.xml", "/word/document.xml"}) {
+            QCOMPARE(partOf(again, part), partOf(saved, part));
+        }
+        // a file from elsewhere, opened and saved with no change
+        const QByteArray cm = commentElement(1, "Ann", "Question", "0000000A") + commentElement(2, "Bob", "Answer", "0000000B");
+        const QByteArray original = makeDocxWithComments(para(run("a ") + commented(1, "range") + commented(2, "range") + run(" b")), cm,
+                                                         "<w15:commentEx w15:paraId=\"0000000A\" w15:done=\"0\"/><w15:commentEx w15:paraId=\"0000000B\" w15:paraIdParent=\"0000000A\" w15:done=\"0\"/>",
+                                                         "<w16cid:commentId w16cid:paraId=\"0000000A\" w16cid:durableId=\"11111111\"/><w16cid:commentId w16cid:paraId=\"0000000B\" w16cid:durableId=\"22222222\"/>");
+        auto theirs = open(original);
+        QVERIFY(theirs);
+        const QByteArray resaved = theirs->toDocx();
+        for (const char *part : {"/word/comments.xml", "/word/commentsExtended.xml", "/word/commentsIds.xml"})
+            QCOMPARE(partOf(resaved, part), partOf(original, part));
     }
 };
 

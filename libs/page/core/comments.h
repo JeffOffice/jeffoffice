@@ -13,6 +13,7 @@
 // apart within a page. The list is in the order the comments were made.
 
 #include "core/document.h"
+#include "core/threads.h"
 
 #include <QDateTime>
 #include <QHash>
@@ -76,10 +77,11 @@ QVector<CommentMark> commentMarks(const Page &page);
 // For tests: how many lists of marks, and how many scans of a page's objects, have been made.
 int commentMarkBuilds();
 int commentItemScans();
-// An answer to comment `commentId`; returns its id, empty when the slide has no such comment.
+// An answer to comment `commentId` (or to a reply of it, which goes into the same thread, last); returns its id, empty when the slide has no such comment or the thread has the most replies one may.
 QString addReply(Page &slide, const QString &commentId, const CommentAuthor &who, const QString &text, const QDateTime &when = QDateTime::currentDateTimeUtc());
 // New text for a comment or a reply (by its id). False when there is none.
 bool editComment(Page &slide, const QString &id, const QString &text);
+// Resolves or reopens the whole thread the comment or reply `id` is in.
 bool resolveComment(Page &slide, const QString &id, bool done = true);
 bool moveComment(Page &slide, const QString &id, const QPointF &to);
 // Takes away a comment with its replies, or one reply (by its id).
@@ -96,13 +98,15 @@ struct CommentRef {
     bool operator==(const CommentRef &o) const { return slide == o.slide && id == o.id; }
 };
 QVector<CommentRef> allComments(const Document &d);
+// The thread after `from` (before it, going back) in that order, none (slide -1) where there is none: they do not wrap. `from` may be a place with no comment on it (a slide).
+CommentRef stepComment(const Document &d, const CommentRef &from, bool forward);
 
 // Fits a text to what a comment may hold and tidies its line ends.
 QString commentText(const QString &text);
-constexpr int kMaxCommentText = 32768;
+constexpr int kMaxCommentText = threads::kMaxChars;
 // What a document read from a file may hold: comments in all, replies to one, and (kMaxCommentText) characters in one.
-constexpr int kMaxComments = 2000;
-constexpr int kMaxReplies = 200;
+constexpr int kMaxComments = threads::kMaxThreads;
+constexpr int kMaxReplies = threads::kMaxReplies;
 // ... and all the replies of the document, and all the characters of the texts of its comments and replies.
 constexpr int kMaxTotalReplies = 20000;
 constexpr int kMaxTotalText = 8 * 1024 * 1024;

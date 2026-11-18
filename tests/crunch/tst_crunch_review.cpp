@@ -9,6 +9,10 @@
 #include "grid/gridview.h"
 #include "app/widgets.h"
 #include "io/zip.h"
+#include "savedok.h"
+#include "core/editcomments.h"
+#include "sheet/threads.h"
+#include "../pub/threadscript.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -170,6 +174,81 @@ quint32 styleAt(EditWindow &e, quint32 r, quint32 c)
 {
     const grid::GridSheet &g = e.view()->sheet();
     return g.styleOf(r, c, g.cellAt(r, c));
+}
+
+// The threads of the first sheet as the shared thread script (tests/pub/threadscript.h) sees them: the n-th thread is the n-th cell that holds one, in the order of the sheet.
+struct CrunchThreads {
+    crunch::EditSession *s;
+    explicit CrunchThreads(crunch::EditSession *session) : s(session) {}
+    QString who = QStringLiteral("Zed Ypsilon");
+    std::vector<std::pair<quint32, quint32>> cells() const
+    {
+        std::vector<std::pair<quint32, quint32>> out;
+        for (const auto &n : s->anchors().notes(0))
+            if (n.second.thread && !n.second.thread->empty()) out.push_back({quint32(n.first >> 32), quint32(n.first & 0xffffffffu)});
+        return out;
+    }
+    const NoteInfo *at(int t) const
+    {
+        const auto c = cells();
+        return t >= 0 && size_t(t) < c.size() ? s->anchors().noteAt(0, c[size_t(t)].first, c[size_t(t)].second) : nullptr;
+    }
+    bool start(const QString &text) { return s->newComment(0, quint32(10 + 2 * cells().size()), 0, text, who, QStringLiteral("New Comment")).ok; }
+    bool reply(int t, int, const QString &text)
+    {
+        const auto c = cells();
+        return t >= 0 && size_t(t) < c.size() && s->replyToComment(0, c[size_t(t)].first, c[size_t(t)].second, text, who, QStringLiteral("Reply")).ok;
+    }
+    bool edit(int t, int e, const QString &text)
+    {
+        const auto c = cells();
+        return s->editComment(0, c[size_t(t)].first, c[size_t(t)].second, e, text, QStringLiteral("Edit Comment")).ok;
+    }
+    bool resolve(int t, bool done)
+    {
+        const auto c = cells();
+        return s->resolveThread(0, c[size_t(t)].first, c[size_t(t)].second, done, QStringLiteral("Resolve Thread")).ok;
+    }
+    bool remove(int t, int e)
+    {
+        const auto c = cells();
+        return s->deleteComment(0, c[size_t(t)].first, c[size_t(t)].second, e, QStringLiteral("Delete Comment")).ok;
+    }
+    void removeAll() { s->deleteThreads(0, cells(), QStringLiteral("Delete Comments")); }
+    QStringList state() const
+    {
+        QStringList out;
+        for (size_t t = 0; t < cells().size(); ++t) {
+            QStringList words;
+            for (const ThreadComment &c : *at(int(t))->thread) words << c.text;
+            out << words.join(QLatin1String(" | ")) + (jp::office::sheet::threadResolved(*at(int(t))->thread) ? QStringLiteral(" [resolved]") : QString());
+        }
+        return out;
+    }
+    QString author(int t, int e) const { return at(t)->thread->at(size_t(e)).author; }
+    int step(int t, bool forward) const
+    {
+        const auto c = cells();
+        int sheet = 0;
+        quint32 row = 0, col = 0;
+        if (!crunch::stepThread(s->anchors(), 0, c[size_t(t)].first, c[size_t(t)].second, forward, &sheet, &row, &col)) return -1;
+        for (size_t i = 0; i < c.size(); ++i)
+            if (c[i].first == row && c[i].second == col) return int(i);
+        return -1;
+    }
+    int entries(int t) const { return int(at(t)->thread->size()); }
+    int threadCount() const { return int(cells().size()); }
+};
+
+// The bytes of the parts of a saved workbook whose names hold `word`, by name.
+QMap<QString, QByteArray> partsNamed(const QString &path, const QString &word)
+{
+    QMap<QString, QByteArray> all, out;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), all)) return out;
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (it.key().contains(word)) out.insert(it.key(), it.value());
+    return out;
 }
 
 } // namespace
@@ -696,6 +775,53 @@ private Q_SLOTS:
         // a format the workbook has already is still given
         QVERIFY(e.win.w.session()->formatCells(0, rangeOf(QStringLiteral("A1")), again, QStringLiteral("Formatting")).ok);
         QCOMPARE(styleAt(e, 0, 0), face77);
+    }
+    // The twelve-step script every app's threads are run through (tests/pub/threadscript.h): the same observable result as JeffPub's and JeffWrite's.
+    void commentThreadsRunTheSharedScript()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchThreads t(e.win.w.session());
+        threadscript::run(t, QStringLiteral("Zed Ypsilon"));
+    }
+
+    // The file keeps a thread with its replies both ways; one nobody touched is written with the same thread parts; the Reviewing Pane's list has the thread as a Commented change.
+    void threadsAreKeptBothWaysAndAnUntouchedFileKeepsItsParts()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        CrunchThreads t(e.win.w.session());
+        QVERIFY(t.start(QStringLiteral("Q")));
+        QVERIFY(t.start(QStringLiteral("Second")));
+        QVERIFY(t.reply(0, 0, QStringLiteral("R1")));
+        QVERIFY(t.reply(0, 1, QStringLiteral("R2")));
+        QVERIFY(t.resolve(0, true));
+        const jp::review::ChangeList changes = crunch::threadChanges(e.win.w.session()->anchors(), [](int) { return QStringLiteral("Sheet1"); });
+        QCOMPARE(changes.size(), 2);
+        QCOMPARE(changes.changes[0].kind, jp::review::Kind::Commented);
+        QCOMPARE(changes.changes[0].state, jp::review::State::Accepted);
+        QCOMPARE(changes.changes[0].target.object, QStringLiteral("A11"));
+        QCOMPARE(changes.changes[0].replies.size(), 2);
+        QCOMPARE(changes.changes[0].replies[1].text, QStringLiteral("R2"));
+        QCOMPARE(changes.changes[1].state, jp::review::State::Pending);
+        QVERIFY(changes.changes[0].position < changes.changes[1].position);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        const QString copy = e.copyOfFile();
+        Window second;
+        QVERIFY(second.open(copy));
+        CrunchThreads r(second.w.session());
+        QCOMPARE(r.state(), (QStringList{QStringLiteral("Q | R1 | R2 [resolved]"), QStringLiteral("Second")}));
+        QCOMPARE(r.author(0, 2), QStringLiteral("Zed Ypsilon"));
+        // saved again with a note added somewhere else: the thread parts and the people are the same bytes
+        const QMap<QString, QByteArray> before = partsNamed(copy, QStringLiteral("hreaded"));
+        QVERIFY(!before.isEmpty());
+        QVERIFY(second.w.session()->setNote(0, 0, 0, QStringLiteral("elsewhere"), QStringLiteral("Zed"), false, QStringLiteral("Edit Note")).ok);
+        QSignalSpy again(&second.w, &CrunchWindow::saved);
+        QVERIFY(second.w.save());
+        QVERIFY2(savedOk(again), "the second save failed");
+        QCOMPARE(partsNamed(copy, QStringLiteral("hreaded")), before);
     }
 };
 
