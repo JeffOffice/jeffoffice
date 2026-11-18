@@ -151,6 +151,45 @@ public:
         }
     }
 
+    // The embedded objects a sheet names in its own XML (an .xlsx's `oleObjects`): each is a frame with its picture, and the object's package written as the parts the standard has for one.
+    void runOle(const std::vector<SheetOleObject> &objects)
+    {
+        int z = m_out->count;
+        for (const SheetOleObject &o : objects) {
+            if (*m_objects >= kMaxWorkbookObjects) {
+                note(QCoreApplication::translate("Sheet", "drawing objects past the %1 a workbook may have").arg(kMaxWorkbookObjects));
+                break;
+            }
+            if (o.object.previewPng.isEmpty() || o.object.partBytes.isEmpty()) {
+                note(QCoreApplication::translate("Sheet", "embedded objects that have no picture"));
+                continue;
+            }
+            qint64 x = 0, y = 0, cx = 0, cy = 0;
+            m_grid.boxOf(o.anchor, &x, &y, &cx, &cy);
+            const QString imageId = QStringLiteral("ole%1").arg(m_images.size() + 1);
+            m_images[imageId] = o.object.previewPng;
+            m_imageFormats[imageId] = QStringLiteral("png");
+            PictureItem pic;
+            pic.name = QStringLiteral("Object %1").arg(z + 1);
+            pic.fill = Fill();
+            pic.stroke = Stroke::none();
+            pic.imageId = imageId;
+            pic.rect = QRectF(0, 0, double(std::max<qint64>(cx, 1)) / kEmuPerPoint, double(std::max<qint64>(cy, 1)) / kEmuPerPoint);
+            pic.imgRect = pic.rect;
+            QString xml = emit(pic, double(x), double(y), double(std::max<qint64>(cx, 1)), double(std::max<qint64>(cy, 1)), 0, &o.anchor, z);
+            if (xml.isEmpty()) continue;
+            objectFrame(o.object, &xml);
+            ++z;
+            quint32 bottom = 0;
+            qint64 inRow = 0;
+            m_grid.rowAt(qint64(y) + cy, &bottom, &inRow);
+            m_out->lastRow = std::max(m_out->lastRow, bottom);
+            ++*m_objects;
+            ++m_out->count;
+            m_out->shapes += xml;
+        }
+    }
+
 private:
     const Package &m_package;
     QString m_drawingPart;
@@ -459,6 +498,28 @@ private:
         frame->insert(at, QStringLiteral("<draw:%1 xlink:href=\"./%2\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>").arg(done.value().second ? QStringLiteral("object") : QStringLiteral("object-ole"), done.value().first));
     }
 
+    // An object's package written as the parts of the file, and the frame given the object's element before its picture's (an object over the caps is left as its picture).
+    void objectFrame(const ole::EmbeddedObject &object, QString *frame)
+    {
+        const qsizetype at = frame->indexOf(QLatin1String("<draw:image"));
+        const qint64 size = object.partBytes.size();
+        if (!m_objectBudget || at < 0) return;
+        if (size <= 0 || size > ole::limits().objectBytes || !m_objectBudget->admit(size)) {
+            note(QCoreApplication::translate("Sheet", "embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)").arg(ole::limits().objects));
+            return;
+        }
+        const QString dir = QStringLiteral("Object %1").arg(++*m_chartNumber);
+        ole::OdfPartsFailure why = ole::OdfPartsFailure::None;
+        const QVector<ole::OdfOutPart> parts = ole::odfPartsOf(object, dir, &why);
+        if (why != ole::OdfPartsFailure::None) note(ole::odfPartsFailureNote(why));
+        if (parts.isEmpty()) {
+            --*m_chartNumber;
+            return;
+        }
+        m_out->parts += parts;
+        frame->insert(at, QStringLiteral("<draw:%1 xlink:href=\"./%2\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>").arg(parts.first().path.endsWith(QLatin1Char('/')) ? QStringLiteral("object") : QStringLiteral("object-ole"), dir));
+    }
+
     // A chart: its part is read into the chart model and written as the chart document of the frame's object (`Object N`).
     QString chartFrame(const DrawingObject &o, int z)
     {
@@ -690,6 +751,14 @@ void drawingToShapes(const Package &package, const QString &mainPart, const QStr
     w.m_formulaBytes = formulaBytes;
     w.m_objectBudget = objectBudget;
     w.run();
+}
+
+void oleObjectsToShapes(const Package &package, const QString &mainPart, const std::vector<SheetOleObject> &objects, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out,
+                        qint64 *pictureBytes, qint64 *objectCount, int *chartNumber, ole::ObjectBudget *objectBudget)
+{
+    Writer w(package, mainPart, QString(), grid, sheetRef, sheetNumber, out, pictureBytes, objectCount, chartNumber);
+    w.m_objectBudget = objectBudget;
+    w.runOle(objects);
 }
 
 } // namespace jp::office::sheet::odsdraw

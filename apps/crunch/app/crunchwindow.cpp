@@ -761,6 +761,7 @@ void CrunchWindow::createActions()
     createChartActions();
     createInsertObjectActions();
     createControlActions();
+    createObjectActions();
     createArrangeActions();
     createObjectFormatActions();
     createDrawBorderActions();

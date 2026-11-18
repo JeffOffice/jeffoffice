@@ -9,6 +9,7 @@
 #include "office/chart.h"
 #include "sheet/drawing.h"
 #include "sheet/formcontrol.h"
+#include "ole/embedobj.h"
 
 #include <QByteArray>
 #include <QString>
@@ -66,6 +67,14 @@ struct ObjectRevive {
     }
 };
 
+// What a step holds of an embedded object (core/sheetembeds.h): the object (its package and picture, shared by every state that has it), and where it is, after `at` of the edits to rows and
+// columns made since the file was read or saved.
+struct EmbedState {
+    std::shared_ptr<const jp::office::ole::EmbeddedObject> object;
+    jp::office::sheet::DrawingAnchor anchor;
+    int at = 0;
+};
+
 struct ObjectState {
     std::shared_ptr<const ObjectRevive> revive;       // set on the state of a delete of an object that is in the saved file: what Undo writes back after a save
     bool madeHere = false;                            // a person made the object here (a chart, a pasted picture): it is written again from what the program holds of it
@@ -80,6 +89,7 @@ struct ObjectState {
     int order = 0;                                    // its place among the sheet's objects, from the back
     qint64 heldBytes = 0;                             // what the program keeps of an object this state takes away, for Undo to bring back (a barcode swapped for another keeps its drawing and parts)
     std::shared_ptr<const jp::office::sheet::FormControl> control;   // a form control's state (null: whatever it has)
+    std::shared_ptr<const EmbedState> embed;          // an embedded object's state (null: whatever it has)
     int epoch = 0;                                    // which stretch between saves the places are of: after a save that followed edits to rows and columns, what was kept of the one before is no use
 };
 
@@ -96,6 +106,7 @@ struct ObjectEdit {
 inline qint64 approxBytes(const ObjectState &st)
 {
     qint64 n = qint64(sizeof(ObjectState)) + st.heldBytes + qint64(st.placements.size()) * qint64(sizeof(AnchorPlacement)) + (st.revive ? st.revive->bytes() : 0);
+    if (st.embed && st.embed->object) n += qint64(sizeof(EmbedState)) + st.embed->object->partBytes.size() + st.embed->object->previewPng.size();
     for (const RefPlacement &r : st.refs) n += 64 + qint64(r.refs.size()) * 96;
     if (st.chart)
         for (const jp::office::ChartPlot &p : st.chart->plots)

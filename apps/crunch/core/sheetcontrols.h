@@ -31,12 +31,14 @@ struct SaveChanges;
 
 namespace jp::crunch {
 
-// The ids of controls in the layer start here (the ids of the other objects of a sheet are small numbers).
+// The ids of controls in the layer start here (the ids of the other objects of a sheet are small numbers); those of embedded objects (core/sheetembeds.h) start at kEmbedIdBase.
 constexpr int kControlIdBase = 1 << 24;
+constexpr int kEmbedIdBase = 1 << 25;
 constexpr int kMaxListItems = 1000;
 constexpr int kMaxMadeControls = 500;
 
-inline bool isControlId(int id) { return id >= kControlIdBase; }
+inline bool isControlId(int id) { return id >= kControlIdBase && id < kEmbedIdBase; }
+inline bool isEmbedId(int id) { return id >= kEmbedIdBase; }
 
 // One control as a click or a person's choice changes it.
 struct ControlChange {

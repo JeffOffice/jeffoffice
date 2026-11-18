@@ -264,6 +264,7 @@ private:
     QVector<QPair<QString, QByteArray>> m_objectFiles;   // the documents of the charts (Object N/content.xml)
     QVector<ole::OdfOutPart> m_objectParts;              // the parts of the embedded objects of other kinds, and the folders (a slash at the end) that are in the manifest only
     ole::ObjectBudget m_objectBudget;                    // what they come to in all the sheets, against the object core's caps
+    OleReadState m_oleRead;                              // the embedded objects of the sheets read from the sheets' own XML so far, against one budget
     quint32 m_lastObjectRow = 0;   // the last row an object of the sheet being written reaches
     QStringList m_drawingNotes;
     std::vector<oldsave::Written> m_written;
@@ -348,27 +349,46 @@ private:
         return odsdraw::Grid(cols, widthPt(defaultChars), rows, defaultHeight);
     }
 
-    // The sheet's drawing objects as the elements of its table:shapes (nothing for a workbook with no package of its own, or a sheet with no drawing).
+    // The sheet's drawing objects as the elements of its table:shapes (nothing for a workbook with no package of its own, or a sheet with no drawing), and then the embedded objects its own XML names
+    // (an .xlsx keeps them in `oleObjects`, not in the drawing).
     QString shapesOf(const Sheet &sheet, const oldsave::Written &w, int index, int place)
     {
         m_lastObjectRow = 0;
         if (place < 0 || m_book.isConverted() || !m_book.package().isLazy()) return QString();
-        const QString part = drawingPartOf(m_book.package(), m_book.info().sheets.value(place).part);
-        if (part.isEmpty()) return QString();
-        odsdraw::Written drawn;
-        odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_mathObjects, &m_mathBytes, &m_objectBudget);
-        for (const auto &object : drawn.objects) m_objectFiles.push_back(object);
-        m_objectParts += drawn.parts;
-        m_styleXml += drawn.styles;
-        m_commonStyles += drawn.commonStyles;
-        for (const auto &picture : drawn.pictures)
-            if (!m_pictureNames.contains(picture.first)) {
-                m_pictureNames.insert(picture.first);
-                m_pictures.push_back(picture);
-            }
-        for (const QString &n : drawn.notWritten) m_drawingNotes << n;
-        m_lastObjectRow = drawn.lastRow;
-        return drawn.shapes.isEmpty() ? QString() : QStringLiteral("<table:shapes>") + drawn.shapes + QStringLiteral("</table:shapes>");
+        const QString sheetPart = m_book.info().sheets.value(place).part;
+        const QString part = drawingPartOf(m_book.package(), sheetPart);
+        QString shapes;
+        auto absorb = [&](const odsdraw::Written &drawn) {
+            for (const auto &object : drawn.objects) m_objectFiles.push_back(object);
+            m_objectParts += drawn.parts;
+            m_styleXml += drawn.styles;
+            m_commonStyles += drawn.commonStyles;
+            for (const auto &picture : drawn.pictures)
+                if (!m_pictureNames.contains(picture.first)) {
+                    m_pictureNames.insert(picture.first);
+                    m_pictures.push_back(picture);
+                }
+            for (const QString &n : drawn.notWritten) m_drawingNotes << n;
+            m_lastObjectRow = std::max(m_lastObjectRow, drawn.lastRow);
+            shapes += drawn.shapes;
+        };
+        if (!part.isEmpty()) {
+            odsdraw::Written drawn;
+            odsdraw::drawingToShapes(m_book.package(), m_book.mainPart(), part, gridOf(sheet), quoteSheet(w.name), index + 1, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_mathObjects, &m_mathBytes, &m_objectBudget);
+            absorb(drawn);
+        }
+        // (a sheet that names no object is not read through)
+        bool names = false;
+        for (const Relationship &r : m_book.package().relationships(sheetPart))
+            names = names || (!r.external && (r.type.endsWith(QLatin1String("/oleObject")) || r.type.endsWith(QLatin1String("/package"))));
+        std::vector<SheetOleObject> found;
+        if (names && m_book.info().sheets.value(place).kind == SheetKind::Worksheet && readSheetOleObjects(m_book.package(), sheetPart, &m_oleRead, &found) && !found.empty()) {
+            odsdraw::Written drawn;
+            // (its own style names: the drawing's, above, are numbered by the sheet)
+            odsdraw::oleObjectsToShapes(m_book.package(), m_book.mainPart(), found, gridOf(sheet), quoteSheet(w.name), index + 1 + 100000, &drawn, &m_pictureBytes, &m_objects, &m_chartNumber, &m_objectBudget);
+            absorb(drawn);
+        }
+        return shapes.isEmpty() ? QString() : QStringLiteral("<table:shapes>") + shapes + QStringLiteral("</table:shapes>");
     }
 
     QString dataStyleFor(const QString &code)

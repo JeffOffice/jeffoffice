@@ -169,6 +169,11 @@ struct Written {
 void drawingToShapes(const Package &package, const QString &mainPart, const QString &drawingPart, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out, qint64 *pictureBytes,
                      qint64 *objects, int *chartNumber, qint64 *formulas = nullptr, qint64 *formulaBytes = nullptr, ole::ObjectBudget *objectBudget = nullptr);
 
+// The same for the embedded objects a sheet names in its own XML (`oleObjects`, read by readSheetOleObjects): each is a frame with its picture, and its package is written beside it. The objects
+// count against `objects` and `objectBudget` as the others do.
+void oleObjectsToShapes(const Package &package, const QString &mainPart, const std::vector<SheetOleObject> &objects, const Grid &grid, const QString &sheetRef, int sheetNumber, Written *out,
+                        qint64 *pictureBytes, qint64 *objectCount, int *chartNumber, ole::ObjectBudget *objectBudget);
+
 // Lengths: a length in EMU as the standard writes it ("1.2345678in"), and one read (false if it is none); a number that is too large is kept to the most a position may be.
 QString lengthText(qint64 emu);
 bool lengthEmu(const QString &text, qint64 *emu);

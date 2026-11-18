@@ -12,6 +12,8 @@
 #include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
+#include "app/objects.h"
+#include "app/objectsdialog.h"
 #include "io/pdfcrypt.h"
 
 #include <tuple>
@@ -1481,6 +1483,13 @@ private:
     void connectObjects();
     void deleteObject(int id);
     std::unique_ptr<crunch::SheetObjects> m_objects;
+    std::function<bool(jp::objects::Source, bool, jp::objects::SourceChoice *)> m_objectAsker;
+    jp::EmbeddedEdit *m_objectEdit = nullptr;
+    struct EmbedEditing {
+        int sheet = 0;
+        int id = 0;
+    };
+    QHash<int, EmbedEditing> m_objectEdits;   // an edit's number, and which object it is
     ObjectPicker *m_picker = nullptr;
     // The formatting inside the text of the entry being made, and as it was when the entry began (the entry's text is `m_editRich.text`).
     jp::office::sheet::RichText m_editRich, m_editRichFirst;
@@ -1630,6 +1639,24 @@ public:
     bool pasteObject();
     // Puts the picked object in front of or behind the others (+1 forward, -1 backward, 2 to the front, -2 to the back).
     bool reorderObject(int how);
+
+    // Objects of other apps (Insert > Object, Paste Special, the list in File > Info): an embedded object is kept as its package with its picture (core/sheetembeds.h), shown at its place on the
+    // sheet, and written as an embedded object of the file. The program that edits one is the window's own EmbeddedEdit (tests give it an opener of their own); the box that asks where an
+    // object comes from is the shared one unless this stands in for it (tests).
+    jp::EmbeddedEdit *objectEditor();
+    void setObjectSourceAsker(const std::function<bool(jp::objects::Source, bool, jp::objects::SourceChoice *)> &asker) { m_objectAsker = asker; }
+    bool insertObjectFrom(jp::objects::Source source, const QString &path, const QString &detail);
+    bool insertObjectFromCopy();
+    void insertObjectFromAsk(jp::objects::Source source);
+    // Opens the object in the app that made it (false, with the reason in the status bar, for an object of another program or when that app is not there).
+    bool editObject(int sheet, int id);
+    void showObjects();
+    void createObjectActions();   // crunchwindow_embeds.cpp
+    void objectSaved(int editId, const QByteArray &part, const QByteArray &png, bool stale);
+    // Puts an object on the sheet at the cursor (or at the place the anchor gives), as one step of Undo.
+    int placeObject(const jp::office::ole::EmbeddedObject &object, const QString &step, const jp::office::sheet::DrawingAnchor *at = nullptr);
+    bool copyEmbed(int id, bool cut);
+    bool pasteEmbed();
 
 private:
     void createChartActions();

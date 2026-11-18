@@ -967,6 +967,20 @@ void CrunchWindow::placeChartButtons()
 }
 void CrunchWindow::objectContextMenu(int id, const QPoint &global)
 {
+    if (crunch::isEmbedId(id)) {
+        auto *embedMenu = new QMenu(this);
+        embedMenu->setAttribute(Qt::WA_DeleteOnClose);
+        embedMenu->setObjectName(QStringLiteral("objectMenu"));
+        const int sheet = m_sheet;
+        connect(embedMenu->addAction(tr("Open")), &QAction::triggered, this, [this, sheet, id] { editObject(sheet, id); });
+        embedMenu->addSeparator();
+        embedMenu->addAction(act(QStringLiteral("edit.cut")));
+        connect(embedMenu->addAction(icon(QStringLiteral("copy")), tr("Copy")), &QAction::triggered, this, [this] { copyObject(false); });
+        embedMenu->addAction(act(QStringLiteral("edit.paste")));
+        embedMenu->addAction(act(QStringLiteral("object.delete")));
+        embedMenu->popup(global);
+        return;
+    }
     if (crunch::isControlId(id)) {
         auto *controlMenu = new QMenu(this);
         controlMenu->setAttribute(Qt::WA_DeleteOnClose);
@@ -1020,6 +1034,7 @@ bool CrunchWindow::copyObject(bool cut)
 {
     const int id = pickedObject();
     if (id < 0 || !m_session || !m_objects) return false;
+    if (crunch::isEmbedId(id)) return copyEmbed(id, cut);
     const ObjectKind kind = m_objects->kindOf(m_sheet, id);
     if (cut && !editingAllowed()) return false;
     crunch::ObjectClip clip;

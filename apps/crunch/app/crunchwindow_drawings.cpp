@@ -105,6 +105,10 @@ void CrunchWindow::setupObjects()
     connect(m_objects->layer(), &jp::grid::ObjectLayer::boxDrawn, this, [this](const QRectF &box) { drawTextBox(box); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::contextMenuRequested, this, [this](int id, const QPoint &global) { objectContextMenu(id, global); });
     connect(m_objects->layer(), &jp::grid::ObjectLayer::objectActivated, this, [this](int id) {
+        if (crunch::isEmbedId(id)) {   // (an object of another app opens in it)
+            editObject(m_sheet, id);
+            return;
+        }
         QString line;
         if (m_objects->equationOf(m_sheet, id, &line, nullptr)) insertEquationDialog();   // (an equation opens its editor)
         else if (!beginShapeTextEdit(id)) propertiesDialog();   // (a shape or text box: its words are typed in place)
@@ -284,6 +288,17 @@ void CrunchWindow::deleteObject(int id)
         crunch::ObjectState after = before;
         after.deleted = true;
         const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Form Control"), before, after);
+        if (!o.ok) notice(tr("Delete"), o.problem);
+        else m_objects->layer()->select(-1);
+        return;
+    }
+    if (crunch::isEmbedId(id)) {
+        // (an embedded object is taken away as one step; the saved file has neither its element nor its parts)
+        if (!m_objects || !m_objects->embeds()->owns(m_sheet, id) || m_objects->embeds()->isGone(m_sheet, id)) return;
+        const crunch::ObjectState before = m_objects->stateOf(m_sheet, id);
+        crunch::ObjectState after = before;
+        after.deleted = true;
+        const crunch::EditSession::Outcome o = m_session->deleteObject(m_sheet, id, tr("Delete Object"), before, after);
         if (!o.ok) notice(tr("Delete"), o.problem);
         else m_objects->layer()->select(-1);
         return;

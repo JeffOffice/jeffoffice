@@ -1,5 +1,5 @@
 # Charts, sparklines, pictures, and shapes
-<!-- keywords: field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, link a shape to a cell, shape shows a cell, text box shows a cell, cell value in a shape -->
+<!-- keywords: embedded object, insert object, object from a range, object from a chart, object from a page, paste as object, objects list, edit object, field buttons, pivot chart buttons, group, ungroup, align, align left, distribute, select objects, several shapes, pick several, drag box, chart filters, hide series, recommended charts, chart suggestions, chart, graph, column, bar, line, pie, area, scatter, combo, legend, title, gridlines, data labels, chart data, chart kind, looks, layouts, move, resize, picture, shape, object, series, trendline, trend line, equation, R-squared, second axis, sparkline, sparklines, date axis, win/loss, tiny chart, markers, name, alt text, alternative text, logarithmic, log scale, save as picture, template, crtx, title text, legend key, selection pane, shape fill, shape outline, rotate, flip, crop, edit text, picture border, insert picture, icons, icon, wmf, emf, shape styles, styles, insert shape, text box, shapes, arrow, oval, rectangle, star, diagram, diagrams, online pictures, free pictures, openverse, wikimedia commons, license, credit, text art, wordart, warp, compress pictures, make pictures smaller, file size, ppi, delete cropped areas, barcode, QR code, link a shape to a cell, shape shows a cell, text box shows a cell, cell value in a shape -->
 
 A chart is a picture of numbers that stays tied to them: change a number and the chart changes with it. Pictures and shapes sit over the cells the same way, but they are not tied to any numbers.
 
@@ -175,6 +175,22 @@ Press **Delete** with the object picked. Undo brings it back.
 ## What is saved
 
 Everything above is saved in the file in the form other spreadsheet programs read, so a chart you make here opens there the same way. A chart that came from another program with something JeffCrunch cannot keep when it rewrites a chart (error bars, a three-dimensional chart) can still be moved, sized, and deleted, but its elements and data are not changed here.
+
+## Put in an object
+
+An **object** holds its own file inside the workbook, so the app that made it can open it again. It shows a picture of itself, but it is not a picture: it stays an object when you move it, size it, copy it, or save the workbook.
+
+1. Click **Insert**, then **Object**, and choose **From JeffCrunch Range**, **From JeffCrunch Chart**, or **From JeffWrite Page**.
+2. Pick the file, and the range or the page number if the box asks for one. If you copied one in the other app, the box offers to use it.
+3. The object goes in at the selected cell. Drag it to move it, and drag a handle to size it. Press **Delete** to take it away. Each one is a single step of Undo.
+
+To put in what you copied in another app, click the arrow under **Paste** and choose **As Object**.
+
+**Double-click** an object to open it in the app that made it. Save it there, and the object here shows the change as one step of Undo. A cell you were typing in is left as it is. A copy you paste is an object of its own: changing one does not change the other.
+
+**File**, then **Info**, then **Objects** lists every object in the workbook. Select one to open it, turn it into a plain picture, or delete it.
+
+An object made in another program shows as the picture its file keeps. You can pick it and delete it, but not move it or edit it here, and it is saved just as the file had it. Saved as an .xlsx or .ods file, your objects are in the standard form other programs read.
 
 ## Diagrams from other programs
 

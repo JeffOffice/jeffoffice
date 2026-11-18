@@ -16,6 +16,7 @@
 #include "core/objectclip.h"
 #include "core/objectstate.h"
 #include "core/sheetcontrols.h"
+#include "core/sheetembeds.h"
 #include "grid/chartcells.h"
 #include "grid/objectlayer.h"
 #include "grid/valuestore.h"
@@ -83,6 +84,7 @@ public:
     {
         m_edits = std::move(edits);
         m_controls.setEditsSource(m_edits);
+        m_embeds.setEditsSource(m_edits);
     }
     void setSheetOpsSource(SheetOpsSource ops) { m_sheetOps = std::move(ops); }
     // Where the text of a cell is asked (as a barcode linked to the cell holds it).
@@ -95,6 +97,8 @@ public:
     jp::grid::ObjectLayer *layer() { return &m_layer; }
     // The form controls of the workbook's sheets (they are in the layer with the other objects, under ids that start at kControlIdBase).
     SheetControls *controls() { return &m_controls; }
+    // The embedded objects of the workbook's sheets (they are in the layer with the other objects, under ids that start at kEmbedIdBase).
+    SheetEmbeds *embeds() { return &m_embeds; }
     // The cells charts read (null until the workbook is whole), and the theme the workbook's charts are set in.
     const jp::office::sheet::ChartCells *cells() const { return m_cells.get(); }
     const jp::office::Theme &theme();
@@ -194,6 +198,8 @@ public:
     jp::office::sheet::DrawingAnchor anchorKeepingSize(int sheet, const jp::office::sheet::DrawingAnchor &absolute);
     void adoptRevive(int sheet, int id, const std::shared_ptr<const jp::crunch::ObjectRevive> &revive);
     ObjectState stateMoved(int sheet, int id, const jp::office::sheet::DrawingAnchor &anchor);
+    // The state of an embedded object with other bytes and picture (the app that made it saved an edit).
+    ObjectState stateWithEmbed(int sheet, int id, const jp::office::ole::EmbeddedObject &object);
     // The state with the object on the printed pages or off them; and whether it is on them now.
     ObjectState stateWithPrints(int sheet, int id, bool prints);
     bool printsOf(int sheet, int id);
@@ -469,6 +475,7 @@ private:
     QHash<QString, QStringList> m_partRefs;
     jp::grid::ObjectLayer m_layer;
     SheetControls m_controls;
+    SheetEmbeds m_embeds;
     std::unique_ptr<jp::Document> m_doc;
     jp::LayoutCache m_layoutCache;
     QHash<QString, QString> m_images;

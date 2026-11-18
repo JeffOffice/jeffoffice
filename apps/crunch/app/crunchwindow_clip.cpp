@@ -584,6 +584,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
         line->paste();
         return;
     }
+    if (pasteEmbed()) return;    // (an object was copied: it is put back as an object of its own)
     if (pasteObject()) return;   // (a chart was copied: it is what is pasted)
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return;

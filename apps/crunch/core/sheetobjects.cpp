@@ -149,6 +149,30 @@ SheetObjects::SheetObjects(QObject *parent) : QObject(parent), m_doc(std::make_u
             if (const std::optional<jp::grid::LayerObject> lo = m_controls.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
         }
     });
+    // an embedded object that changed (a step, an edit saved in the app that made it): put in the layer if it is to be there, and drawn again
+    connect(&m_embeds, &SheetEmbeds::changed, this, [this](int sheet, int id) {
+        if (sheet != m_shown) return;
+        const jp::grid::ObjectLayer &layer = m_layer;
+        bool inLayer = false;
+        for (int i = 0; i < layer.count() && !inLayer; ++i) inLayer = layer.object(i).id == id;
+        const bool gone = m_embeds.isGone(sheet, id);
+        if (inLayer) {
+            m_layer.setDeleted(id, gone);
+            m_layer.setAnchor(id, m_embeds.anchorOf(sheet, id));
+            m_layer.invalidate(id);
+        } else if (!gone) {
+            if (const std::optional<jp::grid::LayerObject> lo = m_embeds.layerObjectOf(sheet, id)) m_layer.addObject(*lo);
+        }
+    });
+    m_embeds.setBoxSource([this](int sheet, int id, double *w, double *h) {
+        if (sheet != m_shown) return false;
+        bool ok = false;
+        const jp::grid::ObjectBox box = m_layer.boxNow(id, &ok);
+        if (!ok) return false;
+        *w = box.w;
+        *h = box.h;
+        return true;
+    });
 }
 
 SheetObjects::~SheetObjects()
@@ -174,6 +198,7 @@ void SheetObjects::open(const std::shared_ptr<Workbook> &book)
     m_layer.setObjects({});
     m_book = book;
     m_controls.open(book);
+    m_embeds.open(book);
     m_cells.reset();
     m_source = nullptr;
     m_values = nullptr;
@@ -1003,6 +1028,7 @@ std::vector<jp::grid::LayerObject> SheetObjects::printObjects(int sheet)
     for (const std::shared_ptr<Object> &o : s.objects)
         if (!o->deleted && o->meta.prints) out.push_back(layerObject(sheet, o));
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet, true)) out.push_back(std::move(c));
+    for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) out.push_back(std::move(c));
     return out;
 }
 
@@ -1013,6 +1039,7 @@ void SheetObjects::showNow(int sheet)
     objects.reserve(s.objects.size());
     for (const std::shared_ptr<Object> &o : s.objects) objects.push_back(layerObject(sheet, o));
     for (jp::grid::LayerObject &c : m_controls.layerObjects(sheet)) objects.push_back(std::move(c));
+    for (jp::grid::LayerObject &c : m_embeds.layerObjects(sheet)) objects.push_back(std::move(c));
     m_shown = sheet;
     m_layer.setObjects(std::move(objects));
     for (const std::shared_ptr<Object> &o : s.objects)
@@ -1069,6 +1096,7 @@ bool SheetObjects::canDelete(int sheet, int id, QString *why)
 
 bool SheetObjects::isDeleted(int sheet, int id)
 {
+    if (isEmbedId(id)) return m_embeds.isDeleted(sheet, id);
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
         if (o->id == id) return o->deleted;
     return false;
@@ -1207,6 +1235,7 @@ void SheetObjects::cellsMoved()
     ++m_linkEpoch;
     m_linkIndexClean = false;
     m_controls.cellsMoved();
+    m_embeds.cellsMoved();
     if (!m_edits) return;
     const std::vector<StructEdit> &edits = m_edits();
     if (m_cells) m_cells->sizesChanged();   // (a hidden row moves with the rows inserted or deleted above it)
@@ -1309,6 +1338,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
 {
     if (!m_book) return;
     m_controls.addToSave(changes);
+    m_embeds.addToSave(changes);
     m_fallbackBytes = 0;
     bool fallbackNoted = false;
     const QStringList names = sheetNames();
@@ -1636,6 +1666,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
 void SheetObjects::saved()
 {
     m_controls.saved();
+    m_embeds.saved();
     for (Sheet &sh : m_sheets)
         for (const std::shared_ptr<Object> &o : sh.objects)
             if (o->textLinked && !o->linkSavingRef.isEmpty()) o->linkFileAttr = o->linkSavingRef;
@@ -1810,7 +1841,7 @@ void SheetObjects::knowShapeIds(int sheet, Sheet &s)
     s.nextShapeId = std::max(s.nextShapeId, most + 1);
 }
 
-bool SheetObjects::exists(int sheet, int id) { return find(sheet, id) != nullptr; }
+bool SheetObjects::exists(int sheet, int id) { return isEmbedId(id) ? m_embeds.owns(sheet, id) : find(sheet, id) != nullptr; }
 
 bool SheetObjects::equationOf(int sheet, int id, QString *linear, QByteArray *markup)
 {
@@ -1832,6 +1863,7 @@ ObjectKind SheetObjects::kindOf(int sheet, int id)
 
 QString SheetObjects::nameOf(int sheet, int id)
 {
+    if (isEmbedId(id)) return m_embeds.nameOf(sheet, id);
     const Object *o = find(sheet, id);
     return o ? o->meta.name : QString();
 }
@@ -1859,6 +1891,7 @@ QString SheetObjects::newName(int sheet, ObjectKind kind)
 ObjectState SheetObjects::stateOf(int sheet, int id)
 {
     ObjectState st;
+    if (isEmbedId(id)) return m_embeds.stateOf(sheet, id, m_epoch);
     if (isControlId(id)) {
         bool found = false;
         const jp::office::sheet::FormControl c = m_controls.controlOf(sheet, id, &found);
@@ -1937,13 +1970,20 @@ bool SheetObjects::printsOf(int sheet, int id)
 
 ObjectState SheetObjects::stateMoved(int sheet, int id, const DrawingAnchor &anchor)
 {
+    if (isEmbedId(id)) return m_embeds.stateMoved(sheet, id, anchor, m_epoch);
     ObjectState st = stateOf(sheet, id);
     st.placements.push_back(jp::crunch::AnchorPlacement{int(m_applied.size()), anchor});
     return st;
 }
 
+ObjectState SheetObjects::stateWithEmbed(int sheet, int id, const jp::office::ole::EmbeddedObject &object) { return m_embeds.stateChanged(sheet, id, object, m_epoch); }
+
 void SheetObjects::applyState(int sheet, int id, const ObjectState &st)
 {
+    if (isEmbedId(id)) {
+        if (st.embed) m_embeds.apply(sheet, id, *st.embed, st.deleted, st.epoch == m_epoch);
+        return;
+    }
     if (isControlId(id)) {
         if (st.control) m_controls.apply(sheet, id, *st.control, st.deleted);
         return;
@@ -2939,6 +2979,7 @@ QVector<ChartBlock> SheetObjects::chartReads(int sheet, int objectId)
 
 DrawingAnchor SheetObjects::anchorOf(int sheet, int objectId)
 {
+    if (isEmbedId(objectId)) return m_embeds.anchorOf(sheet, objectId);
     for (const std::shared_ptr<Object> &o : sheetState(sheet).objects)
         if (o->id == objectId) return o->anchor;
     return DrawingAnchor();
