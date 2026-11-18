@@ -12,6 +12,7 @@
 
 #include <QDomDocument>
 #include <QDomElement>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -111,6 +112,7 @@ struct OleChild {
     QString objectRel, pictureRel;  // the ids of the relationships of the sheet that name the object's bytes and its picture
     qint64 shapeId = 0;
     bool hasAnchor = false;
+    bool hasObjectPr = false;       // it has an `objectPr` (the element that names a picture and a place; a bare `oleObject` has none)
     DrawingAnchor anchor;           // from the `anchor` of its `objectPr` (a two-cell anchor)
 };
 // The children of the sheet's `oleObjects` in order (at most kMaxOleChildren), from the bytes that follow the sheet's cells (the elements of the worksheet itself, from the end of `sheetData`
@@ -119,6 +121,40 @@ std::vector<OleChild> oleChildrenOf(const QByteArray &sheetXml, bool *truncated 
 // The same for a sheet's part: it is read as a stream and only what follows its cells is kept (a sheet of hundreds of megabytes is not held), so the places are in that tail, not in the part.
 // False if the part is not there, is not read to its end, or its tail is past 64 MB.
 bool readSheetOleChildren(const Package &package, const QString &sheetPart, std::vector<OleChild> *out);
+
+// What one read of a sheet's tail gives saving: the children, and the largest `shapeId` any element of the tail names (an object or a form control), so that the tail is held once.
+struct SheetOleTail {
+    std::vector<OleChild> children;
+    qint64 largestShape = 0;
+};
+enum class TailRead { Ok, Missing, TooBig };   // TooBig: what follows the sheet's cells is past sheetTailLimit()
+TailRead readSheetOleTail(const Package &package, const QString &sheetPart, SheetOleTail *out);
+// How much may follow a sheet's cells (64 MB); a test lowers it, 0 puts the real one back.
+constexpr qint64 kSheetTailBytes = qint64(64) << 20;
+qint64 sheetTailLimit();
+void setSheetTailLimit(qint64 bytes);
+// How many tails have been read (for a test to count that a save reads each once).
+qint64 sheetTailReads();
+
+// The VML drawing's shapes: the largest shape number any of them has (the number of `_x0000_s1025`, from its id or its `o:spid`), 0 if none; all of them, to take the next number above.
+qint64 largestVmlShapeId(const QByteArray &vml);
+// What a legacy drawing is given for embedded objects: the shapes of objects taken out, the picture relationship of those given another (by shape number), and new shapes (each names the
+// picture by `relId`, a relationship of the drawing part). A drawing part's shapes for an object are the form other spreadsheet programs expect beside the `oleObject` element.
+struct OleVmlAdd {
+    qint64 shapeId = 0;
+    QString relId;
+    DrawingAnchor anchor;
+};
+struct OleVmlEdit {
+    std::set<qint64> remove;
+    std::map<qint64, QString> retarget;
+    std::vector<OleVmlAdd> add;
+};
+// The picture relationship (`o:relid`) of each shape of the drawing that has one of the numbers, and of the shapes that stay; the second is used to let a relationship go only when no shape keeps it.
+std::map<qint64, QString> vmlPictureRelationships(const QByteArray &vml, const std::set<qint64> &shapes, QSet<QString> *keptByOthers);
+bool vmlWithOleShapes(const QByteArray &vml, const OleVmlEdit &edit, QByteArray *out);
+// A drawing part that holds no shape yet.
+QByteArray emptyOleVmlDrawing();
 
 struct SheetOleObject {
     ole::EmbeddedObject object;     // `origin` is the part the object's bytes are in

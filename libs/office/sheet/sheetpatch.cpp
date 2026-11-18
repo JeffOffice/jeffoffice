@@ -907,6 +907,23 @@ QByteArray tailWithDrawing(const QByteArray &after, const QByteArray &relId, con
                 return after.left(t.start) + fixed.toUtf8() + after.mid(t.end);
             }
             if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+            else if (insertAt < 0 && t.local == "AlternateContent" && !t.selfClosing) {
+                // (the controls are often inside one: the element goes before it)
+                Tag c;
+                qsizetype p2 = t.end;
+                int d2 = 1;
+                while (d2 > 0 && xmlscan::nextTag(after, p2, &c)) {
+                    p2 = c.end;
+                    if (c.closing) --d2;
+                    else {
+                        if (c.local == "controls") {
+                            insertAt = t.start;
+                            break;
+                        }
+                        if (!c.selfClosing) ++d2;
+                    }
+                }
+            }
         }
         if (!t.selfClosing) ++depth;
     }
@@ -951,6 +968,23 @@ QByteArray tailWithHeaderDrawing(const QByteArray &after, const QByteArray &relI
                 }
             }
             if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+            else if (insertAt < 0 && t.local == "AlternateContent" && !t.selfClosing) {
+                // (the controls are often inside one: the element goes before it)
+                Tag c;
+                qsizetype p2 = t.end;
+                int d2 = 1;
+                while (d2 > 0 && xmlscan::nextTag(after, p2, &c)) {
+                    p2 = c.end;
+                    if (c.closing) --d2;
+                    else {
+                        if (c.local == "controls") {
+                            insertAt = t.start;
+                            break;
+                        }
+                        if (!c.selfClosing) ++d2;
+                    }
+                }
+            }
         }
         if (!t.selfClosing) ++depth;
     }
@@ -974,17 +1008,21 @@ QByteArray tagWithRelationshipId(const QByteArray &tag, const QByteArray &id)
     return tag.left(close) + " xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:id=\"" + value + "\"" + tag.mid(close);
 }
 
-// An embedded object's element: the program, the relationships of its bytes and picture, and its place.
+// An embedded object's element, in the form other spreadsheet programs write: the `oleObject` with its picture and place for a program that reads `x14`, and a plain `oleObject` for one that does
+// not (its shape is in the legacy drawing, by the same number).
 QByteArray oleObjectElement(const OleTailEdit::Add &a, const QByteArray &prefix)
 {
     auto point = [](const char *name, const AnchorPoint &p) {
         return QByteArray("<xdr:") + name + "><xdr:col>" + QByteArray::number(p.col) + "</xdr:col><xdr:colOff>" + QByteArray::number(p.colOff) + "</xdr:colOff><xdr:row>" + QByteArray::number(p.row) +
                "</xdr:row><xdr:rowOff>" + QByteArray::number(p.rowOff) + "</xdr:rowOff></xdr:" + name + ">";
     };
-    QByteArray out = "<" + prefix + "oleObject xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" progId=\"" +
-                     xmlscan::escapeAttribute(a.progId) + "\" shapeId=\"" + QByteArray::number(a.shapeId) + "\" r:id=\"" + xmlscan::escapeAttribute(a.objectRel) + "\"><" + prefix + "objectPr defaultSize=\"0\"";
+    const QByteArray head = "<" + prefix + "oleObject progId=\"" + xmlscan::escapeAttribute(a.progId) + "\" shapeId=\"" + QByteArray::number(a.shapeId) + "\" r:id=\"" + xmlscan::escapeAttribute(a.objectRel) + "\"";
+    QByteArray out = "<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" "
+                     "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\">"
+                     "<mc:Choice Requires=\"x14\">" + head + "><" + prefix + "objectPr defaultSize=\"0\"";
     if (!a.pictureRel.isEmpty()) out += " r:id=\"" + xmlscan::escapeAttribute(a.pictureRel) + "\"";
-    out += "><" + prefix + "anchor moveWithCells=\"1\">" + point("from", a.anchor.from) + point("to", a.anchor.to) + "</" + prefix + "anchor></" + prefix + "objectPr></" + prefix + "oleObject>";
+    out += "><" + prefix + "anchor moveWithCells=\"1\">" + point("from", a.anchor.from) + point("to", a.anchor.to) + "</" + prefix + "anchor></" + prefix + "objectPr></" + prefix + "oleObject></mc:Choice><mc:Fallback>" + head
+           + "/></mc:Fallback></mc:AlternateContent>";
     return out;
 }
 
@@ -1045,6 +1083,23 @@ QByteArray tailWithOleObjects(const QByteArray &after, const OleTailEdit &edit, 
                 continue;
             }
             if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+            else if (insertAt < 0 && t.local == "AlternateContent" && !t.selfClosing) {
+                // (the controls are often inside one: the element goes before it)
+                Tag c;
+                qsizetype p2 = t.end;
+                int d2 = 1;
+                while (d2 > 0 && xmlscan::nextTag(after, p2, &c)) {
+                    p2 = c.end;
+                    if (c.closing) --d2;
+                    else {
+                        if (c.local == "controls") {
+                            insertAt = t.start;
+                            break;
+                        }
+                        if (!c.selfClosing) ++d2;
+                    }
+                }
+            }
         }
         if (!t.selfClosing) ++depth;
     }
@@ -1105,6 +1160,23 @@ QByteArray tailWithBackground(const QByteArray &after, const QByteArray &relId, 
                 }
             }
             if (insertAt < 0 && later.contains(QByteArray(t.local))) insertAt = t.start;
+            else if (insertAt < 0 && t.local == "AlternateContent" && !t.selfClosing) {
+                // (the controls are often inside one: the element goes before it)
+                Tag c;
+                qsizetype p2 = t.end;
+                int d2 = 1;
+                while (d2 > 0 && xmlscan::nextTag(after, p2, &c)) {
+                    p2 = c.end;
+                    if (c.closing) --d2;
+                    else {
+                        if (c.local == "controls") {
+                            insertAt = t.start;
+                            break;
+                        }
+                        if (!c.selfClosing) ++d2;
+                    }
+                }
+            }
         }
         if (!t.selfClosing) ++depth;
     }

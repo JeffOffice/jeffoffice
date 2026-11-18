@@ -5,6 +5,7 @@
 
 #include "ole/embedobj.h"
 #include "sheet/drawing.h"
+#include "sheet/notesave.h"
 #include "sheet/xlsxsave.h"
 
 using namespace drawtest;
@@ -141,6 +142,59 @@ bool save(const QByteArray &xlsx, const SaveChanges &changes, QByteArray *out, Q
     return saveXlsx(o.book, changes, out, why);
 }
 
+
+const QString kMain = QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main");
+
+QByteArray vmlWith(const QByteArray &shapes)
+{
+    return "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+           "<o:shapelayout v:ext=\"edit\"><o:idmap v:ext=\"edit\" data=\"1\"/></o:shapelayout>"
+           "<v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"/>" + shapes + "</xml>";
+}
+
+QByteArray noteShape(int id, int row)
+{
+    return "<v:shape id=\"_x0000_s" + QByteArray::number(id) + "\" type=\"#_x0000_t202\" style=\"position:absolute\"><x:ClientData ObjectType=\"Note\"><x:Anchor>1, 15, 0, 10, 3, 15, 3, 4</x:Anchor><x:Row>"
+           + QByteArray::number(row) + "</x:Row><x:Column>0</x:Column></x:ClientData></v:shape>";
+}
+
+// A one-sheet workbook with a note on A1 (its comments part and its drawing, with a shape of the number given), whose sheet has `after` after its cells (the legacy drawing is named first).
+QByteArray bookWithNote(int noteShapeId, const QString &after = QString(), const QByteArray &moreVml = QByteArray())
+{
+    const QByteArray sheet = worksheet(QString(), QStringLiteral("<legacyDrawing r:id=\"rIdV\"/>") + after);
+    const QByteArray comments = ("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"" + kMain + "\"><authors><author>A</author></authors><commentList><comment ref=\"A1\" authorId=\"0\">"
+                                 "<text><r><t>hello</t></r></text></comment></commentList></comments>").toUtf8();
+    return withParts(buildXlsx({sheet}), {{QStringLiteral("xl/drawings/vmlDrawing1.vml"), vmlWith(noteShape(noteShapeId, 0) + moreVml), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rIdV"),
+                                           QStringLiteral("vmlDrawing"), QStringLiteral("/xl/drawings/vmlDrawing1.vml")},
+                                          {QStringLiteral("xl/comments1.xml"), comments, QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rIdC"),
+                                           QStringLiteral("comments"), QStringLiteral("/xl/comments1.xml")}});
+}
+
+QList<qint64> shapeNumbersIn(const QByteArray &xml, const QByteArray &attribute)
+{
+    QList<qint64> out;
+    qsizetype at = 0;
+    const QByteArray key = attribute + "=\"_x0000_s";
+    while ((at = xml.indexOf(key, at)) >= 0) {
+        at += key.size();
+        out << xml.mid(at, xml.indexOf('"', at) - at).toLongLong();
+    }
+    return out;
+}
+
+QList<qint64> oleShapeIdsIn(const QByteArray &sheetXml)
+{
+    QList<qint64> out;
+    qsizetype at = 0;
+    while ((at = sheetXml.indexOf("<oleObject ", at)) >= 0) {
+        at += 11;
+        const qsizetype p = sheetXml.indexOf("shapeId=\"", at);
+        if (p < 0) break;
+        out << sheetXml.mid(p + 9, sheetXml.indexOf('"', p + 9) - p - 9).toLongLong();
+    }
+    return out;
+}
+
 } // namespace
 
 class SheetOleObjectTests : public QObject {
@@ -274,7 +328,7 @@ private Q_SLOTS:
         QCOMPARE(parts.value(embeddings[0]), now.partBytes);
         QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/media/")).size()), 1);
         const QByteArray rels = parts.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels"));
-        QCOMPARE(int(rels.count("<Relationship ")), 2);
+        QCOMPARE(int(rels.count("<Relationship ")), 3);   // (the object, its picture, and the legacy drawing that holds its shape)
         const QVector<SheetOleObject> back = readAll(two);
         QCOMPARE(int(back.size()), 1);
         QCOMPARE(back[0].object.partBytes, now.partBytes);
@@ -515,7 +569,416 @@ private Q_SLOTS:
         std::vector<SheetOleObject> out;
         QVERIFY(readSheetOleObjects(o.package, o.book.info().sheets[0].part, &state, &out));
         QCOMPARE(int(out.size()), 3);
-        QVERIFY(o.package.inflatedBytes() - before < 300000);
+        QVERIFY(o.package.inflatedBytes() - before < 350000);   // (twice the part would be 400,000)
+    }
+
+    // A new object's shape number is above every number the sheet's legacy drawings (the notes', the header pictures') and its form controls have, so that it names no shape of theirs.
+    void newObjectShapeNumbersAvoidNotesControlsAndPictures()
+    {
+        // a note of shape 1025, a control (wrapped, as another program writes it) of 1030, and header pictures of 1040 in a drawing of their own
+        const QString controls = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"x14\"><controls><mc:AlternateContent>"
+                                                "<mc:Choice Requires=\"x14\"><control shapeId=\"1030\" r:id=\"rIdK\" name=\"Check Box 1\"/></mc:Choice></mc:AlternateContent></controls></mc:Choice></mc:AlternateContent>");
+        QByteArray xlsx = bookWithNote(1025, QStringLiteral("<legacyDrawingHF r:id=\"rIdH\"/>") + controls);
+        const QByteArray hf = "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"><v:shape id=\"LH\" o:spid=\"_x0000_s1040\" type=\"#_x0000_t75\"/></xml>";
+        xlsx = withParts(xlsx, {{QStringLiteral("xl/drawings/vmlDrawing2.vml"), hf, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rIdH"), QStringLiteral("vmlDrawing"),
+                                 QStringLiteral("/xl/drawings/vmlDrawing2.vml")}});
+        SaveChanges changes;
+        changes.oleObjects[0].add.push_back({ours("first", 6, Qt::red), cells(1, 1, 4, 6)});
+        changes.oleObjects[0].add.push_back({ours("second", 7, Qt::green), cells(1, 8, 4, 12)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, changes, &out, &why), qPrintable(why));
+        const auto parts = unzip(out);
+        const QList<qint64> ids = oleShapeIdsIn(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+        QCOMPARE(int(ids.size()), 4);   // (each in the standard form is named twice: with its picture and without)
+        for (qint64 id : ids) QVERIFY2(id > 1040, qPrintable(QString::number(id)));
+        QVERIFY(ids[0] != ids[2]);
+        // the note's drawing now has the note and one shape for each object, and no number is used twice
+        const QByteArray vml = parts.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        QList<qint64> numbers = shapeNumbersIn(vml, "id");
+        QCOMPARE(int(numbers.size()), 3);
+        QCOMPARE(QSet<qint64>(numbers.begin(), numbers.end()).size(), 3);
+        QVERIFY(numbers.contains(1025));
+        QVERIFY(numbers.contains(ids[0]) && numbers.contains(ids[2]));
+    }
+
+    // A new object is written as another spreadsheet program expects: an element for a program that reads the extended form, a plain one for the others, and a shape in the legacy drawing (made, with
+    // its relationship and type, for a sheet that has none) that has the same number and names the picture.
+    void newObjectIsWrittenWithItsAlternateFormAndShape()
+    {
+        SaveChanges changes;
+        const ole::EmbeddedObject object = ours("first", 6, Qt::red);
+        changes.oleObjects[0].add.push_back({object, cells(1, 1, 4, 6)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(buildXlsx({dataSheet()}), changes, &out, &why), qPrintable(why));
+        const auto parts = unzip(out);
+        const QByteArray sheet = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.contains("<mc:AlternateContent"));
+        QVERIFY(sheet.contains("<mc:Choice Requires=\"x14\">"));
+        QVERIFY(sheet.contains("<mc:Fallback>"));
+        QVERIFY(sheet.indexOf("<mc:Fallback>") > sheet.indexOf("<objectPr"));
+        QVERIFY(sheet.contains("xmlns:x14="));
+        // the plain element of the fallback has no picture or place
+        const QByteArray fallback = sheet.mid(sheet.indexOf("<mc:Fallback>"));
+        QVERIFY(!fallback.left(fallback.indexOf("</mc:Fallback>")).contains("objectPr"));
+        const QList<qint64> ids = oleShapeIdsIn(sheet);
+        QCOMPARE(int(ids.size()), 2);
+        QCOMPARE(ids[0], ids[1]);
+        // the legacy drawing is named by the sheet before its objects, and holds the shape
+        QVERIFY(sheet.contains("<legacyDrawing "));
+        QVERIFY(sheet.indexOf("<legacyDrawing ") < sheet.indexOf("<oleObjects"));
+        const QStringList drawings = partsUnder(parts, QStringLiteral("xl/drawings/"));
+        QStringList vmls;
+        for (const QString &d : drawings)
+            if (d.endsWith(QLatin1String(".vml"))) vmls << d;
+        QCOMPARE(int(vmls.size()), 1);
+        const QByteArray vml = parts.value(vmls[0]);
+        QVERIFY(vml.contains("id=\"_x0000_s" + QByteArray::number(ids[0]) + "\""));
+        QVERIFY(vml.contains("ObjectType=\"Pict\""));
+        QVERIFY(vml.contains("_x0000_t75"));
+        QVERIFY(vml.contains("<x:Anchor>1, 0, 1, 0, 4, 0, 6, 0</x:Anchor>"));
+        QVERIFY(parts.value(QStringLiteral("[Content_Types].xml")).contains("vmlDrawing1.vml"));
+        QVERIFY(parts.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).contains("vmlDrawing1.vml"));
+        // its picture is named by a relationship of the drawing, to the picture the object has
+        const qsizetype relid = vml.indexOf("o:relid=\"") + 9;
+        const QByteArray relId = vml.mid(relid, vml.indexOf('"', relid) - relid);
+        const QByteArray vmlRels = parts.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels"));
+        QVERIFY(vmlRels.contains("Id=\"" + relId + "\""));
+        QVERIFY(vmlRels.contains("../media/oleimage1.png"));
+        QCOMPARE(parts.value(QStringLiteral("xl/media/oleimage1.png")), object.previewPng);
+        // it reads back, and read again after a save with nothing changed
+        QCOMPARE(int(readAll(out).size()), 1);
+        QByteArray again;
+        QVERIFY2(save(out, SaveChanges(), &again, &why), qPrintable(why));
+        QCOMPARE(unzip(again).value(vmls[0]), vml);
+        // taken out, no shape is left, and no relationship or picture
+        SaveChanges take;
+        take.oleObjects[0].remove.insert(0);
+        QByteArray none;
+        QVERIFY2(save(out, take, &none, &why), qPrintable(why));
+        const auto empty = unzip(none);
+        QVERIFY(!empty.value(vmls[0]).contains("<v:shape "));
+        QVERIFY(!empty.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels")).contains("oleimage"));
+        QCOMPARE(int(partsUnder(empty, QStringLiteral("xl/media/")).size()), 0);
+        QCOMPARE(int(partsUnder(empty, QStringLiteral("xl/embeddings/")).size()), 0);
+    }
+
+    // On a sheet with a note the object's shape goes into the note's drawing (the note stays); taken out, only the object's shape goes.
+    void newObjectJoinsTheNotesDrawing()
+    {
+        const QByteArray xlsx = bookWithNote(1025);
+        const QByteArray noteBefore = noteShape(1025, 0);
+        SaveChanges changes;
+        changes.oleObjects[0].add.push_back({ours("first", 6, Qt::red), cells(1, 1, 4, 6)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, changes, &out, &why), qPrintable(why));
+        const auto parts = unzip(out);
+        int vmlParts = 0;
+        for (auto it = parts.begin(); it != parts.end(); ++it) vmlParts += it.key().endsWith(QLatin1String(".vml")) ? 1 : 0;
+        QCOMPARE(vmlParts, 1);
+        const QByteArray vml = parts.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        QVERIFY(vml.contains(noteBefore));
+        const QList<qint64> ids = oleShapeIdsIn(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+        QCOMPARE(int(ids.size()), 2);
+        QVERIFY(ids[0] > 1025);
+        QVERIFY(vml.contains("id=\"_x0000_s" + QByteArray::number(ids[0]) + "\""));
+        QCOMPARE(int(vml.count("<v:shape ")), 2);
+        QCOMPARE(int(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).count("<legacyDrawing ")), 1);
+        QVERIFY(parts.contains(QStringLiteral("xl/comments1.xml")));
+        // taken out
+        SaveChanges take;
+        take.oleObjects[0].remove.insert(0);
+        QByteArray none;
+        QVERIFY2(save(out, take, &none, &why), qPrintable(why));
+        const auto empty = unzip(none);
+        const QByteArray left = empty.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        QVERIFY(left.contains(noteBefore));
+        QCOMPARE(int(left.count("<v:shape ")), 1);
+        QVERIFY(!left.contains("Pict"));
+        QCOMPARE(int(partsUnder(empty, QStringLiteral("xl/media/")).size()), 0);
+        QVERIFY(empty.contains(QStringLiteral("xl/comments1.xml")));
+        // a note put in the same save as the object: both are in the drawing the notes have, with numbers of their own
+        SaveChanges both;
+        both.oleObjects[0].add.push_back({ours("again", 6, Qt::blue), cells(1, 1, 4, 6)});
+        NoteOp note;
+        note.row = 5;
+        note.col = 2;
+        note.text = QStringLiteral("second");
+        note.author = QStringLiteral("A");
+        both.sheets[0].noteOps.push_back(note);
+        QByteArray three;
+        QVERIFY2(save(xlsx, both, &three, &why), qPrintable(why));
+        const QList<qint64> numbers = shapeNumbersIn(unzip(three).value(QStringLiteral("xl/drawings/vmlDrawing1.vml")), "id");
+        QCOMPARE(int(numbers.size()), 3);
+        QCOMPARE(QSet<qint64>(numbers.begin(), numbers.end()).size(), 3);
+    }
+
+    // An object the file made: its shape is taken out with it, its picture's relationship from the drawing too (and the picture, when nothing else names it), and a replaced object's shape names
+    // the new picture. The shape of another object, and a picture a shape that stays names, are kept.
+    void anObjectsShapeFromTheFileIsTakenOrChangedWithIt()
+    {
+        const ole::EmbeddedObject mine = ours("package", 6, Qt::red);
+        Spec a, b;
+        a.progId = ole::progIdOf(ole::Kind::Sheet);
+        a.bytes = mine.partBytes;
+        a.png = mine.previewPng;
+        a.shapeId = 1026;
+        b = a;
+        b.target = QStringLiteral("/xl/embeddings/oleObject2.bin");
+        b.shapeId = 1027;
+        b.png = pngBytes(9, 9, Qt::blue);
+        const QByteArray shapeA = "<v:shape id=\"_x0000_s1026\" type=\"#_x0000_t75\" o:ole=\"\"><v:imagedata o:relid=\"rIdX1\" o:title=\"\"/><x:ClientData ObjectType=\"Pict\"><x:Anchor>1, 0, 1, 0, 4, 0, 6, 0</x:Anchor></x:ClientData></v:shape>";
+        const QByteArray shapeB = "<v:shape id=\"_x0000_s1027\" type=\"#_x0000_t75\" o:ole=\"\"><v:imagedata o:relid=\"rIdX2\" o:title=\"\"/><x:ClientData ObjectType=\"Pict\"><x:Anchor>1, 0, 1, 0, 4, 0, 6, 0</x:Anchor></x:ClientData></v:shape>";
+        QByteArray xlsx = bookWith({a, b});
+        // (the sheet names the drawing, and the drawing names the two pictures the objects have)
+        QMap<QString, QByteArray> parts = unzip(xlsx);
+        parts[QStringLiteral("xl/worksheets/sheet1.xml")].replace("<oleObjects>", "<legacyDrawing r:id=\"rIdV\"/><oleObjects>");
+        xlsx = withParts([&] {
+            jp::ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+            return z.finish();
+        }(), {{QStringLiteral("xl/drawings/vmlDrawing1.vml"), vmlWith(shapeA + shapeB), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rIdV"), QStringLiteral("vmlDrawing"),
+               QStringLiteral("/xl/drawings/vmlDrawing1.vml")},
+              {QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels"),
+               "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+               "<Relationship Id=\"rIdX1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/p1.png\"/>"
+               "<Relationship Id=\"rIdX2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"../media/p2.png\"/></Relationships>",
+               QString(), -1, QString(), QString(), QString()}});
+        QCOMPARE(int(readAll(xlsx).size()), 2);
+        SaveChanges take;
+        take.oleObjects[0].remove.insert(0);
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, take, &out, &why), qPrintable(why));
+        auto now = unzip(out);
+        QVERIFY(!now.value(QStringLiteral("xl/drawings/vmlDrawing1.vml")).contains("_x0000_s1026"));
+        QVERIFY(now.value(QStringLiteral("xl/drawings/vmlDrawing1.vml")).contains(shapeB));
+        QVERIFY(!now.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels")).contains("rIdX1"));
+        QVERIFY(now.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels")).contains("rIdX2"));
+        QVERIFY(!now.contains(QStringLiteral("xl/media/p1.png")));   // (named by the sheet and the drawing, both let go of)
+        QVERIFY(now.contains(QStringLiteral("xl/media/p2.png")));
+        // replaced: the shape names the new picture, and the old one is gone
+        SaveChanges replace;
+        replace.oleObjects[0].replace[1] = ours("newer package", 8, Qt::green);
+        QByteArray two;
+        QVERIFY2(save(xlsx, replace, &two, &why), qPrintable(why));
+        now = unzip(two);
+        const QByteArray vml = now.value(QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        const qsizetype at = vml.indexOf("_x0000_s1027");
+        QVERIFY(at >= 0);
+        QVERIFY(!vml.contains("rIdX2"));
+        const qsizetype relid = vml.indexOf("o:relid=\"", at) + 9;
+        const QByteArray fresh = vml.mid(relid, vml.indexOf('"', relid) - relid);
+        QVERIFY(now.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels")).contains("Id=\"" + fresh + "\""));
+        QVERIFY(!now.value(QStringLiteral("xl/drawings/_rels/vmlDrawing1.vml.rels")).contains("rIdX2"));
+        QVERIFY(!now.contains(QStringLiteral("xl/media/p2.png")));
+        QVERIFY(now.contains(QStringLiteral("xl/media/p1.png")));
+        QVERIFY(vml.contains("_x0000_s1026"));
+        QCOMPARE(int(partsUnder(now, QStringLiteral("xl/media/")).size()), 2);
+    }
+
+    // Objects the file already has never make a save fail: at a cap lower than what the file holds, a save that changes no object, and one that only takes objects out, still works, and a new
+    // object is refused with a message that says why. A part two sheets name counts once.
+    void objectsTheFileHasDoNotFailASaveAndASharedPartCountsOnce()
+    {
+        QVector<Spec> specs;
+        for (int i = 0; i < 3; ++i) {
+            Spec s;
+            s.sheet = i;
+            s.target = QStringLiteral("/xl/embeddings/o%1.bin").arg(i + 1);
+            s.bytes = QByteArray(100, char('a' + i));
+            s.png = pngBytes(8 + i, 8, Qt::red);
+            specs.append(s);
+        }
+        const QByteArray xlsx = bookWith(specs, 3);
+        {
+            LimitsGuard guard;
+            ole::Limits l;
+            l.objects = 2;   // (the reader keeps two of the three)
+            ole::setLimits(l);
+            QString why;
+            QByteArray out;
+            SaveChanges none;
+            (void)none.oleObjects[0];   // (an entry with nothing in it)
+            QVERIFY2(save(xlsx, none, &out, &why), qPrintable(why));
+            SaveChanges take;
+            take.oleObjects[1].remove.insert(0);
+            QVERIFY2(save(xlsx, take, &out, &why), qPrintable(why));
+            QCOMPARE(int(readAll(out, 1).size()), 0);
+            SaveChanges add;
+            add.oleObjects[0].add.push_back({ours("new", 6, Qt::red), cells(1, 1, 4, 6)});
+            QVERIFY(!save(xlsx, add, &out, &why));
+            QVERIFY2(why.contains(QLatin1String("more than a file can hold")), qPrintable(why));
+        }
+        // two sheets that name one part: counted once, so a third object fits a cap that two parts and their pictures leave room for
+        Spec first, second;
+        first.sheet = 0;
+        first.bytes = QByteArray(100, 'q');
+        first.png = pngBytes(8, 8, Qt::red);
+        second = first;
+        second.sheet = 1;
+        second.png = pngBytes(9, 8, Qt::blue);
+        const QByteArray shared = bookWith({first, second}, 2);
+        const ole::EmbeddedObject added = ours("new", 6, Qt::green);
+        {
+            LimitsGuard guard;
+            ole::Limits l;
+            l.totalBytes = 100 + first.png.size() + second.png.size() + added.partBytes.size() + added.previewPng.size() + 5;
+            ole::setLimits(l);
+            SaveChanges add;
+            add.oleObjects[0].add.push_back({added, cells(1, 1, 4, 6)});
+            QByteArray out;
+            QString why;
+            QVERIFY2(save(shared, add, &out, &why), qPrintable(why));
+        }
+    }
+
+    // A sheet whose tail is past the limit is neither read nor failed for an edit that does not touch it, and an edit that does is refused with a message that says so; the tail of a sheet that is
+    // changed is read once for the save.
+    void bigTailsAreOnlyReadForTheSheetsTheEditTouches()
+    {
+        QVector<Spec> specs;
+        for (int i = 0; i < 2; ++i) {
+            Spec s;
+            s.sheet = i;
+            s.target = QStringLiteral("/xl/embeddings/o%1.bin").arg(i + 1);
+            s.bytes = QByteArray(100, char('a' + i));
+            s.png = pngBytes(8 + i, 8, Qt::red);
+            specs.append(s);
+        }
+        QMap<QString, QByteArray> parts = unzip(bookWith(specs, 2));
+        parts[QStringLiteral("xl/worksheets/sheet1.xml")].replace("</worksheet>", "<!--" + QByteArray(20000, 'x') + "--></worksheet>");
+        QByteArray xlsx;
+        {
+            jp::ZipWriter z;
+            for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+            xlsx = z.finish();
+        }
+        struct TailGuard {
+            ~TailGuard() { setSheetTailLimit(0); }
+        } guard;
+        setSheetTailLimit(10000);
+        QString why;
+        QByteArray out;
+        // the other sheet is changed: the big one is not a reason to fail
+        SaveChanges other;
+        other.oleObjects[1].add.push_back({ours("new", 6, Qt::red), cells(1, 1, 4, 6)});
+        const qint64 reads = sheetTailReads();
+        QVERIFY2(save(xlsx, other, &out, &why), qPrintable(why));
+        QVERIFY2(sheetTailReads() - reads <= 3, qPrintable(QString::number(sheetTailReads() - reads)));
+        QCOMPARE(int(readAll(out, 1).size()), 2);
+        // the big one is changed: refused, saying what is wrong
+        SaveChanges own;
+        own.oleObjects[0].add.push_back({ours("new", 6, Qt::red), cells(1, 1, 4, 6)});
+        QVERIFY(!save(xlsx, own, &out, &why));
+        QVERIFY2(why.contains(QLatin1String("after its cells")), qPrintable(why));
+        QVERIFY(!why.contains(QLatin1String("can't put them on")));
+        // edits that change nothing read nothing
+        SaveChanges nothing;
+        (void)nothing.oleObjects[0];
+        const qint64 before = sheetTailReads();
+        QVERIFY2(save(xlsx, nothing, &out, &why), qPrintable(why));
+        QCOMPARE(sheetTailReads(), before);
+        // a sheet that is changed has its tail read once, the other sheet's once for the count
+        setSheetTailLimit(0);
+        const qint64 start = sheetTailReads();
+        QVERIFY2(save(xlsx, other, &out, &why), qPrintable(why));
+        QCOMPARE(sheetTailReads() - start, qint64(2));
+    }
+
+    // Controls that are wrapped, as another program writes them, are where the objects go before.
+    void objectsGoBeforeWrappedControls()
+    {
+        const QString controls = QStringLiteral("<mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice Requires=\"x14\"><controls><mc:AlternateContent>"
+                                                "<mc:Choice Requires=\"x14\"><control shapeId=\"1030\" r:id=\"rIdK\" name=\"Check Box 1\"/></mc:Choice></mc:AlternateContent></controls></mc:Choice></mc:AlternateContent>");
+        const QByteArray xlsx = withParts(buildXlsx({worksheet(QString(), controls)}), {});
+        SaveChanges changes;
+        changes.oleObjects[0].add.push_back({ours("first", 6, Qt::red), cells(1, 1, 4, 6)});
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, changes, &out, &why), qPrintable(why));
+        const QByteArray sheet = unzip(out).value(QStringLiteral("xl/worksheets/sheet1.xml"));
+        QVERIFY(sheet.indexOf("<oleObjects>") > 0);
+        QVERIFY2(sheet.indexOf("<oleObjects>") < sheet.indexOf("<controls>"), sheet.constData());
+    }
+
+    // An object that has no `objectPr` to name a picture is replaced without one: no picture part is written that nothing names.
+    void replacingAnObjectWithNoPictureElementLeavesNoOrphan()
+    {
+        const ole::EmbeddedObject first = ours("package", 6, Qt::red);
+        const QByteArray sheet = worksheet(QString(), QStringLiteral("<oleObjects><oleObject progId=\"%1\" shapeId=\"1025\" r:id=\"rIdO1\"/></oleObjects>").arg(first.progId));
+        const QByteArray xlsx = withParts(buildXlsx({sheet}), {{QStringLiteral("xl/embeddings/oleObject1.bin"), first.partBytes, QString(), 0, QStringLiteral("rIdO1"), QStringLiteral("oleObject"),
+                                                              QStringLiteral("/xl/embeddings/oleObject1.bin")}});
+        SaveChanges replace;
+        replace.oleObjects[0].replace[0] = ours("newer package", 9, Qt::green);
+        QByteArray out;
+        QString why;
+        QVERIFY2(save(xlsx, replace, &out, &why), qPrintable(why));
+        const auto parts = unzip(out);
+        QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/media/")).size()), 0);
+        const QStringList embeddings = partsUnder(parts, QStringLiteral("xl/embeddings/"));
+        QCOMPARE(int(embeddings.size()), 1);
+        QCOMPARE(parts.value(embeddings[0]), ours("newer package", 9, Qt::green).partBytes);
+        QCOMPARE(int(parts.value(QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")).count("<Relationship ")), 1);
+    }
+
+    // One part that two sheets name stays while either does, and goes with the last; a sheet that is deleted takes its objects' parts with it.
+    void aSharedTargetStaysWhileEitherSheetNamesItAndADeletedSheetTakesItsObjects()
+    {
+        Spec first, second;
+        first.sheet = 0;
+        first.bytes = QByteArray(50, 'q');
+        first.png = pngBytes(8, 8, Qt::red);
+        second = first;
+        second.sheet = 1;
+        second.png = pngBytes(9, 8, Qt::blue);
+        const QByteArray xlsx = bookWith({first, second}, 2);
+        QString why;
+        SaveChanges take0;
+        take0.oleObjects[0].remove.insert(0);
+        QByteArray one;
+        QVERIFY2(save(xlsx, take0, &one, &why), qPrintable(why));
+        auto parts = unzip(one);
+        QVERIFY(parts.contains(QStringLiteral("xl/embeddings/oleObject1.bin")));   // (the other sheet still names it)
+        QCOMPARE(int(readAll(one, 1).size()), 1);
+        QCOMPARE(int(readAll(one, 0).size()), 0);
+        SaveChanges take1;
+        take1.oleObjects[1].remove.insert(0);
+        QByteArray two;
+        QVERIFY2(save(one, take1, &two, &why), qPrintable(why));
+        parts = unzip(two);
+        QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/embeddings/")).size()), 0);
+        QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/media/")).size()), 0);
+        // the second sheet deleted: its object's part is named by the first sheet too and stays; its picture goes
+        Opened o;
+        QVERIFY2(open(&o, xlsx, &why), qPrintable(why));
+        o.book.setSheetDeleted(1, true);
+        SaveChanges del;
+        SheetOp op;
+        op.kind = SheetOp::Kind::Delete;
+        op.name = QStringLiteral("Sheet2");
+        del.sheetsChanged = true;
+        del.sheetOps = {op};
+        QByteArray out;
+        QVERIFY2(saveXlsx(o.book, del, &out, &why), qPrintable(why));
+        parts = unzip(out);
+        QVERIFY(parts.contains(QStringLiteral("xl/embeddings/oleObject1.bin")));
+        QVERIFY(!parts.contains(QStringLiteral("xl/media/p2.png")));
+        QVERIFY(parts.contains(QStringLiteral("xl/media/p1.png")));
+        // and with a part of its own, the part goes too
+        Spec own = second;
+        own.target = QStringLiteral("/xl/embeddings/oleObject2.bin");
+        const QByteArray separate = bookWith({first, own}, 2);
+        Opened o2;
+        QVERIFY2(open(&o2, separate, &why), qPrintable(why));
+        o2.book.setSheetDeleted(1, true);
+        QByteArray out2;
+        QVERIFY2(saveXlsx(o2.book, del, &out2, &why), qPrintable(why));
+        parts = unzip(out2);
+        QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/embeddings/")).size()), 1);
+        QCOMPARE(int(partsUnder(parts, QStringLiteral("xl/media/")).size()), 1);
     }
 };
 

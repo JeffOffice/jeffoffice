@@ -11,6 +11,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <atomic>
 
 namespace jp::office::sheet {
 
@@ -395,7 +396,8 @@ std::vector<OleChild> oleChildrenOf(const QByteArray &after, bool *truncated)
                 child.progId = xmlscan::unescape(xmlscan::attribute(tag, "progId")).left(256);
                 child.shapeId = xmlscan::unescape(xmlscan::attribute(tag, "shapeId")).toLongLong();
                 child.objectRel = relationshipIdOf(tag);
-            } else if (t.local == "objectPr" && child.pictureRel.isEmpty()) {
+            } else if (t.local == "objectPr" && !child.hasObjectPr) {
+                child.hasObjectPr = true;
                 child.pictureRel = relationshipIdOf(tag);
             } else if (t.local == "from" || t.local == "to") {
                 inFrom = t.local == "from";
@@ -416,15 +418,19 @@ std::vector<OleChild> oleChildrenOf(const QByteArray &after, bool *truncated)
 
 namespace {
 
+std::atomic<qint64> g_tailLimit{0};
+std::atomic<qint64> g_tailReads{0};
+
 // What follows a sheet's cells, read as a stream: what comes after the first end of `sheetData` that is found (the whole part if there is none to find).
-bool tailOfSheet(const Package &package, const QString &part, QByteArray *tail)
+TailRead tailOfSheet(const Package &package, const QString &part, QByteArray *tail)
 {
+    g_tailReads.fetch_add(1, std::memory_order_relaxed);
     const std::unique_ptr<QIODevice> in = package.openPart(part);
-    if (!in || !in->open(QIODevice::ReadOnly)) return false;
+    if (!in || !in->open(QIODevice::ReadOnly)) return TailRead::Missing;
     static const QByteArray close("</sheetData>"), empty("<sheetData/>");
     QByteArray buf;
     bool found = false;
-    constexpr qint64 kTailCap = qint64(64) << 20;
+    const qint64 tailCap = sheetTailLimit();
     for (;;) {
         const QByteArray chunk = in->read(1 << 20);
         if (chunk.isEmpty()) break;
@@ -443,20 +449,71 @@ bool tailOfSheet(const Package &package, const QString &part, QByteArray *tail)
                 buf.remove(0, buf.size() - 16);   // (cells go by; the end of sheetData may be cut between two chunks)
             }
         }
-        if (buf.size() > kTailCap) return false;
+        if (buf.size() > tailCap) return TailRead::TooBig;
     }
-    *tail = buf;
-    return true;
+    *tail = std::move(buf);
+    return TailRead::Ok;
+}
+
+// The largest number any `shapeId="N"` of the bytes gives.
+qint64 largestShapeIdAttribute(const QByteArray &xml)
+{
+    qint64 most = 0;
+    qsizetype from = 0;
+    while ((from = xml.indexOf("shapeId", from)) >= 0) {
+        qsizetype i = from + 7;
+        from = i;
+        auto skipSpace = [&] {
+            while (i < xml.size() && (xml[i] == ' ' || xml[i] == '\t' || xml[i] == '\n' || xml[i] == '\r')) ++i;
+        };
+        skipSpace();
+        if (i >= xml.size() || xml[i] != '=') continue;
+        ++i;
+        skipSpace();
+        if (i >= xml.size() || (xml[i] != '"' && xml[i] != '\'')) continue;
+        ++i;
+        qint64 n = 0;
+        int digits = 0;
+        while (i < xml.size() && xml[i] >= '0' && xml[i] <= '9' && digits < 10) {
+            n = n * 10 + (xml[i] - '0');
+            ++i;
+            ++digits;
+        }
+        most = std::max(most, std::min<qint64>(n, 2147483647));
+    }
+    return most;
 }
 
 } // namespace
+
+qint64 sheetTailLimit()
+{
+    const qint64 v = g_tailLimit.load(std::memory_order_relaxed);
+    return v > 0 ? v : kSheetTailBytes;
+}
+
+void setSheetTailLimit(qint64 bytes) { g_tailLimit.store(bytes, std::memory_order_relaxed); }
+
+qint64 sheetTailReads() { return g_tailReads.load(std::memory_order_relaxed); }
+
+TailRead readSheetOleTail(const Package &package, const QString &sheetPart, SheetOleTail *out)
+{
+    *out = SheetOleTail();
+    if (!package.hasPart(sheetPart)) return TailRead::Missing;
+    QByteArray tail;
+    const TailRead got = tailOfSheet(package, sheetPart, &tail);
+    if (got != TailRead::Ok) return got;
+    out->children = oleChildrenOf(tail);
+    out->largestShape = largestShapeIdAttribute(tail);
+    return TailRead::Ok;
+}
 
 bool readSheetOleChildren(const Package &package, const QString &sheetPart, std::vector<OleChild> *out)
 {
     out->clear();
     if (!package.hasPart(sheetPart)) return false;
     QByteArray tail;
-    if (!tailOfSheet(package, sheetPart, &tail)) return false;
+    if (tailOfSheet(package, sheetPart, &tail) != TailRead::Ok) return false;
     *out = oleChildrenOf(tail);
     return true;
 }
@@ -482,7 +539,7 @@ bool readSheetOleObjects(const Package &package, const QString &sheetPart, OleRe
     out->clear();
     if (!package.hasPart(sheetPart)) return false;
     QByteArray tail;
-    if (!tailOfSheet(package, sheetPart, &tail)) return false;
+    if (tailOfSheet(package, sheetPart, &tail) != TailRead::Ok) return false;
     const std::vector<OleChild> children = oleChildrenOf(tail);
     for (size_t i = 0; i < children.size(); ++i) {
         const OleChild &c = children[i];
@@ -538,6 +595,163 @@ std::vector<SheetOleObject> oleObjectsThatFit(const std::vector<SheetOleObject> 
         out.push_back(std::move(copy));
     }
     return out;
+}
+
+// ---- the legacy drawing's shapes for embedded objects
+
+namespace {
+
+struct VmlShape {
+    qsizetype start = 0, end = 0;
+    qint64 id = 0;       // the number of the shape's id (or `o:spid`), 0 if it has none
+    QString relId;       // the `o:relid` of its picture
+};
+
+qint64 shapeNumberIn(QByteArrayView text)
+{
+    if (!text.startsWith("_x0000_s")) return 0;
+    bool ok = false;
+    const qint64 n = QByteArray(text.sliced(8)).toLongLong(&ok);
+    return ok && n > 0 && n <= 2147483647 ? n : 0;
+}
+
+// The shapes of a drawing (the `shape` elements, not the types), at most as many as the drawing's bytes can hold.
+std::vector<VmlShape> vmlShapesOf(const QByteArray &vml)
+{
+    using xmlscan::Tag;
+    std::vector<VmlShape> out;
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    bool inShape = false;
+    VmlShape current;
+    int shapeDepth = 0;
+    while (xmlscan::nextTag(vml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            --depth;
+            if (inShape && depth == shapeDepth) {
+                current.end = t.end;
+                out.push_back(current);
+                inShape = false;
+            }
+            continue;
+        }
+        if (!inShape && t.local == "shape") {
+            const QByteArrayView tag = QByteArrayView(vml).mid(t.start, t.end - t.start);
+            current = VmlShape();
+            current.start = t.start;
+            current.id = shapeNumberIn(xmlscan::attribute(tag, "id"));
+            if (const qint64 spid = shapeNumberIn(xmlscan::attribute(tag, "o:spid")); spid > 0) current.id = std::max(current.id, spid);
+            if (t.selfClosing) {
+                current.end = t.end;
+                out.push_back(current);
+            } else {
+                inShape = true;
+                shapeDepth = depth;
+            }
+        } else if (inShape && t.local == "imagedata" && current.relId.isEmpty()) {
+            current.relId = xmlscan::unescape(xmlscan::attribute(QByteArrayView(vml).mid(t.start, t.end - t.start), "o:relid"));
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return out;
+}
+
+constexpr const char *kOleShapeType =
+    "<v:shapetype id=\"_x0000_t75\" coordsize=\"21600,21600\" o:spt=\"75\" o:preferrelative=\"t\" path=\"m@4@5l@4@11@9@11@9@5xe\" filled=\"f\" stroked=\"f\"><v:stroke joinstyle=\"miter\"/>"
+    "<v:formulas><v:f eqn=\"if lineDrawn pixelLineWidth 0\"/><v:f eqn=\"sum @0 1 0\"/><v:f eqn=\"sum 0 0 @1\"/><v:f eqn=\"prod @2 1 2\"/><v:f eqn=\"prod @3 21600 pixelWidth\"/>"
+    "<v:f eqn=\"prod @3 21600 pixelHeight\"/><v:f eqn=\"sum @0 0 1\"/><v:f eqn=\"prod @6 1 2\"/><v:f eqn=\"prod @7 21600 pixelWidth\"/><v:f eqn=\"sum @8 21600 0\"/>"
+    "<v:f eqn=\"prod @7 21600 pixelHeight\"/><v:f eqn=\"sum @10 21600 0\"/></v:formulas><v:path o:extrusionok=\"f\" gradientshapeok=\"t\" o:connecttype=\"rect\"/>"
+    "<o:lock v:ext=\"edit\" aspectratio=\"t\"/></v:shapetype>";
+
+QByteArray oleShapeXml(const OleVmlAdd &a, const QByteArray &declarations)
+{
+    auto px = [](qint64 emu) { return QByteArray::number(emu / kEmuPerPixel); };
+    const DrawingAnchor &n = a.anchor;
+    qint64 w = 0, h = 0;
+    measureTwoCell(n, &w, &h);
+    auto pt = [](qint64 emu) { return QByteArray::number(std::max<qint64>(emu, 0) / 12700.0, 'f', 2); };
+    return "<v:shape" + declarations + " id=\"_x0000_s" + QByteArray::number(a.shapeId) + "\" type=\"#_x0000_t75\" style=\"position:absolute;margin-left:0;margin-top:0;width:" + pt(w) + "pt;height:" + pt(h)
+           + "pt;z-index:" + QByteArray::number(a.shapeId % 1000000) + "\" o:ole=\"\"><v:imagedata o:relid=\"" + xmlscan::escapeAttribute(a.relId) + "\" o:title=\"\"/><o:lock v:ext=\"edit\" aspectratio=\"t\"/>"
+           + "<x:ClientData ObjectType=\"Pict\"><x:SizeWithCells/><x:Anchor>" + QByteArray::number(n.from.col) + ", " + px(n.from.colOff) + ", " + QByteArray::number(n.from.row) + ", " + px(n.from.rowOff) + ", "
+           + QByteArray::number(n.to.col) + ", " + px(n.to.colOff) + ", " + QByteArray::number(n.to.row) + ", " + px(n.to.rowOff) + "</x:Anchor><x:CF>Pict</x:CF><x:AutoPict/><x:DDE/></x:ClientData></v:shape>";
+}
+
+} // namespace
+
+qint64 largestVmlShapeId(const QByteArray &vml)
+{
+    qint64 most = 0;
+    for (const VmlShape &shape : vmlShapesOf(vml)) most = std::max(most, shape.id);
+    return most;
+}
+
+std::map<qint64, QString> vmlPictureRelationships(const QByteArray &vml, const std::set<qint64> &shapes, QSet<QString> *keptByOthers)
+{
+    std::map<qint64, QString> out;
+    if (keptByOthers) keptByOthers->clear();
+    for (const VmlShape &shape : vmlShapesOf(vml)) {
+        if (shapes.count(shape.id) && shape.id > 0) {
+            if (!shape.relId.isEmpty()) out[shape.id] = shape.relId;
+        } else if (keptByOthers && !shape.relId.isEmpty()) {
+            keptByOthers->insert(shape.relId);
+        }
+    }
+    return out;
+}
+
+bool vmlWithOleShapes(const QByteArray &vml, const OleVmlEdit &edit, QByteArray *out)
+{
+    const qsizetype rootClose = vml.lastIndexOf("</xml>");
+    if (rootClose < 0) return false;
+    const std::vector<VmlShape> shapes = vmlShapesOf(vml);
+    QByteArray result;
+    qsizetype at = 0;
+    for (const VmlShape &shape : shapes) {
+        if (shape.id <= 0 || !(edit.remove.count(shape.id) || edit.retarget.count(shape.id))) continue;
+        const QByteArray piece = vml.mid(shape.start, shape.end - shape.start);
+        if (!piece.contains("Pict")) continue;   // (only the shape of an object: a note's or a control's has the number of its own)
+        result += vml.mid(at, shape.start - at);
+        at = shape.end;
+        if (edit.remove.count(shape.id)) continue;
+        QByteArray changed = piece;
+        xmlscan::Tag t;
+        qsizetype pos = 0;
+        while (xmlscan::nextTag(piece, pos, &t)) {
+            pos = t.end;
+            if (t.closing || t.local != "imagedata") continue;
+            qsizetype from = 0, to = 0;
+            if (xmlscan::attributeValue(QByteArrayView(piece).mid(t.start, t.end - t.start), "o:relid", &from, &to))
+                changed = piece.left(t.start + from) + xmlscan::escapeAttribute(edit.retarget.at(shape.id)) + piece.mid(t.start + to);
+            break;
+        }
+        result += changed;
+    }
+    result += vml.mid(at, rootClose - at);
+    if (!edit.add.empty()) {
+        QByteArray declarations;
+        const QByteArray head = vml.left(std::min<qsizetype>(vml.size(), 2000));
+        if (!head.contains("xmlns:v=\"urn:schemas-microsoft-com:vml\"")) declarations += " xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+        if (!head.contains("xmlns:o=\"urn:schemas-microsoft-com:office:office\"")) declarations += " xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
+        if (!head.contains("xmlns:x=\"urn:schemas-microsoft-com:office:excel\"")) declarations += " xmlns:x=\"urn:schemas-microsoft-com:office:excel\"";
+        if (!vml.contains("id=\"_x0000_t75\"")) {
+            QByteArray type = kOleShapeType;
+            if (!declarations.isEmpty()) type.replace("<v:shapetype", "<v:shapetype" + declarations);
+            // (before the first shape, which names a type: nothing before it has been changed, so its place is the same; else at the end)
+            if (!shapes.empty() && shapes.front().start <= result.size()) result.insert(shapes.front().start, type);
+            else result += type;
+        }
+        for (const OleVmlAdd &a : edit.add) result += oleShapeXml(a, declarations);
+    }
+    *out = result + vml.mid(rootClose);
+    return true;
+}
+
+QByteArray emptyOleVmlDrawing()
+{
+    return "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+           "<o:shapelayout v:ext=\"edit\"><o:idmap v:ext=\"edit\" data=\"1\"/></o:shapelayout></xml>";
 }
 
 } // namespace jp::office::sheet

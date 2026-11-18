@@ -1755,7 +1755,8 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         }
     }
     // ---- embedded objects that a person put on sheets, replaced, or took out: the parts and relationships they need are planned here (the sheets' changes get the new elements and the ids), and made
-    // below. The objects of every sheet of the workbook are counted against the caps, from the sizes the package gives (nothing is inflated for it).
+    // below. The objects of the workbook are counted against the caps, from the sizes the package gives (nothing is inflated for it); only a save that adds or replaces an object needs the count, and
+    // the objects the file already has never make a save fail: those the reader would have left out are not counted, and a part many objects name is counted once.
     struct OleWrite {
         int sheet = 0;
         struct NewPart {
@@ -1764,36 +1765,78 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         };
         std::vector<NewPart> parts;
         QStringList released;   // the sheet's relationships the old objects and pictures were named by
+        // what the sheet's legacy drawing is to do for them: a shape taken out, given another picture, or put in (by its number); the picture is the part's name
+        struct Shape {
+            enum class What { Add, Retarget, Remove } what = What::Add;
+            qint64 shapeId = 0;
+            QString picturePart;
+            DrawingAnchor anchor;
+        };
+        std::vector<Shape> shapes;
     };
     std::vector<OleWrite> oleWrites;
-    if (!requested.oleObjects.empty()) {
+    bool oleEdited = false;
+    for (const auto &entry : requested.oleObjects) oleEdited = oleEdited || !entry.second.empty();
+    if (oleEdited) {
         auto tooMany = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "The embedded objects of the workbook come to more than a file can hold.")); };
         auto notSo = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "Embedded objects were put on a sheet this program can't put them on, or one that is not there.")); };
+        auto tooBigTail = [&] {
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "A sheet has more than %1 MB after its cells, which is too much to change its embedded objects.").arg(QString::number(sheetTailLimit() / 1048576.0, 'g', 3)));
+        };
         const auto relationshipFits = [&](const Relationship &r) {
             return !r.id.isEmpty() && !r.external && (r.type.endsWith(QLatin1String("/oleObject")) || r.type.endsWith(QLatin1String("/package"))) && r.target.startsWith(QLatin1String("/xl/embeddings/"), Qt::CaseInsensitive)
                    && package.hasPart(r.target);
         };
-        // what the workbook's own objects come to, but for those the edits take away or replace
-        ole::ObjectBudget budget;
-        for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+        // the sheets the edits touch: each tail is read once, here
+        std::map<int, SheetOleTail> tails;
+        bool admits = false;
+        for (const auto &[sheet, edit] : requested.oleObjects) {
+            if (edit.empty()) continue;
+            if (sheet < 0 || sheet >= book.info().sheets.size()) return notSo();
             const SheetEntry &se = book.info().sheets[sheet];
-            if (se.deleted || se.isNew || se.part.isEmpty() || se.kind != SheetKind::Worksheet) continue;
-            bool named = false;
-            for (const Relationship &r : package.relationships(se.part))
-                if (relationshipFits(r)) named = true;
-            if (!named) continue;
-            std::vector<OleChild> children;
-            if (!readSheetOleChildren(package, se.part, &children)) return notSo();
-            const auto own = requested.oleObjects.find(sheet);
-            QSet<QString> counted;
-            for (size_t i = 0; i < children.size(); ++i) {
-                if (own != requested.oleObjects.end() && (own->second.remove.count(int(i)) || own->second.replace.count(int(i)))) continue;
-                const Relationship rel = package.relationship(se.part, children[i].objectRel);
-                if (!relationshipFits(rel)) continue;
-                const Relationship image = children[i].pictureRel.isEmpty() ? Relationship() : package.relationship(se.part, children[i].pictureRel);
-                const qint64 picture = !image.id.isEmpty() && !image.external && package.hasPart(image.target) ? std::max<qint64>(package.partSize(image.target), 0) : 0;
-                if (!budget.admit(std::max<qint64>(package.partSize(rel.target), 0), counted.contains(rel.target.toLower()) ? 0 : picture)) return tooMany();
-                counted.insert(rel.target.toLower());
+            if (se.deleted || se.kind != SheetKind::Worksheet) return notSo();
+            admits = admits || !edit.add.empty() || !edit.replace.empty();
+            if (se.isNew) continue;
+            const TailRead got = readSheetOleTail(package, se.part, &tails[sheet]);
+            if (got == TailRead::TooBig) return tooBigTail();
+            if (got != TailRead::Ok || tails[sheet].children.size() >= size_t(kMaxOleChildren)) return notSo();
+        }
+        // what the workbook's own objects come to, but for those the edits take away or replace (as the reader keeps them: the ones it left out are left out here)
+        ole::ObjectBudget budget;
+        QSet<QString> counted;
+        if (admits) {
+            for (int sheet = 0; sheet < book.info().sheets.size(); ++sheet) {
+                const SheetEntry &se = book.info().sheets[sheet];
+                if (se.deleted || se.isNew || se.part.isEmpty() || se.kind != SheetKind::Worksheet) continue;
+                bool named = false;
+                for (const Relationship &r : package.relationships(se.part))
+                    if (relationshipFits(r)) named = true;
+                if (!named) continue;
+                SheetOleTail other;
+                const SheetOleTail *tail = &other;
+                if (const auto own = tails.find(sheet); own != tails.end()) {
+                    tail = &own->second;
+                } else if (readSheetOleTail(package, se.part, &other) != TailRead::Ok) {
+                    continue;   // (a sheet the edits do not touch is never a reason to fail: one this big was not read, so it holds no objects)
+                }
+                const auto edit = requested.oleObjects.find(sheet);
+                for (size_t i = 0; i < tail->children.size(); ++i) {
+                    const OleChild &c = tail->children[i];
+                    if (edit != requested.oleObjects.end() && (edit->second.remove.count(int(i)) || edit->second.replace.count(int(i)))) continue;
+                    if (!c.hasAnchor || c.progId.isEmpty()) continue;
+                    const Relationship rel = package.relationship(se.part, c.objectRel);
+                    if (!relationshipFits(rel)) continue;
+                    const qint64 size = package.partSize(rel.target);
+                    if (size < 0 || size > ole::limits().objectBytes) continue;
+                    const Relationship image = c.pictureRel.isEmpty() ? Relationship() : package.relationship(se.part, c.pictureRel);
+                    const qint64 pictureSize = !image.id.isEmpty() && !image.external && image.type.endsWith(QLatin1String("/image")) && package.hasPart(image.target) ? package.partSize(image.target) : 0;
+                    const qint64 picture = pictureSize >= 0 && pictureSize <= ole::limits().pictureBytes ? pictureSize : 0;
+                    const QString partKey = rel.target.toLower(), pictureKey = image.target.toLower();
+                    if (budget.admit(counted.contains(partKey) ? 0 : size, picture && !counted.contains(pictureKey) ? picture : 0)) {
+                        counted.insert(partKey);
+                        if (picture) counted.insert(pictureKey);
+                    }
+                }
             }
         }
         QSet<QString> taken;
@@ -1805,16 +1848,28 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         useChanges = &adjusted;
         for (const auto &[sheet, edit] : requested.oleObjects) {
             if (edit.empty()) continue;
-            if (sheet < 0 || sheet >= book.info().sheets.size()) return notSo();
             const SheetEntry &se = book.info().sheets[sheet];
-            if (se.deleted || se.kind != SheetKind::Worksheet) return notSo();
             std::vector<OleChild> children;
+            qint64 shape = 1024;
             QStringList usedIds;
+            const auto own = requested.sheets.find(sheet);
             if (!se.isNew) {
-                if (!readSheetOleChildren(package, se.part, &children) || children.size() >= size_t(kMaxOleChildren)) return notSo();
-                for (const Relationship &r : package.relationships(se.part)) usedIds << r.id;
-            } else if (const auto own = requested.sheets.find(sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty()) {
+                const SheetOleTail &tail = tails[sheet];
+                children = tail.children;
+                shape = std::max(shape, tail.largestShape);
+                for (const Relationship &r : package.relationships(se.part)) {
+                    usedIds << r.id;
+                    // (the shape numbers of every legacy drawing: the notes', the controls', the header pictures')
+                    if (r.external || !r.type.endsWith(QLatin1String("/vmlDrawing")) || package.partSize(r.target) < 0 || package.partSize(r.target) > kMaxNotesDrawingBytes) continue;
+                    shape = std::max(shape, largestVmlShapeId(package.part(r.target)));
+                }
+            } else if (own != requested.sheets.end() && !own->second.copyFromPart.isEmpty()) {
                 for (const Relationship &r : package.relationships(own->second.copyFromPart)) usedIds << r.id;   // (a copy keeps the ids its links have)
+            }
+            // (notes, controls, and header pictures put in with the same save take numbers above the file's: the objects' are above those)
+            if (own != requested.sheets.end()) {
+                shape += qint64(own->second.noteOps.size()) + qint64(own->second.controlsNow.size());
+                if (own->second.setPage) shape += kMaxHeaderPictures;
             }
             for (int index : edit.remove)
                 if (index < 0 || index >= int(children.size())) return notSo();
@@ -1826,8 +1881,6 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     || package.partSize(rel.target) < 0 || package.partSize(rel.target) > ole::limits().objectBytes || !ole::looksLikePackage(package.part(rel.target)))
                     return notSo();
             }
-            qint64 shape = 1024;
-            for (const OleChild &c : children) shape = std::max(shape, c.shapeId);
             OleWrite w;
             w.sheet = sheet;
             OleTailEdit &tail = adjusted.sheets[sheet].ole;
@@ -1843,29 +1896,35 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     }
                 }
             };
-            auto putParts = [&](const ole::EmbeddedObject &object, QString *objectRel, QString *pictureRel) {
-                if (!object.isOurs || object.previewPng.isEmpty() || object.partBytes.isEmpty() || object.partBytes.size() > ole::limits().objectBytes || !ole::looksLikePackage(object.partBytes) || !object.previewPng.startsWith("\x89PNG"))
+            // (a replaced object's picture is written only where the object has an `objectPr` to name it: else the part would be named by nothing)
+            auto putParts = [&](const ole::EmbeddedObject &object, QString *objectRel, QString *pictureRel, QString *picturePart, bool withPicture) {
+                if (!object.isOurs || (withPicture && object.previewPng.isEmpty()) || object.partBytes.isEmpty() || object.partBytes.size() > ole::limits().objectBytes || !ole::looksLikePackage(object.partBytes)
+                    || (withPicture && !object.previewPng.startsWith("\x89PNG")))
                     return false;
-                if (!budget.admit(object.partBytes.size(), object.previewPng.size())) return false;
-                oleBytes += object.partBytes.size() + object.previewPng.size();
+                const qint64 pictureBytes = withPicture ? object.previewPng.size() : 0;
+                if (!budget.admit(object.partBytes.size(), pictureBytes)) return false;
+                oleBytes += object.partBytes.size() + pictureBytes;
                 if (oleBytes > kMaxAddedBytes) return false;
                 const ole::Kind kind = object.kind();
                 OleWrite::NewPart objectPart, picture;
                 objectPart.part = freePartName(QStringLiteral("/xl/embeddings/object"), QStringLiteral(".") + ole::extensionOf(kind), taken);
                 taken.insert(objectPart.part.toLower());
-                picture.part = freePartName(QStringLiteral("/xl/media/oleimage"), QStringLiteral(".png"), taken);
-                taken.insert(picture.part.toLower());
                 objectPart.contentType = kind == ole::Kind::Sheet ? QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                                                                    : QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
                 objectPart.relType = QStringLiteral("package");
                 objectPart.bytes = object.partBytes;
-                picture.contentType = QStringLiteral("image/png");
-                picture.relType = QStringLiteral("image");
-                picture.bytes = object.previewPng;
                 *objectRel = objectPart.relId = newId();
-                *pictureRel = picture.relId = newId();
                 w.parts.push_back(std::move(objectPart));
-                w.parts.push_back(std::move(picture));
+                if (withPicture) {
+                    picture.part = freePartName(QStringLiteral("/xl/media/oleimage"), QStringLiteral(".png"), taken);
+                    taken.insert(picture.part.toLower());
+                    picture.contentType = QStringLiteral("image/png");
+                    picture.relType = QStringLiteral("image");
+                    picture.bytes = object.previewPng;
+                    *pictureRel = picture.relId = newId();
+                    *picturePart = picture.part;
+                    w.parts.push_back(std::move(picture));
+                }
                 return true;
             };
             // what the children that stay still name is not let go of
@@ -1878,20 +1937,24 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             for (int index : edit.remove) {
                 release(children[size_t(index)].objectRel);
                 release(children[size_t(index)].pictureRel);
+                if (children[size_t(index)].shapeId > 0) w.shapes.push_back({OleWrite::Shape::What::Remove, children[size_t(index)].shapeId, QString(), DrawingAnchor()});
             }
             for (const auto &[index, object] : edit.replace) {
-                QString objectRel, pictureRel;
-                if (!putParts(object, &objectRel, &pictureRel)) return tooMany();
+                QString objectRel, pictureRel, picturePart;
+                if (!putParts(object, &objectRel, &pictureRel, &picturePart, children[size_t(index)].hasObjectPr)) return tooMany();
                 tail.retarget[index] = {objectRel, pictureRel};
                 release(children[size_t(index)].objectRel);
                 release(children[size_t(index)].pictureRel);
+                if (children[size_t(index)].shapeId > 0 && !picturePart.isEmpty()) w.shapes.push_back({OleWrite::Shape::What::Retarget, children[size_t(index)].shapeId, picturePart, DrawingAnchor()});
             }
             for (const OleObjectEdit::Add &add : edit.add) {
                 OleTailEdit::Add a;
-                if (!putParts(add.object, &a.objectRel, &a.pictureRel)) return tooMany();
+                QString picturePart;
+                if (!putParts(add.object, &a.objectRel, &a.pictureRel, &picturePart, true)) return tooMany();
                 a.progId = add.object.progId;
                 a.shapeId = ++shape;
                 a.anchor = add.anchor;
+                w.shapes.push_back({OleWrite::Shape::What::Add, a.shapeId, picturePart, add.anchor});
                 tail.add.push_back(std::move(a));
             }
             oleWrites.push_back(std::move(w));
@@ -2120,6 +2183,100 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     usedLinkIds[sheet].insert(id);
                 }
             }
+        }
+    }
+    // ---- the legacy drawing's shapes for the embedded objects: the drawing is the sheet's notes' (or controls') when it has one, else one is made for it; the shape of an object taken out or
+    // changed is found by its number, and a picture's relationship from the drawing is let go of when no other shape names it
+    struct OleVmlWrite {
+        int sheet = 0;
+        QString vmlPart;
+        bool newVml = false;       // the drawing is made here (the notes' or controls' made in this save is one too: it is in `newEntries`)
+        bool madeAlready = false;  // it is made by the notes or the controls of this save
+        QString vmlRel;            // the relationship of the sheet to it, when this block makes the drawing
+        OleVmlEdit edit;
+        std::vector<std::pair<QString, QString>> newRels;   // the relationships of the drawing to the pictures: (the id, the picture's part)
+    };
+    std::vector<OleVmlWrite> oleVmlWrites;
+    std::vector<std::pair<QString, QStringList>> oleVmlReleased;   // the drawing's relationships to pictures that are let go of
+    {
+        QSet<QString> taken;
+        bool takenFilled = false;
+        for (const OleWrite &w : oleWrites) {
+            if (w.shapes.empty()) continue;
+            const SheetEntry &se = book.info().sheets[w.sheet];
+            OleVmlWrite v;
+            v.sheet = w.sheet;
+            for (const NoteWrite &n : noteWrites)
+                if (n.sheet == w.sheet) {
+                    v.vmlPart = n.vmlPart;
+                    v.newVml = v.madeAlready = n.newVml;
+                }
+            if (v.vmlPart.isEmpty())
+                for (const ControlWrite &c : controlWrites)
+                    if (c.sheet == w.sheet) {
+                        v.vmlPart = c.vmlPart;
+                        v.newVml = v.madeAlready = c.newVml || c.inNewNotes;
+                    }
+            if (v.vmlPart.isEmpty() && !se.isNew) v.vmlPart = notesDrawingPart(package, se.part);
+            bool hasShapeToChange = false;
+            for (const OleWrite::Shape &s : w.shapes) hasShapeToChange = hasShapeToChange || s.what == OleWrite::Shape::What::Add;
+            QByteArray was;
+            if (!v.newVml && !v.vmlPart.isEmpty() && package.hasPart(v.vmlPart) && package.partSize(v.vmlPart) <= kMaxNotesDrawingBytes) was = package.part(v.vmlPart);
+            if (v.vmlPart.isEmpty()) {
+                // (nothing to take out of a drawing that is not there)
+                if (!hasShapeToChange) continue;
+                if (!takenFilled) {
+                    for (const QString &n : package.partNames()) taken.insert(n.toLower());
+                    for (const SheetEntry &e : book.info().sheets)
+                        if (!e.part.isEmpty()) taken.insert(e.part.toLower());
+                    for (const HeaderWrite &h : headerWrites)
+                        if (!h.vmlPart.isEmpty()) taken.insert(h.vmlPart.toLower());
+                    for (const OleVmlWrite &o : oleVmlWrites) taken.insert(o.vmlPart.toLower());
+                    takenFilled = true;
+                }
+                v.newVml = true;
+                v.vmlPart = freePartName(QStringLiteral("/xl/drawings/vmlDrawing"), QStringLiteral(".vml"), taken);
+                taken.insert(v.vmlPart.toLower());
+                RelationshipIds used;
+                if (!se.isNew) {
+                    for (const Relationship &r : package.relationships(se.part)) used << r.id;
+                } else if (const auto own = requested.sheets.find(w.sheet); own != requested.sheets.end() && !own->second.copyFromPart.isEmpty()) {
+                    for (const Relationship &r : package.relationships(own->second.copyFromPart)) used << r.id;
+                }
+                if (const auto d = newDrawingRel.find(w.sheet); d != newDrawingRel.end()) used << d->second;
+                for (const HeaderWrite &h : headerWrites)
+                    if (h.sheet == w.sheet && !h.relId.isEmpty()) used << h.relId;
+                if (const auto lr = newLinkRels.find(w.sheet); lr != newLinkRels.end())
+                    for (const LinkRel &l : lr->second) used << l.id;
+                for (const OleWrite::NewPart &p : w.parts) used << p.relId;
+                v.vmlRel = used.takeFree();
+                adjusted.sheets[w.sheet].legacyRelId = v.vmlRel;
+            }
+            // the relationships the drawing has now, which the ones made for new pictures do not take
+            RelationshipIds relIds;
+            if (!v.newVml)
+                for (const Relationship &r : package.relationships(v.vmlPart)) relIds << r.id;
+            std::set<qint64> gone;
+            for (const OleWrite::Shape &s : w.shapes)
+                if (s.what != OleWrite::Shape::What::Add) gone.insert(s.shapeId);
+            if (!gone.empty() && !was.isEmpty()) {
+                QSet<QString> kept;
+                QStringList letGo;
+                for (const auto &[shape, id] : vmlPictureRelationships(was, gone, &kept))
+                    if (!kept.contains(id) && !letGo.contains(id)) letGo << id;
+                if (!letGo.isEmpty()) oleVmlReleased.emplace_back(v.vmlPart, letGo);
+            }
+            for (const OleWrite::Shape &s : w.shapes) {
+                if (s.what == OleWrite::Shape::What::Remove) {
+                    v.edit.remove.insert(s.shapeId);
+                    continue;
+                }
+                const QString id = relIds.takeFree();
+                v.newRels.emplace_back(id, s.picturePart);
+                if (s.what == OleWrite::Shape::What::Retarget) v.edit.retarget[s.shapeId] = id;
+                else v.edit.add.push_back({s.shapeId, id, s.anchor});
+            }
+            oleVmlWrites.push_back(std::move(v));
         }
     }
     // ---- tables made or taken out: the sheet gets the links to their parts (and loses those of the parts taken out), planned here by the sheet's place
@@ -2421,6 +2578,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     // (the objects taken out or replaced, and their pictures, and what only they related to)
     for (const OleWrite &w : oleWrites)
         if (!w.released.isEmpty()) released.emplace_back(book.info().sheets[w.sheet].part, w.released);
+    for (const auto &letGo : oleVmlReleased) released.push_back(letGo);
     if (!released.empty()) {
         QHash<QString, QVector<QPair<QString, QString>>> into;   // by the part a relationship goes to (lower case): (the part it is from, its id), both lower case
         auto addRelationships = [&](const QString &source) {
@@ -3405,6 +3563,86 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                 else newEntries.emplace_back(entryName(relationshipsPartOf(se.part)), data);
             } else {
                 replaced.insert(relsEntryFor(se.part), data);
+            }
+        }
+        replaced.insert(typesEntry, types);
+    }
+    // ---- the shapes of the embedded objects in the legacy drawings (after the notes and controls, which may have made or changed the drawing), the drawings' relationships to the pictures, and a
+    // drawing made for a sheet that had none, with its type and the sheet's link to it
+    if (!oleVmlWrites.empty()) {
+        int typesEntry = -1;
+        for (int i = 0; i < directory.size(); ++i)
+            if (plain(directory[i].name) == QLatin1String("[content_types].xml")) {
+                typesEntry = i;
+                break;
+            }
+        QByteArray types;
+        if (typesEntry < 0 || !(replaced.contains(typesEntry) ? (types = replaced.value(typesEntry), true) : inflate(typesEntry, &types)))
+            return fail(QCoreApplication::translate("jp::office::sheet::Save", "The file's list of part types is not in it."));
+        auto entryName = [](const QString &part) { return part.startsWith(QLatin1Char('/')) ? part.mid(1) : part; };
+        auto relsEntryFor = [&](const QString &part) {
+            const QString name = package.entryName(part);
+            if (name.isEmpty()) return -1;
+            const int slash = name.lastIndexOf(QLatin1Char('/'));
+            return entryAt.value(plain((slash < 0 ? QString() : name.left(slash + 1)) + QStringLiteral("_rels/") + (slash < 0 ? name : name.mid(slash + 1)) + QStringLiteral(".rels")), -1);
+        };
+        auto bad = [&] { return fail(QCoreApplication::translate("jp::office::sheet::Save", "A drawing of the file that holds shapes of objects is not in the form this program changes.")); };
+        for (const OleVmlWrite &v : oleVmlWrites) {
+            const SheetEntry &se = book.info().sheets[v.sheet];
+            QByteArray xml, now;
+            int vmlIndex = -1;
+            QByteArray *inNew = nullptr;
+            if (v.newVml && !v.madeAlready) {
+                xml = emptyOleVmlDrawing();
+            } else if (v.madeAlready) {
+                for (auto &e : newEntries)
+                    if (e.first == entryName(v.vmlPart)) inNew = &e.second;
+                if (!inNew) return bad();
+                xml = *inNew;
+            } else {
+                vmlIndex = partBytes(v.vmlPart, &xml);
+                if (vmlIndex < 0) return bad();
+            }
+            if (!vmlWithOleShapes(xml, v.edit, &now)) return bad();
+            if (inNew) {
+                *inNew = now;
+            } else if (v.newVml) {
+                newEntries.emplace_back(entryName(v.vmlPart), now);
+                QByteArray t2;
+                if (!addContentOverride(types, v.vmlPart, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), &t2)) return bad();
+                types = t2;
+                const QString target = relativeTarget(se.part, v.vmlPart);
+                if (se.isNew) {
+                    newSheetRels[v.sheet] += relationshipXml(v.vmlRel, QStringLiteral("vmlDrawing"), target);
+                } else {
+                    const int sheetRelsEntry = relsEntryFor(se.part);
+                    QByteArray sheetRels, r2;
+                    if (sheetRelsEntry >= 0 && !(replaced.contains(sheetRelsEntry) ? (sheetRels = replaced.value(sheetRelsEntry), true) : inflate(sheetRelsEntry, &sheetRels))) return bad();
+                    const auto made = madeRelsOf(se.part);
+                    if (sheetRelsEntry < 0 && made.second) sheetRels = *made.second;
+                    if (!addRelationship(sheetRels, v.vmlRel, QStringLiteral("vmlDrawing"), target, &r2)) return bad();
+                    if (sheetRelsEntry >= 0) replaced.insert(sheetRelsEntry, r2);
+                    else if (made.second) *made.second = r2;
+                    else newEntries.emplace_back(made.first, r2);
+                }
+            } else if (now != xml) {
+                replaced.insert(vmlIndex, now);
+            }
+            // the drawing's relationships to the pictures
+            for (const auto &[id, picture] : v.newRels) {
+                const QString target = relativeTarget(v.vmlPart, picture);
+                const QString relsName = entryName(relationshipsPartOf(v.vmlPart));
+                QByteArray *made = nullptr;
+                for (auto &e : newEntries)
+                    if (e.first == relsName) made = &e.second;
+                const int relsEntry = v.newVml ? -1 : relsEntryFor(v.vmlPart);
+                QByteArray rels, r2;
+                if (relsEntry >= 0 && !(replaced.contains(relsEntry) ? (rels = replaced.value(relsEntry), true) : inflate(relsEntry, &rels))) return bad();
+                if (relsEntry < 0 && made) rels = *made;
+                if (!addRelationship(rels, id, QStringLiteral("image"), target, &r2)) return bad();
+                if (relsEntry >= 0) replaced.insert(relsEntry, r2);
+                else if (made) *made = r2;
+                else newEntries.emplace_back(relsName, r2);
             }
         }
         replaced.insert(typesEntry, types);
