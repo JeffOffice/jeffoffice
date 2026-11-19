@@ -47466,12 +47466,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
-        <location line="+68"/>
+        <location line="+75"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-56"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">O documento não pode ser alterado.</translation>
     </message>
@@ -47486,7 +47486,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">%1 é substituída no documento.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+39"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Este documento usa fontes que não estão neste computador</translation>
     </message>

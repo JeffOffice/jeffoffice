@@ -47497,12 +47497,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location line="+68"/>
+        <location line="+75"/>
         <source>Close</source>
         <translation type="unfinished">Закрити</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-56"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">Документ не можна змінити.</translation>
     </message>
@@ -47517,7 +47517,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">%1 замінюється в документі.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+39"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Цей документ використовує шрифти, яких немає на цьому комп&apos;ютері</translation>
     </message>

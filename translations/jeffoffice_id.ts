@@ -47435,12 +47435,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+1"/>
-        <location line="+68"/>
+        <location line="+75"/>
         <source>Close</source>
         <translation type="unfinished">Tutup</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-56"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">Dokumen tidak dapat diubah.</translation>
     </message>
@@ -47455,7 +47455,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">%1 diganti dalam dokumen.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+39"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Dokumen ini menggunakan font yang tidak ada di komputer ini</translation>
     </message>
