@@ -31012,7 +31012,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Texto Artístico</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+73"/>
+        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+74"/>
         <source>Read Aloud stops after 20,000 cells</source>
         <translation type="unfinished">Leitura em Voz Alta para após 20 000 células</translation>
     </message>

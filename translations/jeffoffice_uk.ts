@@ -31035,7 +31035,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Відкрийте друге вікно, щоб переглядати дві книги поруч.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+73"/>
+        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+74"/>
         <source>Read Aloud stops after 20,000 cells</source>
         <translation type="unfinished">Читання вголос зупиняється після 20 000 комірок</translation>
     </message>
