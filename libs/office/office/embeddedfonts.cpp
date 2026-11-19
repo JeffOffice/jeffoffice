@@ -12,6 +12,7 @@
 #include <QMutex>
 #include <QMutexLocker>
 #include <QSet>
+#include <algorithm>
 
 namespace jp::office {
 
@@ -29,6 +30,7 @@ struct Carried {
 };
 
 QMutex g_mutex;
+qint64 s_mostHeld = 0;
 QHash<const void *, Carried> g_documents;
 QHash<QByteArray, Added> g_added;
 
@@ -69,16 +71,29 @@ QHash<QString, QString> EmbeddedFonts::use(const void *doc, QVector<EmbeddedFace
             bool computerHasIt = have.contains(key);
             for (int i : members) computerHasIt = computerHasIt || have.contains(faces[i].info.family.toLower()) || have.contains(faces[i].info.typographicFamily.toLower());
             // The private name: one for the family (so its faces are styles of one), made from the fonts themselves (so the same fonts in two
-            // presentations are one font to the database).
-            QByteArray all;
+            // presentations are one font to the database). Only the first face of each style counts, so a family a file lists many times is held
+            // as at most four fonts; the faces are hashed one by one, never joined.
+            QVector<int> chosen;
+            bool haveSlot[4] = {false, false, false, false};
             for (int slot = 0; slot < 4; ++slot)
                 for (int i : members)
-                    if (int(faces[i].slot) == slot) all += faces[i].font;
-            if (computerHasIt || !qGuiApp || all.isEmpty()) continue;
+                    if (int(faces[i].slot) == slot && !faces[i].font.isEmpty() && !haveSlot[slot]) {
+                        haveSlot[slot] = true;
+                        chosen << i;
+                    }
+            QCryptographicHash all(QCryptographicHash::Sha1);
+            qint64 held = 0;
+            for (int i : std::as_const(chosen)) {
+                all.addData(faces[i].font);
+                held += faces[i].font.size();
+            }
+            s_mostHeld = std::max(s_mostHeld, held);
+            if (computerHasIt || !qGuiApp || chosen.isEmpty()) continue;
             const QString original = faces[members.first()].info.family.isEmpty() ? faces[members.first()].typeface : faces[members.first()].info.family;
-            const QString privateFamily = QString(kEmbeddedFamilyPrefix) + QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha1).toHex().left(8)) + QLatin1Char('-') + original;
+            // (A family name is kept short: the font's name table takes at most 120 characters, and the hash makes the name its own.)
+            const QString privateFamily = QString(kEmbeddedFamilyPrefix) + QString::fromLatin1(all.result().toHex().left(8)) + QLatin1Char('-') + original.left(60);
             bool any = false;
-            for (int i : members) {
+            for (int i : std::as_const(chosen)) {
                 const QByteArray renamed = faces[i].font.isEmpty() ? QByteArray() : fontWithFamilyName(faces[i].font, privateFamily);
                 if (renamed.isEmpty()) continue;
                 const QByteArray hash = QCryptographicHash::hash(renamed, QCryptographicHash::Sha1);
@@ -131,6 +146,14 @@ QVector<EmbeddedFace> EmbeddedFonts::facesOf(const void *doc)
 {
     QMutexLocker lock(&g_mutex);
     return g_documents.value(doc).faces;
+}
+
+qint64 EmbeddedFonts::mostBytesHeldForTest()
+{
+    QMutexLocker lock(&g_mutex);
+    const qint64 n = s_mostHeld;
+    s_mostHeld = 0;
+    return n;
 }
 
 int EmbeddedFonts::addedFontCount()

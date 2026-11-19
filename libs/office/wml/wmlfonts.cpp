@@ -4,15 +4,17 @@
 #include "wml/wml.h"
 
 #include "office/embeddedfonts.h"
-#include "office/eot.h"
 #include "wml/xmltree.h"
 
 #include <QCoreApplication>
 #include <QHash>
+#include <atomic>
 
 namespace jp::office::wml {
 
 namespace {
+
+std::atomic<qint64> s_lookups{0};
 
 // The 16 bytes of a font key ("{0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0}" or the same without the braces and hyphens), the last digits first. Empty if it isn't one.
 QByteArray fontKeyBytes(const QString &text)
@@ -32,6 +34,8 @@ QByteArray fontKeyBytes(const QString &text)
 }
 
 } // namespace
+
+qint64 embeddedFontLookupsForTest() { return s_lookups.exchange(0); }
 
 QByteArray unscrambledFont(const QByteArray &part, const QString &fontKey)
 {
@@ -61,7 +65,12 @@ QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes)
     if (!table) return faces;
     XmlTree tree;
     if (!tree.parse(table->data, nullptr)) return faces;
-    const QVector<Relationship> rels = doc.partRelationships.value(table->name);
+    // The links by Id, made once (an Id that is listed twice has its last link).
+    QHash<QString, QString> linkById;
+    for (const Relationship &r : doc.partRelationships.value(table->name)) {
+        ++s_lookups;
+        if (!r.external) linkById.insert(r.id, r.target);
+    }
     static const char *const kSlots[4] = {"embedRegular", "embedBold", "embedItalic", "embedBoldItalic"};
     qint64 total = 0;
     int unusable = 0, entries = 0;
@@ -74,11 +83,9 @@ QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes)
         for (int slot = 0; slot < 4; ++slot) {
             const int embed = tree.child(c, kSlots[slot]);
             if (embed < 0) continue;
-            const QString id = tree.attr(embed, "id", NsR);
-            const Relationship *link = nullptr;
-            for (const Relationship &r : rels)
-                if (r.id == id && !r.external) link = &r;
-            const auto at = link ? partAt.constFind(link->target.toLower()) : partAt.constEnd();
+            ++s_lookups;
+            const auto link = linkById.constFind(tree.attr(embed, "id", NsR));
+            const auto at = link != linkById.constEnd() ? partAt.constFind(link.value().toLower()) : partAt.constEnd();
             if (at == partAt.constEnd()) continue;
             if (faces.size() >= kMaxEmbeddedFonts) {
                 tooMany = true;
@@ -92,17 +99,26 @@ QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes)
             total += part.data.size();
             EmbeddedFace face;
             QString why;
-            const QByteArray plain = unscrambledFont(part.data, tree.attr(embed, "fontKey"));
+            auto reject = [&](const QString &reason) {
+                ++unusable;
+                if (firstReason.isEmpty()) firstReason = reason;
+            };
+            if (part.data.isEmpty()) {
+                reject(QCoreApplication::translate("jp::office::wml", "the part that holds it is empty."));
+                continue;
+            }
+            QByteArray plain = unscrambledFont(part.data, tree.attr(embed, "fontKey"));
             if (plain.isEmpty()) {
-                ++unusable;
-                if (firstReason.isEmpty()) firstReason = QCoreApplication::translate("jp::office::wml", "the key that unscrambles it is not valid.");
+                reject(QCoreApplication::translate("jp::office::wml", "the key that unscrambles it is not valid."));
                 continue;
             }
-            if (!readEmbeddedFont(plain, &face.font, &face.info, &why)) {
-                ++unusable;
-                if (firstReason.isEmpty()) firstReason = why;
+            // A part of this kind is a TrueType or OpenType file as it is (not a wrapped or compressed font, which can come out far larger than it is stored): what is kept is
+            // the unscrambled file itself, so the bytes counted above are the bytes held.
+            if (!inspectFont(plain, &face.info, &why)) {
+                reject(why);
                 continue;
             }
+            face.font = std::move(plain);
             face.typeface = typeface;
             face.slot = FontSlot(slot);
             face.pitchFamily = face.info.pitchFamily();

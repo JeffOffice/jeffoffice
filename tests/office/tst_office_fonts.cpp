@@ -1444,6 +1444,83 @@ private Q_SLOTS:
         QVERIFY(jp::office::wml::unscrambledFont(lato, QStringLiteral("{not a key}")).isEmpty());
     }
 
+    // Known answer, written out by hand: the key {00112233-4455-6677-8899-AABBCCDDEEFF} is the bytes FF EE DD ... 00 (the digits from the last), and only the first 32
+    // bytes of the part change; a part shorter than that is changed as far as it goes, and an empty one stays empty.
+    void aDocxFontKeyUnscramblesAKnownPart()
+    {
+        QByteArray part;
+        for (int i = 0; i < 40; ++i) part.append(char(i));
+        const QByteArray expected = QByteArray::fromHex("ffefdfcfbfaf9f8f7f6f5f4f3f2f1f0fefffcfdfafbf8f9f6f7f4f5f2f3f0f1f2021222324252627");
+        QCOMPARE(jp::office::wml::unscrambledFont(part, QStringLiteral("{00112233-4455-6677-8899-AABBCCDDEEFF}")), expected);
+        QCOMPARE(jp::office::wml::unscrambledFont(part, QStringLiteral("00112233445566778899aabbccddeeff")), expected);
+        QCOMPARE(jp::office::wml::unscrambledFont(part.left(3), QStringLiteral("{00112233-4455-6677-8899-AABBCCDDEEFF}")), QByteArray::fromHex("ffefdf"));
+        QVERIFY(jp::office::wml::unscrambledFont(QByteArray(), QStringLiteral("{00112233-4455-6677-8899-AABBCCDDEEFF}")).isEmpty());
+        // Short and empty parts in a file are skipped (the empty one says so in its own words).
+        QStringList notes;
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Tiny"), QStringLiteral("Regular"), part.left(10), kTestKey}, {QStringLiteral("Nothing"), QStringLiteral("Regular"), QByteArray(), kTestKey}}), &notes).size(), 0);
+        QVERIFY2(notes.size() == 1 && notes[0].startsWith(QStringLiteral("2 embedded fonts in the file can't be used")), qPrintable(notes.join(QLatin1Char('|'))));
+        notes.clear();
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Nothing"), QStringLiteral("Regular"), QByteArray(), kTestKey}}), &notes).size(), 0);
+        QCOMPARE(notes, QStringList{QStringLiteral("An embedded font in the file can't be used: the part that holds it is empty.")});
+    }
+
+    // A part is a font file as it is: one in a wrapper that can decode larger than it is stored (an EOT) is refused, so the bytes counted are the bytes kept.
+    void aDocxPartThatIsAWrappedFontIsRefused()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray wrapped = jp::office::makeEot(lato);
+        QVERIFY(!wrapped.isEmpty());
+        QStringList notes;
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Regular"), wrapped, kTestKey}}), &notes).size(), 0);
+        QCOMPARE(notes.size(), 1);
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Regular"), lato, kTestKey}})).size(), 1);
+    }
+
+    // One family listed 64 times is held as one font, not joined 64 times over (use() holds at most the first face of each style).
+    void oneFamilyListedManyTimesIsHeldOnce()
+    {
+        const QByteArray font = jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato")), QStringLiteral("Zobster"));
+        QVector<DocxFace> many;
+        for (int i = 0; i < jp::kMaxEmbeddedFonts; ++i) many << DocxFace{QStringLiteral("Zobster"), QStringLiteral("Regular"), font, kTestKey};
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts(many));
+        QCOMPARE(int(faces.size()), jp::kMaxEmbeddedFonts);
+        const int before = jp::office::EmbeddedFonts::addedFontCount();
+        jp::office::EmbeddedFonts::mostBytesHeldForTest();
+        int owner = 0;
+        jp::office::EmbeddedFonts::use(&owner, faces);
+        QCOMPARE(jp::office::EmbeddedFonts::mostBytesHeldForTest(), qint64(font.size()));
+        QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before + 1);
+        jp::office::EmbeddedFonts::release(&owner);
+    }
+
+    // A font table with thousands of entries and links costs work in step with their number (the links are looked up by Id, not searched for each entry).
+    void aBigFontTableIsReadInLinearWork()
+    {
+        QVector<DocxFace> many;
+        const int n = 3000;
+        for (int i = 0; i < n; ++i) many << DocxFace{QStringLiteral("F%1").arg(i), QStringLiteral("Regular"), QByteArray(40, 'x'), kTestKey};
+        const auto doc = docWithFonts(many);
+        jp::office::wml::embeddedFontLookupsForTest();
+        jp::office::wml::readEmbeddedFonts(doc);
+        QVERIFY(jp::office::wml::embeddedFontLookupsForTest() <= 2 * n + 10);
+    }
+
+    // A family name of 110 characters is still used (the private name is made short), not dropped.
+    void aLongFamilyNameIsStillUsed()
+    {
+        const QString name(110, QLatin1Char('Q'));
+        const QByteArray font = jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato")), name);
+        QVERIFY(!font.isEmpty());
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts({{name, QStringLiteral("Regular"), font, kTestKey}}));
+        QCOMPARE(faces.size(), 1);
+        int owner = 0;
+        const auto aliases = jp::office::EmbeddedFonts::use(&owner, faces);
+        QVERIFY(aliases.contains(name.toLower()));
+        QVERIFY(QFontDatabase::families().contains(aliases.value(name.toLower())));
+        QVERIFY(aliases.value(name.toLower()).size() <= 120);
+        jp::office::EmbeddedFonts::release(&owner);
+    }
+
     // A font whose license forbids embedding keeps its face (the file is written back as it was) but has no font to draw with.
     void aRestrictedDocxFontIsNotUsed()
     {

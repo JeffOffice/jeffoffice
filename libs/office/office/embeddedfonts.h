@@ -59,6 +59,8 @@ public:
     static QVector<EmbeddedFace> facesOf(const void *owner);
     // How many fonts are added to the font database now.
     static int addedFontCount();
+    // For a test: the most bytes of fonts use() held to name one family since the last call (it is reset by the call).
+    static qint64 mostBytesHeldForTest();
 };
 
 } // namespace jp::office

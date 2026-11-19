@@ -802,6 +802,8 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error = nullptr, Re
 QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes = nullptr);
 // A font part's bytes with the first 32 unscrambled by the font key (a GUID, with or without its braces and hyphens); empty if the key is not one.
 QByteArray unscrambledFont(const QByteArray &part, const QString &fontKey);
+// For a test: how many relationship and link lookups readEmbeddedFonts has made since the last call (reset by the call).
+qint64 embeddedFontLookupsForTest();
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);
 // A new document: Letter paper with one-inch margins, the styles of a new document (Normal, Heading 1 to 3, Title, ...), and a theme.

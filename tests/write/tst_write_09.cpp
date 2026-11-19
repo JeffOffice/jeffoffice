@@ -4,6 +4,7 @@
 #include "core/sfnt.h"
 #include "office/embeddedfonts.h"
 #include <QFontDatabase>
+#include <QScopeGuard>
 #include <QUuid>
 
 namespace {
@@ -2153,6 +2154,7 @@ void WriteTests::aDocxFontIsTheDocumentsOwnAndNeverInstalled()
     QVERIFY(scratch.isValid());
     const QString was = QDir::currentPath();
     QDir::setCurrent(scratch.path());
+    const QScopeGuard back([&] { QDir::setCurrent(was); });   // (even when a check below fails)
     const int before = office::EmbeddedFonts::addedFontCount();
     const QByteArray lobster = bundledFontData(QStringLiteral("Lobster"));
     {
@@ -2176,7 +2178,6 @@ void WriteTests::aDocxFontIsTheDocumentsOwnAndNeverInstalled()
         QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + 1);
     }
     QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
-    QDir::setCurrent(was);
     QVERIFY(QDir(scratch.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
 }
 
@@ -2219,4 +2220,23 @@ void WriteTests::theMissingFontsBarLeavesOutAFontTheFileCarries()
     QVERIFY(!host.carried(QStringLiteral("Qobster")));
     w.setDocument(open(docxCarrying(QStringLiteral("Zobster"), {})), QString());   // (the same text, the file carries nothing)
     QVERIFY(!w.missingFontsHost().carried(QStringLiteral("Zobster")));
+}
+
+// A file that does not open (its text is not a document) registers none of the fonts it carries.
+void WriteTests::aDocxThatFailsToOpenLeavesNoFontsRegistered()
+{
+    const QByteArray font = jp::fontWithFamilyName(bundledFontData(QStringLiteral("Lobster")), QStringLiteral("Zobster"));
+    QByteArray bytes = docxCarrying(QStringLiteral("Zobster"), {{QStringLiteral("Zobster"), font}});
+    office::Package p;
+    QVERIFY(p.read(bytes));
+    office::PackageWriter w;
+    for (const QString &name : p.partNames()) w.addPart(name, name == QLatin1String("/word/document.xml") ? QByteArray("<not a document/>") : p.part(name), p.contentType(name));
+    for (const office::Relationship &r : p.relationships(QStringLiteral("/"))) w.addRelationship(QStringLiteral("/"), r.type, r.target);
+    for (const office::Relationship &r : p.relationships(QStringLiteral("/word/document.xml"))) w.addRelationshipWithId(QStringLiteral("/word/document.xml"), r.id, r.type, r.target);
+    for (const office::Relationship &r : p.relationships(QStringLiteral("/word/fontTable.xml"))) w.addRelationshipWithId(QStringLiteral("/word/fontTable.xml"), r.id, r.type, r.target);
+    const int before = office::EmbeddedFonts::addedFontCount();
+    QString err;
+    QVERIFY(!WriteDoc::fromDocx(w.finish(), &err));
+    QVERIFY(!err.isEmpty());
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
 }

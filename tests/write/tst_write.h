@@ -1432,6 +1432,7 @@ private Q_SLOTS:
     void aDocxFontIsTheDocumentsOwnAndNeverInstalled();
     void aHostileDocxFontListIsBoundedAndTheDocumentStillOpens();
     void theMissingFontsBarLeavesOutAFontTheFileCarries();
+    void aDocxThatFailsToOpenLeavesNoFontsRegistered();
     void aSavedDocumentRoundTripsItsOwnParagraphFormatting();
     void kerningComesFromTheFilesKernSetting();
     void hostileKernValuesAreReadWithoutHarm();
