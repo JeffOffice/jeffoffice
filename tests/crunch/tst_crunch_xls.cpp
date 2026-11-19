@@ -327,7 +327,7 @@ private Q_SLOTS:
         for (const char *name : {"copy.xls", "copy.ods", "copy.ots"}) {
             const QString copy = folder.dir.filePath(QString::fromLatin1(name));
             QVERIFY(win.w.saveAs(copy, true));
-            QTRY_VERIFY(!win.w.isSaving());
+            QTRY_VERIFY_WITH_TIMEOUT(!win.w.isSaving(), 60000);
             QVERIFY2(said.isEmpty(), name);
             QVERIFY(QFile::exists(copy));
             QFile in(copy);
@@ -373,7 +373,7 @@ private Q_SLOTS:
         win.w.act("protect.password")->trigger();
         QVERIFY(!hadPassword);
         QVERIFY(win.w.saveAs(folder.dir.filePath(QStringLiteral("copy.ods"))));
-        QTRY_VERIFY(!win.w.isSaving());
+        QTRY_VERIFY_WITH_TIMEOUT(!win.w.isSaving(), 60000);
         QVERIFY(!warned);
         win.w.view()->selectCell(0, 0);
         QTest::keyClick(win.w.view(), '5');

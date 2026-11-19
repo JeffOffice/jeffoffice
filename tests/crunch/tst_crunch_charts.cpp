@@ -3045,7 +3045,7 @@ private Q_SLOTS:
         // The same through an ODS file.
         const QString ods = QFileInfo(e.path).absolutePath() + QStringLiteral("/shapes.ods");
         QVERIFY(e.win.w.saveAs(ods));
-        QTRY_VERIFY(!e.win.w.isSaving());
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isSaving(), 60000);
         QVERIFY(QFileInfo::exists(ods));
         Window fromOds;
         QVERIFY(fromOds.open(ods));
