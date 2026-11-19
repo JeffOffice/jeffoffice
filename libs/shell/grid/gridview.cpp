@@ -119,6 +119,7 @@ void GridView::setViewState(const ViewState &v)
     L.setScroll(v.scrollX, v.scrollY);
     // (clamped to the sheet it is now: a sheet read whole may have fewer rows than the one the state was made for, never more than a sheet can have)
     m_selection = v.selection;
+    m_extra.clear();   // (the other ranges were of the sheet that was shown: a view state keeps one)
     m_selection.activeRow = std::min(m_selection.activeRow, L.rows.count() - 1);
     m_selection.activeCol = std::min(m_selection.activeCol, L.cols.count() - 1);
     m_selection.headRow = std::min(m_selection.headRow, L.rows.count() - 1);
@@ -159,6 +160,7 @@ void GridView::setData(const GridData &data, bool keepView)
     Navigator nav(&m_sheet.layout(), m_nav.get());
     const jp::office::sheet::SheetView v = data.sheet ? data.sheet->view : jp::office::sheet::SheetView();
     m_selection = nav.click(qint64(v.activeRow), qint64(v.activeCol));
+    m_extra.clear();   // (the ranges were of the sheet that was shown)
     widenForFormulas();
     layoutChanged();
     Q_EMIT zoomChanged(zoom());
@@ -691,7 +693,10 @@ void GridView::setSelectionInternal(const Selection &s, bool keepActiveInView)
     const bool hadExtra = !m_extra.empty();
     if (!m_adding) m_extra.clear();   // (a selection that is not one more range is the only one)
     if (hadExtra && m_extra.empty()) viewport()->update();   // (the ranges that were tinted are drawn as they were)
-    if (s == old) return;
+    if (s == old) {
+        if (hadExtra && m_extra.empty()) Q_EMIT selectionChanged();   // (the cell is the same, the selection is not: it was several ranges)
+        return;
+    }
     m_selection = s;
     if (keepActiveInView) showActive();
     // draw again what the old selection covered, what the new one covers, and the headers
@@ -1052,6 +1057,8 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     if (!m_sheet.followEdit(edit)) return false;
     m_jump.reset();
     m_statsWalk.reset();
+    const bool hadExtra = !m_extra.empty();
+    m_extra.clear();   // (the other ranges of a selection of several are where they were, not where the lines now are: the selection is the one range)
     if (cols) {
         // the widths the shown formulas gave are kept by column number: they move with their columns, and go with the ones taken away
         const auto moved = [&](qint64 column, qint64 *to) {
@@ -1123,7 +1130,7 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     QRect dirty;
     const QSize vp = viewport()->size();
     // (columns: a text that spills over empty cells to the left, right-aligned or centered, can change in cells left of the first column changed, so the whole window is drawn)
-    const bool wholeWindow = !rows || mirrored() || m_breakView || L.merges.count() > 0 || m_sheet.hasConditionalFormats() || m_sheet.hasTableSkins() || m_copyBorder.row1 >= 0 || !m_marks.empty();
+    const bool wholeWindow = hadExtra || !rows || mirrored() || m_breakView || L.merges.count() > 0 || m_sheet.hasConditionalFormats() || m_sheet.hasTableSkins() || m_copyBorder.row1 >= 0 || !m_marks.empty();
     if (wholeWindow) {
         dirty = QRect(QPoint(0, 0), vp);
     } else {
@@ -1146,7 +1153,7 @@ bool GridView::followEdit(const jp::office::sheet::StructEdit &edit)
     m_lastEditBand = dirty;
     if (!dirty.isEmpty()) viewport()->update(dirty);
     Q_EMIT viewChanged();
-    if (!(m_selection == was)) Q_EMIT selectionChanged();
+    if (hadExtra || !(m_selection == was)) Q_EMIT selectionChanged();
     startStats();
     return true;
 }
@@ -1354,6 +1361,11 @@ void GridView::dragTo(const QPoint &pos)
 
 void GridView::mousePressEvent(QMouseEvent *e)
 {
+    if (m_endMode) {
+        // (a click ends End mode, as any other key does)
+        m_endMode = false;
+        Q_EMIT endModeChanged(false);
+    }
     if (e->button() == Qt::LeftButton && m_pointGuard && m_cellsEnabled && !m_breakView) {
         const Hit pointed = m_sheet.layout().hit(mirror(e->pos()));
         if (pointed.kind == Hit::Kind::Cell && m_pointGuard(pointed.row, pointed.col)) return;
@@ -1417,7 +1429,12 @@ void GridView::mousePressEvent(QMouseEvent *e)
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;
     if (e->button() == Qt::RightButton) {
         // a right click inside the selection keeps it; outside, it selects what is under it
-        if (h.kind == Hit::Kind::Cell && !m_selection.range.contains(h.row, h.col)) setSelectionInternal(nav.click(h.row, h.col));
+        const auto inAnyRange = [&] {
+            for (const GridRange &r : allRanges())
+                if (r.contains(h.row, h.col)) return true;
+            return false;
+        };
+        if (h.kind == Hit::Kind::Cell && !inAnyRange()) setSelectionInternal(nav.click(h.row, h.col));
         else if (h.kind == Hit::Kind::RowHeader && !(m_selection.whole == Selection::Whole::Rows && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2)) setSelectionInternal(nav.selectRows(h.row, h.row));
         else if (h.kind == Hit::Kind::ColumnHeader && !(m_selection.whole == Selection::Whole::Columns && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2)) setSelectionInternal(nav.selectColumns(h.col, h.col));
         Q_EMIT contextMenuRequested(e->globalPosition().toPoint());
@@ -1986,7 +2003,9 @@ void GridView::keyPressEvent(QKeyEvent *e)
             // (in data, the first press selects the block around the cursor, and the next the whole sheet)
             bool found = false;
             const Selection region = nav.currentRegion(m_selection, &found);
-            if (found && !(region.range == m_selection.range) && m_selection.whole == Selection::Whole::None) go(region);
+            const GridRange &have = m_selection.range, &block = region.range;
+            const bool inside = have.row1 >= block.row1 && have.row2 <= block.row2 && have.col1 >= block.col1 && have.col2 <= block.col2;   // (a selection already past the block goes to the sheet: it does not shrink)
+            if (found && inside && !(block == have) && m_selection.whole == Selection::Whole::None && m_extra.empty()) go(region);
             else go(nav.selectAll(m_selection));
         }
         else if (!typed()) QAbstractScrollArea::keyPressEvent(e);

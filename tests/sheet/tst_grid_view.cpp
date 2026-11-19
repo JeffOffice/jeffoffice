@@ -588,6 +588,71 @@ private Q_SLOTS:
         QCOMPARE(L.cols.size(2), plain);
     }
 
+    // A right click on a cell of any selected range keeps all the ranges; one outside them selects what is under it. A click ends End mode; Ctrl+A with a selection past the block of data is the sheet.
+    void aRightClickOnAnEarlierRangeKeepsTheRangesAndAClickEndsEndMode()
+    {
+        Book b;
+        for (quint32 r = 0; r < 3; ++r)
+            for (quint32 c = 0; c < 2; ++c) b.number(r, c, 1);
+        b.show(QSize(900, 400));
+        b.view->selectRanges({GridRange{0, 0, 1, 1}, GridRange{6, 4, 7, 5}});
+        QSignalSpy menu(b.view.get(), &GridView::contextMenuRequested);
+        QTest::mouseClick(b.view->viewport(), Qt::RightButton, Qt::NoModifier, b.centerOf(0, 1));
+        QCOMPARE(int(b.view->allRanges().size()), 2);
+        QCOMPARE(menu.count(), 1);
+        QTest::mouseClick(b.view->viewport(), Qt::RightButton, Qt::NoModifier, b.centerOf(10, 8));
+        QCOMPARE(int(b.view->allRanges().size()), 1);
+        // End mode ends with a click
+        QSignalSpy mode(b.view.get(), &GridView::endModeChanged);
+        QTest::keyClick(b.view.get(), Qt::Key_End);
+        QVERIFY(b.view->endMode());
+        QTest::mouseClick(b.view->viewport(), Qt::LeftButton, Qt::NoModifier, b.centerOf(1, 1));
+        QVERIFY(!b.view->endMode());
+        QCOMPARE(mode.count(), 2);
+        QVERIFY(!mode.last().at(0).toBool());
+        // Ctrl+A: the block of data first when the selection is inside it, the sheet when it is past it
+        b.view->selectRange(0, 0, 0, 0);
+        QTest::keyClick(b.view.get(), Qt::Key_A, Qt::ControlModifier);
+        QCOMPARE(b.view->rangeName(), QStringLiteral("A1:B3"));
+        b.view->selectRange(0, 0, 8, 8);
+        QTest::keyClick(b.view.get(), Qt::Key_A, Qt::ControlModifier);
+        QVERIFY(b.view->selection().whole == Selection::Whole::All);
+    }
+
+    // Several ranges belong to the sheet and the lines they were selected on: a view state put back, or a row put in and Undo taking it out, leaves the one range, and the selection says it changed.
+    void severalRangesAreOneAfterAViewStateOrAStructureEdit()
+    {
+        Book b;
+        for (quint32 r = 0; r < 12; ++r) b.number(r, 0, r);
+        b.show(QSize(900, 400));
+        auto two = [&] { b.view->selectRanges({GridRange{0, 0, 1, 1}, GridRange{4, 2, 5, 3}}); };
+        two();
+        QVERIFY(b.view->hasSeveralRanges());
+        b.view->setViewState(b.view->viewState());
+        QVERIFY(!b.view->hasSeveralRanges());
+        QCOMPARE(int(b.view->allRanges().size()), 1);
+        two();
+        jp::office::sheet::StructEdit e;
+        e.kind = jp::office::sheet::StructEdit::Kind::InsertRows;
+        e.sheet = 0;
+        e.first = 0;
+        e.count = 1;
+        QSignalSpy changed(b.view.get(), &GridView::selectionChanged);
+        QVERIFY(b.view->followEdit(e));
+        QVERIFY(!b.view->hasSeveralRanges());
+        QVERIFY(changed.count() >= 1);
+        two();
+        QVERIFY(b.view->followEdit(e.inverse()));   // (the Undo of it)
+        QVERIFY(!b.view->hasSeveralRanges());
+        QCOMPARE(int(b.view->allRanges().size()), 1);
+        // a selection that is the same cell as before but is not several ranges any more says so
+        two();
+        changed.clear();
+        b.view->selectRange(4, 2, 5, 3);
+        QVERIFY(!b.view->hasSeveralRanges());
+        QVERIFY(changed.count() >= 1);
+    }
+
     // Zoom (Ctrl and the wheel, or asked for) changes the size of the cells and says so; the cell with the cursor is kept in view.
     void zoomChangesTheCellsAndSaysSo()
     {
