@@ -212,7 +212,7 @@ jobs:
     # only that environment of this repository (the managed identity's federated credential), so no other job can sign.
     environment: ${{ (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && 'signing' || '' }}
     # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
-    name: build (${{ matrix.name }}, ${{ matrix.part }}${{ (matrix.name != 'linux' && !(vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format(', {0}/2', matrix.shard) || '' }})
+    name: build (${{ matrix.name }}, ${{ matrix.part }}${{ (matrix.name != 'linux' && !(vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && !(matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format(', {0}/2', matrix.shard) || '' }})
     env:
       # JeffWrite and JeffCrunch are built and tested on every run. Each goes into the installer, the Linux packages, and the Mac disk image only
       # when its switch is "true": the owner decides when it ships.
@@ -226,7 +226,7 @@ jobs:
       # (Until November 19, 2026, this read "linux and '' or k/2", which is k/2 for Linux too, an empty text being false: the Linux jobs ran only the first
       # half of each part, and there is no second Linux job. The local gate ran every program on Linux before each push, so nothing went untested, but
       # these jobs did not run what they said. The Windows test job on our own machine runs its whole part in one job as well.)
-      SHARD: ${{ !(matrix.name == 'linux' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format('{0}/2', matrix.shard) || '' }}
+      SHARD: ${{ !(matrix.name == 'linux' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format('{0}/2', matrix.shard) || '' }}
       # Our own machines keep the compiler cache in a folder of their own, kept from run to run; GitHub's machines keep it in GitHub's cache.
       CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
@@ -243,7 +243,9 @@ jobs:
         shard: [1, 2]
         # (no second half for Linux, nor for the Windows tests while they run on our own Windows machine: sixteen processors build once and run the whole
         # part in one job, its biggest programs in parts side by side, where two jobs built the same libraries twice, 17 to 18 minutes each)
-        exclude: ${{ fromJSON((vars.JO_WINDOWS_SELF == '1' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2}]' || '[{"name":"linux","shard":2}]') }}
+        # (nor for our own Mac: its one machine ran four jobs one after another, each with its own checkout, copy of Qt, and build, about 19 minutes in all
+        # and the longest part of a run on November 19, 2026; a part is one job there now. A pull request and a release's run keep the halves.)
+        exclude: ${{ fromJSON(!(github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && '[{"name":"linux","shard":2}]' || vars.JO_WINDOWS_SELF == '1' && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2},{"name":"macos","shard":2}]' || '[{"name":"linux","shard":2},{"name":"macos","shard":2}]') }}
         include:
           - name: linux
             os: ubuntu-24.04
