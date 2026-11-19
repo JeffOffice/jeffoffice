@@ -1184,7 +1184,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "f0a1667219519022cc51711fbf114163afa72d2300261d376bbebb5a9e7ea643"
+         "text": "9db480cbd18cdfea3ad2fc9103b349e19764bda55493d22c8026f86655f05a10"
         },
         {
          "status": "todo",
@@ -2312,7 +2312,7 @@
      "items": []
     }
    ],
-   "version": "0.43.0"
+   "version": "0.43.1"
   },
   "jeffdeck": {
    "name": "JeffDeck",
@@ -3363,7 +3363,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "3628b0d180d47785663c8b7dfefe75f864ded835f5b80711f232228e5502dca7"
+       "text": "3b9531d3894b44d8f76b6de3603841d5a05ef4d6fb59400b14bd48f8e03519f2"
       },
       {
        "status": "partly",
@@ -4244,7 +4244,7 @@
      "items": []
     }
    ],
-   "version": "0.43.0"
+   "version": "0.43.1"
   },
   "jeffpub": {
    "name": "JeffPub",
@@ -4873,7 +4873,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "6f33476e8b045af2aa69a7dcc3de9f77bfe430c4831e6492e7252b96e0550306"
+       "text": "aa877da910a99dd2d7ba5df90018f0b8f1c48a8b8fe2159989c5852118b97a8e"
       },
       {
        "status": "partly",
@@ -5631,7 +5631,7 @@
      "items": []
     }
    ],
-   "version": "0.43.0"
+   "version": "0.43.1"
   },
   "jeffwrite": {
    "name": "JeffWrite",
@@ -5987,7 +5987,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "5649039a6aefdd14c77480be2b19658382b9837671f58f79b57565684bff355c"
+         "text": "ee03d4aef424a0131fc06871e049946a9411aa63a72d4db9acdb407e4fd96b29"
         },
         {
          "hide_soon": true,
@@ -7509,7 +7509,7 @@
      "items": []
     }
    ],
-   "version": "0.43.0"
+   "version": "0.43.1"
   }
  },
  "model": "claude-sonnet-5-5",
@@ -11786,18 +11786,6 @@
     "fr": ""
    }
   },
-  "3628b0d180d47785663c8b7dfefe75f864ded835f5b80711f232228e5502dca7": {
-   "drop": false,
-   "en": "A bar appears when a presentation uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and the slides it is on. You can choose your own stand-in for display and PDF, or use Replace in Document.",
-   "es": "Aparece una barra cuando una presentación usa fuentes que este equipo no tiene. Un cuadro de diálogo enumera cada fuente ausente, con su sustituta y las diapositivas donde aparece. Usted puede elegir su propia sustitución para la pantalla y el PDF, o usar Reemplazar en el documento.",
-   "fr": "Une barre apparaît lorsqu’une présentation utilise des polices absentes de cet ordinateur. Une boîte de dialogue répertorie chaque police manquante, avec la police de remplacement et les diapositives où elle figure. Vous pouvez choisir votre propre police de remplacement pour l’affichage et le PDF, ou utiliser Remplacer dans le document.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "36bd39d8edfac9dc7473fa7be1270807ebe787033cfac82f5019725a250ccbdc": {
    "drop": false,
    "en": "Diagram Design and Format",
@@ -12180,6 +12168,18 @@
     "en": "Formulas and some freeform shapes in `.odt` files",
     "es": "Fórmulas y algunas formas libres en archivos `.odt`",
     "fr": "Formules et certaines formes libres dans les fichiers `.odt`"
+   }
+  },
+  "3b9531d3894b44d8f76b6de3603841d5a05ef4d6fb59400b14bd48f8e03519f2": {
+   "drop": false,
+   "en": "A bar appears when a presentation uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and the slides it is on, lets you choose your own stand-in for display and PDF, and offers Replace in Document for all slides, masters, and notes pages.",
+   "es": "Aparece una barra cuando una presentación usa fuentes que este equipo no tiene. Un cuadro de diálogo muestra cada fuente que falta, con la fuente que la sustituye y las diapositivas en que aparece, le permite elegir su propia sustitución para la pantalla y el PDF, y ofrece Reemplazar en el documento para todas las diapositivas, patrones y páginas de notas.",
+   "fr": "Une barre apparaît lorsqu’une présentation utilise des polices absentes de cet ordinateur. Une boîte de dialogue indique chaque police manquante avec sa police de remplacement et les diapositives où elle figure, vous permet de choisir votre propre police de remplacement pour l’affichage et le PDF, et propose Remplacer dans le document pour toutes les diapositives, masques et pages de notes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "3ba3cb60d581888eb1c93b1e94f10d0cc7c58beeccfcc064112098376fbec76b": {
@@ -14239,18 +14239,6 @@
    "en": "Paste text through the Text Import dialog, splitting it into columns by the separators, quote, first row, and column kinds chosen, or by fixed-width cuts, in one step of Undo. Set Default Paste to make Paste and `Ctrl+V` use the last choice of the Paste arrow.",
    "es": "Pegue texto mediante el cuadro de importación de texto y divídalo en columnas según los separadores, las comillas, la primera fila y los tipos de columna elegidos, o por cortes de ancho fijo, en un solo paso de deshacer. Con Establecer pegado predeterminado, Pegar y `Ctrl+V` usan la última opción de la flecha de Pegar.",
    "fr": "Collez du texte via la boîte d’importation de texte et fractionnez-le en colonnes selon les séparateurs, les guillemets, la première ligne et les types de colonne choisis, ou par coupures de largeur fixe, en une seule étape d’annulation. Avec Définir le collage par défaut, Coller et `Ctrl+V` utilisent le dernier choix de la flèche Coller.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "5649039a6aefdd14c77480be2b19658382b9837671f58f79b57565684bff355c": {
-   "drop": false,
-   "en": "When a document uses fonts this computer lacks, a bar appears with a Details button. The dialog lists each missing font, what is drawn in its place, and where it is used. Choose another stand-in for each font, or use Replace in Document.",
-   "es": "Cuando un documento usa fuentes que este equipo no tiene, aparece una barra con un botón Detalles. El cuadro de diálogo enumera cada fuente ausente, la que se dibuja en su lugar y dónde se usa. Elija otra sustitución para cada fuente o use Reemplazar en el documento.",
-   "fr": "Lorsqu’un document utilise des polices absentes de cet ordinateur, une barre apparaît avec un bouton Détails. La boîte de dialogue répertorie chaque police manquante, la police affichée à sa place et son emplacement d’utilisation. Choisissez une autre police de remplacement pour chaque police, ou utilisez Remplacer dans le document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16327,18 +16315,6 @@
    "en": "Merge cells, split cells, and divide a cell with a diagonal; each half holds its own text, which wraps inside its triangle.",
    "es": "Combine celdas, divida celdas y divida una celda con una diagonal; cada mitad contiene su propio texto, que se ajusta dentro de su triángulo.",
    "fr": "Fusionnez des cellules, fractionnez des cellules et divisez une cellule par une diagonale ; chaque moitié contient son propre texte, qui est renvoyé à la ligne dans son triangle.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "6f33476e8b045af2aa69a7dcc3de9f77bfe430c4831e6492e7252b96e0550306": {
-   "drop": false,
-   "en": "A bar appears when a publication uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and where it is used. You can choose your own stand-in for display and PDF, or use Replace in Document.",
-   "es": "Aparece una barra cuando una publicación usa fuentes que este equipo no tiene. Un cuadro de diálogo enumera cada fuente ausente, con la fuente que la sustituye y dónde se usa. Usted puede elegir su propia sustitución para la pantalla y el PDF, o usar Reemplazar en el documento.",
-   "fr": "Une barre apparaît lorsqu’une publication utilise des polices absentes de cet ordinateur. Une boîte de dialogue répertorie chaque police manquante, avec la police de remplacement et son emplacement d’utilisation. Vous pouvez choisir votre propre police de remplacement pour l’affichage et le PDF, ou utiliser Remplacer dans le document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19346,6 +19322,18 @@
     "fr": "Liste de l’historique d’annulation et Répéter"
    }
   },
+  "9db480cbd18cdfea3ad2fc9103b349e19764bda55493d22c8026f86655f05a10": {
+   "drop": false,
+   "en": "A bar appears when a workbook uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and the sheets it is on, lets you choose your own stand-in for display and PDF, and offers Replace in Document.",
+   "es": "Aparece una barra cuando un libro usa fuentes que este equipo no tiene. Un cuadro de diálogo muestra cada fuente que falta, con la fuente que la sustituye y las hojas en que aparece, le permite elegir su propia sustitución para la pantalla y el PDF, y ofrece Reemplazar en el documento.",
+   "fr": "Une barre apparaît lorsqu’un classeur utilise des polices absentes de cet ordinateur. Une boîte de dialogue indique chaque police manquante avec sa police de remplacement et les feuilles où elle figure, vous permet de choisir votre propre police de remplacement pour l’affichage et le PDF, et propose Remplacer dans le document.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9dd0cf55a4bd758a8186aa457d295585f4c0961919fa2469b3064a88b6d39b80": {
    "drop": false,
    "en": "Apply bold, italic, underline, strikethrough, and double strikethrough. The Font box offers several underline styles, each with its own color.",
@@ -20155,6 +20143,18 @@
    "en": "Built-in Help that works offline: a Help pane with 51 topics in plain language, a contents page, links between topics, Back and Forward, and a search that finds topics and commands and runs the commands. Press `F1` to open the topic for what you are doing: the ribbon tab, task pane, File page, dialog, or selected object.",
    "es": "Ayuda integrada que funciona sin conexión: un panel de ayuda con 51 temas en lenguaje sencillo, una página de contenido, vínculos entre temas, Atrás y Adelante, y una búsqueda que encuentra temas y comandos y ejecuta los comandos. Pulse `F1` para abrir el tema correspondiente a lo que está haciendo: la pestaña de la cinta de opciones, el panel de tareas, la página Archivo, el cuadro de diálogo o el objeto seleccionado.",
    "fr": "Aide intégrée qui fonctionne hors ligne : un volet d’aide de 51 sujets en langage clair, une page de sommaire, des liens entre sujets, Précédent et Suivant, et une recherche qui trouve des sujets et des commandes et exécute les commandes. Appuyez sur `F1` pour ouvrir le sujet correspondant à ce que vous faites : l’onglet du ruban, le volet de tâches, la page Fichier, la boîte de dialogue ou l’objet sélectionné.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "aa877da910a99dd2d7ba5df90018f0b8f1c48a8b8fe2159989c5852118b97a8e": {
+   "drop": false,
+   "en": "A bar appears when a document uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and where it is used, lets you choose your own stand-in for display and PDF, and offers Replace in Document.",
+   "es": "Aparece una barra cuando un documento usa fuentes que este equipo no tiene. Un cuadro de diálogo muestra cada fuente que falta, con la fuente que la sustituye y dónde se usa, le permite elegir su propia sustitución para la pantalla y el PDF, y ofrece Reemplazar en el documento.",
+   "fr": "Une barre apparaît lorsqu’un document utilise des polices absentes de cet ordinateur. Une boîte de dialogue indique chaque police manquante avec sa police de remplacement et son emplacement d’utilisation, vous permet de choisir votre propre police de remplacement pour l’affichage et le PDF, et propose Remplacer dans le document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24902,6 +24902,18 @@
     "fr": ""
    }
   },
+  "ee03d4aef424a0131fc06871e049946a9411aa63a72d4db9acdb407e4fd96b29": {
+   "drop": false,
+   "en": "A bar appears when a document uses fonts this computer lacks. The Details dialog lists each missing font, what is drawn in its place, and where it is used. Choose another stand-in for each font, shown on screen and written to PDF, or use Replace in Document to change the file in one step that can be undone.",
+   "es": "Aparece una barra cuando un documento usa fuentes que este equipo no tiene. El cuadro Detalles muestra cada fuente que falta, con lo que se dibuja en su lugar y dónde se usa. Puede elegir otra sustitución para cada fuente, que se muestra en pantalla y se escribe en el PDF, o usar Reemplazar en el documento para cambiar el archivo en un solo paso que se puede deshacer.",
+   "fr": "Une barre apparaît lorsqu’un document utilise des polices absentes de cet ordinateur. La boîte de dialogue Détails indique chaque police manquante, ce qui est affiché à sa place et où elle est utilisée. Vous pouvez choisir une autre police de remplacement pour chaque police, affichée à l’écran et écrite dans le PDF, ou utiliser Remplacer dans le document pour modifier le fichier en une seule étape annulable.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ee2e69b5520ffce94415f9d22e7824399f635b3e549ede61540007f3e3483ed0": {
    "drop": false,
    "en": "Apply a picture style from a gallery of 26, set a border with color, weight, and dashes, and add shadow, reflection, glow, soft edges, bevel, and 3-D rotation effects. Styles are saved in `.docx` and `.odt` files.",
@@ -25075,18 +25087,6 @@
    "en": "Print crop marks, bleed marks, registration marks, density bars, color bars, and job information, and allow bleeds.",
    "es": "Imprima marcas de corte, marcas de sangrado, marcas de registro, barras de densidad, barras de color e información del trabajo, y permita sangrados.",
    "fr": "Imprimez des traits de coupe, des repères de fond perdu, des repères de registre, des barres de densité, des barres de couleur et les informations du travail, et autorisez les fonds perdus.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "f0a1667219519022cc51711fbf114163afa72d2300261d376bbebb5a9e7ea643": {
-   "drop": false,
-   "en": "A bar appears when a workbook uses fonts this computer lacks. A dialog lists each missing font with what stands in for it and the sheets it is on. You can choose your own stand-in for display and PDF, or use Replace in Document.",
-   "es": "Aparece una barra cuando un libro usa fuentes que este equipo no tiene. Un cuadro de diálogo enumera cada fuente ausente, con su sustituta y las hojas donde aparece. Usted puede elegir su propia sustitución para la pantalla y el PDF, o usar Reemplazar en el documento.",
-   "fr": "Une barre apparaît lorsqu’un classeur utilise des polices absentes de cet ordinateur. Une boîte de dialogue répertorie chaque police manquante, avec la police de remplacement et les feuilles où elle figure. Vous pouvez choisir votre propre police de remplacement pour l’affichage et le PDF, ou utiliser Remplacer dans le document.",
    "soon": {
     "drop": true,
     "en": "",
