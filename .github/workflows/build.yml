@@ -9,6 +9,11 @@ on:
       - 'tools/features/**'
       - '.github/workflows/features.yml'
   pull_request:
+  # Four times a day main is built and tested whole if it has changed since the last such run: a push of a commit that a branch's run already passed
+  # is not built again (the "passed" job below), so these runs are what keeps GitHub's compiler caches of main fresh for the next branch, and they say
+  # so when a test on main fails only some of the time.
+  schedule:
+    - cron: '23 1,7,13,19 * * *'
   # By hand, to build and test a branch before it goes to main:
   # gh workflow run build.yml --ref <branch> -f mac_both=false
   workflow_dispatch:
@@ -19,11 +24,48 @@ on:
         default: true
 
 jobs:
+  # A commit is built and tested whole once. A landing runs this workflow by hand on a ci/ branch at the very commit it then pushes to main; until
+  # November 19, 2026, the push built and tested that commit a second time on every system, 25 minutes or more that the next landing waited for. This job
+  # looks for a run that ended in success at this commit (for a push: one started by hand; for a timed run: an earlier timed one) and, when there is one,
+  # the jobs below are skipped and the run ends green in a minute. Anything else (a pull request, a run started by hand, a commit no run has passed, a
+  # failed look-up) builds and tests as before.
+  passed:
+    name: already passed?
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.find.outputs.run }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "${{ github.event_name }}" in
+            push) kind=workflow_dispatch ;;
+            schedule) kind=schedule ;;
+            *) kind="" ;;
+          esac
+          run=""
+          if [ -n "$kind" ]; then
+            run=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${{ github.sha }}&event=$kind&status=success&per_page=20" \
+                    --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }})][0].id // empty' 2>/dev/null || true)
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          if [ -n "$run" ]; then
+            echo "::notice::Run $run built and tested this commit whole: it is not built again."
+          else
+            echo "No whole run of this commit yet: building and testing."
+          fi
+
   # JeffDeck plays movies and sounds through Qt Multimedia's FFmpeg plugin. Qt ships the full FFmpeg (hundreds of demuxers and decoders, each one a way
   # in for a file from a stranger); ours has only what a presentation holds, built from the official source by tools/build_ffmpeg.sh. Built once for each
   # system (both processors on the Mac) and kept in GitHub's cache, under a key made of the FFmpeg version and the hash of the script; the build jobs
   # below take it from this job (an artifact of the run) and put it in their copy of Qt (tools/use_ffmpeg.sh). Windows builds it with MSYS2's MinGW-w64, the Mac with Xcode's compiler.
   ffmpeg:
+    needs: passed
+    if: needs.passed.outputs.run == ''
     name: ffmpeg (${{ matrix.name }})
     strategy:
       fail-fast: false
@@ -158,7 +200,8 @@ jobs:
           if-no-files-found: error
 
   build:
-    needs: ffmpeg
+    needs: [passed, ffmpeg]
+    if: needs.passed.outputs.run == ''
     # (actions: write, to delete this job's older compiler caches once it has saved a new one)
     # (id-token: write, for the Windows job that signs: it signs in to Azure with a token GitHub gives it, no password; see "Sign the programs (Windows)")
     permissions:
@@ -1146,12 +1189,14 @@ jobs:
   # the same. Its own job so that only this one gets a token that can write.
   # A wiki with no first page yet is skipped with a notice, not an error.
   wiki:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: build
+    # (after this run's own build, or, when the commit had already passed and nothing was built here, with the Help pages of the run that passed it)
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && (needs.build.result == 'success' || (needs.passed.result == 'success' && needs.passed.outputs.run != '')) }}
+    needs: [passed, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
       contents: write
+      actions: read
     concurrency: wiki
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -1164,6 +1209,8 @@ jobs:
         with:
           name: help-wiki
           path: help-wiki
+          run-id: ${{ needs.passed.outputs.run || github.run_id }}
+          github-token: ${{ github.token }}
 
       - name: Publish Help to the wiki
         run: bash tools/publish_help_wiki.sh help-wiki "https://github.com/${{ github.repository }}.wiki.git" "${GITHUB_SHA::7}"
