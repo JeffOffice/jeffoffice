@@ -206,9 +206,9 @@ jobs:
           if-no-files-found: error
 
   build:
-    # (not "needs: ffmpeg": this job starts beside the ffmpeg job and waits for its files only when it gets to them, a minute in on GitHub's machines,
-    # where waiting for that job to end first cost every build job a minute; "Our FFmpeg, when it is there" below)
-    needs: passed
+    # (The ffmpeg job first, though it costs each build job about a minute: on November 19, 2026, the build jobs were started beside it, to wait for its
+    # files only when they got to them, and on our one Mac a build job took the machine and waited for an ffmpeg job that could not start until it let go.)
+    needs: [passed, ffmpeg]
     if: needs.passed.outputs.run == ''
     # (actions: write, to delete this job's older compiler caches once it has saved a new one)
     # (id-token: write, for the Windows job that signs: it signs in to Azure with a token GitHub gives it, no password; see "Sign the programs (Windows)")
@@ -464,23 +464,6 @@ jobs:
 
       # JeffDeck's FFmpeg is ours (the ffmpeg job above), not the full one Qt ships. It goes into this job's copy of Qt before anything is built, so that the tests
       # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. It comes from this run's ffmpeg job; a missing one fails here.
-      - name: Our FFmpeg, when it is there
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          want="ffmpeg-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}"
-          both=${{ (runner.os == 'macOS' && contains(env.MAC_ARCHS, ';')) && 'true' || 'false' }}
-          url="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
-          for i in $(seq 1 150); do
-            names=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$url/artifacts?per_page=100" 2>/dev/null | grep -o '"name": *"[^"]*"' || true)
-            if echo "$names" | grep -q "\"$want\"" && { [ "$both" != true ] || echo "$names" | grep -q '"ffmpeg-x86_64"'; }; then echo "$want is there after $(( (i - 1) * 4 )) s"; exit 0; fi
-            # (the job that makes it failed or was cancelled: no use waiting)
-            if curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$url/jobs?per_page=100" 2>/dev/null | tr -d '\n' | grep -qE '"conclusion": *"(failure|cancelled)"[^{}]*"name": *"ffmpeg \('; then echo "an ffmpeg job of this run failed"; exit 1; fi
-            sleep 4
-          done
-          echo "our FFmpeg ($want) did not arrive in 10 minutes"; exit 1
-
       - name: Our FFmpeg (from the ffmpeg job)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
