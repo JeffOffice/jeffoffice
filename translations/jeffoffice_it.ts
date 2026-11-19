@@ -1775,7 +1775,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="+1011"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="+470"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+471"/>
         <source>Series%1</source>
         <translation type="unfinished">Serie%1</translation>
     </message>
@@ -20690,7 +20690,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+70"/>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+321"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+322"/>
         <source>This chart has no series.</source>
         <translation type="unfinished">Questo grafico non ha serie.</translation>
     </message>
@@ -22472,13 +22472,13 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+307"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+310"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
         <location line="-132"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+176"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+179"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
@@ -22557,7 +22557,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+338"/>
         <location line="+55"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+121"/>
         <location line="+222"/>
         <location line="+74"/>
         <location line="+169"/>
@@ -22571,7 +22571,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+901"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+348"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+296"/>
         <location line="+22"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="+90"/>
         <source>Ready</source>
@@ -23927,7 +23927,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+3"/>
         <location line="+509"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+145"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+148"/>
         <source>Borders</source>
         <translation type="unfinished">Bordi</translation>
     </message>
@@ -24175,7 +24175,7 @@ Origine: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+28"/>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+193"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatico</translation>
     </message>
@@ -25616,7 +25616,7 @@ Origine: %3</translation>
         <location line="+294"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-107"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+120"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+123"/>
         <source>Formulas</source>
         <translation type="unfinished">Formule</translation>
     </message>
@@ -62143,7 +62143,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">%1 I thread rimanenti non sono stati incollati.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editlinks.cpp" line="+324"/>
+        <location filename="../apps/crunch/core/editlinks.cpp" line="+325"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-306"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
@@ -68227,7 +68227,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+294"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+295"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>

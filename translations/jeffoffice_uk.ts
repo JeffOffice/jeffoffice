@@ -1776,7 +1776,7 @@ Back page story	4</source>
         <location filename="../libs/office/office/chart.cpp" line="+756"/>
         <location filename="../libs/office/sheet/chartdata.cpp" line="+440"/>
         <location filename="../libs/office/sheet/chartedit.cpp" line="+1011"/>
-        <location filename="../libs/office/sheet/chartmake.cpp" line="+470"/>
+        <location filename="../libs/office/sheet/chartmake.cpp" line="+471"/>
         <source>Series%1</source>
         <translation type="unfinished">Ряд%1</translation>
     </message>
@@ -20700,7 +20700,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+70"/>
-        <location filename="../libs/office/sheet/chartops.cpp" line="+321"/>
+        <location filename="../libs/office/sheet/chartops.cpp" line="+322"/>
         <source>This chart has no series.</source>
         <translation type="unfinished">Ця діаграма не має рядів.</translation>
     </message>
@@ -22482,8 +22482,8 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+175"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+176"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+178"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+179"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
@@ -22589,7 +22589,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+338"/>
         <location line="+55"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+118"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+121"/>
         <location line="+222"/>
         <location line="+74"/>
         <location line="+169"/>
@@ -22603,7 +22603,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+901"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+348"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+157"/>
-        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+293"/>
+        <location filename="../apps/crunch/app/crunchwindow_sort.cpp" line="+296"/>
         <location line="+22"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="+90"/>
         <source>Ready</source>
@@ -23291,7 +23291,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+898"/>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+193"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
         <source>Automatic</source>
         <translation type="unfinished">Автоматично</translation>
     </message>
@@ -24402,7 +24402,7 @@ Source: %3</source>
         <location line="+294"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+53"/>
-        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+120"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+123"/>
         <source>Formulas</source>
         <translation type="unfinished">Формули</translation>
     </message>
@@ -25209,7 +25209,7 @@ The file that was there is as it was.</source>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-862"/>
         <location line="+509"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+145"/>
+        <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+148"/>
         <source>Borders</source>
         <translation type="unfinished">Рамки</translation>
     </message>
@@ -62168,7 +62168,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Об&apos;єднання комірок</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editlinks.cpp" line="+272"/>
+        <location filename="../apps/crunch/core/editlinks.cpp" line="+273"/>
         <location line="+27"/>
         <source>That link is not in this workbook.</source>
         <translation type="unfinished">Цього зв&apos;язку немає в цій книзі.</translation>
@@ -68268,7 +68268,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+294"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+295"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">У книзі немає аркушів.</translation>
     </message>
