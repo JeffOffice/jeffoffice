@@ -1947,8 +1947,9 @@
          "text": "ce87f7d46bb46313798d6cd2209572b02fc8edd9c44478a3710573769d3f8c21"
         },
         {
-         "status": "partly",
-         "text": "27784d2a45abe2cd7b45158813a1f5ef51d5f37c09892ec23c1e00b9a6c146d0"
+         "hide_soon": true,
+         "status": "done",
+         "text": "fc2b387e520e46cd912268b7cfe13df59c3fad1b1f7230c446d078c26c96d582"
         },
         {
          "hide_soon": true,
@@ -1988,8 +1989,9 @@
          "text": "7f1012f070c33c94fc8ac070d48d2899f833fc709d48e8df3c49982a9823ed52"
         },
         {
-         "status": "partly",
-         "text": "eeb1e5f15d848cf0b2802e4f24e1c52f6f8cd9da6c7399b6339d91ffc477988d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ae1c0b13d04b415df75751c79af0aeb3377ed034a4392727191ad76ecc536c53"
         },
         {
          "hide_soon": true,
@@ -2008,7 +2010,7 @@
         },
         {
          "status": "partly",
-         "text": "bf39edab9209d8ec64561bc34821d292aaf6a4ec92300d1819724a4debb9d879"
+         "text": "c83cf9316c02b2690c8f8b7fc99b972565bd318e3bf06cf68a7aadc5c49e7ef4"
         },
         {
          "status": "partly",
@@ -2038,7 +2040,7 @@
         },
         {
          "status": "partly",
-         "text": "89df4a8370d365e1854fac8ea4309c0c9f14b59c654a9ef3086430c28cb62128"
+         "text": "750e87e1faceebef8a740515825bb9ec99566a2401ce865b3b60ea7e3103acde"
         },
         {
          "status": "partly",
@@ -10742,18 +10744,6 @@
     "fr": "Nouvelle feuille de calcul vierge"
    }
   },
-  "27784d2a45abe2cd7b45158813a1f5ef51d5f37c09892ec23c1e00b9a6c146d0": {
-   "drop": false,
-   "en": "Array formulas are read, calculated, kept, and cut or moved as a whole.",
-   "es": "Las fórmulas matriciales se leen, se calculan, se conservan y se cortan o se mueven como una unidad.",
-   "fr": "Les formules matricielles sont lues, calculées, conservées, et coupées ou déplacées en un seul bloc.",
-   "soon": {
-    "drop": false,
-    "en": "Array formulas: enter with `Ctrl+Shift+Enter`",
-    "es": "Fórmulas matriciales: introducción con `Ctrl+Shift+Enter`",
-    "fr": "Formules matricielles : saisie avec `Ctrl+Shift+Enter`"
-   }
-  },
   "278da4e0c4e33dc6957fe51071c7224c35bfd62829abf8adf1d520fe71f6da02": {
    "drop": false,
    "en": "An Equation tab appears while an equation is selected, with Edit Equation, Professional and Linear, Normal Text, the typing format (simple line, UnicodeMath, or LaTeX), five symbol menus, and eleven structures. Fractions, scripts, roots, integrals, large operators, brackets, functions, accents, limits, and matrices can be inserted from a button or from the equation box. Any equation can be changed in the box in UnicodeMath or LaTeX.",
@@ -16670,6 +16660,18 @@
     "fr": ""
    }
   },
+  "750e87e1faceebef8a740515825bb9ec99566a2401ce865b3b60ea7e3103acde": {
+   "drop": false,
+   "en": "The status bar shows Ready, Calculating, Edit, Enter, and Point, the average, count, and sum of the selection, the filter count (for example \"3 of 8 records found\"), and a zoom slider.",
+   "es": "La barra de estado muestra Listo, Calculando, Editar, Introducir y Señalar, el promedio, el recuento y la suma de la selección, el recuento del filtro (por ejemplo, «3 de 8 registros encontrados») y un control deslizante de zoom.",
+   "fr": "La barre d’état affiche Prêt, Calcul en cours, Modifier, Entrer et Pointer, la moyenne, le nombre et la somme de la sélection, le nombre de résultats du filtre (par exemple « 3 enregistrements sur 8 trouvés ») et un curseur de zoom.",
+   "soon": {
+    "drop": false,
+    "en": "Status bar statistics: choose which to show",
+    "es": "Estadísticas de la barra de estado: elegir cuáles mostrar",
+    "fr": "Statistiques de la barre d’état : choisir lesquelles afficher"
+   }
+  },
   "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033": {
    "drop": false,
    "en": "Export to PDF the active sheets, the whole workbook, or the selection.",
@@ -18060,18 +18062,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "89df4a8370d365e1854fac8ea4309c0c9f14b59c654a9ef3086430c28cb62128": {
-   "drop": false,
-   "en": "The status bar shows Ready, Calculating, the average, count, and sum of the selection, and a zoom slider.",
-   "es": "La barra de estado muestra Listo, Calculando, el promedio, el recuento y la suma de la selección, y un control deslizante de zoom.",
-   "fr": "La barre d’état affiche Prêt, Calcul en cours, la moyenne, le nombre et la somme de la sélection, ainsi qu’un curseur de zoom.",
-   "soon": {
-    "drop": false,
-    "en": "Status bar: Edit, Enter, and Point modes, filter count, and choice of statistics",
-    "es": "Barra de estado: modos Editar, Introducir y Señalar, recuento de filtros y elección de estadísticas",
-    "fr": "Barre d’état : modes Modifier, Entrer et Pointer, nombre de filtres et choix des statistiques"
    }
   },
   "8a42fc06a073286a989aecd9cf5282ffb8fb68a231b1877807257d11f9696176": {
@@ -20438,6 +20428,18 @@
     "fr": "Lien vers une page de la communauté"
    }
   },
+  "ae1c0b13d04b415df75751c79af0aeb3377ed034a4392727191ad76ecc536c53": {
+   "drop": false,
+   "en": "Select cells by clicking, dragging, or using `Shift` and `Ctrl` to add several ranges, and select whole rows and columns. `Ctrl+A` selects the current region and then the sheet, `Ctrl`+arrow keys jump to the edge of data, `End` followed by an arrow does the same, and `F5` or the Name Box go to one or more addresses. Commands that need one range say so and change nothing when several are selected.",
+   "es": "Seleccione celdas haciendo clic, arrastrando o usando `Shift` y `Ctrl` para añadir varios rangos, y seleccione filas y columnas completas. `Ctrl+A` selecciona la región actual y después la hoja, `Ctrl` más las teclas de flecha saltan al borde de los datos, `End` seguido de una flecha hace lo mismo, y `F5` o el cuadro de nombres van a una o varias direcciones. Los comandos que necesitan un solo rango lo indican y no cambian nada cuando hay varios seleccionados.",
+   "fr": "Sélectionnez des cellules en cliquant, en faisant glisser ou en utilisant `Shift` et `Ctrl` pour ajouter plusieurs plages, ainsi que des lignes et des colonnes entières. `Ctrl+A` sélectionne la région active puis la feuille, `Ctrl` et les flèches vont au bord des données, `End` suivi d’une flèche fait de même, et `F5` ou la zone Nom permettent d’aller à une ou plusieurs adresses. Les commandes qui exigent une seule plage l’indiquent et ne changent rien lorsque plusieurs sont sélectionnées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "ae8afc8bc67a22e40dae8e62664e39c3d89a8f3550009d89ee26d940fcb10ee6": {
    "drop": false,
    "en": "Export > Make an Email creates a message file with the document, a PDF, or the first 30 pages as pictures inside the message. A password-protected document stays protected. Nothing is sent.",
@@ -21314,18 +21316,6 @@
     "fr": "Une commande pour passer une feuille de droite à gauche"
    }
   },
-  "bf39edab9209d8ec64561bc34821d292aaf6a4ec92300d1819724a4debb9d879": {
-   "drop": false,
-   "en": "In edit mode, references are colored in the text and outlined on the sheet in the same color. Clicking or arrowing to a cell, dragging over cells, clicking a row or column heading, or clicking another sheet’s tab writes the address. `Ctrl`-click adds one, `F4` cycles absolute and relative, `F2` switches between pointing and editing, and the status bar shows Point, Enter, or Edit.",
-   "es": "En el modo de edición, las referencias se colorean en el texto y se resaltan en la hoja con el mismo color. Hacer clic o moverse con las flechas a una celda, arrastrar sobre celdas, hacer clic en el encabezado de una fila o columna, o en la pestaña de otra hoja escribe la dirección. `Ctrl`+clic agrega una, `F4` alterna entre absoluta y relativa, `F2` cambia entre señalar y editar, y la barra de estado muestra Señalar, Introducir o Editar.",
-   "fr": "En mode édition, les références sont colorées dans le texte et entourées sur la feuille de la même couleur. Cliquer ou se déplacer avec les flèches vers une cellule, faire glisser sur des cellules, cliquer sur un en-tête de ligne ou de colonne ou sur l’onglet d’une autre feuille écrit l’adresse. `Ctrl`+clic en ajoute une, `F4` alterne absolu et relatif, `F2` bascule entre pointage et édition, et la barre d’état indique Pointer, Entrer ou Modifier.",
-   "soon": {
-    "drop": false,
-    "en": "Array formula entry with `Ctrl+Shift+Enter` and the expanded formula bar",
-    "es": "Introducción de fórmulas matriciales con `Ctrl+Shift+Enter` y barra de fórmulas expandida",
-    "fr": "Saisie de formules matricielles avec `Ctrl+Shift+Enter` et barre de formule étendue"
-   }
-  },
   "bf3ae376432789c45eddfe436164ce979cb18aba5ccf5c31d4c07c0db72eee0d": {
    "drop": false,
    "en": "Automatic recovery copies of unsaved work are offered again after a crash and cleaned up once the work is saved.",
@@ -21984,6 +21974,18 @@
     "en": "Windows: hide and unhide, and a second view that shows edits as they are made",
     "es": "Ventanas: ocultar y mostrar, y una segunda vista que muestra las ediciones a medida que se hacen",
     "fr": "Fenêtres : masquage et affichage, et seconde vue qui montre les modifications au fur et à mesure"
+   }
+  },
+  "c83cf9316c02b2690c8f8b7fc99b972565bd318e3bf06cf68a7aadc5c49e7ef4": {
+   "drop": false,
+   "en": "Edit a cell with `F2` or a double-click: references are colored in the formula and outlined on the sheet. Clicking or arrowing to a cell, dragging over cells, or clicking a row or column heading writes the address, `F4` cycles absolute and relative references, and `Ctrl+Shift+Enter` enters an array formula.",
+   "es": "Edite una celda con `F2` o con doble clic: las referencias se muestran en color en la fórmula y se resaltan en la hoja. Al hacer clic en una celda o moverse a ella con las flechas, arrastrar sobre celdas o hacer clic en el encabezado de una fila o columna se escribe la dirección; `F4` alterna entre referencias absolutas y relativas, y `Ctrl+Shift+Enter` introduce una fórmula matricial.",
+   "fr": "Modifiez une cellule avec `F2` ou un double-clic : les références sont colorées dans la formule et entourées sur la feuille. Cliquer sur une cellule ou s’y déplacer avec les flèches, faire glisser sur des cellules ou cliquer sur un en-tête de ligne ou de colonne écrit l’adresse ; `F4` alterne entre références absolues et relatives, et `Ctrl+Shift+Enter` saisit une formule matricielle.",
+   "soon": {
+    "drop": false,
+    "en": "Expanded formula bar for long formulas",
+    "es": "Barra de fórmulas expandida para fórmulas largas",
+    "fr": "Barre de formule étendue pour les formules longues"
    }
   },
   "c83d1940c2e2be214eb60d0bd064b10018b3fef9d22bc3115fa614462fa9dbfb": {
@@ -24974,18 +24976,6 @@
     "fr": ""
    }
   },
-  "eeb1e5f15d848cf0b2802e4f24e1c52f6f8cd9da6c7399b6339d91ffc477988d": {
-   "drop": false,
-   "en": "Select by click, drag, `Shift`, whole rows and columns, `Ctrl+A`, `Ctrl`+arrows, `Shift+Space`, and `Ctrl+Space`. Type an address in the Name Box to go there.",
-   "es": "Seleccione con clic, arrastre, `Shift`, filas y columnas completas, `Ctrl+A`, `Ctrl`+flechas, `Shift+Space` y `Ctrl+Space`. Escriba una dirección en el Cuadro de nombres para ir a ella.",
-   "fr": "Sélectionnez par clic, glisser, `Shift`, lignes et colonnes entières, `Ctrl+A`, `Ctrl`+flèches, `Shift+Espace` et `Ctrl+Espace`. Saisissez une adresse dans la zone Nom pour y aller.",
-   "soon": {
-    "drop": false,
-    "en": "Selection: several ranges with `Ctrl`, current region, End mode, and `F5`",
-    "es": "Selección: varios rangos con `Ctrl`, región actual, modo Fin y `F5`",
-    "fr": "Sélection : plusieurs plages avec `Ctrl`, région courante, mode Fin et `F5`"
-   }
-  },
   "eed310de942dd127bb1801c1f59eb181b3ed57227c706f790e1065289c55cfde": {
    "drop": false,
    "en": "Press `F5` to go to a page by typing its number into a window.",
@@ -26016,6 +26006,18 @@
     "en": "Embedded workbook for charts created here",
     "es": "Libro de trabajo incrustado para los gráficos creados aquí",
     "fr": "Classeur intégré pour les graphiques créés ici"
+   }
+  },
+  "fc2b387e520e46cd912268b7cfe13df59c3fad1b1f7230c446d078c26c96d582": {
+   "drop": false,
+   "en": "Enter array formulas with `Ctrl+Shift+Enter`: the formula is shown in braces, its result fills a block of cells, and it is edited, cleared, saved, and read back as one unit. Arrays are also evaluated inside functions such as `SUMPRODUCT` and `IF`.",
+   "es": "Introduzca fórmulas matriciales con `Ctrl+Shift+Enter`: la fórmula se muestra entre llaves, su resultado llena un bloque de celdas y se edita, se borra, se guarda y se vuelve a leer como una sola unidad. Las matrices también se evalúan dentro de funciones como `SUMPRODUCT` e `IF`.",
+   "fr": "Saisissez des formules matricielles avec `Ctrl+Shift+Enter` : la formule s’affiche entre accolades, son résultat remplit un bloc de cellules, et elle est modifiée, effacée, enregistrée et relue comme un seul ensemble. Les matrices sont aussi évaluées dans des fonctions comme `SUMPRODUCT` et `IF`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "fc996b463501e61051c61f934abec7a1d51e50ef6657ea3f015b24ab36289175": {
