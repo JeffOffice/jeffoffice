@@ -342,6 +342,8 @@ public:
     // part of another array: take those apart first). False, with nothing changed, if the content is no such formula. The array the cell is part of (its range, not valid if none), and taking it apart.
     bool putArray(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
     CellRange arrayRangeAt(int sheet, quint32 row, quint32 col) const;
+    // The first array whose range meets the block, by the ranges (an array of more than kMaxArrayCellsMarked cells flags its first cell only), else not valid.
+    CellRange arrayMeeting(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const;
     void dissolveArrayAt(int sheet, quint32 row, quint32 col);
     // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
     // its references following them (and the defined names too), a reference to deleted cells is #REF!, and what must be worked out again is marked. Not for a Move (a cut and paste,

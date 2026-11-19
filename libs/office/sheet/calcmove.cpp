@@ -128,6 +128,19 @@ CellRange Calculation::arrayRangeAt(int sheet, quint32 row, quint32 col) const
     return s.ranges[slot];
 }
 
+CellRange Calculation::arrayMeeting(int sheet, quint32 row1, quint32 col1, quint32 row2, quint32 col2) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return CellRange();
+    const Sheet &s = m_sheets[size_t(sheet)];
+    for (const CellRange &r : s.ranges) {
+        if (!r.valid || r.row1 > row2 || r.row2 < row1 || r.col1 > col2 || r.col2 < col1) continue;
+        const Cell *first = s.cells.find(r.row1, r.col1);
+        if (!first || !(first->flags & ArrayFormula) || (first->flags & (SpillFormula | SpillMember))) continue;   // (the block of a formula that spills is no array)
+        return r;
+    }
+    return CellRange();
+}
+
 // The array the cell is part of is taken apart: its cells are ordinary ones, to be cleared or written over (the first cell keeps its formula until it is).
 void Calculation::dissolveArrayAt(int sheet, quint32 row, quint32 col)
 {
@@ -144,10 +157,20 @@ bool Calculation::putArray(int sheet, quint32 row, quint32 col, const CellConten
     if (!c.isFormula || !c.arrayRange.valid || c.dynamic || c.dataTable) return false;
     const CellRange &r = c.arrayRange;
     if (r.row1 != row || r.col1 != col || r.row2 < r.row1 || r.col2 < r.col1 || r.row2 >= kGridRows || r.col2 >= kMaxColumns) return false;
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
+    const CellContent was = content(sheet, row, col);
     if (!setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, false)) return false;
     bool added = false;
-    if (makeArray(sheet, row, col, r, -1, &added) < 0) return false;
-    return setStyle(sheet, row, col, c.style);
+    if (makeArray(sheet, row, col, r, -1, &added) < 0 || !setStyle(sheet, row, col, c.style)) {
+        // (what could not be made leaves the cell as it was)
+        if (added) {
+            Sheet &s = m_sheets[size_t(sheet)];
+            if (!s.ranges.isEmpty()) s.ranges.removeLast();
+        }
+        put(sheet, row, col, was, marking);
+        return false;
+    }
+    return true;
 }
 
 // The cells of an array's range, but its first, are its: they read its value (those of an array kept apart are marked, as the calculation's loading does).

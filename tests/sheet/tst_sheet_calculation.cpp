@@ -1424,6 +1424,74 @@ private Q_SLOTS:
         QCOMPARE(b.at("D1"), QStringLiteral("n:25"));
     }
 
+    // Arrays are made by range, found from any of their cells, and taken apart one at a time; taken apart and made again (as Undo and Redo do), they are as they were. An array that cannot be
+    // made over a cell of another leaves that cell, and the other array, as they were.
+    void arraysAreMadeFoundAndTakenApartByRange()
+    {
+        const QString rows = rowXml(1, constant("A1", "1")) + rowXml(2, constant("A2", "2")) + rowXml(3, constant("A3", "3"));
+        Book b;
+        QVERIFY(b.open(buildXlsx({worksheet(rows)})));
+        settle(b);
+        auto content = [&](const QString &range, const QString &formula) {
+            jp::office::sheet::CellRange r;
+            [&] { QVERIFY(jp::office::sheet::parseRangeRef(range, &r)); }();
+            Calculation::CellContent c;
+            c.exists = true;
+            c.isFormula = true;
+            c.formula = formula;
+            c.arrayRange = r;
+            c.arrayRange.valid = true;
+            return c;
+        };
+        const Calculation::CellContent c3 = content(QStringLiteral("C1:C3"), QStringLiteral("A1:A3*2")), e2 = content(QStringLiteral("E1:E2"), QStringLiteral("A1:A2*3"));
+        QVERIFY(b.calc->putArray(0, 0, 2, c3));
+        QVERIFY(b.calc->putArray(0, 0, 4, e2));
+        settle(b);
+        QCOMPARE(b.at("C2"), QStringLiteral("n:4"));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("E2"), QStringLiteral("n:6"));
+        auto rangeOf = [&](const QString &ref) {
+            const jp::office::sheet::CellRange r = b.calc->arrayRangeAt(0, b.row(ref), b.col(ref));
+            return r.valid ? QStringLiteral("%1:%2").arg(jp::office::sheet::cellName(r.row1, r.col1), jp::office::sheet::cellName(r.row2, r.col2)) : QStringLiteral("none");
+        };
+        QCOMPARE(rangeOf("C1"), QStringLiteral("C1:C3"));
+        QCOMPARE(rangeOf("C3"), QStringLiteral("C1:C3"));
+        QCOMPARE(rangeOf("E2"), QStringLiteral("E1:E2"));
+        QCOMPARE(rangeOf("A1"), QStringLiteral("none"));
+        QCOMPARE(rangeOf("C4"), QStringLiteral("none"));
+        // a new array over a cell of another is not made, and nothing of either changes
+        const Calculation::CellContent before = b.calc->content(0, 1, 4);
+        QVERIFY(!b.calc->putArray(0, 1, 4, content(QStringLiteral("E2:E3"), QStringLiteral("A1:A2"))));
+        QVERIFY(!b.calc->putArray(0, 0, 2, content(QStringLiteral("D1:D2"), QStringLiteral("A1:A2"))));   // (it does not begin where it is put)
+        QCOMPARE(rangeOf("E2"), QStringLiteral("E1:E2"));
+        QCOMPARE(rangeOf("C2"), QStringLiteral("C1:C3"));
+        QCOMPARE(b.calc->content(0, 1, 4).formula, before.formula);
+        QCOMPARE(b.calc->content(0, 1, 4).editable, before.editable);
+        QCOMPARE(b.calc->content(0, 0, 2).formula, QStringLiteral("A1:A3*2"));
+        QCOMPARE(rangeOf("D1"), QStringLiteral("none"));
+        // taking one apart leaves the other
+        b.calc->dissolveArrayAt(0, 1, 2);
+        QCOMPARE(rangeOf("C1"), QStringLiteral("none"));
+        QCOMPARE(rangeOf("C2"), QStringLiteral("none"));
+        QCOMPARE(rangeOf("C3"), QStringLiteral("none"));
+        QCOMPARE(rangeOf("E1"), QStringLiteral("E1:E2"));
+        b.calc->dissolveArrayAt(0, 5, 5);   // (a cell of none: nothing)
+        QCOMPARE(rangeOf("E2"), QStringLiteral("E1:E2"));
+        // both taken apart and made again, as Undo and then Redo do
+        b.calc->dissolveArrayAt(0, 0, 4);
+        QCOMPARE(rangeOf("E2"), QStringLiteral("none"));
+        QVERIFY(b.calc->putArray(0, 0, 4, e2));
+        QVERIFY(b.calc->putArray(0, 0, 2, c3));
+        settle(b);
+        QCOMPARE(rangeOf("C2"), QStringLiteral("C1:C3"));
+        QCOMPARE(rangeOf("E2"), QStringLiteral("E1:E2"));
+        QCOMPARE(b.at("C3"), QStringLiteral("n:6"));
+        QCOMPARE(b.at("E2"), QStringLiteral("n:6"));
+        QVERIFY(b.set("A3", Value::number(10)));
+        settle(b);
+        QCOMPARE(b.at("C3"), QStringLiteral("n:20"));
+    }
+
     // An array that is kept apart, and a data table, give their cells the file's values, and what reads one of those cells is marked.
     void cellsOfWhatIsKeptApartInAnArrayAreTheFilesAndMarked()
     {
