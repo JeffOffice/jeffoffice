@@ -10302,7 +10302,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxFonts</name>
     <message>
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+290"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+288"/>
         <source>An embedded font in the file can&apos;t be used: %1</source>
         <translation type="unfinished">Вбудований шрифт у файлі не можна використати: %1</translation>
     </message>
@@ -47446,7 +47446,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">, та інші</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>and %1 more</source>
         <translation type="unfinished">і ще %1</translation>
     </message>
@@ -47497,12 +47497,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location line="+75"/>
+        <location line="+76"/>
         <source>Close</source>
         <translation type="unfinished">Закрити</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">Документ не можна змінити.</translation>
     </message>
@@ -47517,7 +47517,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">%1 замінюється в документі.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Цей документ використовує шрифти, яких немає на цьому комп&apos;ютері</translation>
     </message>
@@ -71513,6 +71513,36 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/wml/wmlwrite.cpp" line="+1002"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Документ не вдалося спакувати.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
+        <source>the part that holds it is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>the key that unscrambles it is not valid.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>An embedded font in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">Вбудований шрифт у файлі не можна використати: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
+        <translation type="unfinished">%1 вбудованих шрифтів у файлі не можна використати: %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Only the first %1 embedded fonts are read.</source>
+        <translation type="unfinished">Прочитано лише перші %1 вбудованих шрифтів.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some embedded fonts are left out: they are too large.</source>
+        <translation type="unfinished">Частину вбудованих шрифтів пропущено: вони занадто великі.</translation>
     </message>
 </context>
 <context>

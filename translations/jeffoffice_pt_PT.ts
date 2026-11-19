@@ -10295,7 +10295,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptxFonts</name>
     <message>
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+290"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+288"/>
         <source>An embedded font in the file can&apos;t be used: %1</source>
         <translation type="unfinished">Não é possível utilizar um tipo de letra incorporado no ficheiro: %1</translation>
     </message>
@@ -47415,7 +47415,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">, e mais</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>and %1 more</source>
         <translation type="unfinished">e mais %1</translation>
     </message>
@@ -47466,12 +47466,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
     <message>
         <location line="+1"/>
-        <location line="+75"/>
+        <location line="+76"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">O documento não pode ser alterado.</translation>
     </message>
@@ -47486,7 +47486,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">%1 é substituído no documento.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Este documento utiliza tipos de letra que não estão instalados neste computador</translation>
     </message>
@@ -71460,6 +71460,36 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <location line="+95"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">A página web é demasiado grande para abrir.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
+        <source>the part that holds it is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>the key that unscrambles it is not valid.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>An embedded font in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">Não é possível utilizar um tipo de letra incorporado no ficheiro: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
+        <translation type="unfinished">Não é possível utilizar %1 tipos de letra incorporados no ficheiro: %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Only the first %1 embedded fonts are read.</source>
+        <translation type="unfinished">Só são lidos os primeiros %1 tipos de letra incorporados.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some embedded fonts are left out: they are too large.</source>
+        <translation type="unfinished">Alguns tipos de letra incorporados foram omitidos: são demasiado grandes.</translation>
     </message>
 </context>
 <context>

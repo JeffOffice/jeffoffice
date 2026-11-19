@@ -10295,7 +10295,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptxFonts</name>
     <message>
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+290"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+288"/>
         <source>An embedded font in the file can&apos;t be used: %1</source>
         <translation type="unfinished">Une police incorporée au fichier est inutilisable : %1</translation>
     </message>
@@ -47415,7 +47415,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">, et plus</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>and %1 more</source>
         <translation type="unfinished">et %1 de plus</translation>
     </message>
@@ -47466,12 +47466,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
-        <location line="+75"/>
+        <location line="+76"/>
         <source>Close</source>
         <translation type="unfinished">Fermer</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">Le document ne peut pas être modifié.</translation>
     </message>
@@ -47486,7 +47486,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">%1 est remplacée dans le document.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Ce document utilise des polices absentes de cet ordinateur</translation>
     </message>
@@ -71460,6 +71460,36 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+95"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">La page Web est trop volumineuse pour être ouverte.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
+        <source>the part that holds it is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>the key that unscrambles it is not valid.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>An embedded font in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">Une police incorporée au fichier est inutilisable : %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
+        <translation type="unfinished">%1 polices incorporées au fichier sont inutilisables : %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Only the first %1 embedded fonts are read.</source>
+        <translation type="unfinished">Seules les %1 premières polices incorporées sont lues.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some embedded fonts are left out: they are too large.</source>
+        <translation type="unfinished">Certaines polices incorporées ont été omises : elles sont trop volumineuses.</translation>
     </message>
 </context>
 <context>

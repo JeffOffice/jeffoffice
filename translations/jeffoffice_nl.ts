@@ -10295,7 +10295,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptxFonts</name>
     <message>
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+290"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+288"/>
         <source>An embedded font in the file can&apos;t be used: %1</source>
         <translation type="unfinished">Een ingesloten lettertype in het bestand kan niet worden gebruikt: %1</translation>
     </message>
@@ -47415,7 +47415,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">, en meer</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>and %1 more</source>
         <translation type="unfinished">en %1 meer</translation>
     </message>
@@ -47466,12 +47466,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
-        <location line="+75"/>
+        <location line="+76"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
     <message>
-        <location line="-56"/>
+        <location line="-57"/>
         <source>The document can&apos;t be changed.</source>
         <translation type="unfinished">Het document kan niet worden gewijzigd.</translation>
     </message>
@@ -47486,7 +47486,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">%1 wordt vervangen in het document.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>This document uses fonts that aren&apos;t on this computer</source>
         <translation type="unfinished">Dit document gebruikt lettertypen die niet op deze computer staan</translation>
     </message>
@@ -71460,6 +71460,36 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+95"/>
         <source>The web page is too large to open.</source>
         <translation type="unfinished">De webpagina is te groot om te openen.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
+        <source>the part that holds it is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>the key that unscrambles it is not valid.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>An embedded font in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">Een ingesloten lettertype in het bestand kan niet worden gebruikt: %1</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
+        <translation type="unfinished">%1 ingesloten lettertypen in het bestand kunnen niet worden gebruikt: %2</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Only the first %1 embedded fonts are read.</source>
+        <translation type="unfinished">Alleen de eerste %1 ingesloten lettertypen worden gelezen.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some embedded fonts are left out: they are too large.</source>
+        <translation type="unfinished">Sommige ingesloten lettertypen zijn weggelaten: ze zijn te groot.</translation>
     </message>
 </context>
 <context>

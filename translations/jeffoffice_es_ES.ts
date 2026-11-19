@@ -2903,6 +2903,14 @@ No se pudo aplicar la contraseña al fichero.</translation>
             <numerusform>%n partes o vínculos del fichero tenían un nombre que no se podía usar y se omitieron.</numerusform>
         </translation>
     </message>
+    <message>
+        <source>An embedded font in the file can't be used: %1</source>
+        <translation type="unfinished">No se puede usar una fuente incrustada del fichero: %1</translation>
+    </message>
+    <message>
+        <source>%1 embedded fonts in the file can't be used: %2</source>
+        <translation type="unfinished">No se pueden usar %1 fuentes incrustadas del fichero: %2</translation>
+    </message>
 </context>
 <context>
     <name>jp::translate</name>

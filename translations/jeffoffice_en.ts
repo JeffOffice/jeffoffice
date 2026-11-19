@@ -72,7 +72,7 @@
 <context>
     <name>PptxFonts</name>
     <message numerus="yes">
-        <location filename="../apps/deck/io/pptxfonts.cpp" line="+336"/>
+        <location filename="../apps/deck/io/pptxfonts.cpp" line="+334"/>
         <source>%n embedded font(s) in the file can&apos;t be used.</source>
         <translation>
             <numerusform>%n embedded font in the file can&apos;t be used.</numerusform>
