@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "6",
+    "day": "18",
     "month": "November",
     "year": "2026"
    },
@@ -683,7 +683,11 @@
         },
         {
          "status": "partly",
-         "text": "218bdf0fb48b7185efa344f6bfc43779b91a50ca11869d1ad4176627f9ff15c0"
+         "text": "d79bfba268a90c9f639439bdd84d7a3028b66818eb044c0d5387717ee126f224"
+        },
+        {
+         "status": "partly",
+         "text": "98cea20cb270dcadad8e6df0bc5ade823a93ee2972be7e7cb1784e157a93afbd"
         },
         {
          "hide_soon": true,
@@ -782,7 +786,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "8dfb6c309e6b74619208989aeec3a0af335c1a4a99eb7c5be2c355ff7f08535d"
+         "text": "c97ba2291251853bf6b964f61a6c126f9667d750d0baf38790ac5dd07116526f"
         },
         {
          "hide_soon": true,
@@ -790,8 +794,8 @@
          "text": "9aee9aa8b25ec43940168958a0cbfef05f10e14dcbdd9defaed9b63433d6c871"
         },
         {
-         "status": "todo",
-         "text": "e086fc1ae61af787099318570591c67b44c802adcac915f5c6fc2f877ed5170d"
+         "status": "partly",
+         "text": "39e582f73affd0cf3add788eebbbd60db35b9b5b1afa2f249fd0422a94b7fe7a"
         }
        ]
       },
@@ -800,7 +804,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "03ee5385d1d76ef37d848a779a1f6e296924bc80a0686e7d44bb0c4c232e9313"
+         "text": "d444dfab5d7bada7e6c51888406668fdb72073a3a318e8b38acf5099dd55e889"
         },
         {
          "hide_soon": true,
@@ -1575,7 +1579,7 @@
         },
         {
          "status": "partly",
-         "text": "f973e308360a112e61bebb001ba5338936e93f51a08d5c75e66537638da6767b"
+         "text": "052bbb39fd3edd6d181e84b9e0dbe20f0bd7217ca88691fb38f402d29cea4e38"
         },
         {
          "hide_soon": true,
@@ -2308,12 +2312,12 @@
      "items": []
     }
    ],
-   "version": "0.42.0"
+   "version": "0.43.0"
   },
   "jeffdeck": {
    "name": "JeffDeck",
    "reviewed": {
-    "day": "14",
+    "day": "18",
     "month": "November",
     "year": "2026"
    },
@@ -2341,7 +2345,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056"
+       "text": "c8addb9f17f63f7afb647df7f0cedfa348392720fd01e2859e4033320bb76d5c"
       },
       {
        "hide_soon": true,
@@ -2825,8 +2829,9 @@
          "text": "0d94133aa193bf33476ef54fe09e240dd1d1132b5e929192826733a8dbe994fc"
         },
         {
-         "status": "partly",
-         "text": "c32ef0d8191cf5cbf06261e703d5521812110b9340de63d3abd2ccb6345a6701"
+         "hide_soon": true,
+         "status": "done",
+         "text": "32b63d2e5bb32643c8ae7bd576e36fb7b7d20f322997c9da539988a94afa2b43"
         },
         {
          "hide_soon": true,
@@ -2845,12 +2850,17 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "563bfe61f3a5f5c65be4efcacac85965bb48aea289f3afdd189669d3342953f6"
+         "text": "1dfd7c313f6c0e35fff694d02b5831a505ad355c22ad16f17977f0d0e403410f"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "9a7a3cb843badfe8b00ea8edfcd3f0df6c18d7ee6da9251a483ae25ba0f589ca"
+         "text": "c70947b2b782c29feab2911d22e51c8867253acfd689c3e5dac161d02186f0dd"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "60fd0cba7f84ea220414f963fbeeafeea53f8e915bbb5a5ab738f1693ecd447a"
         },
         {
          "hide_soon": true,
@@ -2950,6 +2960,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "6baf5e555acd10b45b014804b701e70670d3dfb96194e1731835b2d67a6fa13c"
+        },
+        {
+         "status": "partly",
+         "text": "822b42ba14744d836796758434b90b25f62c4d9a73056f4936728429defd355b"
         }
        ]
       },
@@ -3049,7 +3063,7 @@
         },
         {
          "status": "partly",
-         "text": "1d2223e4bb4cba50ff668f9f3605303a738d062a3d85364aa5ff7424281fffd2"
+         "text": "b51a9d8ea167a238d816c74f10e0c2b512341e1132f379d6bb83c31374961719"
         }
        ]
       },
@@ -3059,7 +3073,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "e0815a5cc8d1e612aaf954b27108dce88469f46c0ea93e40477a5c53253bc2e8"
+         "text": "6b72a93bd198c76a3b26b20b06b309c3836f7f3dca43353f5444345221d4e827"
         },
         {
          "hide_soon": true,
@@ -3383,7 +3397,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "e7682c051573d111c32d9b46cea5a9156887f26d271b00381749f423f6b09a92"
+       "text": "980d3d937e0bb8d92a4424aaa3af760edee0ccd3a28af81215f68c857bd765de"
       }
      ]
     },
@@ -4230,12 +4244,12 @@
      "items": []
     }
    ],
-   "version": "0.42.0"
+   "version": "0.43.0"
   },
   "jeffpub": {
    "name": "JeffPub",
    "reviewed": {
-    "day": "14",
+    "day": "18",
     "month": "November",
     "year": "2026"
    },
@@ -4692,7 +4706,7 @@
       },
       {
        "status": "partly",
-       "text": "3548ac5f628235d22e4a14fcf1276157d01bb96012899adb4afd8aba9b5e98f5"
+       "text": "5017746cc36f937eacc79305144f6a4d8d356a8a50e6fe9d7eb5e53d04c13005"
       },
       {
        "hide_soon": true,
@@ -5002,12 +5016,17 @@
         {
          "hide_soon": true,
          "status": "done",
+         "text": "29700b1c690ce397e66a023207a654c8bf2095443638172f00a5e8a994657cd1"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "6c396467c6e9686979b350febb76656dfa6a812ac724206c436e373d9e53de6e"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1356b96ae874525eb75088e7694bf34ee257321d7a21ecba63b85112b457e338"
+         "text": "a8855cf270452d623feb94e202d0f513e8a3ccc79a1318135ea8a491d4eeb316"
         },
         {
          "hide_soon": true,
@@ -5047,7 +5066,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "feb29151e45362dbf7766a33fb49ef271418ca85049f9451fac28000c625d053"
+         "text": "2988af51b8e588c3d793e03414903b935ccf4bb99f1ed8f6691fa474e8a8f1a0"
         },
         {
          "hide_soon": true,
@@ -5612,12 +5631,12 @@
      "items": []
     }
    ],
-   "version": "0.42.0"
+   "version": "0.43.0"
   },
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "14",
+    "day": "18",
     "month": "November",
     "year": "2026"
    },
@@ -6245,6 +6264,10 @@
         {
          "status": "partly",
          "text": "78f5cd18365ca78c318097550405796769aaf9421fd81a5b7d1547927ac76f22"
+        },
+        {
+         "status": "partly",
+         "text": "274907b108acbda73ab7b512fd9a27b77f03c16371101067f3242b6b0b3b4a3d"
         }
        ]
       },
@@ -6262,7 +6285,12 @@
         },
         {
          "status": "partly",
-         "text": "9d2409afeb96a1b8168165b2dea232d3b3f0cccd14ae0aa61eb1ed7a27395f61"
+         "text": "c0ce9629dc835ff8e9e19366a88915ce2b310e4a0cab13e655e709c37eee0157"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "2f87e460df8099a6b9232175f02bae1bf0084e5ca0ddfd83a4f506c0a45ef2cc"
         },
         {
          "status": "partly",
@@ -6304,7 +6332,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "dfc887e0cca47eb66d040b98c2f5f83bd52293da45be4a52ba1332a82a4e1d80"
+         "text": "7c529414cccbb059c828b8701f2044935d91a74453fb4f886efba6dbe83bfb2d"
         },
         {
          "status": "partly",
@@ -6330,6 +6358,10 @@
         {
          "status": "partly",
          "text": "f974ff487bebead8cb39099fcad30769a9c4ffd326073b67573084f4a803ecbf"
+        },
+        {
+         "status": "partly",
+         "text": "6cb9f740c292a5ec7a5ca23e4aa8d43ef039e67b5b3c6d7c8010feeadeada851"
         }
        ]
       },
@@ -6447,7 +6479,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "a5d7a639e6bd2e77b106847c002931d748663bdfce2a38217f302df9f8e4e8db"
+         "text": "fb1e1be7ea7a1908276c7cc73cf4d96daf9a333cbbabbaf6e36e3f41f3c44a3d"
         },
         {
          "status": "partly",
@@ -7004,11 +7036,11 @@
         },
         {
          "status": "partly",
-         "text": "7160114905c42703524825445df461ddddfab7802d8b545373e4c32bfbf184dd"
+         "text": "d41365d402c877e166b45536dea2b4dc191c539a64db228357b472991e5a54af"
         },
         {
          "status": "partly",
-         "text": "c7b5131fff3a63d633a9c806418ef85a8d3b0508dce7a419cc1d88f04f36d76b"
+         "text": "f0118e96d9bf0de780cac4ec6b4bf0c99150f36d7198e3f199dfb9051ef7a4d1"
         }
        ]
       },
@@ -7477,7 +7509,7 @@
      "items": []
     }
    ],
-   "version": "0.42.0"
+   "version": "0.43.0"
   }
  },
  "model": "claude-sonnet-5-5",
@@ -7818,18 +7850,6 @@
     "fr": ""
    }
   },
-  "03ee5385d1d76ef37d848a779a1f6e296924bc80a0686e7d44bb0c4c232e9313": {
-   "drop": false,
-   "en": "Insert an equation over the cells as an object, typed in a line, from the built-in equations gallery. Equations are drawn in two dimensions with stacked fractions, scripts, roots, sums and integrals with limits, growing brackets, accents, and matrices. They move and resize like any object, open the editor again on a double-click, and each change undoes in one step. An `.xlsx` file keeps the equation as math, and equations written by other programs show as math when the file opens. PDF and printing use vector outlines.",
-   "es": "Inserte una ecuación sobre las celdas como un objeto, escrita en una línea, desde la galería de ecuaciones integradas. Las ecuaciones se dibujan en dos dimensiones, con fracciones apiladas, superíndices y subíndices, raíces, sumas e integrales con límites, paréntesis que se ajustan, acentos y matrices. Se mueven y cambian de tamaño como cualquier objeto, vuelven a abrir el editor con un doble clic y cada cambio se deshace en un solo paso. Un archivo `.xlsx` conserva la ecuación como expresión matemática, y las ecuaciones escritas por otros programas se muestran como matemáticas al abrir el archivo. El PDF y la impresión usan contornos vectoriales.",
-   "fr": "Insérez une équation au-dessus des cellules comme un objet, saisie sur une ligne, depuis la galerie d’équations prédéfinies. Les équations sont dessinées en deux dimensions, avec fractions empilées, exposants et indices, racines, sommes et intégrales avec bornes, parenthèses extensibles, accents et matrices. Elles se déplacent et se redimensionnent comme n’importe quel objet, rouvrent l’éditeur par un double-clic, et chaque modification s’annule en une seule étape. Un fichier `.xlsx` conserve l’équation sous forme de formule mathématique, et les équations écrites par d’autres programmes s’affichent comme des formules à l’ouverture du fichier. Le PDF et l’impression utilisent des contours vectoriels.",
-   "soon": {
-    "drop": false,
-    "en": "Equation tab with structures and symbols, and ink equations",
-    "es": "Pestaña Ecuación con estructuras y símbolos, y ecuaciones a mano alzada",
-    "fr": "Onglet Équation avec structures et symboles, et équations manuscrites"
-   }
-  },
   "041ddf2e4b08901966fa1e8d37af6ef8446ee872582fb1af6ae3d65ec33a6e15": {
    "drop": false,
    "en": "Header & Footer tab (while editing a header or footer)",
@@ -7924,6 +7944,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "052bbb39fd3edd6d181e84b9e0dbe20f0bd7217ca88691fb38f402d29cea4e38": {
+   "drop": false,
+   "en": "Edit the words in a shape or text box, with horizontal and vertical alignment, size, bold, color, and wrap or one line. Set the text direction to horizontal or rotated 90 or 270 degrees.",
+   "es": "Edite el texto de una forma o un cuadro de texto, con alineación horizontal y vertical, tamaño, negrita, color y ajuste del texto o una sola línea. Establezca la dirección del texto en horizontal o girada 90 o 270 grados.",
+   "fr": "Modifiez le texte d’une forme ou d’une zone de texte, avec alignement horizontal et vertical, taille, gras, couleur et retour à la ligne ou ligne unique. Réglez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés.",
+   "soon": {
+    "drop": false,
+    "en": "Text margins and columns in shapes and text boxes",
+    "es": "Márgenes y columnas de texto en formas y cuadros de texto",
+    "fr": "Marges et colonnes du texte dans les formes et zones de texte"
    }
   },
   "0544faac1bb25f2f7083b52fc24b4a88a31e9b28837bbed39f51c25dd8e0301c": {
@@ -9102,18 +9134,6 @@
     "fr": ""
    }
   },
-  "1356b96ae874525eb75088e7694bf34ee257321d7a21ecba63b85112b457e338": {
-   "drop": false,
-   "en": "Draw elbow and curved connectors, plain or with one or two arrowheads. Line ends attach to the middle of a side of a shape, text box, picture, or table, and follow it when it moves, resizes, or turns. A yellow handle moves an elbow’s bend, and dragging a connector away on its own detaches it. Connectors are opened from and saved to `.pub` files attached.",
-   "es": "Dibuje conectores en codo y curvos, simples o con una o dos puntas de flecha. Los extremos de la línea se unen al centro de un lado de una forma, cuadro de texto, imagen o tabla, y lo siguen cuando se mueve, cambia de tamaño o gira. Un controlador amarillo mueve el codo, y arrastrar un conector por sí solo lo desconecta. Los conectores se abren y se guardan en archivos `.pub` con sus uniones.",
-   "fr": "Dessinez des connecteurs coudés et courbes, simples ou avec une ou deux pointes de flèche. Les extrémités de la ligne se fixent au milieu d’un côté d’une forme, d’une zone de texte, d’une image ou d’un tableau, et la suivent lorsqu’elle se déplace, change de taille ou pivote. Une poignée jaune déplace le coude, et faire glisser un connecteur seul le détache. Les connecteurs sont ouverts et enregistrés dans les fichiers `.pub` avec leurs attaches.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "13581f50b006848b72e44f8a5b8e49667b7f00b5002e8a643ba6d1e350f8a54e": {
    "drop": false,
    "en": "Screen readers: every control in the window (the ribbon’s tabs, buttons, galleries, and color buttons, the page list, the page, the task panes, and the status bar) has a name and a description. Objects on the page are read by kind and by text or alt text, with where they are and how big (\"Text box: Spring sale\", \"Picture: a red barn\", \"Picture, no alt text\"); the selected object is the focus, and the text being typed is read with its cursor and selection.",
@@ -9702,18 +9722,6 @@
     "fr": ""
    }
   },
-  "1d2223e4bb4cba50ff668f9f3605303a738d062a3d85364aa5ff7424281fffd2": {
-   "drop": false,
-   "en": "An embedded object in a file is kept as a frame and shown as its saved picture. In an `.odp` file, embedded objects of other kinds are kept with all their parts and written back as they were.",
-   "es": "Un objeto incrustado en un archivo se conserva como un marco y se muestra como su imagen guardada. En un archivo `.odp`, los objetos incrustados de otros tipos se conservan con todas sus partes y se vuelven a escribir tal como estaban.",
-   "fr": "Un objet incorporé dans un fichier est conservé sous forme de cadre et affiché sous la forme de son image enregistrée. Dans un fichier `.odp`, les objets incorporés d’autres types sont conservés avec toutes leurs parties et réécrits tels quels.",
-   "soon": {
-    "drop": false,
-    "en": "Object: open an embedded object",
-    "es": "Objeto: abrir un objeto incrustado",
-    "fr": "Objet : ouvrir un objet incorporé"
-   }
-  },
   "1d45741a0b38459a182cfbd49012dc3aa791410e3bb7b84d5f25c468e8beae2b": {
    "drop": false,
    "en": "Insert a pivot table from a range, a table, or a range in another file (.xlsx, .xlsm, .xls, .ods, or .csv), onto a new sheet or at a cell, with the field list pane. Refresh reads the source again, and the pivot table is saved in .xlsx files. Insert is one undo step.",
@@ -9796,6 +9804,18 @@
     "en": "Custom views: filters, print settings, row and column changes, and window position",
     "es": "Vistas personalizadas: filtros, configuración de impresión, cambios de filas y columnas, y posición de la ventana",
     "fr": "Affichages personnalisés : filtres, paramètres d’impression, modifications de lignes et de colonnes, et position de la fenêtre"
+   }
+  },
+  "1dfd7c313f6c0e35fff694d02b5831a505ad355c22ad16f17977f0d0e403410f": {
+   "drop": false,
+   "en": "Use the Shapes gallery for lines, arrows, elbow and curved connectors, curves, freehand drawing, and shapes sorted by kind. The gallery is also on the Insert tab.",
+   "es": "Use la galería de formas para líneas, flechas, conectores en ángulo y curvos, curvas, dibujo a mano alzada y formas ordenadas por tipo. La galería también está en la pestaña Insertar.",
+   "fr": "Utilisez la galerie de formes pour les lignes, les flèches, les connecteurs coudés et courbes, les courbes, le dessin à main levée et les formes classées par type. La galerie se trouve aussi dans l’onglet Insertion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "1e3be64860c7664da0b12049f1f9b56683b1d1db3ff7cc7a4eae2d1dfcc53dfd": {
@@ -10180,18 +10200,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "218bdf0fb48b7185efa344f6bfc43779b91a50ca11869d1ad4176627f9ff15c0": {
-   "drop": false,
-   "en": "Shapes and text boxes in a file are shown, kept, and written back.",
-   "es": "Las formas y los cuadros de texto de un archivo se muestran, se conservan y se vuelven a escribir.",
-   "fr": "Les formes et les zones de texte d’un fichier sont affichées, conservées et réécrites.",
-   "soon": {
-    "drop": false,
-    "en": "Insert and edit shapes",
-    "es": "Insertar y editar formas",
-    "fr": "Insertion et modification de formes"
    }
   },
   "2190ef4eb452de735689152a148b50ab406c15fd4907199b77a30b948ff8a0ad": {
@@ -10722,6 +10730,18 @@
     "fr": ""
    }
   },
+  "274907b108acbda73ab7b512fd9a27b77f03c16371101067f3242b6b0b3b4a3d": {
+   "drop": false,
+   "en": "Put a range or chart of a saved JeffCrunch workbook in the text as an object, shown as its picture and opened in JeffCrunch by a double-click. Each save there is one undo step.",
+   "es": "Coloque un rango o un gráfico de un libro de JeffCrunch guardado en el texto como objeto, mostrado como su imagen y abierto en JeffCrunch con doble clic. Cada guardado allí es un paso de deshacer.",
+   "fr": "Placez une plage ou un graphique d’un classeur JeffCrunch enregistré dans le texte comme objet, affiché sous forme d’image et ouvert dans JeffCrunch par un double-clic. Chaque enregistrement correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "New blank worksheet",
+    "es": "Hoja de cálculo nueva en blanco",
+    "fr": "Nouvelle feuille de calcul vierge"
+   }
+  },
   "27784d2a45abe2cd7b45158813a1f5ef51d5f37c09892ec23c1e00b9a6c146d0": {
    "drop": false,
    "en": "Array formulas are read, calculated, kept, and cut or moved as a whole.",
@@ -10890,11 +10910,35 @@
     "fr": ""
    }
   },
+  "29700b1c690ce397e66a023207a654c8bf2095443638172f00a5e8a994657cd1": {
+   "drop": false,
+   "en": "Draw every preset shape with its standard outline, text area, and yellow handles, including handles that move along two axes and handles that turn by an angle.",
+   "es": "Dibuje cada forma predefinida con su contorno, su área de texto y sus controles amarillos estándar, incluidos los controles que se mueven en dos ejes y los que giran según un ángulo.",
+   "fr": "Dessinez chaque forme prédéfinie avec son contour, sa zone de texte et ses poignées jaunes standard, y compris les poignées qui se déplacent selon deux axes et celles qui tournent selon un angle.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "29763d12a04f47893588b87afe88257dc288fa26bd1ab51444a6f15a0093aee2": {
    "drop": false,
    "en": "Open the Format Object dialog to set colors and lines, size (with rotation and scale), layout (position, wrap, and distances), picture options, text box options (margins, text fitting, columns, and vertical alignment), and alt text.",
    "es": "Abra el cuadro de diálogo Formato de objeto para definir colores y líneas, tamaño (con rotación y escala), disposición (posición, ajuste y distancias), opciones de imagen, opciones de cuadro de texto (márgenes, ajuste del texto, columnas y alineación vertical) y texto alternativo.",
    "fr": "Ouvrez la boîte de dialogue Format de l’objet pour définir les couleurs et les traits, la taille (avec rotation et échelle), la disposition (position, habillage et distances), les options d’image, les options de zone de texte (marges, ajustement du texte, colonnes et alignement vertical) et le texte de remplacement.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2988af51b8e588c3d793e03414903b935ccf4bb99f1ed8f6691fa474e8a8f1a0": {
+   "drop": false,
+   "en": "Choose how text fits a text box (best fit, shrink text on overflow, grow the box to fit, or no resizing), set text direction to horizontal or rotated 90 or 270 degrees, and use automatic and manual hyphenation. Text direction is kept in a `.pub` file, also for a box that is itself turned.",
+   "es": "Elija cómo se ajusta el texto a un cuadro de texto (mejor ajuste, reducir el texto al desbordar, aumentar el cuadro para que quepa, o sin cambiar el tamaño), defina la dirección del texto como horizontal o girada 90 o 270 grados, y use la separación silábica automática y manual. La dirección del texto se conserva en un archivo `.pub`, también en un cuadro que a su vez está girado.",
+   "fr": "Choisissez comment le texte s’adapte à une zone de texte (meilleur ajustement, réduction du texte en cas de débordement, agrandissement de la zone, ou aucun redimensionnement), définissez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés, et utilisez la césure automatique et manuelle. L’orientation du texte est conservée dans un fichier `.pub`, y compris pour une zone elle-même pivotée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11286,6 +11330,18 @@
     "fr": ""
    }
   },
+  "2f87e460df8099a6b9232175f02bae1bf0084e5ca0ddfd83a4f506c0a45ef2cc": {
+   "drop": false,
+   "en": "Draw every preset shape with its standard outline, text area, and yellow handles, including handles that move along two axes and handles that turn by an angle, with connection points where the standard puts them.",
+   "es": "Dibuje cada forma predefinida con su contorno, su área de texto y sus controles amarillos estándar, incluidos los controles que se mueven en dos ejes y los que giran según un ángulo, con puntos de conexión donde los sitúa el estándar.",
+   "fr": "Dessinez chaque forme prédéfinie avec son contour, sa zone de texte et ses poignées jaunes standard, y compris les poignées qui se déplacent selon deux axes et celles qui tournent selon un angle, avec des points de connexion là où le standard les place.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2f9f8ee2e4f85039b273491375b2928b5d0f04d4e11d144ecc606019ac7d8f90": {
    "drop": false,
    "en": "Tables",
@@ -11471,6 +11527,18 @@
    "en": "Open a new window, arrange all windows, cascade them, and switch between windows.",
    "es": "Abra una nueva ventana, organice todas las ventanas, colóquelas en cascada y cambie entre ventanas.",
    "fr": "Ouvrez une nouvelle fenêtre, organisez toutes les fenêtres, disposez-les en cascade et passez d’une fenêtre à l’autre.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "32b63d2e5bb32643c8ae7bd576e36fb7b7d20f322997c9da539988a94afa2b43": {
+   "drop": false,
+   "en": "Set text direction to horizontal or rotated 90 or 270 degrees for a whole text box. The direction is kept in `.pptx` and `.odp` files.",
+   "es": "Establezca la dirección del texto en horizontal o girada 90 o 270 grados para todo un cuadro de texto. La dirección se conserva en los archivos `.pptx` y `.odp`.",
+   "fr": "Réglez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés pour toute une zone de texte. L’orientation est conservée dans les fichiers `.pptx` et `.odp`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -11668,18 +11736,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "3548ac5f628235d22e4a14fcf1276157d01bb96012899adb4afd8aba9b5e98f5": {
-   "drop": false,
-   "en": "Insert an equation typed in a line, with fractions, powers and subscripts, roots, sums, integrals, brackets, accents, matrices, and symbols, using the built-in equations or the `Alt+=` shortcut. The equation is placed on the page as an object that can be moved, resized, rotated, and colored, and it is edited again with a double-click or `Enter`. An Equation tab with Edit Equation, Professional and Linear, Normal Text, symbol menus, and eleven structures appears while an equation is selected. Equations are saved in `.jpub` files; a `.pub` file saves each equation as a picture.",
-   "es": "Inserte una ecuación escrita en una línea, con fracciones, potencias y subíndices, raíces, sumas, integrales, paréntesis, acentos, matrices y símbolos, usando las ecuaciones integradas o el atajo `Alt+=`. La ecuación se coloca en la página como un objeto que se puede mover, redimensionar, girar y colorear, y se vuelve a editar con doble clic o `Enter`. Una pestaña Ecuación con Editar ecuación, Profesional y Lineal, Texto normal, menús de símbolos y once estructuras aparece mientras hay una ecuación seleccionada. Las ecuaciones se guardan en archivos `.jpub`; un archivo `.pub` guarda cada ecuación como imagen.",
-   "fr": "Insérez une équation saisie sur une ligne, avec fractions, puissances et indices, racines, sommes, intégrales, parenthèses, accents, matrices et symboles, à partir des équations intégrées ou du raccourci `Alt+=`. L’équation est placée sur la page comme un objet qu’on peut déplacer, redimensionner, faire pivoter et colorer, et on la modifie à nouveau par un double-clic ou `Entrée`. Un onglet Équation avec Modifier l’équation, Professionnel et Linéaire, Texte normal, des menus de symboles et onze structures apparaît lorsqu’une équation est sélectionnée. Les équations sont enregistrées dans les fichiers `.jpub` ; un fichier `.pub` enregistre chaque équation sous forme d’image.",
-   "soon": {
-    "drop": false,
-    "en": "Symbol galleries beyond the five groups, ink equations, and equations in `.pub` files",
-    "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y ecuaciones en archivos `.pub`",
-    "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et équations dans les fichiers `.pub`"
    }
   },
   "35d755aadb9a81fa2c77f8ab28ab243d0db5bcba6cbc250b00a1060507c93e50": {
@@ -11968,6 +12024,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "39e582f73affd0cf3add788eebbbd60db35b9b5b1afa2f249fd0422a94b7fe7a": {
+   "drop": false,
+   "en": "Insert an object from a cell range, a chart, or an existing document page, or paste what was copied as an object. The object is shown as its picture, moves and sizes by drag or Align, moves with the cells when rows or columns are inserted or deleted, and opens by double click in the program that made it. Objects are kept in `.xlsx` and `.ods` files.",
+   "es": "Inserte un objeto a partir de un rango de celdas, un gráfico o una página de documento existente, o pegue lo copiado como objeto. El objeto se muestra como su imagen, se mueve y cambia de tamaño arrastrando o con Alinear, se desplaza con las celdas al insertar o eliminar filas o columnas, y se abre con doble clic en el programa que lo creó. Los objetos se conservan en archivos `.xlsx` y `.ods`.",
+   "fr": "Insérez un objet à partir d’une plage de cellules, d’un graphique ou d’une page de document existante, ou collez ce qui a été copié en tant qu’objet. L’objet s’affiche sous forme d’image, se déplace et se redimensionne par glissement ou avec Aligner, suit les cellules lors de l’insertion ou de la suppression de lignes ou de colonnes, et s’ouvre par double-clic dans le programme qui l’a créé. Les objets sont conservés dans les fichiers `.xlsx` et `.ods`.",
+   "soon": {
+    "drop": false,
+    "en": "Object linking, new pages, and slides as objects",
+    "es": "Vinculación de objetos, páginas nuevas y diapositivas como objetos",
+    "fr": "Liaison d’objets, nouvelles pages et diapositives comme objets"
    }
   },
   "39fbcf1daabe9da15487e1de024dee6b85c0e55dbdcd5b1abb279ac9c155d78f": {
@@ -13578,6 +13646,18 @@
     "fr": ""
    }
   },
+  "5017746cc36f937eacc79305144f6a4d8d356a8a50e6fe9d7eb5e53d04c13005": {
+   "drop": false,
+   "en": "Type an equation in a line and place it on the page as an object, with fractions, powers and subscripts, roots, sums, integrals, brackets, accents, matrices, symbols, and built-in equations. The equation is drawn in two dimensions, moves, sizes, turns, and takes a color like any object, and opens in the editor again on a double-click or `Enter`. While an equation is selected, an Equation tab offers Professional and Linear forms, Normal Text, and symbol menus.",
+   "es": "Escriba una ecuación en una línea y colóquela en la página como un objeto, con fracciones, potencias y subíndices, raíces, sumatorias, integrales, paréntesis, acentos, matrices, símbolos y ecuaciones integradas. La ecuación se dibuja en dos dimensiones, se mueve, cambia de tamaño, gira y admite color como cualquier objeto, y se abre de nuevo en el editor con doble clic o con `Enter`. Mientras hay una ecuación seleccionada, una pestaña Ecuación ofrece las formas Profesional y Lineal, Texto normal y menús de símbolos.",
+   "fr": "Saisissez une équation sur une ligne et placez-la sur la page comme un objet, avec fractions, puissances et indices, racines, sommes, intégrales, parenthèses, accents, matrices, symboles et équations intégrées. L’équation est dessinée en deux dimensions, se déplace, se redimensionne, pivote et prend une couleur comme tout objet, et s’ouvre de nouveau dans l’éditeur par un double-clic ou avec `Entrée`. Lorsqu’une équation est sélectionnée, un onglet Équation propose les formes Professionnelle et Linéaire, le Texte normal et des menus de symboles.",
+   "soon": {
+    "drop": false,
+    "en": "Ink equations",
+    "es": "Ecuaciones escritas a mano",
+    "fr": "Équations manuscrites"
+   }
+  },
   "50206111499dec7b5129148d1787eb30fbf9d757cf35a695cd993f931035e7de": {
    "drop": false,
    "en": "Open and save plain text with the encoding and line ends chosen, including UTF-8, UTF-16, Windows code pages, ISO 8859, and East Asian encodings.",
@@ -14159,18 +14239,6 @@
    "en": "Paste text through the Text Import dialog, splitting it into columns by the separators, quote, first row, and column kinds chosen, or by fixed-width cuts, in one step of Undo. Set Default Paste to make Paste and `Ctrl+V` use the last choice of the Paste arrow.",
    "es": "Pegue texto mediante el cuadro de importación de texto y divídalo en columnas según los separadores, las comillas, la primera fila y los tipos de columna elegidos, o por cortes de ancho fijo, en un solo paso de deshacer. Con Establecer pegado predeterminado, Pegar y `Ctrl+V` usan la última opción de la flecha de Pegar.",
    "fr": "Collez du texte via la boîte d’importation de texte et fractionnez-le en colonnes selon les séparateurs, les guillemets, la première ligne et les types de colonne choisis, ou par coupures de largeur fixe, en une seule étape d’annulation. Avec Définir le collage par défaut, Coller et `Ctrl+V` utilisent le dernier choix de la flèche Coller.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "563bfe61f3a5f5c65be4efcacac85965bb48aea289f3afdd189669d3342953f6": {
-   "drop": false,
-   "en": "Draw from the Shapes gallery: lines, arrows, elbow and curved connectors, curves, freehand drawing, and shapes sorted by kind. The gallery is also on the Insert tab.",
-   "es": "Dibuje desde la galería de formas: líneas, flechas, conectores en ángulo y curvos, curvas, dibujo a mano alzada y formas ordenadas por tipo. La galería también está en la pestaña Insertar.",
-   "fr": "Dessinez depuis la galerie de formes : lignes, flèches, connecteurs coudés et courbes, courbes, dessin à main levée et formes classées par type. La galerie se trouve aussi dans l’onglet Insertion.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15054,6 +15122,18 @@
     "fr": ""
    }
   },
+  "60fd0cba7f84ea220414f963fbeeafeea53f8e915bbb5a5ab738f1693ecd447a": {
+   "drop": false,
+   "en": "Attach connectors to shapes: an end snaps to the nearest connection site on a shape and follows it. The site is kept in `.pptx` and `.odp` files.",
+   "es": "Una los conectores a las formas: un extremo se ajusta al punto de conexión más cercano de una forma y la sigue. El punto de conexión se conserva en los archivos `.pptx` y `.odp`.",
+   "fr": "Attachez des connecteurs aux formes : une extrémité s’accroche au point de connexion le plus proche d’une forme et la suit. Le point de connexion est conservé dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "617dd139857e426ad26e69bbd9079e0b20d52b434787969f11a263474cb57b06": {
    "drop": false,
    "en": "Movies and sounds play as the file specifies, and a control bar appears when you point at a movie; a click plays or pauses it.",
@@ -15870,6 +15950,18 @@
     "fr": ""
    }
   },
+  "6b72a93bd198c76a3b26b20b06b309c3836f7f3dca43353f5444345221d4e827": {
+   "drop": false,
+   "en": "Type or write math and see it set in type. An equation is one object that moves, sizes, and undoes, and a double-click opens it in the editor. It is saved in `.pptx` and `.odp` files and is drawn in the slide show, in print, and in PDF.",
+   "es": "Escriba matemáticas y véalas compuestas tipográficamente. Una ecuación es un objeto que se mueve, cambia de tamaño y admite deshacer, y un doble clic la abre en el editor. Se guarda en archivos `.pptx` y `.odp` y se dibuja en la presentación, al imprimir y en PDF.",
+   "fr": "Saisissez des mathématiques et voyez-les composées. Une équation est un objet qui se déplace, se redimensionne et s’annule, et un double-clic l’ouvre dans l’éditeur. Elle est enregistrée dans les fichiers `.pptx` et `.odp` et dessinée dans le diaporama, à l’impression et en PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6bac1c618af83da247be49e0a7aa3feccf6f365d71eba1a1f8d730b6c1707bc9": {
    "drop": false,
    "en": "Split cuts the view into two or four panes that each scroll on their own. Drag a bar to move it and double-click to remove it, or drag from the small box on a scroll bar. Splits are saved in `.xlsx` and `.ods` files.",
@@ -16072,6 +16164,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6cb9f740c292a5ec7a5ca23e4aa8d43ef039e67b5b3c6d7c8010feeadeada851": {
+   "drop": false,
+   "en": "Insert an object from a spreadsheet range, a spreadsheet chart, or a document page, or paste what was copied as an object. The object is shown as its picture, kept with its package in `.docx` and `.odt` files, and opens by double click in the program that made it, with each save one step of Undo. Objects of other kinds in an `.odt` file are kept and written back as they were.",
+   "es": "Inserte un objeto a partir de un rango de una hoja de cálculo, un gráfico de una hoja de cálculo o una página de documento, o pegue lo copiado como objeto. El objeto se muestra como su imagen, se conserva con su paquete en archivos `.docx` y `.odt`, y se abre con doble clic en el programa que lo creó; cada guardado es un paso de Deshacer. Los objetos de otros tipos en un archivo `.odt` se conservan y se vuelven a escribir tal como estaban.",
+   "fr": "Insérez un objet à partir d’une plage de tableur, d’un graphique de tableur ou d’une page de document, ou collez ce qui a été copié en tant qu’objet. L’objet s’affiche sous forme d’image, est conservé avec son paquet dans les fichiers `.docx` et `.odt`, et s’ouvre par double-clic dans le programme qui l’a créé ; chaque enregistrement correspond à une étape d’annulation. Les objets d’autres types dans un fichier `.odt` sont conservés et réécrits tels quels.",
+   "soon": {
+    "drop": false,
+    "en": "Object linking to a file",
+    "es": "Vinculación de objetos a un archivo",
+    "fr": "Liaison d’objets à un fichier"
    }
   },
   "6cda2a1769d99219679207dc9f1d943c52ec3e9cf9000ca63138bc3c5225cd5f": {
@@ -16350,18 +16454,6 @@
     "fr": ""
    }
   },
-  "70a34c0acf6c9db683b9301b8e45758e01500668a5394afc943870301f3ac056": {
-   "drop": false,
-   "en": "Parts of a file that the app can't edit yet, such as charts, diagrams, equations, and some animation and transition effects, are kept with their slide and written back whole. A duplicated slide keeps them too.",
-   "es": "Las partes de un archivo que la aplicación aún no puede editar, como gráficos, diagramas, ecuaciones y algunos efectos de animación y transición, se conservan con su diapositiva y se vuelven a escribir completas. Una diapositiva duplicada también las conserva.",
-   "fr": "Les éléments d’un fichier que l’application ne peut pas encore modifier, comme les graphiques, les diagrammes, les équations et certains effets d’animation et de transition, sont conservés avec leur diapositive et réécrits intégralement. Une diapositive dupliquée les conserve aussi.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "70ab4436dd82b2310bee017ba71a869e0a02df958149d523f9ab6f93cfb42343": {
    "drop": false,
    "en": "Colors are plain colors on the objects, as files hold them, and saving finds the theme’s colors in them again. A change of colors swaps each old color for the new scheme’s. Text and shapes on a dark background use the four dark and light colors, so they trade places when the background turns light or dark. Dark masters are saved with the dark color map.",
@@ -16372,18 +16464,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "7160114905c42703524825445df461ddddfab7802d8b545373e4c32bfbf184dd": {
-   "drop": false,
-   "en": "The equation box offers a typing format (simple line, UnicodeMath, or LaTeX) and a Professional or Linear form. Equations with fractions, scripts, roots, large operators, brackets, matrices, accents, bars, function names, and normal text are read and printed in both syntaxes.",
-   "es": "El cuadro de ecuaciones ofrece un formato de escritura (línea simple, UnicodeMath o LaTeX) y una forma Profesional o Lineal. Las ecuaciones con fracciones, subíndices y superíndices, raíces, operadores grandes, paréntesis, matrices, acentos, barras, nombres de función y texto normal se leen e imprimen en ambas sintaxis.",
-   "fr": "La boîte d’équation propose un format de saisie (ligne simple, UnicodeMath ou LaTeX) et une forme Professionnelle ou Linéaire. Les équations avec fractions, indices et exposants, racines, grands opérateurs, parenthèses, matrices, accents, barres, noms de fonction et texte normal sont lues et imprimées dans les deux syntaxes.",
-   "soon": {
-    "drop": false,
-    "en": "Equation tab: structures, conversions, and equation options",
-    "es": "Pestaña Ecuación: estructuras, conversiones y opciones de ecuación",
-    "fr": "Onglet Équation : structures, conversions et options d’équation"
    }
   },
   "7174b0162c27f7059ec122c13a0e5ad07de305bf845a28e697fbcfe047ffa758": {
@@ -17058,6 +17138,18 @@
     "fr": ""
    }
   },
+  "7c529414cccbb059c828b8701f2044935d91a74453fb4f886efba6dbe83bfb2d": {
+   "drop": false,
+   "en": "Draw a text box by dragging on the page, with fill, outline, insets, and wrap. Set the text direction to horizontal or rotated 90 or 270 degrees. The direction is kept in `.docx` and `.odt` files.",
+   "es": "Dibuje un cuadro de texto arrastrando en la página, con relleno, contorno, márgenes internos y ajuste del texto. Establezca la dirección del texto en horizontal o girada 90 o 270 grados. La dirección se conserva en archivos `.docx` y `.odt`.",
+   "fr": "Dessinez une zone de texte en faisant glisser sur la page, avec remplissage, contour, marges internes et habillage. Réglez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés. L’orientation est conservée dans les fichiers `.docx` et `.odt`.",
+   "soon": {
+    "drop": false,
+    "en": "Linked text boxes: text continues from one to the next",
+    "es": "Cuadros de texto vinculados: el texto continúa de uno a otro",
+    "fr": "Zones de texte liées : le texte continue de l’une à l’autre"
+   }
+  },
   "7c611972899c7b5cf05def3eddfe9e2c32aed8881f6f50a985358c79a912efad": {
    "drop": false,
    "en": "Insert hyperlinks (web, email, place in this document, new document) and bookmarks.",
@@ -17476,6 +17568,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "822b42ba14744d836796758434b90b25f62c4d9a73056f4936728429defd355b": {
+   "drop": false,
+   "en": "Put a range or chart of a saved JeffCrunch workbook on a slide as an object, shown as its picture and opened in JeffCrunch by a double-click.",
+   "es": "Coloque un rango o un gráfico de un libro de JeffCrunch guardado en una diapositiva como objeto, mostrado como su imagen y abierto en JeffCrunch con doble clic.",
+   "fr": "Placez une plage ou un graphique d’un classeur JeffCrunch enregistré sur une diapositive comme objet, affiché sous forme d’image et ouvert dans JeffCrunch par un double-clic.",
+   "soon": {
+    "drop": false,
+    "en": "New blank worksheet",
+    "es": "Hoja de cálculo nueva en blanco",
+    "fr": "Nouvelle feuille de calcul vierge"
    }
   },
   "824a6c6244a02f75b540ed28e995e97662cb86384740711a85d3b2a3c90244ab": {
@@ -18186,18 +18290,6 @@
     "fr": ""
    }
   },
-  "8dfb6c309e6b74619208989aeec3a0af335c1a4a99eb7c5be2c355ff7f08535d": {
-   "drop": false,
-   "en": "Insert a text box or text styles on a sheet. Edit a text box's words, alignment, size, bold, and color. Edit text styles' words, font, size, bold, and italic, and change their look and warp shape, each as one Undo step. Both are saved in `.xlsx` and `.ods` files and read back.",
-   "es": "Inserte un cuadro de texto o estilos de texto en una hoja. Edite las palabras, la alineación, el tamaño, la negrita y el color de un cuadro de texto. Edite las palabras, la fuente, el tamaño, la negrita y la cursiva de los estilos de texto, y cambie su aspecto y su forma de deformación, cada cambio como un paso de Deshacer. Ambos se guardan en archivos `.xlsx` y `.ods` y se leen de nuevo.",
-   "fr": "Insérez une zone de texte ou des styles de texte dans une feuille. Modifiez les mots, l’alignement, la taille, le gras et la couleur d’une zone de texte. Modifiez les mots, la police, la taille, le gras et l’italique des styles de texte, et changez leur aspect et leur forme de déformation, chaque changement étant une étape d’annulation. Les deux sont enregistrés dans des fichiers `.xlsx` et `.ods` et relus.",
-   "soon": {
-    "drop": false,
-    "en": "Text Art warps Wave 2, Wave 4, and the bottom and top forms of Inflate and Deflate: saved in `.ods` files with their shape",
-    "es": "Deformaciones de estilos de texto Onda 2, Onda 4 y las formas inferior y superior de Inflar y Desinflar: guardado en archivos `.ods` con su forma",
-    "fr": "Déformations de styles de texte Vague 2, Vague 4 et formes basse et haute de Gonfler et Dégonfler : enregistrement dans des fichiers `.ods` avec leur forme"
-   }
-  },
   "8e6792a8544ba1291503f34da971418b79034d765d1cd01e92af12c8a4d4737d": {
    "drop": false,
    "en": "Use 60 math and trigonometry functions, including SUM, ROUND, SUBTOTAL, SUMIF, SUMIFS, SUMPRODUCT, MMULT, MINVERSE, RANDBETWEEN, and ROMAN.",
@@ -18810,6 +18902,18 @@
     "fr": "Page d’options des formules"
    }
   },
+  "980d3d937e0bb8d92a4424aaa3af760edee0ccd3a28af81215f68c857bd765de": {
+   "drop": false,
+   "en": "Compare the presentation with another version, then accept or reject each change in the Reviewing Pane. Filter changes by slide, author, and state, step through them, and see text changes word by word. Undecided changes are saved in `.pptx` and `.odp` files.",
+   "es": "Compare la presentación con otra versión y acepte o rechace cada cambio en el panel de revisión. Filtre los cambios por diapositiva, autor y estado, recórralos y vea los cambios de texto palabra por palabra. Los cambios sin decidir se guardan en archivos `.pptx` y `.odp`.",
+   "fr": "Comparez la présentation avec une autre version, puis acceptez ou rejetez chaque modification dans le volet de révision. Filtrez les modifications par diapositive, auteur et état, parcourez-les et voyez les changements de texte mot à mot. Les modifications non décidées sont enregistrées dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6": {
    "drop": false,
    "en": "Copy formatting from text and objects, once or, by holding `Shift` on the button, many times.",
@@ -18856,6 +18960,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "98cea20cb270dcadad8e6df0bc5ade823a93ee2972be7e7cb1784e157a93afbd": {
+   "drop": false,
+   "en": "Shapes on a sheet are drawn with their standard outline and text area.",
+   "es": "Las formas de una hoja se dibujan con su contorno y su área de texto estándar.",
+   "fr": "Les formes d’une feuille sont dessinées avec leur contour et leur zone de texte standard.",
+   "soon": {
+    "drop": false,
+    "en": "Yellow handles on shapes",
+    "es": "Controles amarillos en las formas",
+    "fr": "Poignées jaunes sur les formes"
    }
   },
   "98f659bdff47d9ed861f749515b25fc0306ecc84dd9064186680f70042d151ad": {
@@ -18959,18 +19075,6 @@
    "en": "Table Tools Design and Layout tabs",
    "es": "Pestañas Diseño y Disposición de herramientas de tabla",
    "fr": "Onglets Création et Disposition des outils de tableau",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "9a7a3cb843badfe8b00ea8edfcd3f0df6c18d7ee6da9251a483ae25ba0f589ca": {
-   "drop": false,
-   "en": "Connectors stay attached: an end snaps to a connection site on a shape and follows it.",
-   "es": "Los conectores permanecen unidos: un extremo se ajusta a un punto de conexión de una forma y la sigue.",
-   "fr": "Les connecteurs restent attachés : une extrémité s’accroche à un point de connexion d’une forme et la suit.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19216,18 +19320,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9d2409afeb96a1b8168165b2dea232d3b3f0cccd14ae0aa61eb1ed7a27395f61": {
-   "drop": false,
-   "en": "Insert one of 75 shapes in eight groups, draw it by dragging on the page, and type text inside it. Set fill, outline, effects, rotation, wrap, alt text, size, and edit points from the Shape Format tab.",
-   "es": "Inserte una de 75 formas en ocho grupos, dibújela arrastrando en la página y escriba texto dentro de ella. Defina relleno, contorno, efectos, giro, ajuste del texto, texto alternativo, tamaño y puntos de edición desde la pestaña Formato de forma.",
-   "fr": "Insérez l’une des 75 formes réparties en huit groupes, dessinez-la en faisant glisser sur la page et saisissez du texte à l’intérieur. Réglez le remplissage, le contour, les effets, la rotation, l’habillage, le texte de remplacement, la taille et les points de modification depuis l’onglet Format de la forme.",
-   "soon": {
-    "drop": false,
-    "en": "Connectors that stay joined, and shapes in headers and footers",
-    "es": "Conectores que permanecen unidos, y formas en encabezados y pies de página",
-    "fr": "Connecteurs qui restent reliés, et formes dans les en-têtes et pieds de page"
    }
   },
   "9d67118b01bfcb650f5e40fbc3399bccfaf1e49f777c74403c1882de515143dc": {
@@ -19722,18 +19814,6 @@
     "fr": "Raccourcis clavier pour les blocs de construction"
    }
   },
-  "a5d7a639e6bd2e77b106847c002931d748663bdfce2a38217f302df9f8e4e8db": {
-   "drop": false,
-   "en": "Set a picture's wrap to in line with text, square, tight, top and bottom, behind text, or in front of text in one step. Square, tight, and top-and-bottom wraps from files are laid out with their distances, and tight wrap outlines are read, laid out, and saved. Choosing Tight on a shape, a picture cut to a shape, or a picture with transparency starts the outline from what is shown, and Edit Wrap Points starts from it.",
-   "es": "Establezca el ajuste de una imagen en alineado con el texto, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto en un solo paso. Los ajustes cuadrado, estrecho y superior e inferior de los archivos se distribuyen con sus distancias, y los contornos de ajuste estrecho se leen, se distribuyen y se guardan. Al elegir Estrecho en una forma, en una imagen recortada con una forma o en una imagen con transparencia, el contorno parte de lo que se muestra, y Editar puntos de ajuste parte de él.",
-   "fr": "Réglez l’habillage d’une image sur aligné sur le texte, carré, rapproché, haut et bas, derrière le texte ou devant le texte en une seule étape. Les habillages carré, rapproché et haut et bas des fichiers sont mis en page avec leurs distances, et les contours d’habillage rapproché sont lus, mis en page et enregistrés. Choisir Rapproché sur une forme, une image découpée en forme ou une image avec transparence part de ce qui est affiché, et Modifier les points d’habillage part de ce contour.",
-   "soon": {
-    "drop": false,
-    "en": "Wrap options: allow overlap, layout in table cells, and mirrored margins; wrap for text boxes with their own shape",
-    "es": "Opciones de ajuste: permitir superposición, diseño en celdas de tabla y márgenes simétricos; ajuste para cuadros de texto con forma propia",
-    "fr": "Options d’habillage : autoriser le chevauchement, mise en page dans les cellules de tableau et marges en miroir ; habillage des zones de texte ayant leur propre forme"
-   }
-  },
   "a5da13cab92a9f3c7da3d5dda5a79da7077e3cf96e0d62535ce25c0790f444bf": {
    "drop": false,
    "en": "Older binary `.ppt`, `.pps`, and `.pot`",
@@ -19919,6 +19999,18 @@
    "en": "Safety and limits",
    "es": "Seguridad y límites",
    "fr": "Sécurité et limites",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "a8855cf270452d623feb94e202d0f513e8a3ccc79a1318135ea8a491d4eeb316": {
+   "drop": false,
+   "en": "Draw elbow and curved connectors, plain or with one or two arrowheads. The ends of any line attach to connection sites on a shape, text box, picture, or table and follow it when it moves, resizes, or turns. A yellow handle moves an elbow’s bend, and dragging a connector away on its own detaches it. Connectors are opened from and saved to `.pub` files attached.",
+   "es": "Dibuje conectores en ángulo y curvos, simples o con una o dos puntas de flecha. Los extremos de cualquier línea se unen a puntos de conexión de una forma, un cuadro de texto, una imagen o una tabla, y la siguen cuando se mueve, cambia de tamaño o gira. Un control amarillo mueve el codo de un conector en ángulo, y al arrastrar un conector por sí solo se desprende. Los conectores se abren y se guardan en archivos `.pub` conservando la unión.",
+   "fr": "Dessinez des connecteurs coudés et courbes, simples ou avec une ou deux pointes de flèche. Les extrémités de toute ligne s’attachent à des points de connexion d’une forme, d’une zone de texte, d’une image ou d’un tableau et la suivent lorsqu’elle est déplacée, redimensionnée ou pivotée. Une poignée jaune déplace le coude d’un connecteur coudé, et faire glisser un connecteur seul le détache. Les connecteurs sont ouverts et enregistrés dans les fichiers `.pub` avec leur attache.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20694,6 +20786,18 @@
     "fr": "Menus contextuels pour un tableau et un tableau croisé dynamique"
    }
   },
+  "b51a9d8ea167a238d816c74f10e0c2b512341e1132f379d6bb83c31374961719": {
+   "drop": false,
+   "en": "Insert an object from a JeffCrunch range, a JeffCrunch chart, or a JeffWrite page, or paste what was copied in another program as an object. The object shows its picture, is kept in `.pptx` and `.odp` files, stays an object when copied, duplicated, or pasted, and opens in the program that made it with a double-click. Each save there is one undo step.",
+   "es": "Inserte un objeto desde un rango de JeffCrunch, un gráfico de JeffCrunch o una página de JeffWrite, o pegue como objeto lo copiado en otro programa. El objeto muestra su imagen, se conserva en archivos `.pptx` y `.odp`, sigue siendo un objeto al copiarlo, duplicarlo o pegarlo, y se abre con doble clic en el programa que lo creó. Cada guardado allí es un paso de deshacer.",
+   "fr": "Insérez un objet à partir d’une plage JeffCrunch, d’un graphique JeffCrunch ou d’une page JeffWrite, ou collez comme objet ce qui a été copié dans un autre programme. L’objet affiche son image, est conservé dans les fichiers `.pptx` et `.odp`, reste un objet lorsqu’il est copié, dupliqué ou collé, et s’ouvre par un double-clic dans le programme qui l’a créé. Chaque enregistrement dans ce programme correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Slide as an object, linking",
+    "es": "Diapositiva como objeto y vinculación",
+    "fr": "Diapositive comme objet et liaison"
+   }
+  },
   "b521e5fb7f3f39def0839f59c3f583a35afb5e002ea895440317bb64baf7ded6": {
    "drop": false,
    "en": "Charts are shown as saved, drawn from the numbers in the cells they point at. Kinds that cannot be drawn yet are kept and drawn from their stored values.",
@@ -21318,6 +21422,18 @@
     "fr": ""
    }
   },
+  "c0ce9629dc835ff8e9e19366a88915ce2b310e4a0cab13e655e709c37eee0157": {
+   "drop": false,
+   "en": "Insert shapes from eight groups (lines, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) by dragging on the page. Set fill, outline, effects, style, turn, wrap, and size, and type text inside a shape. Edit a shape’s points, and connect shapes with connectors that glue to connection points.",
+   "es": "Inserte formas de ocho grupos (líneas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, diagrama de flujo, estrellas y cintas, y llamadas) arrastrando en la página. Defina relleno, contorno, efectos, estilo, giro, ajuste del texto y tamaño, y escriba texto dentro de una forma. Edite los puntos de una forma y una formas con conectores que se pegan a los puntos de conexión.",
+   "fr": "Insérez des formes de huit groupes (lignes, rectangles, formes de base, flèches pleines, formes d’équation, organigramme, étoiles et bannières, et bulles) en faisant glisser sur la page. Réglez le remplissage, le contour, les effets, le style, la rotation, l’habillage et la taille, et saisissez du texte dans une forme. Modifiez les points d’une forme et reliez les formes avec des connecteurs qui s’attachent aux points de connexion.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c0e4345564aea0da590ed9fe982184ed685c0ef367ac603fad887f95cdf60f35": {
    "drop": false,
    "en": "Data validation rules are read, kept, and followed through edits. Typed and pasted values are checked with the rule’s own style, title, and message, a list is offered from a button on the cell, and the input message shows beside the cell. Rules that read other sheets are kept through saving and through inserted rows and columns.",
@@ -21520,18 +21636,6 @@
     "en": "`RATE` and `DB`",
     "es": "`RATE` y `DB`",
     "fr": "`RATE` et `DB`"
-   }
-  },
-  "c32ef0d8191cf5cbf06261e703d5521812110b9340de63d3abd2ccb6345a6701": {
-   "drop": false,
-   "en": "Set text direction to horizontal or rotated 90 or 270 degrees on the Format Shape pane.",
-   "es": "Defina la dirección del texto como horizontal o girada 90 o 270 grados en el panel Formato de forma.",
-   "fr": "Réglez le sens du texte à l’horizontale ou pivoté de 90 ou 270 degrés dans le volet Format de la forme.",
-   "soon": {
-    "drop": false,
-    "en": "Stacked text direction",
-    "es": "Dirección de texto apilada",
-    "fr": "Sens du texte empilé"
    }
   },
   "c336a3e3503373ebeb85d100dd5c1c53553ef83b204e0e0aeac6a049ad9984ca": {
@@ -21798,16 +21902,16 @@
     "fr": ""
    }
   },
-  "c7b5131fff3a63d633a9c806418ef85a8d3b0508dce7a419cc1d88f04f36d76b": {
+  "c70947b2b782c29feab2911d22e51c8867253acfd689c3e5dac161d02186f0dd": {
    "drop": false,
-   "en": "Equations in `.docx` files are read, saved, and drawn built up in two dimensions on the text baseline, the same on screen, in print, and in PDF. Equations in a line and on their own line are supported, and Insert and Edit equation set them in one step.",
-   "es": "Las ecuaciones de los archivos `.docx` se leen, se guardan y se dibujan en dos dimensiones sobre la línea base del texto, igual en pantalla, en impresión y en PDF. Se admiten ecuaciones en línea y en su propia línea, y Insertar y Editar ecuación las aplican en un solo paso.",
-   "fr": "Les équations des fichiers `.docx` sont lues, enregistrées et dessinées en deux dimensions sur la ligne de base du texte, de la même façon à l’écran, à l’impression et en PDF. Les équations dans une ligne et sur leur propre ligne sont prises en charge, et Insérer et Modifier l’équation les appliquent en une seule étape.",
+   "en": "Draw every preset shape with its standard outline, text area, and yellow handles, including handles that move along two axes and handles that turn by an angle. A callout’s pointer counts as part of the shape.",
+   "es": "Dibuje cada forma predefinida con su contorno, su área de texto y sus controles amarillos estándar, incluidos los controles que se mueven en dos ejes y los que giran según un ángulo. El puntero de una llamada cuenta como parte de la forma.",
+   "fr": "Dessinez chaque forme prédéfinie avec son contour, sa zone de texte et ses poignées jaunes standard, y compris les poignées qui se déplacent selon deux axes et celles qui tournent selon un angle. La pointe d’une bulle fait partie de la forme.",
    "soon": {
-    "drop": false,
-    "en": "Equations as MathML in `.odt` files",
-    "es": "Ecuaciones como MathML en archivos `.odt`",
-    "fr": "Équations en MathML dans les fichiers `.odt`"
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
@@ -21918,6 +22022,18 @@
     "fr": ""
    }
   },
+  "c8addb9f17f63f7afb647df7f0cedfa348392720fd01e2859e4033320bb76d5c": {
+   "drop": false,
+   "en": "Nothing in a file is lost: parts that cannot be edited yet, such as parts of charts, diagrams, an equation until it is changed, and animation or transition effects without an editing form, are kept with their slide and written back whole. A duplicated slide keeps them too.",
+   "es": "No se pierde nada de un archivo: las partes que todavía no se pueden editar, como partes de gráficos, diagramas, una ecuación hasta que se modifica, y efectos de animación o de transición sin formulario de edición, se conservan con su diapositiva y se escriben de nuevo completas. Una diapositiva duplicada también las conserva.",
+   "fr": "Rien d’un fichier n’est perdu : les éléments qui ne sont pas encore modifiables, comme des parties de graphiques, de diagrammes, une équation tant qu’elle n’est pas modifiée, et les effets d’animation ou de transition sans formulaire de modification, sont conservés avec leur diapositive et réécrits intégralement. Une diapositive dupliquée les conserve aussi.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c8b2b1d40de6032758187a87d64881e4d97623f520336e3ba97d218369ffca77": {
    "drop": false,
    "en": "Select recipients by typing a new list, using an existing one (CSV, tab-delimited, `.xlsx`, `.ods`, or vCard contacts), or choosing contacts from an address book saved as `.vcf`.",
@@ -21988,6 +22104,18 @@
     "en": "Number format codes in pivot values",
     "es": "Códigos de formato numérico en los valores de tablas dinámicas",
     "fr": "Codes de format de nombre dans les valeurs des tableaux croisés dynamiques"
+   }
+  },
+  "c97ba2291251853bf6b964f61a6c126f9667d750d0baf38790ac5dd07116526f": {
+   "drop": false,
+   "en": "Draw a text box on a sheet by dragging, and add text styles from a gallery. Set the text direction to horizontal or rotated 90 or 270 degrees. Text boxes and text styles are kept in `.xlsx` and `.ods` files.",
+   "es": "Dibuje un cuadro de texto en una hoja arrastrando y agregue estilos de texto desde una galería. Establezca la dirección del texto en horizontal o girada 90 o 270 grados. Los cuadros de texto y los estilos de texto se conservan en archivos `.xlsx` y `.ods`.",
+   "fr": "Dessinez une zone de texte sur une feuille en faisant glisser, et ajoutez des styles de texte depuis une galerie. Réglez l’orientation du texte à l’horizontale ou pivotée de 90 ou 270 degrés. Les zones de texte et les styles de texte sont conservés dans les fichiers `.xlsx` et `.ods`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "c9a41ab3a956005a0e4ca2981896c538fe0eabdb46ded7d4be3308077dad57d6": {
@@ -22842,6 +22970,18 @@
     "fr": ""
    }
   },
+  "d41365d402c877e166b45536dea2b4dc191c539a64db228357b472991e5a54af": {
+   "drop": false,
+   "en": "Choose Professional or Linear form and a typing format of simple line, UnicodeMath, or LaTeX for an equation. Normal Text works inside an equation.",
+   "es": "Elija la forma Profesional o Lineal y un formato de escritura de línea simple, UnicodeMath o LaTeX para una ecuación. El texto normal funciona dentro de una ecuación.",
+   "fr": "Choisissez la forme Professionnelle ou Linéaire et un format de saisie (ligne simple, UnicodeMath ou LaTeX) pour une équation. Le texte normal fonctionne à l’intérieur d’une équation.",
+   "soon": {
+    "drop": false,
+    "en": "Equation options",
+    "es": "Opciones de ecuación",
+    "fr": "Options d’équation"
+   }
+  },
   "d421b6c65828b3d9f8bcc52f4a412e1183cc18472ada7534595a63f8b623a20e": {
    "drop": false,
    "en": "Use IFNA, IFS, LET, SWITCH, and XOR. LET gives names to values, or to a block of cells, inside one formula.",
@@ -22888,6 +23028,18 @@
     "en": "Regroup and More Rotation Options",
     "es": "Reagrupar y más opciones de rotación",
     "fr": "Regrouper et plus d’options de rotation"
+   }
+  },
+  "d444dfab5d7bada7e6c51888406668fdb72073a3a318e8b38acf5099dd55e889": {
+   "drop": false,
+   "en": "Put an equation over the cells as an object, typed in a line and drawn in two dimensions with the built-in equations. It moves and sizes like any object, opens the editor again on a double-click, and each change is one undo step. Equations are kept in `.xlsx` and `.ods` files and are drawn in PDF and print.",
+   "es": "Coloque una ecuación sobre las celdas como objeto, escrita en una línea y dibujada en dos dimensiones, con ecuaciones integradas. Se mueve y cambia de tamaño como cualquier objeto, abre de nuevo el editor con doble clic, y cada cambio es un paso de deshacer. Las ecuaciones se conservan en archivos `.xlsx` y `.ods` y se dibujan en PDF y al imprimir.",
+   "fr": "Placez une équation sur les cellules comme objet, saisie sur une ligne et dessinée en deux dimensions, avec les équations intégrées. Elle se déplace et se redimensionne comme tout objet, rouvre l’éditeur par un double-clic, et chaque modification est une étape d’annulation. Les équations sont conservées dans les fichiers `.xlsx` et `.ods` et dessinées en PDF et à l’impression.",
+   "soon": {
+    "drop": false,
+    "en": "Ink equations",
+    "es": "Ecuaciones escritas a mano",
+    "fr": "Équations manuscrites"
    }
   },
   "d47c9d908f866d7e4015243b8828e6577f31aed757ce39f3ce0bfeaa5ead58b1": {
@@ -23068,6 +23220,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d79bfba268a90c9f639439bdd84d7a3028b66818eb044c0d5387717ee126f224": {
+   "drop": false,
+   "en": "Shapes and text boxes in a file are shown, kept, and written back.",
+   "es": "Las formas y los cuadros de texto de un archivo se muestran, se conservan y se escriben de nuevo.",
+   "fr": "Les formes et les zones de texte d’un fichier sont affichées, conservées et réécrites.",
+   "soon": {
+    "drop": false,
+    "en": "Insert and edit shapes",
+    "es": "Insertar y editar formas",
+    "fr": "Insérer et modifier des formes"
    }
   },
   "d7a68230116e61d6bd050eb7aad93dee1b241dd8bb6c09d69f68efde61427cd7": {
@@ -23622,18 +23786,6 @@
     "fr": ""
    }
   },
-  "dfc887e0cca47eb66d040b98c2f5f83bd52293da45be4a52ba1332a82a4e1d80": {
-   "drop": false,
-   "en": "Insert a text box with a fill, outline, insets, and wrap, draw it with the mouse, and set its text direction to horizontal or rotated 90 or 270 degrees. Edit its text, and set its fill, outline, wrap, and size on the Shape Format tab. Shapes with text from a file keep their shape, and their text follows the outline.",
-   "es": "Inserte un cuadro de texto con relleno, contorno, márgenes interiores y ajuste, dibújelo con el mouse y establezca la dirección del texto en horizontal o girada 90 o 270 grados. Edite su texto y establezca su relleno, contorno, ajuste y tamaño en la pestaña Formato de forma. Las formas con texto de un archivo conservan su forma y el texto sigue el contorno.",
-   "fr": "Insérez une zone de texte avec remplissage, contour, marges intérieures et habillage, dessinez-la à la souris et réglez la direction du texte en horizontal ou pivoté de 90 ou 270 degrés. Modifiez son texte et réglez son remplissage, son contour, son habillage et sa taille dans l’onglet Format de la forme. Les formes contenant du texte provenant d’un fichier conservent leur forme et le texte suit le contour.",
-   "soon": {
-    "drop": false,
-    "en": "Linked text boxes: text continues from one box to the next",
-    "es": "Cuadros de texto vinculados: el texto continúa de un cuadro al siguiente",
-    "fr": "Zones de texte liées : le texte continue d’une zone à la suivante"
-   }
-  },
   "dfd1f09d255d29171974f5271ab08c89a677c21bf1a490e734c9dba5888e8d1e": {
    "drop": false,
    "en": "Press `Tab` to move between cells; pressing `Tab` in the last cell adds a row.",
@@ -23656,30 +23808,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e0815a5cc8d1e612aaf954b27108dce88469f46c0ea93e40477a5c53253bc2e8": {
-   "drop": false,
-   "en": "Type or write math and see it set in type. An equation goes in the middle of the slide as one object that can be moved, resized, and edited with a double click, and it is saved in `.pptx`.",
-   "es": "Escriba o redacte matemáticas y véalas compuestas tipográficamente. Una ecuación se coloca en el centro de la diapositiva como un solo objeto que puede moverse, cambiar de tamaño y editarse con doble clic, y se guarda en `.pptx`.",
-   "fr": "Saisissez ou écrivez des formules mathématiques et voyez-les composées. Une équation se place au centre de la diapositive comme un seul objet que l’on peut déplacer, redimensionner et modifier d’un double clic, et elle est enregistrée en `.pptx`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e086fc1ae61af787099318570591c67b44c802adcac915f5c6fc2f877ed5170d": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Object: an embedded object from another program, shown as its saved picture and opened in its own program",
-    "es": "Objeto: un objeto incrustado de otro programa, mostrado como su imagen guardada y abierto en su propio programa",
-    "fr": "Objet : un objet incorporé d’un autre programme, affiché sous la forme de son image enregistrée et ouvert dans son propre programme"
    }
   },
   "e093a72f831d17f44e0b19e01a8108484f23b5a1e59deefaa416de294508337f": {
@@ -24287,18 +24415,6 @@
    "en": "Macros are kept in the file and never run. A link opens only when it is clicked in the show.",
    "es": "Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo solo se abre cuando se hace clic en él durante la presentación.",
    "fr": "Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien ne s’ouvre que lorsque vous cliquez dessus pendant le diaporama.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e7682c051573d111c32d9b46cea5a9156887f26d271b00381749f423f6b09a92": {
-   "drop": false,
-   "en": "Compare the presentation with another version and review each change in a Reviewing Pane. Accept or reject changes one at a time, or accept or reject all, filter by slide, author, and state, and move between changes with Previous and Next. Text changes are shown word by word, and each decision can be undone. Undecided changes are saved in `.pptx` and `.odp` files and found again when the file opens.",
-   "es": "Compare la presentación con otra versión y revise cada cambio en un panel de revisión. Acepte o rechace los cambios uno por uno, o acepte o rechace todos, filtre por diapositiva, autor y estado, y pase de un cambio a otro con Anterior y Siguiente. Los cambios de texto se muestran palabra por palabra y cada decisión se puede deshacer. Los cambios sin decidir se guardan en archivos `.pptx` y `.odp` y se recuperan al abrir el archivo.",
-   "fr": "Comparez la présentation avec une autre version et passez en revue chaque modification dans un volet de révision. Acceptez ou rejetez les modifications une à une, ou toutes à la fois, filtrez par diapositive, auteur et état, et passez d’une modification à l’autre avec Précédent et Suivant. Les modifications de texte s’affichent mot par mot, et chaque décision peut être annulée. Les modifications en attente sont enregistrées dans les fichiers `.pptx` et `.odp` et retrouvées à l’ouverture du fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24928,6 +25044,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f0118e96d9bf0de780cac4ec6b4bf0c99150f36d7198e3f199dfb9051ef7a4d1": {
+   "drop": false,
+   "en": "Equations are read and saved in `.docx`, `.doc`, and `.odt` files. An equation, in a line or on its own line, is drawn built up in two dimensions on screen, in print, and in PDF.",
+   "es": "Las ecuaciones se leen y se guardan en archivos `.docx`, `.doc` y `.odt`. Una ecuación, en una línea o en su propia línea, se dibuja en dos dimensiones en pantalla, al imprimir y en PDF.",
+   "fr": "Les équations sont lues et enregistrées dans les fichiers `.docx`, `.doc` et `.odt`. Une équation, dans une ligne ou sur sa propre ligne, est dessinée en deux dimensions à l’écran, à l’impression et en PDF.",
+   "soon": {
+    "drop": false,
+    "en": "Pasted equations drawn in two dimensions right away",
+    "es": "Ecuaciones pegadas dibujadas en dos dimensiones de inmediato",
+    "fr": "Équations collées dessinées aussitôt en deux dimensions"
    }
   },
   "f046a58ffc31f9fc7e620618016bcbfbd3e635843c3402d9e24c5e692425be79": {
@@ -25602,18 +25730,6 @@
     "fr": ""
    }
   },
-  "f973e308360a112e61bebb001ba5338936e93f51a08d5c75e66537638da6767b": {
-   "drop": false,
-   "en": "Edit Text sets the words of a shape or text box, horizontal and vertical alignment, size, bold, color, and wrap or one line.",
-   "es": "Editar texto establece las palabras de una forma o cuadro de texto, la alineación horizontal y vertical, el tamaño, la negrita, el color y el ajuste o una sola línea.",
-   "fr": "Modifier le texte définit les mots d’une forme ou d’une zone de texte, l’alignement horizontal et vertical, la taille, le gras, la couleur, et l’habillage ou une seule ligne.",
-   "soon": {
-    "drop": false,
-    "en": "Margins, columns, and text direction in shapes and text boxes",
-    "es": "Márgenes, columnas y dirección del texto en formas y cuadros de texto",
-    "fr": "Marges, colonnes et orientation du texte dans les formes et zones de texte"
-   }
-  },
   "f974ff487bebead8cb39099fcad30769a9c4ffd326073b67573084f4a803ecbf": {
    "drop": false,
    "en": "Insert the text of another document, with its looks, pictures, and links, or a plain text file as paragraphs.",
@@ -25816,6 +25932,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fb1e1be7ea7a1908276c7cc73cf4d96daf9a333cbbabbaf6e36e3f41f3c44a3d": {
+   "drop": false,
+   "en": "Set wrap for pictures and shapes to in line with text, square, tight, top and bottom, behind text, or in front of text. Tight wrap follows the outline of a shape, a picture cut to a shape, or a picture with transparency, and wrap points can be edited.",
+   "es": "Establezca el ajuste del texto para imágenes y formas en alineado con el texto, cuadrado, estrecho, superior e inferior, detrás del texto o delante del texto. El ajuste estrecho sigue el contorno de una forma, una imagen recortada con forma o una imagen con transparencia, y los puntos de ajuste se pueden editar.",
+   "fr": "Réglez l’habillage des images et des formes : aligné sur le texte, carré, rapproché, haut et bas, derrière le texte ou devant le texte. L’habillage rapproché suit le contour d’une forme, d’une image découpée en forme ou d’une image avec transparence, et les points d’habillage peuvent être modifiés.",
+   "soon": {
+    "drop": false,
+    "en": "Text wrap for text boxes with their own shape",
+    "es": "Ajuste del texto para cuadros de texto con forma propia",
+    "fr": "Habillage du texte pour les zones de texte ayant leur propre forme"
    }
   },
   "fb32292b3a498fcc875c36168f63b5ed4958d8b25f0032341d05de3e804a8b8c": {
@@ -26027,18 +26155,6 @@
    "en": "Outline view and master documents",
    "es": "Vista de esquema y documentos maestros",
    "fr": "Mode Plan et documents maîtres",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "feb29151e45362dbf7766a33fb49ef271418ca85049f9451fac28000c625d053": {
-   "drop": false,
-   "en": "Set how text fits a text box: best fit, shrink text on overflow, grow the text box to fit, or no automatic resizing. Set vertical text direction and use automatic and manual hyphenation.",
-   "es": "Defina cómo se ajusta el texto en un cuadro de texto: mejor ajuste, reducir el texto al desbordarse, ampliar el cuadro de texto para que quepa, o sin cambio de tamaño automático. Establezca la dirección vertical del texto y use la separación silábica automática y manual.",
-   "fr": "Définissez l’ajustement du texte dans une zone de texte : meilleur ajustement, réduction du texte en cas de dépassement, agrandissement de la zone pour contenir le texte, ou aucun redimensionnement automatique. Réglez l’orientation verticale du texte et utilisez la césure automatique et manuelle.",
    "soon": {
     "drop": true,
     "en": "",
