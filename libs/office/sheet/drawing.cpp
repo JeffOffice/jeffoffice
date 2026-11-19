@@ -8,6 +8,7 @@
 #include "sheet/cellref.h"
 #include "sheet/xmlscan.h"
 
+#include <QIODevice>
 #include <QRegularExpression>
 
 #include <algorithm>
