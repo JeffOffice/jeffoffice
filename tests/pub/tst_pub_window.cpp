@@ -37,6 +37,9 @@
 #include <QStackedWidget>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <QLabel>
+#include <QMainWindow>
+#include <QStatusBar>
 
 namespace {
 // Makes `name`.rcc in `dir` (prefix /name) from the given files (relative path: text), with rcc as the build does; false when rcc fails.
@@ -2776,6 +2779,22 @@ private Q_SLOTS:
     void openingStatusNamesTheFile()
     {
         QCOMPARE(jp::openingStatus(QStringLiteral("/home/someone/Spring Flyer.jpub")), QStringLiteral("Opening Spring Flyer.jpub…"));
+    }
+
+    // The opening message is put up before the window is shown; the status bar's own words ("Ready") were drawn under it, because the bar hides them for a message only
+    // when they are on screen (the snap of 0.43.0 showed "Ready" over "Opening t.csv…"). Once the first window is up, only the message shows.
+    void theOpeningMessageHidesTheStatusWordsUnderIt()
+    {
+        QMainWindow window;
+        auto *ready = new QLabel(QStringLiteral("Ready"), &window);
+        window.statusBar()->addWidget(ready);
+        window.statusBar()->showMessage(jp::openingStatus(QStringLiteral("t.csv")));
+        jp::FirstWindow first(&window);
+        QVERIFY(window.isVisible());
+        QCOMPARE(window.statusBar()->currentMessage(), QStringLiteral("Opening t.csv…"));
+        QVERIFY(!ready->isVisible());
+        window.statusBar()->clearMessage();
+        QVERIFY(ready->isVisible());   // (and back when the message goes)
     }
 
     // Automatic recovery keeps one copy per document and run: two "Cover.pub"

@@ -51,6 +51,16 @@ FirstWindow::FirstWindow(QWidget *window) : m_window(window)
 {
     QCoreApplication::instance()->installEventFilter(this);   // (before the app's own handler, which is asked last)
     window->show();
+    // A message put up before the window was shown ("Opening Budget.xlsx…") left the status bar's own words ("Ready") drawn under it: the bar hides them for a message only
+    // when they are on screen. They are now, and nothing has been painted yet, so the message is put up again.
+    if (auto *main = qobject_cast<QMainWindow *>(window)) {
+        QStatusBar *bar = main->statusBar();
+        const QString message = bar->currentMessage();
+        if (!message.isEmpty()) {
+            bar->clearMessage();
+            bar->showMessage(message);
+        }
+    }
     QElapsedTimer waited;
     waited.start();
     // (a splash screen's finish() would wait with the keys and clicks let in)
