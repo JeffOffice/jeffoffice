@@ -30,6 +30,11 @@
 #           Nov 19 (S22): 2/2 took 15 min, 1/2 7-8 (2/2: jptests 920 s, crunchtests:2/2 760, sheettests 739; 1/2: jdtests 505, crunchtests:1/2 503,
 #           writetests 400, flowtests 382). jptests is split in two by its classes like crunchtests (ShellGrammarRulesTests alone is 388 s), one
 #           part in each job, and the weights in tools/ci_tests.sh were set again from the runs' class times.
+#           Undone the same day, but for the weights: a hosted job has four processors, and half of jptests is its grammar class, which starts 150
+#           programs of sixteen threads each. Beside it the clock-bound tests of the other programs ran out of time (WriteTests' one-second copy on
+#           main, run 44529973421; DeckLanguageTests' five-second wait with flowtests moved away, run 44537924365). The lists below are the ones that
+#           ran green for weeks: 1/2 takes 7 to 8 minutes and 2/2 15 on GitHub's machines. The time is won on our own Windows machine instead
+#           (.github/workflows/build.yml, JO_WINDOWS_SELF), which has sixteen processors for the same lists.
 # checks: the four app-check programs of the App checks step; the four apps (the PDF check, the screenshots of the packages, the
 #         installer, the .deb and AppImages, the disk image); jpubtool and jdecktool (the Windows developer-tools artifact).
 #         The first job (1/2) builds the four apps and the tools and packages them, which takes it as long as the other job's checks
@@ -46,9 +51,9 @@ case "$part/$shard" in
 tests/)
     runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
 tests/1/2)
-    runs="crunchtests:1/2 jptests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests" ;;
+    runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 jptests:2/2 sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
+    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;
