@@ -94,9 +94,10 @@ for A in "$@"; do
                 }')
             [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts"
         done ;;
-    # (writetests and flowtests are one big class each: the program itself takes every n-th test function of it, --part k/n in tests/testrunner.cpp.
-    # Their test names on a command line ran past what xargs takes on Windows, Nov 14 2026, and until Nov 19 they ran whole, 5 to 6 minutes each.)
-    writetests|flowtests)
+    # (flowtests is one big class: the program itself takes every n-th test function of it, --part k/n in tests/testrunner.cpp; its test names on a
+    # command line ran past what xargs takes on Windows, Nov 14 2026. writetests is one big class too and still runs whole: with the shared runner
+    # eight of its spelling tests failed on our Linux CI machines, in parts, though not on the lead machine, and why is not yet known; Nov 19 2026.)
+    flowtests)
         for k in $(seq 1 "$split"); do echo "$N.part$k $N - --part $k/$split" >> "$parts"; done ;;
     *) echo "$N $N -" >> "$parts" ;;
     esac

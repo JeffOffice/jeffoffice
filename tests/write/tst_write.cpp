@@ -1,5 +1,4 @@
 #include "tst_write.h"
-#include "../testrunner.h"
 #include "app/passworddialogs.h"
 
 // The run's settings are its own, and none reached the person's (checked at the end).
@@ -2212,5 +2211,4 @@ void WriteTests::copiesComeOutCollatedOrEachPageTogether()
 }
 
 
-// (the shared runner, not QTEST_MAIN: it runs every n-th test function for --part k/n, so a machine with many processors runs this one big class in parts)
-JP_TEST_CLASS(WriteTests)
+QTEST_MAIN(WriteTests)
