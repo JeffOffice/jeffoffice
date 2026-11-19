@@ -1,10 +1,10 @@
 #include "core/fonts.h"
+#include "core/workthread.h"
 
 #include <atomic>
 #include <map>
 #include <mutex>
 #include <system_error>
-#include <thread>
 #include <vector>
 
 #include "core/appinfo.h"
@@ -1000,16 +1000,14 @@ QStringList missingSubstituteKeys()
     const auto ask = [&](int from, int step) {
         for (int i = from; i < keys.size(); i += step) missing[i] = QFontDatabase::hasFamily(keys[i]) ? 0 : 1;
     };
-    std::vector<std::thread> workers;
+    std::vector<WorkThread> workers;
+    workers.reserve(size_t(threads));
     for (int k = 1; k < threads; ++k) {
-        try {
-            workers.emplace_back(ask, k, threads);
-        } catch (const std::system_error &) {
-            ask(k, threads);   // (no thread to be had: this one asks for those names too)
-        }
+        workers.emplace_back([&ask, k, threads] { ask(k, threads); });
+        if (!workers.back().started()) ask(k, threads);   // (no thread to be had: this one asks for those names too)
     }
     ask(0, threads);
-    for (std::thread &w : workers) w.join();
+    for (WorkThread &w : workers) w.join();
     QStringList out;
     for (int i = 0; i < keys.size(); ++i)
         if (missing[i]) out << keys[i];

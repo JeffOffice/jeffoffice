@@ -436,6 +436,11 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_layers.py
 
+      # No thread is started through the C++ library (std::thread, std::async): on Windows such a thread crashed as it ended (libs/base/core/workthread.h).
+      - name: Thread check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_threads.py
+
       # Every class with Q_OBJECT or Q_GADGET in libs/ is exported from the shared library (JO_COMMON_EXPORT): on Windows a connect through
       # a signal's address from a program only matches the library's own when the class is exported and imported.
       - name: Export macro check

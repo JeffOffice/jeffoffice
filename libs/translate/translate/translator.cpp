@@ -1,4 +1,5 @@
 #include "translator.h"
+#include "core/workthread.h"
 #include "languages.h"
 #include "runmap.h"
 
@@ -8,7 +9,6 @@
 #include <QLocale>
 #include <algorithm>
 #include <mutex>
-#include <thread>
 #include <vector>
 
 namespace jp {
@@ -140,7 +140,7 @@ void TranslateJob::start()
         v.push_back(std::shared_ptr<std::atomic<bool>>(state, &state->cancel));
     }
     // A thread of its own that nothing joins (a pool would be waited for when the program ends, and the engine cannot be told to leave a sentence).
-    std::thread([self, state, translator, from, to, pieces, html] {
+    jp::runDetached([self, state, translator, from, to, pieces, html] {
         QStringList out;
         QString error;
         const bool ok = translator.translatePieces(from, to, pieces, html, &out, &error, &state->cancel);
@@ -149,7 +149,7 @@ void TranslateJob::start()
         // (told on the main thread, by way of the application, which outlives the job; a job that is gone, or a program that is ending, is not told)
         if (QCoreApplication *app = QCoreApplication::instance())
             QMetaObject::invokeMethod(app, [self, ok, canceled, out, error] { if (self) Q_EMIT self->finished(ok, canceled, out, error); }, Qt::QueuedConnection);
-    }).detach();
+    });
 }
 
 } // namespace translate

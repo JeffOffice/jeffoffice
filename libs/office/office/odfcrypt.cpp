@@ -1,6 +1,8 @@
 // The protection of OpenDocument packages; see odfcrypt.h.
 
 #include "office/odfcrypt.h"
+#include "core/workthread.h"
+#include <QThread>
 
 #include "io/crypto.h"
 #include "io/zip.h"
@@ -18,7 +20,6 @@
 
 #include <algorithm>
 #include <atomic>
-#include <thread>
 #include <vector>
 
 #include <zlib.h>
@@ -299,11 +300,12 @@ CryptResult decryptOdf(const QByteArray &zip, const QString &password, qint64 ma
                 if (j.key.isEmpty()) stopped = true;
             }
         };
-        const int threads = std::max(1, std::min({8, int(std::thread::hardware_concurrency()), int(jobs.size())}));
-        std::vector<std::thread> pool;
+        const int threads = std::max(1, std::min({8, QThread::idealThreadCount(), int(jobs.size())}));
+        std::vector<jp::WorkThread> pool;
+        pool.reserve(size_t(threads));
         for (int i = 1; i < threads; ++i) pool.emplace_back(run);
         run();
-        for (std::thread &t : pool) t.join();
+        for (jp::WorkThread &t : pool) t.join();
         for (Job &j : jobs) {
             keys[j.cacheKey] = j.key;
             j.key.clear();

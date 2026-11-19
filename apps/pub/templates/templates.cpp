@@ -1,4 +1,6 @@
 #include "templates/templates.h"
+#include "core/workthread.h"
+#include <QThread>
 
 #include "core/presets.h"
 #include "render/textart.h"
@@ -22,7 +24,6 @@
 
 #include <future>
 #include <iterator>
-#include <thread>
 #include <vector>
 
 namespace jp {
@@ -268,19 +269,24 @@ void prepareArt(const ColorScheme &s, const QVector<ArtRequest> &want)
         todo << Job{key, a, artCache().value(key)};
     }
     decodedArt().clear();
-    const int cores = std::max(1, int(std::thread::hardware_concurrency()));
+    const int cores = std::max(1, QThread::idealThreadCount());
     for (int from = 0; from < todo.size(); from += cores) {
         const int to = std::min(int(todo.size()), from + cores);
-        std::vector<std::future<std::pair<QByteArray, QImage>>> jobs;
-        for (int i = from; i < to; ++i)
-            jobs.push_back(std::async(std::launch::async, [s, job = todo[i]] {
-                const QByteArray png = job.png.isEmpty() ? paintArt(s, job.a.kind, job.a.px, job.a.seed) : job.png;
-                return std::make_pair(png, decodePng(png));
-            }));
+        // (threads of our own kind: see core/workthread.h)
+        std::vector<std::pair<QByteArray, QImage>> made(size_t(to - from));
+        {
+            std::vector<jp::WorkThread> jobs;
+            jobs.reserve(size_t(to - from));
+            for (int i = from; i < to; ++i)
+                jobs.emplace_back([s, job = todo[i], out = &made[size_t(i - from)]] {
+                    const QByteArray png = job.png.isEmpty() ? paintArt(s, job.a.kind, job.a.px, job.a.seed) : job.png;
+                    *out = std::make_pair(png, decodePng(png));
+                });
+        }   // (every picture of the round is made: the threads are waited for here)
         for (int i = from; i < to; ++i) {
-            auto made = jobs[size_t(i - from)].get();
-            if (todo[i].png.isEmpty()) keepArt(todo[i].key, made.first);
-            decodedArt().insert(todo[i].key, made.second);
+            const auto &one = made[size_t(i - from)];
+            if (todo[i].png.isEmpty()) keepArt(todo[i].key, one.first);
+            decodedArt().insert(todo[i].key, one.second);
         }
     }
 }

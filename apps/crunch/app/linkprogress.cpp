@@ -1,4 +1,5 @@
 #include "app/linkprogress.h"
+#include "core/workthread.h"
 
 #include <QEventLoop>
 #include <QObject>
@@ -6,7 +7,6 @@
 #include <QTimer>
 
 #include <atomic>
-#include <thread>
 
 namespace jp {
 
@@ -18,7 +18,7 @@ bool runLinkReads(QWidget *parent, jp::office::sheet::ExternalBooks *links, cons
     }
     links->resetCancel();
     std::atomic<bool> done{false};
-    std::thread worker([&] {
+    jp::WorkThread worker([&] {
         work();
         done.store(true);
     });

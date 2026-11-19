@@ -2,6 +2,7 @@
 // Without the engine (the CMake option JO_TRANSLATE off), builtInBackend() is null.
 
 #include "translator.h"
+#include "core/workthread.h"
 
 #ifdef JO_TRANSLATE_ENGINE
 #include "engine/engine.h"
@@ -14,7 +15,6 @@
 #include <map>
 #include <future>
 #include <mutex>
-#include <thread>
 #endif
 
 namespace jp {
@@ -140,10 +140,10 @@ void releaseBuiltInBackend()
     // (the engine ends on a thread of its own, and this waits a moment for it: if a piece is still in the engine, the program ends without it)
     auto done = std::make_shared<std::promise<void>>();
     std::future<void> f = done->get_future();
-    std::thread([b, done]() mutable {
+    jp::runDetached([b, done]() mutable {
         b.reset();
         done->set_value();
-    }).detach();
+    });
     b.reset();
     f.wait_for(std::chrono::milliseconds(1000));
 }

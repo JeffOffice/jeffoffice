@@ -1,4 +1,5 @@
 #include "app/linkedmedia.h"
+#include "core/workthread.h"
 
 #include "app/mediaplayer.h"
 #include "app/trust.h"
@@ -20,7 +21,6 @@
 #include <condition_variable>
 #include <memory>
 #include <mutex>
-#include <thread>
 
 namespace jp {
 
@@ -97,12 +97,12 @@ bool readOnThread(const QString &path, int waitMillis, LinkedRead *out)
     };
     auto state = std::make_shared<State>();
     const auto standIn = g_readStandIn;
-    std::thread([state, path, standIn] {
+    jp::runDetached([state, path, standIn] {
         const LinkedRead r = standIn ? standIn(path) : readLinkedMediaFile(path);
         const std::lock_guard<std::mutex> guard(state->lock);
         state->result = r;
         state->done = true;
-    }).detach();
+    });
     QElapsedTimer clock;
     clock.start();
     for (;;) {
