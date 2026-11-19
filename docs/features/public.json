@@ -5673,7 +5673,7 @@
       },
       {
        "status": "partly",
-       "text": "c26bf74a73f732ea0cae4a649fa8798d607775bfc5ae8eb912da3e084f5a0d71"
+       "text": "0619b72ca63634df943f14006b4362811b5ec447f40a882b452cbe30f17ed726"
       },
       {
        "hide_soon": true,
@@ -6118,7 +6118,7 @@
         },
         {
          "status": "partly",
-         "text": "4b22e52adbdf6d98fdf6665c419ce3e60cd814cb81cd9fd048abcac021dbb1d3"
+         "text": "3d504368fe90a66563d912363abacc60e94684f1ba7cee1417ee1c9532db7025"
         },
         {
          "hide_soon": true,
@@ -7994,6 +7994,18 @@
     "en": "3-D models: keep as saved, with the picture they show",
     "es": "Modelos 3D: conservar como se guardaron, con la imagen que muestran",
     "fr": "Modèles 3D : conserver tels qu’enregistrés, avec l’image qu’ils affichent"
+   }
+  },
+  "0619b72ca63634df943f14006b4362811b5ec447f40a882b452cbe30f17ed726": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Line and page breaks that match the reference layout more closely",
+    "es": "Saltos de línea y de página que coinciden con mayor precisión con el diseño de referencia",
+    "fr": "Sauts de ligne et de page plus fidèles à la mise en page de référence"
    }
   },
   "063f9908ef35fd8ce6ff8f930881f62576e68316be1533a2bfccfcb7226f2a87": {
@@ -12280,6 +12292,18 @@
     "fr": "Modification des données du graphique directement sur la diapositive"
    }
   },
+  "3d504368fe90a66563d912363abacc60e94684f1ba7cee1417ee1c9532db7025": {
+   "drop": false,
+   "en": "Set line spacing (single, 1.15, double, multiple, at least, or exactly) and the space before and after paragraphs. A multiple under single sets the lines closer together, as the file asks.",
+   "es": "Defina el interlineado (sencillo, 1,15, doble, múltiple, como mínimo o exacto) y el espacio antes y después de los párrafos. Un múltiplo inferior a sencillo acerca más las líneas, tal como lo indica el documento.",
+   "fr": "Définissez l’interligne (simple, 1,15, double, multiple, au moins ou exactement) et l’espacement avant et après les paragraphes. Un multiple inférieur à simple rapproche davantage les lignes, comme le demande le fichier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "3d763902131a3134c33561915137f9329d98f52f0fe7b8bd81e921dbb25d1fd2": {
    "drop": false,
    "en": "Keep named local copies of a document, then open, compare, restore, or delete them from Info. Up to 50 versions are kept for each file.",
@@ -13377,18 +13401,6 @@
    "en": "Export to PDF in standard, minimum size, high quality, or commercial press settings, with page ranges, document properties, and embedded fonts. A booklet can be exported as printed sheets.",
    "es": "Exporte a PDF con los ajustes estándar, tamaño mínimo, alta calidad o imprenta comercial, con intervalos de páginas, propiedades del documento y fuentes incrustadas. Un folleto se puede exportar como hojas impresas.",
    "fr": "Exportez en PDF avec les réglages standard, taille minimale, haute qualité ou imprimerie commerciale, avec plages de pages, propriétés du document et polices incorporées. Une brochure peut être exportée sous forme de feuilles imprimées.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4b22e52adbdf6d98fdf6665c419ce3e60cd814cb81cd9fd048abcac021dbb1d3": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -21554,18 +21566,6 @@
     "en": "Move or copy a sheet to another open workbook or a new one",
     "es": "Mover o copiar una hoja a otro libro abierto o a uno nuevo",
     "fr": "Déplacement ou copie d’une feuille vers un autre classeur ouvert ou un nouveau classeur"
-   }
-  },
-  "c26bf74a73f732ea0cae4a649fa8798d607775bfc5ae8eb912da3e084f5a0d71": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "c27e688647cb90eaf19078e47a031862418dfd905cb644709e5245a3a4efbbd0": {
