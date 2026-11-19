@@ -243,6 +243,8 @@ public:
     bool isSearching() const { return bool(m_findRun) || bool(m_replacePlan) || m_applying == 2; }
     // Goes to what the text names: a cell, a range, a cell of another sheet, whole rows or columns, a defined name. False, with the reason shown, if it names nothing.
     bool goToReference(const QString &text);
+    // Whether a command works with several ranges selected (see mk): the others refuse, and say so.
+    static bool worksOnSeveralRanges(const QString &commandId);
     // Select by Kind: the first range of the cells found is selected and the rest are tinted (the next click takes the tint away). False, with the reason shown, if there are none.
     bool goToSpecial(const jp::crunch::SpecialOptions &options);
     // What Go To asks for (a reference) and Select by Kind (the kind of cells): dialogs unless these stand in for them (tests); false gives it up.
@@ -899,7 +901,6 @@ private:
     void clearSelection();
     // Several ranges are selected (Ctrl with a click or a drag): a command that works on one range only says so, and does nothing. True when it did.
     bool refuseSeveralRanges(const QString &what);
-    static bool needsOneRange(const QString &commandId);
     void undoRedo(bool redo);
     void updateEditActions();
     bool editingAllowed();

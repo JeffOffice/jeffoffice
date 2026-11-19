@@ -31,7 +31,14 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
     if (options.what == crunch::PrintWhat::ActiveSheet) options.sheets = selectedSheets();
     options.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
-    if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) options.selection = selectedRange();
+    if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) {
+        if (m_view->hasSeveralRanges()) {
+            // (the selection is one range: of several, nothing is printed)
+            if (why) *why = tr("That can't be done on several ranges at once. Select one range, and try again.");
+            return nullptr;
+        }
+        options.selection = selectedRange();
+    }
     auto source = std::make_unique<crunch::BookPrintSource>(m_loaded.get(), &m_values, m_session ? &m_session->pages() : nullptr, m_objects.get(), m_session ? &m_session->anchors() : nullptr);
     auto job = std::make_unique<crunch::PrintJob>(std::move(source), options);
     if (!job->build(why)) return nullptr;

@@ -515,7 +515,7 @@ bool EditSession::canEditSheet(int sheet, QString *why) const
     return true;
 }
 
-bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why) const
+bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why, bool ofArray) const
 {
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
@@ -524,7 +524,7 @@ bool EditSession::canEditCell(int sheet, quint32 row, quint32 col, QString *why)
     if (!canEditSheet(sheet, why)) return false;
     if (row >= kMaxRows || col >= kMaxColumns) return refuse(tr("That cell is outside the sheet."));
     const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
-    if (!c.editable) return refuse(tr("You can't change part of an array or a data table."));
+    if (!c.editable && !(ofArray && m_book->calc->arrayRangeAt(sheet, row, col).valid)) return refuse(tr("You can't change part of an array or a data table."));
     // (a cell that holds nothing has its row's or its column's format, and so its lock)
     if (isLocked(sheet, c.exists ? c.style : implicitStyle(sheet, row, col), row, col)) return refuse(lockedMessage());
     return true;
@@ -623,6 +623,17 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
         const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col, &anchorStyle);
         if (formulaHidden(sheet, anchorStyle) || formulaHidden(sheet, c.style)) return {};   // (the formula shown is the anchor's: its format, and the cell's own, may hide it)
         return head.isEmpty() ? QString() : QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
+    }
+    if (!c.isFormula && !c.dataTable) {
+        // (a cell of an array that is not its first is edited as the array's formula, as the formula bar shows it)
+        const CellRange whole = m_book->calc->arrayRangeAt(sheet, row, col);
+        if (whole.valid && (whole.row1 != row || whole.col1 != col)) {
+            const Calculation::CellContent head = m_book->calc->content(sheet, whole.row1, whole.col1);
+            if (head.isFormula) {
+                if (formulaHidden(sheet, head.style) || formulaHidden(sheet, c.style)) return {};
+                return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(head)), m_locale);
+            }
+        }
     }
     if (c.isFormula && formulaHidden(sheet, c.style)) return {};
     if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(c)), m_locale);
@@ -1078,7 +1089,8 @@ EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1,
     const Calculation *calc = m_book->calc.get();
     // (one cell of an array stands for the whole array)
     if (row1 == row2 && col1 == col2) {
-        const CellRange whole = calc->arrayRangeAt(sheet, quint32(row1), quint32(col1));
+        CellRange whole = calc->arrayRangeAt(sheet, quint32(row1), quint32(col1));
+        if (!whole.valid) whole = calc->arrayMeeting(sheet, quint32(row1), quint32(col1), quint32(row1), quint32(col1));   // (a cell of a huge array is not flagged)
         if (whole.valid) {
             row1 = whole.row1;
             col1 = whole.col1;
@@ -1089,6 +1101,11 @@ EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1,
     if ((row2 - row1 + 1) * (col2 - col1 + 1) > kMaxCellsPerEdit)
         return refuse(tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit)));
     PlanScope plan(this);
+    {
+        // (an array that meets the block goes whole or not at all: by its range, as the cells of a huge one are not flagged)
+        const CellRange met = calc->arrayMeeting(sheet, quint32(row1), quint32(col1), quint32(row2), quint32(col2));
+        if (met.valid && (qint64(met.row1) < row1 || qint64(met.row2) > row2 || qint64(met.col1) < col1 || qint64(met.col2) > col2)) return refuse(tr("You can't change part of an array or a data table."));
+    }
     const Calculation::CellContent first = calc->content(sheet, quint32(row1), quint32(col1));
     const quint32 baseStyle = first.exists ? first.style : implicitStyle(sheet, quint32(row1), quint32(col1));
     const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
@@ -1148,7 +1165,11 @@ EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1,
         }
     }
     // (the cells that hold a formula of an array go last, the new one's among them: Undo and Redo make the arrays from them when the others are put)
-    std::stable_partition(changes.begin(), changes.end(), [](const CellChange &c) { return !c.before.arrayRange.valid && !c.after.arrayRange.valid; });
+    // (and the new array's first cell is the very last: the cells of an array it covers are ordinary ones by then, and are all made its members)
+    std::stable_sort(changes.begin(), changes.end(), [](const CellChange &a, const CellChange &b) {
+        const auto rank = [](const CellChange &c) { return c.after.arrayRange.valid ? 2 : c.before.arrayRange.valid ? 1 : 0; };
+        return rank(a) < rank(b);
+    });
     commitLinkPlan();
     Step step;
     step.cells = std::move(changes);

@@ -576,6 +576,7 @@ void CrunchWindow::mergeCommand(MergeKind kind)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     if (!editingAllowed()) return;
+    if (refuseSeveralRanges(tr("Merge Cells"))) return;
     const CellRange range = selectedRange();
     if (kind == MergeKind::MergeAndCenter && viewOfActiveCell().merged) kind = MergeKind::Unmerge;   // (the button turns off what it did)
     crunch::EditSession::Outcome o = m_session->mergeCells(m_sheet, range, kind, false);
@@ -651,6 +652,7 @@ void CrunchWindow::borderCommand(int kind)
     if (kind < 0 || kind >= BorderCommandCount) return;
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     if (!editingAllowed()) return;
+    if (refuseSeveralRanges(tr("Borders"))) return;
     using E = crunch::EditSession;
     BorderSide line;
     line.style = m_lineStyle;
@@ -783,6 +785,7 @@ void CrunchWindow::newCellStyleCommand()
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     if (!editingAllowed() || !m_session || m_sheet < 0) return;
+    if (refuseSeveralRanges(tr("New Cell Style"))) return;
     QString name;
     if (m_styleNameAsker) {
         if (!m_styleNameAsker(&name)) return;
@@ -826,6 +829,7 @@ void CrunchWindow::applyCellStyle(const QString &name)
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
     if (!editingAllowed()) return;
+    if (refuseSeveralRanges(tr("Cell Style"))) return;
     m_formatting = true;
     const crunch::EditSession::Outcome o = m_session->applyStyleNamed(m_sheet, selectedRange(), name, tr("Cell Style"));
     m_formatting = false;
@@ -942,6 +946,7 @@ bool CrunchWindow::applyFormatResult(const FormatCellsDialog::Result &result)
     if (result.isEmpty()) return true;
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return false;
     if (!editingAllowed()) return false;
+    if (refuseSeveralRanges(tr("Format Cells"))) return false;
     const CellRange range = selectedRange();
     QUndoStack *u = m_session->undoStack();
     FormatCellsDialog::Result r = result;

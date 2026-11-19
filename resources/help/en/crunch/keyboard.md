@@ -14,7 +14,7 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Ctrl+arrow | Go to the edge of the data (Esc stops a long search) |
 | Ctrl+Shift+arrow | Extend the selection to the edge of the data |
 | End, then an arrow | Go to the edge of the data (the status bar says End) |
-| Ctrl+A | Select the block around the active cell, then the whole sheet |
+| Ctrl+A | Select the block around the active cell, then the whole sheet (the whole sheet at once when the selection is already larger than the block) |
 | Ctrl+Shift+* | Select the block around the active cell |
 | Ctrl+click or Ctrl+drag | Add a range to the selection |
 | Ctrl+Shift+Enter | Enter the formula as an array formula over the selected cells |

@@ -121,6 +121,8 @@ void CrunchWindow::startSearch(SearchFor what)
         }
     }
     const crunch::FindOptions options = searchOptions(replacing);
+    // (a search in the selection is of one range: with several selected it is refused, and Replace All writes nothing)
+    if (options.scope == crunch::FindOptions::Scope::Sheet && m_view->hasSeveralRanges() && refuseSeveralRanges(replacing ? tr("Replace") : tr("Find"))) return;
     crunch::FoundCell from;
     from.sheet = m_sheet;
     from.row = quint32(std::max<qint64>(0, m_view->selection().activeRow));
@@ -544,6 +546,7 @@ bool CrunchWindow::goToSpecial(const crunch::SpecialOptions &options)
 {
     if (!m_session || !m_loaded) return false;
     if (!commitEdit()) return false;
+    if (refuseSeveralRanges(tr("Select by Kind"))) return false;
     const grid::Selection &sel = m_view->selection();
     const grid::GridRange r = sel.range;
     CellRange selection = selectedRange();

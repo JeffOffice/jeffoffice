@@ -10,7 +10,7 @@
 - **Shift+click** another cell to select from the active cell to there.
 - Click a **column letter** or a **row number** to select the whole column or row. Drag across the letters or numbers, or Shift+click, to select several.
 - Click the **corner** where the letters and numbers meet to select everything.
-- Hold **Ctrl** while you click or drag to **add a range** to the selection. The ranges you added are tinted, and the one with the cursor has the green border. **Delete** clears every range, in one step. A command that works on one range at a time, such as Copy, Sort, or a format, tells you so and changes nothing; click once to go back to one range.
+- Hold **Ctrl** while you click or drag to **add a range** to the selection. The ranges you added are tinted, and the one with the cursor has the green border. **Delete** clears every range, in one step. A command that works on one range at a time, such as Copy, Fill, Sort, Find in the selection, Replace All, or a format, tells you so and changes nothing; click once to go back to one range. Switching to another sheet, or putting in or taking out rows or columns, also leaves one range.
 - **Drag the border** of the selection to move the cells to another place. Point at the edge of the green border until the pointer shows four arrows. A dashed outline shows where the cells will land. Anything that points at the cells, such as a formula, follows them. Hold **Ctrl** while you drag to copy the cells instead. If you only click the border without moving, it selects the cell as usual.
 - Turn the **mouse wheel** to scroll three rows. Hold **Shift** to scroll sideways, or hold **Ctrl** to zoom.
 
@@ -18,7 +18,7 @@
 
 The arrow keys move the active cell, skipping hidden rows and columns. Hold **Shift** to extend the selection. **Ctrl** with an arrow goes to the edge of the data: to the end of a run of cells that hold something, or, from the end of a run, to the next cell that holds something. See [Use JeffCrunch with the keyboard](keyboard) for all the keys.
 
-**Ctrl+A** selects the block of cells around the active cell, bounded by empty rows and columns; press it again to select the whole sheet. **Ctrl+Shift+*** selects just the block. Press **End**, then an arrow, to go to the edge of the data as **Ctrl** with the arrow does; the status bar says **End** until you press the arrow.
+**Ctrl+A** selects the block of cells around the active cell, bounded by empty rows and columns; press it again to select the whole sheet. When the selection is already larger than that block, Ctrl+A selects the whole sheet at once. **Ctrl+Shift+*** selects just the block. Press **End**, then an arrow, to go to the edge of the data as **Ctrl** with the arrow does; the status bar says **End** until you press the arrow, press another key, or click.
 
 ## Go to a cell
 

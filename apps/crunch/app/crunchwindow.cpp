@@ -323,7 +323,7 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
             refuseReadOnlyChange();
             return;
         }
-        if (needsOneRange(id) && refuseSeveralRanges(QString(text).remove(QLatin1Char('&')).remove(QStringLiteral("…")))) return;
+        if (!worksOnSeveralRanges(id) && refuseSeveralRanges(QString(text).remove(QLatin1Char('&')).remove(QStringLiteral("…")))) return;
         telemetry::count(id);
         // (a box being drawn is put down by any other command: one tool at a time)
         if (m_objects && id != QLatin1String("insert.textBox.draw")) m_objects->layer()->armBox(false);

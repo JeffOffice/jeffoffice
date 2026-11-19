@@ -89,6 +89,14 @@ ClipData EditSession::copyCells(int sheet, const CellRange &range, bool cut) con
         if (!cc.content.exists) return true;
         cc.shown = valueAt(sheet, row, col);
         if (!cc.content.editable && !cc.content.isFormula) cc.content.value = cc.shown;   // (a cell of an array holds the result)
+        if (!cut && cc.content.arrayRange.valid) {
+            // (the first cell of an array is copied as what it is worth, as the rest of the array is: its formula alone in one cell would be a formula of its own, not the array)
+            cc.content.isFormula = false;
+            cc.content.dynamic = false;
+            cc.content.formula.clear();
+            cc.content.hasStored = false;
+            cc.content.value = cc.shown;
+        }
         // a formula the format hides on a protected sheet is not given away by copying: what is copied is what it is worth
         if (cc.content.isFormula && formulaHidden(sheet, cc.content.style)) {
             cc.content.isFormula = false;

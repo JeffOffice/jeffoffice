@@ -355,7 +355,7 @@ public:
     // Whether a sheet has cells to change (a chart sheet has none).
     bool canEditSheet(int sheet, QString *why = nullptr) const;
     // Whether a cell can be: it is on a sheet of cells, and not part of an array or a data table.
-    bool canEditCell(int sheet, quint32 row, quint32 col, QString *why = nullptr) const;
+    bool canEditCell(int sheet, quint32 row, quint32 col, QString *why = nullptr, bool ofArray = false) const;   // ofArray: a cell of an array may be opened to be looked at
 
     // What a cell is edited as (see editTextOfValue); a formula with its "=".
     QString editText(int sheet, quint32 row, quint32 col) const;

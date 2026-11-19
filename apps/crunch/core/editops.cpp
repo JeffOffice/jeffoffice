@@ -397,6 +397,16 @@ EditSession::Outcome EditSession::fill(int sheet, const CellRange &source, FillD
             sc.row = vertical ? source.row1 + k : source.row1 + line;
             sc.col = vertical ? source.col1 + line : source.col1 + k;
             sc.content = calc->content(sheet, sc.row, sc.col);
+            if (calc->arrayRangeAt(sheet, sc.row, sc.col).valid) {
+                // (a cell of an array is filled from as what it is worth: its formula alone in another cell would not be the array)
+                sc.content.isFormula = false;
+                sc.content.dynamic = false;
+                sc.content.formula.clear();
+                sc.content.hasStored = false;
+                sc.content.sharedString = -1;
+                sc.content.arrayRange = CellRange();
+                sc.content.value = valueAt(sheet, sc.row, sc.col);
+            }
         }
         // what kind of series the strip is
         enum class Mode { Cycle, Numbers, Growth, Dates, Names, TextNumber } mode = Mode::Cycle;

@@ -208,7 +208,7 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     if (forcedToBar) fromBar = true;
     // (a cell of an array is opened to be looked at and entered again with Ctrl+Shift+Enter; Enter alone says part of an array can't be changed)
     const bool ofArray = mode == CellEditor::Mode::Editing && m_session->arrayAt(sheet, row, col).valid;
-    if (!ofArray && !m_session->canEditCell(sheet, row, col, &why)) {
+    if (!m_session->canEditCell(sheet, row, col, &why, ofArray)) {
         // a cell in a range that has a password is opened with it
         const QString title = m_session->passwordRangeAt(sheet, row, col);
         if (!title.isEmpty() && !m_passwordJob) {
@@ -668,15 +668,24 @@ void CrunchWindow::undoRedoNow(bool redo)
 
 namespace jp {
 
-bool CrunchWindow::needsOneRange(const QString &id)
+bool CrunchWindow::worksOnSeveralRanges(const QString &id)
 {
-    // (the commands that read or change the selected cells; the rest, such as saving, the view, and the sheets, do not depend on them)
-    static const char *const prefixes[] = {"cells.", "comments.", "cond.", "data.", "fill", "filter.", "fmt.", "format.", "sort.", "style.", "table.", "spark.", "notes.", "link.", "paste.", "pivot.", "outline.",
-                                           "edit.autosum", "edit.clear.all", "edit.clear.formats", "edit.clear.links", "edit.clear.notes", "edit.copy", "edit.cut", "edit.paste", "edit.sort",
-                                           "edit.insertDate", "edit.insertTime", "insert.barcode", "insert.chart", "insert.link", "insert.pivot", "insert.recommendedCharts", "insert.table",
-                                           "formulas.nameFromCells", "formulas.defineName", "find.selectVisible"};
+    // (the commands that do not read or change the selected cells, or that do so on every range: the rest work on one range, so each says so and does nothing when several are selected. A command
+    // that is new is on neither list, and so refuses: it is put here when it is known to be right with several ranges)
+    static const char *const prefixes[] = {"file.", "help.", "view.", "win.", "zoom.", "sheetopt.", "protect.", "hf.", "chartdesign.", "object.", "sheet.", "margins.", "orient.", "size.", "page.", "pagesetup.",
+                                           "titles.", "insert.control.", "insert.shape.", "insert.equation"};
+    static const char *const exact[] = {"edit.undo", "edit.redo", "edit.selectAll", "edit.find", "edit.clear.contents", "find.find", "find.replace", "find.next", "find.goto", "find.replaceFonts",
+                                        "printarea.clear", "format.defaultHeight", "format.defaultWidth", "comments.next", "comments.prev", "notes.next", "notes.prev", "notes.showAll",
+                                        "insert.headerFooter", "insert.icons", "insert.object.chart", "insert.object.page", "insert.onlinePicture", "insert.picture", "insert.symbol", "insert.textBox",
+                                        "insert.textBox.draw", "review.accessibility", "review.statistics", "review.thesaurus",
+                                        "formulas.calcAuto", "formulas.calcBeforeSave", "formulas.calcManual", "formulas.calcNoTables", "formulas.calculate", "formulas.calculateEverything",
+                                        "formulas.calculateSheet", "formulas.circular", "formulas.errorChecking", "formulas.evaluate", "formulas.insertFunction", "formulas.iteration", "formulas.names",
+                                        "formulas.nextError", "formulas.options", "formulas.precision", "formulas.previousError", "formulas.rebuildAndCalculate", "formulas.removeArrows",
+                                        "formulas.traceDependents", "formulas.traceError", "formulas.tracePrecedents", "formulas.useName"};
     for (const char *p : prefixes)
         if (id.startsWith(QLatin1String(p))) return true;
+    for (const char *e : exact)
+        if (id == QLatin1String(e)) return true;
     return false;
 }
 
