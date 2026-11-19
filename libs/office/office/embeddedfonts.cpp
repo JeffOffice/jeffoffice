@@ -1,4 +1,4 @@
-#include "core/embeddedfonts.h"
+#include "office/embeddedfonts.h"
 
 #include "core/fonts.h"
 
@@ -13,7 +13,7 @@
 #include <QMutexLocker>
 #include <QSet>
 
-namespace jp::deck {
+namespace jp::office {
 
 namespace {
 
@@ -29,7 +29,7 @@ struct Carried {
 };
 
 QMutex g_mutex;
-QHash<const Document *, Carried> g_documents;
+QHash<const void *, Carried> g_documents;
 QHash<QByteArray, Added> g_added;
 
 // The families the computer has: its own, not the ones this program added for presentations (the family of a font another presentation carries is
@@ -47,10 +47,10 @@ QSet<QString> computerFamilies()
 
 } // namespace
 
-void EmbeddedFonts::use(Document *doc, QVector<EmbeddedFace> faces)
+QHash<QString, QString> EmbeddedFonts::use(const void *doc, QVector<EmbeddedFace> faces)
 {
     release(doc);   // whatever a document that stood at this address carried
-    doc->fontAliases.clear();
+    QHash<QString, QString> aliases;
     Carried carried;
     {
         QMutexLocker lock(&g_mutex);
@@ -99,7 +99,7 @@ void EmbeddedFonts::use(Document *doc, QVector<EmbeddedFace> faces)
                 carried.fonts << hash;
                 any = true;
             }
-            if (any) doc->fontAliases.insert(key, privateFamily);
+            if (any) aliases.insert(key, privateFamily);
         }
         for (EmbeddedFace &face : faces) {
             face.font.clear();
@@ -107,9 +107,10 @@ void EmbeddedFonts::use(Document *doc, QVector<EmbeddedFace> faces)
         }
         g_documents.insert(doc, carried);
     }
+    return aliases;
 }
 
-void EmbeddedFonts::release(const Document *doc)
+void EmbeddedFonts::release(const void *doc)
 {
     QMutexLocker lock(&g_mutex);
     const auto it = g_documents.find(doc);
@@ -126,7 +127,7 @@ void EmbeddedFonts::release(const Document *doc)
     g_documents.erase(it);
 }
 
-QVector<EmbeddedFace> EmbeddedFonts::facesOf(const Document *doc)
+QVector<EmbeddedFace> EmbeddedFonts::facesOf(const void *doc)
 {
     QMutexLocker lock(&g_mutex);
     return g_documents.value(doc).faces;
@@ -138,4 +139,4 @@ int EmbeddedFonts::addedFontCount()
     return int(g_added.size());
 }
 
-} // namespace jp::deck
+} // namespace jp::office

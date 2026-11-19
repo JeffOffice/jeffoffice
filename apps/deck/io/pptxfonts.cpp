@@ -38,9 +38,7 @@ QString resolved(const QString &typeface, const QString &major, const QString &m
     return t;
 }
 
-// A font in a file is shown while the presentation is open unless its license is the restricted one (embedding any copy of it is not allowed):
-// preview and print, editable, and installable all let it be drawn.
-bool mayBeShown(const FontFileInfo &info) { return (info.fsType & 0x000E) != 0x0002; }
+bool mayBeShown(const FontFileInfo &info) { return office::fontMayBeShown(info); }
 
 QString hex(const quint8 *bytes, int n)
 {
