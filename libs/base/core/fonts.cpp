@@ -17,6 +17,7 @@
 #include <QFontDatabase>
 #include <QFontInfo>
 #include <QGuiApplication>
+#include <QSet>
 #include <QHash>
 #include <QImageReader>
 #include <QThread>
@@ -1087,6 +1088,20 @@ void setFontReplacements(const QList<QPair<QString, QString>> &choices)
         for (const auto &c : choices) applyReplacement(c.first, c.second);
     }
     fontsChanged();   // (once: the text engine drops what it remembers of the families a single time)
+}
+
+QString sameWidthStandIn(const QString &family)
+{
+    // The fonts that were drawn to the widths of the ones they stand in for (the first rows of table()): the Croscore fonts, Carlito, Caladea, Gelasio, Selawik,
+    // Comic Relief, and Liberation Sans Narrow. Not Calibri Light (Carlito has no light weight) and not the look-alikes of the other rows.
+    static const QSet<QString> made{
+        QStringLiteral("Arial"), QStringLiteral("Helvetica"), QStringLiteral("Liberation Sans"), QStringLiteral("Times New Roman"), QStringLiteral("Times"),
+        QStringLiteral("Liberation Serif"), QStringLiteral("Courier New"), QStringLiteral("Courier"), QStringLiteral("Liberation Mono"), QStringLiteral("Calibri"),
+        QStringLiteral("Cambria"), QStringLiteral("Georgia"), QStringLiteral("Segoe UI"), QStringLiteral("Segoe UI Light"), QStringLiteral("Segoe UI Semilight"),
+        QStringLiteral("Segoe UI Semibold"), QStringLiteral("Comic Sans MS"), QStringLiteral("Arial Narrow")};
+    if (!made.contains(family) || fontReplacement(family).size()) return {};   // (a font the person chose something else for is drawn as that)
+    const QString standIn = table().value(family);
+    return haveFamily(standIn) ? standIn : QString();
 }
 
 QString automaticStandIn(const QString &family)

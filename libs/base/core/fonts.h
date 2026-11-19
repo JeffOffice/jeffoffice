@@ -31,6 +31,10 @@ void setFontReplacement(const QString &family, const QString &replacement);
 void setFontReplacements(const QList<QPair<QString, QString>> &choices);
 // What is drawn for a font this computer lacks when the person has made no choice: the table's stand-in, else the font the system picks.
 QString automaticStandIn(const QString &family);
+// The font this program brings that sets `family` at the same widths, so that no line or page breaks elsewhere (Carlito for Calibri, Arimo for Arial), or empty: only
+// the pairs made to have the same widths, and only when the stand-in is loaded. The other stand-ins of the table are the closest open designs, drawn as wide on
+// average, and letters and breaks can differ. (The bar that says a document's fonts are missing is not shown for fonts that have one of these.)
+QString sameWidthStandIn(const QString &family);
 int substituteStretch(const QString &family, bool bold = false, bool italic = false);
 // The stretch (percent) to give Qt so text is drawn that wide. Qt's macOS text
 // engine applies a font's stretch twice (to the advances and again to the

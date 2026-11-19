@@ -3,6 +3,7 @@
 // stand-in the person chose. A fake speech engine stands for the system's voices. Every workbook is built here.
 #include "app/crunchwindow.h"
 #include "app/missingfonts.h"
+#include "core/fonts.h"
 #include "app/readaloud.h"
 #include "../fakespeech.h"
 #include "core/editsession.h"
@@ -45,7 +46,7 @@ struct FakeVoices {
 QString standIn() { return QFontDatabase::hasFamily(QStringLiteral("Cousine")) ? QStringLiteral("Cousine") : QFontDatabase::families().value(0); }
 
 // Two rows: Alpha, Beta, Gamma, and 12, Delta. The cells A1, B1, A2, and B2 are in a font no computer has; C1 is in an installed one.
-QByteArray speechBook()
+QByteArray speechBook(const QString &lacking = kGone)
 {
     const QString styles = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\">"
                                           "<fonts count=\"2\"><font><sz val=\"11\"/><name val=\"%1\"/></font><font><sz val=\"11\"/><name val=\"%2\"/></font></fonts>"
@@ -53,7 +54,7 @@ QByteArray speechBook()
                                           "<borders count=\"1\"><border/></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs>"
                                           "<cellXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs>"
                                           "</styleSheet>")
-                               .arg(kGone, standIn());
+                               .arg(lacking, standIn());
     const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"s\"><v>0</v></c><c r=\"B1\" t=\"s\"><v>1</v></c><c r=\"C1\" s=\"1\" t=\"s\"><v>2</v></c></row>"
                                         "<row r=\"2\"><c r=\"A2\"><v>12</v></c><c r=\"B2\" t=\"s\"><v>3</v></c></row>");
     return buildXlsx({worksheet(rows)}, sharedStringsXml({QStringLiteral("<t>Alpha</t>"), QStringLiteral("<t>Beta</t>"), QStringLiteral("<t>Gamma</t>"), QStringLiteral("<t>Delta</t>")}), QString(), QString(),
@@ -211,6 +212,37 @@ private Q_SLOTS:
         QVERIFY(!out.problem.isEmpty());
         QCOMPARE(e.win.w.undoStack()->count(), 0);
     }
+    // A font this computer lacks that the program sets at the same widths with one of its own (Calibri as Carlito) moves no text, so it brings no bar, though it
+    // is still counted as missing; a font with no such stand-in brings the bar as before. (Nearly every workbook names Calibri: where it is not installed, as in
+    // the snap and on most Macs, the bar came up for nearly every file.)
+    void aMissingFontWithASameWidthStandInBringsNoBar()
+    {
+        jp::initCore();   // (the program's own fonts: Carlito among them)
+        QVERIFY(QFontDatabase::hasFamily(QStringLiteral("Carlito")));
+        const jp::FontInstalled lacksThese = [](const QString &f) { return f != QLatin1String("Calibri") && f != kGone && jp::fontIsInstalled(f); };
+        QCOMPARE(jp::sameWidthStandIn(QStringLiteral("Calibri")), QStringLiteral("Carlito"));
+        QVERIFY(jp::sameWidthStandIn(QStringLiteral("Calibri Light")).isEmpty());   // (Carlito has no light weight)
+        QVERIFY(jp::sameWidthStandIn(QStringLiteral("Verdana")).isEmpty());         // (a look-alike, not the same widths)
+        QVERIFY(jp::sameWidthStandIn(kGone).isEmpty());
+
+        EditWindow calibri;
+        QVERIFY(calibri.open(speechBook(QStringLiteral("Calibri"))));
+        jp::checkMissingFonts(&calibri.win.w, calibri.win.w.missingFontsHost(), lacksThese);
+        QCoreApplication::processEvents();
+        auto *dock = calibri.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(!dock || !dock->isVisible());
+        const QList<jp::MissingFont> missing = jp::missingFonts(calibri.win.w.missingFontsHost().usage(), lacksThese);
+        QCOMPARE(missing.size(), 1);
+        QCOMPARE(missing.first().family, QStringLiteral("Calibri"));
+
+        EditWindow gone;
+        QVERIFY(gone.open(speechBook()));
+        jp::checkMissingFonts(&gone.win.w, gone.win.w.missingFontsHost(), lacksThese);
+        auto *shown = gone.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(shown);
+        QTRY_VERIFY(shown->isVisible());
+    }
+
     void aWorkbookWithOnlyInstalledFontsHasNoBar()
     {
         EditWindow e;

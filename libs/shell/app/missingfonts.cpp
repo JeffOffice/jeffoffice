@@ -315,10 +315,17 @@ void checkMissingFonts(QMainWindow *win, const MissingFontsHost &host, const Fon
     const FontUsage usage = host.usage ? host.usage() : FontUsage();
     // The choices made before hold for this document too (the text is drawn again with them).
     QStringList lacking;
+    // The bar is for text that may look different here. A font this program sets at the same widths with one of its own (Calibri as Carlito, Arial as Arimo) moves
+    // no line, and almost every document names one: in the snap, and on a Mac without those fonts, the bar came up for nearly every file (seen in 0.43.0). Such a
+    // font alone brings no bar; with a font that has no such stand-in the bar comes, and its Details box lists them all.
+    bool mayLookDifferent = false;
     for (const QString &family : usage.families())
-        if (!(installed ? installed(family) : fontIsInstalled(family))) lacking << family;
+        if (!(installed ? installed(family) : fontIsInstalled(family))) {
+            lacking << family;
+            if (sameWidthStandIn(family).isEmpty()) mayLookDifferent = true;
+        }
     if (applyFontChoices(lacking) && host.refresh) host.refresh();
-    if (lacking.isEmpty()) {
+    if (!mayLookDifferent) {
         if (dock) dock->hide();
         return;
     }
