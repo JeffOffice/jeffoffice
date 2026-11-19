@@ -323,7 +323,7 @@ private Q_SLOTS:
         QVERIFY(!packageWithinLimits(zipClaiming({0xFFFFFFFFu})));   // the 64-bit form
         QVERIFY(packageWithinLimits(zipClaiming(QList<quint32>(10000, 0))));
         QVERIFY(!packageWithinLimits(zipClaiming(QList<quint32>(10001, 0))));
-        QVERIFY(!packageWithinLimits(QByteArray("PK\x03\x04 and nothing else", 24)));
+        QVERIFY(!packageWithinLimits(QByteArrayLiteral("PK\x03\x04 and nothing else")));
         int calls = 0;
         PictureFn draw = [&](const QByteArray &b, qint64 w, qint64 h, int s) { ++calls; return stubPicture(b, w, h, s); };
         ObjectBudget budget;

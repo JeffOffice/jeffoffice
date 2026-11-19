@@ -611,7 +611,13 @@ private Q_SLOTS:
         // What Undo keeps of the swapped-out barcodes is counted against the limit of the steps (128 MB), and the oldest steps are forgotten past it with their barcodes let go: the memory held stays
         // within a few times that, however many edits are made. The newest edit still undoes.
         QVERIFY2(e.win.w.session()->undoBytes() <= e.win.w.session()->undoByteLimit() + (1 << 20), qPrintable(QString::number(e.win.w.session()->undoBytes())));
-        QVERIFY2((residentKb() - before) / 1024 < 450, qPrintable(QString::number((residentKb() - before) / 1024)));
+        // (the memory checker pads every allocation: its build held 454 MB where the usual build holds about 270)
+#if defined(__SANITIZE_ADDRESS__)
+        const qint64 mostMb = 900;
+#else
+        const qint64 mostMb = 450;
+#endif
+        QVERIFY2((residentKb() - before) / 1024 < mostMb, qPrintable(QString::number((residentKb() - before) / 1024)));
         e.win.w.undoStack()->undo();
         QCOMPARE(shownData(e), QStringLiteral("V4998"));
         QCOMPARE(o->liveObjects(), 1);
