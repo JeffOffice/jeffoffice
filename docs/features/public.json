@@ -7291,7 +7291,7 @@
         },
         {
          "status": "partly",
-         "text": "b95f24ebeeb74e04273a0b257aa6c828f3f87f1501ce7b700f6e445a151b10eb"
+         "text": "455314f90db3ec51ab2a6f966eef84578f8639dd89c587145ac6e890796f0145"
         },
         {
          "status": "partly",
@@ -12924,6 +12924,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "455314f90db3ec51ab2a6f966eef84578f8639dd89c587145ac6e890796f0145": {
+   "drop": false,
+   "en": "Fonts embedded in a `.docx` file are read and used for that document while it is open. A missing font is replaced by a stand-in with the same letter widths, so lines break where they did.",
+   "es": "Las fuentes incrustadas en un archivo `.docx` se leen y se usan para ese documento mientras está abierto. Una fuente que falta se sustituye por otra con el mismo ancho de letra, de modo que las líneas se dividen donde lo hacían antes.",
+   "fr": "Les polices intégrées dans un fichier `.docx` sont lues et utilisées pour ce document tant qu’il est ouvert. Une police manquante est remplacée par une police de substitution aux largeurs de lettres identiques, de sorte que les retours à la ligne restent aux mêmes endroits.",
+   "soon": {
+    "drop": false,
+    "en": "Embedded fonts in `.doc` and `.rtf` files, and writing fonts into a saved `.docx`",
+    "es": "Fuentes incrustadas en archivos `.doc` y `.rtf`, y escritura de fuentes en un `.docx` guardado",
+    "fr": "Polices intégrées dans les fichiers `.doc` et `.rtf`, et écriture des polices dans un `.docx` enregistré"
    }
   },
   "456bb3e3454e3db5d8984c143e25ec5867403d2748a54b15572ce3e0333fde4b": {
@@ -21012,18 +21024,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b95f24ebeeb74e04273a0b257aa6c828f3f87f1501ce7b700f6e445a151b10eb": {
-   "drop": false,
-   "en": "A missing font is replaced by a stand-in with the same letter widths, so lines break where they did.",
-   "es": "Una fuente que falta se sustituye por otra con los mismos anchos de letra, de modo que las líneas se cortan donde lo hacían.",
-   "fr": "Une police manquante est remplacée par une police de substitution aux mêmes largeurs de lettres, de sorte que les lignes se coupent aux mêmes endroits.",
-   "soon": {
-    "drop": false,
-    "en": "Embedded fonts: read and used for the document",
-    "es": "Fuentes incrustadas: lectura y uso en el documento",
-    "fr": "Polices incorporées : lecture et utilisation dans le document"
    }
   },
   "b9b8381c74bf1c7878b0546bf254f68d18e951018e1d55613e33511031d38524": {
