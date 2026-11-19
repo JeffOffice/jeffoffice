@@ -61,6 +61,8 @@ JO_COMMON_EXPORT bool applyFontChoices(const QStringList &families);
 
 struct MissingFontsHost {
     std::function<FontUsage()> usage;
+    // Whether the document itself supplies a font for the family (a font its file carries): such a family is not missing, whatever this computer has. Optional.
+    std::function<bool(const QString &family)> carried;
     // Puts `to` in the document for every use of `from`, as one change that undoes; how many places changed (0: nothing in the document uses it), or -1 when the program refused (a
     // read-only document). Text that names no font and is set in the document's own (default) font counts as a use of that font.
     std::function<int(const QString &from, const QString &to)> replace;

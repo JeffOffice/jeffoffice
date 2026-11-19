@@ -1,6 +1,7 @@
 // Tests of libs/office: reading, inspecting, and embedding fonts.
 #include "officehelpers.h"
 #include "office/mtx.h"
+#include "wml/wml.h"
 
 namespace {
 
@@ -18,6 +19,43 @@ int tableRecord(const QByteArray &font, const char *tag)
         if (font.mid(12 + 16 * i, 4) == tag) return 12 + 16 * i;
     return -1;
 }
+
+// A word processing document that holds only a font table and the parts it points at: `faces` are {family, slot name, part bytes, key}; the part is
+// scrambled the way the format says (the first 32 bytes XORed with the key's digits read from the last), written here from the format's own rule.
+struct DocxFace {
+    QString family, slot;
+    QByteArray part;
+    QString key;
+    bool scramble = true;
+};
+
+jp::office::wml::Document docWithFonts(const QVector<DocxFace> &faces)
+{
+    using namespace jp::office;
+    wml::Document d;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    d.mainRelationships << Relationship{QStringLiteral("rId1"), rel + QStringLiteral("fontTable"), QStringLiteral("/word/fontTable.xml"), false};
+    QByteArray table = "<w:fonts xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">";
+    QVector<Relationship> rels;
+    for (int i = 0; i < faces.size(); ++i) {
+        const DocxFace &f = faces[i];
+        QByteArray data = f.part;
+        if (f.scramble) {
+            const QByteArray bytes = QByteArray::fromHex(QString(f.key).remove(QLatin1Char('{')).remove(QLatin1Char('}')).remove(QLatin1Char('-')).toLatin1());
+            for (int k = 0; k < 32 && k < data.size() && bytes.size() == 16; ++k) data[k] = char(uchar(data[k]) ^ uchar(bytes[15 - (k % 16)]));
+        }
+        const QString name = QStringLiteral("/word/fonts/font%1.odttf").arg(i + 1);
+        d.parts.push_back(wml::KeptPart{name, QStringLiteral("application/vnd.openxmlformats-officedocument.obfuscatedFont"), data});
+        rels << Relationship{QStringLiteral("rId%1").arg(i + 1), rel + QStringLiteral("font"), name, false};
+        table += "<w:font w:name=\"" + f.family.toUtf8() + "\"><w:embed" + f.slot.toUtf8() + " r:id=\"rId" + QByteArray::number(i + 1) + "\" w:fontKey=\"" + f.key.toUtf8() + "\"/></w:font>";
+    }
+    table += "</w:fonts>";
+    d.parts.push_back(wml::KeptPart{QStringLiteral("/word/fontTable.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"), table});
+    d.partRelationships.insert(QStringLiteral("/word/fontTable.xml"), rels);
+    return d;
+}
+
+const QString kTestKey = QStringLiteral("{0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0}");
 
 quint32 beAt(const QByteArray &b, int at) { return qFromBigEndian<quint32>(b.constData() + at); }
 void setBe32(QByteArray &b, int at, quint32 v) { qToBigEndian<quint32>(v, b.data() + at); }
@@ -1380,6 +1418,126 @@ private Q_SLOTS:
         // A font that is not one is not made over; nor is one to be called nothing.
         QVERIFY(jp::fontWithFamilyName(QByteArray("not a font"), family).isEmpty());
         QVERIFY(jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato")), QString()).isEmpty());
+    }
+
+    // ----- Fonts in a word processing document (word/fonts/*.odttf) -----
+
+    // The reader unscrambles each part with its own key (the first 32 bytes, the key's digits read from the last), and the font that comes out is the font that went in.
+    void aDocxFontPartIsUnscrambledWithItsKey()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray lato2 = bundledFontBytes(QStringLiteral("Lato"), true);
+        QVERIFY(!lato.isEmpty() && !lato2.isEmpty());
+        const QString other = QStringLiteral("{A0B1C2D3-E4F5-0617-2839-4A5B6C7D8E9F}");
+        QStringList notes;
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Regular"), lato, kTestKey}, {QStringLiteral("Lato"), QStringLiteral("Bold"), lato2, other}}), &notes);
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(faces.size(), 2);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Lato"));
+        QCOMPARE(int(faces[0].slot), int(jp::office::RegularSlot));
+        QCOMPARE(faces[0].font, lato);
+        QCOMPARE(int(faces[1].slot), int(jp::office::BoldSlot));
+        QCOMPARE(faces[1].font, lato2);
+        // The bytes under the wrong key are not the font; the same key twice gives them back.
+        QVERIFY(jp::office::wml::unscrambledFont(lato, kTestKey) != lato);
+        QCOMPARE(jp::office::wml::unscrambledFont(jp::office::wml::unscrambledFont(lato, kTestKey), kTestKey), lato);
+        QVERIFY(jp::office::wml::unscrambledFont(lato, QStringLiteral("{not a key}")).isEmpty());
+    }
+
+    // A font whose license forbids embedding keeps its face (the file is written back as it was) but has no font to draw with.
+    void aRestrictedDocxFontIsNotUsed()
+    {
+        QByteArray font = bundledFontBytes(QStringLiteral("Lato"));
+        for (int i = 0, n = qFromBigEndian<quint16>(font.constData() + 4); i < n; ++i)
+            if (font.mid(12 + 16 * i, 4) == "OS/2") qToBigEndian<quint16>(0x0002, font.data() + int(qFromBigEndian<quint32>(font.constData() + 12 + 16 * i + 8)) + 8);
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Regular"), font, kTestKey}}));
+        QCOMPARE(faces.size(), 1);
+        QVERIFY(faces[0].font.isEmpty());
+        QVERIFY(!jp::office::fontMayBeShown(faces[0].info));
+    }
+
+    // A part that is not a font, one with a damaged key, and one that was never scrambled are skipped; the good one next to them is read.
+    void aDocxFontThatFailsToReadIsSkippedAndTheRestAreRead()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QByteArray cut = lato.left(lato.size() / 2);
+        QStringList notes;
+        const auto faces = jp::office::wml::readEmbeddedFonts(
+            docWithFonts({{QStringLiteral("Junk"), QStringLiteral("Regular"), QByteArray(5000, 'x'), kTestKey},
+                          {QStringLiteral("Cut"), QStringLiteral("Regular"), cut, kTestKey},
+                          {QStringLiteral("NoKey"), QStringLiteral("Regular"), lato, QStringLiteral("{1234}")},
+                          {QStringLiteral("Plain"), QStringLiteral("Regular"), lato, kTestKey, false},
+                          {QStringLiteral("Good"), QStringLiteral("Regular"), lato, kTestKey}}),
+            &notes);
+        QCOMPARE(faces.size(), 1);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Good"));
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QStringLiteral("4 embedded fonts in the file can't be used")), qPrintable(notes[0]));
+        // A part nothing points at, and a link to a part that is not there, are no faces.
+        auto d = docWithFonts({{QStringLiteral("Gone"), QStringLiteral("Regular"), lato, kTestKey}});
+        d.parts.removeFirst();
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(d).size(), 0);
+    }
+
+    // However many fonts a file lists, at most kMaxEmbeddedFonts faces are read (and the rest are said to be left out).
+    void aDocxIsReadForAtMostTheMostFonts()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QVector<DocxFace> many;
+        for (int i = 0; i < jp::kMaxEmbeddedFonts + 6; ++i) many << DocxFace{QStringLiteral("Face%1").arg(i), QStringLiteral("Regular"), lato, kTestKey};
+        QStringList notes;
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts(many), &notes);
+        QCOMPARE(int(faces.size()), jp::kMaxEmbeddedFonts);
+        QVERIFY2(notes.contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // One part larger than a font may be is not read; all the parts together are held to kMaxEmbeddedFontsTotal bytes (one 32 MB block of bytes
+    // is shared by every part here, so the test holds the memory of one).
+    void aDocxIsReadForAtMostTheMostBytes()
+    {
+        const QByteArray block(int(jp::kMaxEmbeddedFontBytes), '\0');
+        QVector<DocxFace> parts;
+        for (int i = 0; i < int(jp::kMaxEmbeddedFontsTotal / jp::kMaxEmbeddedFontBytes) + 1; ++i) parts << DocxFace{QStringLiteral("Big%1").arg(i), QStringLiteral("Regular"), block, kTestKey, false};
+        QStringList notes;
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts(parts), &notes);   // (none is a font: the count of parts looked at is what the notes show)
+        QCOMPARE(faces.size(), 0);
+        QVERIFY2(notes.contains(QStringLiteral("Some embedded fonts are left out: they are too large.")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("8 embedded fonts")), qPrintable(notes.join(QLatin1Char('|'))));   // the first 8 were looked at, the ninth was over the total
+        const QByteArray over(int(jp::kMaxEmbeddedFontBytes) + 1, '\0');
+        notes.clear();
+        QCOMPARE(jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Over"), QStringLiteral("Regular"), over, kTestKey, false}}), &notes).size(), 0);
+        QVERIFY2(notes.contains(QStringLiteral("Some embedded fonts are left out: they are too large.")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // The registry gives each document its own private names, adds nothing for a family the computer has, and takes its fonts away with the document.
+    void embeddedFontsOfADocumentGoWithIt()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        QByteArray renamed = jp::fontWithFamilyName(lato, QStringLiteral("Zobster"));
+        QVERIFY(!renamed.isEmpty());
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        const int before = jp::office::EmbeddedFonts::addedFontCount();
+        const QStringList familiesBefore = QFontDatabase::families();
+        int a = 0, b = 0;
+        const auto faces = jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Zobster"), QStringLiteral("Regular"), renamed, kTestKey}}));
+        QCOMPARE(faces.size(), 1);
+        const auto first = jp::office::EmbeddedFonts::use(&a, faces);
+        const auto second = jp::office::EmbeddedFonts::use(&b, faces);
+        QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before + 1);   // (the same font in two documents is one)
+        QVERIFY(first.value(QStringLiteral("zobster")).startsWith(jp::kEmbeddedFamilyPrefix));
+        QCOMPARE(first, second);
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QVERIFY(QFontDatabase::families().contains(first.value(QStringLiteral("zobster"))));
+        jp::office::EmbeddedFonts::release(&a);
+        QVERIFY(QFontDatabase::families().contains(first.value(QStringLiteral("zobster"))));   // (the second still has it)
+        jp::office::EmbeddedFonts::release(&b);
+        QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before);
+        QCOMPARE(QFontDatabase::families(), familiesBefore);
+        // A font the computer has is its own: nothing is added for a document that carries Lato.
+        const auto own = jp::office::EmbeddedFonts::use(&a, jp::office::wml::readEmbeddedFonts(docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Regular"), lato, kTestKey}})));
+        QVERIFY(own.isEmpty());
+        QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before);
+        jp::office::EmbeddedFonts::release(&a);
     }
 };
 

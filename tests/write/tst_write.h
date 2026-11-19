@@ -1428,6 +1428,10 @@ private Q_SLOTS:
     void changesKeepATableInACellAndWhatIsAroundIt();
     void deletingAcrossCellsEmptiesThemAndTakesWholeTablesOut();
     void pastedParagraphsAreInTheCellTheyWerePastedInto();
+    void aFontTheDocxCarriesIsUsedWhileItIsOpenAndGoneWhenItCloses();
+    void aDocxFontIsTheDocumentsOwnAndNeverInstalled();
+    void aHostileDocxFontListIsBoundedAndTheDocumentStillOpens();
+    void theMissingFontsBarLeavesOutAFontTheFileCarries();
     void aSavedDocumentRoundTripsItsOwnParagraphFormatting();
     void kerningComesFromTheFilesKernSetting();
     void hostileKernValuesAreReadWithoutHarm();

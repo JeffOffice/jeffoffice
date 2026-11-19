@@ -10,6 +10,7 @@
 #include "core/writeprops.h"
 #include "doc/doc.h"
 #include "odt/odt.h"
+#include "office/embeddedfonts.h"
 #include "rtf/rtf.h"
 #include "text/numbersystems.h"
 #include "text/textengine.h"
@@ -348,6 +349,7 @@ WriteDoc::WriteDoc() : m_id(++s_lastId), m_flow(std::make_unique<flow::FlowDocum
 WriteDoc::~WriteDoc()
 {
     if (m_fieldCodesCount > 0) tp::shownFieldCodeSets().remove(m_fieldCodesCount);
+    office::EmbeddedFonts::release(this);
     // (The paginator watches the story, which the flowing document owns: it goes first.)
     m_pager.reset();
     m_flow.reset();
@@ -372,11 +374,16 @@ std::unique_ptr<WriteDoc> WriteDoc::fromDocx(const QByteArray &zip, QString *err
     ReadNotes rn;
     if (!readDocx(zip, &d, error, &rn)) return nullptr;
     std::unique_ptr<WriteDoc> doc(new WriteDoc());
+    // The fonts the file carries are the document's own while it is open (WriteDoc::~WriteDoc lets them go).
+    QStringList fontNotes;
+    QVector<office::EmbeddedFace> faces = office::wml::readEmbeddedFonts(d, &fontNotes);
+    rn.notes << fontNotes;
     doc->readNotes = rn.notes;
     doc->m_hadMacros = rn.hadMacros;
     doc->m_leftOut = rn.leftOut;
     if (notes) *notes = rn.notes;
     doc->build(std::move(d));
+    doc->m_flow->env.familyAliases = office::EmbeddedFonts::use(doc.get(), std::move(faces));
     return doc;
 }
 

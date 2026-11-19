@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: e-book, ebook, epub, e-reader, chapters, contents, web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
+<!-- keywords: fonts in the file, embedded fonts, missing font, e-book, ebook, epub, e-reader, chapters, contents, web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -130,6 +130,12 @@ In the **Export to PDF** box, tick **PDF/A, for keeping for a long time**. A PDF
 ## Make an email
 
 Click **File > Export > Make an Email** to make a message file (.eml). Nothing is sent. You choose what goes in the message: the document, the document as a PDF, or the pages shown as pictures in the message (the first 30 pages). Open the file in your email program, add who it is for, and send it. For a PDF, you can click **Encrypt with a password…** in the box; tell the person the password some other way than in the message.
+
+## Fonts in the file
+
+A .docx file can carry the fonts its text is set in, so the document looks the way its author made it, even on a computer that doesn't have those fonts. JeffWrite reads them when it opens the file. They are used for that document only, while it is open. They are never installed on your computer, no other document or program sees them, and they are gone when you close the document. A font the file carries does not count as a missing font.
+
+JeffWrite does not use a font whose maker's license says it may not be embedded, a font that is damaged, or any font past the first 64 in one file. When that happens, the message you see when you open the file says so, and the text is shown in a similar font instead. The file keeps its fonts as they were when you save it.
 
 ## Related
 

@@ -201,6 +201,31 @@ private Q_SLOTS:
         checkMissingFonts(&win, host());
         QTRY_VERIFY(!dock->isVisible());
     }
+    // A font the document's own file carries is drawn for that document, so it is not missing, and it is not listed in the dialog.
+    void aFontTheFileSuppliesIsNotMissing()
+    {
+        QMainWindow win;
+        win.show();
+        m_uses = {kGone};
+        MissingFontsHost h = host();
+        h.carried = [](const QString &family) { return family == kGone; };
+        checkMissingFonts(&win, h);
+        QDockWidget *dock = win.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(!dock || !dock->isVisible());
+        m_uses = {kGone, kGone2};
+        checkMissingFonts(&win, h);
+        dock = win.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(dock);
+        QTRY_VERIFY(dock->isVisible());
+        auto *details = win.findChild<QPushButton *>(QStringLiteral("missingFontsDetails"));
+        QVERIFY(details);
+        withDialog([&] { details->click(); }, QStringLiteral("missingFontsDialog"), [&](QDialog *d) {
+            auto *t = d->findChild<QTableWidget *>(QStringLiteral("missingFontsTable"));
+            QVERIFY(t);
+            QCOMPARE(t->rowCount(), 1);
+            QCOMPARE(t->item(0, 0)->text(), kGone2);
+        });
+    }
     void detailsListsEachFontWithItsStandInAndPlaces()
     {
         QMainWindow win;

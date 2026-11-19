@@ -103,6 +103,8 @@ jp::MissingFontsHost WriteWindow::missingFontsHost()
         }
         return u;
     };
+    // A font the file carries is drawn for this document, so it is not missing.
+    host.carried = [this](const QString &family) { return m_doc && m_doc->flow().env.familyAliases.contains(family.toLower()); };
     host.replace = [this](const QString &from, const QString &to) { return replaceMissingFont(from, to); };
     host.refresh = [this] {
         if (m_doc) m_view->refresh();

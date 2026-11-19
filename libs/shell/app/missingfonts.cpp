@@ -180,6 +180,13 @@ QString shownName(const QString &name)
     return name.size() > kMostNameLetters ? name.left(kMostNameLetters - 1) + QChar(0x2026) : name;
 }
 
+// A family the file supplies is there for its document, whatever the computer has.
+FontInstalled withCarried(const MissingFontsHost &host, const FontInstalled &installed)
+{
+    if (!host.carried) return installed;
+    return [carried = host.carried, installed](const QString &family) { return carried(family) || (installed ? installed(family) : fontIsInstalled(family)); };
+}
+
 // The dialog's rows follow the fonts of the document as it is now (they change after Replace in Document).
 class DialogState {
 public:
@@ -254,7 +261,7 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
     layout->addWidget(intro);
     auto state = std::make_shared<DialogState>();
     state->host = host;
-    state->installed = installed;
+    state->installed = withCarried(host, installed);
     auto *table = new QTableWidget(0, 3, &dlg);
     table->setObjectName(QStringLiteral("missingFontsTable"));
     table->setHorizontalHeaderLabels({QCoreApplication::translate("jp::MissingFonts", "Missing font"), QCoreApplication::translate("jp::MissingFonts", "Used instead"),
@@ -308,9 +315,10 @@ void showMissingFontsDialog(QWidget *parent, const MissingFontsHost &host, const
     dlg.exec();
 }
 
-void checkMissingFonts(QMainWindow *win, const MissingFontsHost &host, const FontInstalled &installed)
+void checkMissingFonts(QMainWindow *win, const MissingFontsHost &host, const FontInstalled &installedHere)
 {
     if (!win) return;
+    const FontInstalled installed = withCarried(host, installedHere);
     QDockWidget *dock = win->findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
     const FontUsage usage = host.usage ? host.usage() : FontUsage();
     // The choices made before hold for this document too (the text is drawn again with them).
@@ -368,9 +376,9 @@ void checkMissingFonts(QMainWindow *win, const MissingFontsHost &host, const Fon
         });
     }
     // The dialog opens with the host and the test of the latest check.
-    static_cast<Opener *>(dock->findChild<QObject *>(QStringLiteral("missingFontsOpener")))->open = [win, host, installed] {
-        showMissingFontsDialog(win, host, installed);
-        checkMissingFonts(win, host, installed);
+    static_cast<Opener *>(dock->findChild<QObject *>(QStringLiteral("missingFontsOpener")))->open = [win, host, installedHere] {
+        showMissingFontsDialog(win, host, installedHere);
+        checkMissingFonts(win, host, installedHere);
     };
     dock->show();
 }

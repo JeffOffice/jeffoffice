@@ -1,5 +1,47 @@
 #include "tst_write.h"
 #include "office/macroparts.h"
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
+#include "office/embeddedfonts.h"
+#include <QFontDatabase>
+#include <QUuid>
+
+namespace {
+
+QByteArray bundledFontData(const QString &family)
+{
+    QFile f(bundledFontFile(family, false, false).path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+// A document whose text is in `family` and whose package carries the fonts `fonts` ({family, font file}) as word/fonts/fontN.odttf, each scrambled the way the format
+// says: its first 32 bytes XORed with the 16 bytes of its key, the GUID's digits read from the last.
+QByteArray docxCarrying(const QString &family, const QVector<QPair<QString, QByteArray>> &fonts)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"),
+              xml(QByteArray("<w:document ") + kNs + "><w:body><w:p><w:r><w:rPr><w:rFonts w:ascii=\"" + family.toUtf8() + "\" w:hAnsi=\"" + family.toUtf8() + "\"/></w:rPr><w:t>Hello fonts</w:t></w:r></w:p></w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    QByteArray table = QByteArray("<w:fonts ") + kNs + ">";
+    for (int i = 0; i < fonts.size(); ++i) {
+        const QString key = QStringLiteral("{%1}").arg(QUuid::createUuid().toString(QUuid::WithoutBraces).toUpper());
+        const QByteArray bytes = QByteArray::fromHex(QString(key).remove(QLatin1Char('{')).remove(QLatin1Char('}')).remove(QLatin1Char('-')).toLatin1());
+        QByteArray data = fonts[i].second;
+        for (int k = 0; k < 32 && k < data.size(); ++k) data[k] = char(uchar(data[k]) ^ uchar(bytes[15 - (k % 16)]));
+        const QString name = QStringLiteral("/word/fonts/font%1.odttf").arg(i + 1);
+        w.addPart(name, data, QStringLiteral("application/vnd.openxmlformats-officedocument.obfuscatedFont"));
+        w.addRelationshipWithId(QStringLiteral("/word/fontTable.xml"), QStringLiteral("rId%1").arg(i + 1), rel + QStringLiteral("font"), name);
+        table += "<w:font w:name=\"" + fonts[i].first.toUtf8() + "\"><w:embedRegular r:id=\"rId" + QByteArray::number(i + 1) + "\" w:fontKey=\"" + key.toUtf8() + "\"/></w:font>";
+    }
+    table += "</w:fonts>";
+    w.addPart(QStringLiteral("/word/fontTable.xml"), xml(table), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("fontTable"), QStringLiteral("/word/fontTable.xml"));
+    return w.finish();
+}
+
+} // namespace
 
 
 // What is pasted into a cell is in that cell, whatever cell it was copied from, and what is pasted outside a table is in none.
@@ -2071,4 +2113,110 @@ void WriteTests::aTableOfFramedParagraphsHasTheFramesPlace()
     QByteArray around = frame;
     around.replace("notBeside", "around");
     QVERIFY(!placeOf(tableX(rowX(cellX(framed("a", around)) + cellX(framed("b", around))), 2, 1600)).second.has_value());
+}
+
+
+// A font the .docx carries (a scrambled part of word/fonts) is added for that document while it is open: under a private name that only its own text is
+// drawn with, so the family's own name stays unknown to the program, to every other document, and to the menus; and it goes when the document does.
+void WriteTests::aFontTheDocxCarriesIsUsedWhileItIsOpenAndGoneWhenItCloses()
+{
+    const QByteArray font = jp::fontWithFamilyName(bundledFontData(QStringLiteral("Lobster")), QStringLiteral("Zobster"));
+    QVERIFY(!font.isEmpty());
+    QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+    const int before = office::EmbeddedFonts::addedFontCount();
+    auto doc = open(docxCarrying(QStringLiteral("Zobster"), {{QStringLiteral("Zobster"), font}}));
+    QVERIFY(doc);
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + 1);
+    const QString own = doc->flow().env.familyAliases.value(QStringLiteral("zobster"));
+    QVERIFY2(own.startsWith(jp::kEmbeddedFamilyPrefix) && own.endsWith(QStringLiteral("-Zobster")), qPrintable(own));
+    QVERIFY(QFontDatabase::families().contains(own));
+    QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+    // Another document, with no fonts of its own, meets none of this.
+    auto plain = open(makeDocx("<w:p><w:r><w:t>plain</w:t></w:r></w:p>"));
+    QVERIFY(plain);
+    QVERIFY(plain->flow().env.familyAliases.isEmpty());
+    // The file is saved as it was: the font part is still in it.
+    office::Package saved;
+    QVERIFY(saved.read(doc->toDocx()));
+    QVERIFY(saved.hasPart(QStringLiteral("/word/fonts/font1.odttf")));
+    doc.reset();
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+    QVERIFY(!QFontDatabase::families().contains(own));
+}
+
+// Nothing a file carries is installed: the font is given to the font database from memory (QFontDatabase::addApplicationFontFromData), so no file is written for
+// it, and none can be left behind when the program stops without closing the document. A font the computer already has is its own and is not added; a
+// document that carries a font with a restricted license is not drawn with it.
+void WriteTests::aDocxFontIsTheDocumentsOwnAndNeverInstalled()
+{
+    QTemporaryDir scratch;
+    QVERIFY(scratch.isValid());
+    const QString was = QDir::currentPath();
+    QDir::setCurrent(scratch.path());
+    const int before = office::EmbeddedFonts::addedFontCount();
+    const QByteArray lobster = bundledFontData(QStringLiteral("Lobster"));
+    {
+        // The computer has Lato: the file's copy is not added.
+        auto own = open(docxCarrying(QStringLiteral("Lato"), {{QStringLiteral("Lato"), bundledFontData(QStringLiteral("Lato"))}}));
+        QVERIFY(own);
+        QVERIFY(own->flow().env.familyAliases.isEmpty());
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+        // A restricted license: kept, not drawn with.
+        QByteArray restricted = jp::fontWithFamilyName(lobster, QStringLiteral("Robster"));
+        for (int i = 0, n = qFromBigEndian<quint16>(restricted.constData() + 4); i < n; ++i)
+            if (restricted.mid(12 + 16 * i, 4) == "OS/2") qToBigEndian<quint16>(0x0002, restricted.data() + int(qFromBigEndian<quint32>(restricted.constData() + 12 + 16 * i + 8)) + 8);
+        auto no = open(docxCarrying(QStringLiteral("Robster"), {{QStringLiteral("Robster"), restricted}}));
+        QVERIFY(no);
+        QVERIFY(no->flow().env.familyAliases.isEmpty());
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+        QCOMPARE(int(office::EmbeddedFonts::facesOf(no.get()).size()), 1);
+        // One that may be shown is added, and nothing is written anywhere while it is.
+        auto yes = open(docxCarrying(QStringLiteral("Pobster"), {{QStringLiteral("Pobster"), jp::fontWithFamilyName(lobster, QStringLiteral("Pobster"))}}));
+        QVERIFY(yes);
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + 1);
+    }
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+    QDir::setCurrent(was);
+    QVERIFY(QDir(scratch.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
+}
+
+// A file that lists more fonts than a document may carry, one that is not a font, and one with a bad key: the document opens, the good fonts (up to the most) are used,
+// and the person is told what was left out.
+void WriteTests::aHostileDocxFontListIsBoundedAndTheDocumentStillOpens()
+{
+    const QByteArray lobster = bundledFontData(QStringLiteral("Lobster"));
+    QVector<QPair<QString, QByteArray>> fonts;
+    fonts << QPair<QString, QByteArray>{QStringLiteral("Junk"), QByteArray(4000, 'j')};
+    for (int i = 0; i < jp::kMaxEmbeddedFonts + 10; ++i) fonts << QPair<QString, QByteArray>{QStringLiteral("Fobster%1").arg(i), jp::fontWithFamilyName(lobster, QStringLiteral("Fobster%1").arg(i))};
+    const int before = office::EmbeddedFonts::addedFontCount();
+    QString err;
+    QStringList notes;
+    auto doc = WriteDoc::fromDocx(docxCarrying(QStringLiteral("Fobster0"), fonts), &err, &notes);
+    QVERIFY2(doc, qPrintable(err));
+    // The junk part is skipped, 64 fonts are read, and the 10 past them are not.
+    QCOMPARE(int(office::EmbeddedFonts::facesOf(doc.get()).size()), jp::kMaxEmbeddedFonts);
+    QCOMPARE(int(doc->flow().env.familyAliases.size()), jp::kMaxEmbeddedFonts);
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + jp::kMaxEmbeddedFonts);
+    QVERIFY(doc->flow().env.familyAliases.contains(QStringLiteral("fobster0")));
+    QVERIFY(!doc->flow().env.familyAliases.contains(QStringLiteral("fobster70")));
+    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("An embedded font in the file can't be used")), qPrintable(notes.join(QLatin1Char('|'))));
+    doc.reset();
+    QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+}
+
+// The bar of missing fonts does not count a font the file itself supplied, and still counts one it does not.
+void WriteTests::theMissingFontsBarLeavesOutAFontTheFileCarries()
+{
+    const QByteArray font = jp::fontWithFamilyName(bundledFontData(QStringLiteral("Lobster")), QStringLiteral("Zobster"));
+    WriteWindow w;
+    w.setDocument(open(docxCarrying(QStringLiteral("Zobster"), {{QStringLiteral("Zobster"), font}})), QString());
+    jp::MissingFontsHost host = w.missingFontsHost();
+    QVERIFY(host.usage && host.carried);
+    QVERIFY(host.usage().families().contains(QStringLiteral("Zobster")));
+    QVERIFY(host.carried(QStringLiteral("Zobster")));
+    QVERIFY(host.carried(QStringLiteral("zobster")));
+    QVERIFY(!host.carried(QStringLiteral("Qobster")));
+    w.setDocument(open(docxCarrying(QStringLiteral("Zobster"), {})), QString());   // (the same text, the file carries nothing)
+    QVERIFY(!w.missingFontsHost().carried(QStringLiteral("Zobster")));
 }

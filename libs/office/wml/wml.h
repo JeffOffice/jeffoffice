@@ -12,6 +12,7 @@
 // Properties hold only what the paragraph, run, or style states (std::optional is "not stated"); the style that applies and the
 // document's defaults give the rest (StyleSheet::paragraph, StyleSheet::run).
 
+#include "office/embeddedfonts.h"
 #include "office/relationship.h"
 #include "ole/embedobj.h"
 #include "office/theme.h"
@@ -795,6 +796,12 @@ constexpr int kMaxTableCellsEach = 50000;
 constexpr int kMaxTableDepth = 8;
 constexpr int kMaxTableCells = 50000;
 bool readDocx(const QByteArray &zip, Document *doc, QString *error = nullptr, ReadNotes *notes = nullptr);
+// The fonts a document carries (word/fonts/*.odttf, as its font table lists them): each face with the font file unscrambled and inspected, so it is sound to hand to the
+// font engine. At most kMaxEmbeddedFonts faces, kMaxEmbeddedFontsTotal bytes of parts, and kMaxEmbeddedFontBytes for one are read; a part that is not a usable font is skipped.
+// A font whose license forbids embedding keeps its face but has no font data (it is not drawn with). `notes` get what couldn't be used.
+QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes = nullptr);
+// A font part's bytes with the first 32 unscrambled by the font key (a GUID, with or without its braces and hyphens); empty if the key is not one.
+QByteArray unscrambledFont(const QByteArray &part, const QString &fontKey);
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);
 // A new document: Letter paper with one-inch margins, the styles of a new document (Normal, Heading 1 to 3, Title, ...), and a theme.
