@@ -18569,7 +18569,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продолжение со страницы %1)</translation>
     </message>
     <message>
-        <location line="+6701"/>
+        <location line="+6702"/>
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>

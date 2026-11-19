@@ -18559,7 +18559,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+6701"/>
+        <location line="+6702"/>
         <source>Notes</source>
         <translation>Anotações</translation>
     </message>

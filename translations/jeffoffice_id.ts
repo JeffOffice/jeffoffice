@@ -18549,7 +18549,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6701"/>
+        <location line="+6702"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>
