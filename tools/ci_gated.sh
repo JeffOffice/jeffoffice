@@ -11,7 +11,12 @@ set -u
 f=${1:-${JO_GATED_TREES:-/gated/trees}}
 out=${GITHUB_OUTPUT:-/dev/null}
 tree=$(git rev-parse 'HEAD^{tree}' 2>/dev/null) || tree=
-if [ -n "$tree" ] && [ -r "$f" ] && line=$(grep -m1 "^$tree " "$f" 2>/dev/null); then
+# (JO_LINUX_GATED=true: a landing started this run and says its local gate is running these very programs for this commit on this machine right now; the
+# commit is pushed only if that gate passes, so they are not run a second time beside it. .github/workflows/build.yml, the linux_gated input.)
+if [ "${JO_LINUX_GATED:-false}" = true ]; then
+    echo "skip=true" >> "$out"
+    echo "the landing's local gate is running the Linux tests and checks for tree ${tree:-unknown} now: they are skipped here"
+elif [ -n "$tree" ] && [ -r "$f" ] && line=$(grep -m1 "^$tree " "$f" 2>/dev/null); then
     echo "skip=true" >> "$out"
     echo "tree $tree already passed the local gate ($(echo "$line" | cut -d' ' -f2-)): the Linux tests are skipped here"
 else

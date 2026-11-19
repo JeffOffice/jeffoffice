@@ -22,6 +22,12 @@ on:
         description: 'Build the Mac programs for both processors (Apple and Intel), as a release needs'
         type: boolean
         default: true
+      # A landing sets this: its local gate is running the same Linux test and check programs for this very commit on the same machine, at the same time,
+      # and the commit is pushed only if the gate passes. The Linux jobs then build and package and leave the programs to the gate.
+      linux_gated:
+        description: 'The local gate is running the Linux tests and checks for this commit (set by a landing)'
+        type: boolean
+        default: false
 
 jobs:
   # A commit is built and tested whole once. A landing runs this workflow by hand on a ci/ branch at the very commit it then pushes to main; until
@@ -200,7 +206,9 @@ jobs:
           if-no-files-found: error
 
   build:
-    needs: [passed, ffmpeg]
+    # (not "needs: ffmpeg": this job starts beside the ffmpeg job and waits for its files only when it gets to them, a minute in on GitHub's machines,
+    # where waiting for that job to end first cost every build job a minute; "Our FFmpeg, when it is there" below)
+    needs: passed
     if: needs.passed.outputs.run == ''
     # (actions: write, to delete this job's older compiler caches once it has saved a new one)
     # (id-token: write, for the Windows job that signs: it signs in to Azure with a token GitHub gives it, no password; see "Sign the programs (Windows)")
@@ -302,14 +310,52 @@ jobs:
         shell: bash
         run: git sparse-checkout disable || true
 
+      # Our own Linux machines keep Qt beside the compiler cache (/ccache/qt, which every runner container sees), as our Mac and our Windows machine keep
+      # theirs: each job works on a copy, made in seconds, where the install step below took 78 seconds of every Linux job (November 19, 2026). A copy
+      # that is missing, or whose window-system plugin lacks a library in this container, leaves the install step to run as before, and the step after
+      # it keeps what that installed for the next run.
+      - name: Qt (our Linux)
+        id: ourqt
+        if: runner.os == 'Linux' && runner.environment == 'self-hosted'
+        shell: bash
+        run: |
+          V=6.11.3; BASE=/ccache/qt/$V/gcc_64
+          have=false
+          if [ -f "$BASE/.jo-complete" ] && [ -f "$BASE/lib/cmake/Qt6/Qt6Config.cmake" ]; then
+            if ldd "$BASE/plugins/platforms/libqxcb.so" 2>/dev/null | grep -q 'not found'; then
+              echo "this container lacks a library Qt needs: the install step runs"
+            else
+              Q="$RUNNER_TEMP/qt"; rm -rf "$Q"; cp -a "$BASE" "$Q"
+              { echo "QT_ROOT_DIR=$Q"; echo "Qt6_DIR=$Q/lib/cmake/Qt6"; echo "QT_PLUGIN_PATH=$Q/plugins"; echo "QML2_IMPORT_PATH=$Q/qml"
+                echo "PKG_CONFIG_PATH=$Q/lib/pkgconfig"; echo "LD_LIBRARY_PATH=$Q/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"; } >> "$GITHUB_ENV"
+              echo "$Q/bin" >> "$GITHUB_PATH"
+              have=true
+            fi
+          else
+            echo "no Qt at $BASE yet: this run installs it and keeps a copy"
+          fi
+          echo "have=$have" >> "$GITHUB_OUTPUT"
+
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
-        if: runner.os == 'Linux'
+        if: runner.os == 'Linux' && steps.ourqt.outputs.have != 'true'
         with:
           # (aqtinstall 3.3.0, the newest release, looks for Windows MinGW Qt 6.11 in the wrong folder: pinned to the commit that lists it)
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7'
           version: '6.11.3'
           modules: 'qtimageformats qtmultimedia qtspeech'
           cache: true
+
+      - name: Keep Qt for the next run (our Linux)
+        if: runner.os == 'Linux' && runner.environment == 'self-hosted' && steps.ourqt.outputs.have != 'true'
+        shell: bash
+        run: |
+          V=6.11.3; BASE=/ccache/qt/$V/gcc_64
+          if [ -n "${QT_ROOT_DIR:-}" ] && [ -f "$QT_ROOT_DIR/lib/cmake/Qt6/Qt6Config.cmake" ] && [ -w /ccache ]; then
+            T="/ccache/qt/$V/.new.$$"; mkdir -p "/ccache/qt/$V"; rm -rf "$T"
+            if cp -a "$QT_ROOT_DIR" "$T" && touch "$T/.jo-complete"; then rm -rf "$BASE"; mv "$T" "$BASE" && echo "kept Qt $V at $BASE"; else rm -rf "$T"; fi
+          else
+            echo "Qt was not kept (no QT_ROOT_DIR, or /ccache cannot be written)"
+          fi
 
       # Windows builds with MinGW-w64 (GCC), the compiler Qt ships for Windows.
       - uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
@@ -418,6 +464,23 @@ jobs:
 
       # JeffDeck's FFmpeg is ours (the ffmpeg job above), not the full one Qt ships. It goes into this job's copy of Qt before anything is built, so that the tests
       # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. It comes from this run's ffmpeg job; a missing one fails here.
+      - name: Our FFmpeg, when it is there
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          want="ffmpeg-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}"
+          both=${{ (runner.os == 'macOS' && contains(env.MAC_ARCHS, ';')) && 'true' || 'false' }}
+          url="$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          for i in $(seq 1 150); do
+            names=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$url/artifacts?per_page=100" 2>/dev/null | grep -o '"name": *"[^"]*"' || true)
+            if echo "$names" | grep -q "\"$want\"" && { [ "$both" != true ] || echo "$names" | grep -q '"ffmpeg-x86_64"'; }; then echo "$want is there after $(( (i - 1) * 4 )) s"; exit 0; fi
+            # (the job that makes it failed or was cancelled: no use waiting)
+            if curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" "$url/jobs?per_page=100" 2>/dev/null | tr -d '\n' | grep -qE '"conclusion": *"(failure|cancelled)"[^{}]*"name": *"ffmpeg \('; then echo "an ffmpeg job of this run failed"; exit 1; fi
+            sleep 4
+          done
+          echo "our FFmpeg ($want) did not arrive in 10 minutes"; exit 1
+
       - name: Our FFmpeg (from the ffmpeg job)
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -681,6 +744,8 @@ jobs:
         if: runner.os == 'Linux' && runner.environment == 'self-hosted' && github.event_name != 'pull_request'
         shell: bash
         run: bash tools/ci_gated.sh
+        env:
+          JO_LINUX_GATED: ${{ github.event_name == 'workflow_dispatch' && inputs.linux_gated && 'true' || 'false' }}
 
       - name: Test
         if: matrix.part == 'tests' && steps.gated.outputs.skip != 'true'
