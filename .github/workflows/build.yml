@@ -28,6 +28,14 @@ on:
         description: 'The local gate is running the Linux tests and checks for this commit (set by a landing)'
         type: boolean
         default: false
+      # A landing starts this on main right after its push (lead/pushchain.sh): see the "Cache refresh" notes at the build job.
+      cache_refresh:
+        description: 'Only refresh GitHub''s compiler caches of the two Windows checks jobs: build them as usual and save the caches, with no tests, packaging, or signing'
+        type: boolean
+        default: false
+
+# (a run that only refreshes the compiler caches is named so, which the "passed" job below looks for: it builds and tests nothing, so it must never stand for a whole run)
+run-name: ${{ (github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && format('cache refresh {0}', github.sha) || '' }}
 
 jobs:
   # A commit is built and tested whole once. A landing runs this workflow by hand on a ci/ branch at the very commit it then pushes to main; until
@@ -56,7 +64,7 @@ jobs:
           run=""
           if [ -n "$kind" ]; then
             run=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${{ github.sha }}&event=$kind&status=success&per_page=20" \
-                    --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }})][0].id // empty' 2>/dev/null || true)
+                    --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and ((.display_title // "") | startswith("cache refresh ") | not))][0].id // empty' 2>/dev/null || true)
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
           if [ -n "$run" ]; then
@@ -71,7 +79,8 @@ jobs:
   # below take it from this job (an artifact of the run) and put it in their copy of Qt (tools/use_ffmpeg.sh). Windows builds it with MSYS2's MinGW-w64, the Mac with Xcode's compiler.
   ffmpeg:
     needs: passed
-    if: needs.passed.outputs.run == ''
+    # (not in a cache refresh: its Build step compiles against Qt's headers, and our FFmpeg only replaces Qt's libraries that tests load and packages carry)
+    if: needs.passed.outputs.run == '' && !(github.event_name == 'workflow_dispatch' && inputs.cache_refresh)
     name: ffmpeg (${{ matrix.name }})
     strategy:
       fail-fast: false
@@ -209,7 +218,8 @@ jobs:
     # (The ffmpeg job first, though it costs each build job about a minute: on November 19, 2026, the build jobs were started beside it, to wait for its
     # files only when they got to them, and on our one Mac a build job took the machine and waited for an ffmpeg job that could not start until it let go.)
     needs: [passed, ffmpeg]
-    if: needs.passed.outputs.run == ''
+    # (the same as "passed and ffmpeg succeeded and nothing passed this commit", except that a cache refresh has no ffmpeg job: its result is "skipped" there)
+    if: ${{ !cancelled() && needs.passed.result == 'success' && needs.passed.outputs.run == '' && (needs.ffmpeg.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.cache_refresh && needs.ffmpeg.result == 'skipped')) }}
     # (actions: write, to delete this job's older compiler caches once it has saved a new one)
     # (id-token: write, for the Windows job that signs: it signs in to Azure with a token GitHub gives it, no password; see "Sign the programs (Windows)")
     permissions:
@@ -218,10 +228,16 @@ jobs:
       id-token: write
     # The Windows job that packages, in a run started by hand (the kind a release takes its files from), runs in the "signing" environment: Azure trusts
     # only that environment of this repository (the managed identity's federated credential), so no other job can sign.
-    environment: ${{ (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && 'signing' || '' }}
+    environment: ${{ (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch' && !inputs.cache_refresh) && 'signing' || '' }}
     # (Windows and macOS: "build (windows, tests, 1/2)"; Linux runs each part in one job: "build (linux, tests)")
-    name: build (${{ matrix.name }}, ${{ matrix.part }}${{ (matrix.name != 'linux' && !(vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && !(matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format(', {0}/2', matrix.shard) || '' }})
+    name: build (${{ matrix.name }}, ${{ matrix.part }}${{ (matrix.name != 'linux' && !(vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && !(matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh)))) && format(', {0}/2', matrix.shard) || '' }})
     env:
+      # A cache refresh (a run started by hand with cache_refresh on; lead/pushchain.sh starts one on main after each landing): only the two Windows checks jobs,
+      # on GitHub's machines, each doing its usual setup, restore, Configure, and Build and then saving the compiler cache, with nothing else: GitHub saves the
+      # compiler caches only for runs on main, and a landing's own build now runs on a ci/ branch, so without this the caches of these two jobs went stale
+      # (13 to 19 minutes of compiling at 74 to 82 percent hits, where a fresh cache takes 2 to 3). It never says "mac_both": every use of that input below
+      # is cut by this one, so the jobs build what a push builds. "true" or "false", never empty.
+      CACHE_REFRESH: ${{ github.event_name == 'workflow_dispatch' && inputs.cache_refresh && 'true' || 'false' }}
       # JeffWrite and JeffCrunch are built and tested on every run. Each goes into the installer, the Linux packages, and the Mac disk image only
       # when its switch is "true": the owner decides when it ships.
       SHIP_WRITE: 'true'
@@ -229,25 +245,27 @@ jobs:
       # A Mac build for both processors (Apple and Intel) compiles everything twice. Only a run started by hand, the kind a release takes its files from,
       # builds and packages for both (unless it is told mac_both=false, as a branch's test run is); a push builds for Apple's processors alone. Only the
       # job that packages (checks, 1/2) builds for both: the others only test, and a test runs the Apple half of a two-processor program anyway.
-      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'arm64;x86_64' || 'arm64' }}
+      MAC_ARCHS: ${{ github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh) && matrix.part == 'checks' && matrix.shard == 1 && 'arm64;x86_64' || 'arm64' }}
       # Which half of its part this job is ("1/2" or "2/2"; none on Linux, which runs a part in one job): tools/ci_targets.sh says what each half builds and runs.
       # (Until November 19, 2026, this read "linux and '' or k/2", which is k/2 for Linux too, an empty text being false: the Linux jobs ran only the first
       # half of each part, and there is no second Linux job. The local gate ran every program on Linux before each push, so nothing went untested, but
       # these jobs did not run what they said. The Windows test job on our own machine runs its whole part in one job as well.)
       # ("ours": our own Windows machine's test job, the whole part and JeffDeck's checks; "pack": GitHub's Windows job that packages and signs, which runs no
       # check program then; tools/ci_targets.sh)
-      SHARD: ${{ (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'ours' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'pack' || !(matrix.name == 'linux' || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format('{0}/2', matrix.shard) || '' }}
+      SHARD: ${{ (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'ours' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'pack' || !(matrix.name == 'linux' || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh)))) && format('{0}/2', matrix.shard) || '' }}
       # Our own machines keep the compiler cache in a folder of their own, kept from run to run; GitHub's machines keep it in GitHub's cache.
-      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
+      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
       CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
     strategy:
       fail-fast: false
       matrix:
-        name: [linux, windows, macos]
+        # (a cache refresh: only the Windows checks jobs; the name, part, and include lists are cut here, not only excluded, because an include that
+        # matches no combination makes a combination of its own)
+        name: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '["windows"]' || '["linux","windows","macos"]') }}
         # Each system builds twice, side by side (the compiler cache makes the second build a few minutes): one job runs the tests, the other the app
         # checks, the other checks, and the packaging. One after another they took 18 minutes.
-        part: [tests, checks]
+        part: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '["checks"]' || '["tests","checks"]') }}
         # Windows and macOS split each part in two halves that build and run about half each (tools/ci_targets.sh): the checks' first half builds and
         # packages the apps; Linux, on our own machine, has the processors to run a part in one job (and splits the biggest programs, CI_SPLIT).
         shard: [1, 2]
@@ -255,23 +273,16 @@ jobs:
         # part in one job, its biggest programs in parts side by side, where two jobs built the same libraries twice, 17 to 18 minutes each)
         # (nor for our own Mac: its one machine ran four jobs one after another, each with its own checkout, copy of Qt, and build, about 19 minutes in all
         # and the longest part of a run on November 19, 2026; a part is one job there now. A pull request and a release's run keep the halves.)
-        exclude: ${{ fromJSON(!(github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && '[{"name":"linux","shard":2}]' || vars.JO_WINDOWS_SELF == '1' && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2},{"name":"macos","shard":2}]' || '[{"name":"linux","shard":2},{"name":"macos","shard":2}]') }}
-        include:
-          - name: linux
-            os: ubuntu-24.04
-          - name: windows
-            os: windows-2022
-          # One app for Apple silicon and Intel Macs (Qt's macOS build is
-          # universal), unsigned for now.
-          - name: macos
-            os: macos-15
+        exclude: ${{ fromJSON(!(github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && '[{"name":"linux","shard":2}]' || vars.JO_WINDOWS_SELF == '1' && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2},{"name":"macos","shard":2}]' || '[{"name":"linux","shard":2},{"name":"macos","shard":2}]') }}
+        # (One app for Apple silicon and Intel Macs (Qt's macOS build is universal), unsigned for now.)
+        include: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '[{"name":"windows","os":"windows-2022"}]' || '[{"name":"linux","os":"ubuntu-24.04"},{"name":"windows","os":"windows-2022"},{"name":"macos","os":"macos-15"}]') }}
     # Linux runs on our own machine (labels self-hosted + jo-linux) and macOS on our own Mac (self-hosted + jo-mac), except for pull requests, which run on
     # GitHub's: no one else's code runs there. (GitHub's Macs were often not there at all: whole runs waited, then were cancelled, Nov 16.)
     # The two Windows test jobs, the longest of a run (21 to 27 minutes each on GitHub's four processors, Nov 19 2026), run on our own Windows machine
     # (self-hosted + jo-ryzen: 16 processors, its compiler cache on its own disk) while the repository variable JO_WINDOWS_SELF is 1; set it to 0 and they
     # are back on GitHub's with the next run. Not for a pull request, and not for a release's run (started by hand with mac_both on), which is built on
     # GitHub's machines throughout. The Windows checks jobs stay on GitHub's: one packages and signs the installer, and both take 8 to 13 minutes.
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && fromJSON('["self-hosted", "jo-ryzen"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       # Our own Windows machine and our own Mac keep the build folder from run to run (the next step), so the checkout does not sweep the folder clean there.
@@ -465,6 +476,7 @@ jobs:
       # JeffDeck's FFmpeg is ours (the ffmpeg job above), not the full one Qt ships. It goes into this job's copy of Qt before anything is built, so that the tests
       # load it and windeployqt, macdeployqt, and linuxdeploy copy it into the packages. It comes from this run's ffmpeg job; a missing one fails here.
       - name: Our FFmpeg (from the ffmpeg job)
+        if: env.CACHE_REFRESH != 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ffmpeg-${{ matrix.name == 'macos' && 'arm64' || matrix.name }}
@@ -478,6 +490,7 @@ jobs:
           path: ffmpeg-in
 
       - name: Our FFmpeg, unpacked
+        if: env.CACHE_REFRESH != 'true'
         shell: bash
         run: |
           rm -rf ffmpeg-out; mkdir ffmpeg-out
@@ -485,6 +498,7 @@ jobs:
           ls ffmpeg-out
 
       - name: Our FFmpeg in Qt's folder
+        if: env.CACHE_REFRESH != 'true'
         shell: bash
         run: |
           QT=$QT_ROOT_DIR
@@ -656,7 +670,7 @@ jobs:
           CCACHE_MAXSIZE: ${{ runner.environment == 'self-hosted' && '20G' || (matrix.name == 'windows' && '3000M' || (matrix.name == 'linux' && '3G' || '2000M')) }}
           CCACHE_COMPILERCHECK: content
           # (only the job that packages: the others build their own programs)
-          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && inputs.mac_both && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
+          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh) && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
         run: |
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
           # (our own machine caps the parallel compiles through its runner settings: a compile of every core at once runs out of memory there)
@@ -687,7 +701,7 @@ jobs:
       # Programs in the build folder find the GCC runtime through PATH, which can hold another GCC's copy first (the 20261004 runner image crashed in the
       # first test). Both jobs use the compiler's own copy, beside the programs, as the packaged program does.
       - name: GCC runtimes beside the programs (Windows)
-        if: runner.os == 'Windows'
+        if: (runner.os == 'Windows') && env.CACHE_REFRESH != 'true'
         shell: bash
         run: |
           echo "GCC runtimes on PATH:"; which -a libstdc++-6.dll || true
@@ -695,7 +709,7 @@ jobs:
 
       # (a Mac whose media tests fail: the plugin loader's own account of the multimedia plugin, for the first media test)
       - name: Media plugin diagnostics (macOS, Windows)
-        if: runner.os != 'Linux' && matrix.part == 'tests'
+        if: (runner.os != 'Linux' && matrix.part == 'tests') && env.CACHE_REFRESH != 'true'
         shell: bash
         run: |
           # (Windows: every DLL the plugin needs, and those need in turn, found in Qt's folder or the system's, as the programs in build/ find them)
@@ -724,14 +738,14 @@ jobs:
       # the log says so; the build and the packaging above and below still run. No file (the containers without the mount, or GitHub's own machines): nothing is skipped.
       - name: Already tested on this machine (Linux)
         id: gated
-        if: runner.os == 'Linux' && runner.environment == 'self-hosted' && github.event_name != 'pull_request'
+        if: (runner.os == 'Linux' && runner.environment == 'self-hosted' && github.event_name != 'pull_request') && env.CACHE_REFRESH != 'true'
         shell: bash
         run: bash tools/ci_gated.sh
         env:
           JO_LINUX_GATED: ${{ github.event_name == 'workflow_dispatch' && inputs.linux_gated && 'true' || 'false' }}
 
       - name: Test
-        if: matrix.part == 'tests' && steps.gated.outputs.skip != 'true'
+        if: (matrix.part == 'tests' && steps.gated.outputs.skip != 'true') && env.CACHE_REFRESH != 'true'
         timeout-minutes: 45
         shell: bash
         run: |
@@ -751,7 +765,7 @@ jobs:
       # once on a blank document and once on one opened from a file. The four programs run side by side (they wait on conditions, not on time, so a busy machine only makes them
       # slower), each with its own results file. A hang fails in minutes, not hours.
       - name: App checks
-        if: matrix.part == 'checks' && steps.gated.outputs.skip != 'true'
+        if: (matrix.part == 'checks' && steps.gated.outputs.skip != 'true') && env.CACHE_REFRESH != 'true'
         timeout-minutes: 25
         shell: bash
         run: |
@@ -768,7 +782,7 @@ jobs:
           JP_LAZY_SHOTS: ${{ runner.temp }}/lazy-shots
 
       - name: Keep the ribbon pictures of a failed check
-        if: failure() && matrix.part == 'checks'
+        if: (failure() && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: lazy-ribbon-shots-${{ runner.os }}-${{ matrix.shard }}
@@ -777,7 +791,7 @@ jobs:
           retention-days: 14
 
       - name: Export check PDFs
-        if: matrix.part == 'checks' && matrix.shard == 1
+        if: (matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         shell: bash
         run: |
           # PDFs exported by this platform's build, to compare against Linux.
@@ -795,7 +809,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: matrix.part == 'checks' && matrix.shard == 1
+        if: (matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         with:
           name: pdf-check-${{ matrix.name }}
           path: pdf-check
@@ -804,19 +818,19 @@ jobs:
       # itself so they match what Help shows. Every build makes them (a bad
       # link fails here, before a merge); the wiki job below publishes them.
       - name: Export Help for the wiki
-        if: runner.os == 'Linux' && matrix.part == 'checks'
+        if: (runner.os == 'Linux' && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         run: build/JeffPub --export-help-wiki help-wiki
         env:
           QT_QPA_PLATFORM: offscreen
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: runner.os == 'Linux' && matrix.part == 'checks'
+        if: (runner.os == 'Linux' && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         with:
           name: help-wiki
           path: help-wiki
 
       - name: Package (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         shell: pwsh
         run: |
           # The suite's folder: both apps beside the Qt they share.
@@ -879,7 +893,7 @@ jobs:
       # Code signing (Azure Artifact Signing, certificate profile jeffoffice-public: "JeffOffice LLC"), only in a run started by hand. The IDs below are not
       # secrets: the managed identity jeffoffice-github-signer and its tenant; Azure lets it in only from this repository's "signing" environment.
       - name: Sign in to Azure (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: 6ede5b11-3a84-4edf-863b-d6701ec316fc
@@ -888,7 +902,7 @@ jobs:
 
       # Our own programs and the DLL they share; Qt's and the GCC runtime's DLLs are left as their makers built them.
       - name: Sign the programs (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: https://eus.codesigning.azure.net/
@@ -907,12 +921,12 @@ jobs:
       # Inno signs the uninstaller it builds into the installer (and the installer) by running packaging/windows/sign-file.ps1, which calls the same
       # cmdlet the action calls (module version as in artifact-signing-action v2.0.0); the script keeps a copy of each file it signed, to be checked below.
       - name: Install the signing module (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         shell: pwsh
         run: Install-Module -Name ArtifactSigning -RequiredVersion 0.1.8 -Force -Repository PSGallery
 
       - name: Installer (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         shell: pwsh
         env:
           SIGN_INSTALLER: ${{ github.event_name == 'workflow_dispatch' && 'true' || '' }}
@@ -929,7 +943,7 @@ jobs:
           Move-Item packaging/windows/JeffOffice-Setup.exe installer/
 
       - name: Sign the installer (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82 # v2.0.0
         with:
           endpoint: https://eus.codesigning.azure.net/
@@ -941,7 +955,7 @@ jobs:
 
       # Each signature names JeffOffice LLC and carries a time stamp; a file that is not signed so stops the run.
       - name: Check the signatures (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         shell: pwsh
         run: |
           $files = @(Get-ChildItem dist/JeffOffice -File | Where-Object { $_.Name -match '^(JeffPub|JeffDeck|JeffWrite|JeffCrunch)\.exe$|^libjeffoffice-common\.dll$' }) + @(Get-Item installer/JeffOffice-Setup.exe)
@@ -957,7 +971,7 @@ jobs:
           }
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         with:
           name: JeffOffice-Setup
           path: installer
@@ -965,7 +979,7 @@ jobs:
       # The command-line tool, for testing on Windows: it runs from the
       # program's folder (same DLLs). Not part of the release.
       - name: Developer tools (Windows)
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force dev-tools | Out-Null
@@ -974,13 +988,13 @@ jobs:
           Copy-Item -Recurse build/data/* dev-tools/
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1
+        if: (runner.os == 'Windows' && matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         with:
           name: JeffOffice-windows-tools
           path: dev-tools
 
       - name: Package (Linux)
-        if: runner.os == 'Linux' && matrix.part == 'checks'
+        if: (runner.os == 'Linux' && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         run: |
           mkdir -p dist/JeffOffice
           cp build/JeffPub build/JeffDeck LICENSE README.md dist/JeffOffice/
@@ -992,7 +1006,7 @@ jobs:
           cp -rL build/data/. dist/JeffOffice/
 
       - name: Linux packages (.deb and AppImage)
-        if: runner.os == 'Linux' && matrix.part == 'checks'
+        if: (runner.os == 'Linux' && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         run: |
           mkdir -p tools-bin
           curl -sSLo tools-bin/linuxdeploy https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
@@ -1058,13 +1072,13 @@ jobs:
           ls -la linux-packages
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: runner.os == 'Linux' && matrix.part == 'checks'
+        if: (runner.os == 'Linux' && matrix.part == 'checks') && env.CACHE_REFRESH != 'true'
         with:
           name: JeffOffice-linux-packages
           path: linux-packages
 
       - name: Package (macOS)
-        if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         run: |
           ver=$(sed -n 's/^project(JeffPub VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
           mkdir -p dist macos-dmg
@@ -1199,13 +1213,13 @@ jobs:
           rm -rf "$alone" want.txt got.txt
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch'
+        if: (runner.os == 'macOS' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name == 'workflow_dispatch') && env.CACHE_REFRESH != 'true'
         with:
           name: JeffOffice-macos-dmg
           path: macos-dmg
 
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        if: matrix.part == 'checks' && matrix.shard == 1
+        if: (matrix.part == 'checks' && matrix.shard == 1) && env.CACHE_REFRESH != 'true'
         with:
           name: JeffOffice-${{ matrix.name }}
           path: dist/JeffOffice
@@ -1266,7 +1280,7 @@ jobs:
   # A quick check of the Windows installer's script (a minute, not an hour): it is built here from stand-in files, by
   # hand-started runs only. The real installer is made by the Windows "checks" job above, from the real programs.
   installer-smoke:
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && !inputs.cache_refresh
     runs-on: windows-2022
     timeout-minutes: 15
     env:
