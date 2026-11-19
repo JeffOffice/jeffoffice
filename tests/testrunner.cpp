@@ -25,6 +25,14 @@ using TestApplication = QGuiApplication;
 using TestApplication = QCoreApplication;
 #endif
 
+// The program's own fonts are loaded before the first test class, as every app loads them when it starts (jp::initCore). Until Nov 19 2026 only the classes that
+// asked had them, and the classes after those in the same run: a class run alone, or dealt first to its part, had what the system gave, and on Windows the
+// off-screen display gives no fonts at all (CrunchSpeechTests alone found no installed font there, and passed in a whole run by the classes before it).
+#if (defined(QT_WIDGETS_LIB) || defined(QT_GUI_LIB)) && __has_include("core/fonts.h")
+#include "core/fonts.h"
+#define JP_TESTS_LOAD_FONTS 1
+#endif
+
 namespace {
 
 struct Entry {
@@ -124,6 +132,9 @@ int main(int argc, char *argv[])
     int restArgc = int(rest.size());
     TestApplication app(restArgc, restArgv.data());
     app.setAttribute(Qt::AA_Use96Dpi, true);
+#ifdef JP_TESTS_LOAD_FONTS
+    jp::initCore();
+#endif
 
     // What QtTest was asked for: its options, the functions to run, and the results files.
     std::vector<std::string> options, functions;
