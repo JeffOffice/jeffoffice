@@ -8763,7 +8763,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+244"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вбудовані об&apos;єкти понад %1, які може мати файл, або розмір, який вони можуть сягнути разом, зберігаються як малюнки.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -8985,7 +8985,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+47"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вбудовані об&apos;єкти понад %1, які може мати файл, або розмір, який вони можуть сягнути разом, відображаються як малюнки.</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -10226,7 +10226,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+176"/>
         <source>Some objects are saved as pictures: a .pptx file can&apos;t hold them. Save as an .odp file to keep them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі об&apos;єкти зберігаються як малюнки, оскільки файл .pptx не може їх містити. Щоб їх зберегти, збережіть файл як .odp.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -14849,7 +14849,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+37"/>
         <source>embedded objects whose picture can&apos;t be drawn (saved without one)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти, малюнок яких не можна намалювати (збережено без нього)</translation>
     </message>
     <message>
         <location line="+105"/>
@@ -14870,7 +14870,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+208"/>
         <location line="+53"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти понад %1, які може мати книга, або розмір, який вони можуть сягнути разом (збережено як малюнки)</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -23151,7 +23151,7 @@ Source: %3</source>
     <message>
         <location line="+100"/>
         <source>An object from another app can&apos;t be put in a group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт з іншої програми не можна помістити в групу.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -25523,7 +25523,7 @@ This file is protected with a password. Password:</source>
         <location line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+129"/>
         <source>A text box can&apos;t go on a chart sheet, which holds only its chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстове поле не можна розмістити на аркуші діаграми, який містить лише її діаграму.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -26606,7 +26606,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+0"/>
         <source>The objects in the workbook: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти книги: що кожен із них являє собою, а також відкриття, перетворення на малюнок або видалення.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -26897,7 +26897,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+1"/>
         <source>Draw Text Box</source>
-        <translation type="unfinished">Намалювати текстове поле</translation>
+        <translation type="unfinished">Малювання текстового поля</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -27090,7 +27090,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="-20"/>
         <source>Drag on the sheet to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетягніть по аркушу, щоб намалювати текстове поле; клацніть, щоб додати поле одного зі звичайних розмірів. Shift робить його квадратним, а Esc припиняє дію.</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -31094,109 +31094,109 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="-146"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діапазону JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діаграми JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зі сторінки JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як об&apos;єкт</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопійоване не можна вставити як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти…</translation>
     </message>
     <message>
         <location line="+78"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставлення об&apos;єкта</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Object inserted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт вставлено</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>This object was made in another program, so it can&apos;t be copied here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей об&apos;єкт створено в іншій програмі, тому його не можна скопіювати тут.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Object cut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт вирізано</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Object copied</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт скопійовано</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей об&apos;єкт створено в іншій програмі, тому його не можна редагувати тут.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не можна відкрити тут, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch не можна відкрити тут, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагування об&apos;єкта. Збережіть його у власному вікні, щоб оновити тут.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The object was deleted, so the change wasn&apos;t kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт було видалено, тому зміну не збережено.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Оновлення об&apos;єкта</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт оновлено.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зміни в об&apos;єкті не вдалося внести в книгу.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>%1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, об&apos;єкт %2</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+2"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетворити об&apos;єкт на малюнок</translation>
     </message>
 </context>
 <context>
@@ -34466,7 +34466,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+18"/>
         <source>The pieces of other programs in the presentation: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фрагменти інших програм у презентації: що кожен із них являє собою, а також відкриття, перетворення на малюнок або видалення.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -36806,88 +36806,88 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_objects.cpp" line="+57"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діапазону JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діаграми JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зі сторінки JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як об&apos;єкт</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопійоване не можна вставити як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти…</translation>
     </message>
     <message>
         <location line="+45"/>
         <location line="+23"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вставлення об&apos;єкта</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>This can&apos;t be put in the presentation as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не можна вставити в презентацію як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей об&apos;єкт створено в іншій програмі, тому його не можна редагувати тут.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite не можна відкрити тут, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch не можна відкрити тут, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагування об&apos;єкта. Збережіть його у власному вікні, щоб оновити тут.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Оновлення об&apos;єкта</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт оновлено.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зміни в об&apos;єкті не вдалося внести в презентацію.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Slide %1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайд %1, об&apos;єкт %2</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетворити об&apos;єкт на малюнок</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -48207,19 +48207,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../libs/shell/app/objects.cpp" line="+207"/>
         <source>The file can&apos;t be opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не можна відкрити.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл занадто великий, щоб вставити його як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+276"/>
         <location line="+30"/>
         <source>This can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не можна вставити як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="-265"/>
@@ -48229,93 +48229,93 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Spreadsheet range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діапазон комірок</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Document page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сторінка документа</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Other object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інший об&apos;єкт</translation>
     </message>
     <message>
         <location line="+96"/>
         <source>This is not a workbook that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не книга, яку можна прочитати.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The workbook&apos;s first sheet can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перший аркуш книги не можна прочитати.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>That is not a range of cells. Write it like A1:C5.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не діапазон комірок. Запишіть його у вигляді A1:C5.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+83"/>
         <source>The range holds nothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діапазон порожній.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The workbook has no chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У книзі немає діаграми.</translation>
     </message>
     <message>
         <location line="+35"/>
         <source>The document is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ занадто великий, щоб вставити його як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This is not a document that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не документ, який можна прочитати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document ends at page %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документ закінчується на сторінці %1.</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/objectsdialog.cpp" line="+25"/>
         <source>From JeffCrunch Range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діапазону JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">З діаграми JeffCrunch</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>From JeffWrite Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зі сторінки JeffWrite</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 by %2 in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 × %2 дюйм</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Use the page copied in JeffWrite</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використати сторінку, скопійовану в JeffWrite</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the chart copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використати діаграму, скопійовану в JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the range copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використати діапазон, скопійований у JeffCrunch</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -48335,7 +48335,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+6"/>
         <source>A1:C5</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A1:C5</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48350,7 +48350,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+13"/>
         <source>Documents (*.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Документи (*.docx)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48375,7 +48375,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+0"/>
         <source>Kind</source>
-        <translation type="unfinished">Категорія</translation>
+        <translation type="unfinished">Тип</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48390,7 +48390,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Convert to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетворити на малюнок</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -57435,7 +57435,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+0"/>
         <source>The pieces of other programs in the document: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фрагменти інших програм у документі: що це таке, а також відкриття, перетворення на малюнок або видалення.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -59600,7 +59600,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+3"/>
         <source>Drag on the page to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетягніть на сторінці, щоб намалювати текстове поле; клацніть, щоб вставити поле одного зі звичайних розмірів. Shift зберігає квадратну форму, а Esc припиняє дію.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -60322,62 +60322,62 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діапазон з JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діаграма з JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сторінка з JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як об&apos;єкт</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скопійований вміст не можна вставити як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти…</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей об&apos;єкт створено в іншій програмі, тому його не можна редагувати тут.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite тут не можна відкрити, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch тут не можна відкрити, тому цей об&apos;єкт не можна редагувати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагування об&apos;єкта. Збережіть його у власному вікні, щоб оновити тут.</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>The changes to the object could not be put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зміни в об&apos;єкті не вдалося вставити в документ.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт оновлено.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -68826,27 +68826,27 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-108"/>
         <source>Objects can only be put on a sheet of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти можна розміщувати лише на аркуші з комірками.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This can&apos;t be put on a sheet as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не можна розмістити на аркуші як об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This sheet is too large to put objects on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей аркуш занадто великий для розміщення об&apos;єктів.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A workbook can&apos;t have more than %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книга не може містити більше ніж %1 об&apos;єктів.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The objects of this workbook would come to more than a file can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкти цієї книги займатимуть більше, ніж може вмістити файл.</translation>
     </message>
 </context>
 <context>
@@ -70112,12 +70112,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../libs/office/ole/odfobject.cpp" line="+259"/>
         <source>an embedded object holds more files or bytes than a file may keep (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудований об&apos;єкт містить більше файлів або байтів, ніж може зберігати файл (збережено як його малюнок)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>an embedded object holds a file with a name that is not safe to save (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудований об&apos;єкт містить файл з іменем, яке небезпечно зберігати (збережено як його малюнок)</translation>
     </message>
 </context>
 <context>
@@ -70805,7 +70805,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+6"/>
         <location line="+5"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти понад %1, які може мати книга, або їх загальний розмір перевищує допустимий (показано як їх малюнки)</translation>
     </message>
     <message>
         <location line="+64"/>
@@ -71000,7 +71000,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+27"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти, створені в іншому типі файлу (збережено як малюнки)</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -71075,7 +71075,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+19"/>
         <source>A sheet has too many embedded objects (%1 or more) for this program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На аркуші забагато вбудованих об&apos;єктів (%1 або більше), щоб ця програма могла їх змінити.</translation>
     </message>
     <message>
         <location line="+204"/>
@@ -76133,7 +76133,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_objects.cpp" line="+27"/>
         <source>This can&apos;t be put in the document as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не можна вставити в документ як об&apos;єкт.</translation>
     </message>
 </context>
 <context>
@@ -76922,7 +76922,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+43"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти понад %1, які може мати документ, або їх загальний розмір перевищує допустимий (збережено як їх малюнки)</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -77015,7 +77015,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+199"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вбудовані об&apos;єкти, створені в іншому типі файлу (збережено як малюнки)</translation>
     </message>
     <message>
         <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>

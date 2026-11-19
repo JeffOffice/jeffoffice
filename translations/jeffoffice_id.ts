@@ -8749,7 +8749,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+244"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tertanam yang melebihi %1 per berkas, atau ukuran gabungannya, disimpan sebagai gambar.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -8961,7 +8961,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+47"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tertanam yang melebihi %1 per berkas, atau ukuran gabungannya, ditampilkan sebagai gambar.</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -10212,7 +10212,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+176"/>
         <source>Some objects are saved as pictures: a .pptx file can&apos;t hold them. Save as an .odp file to keep them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa objek disimpan sebagai gambar karena berkas .pptx tidak dapat menyimpannya. Simpan sebagai berkas .odp untuk mempertahankannya.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -15725,7 +15725,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+37"/>
         <source>embedded objects whose picture can&apos;t be drawn (saved without one)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tertanam yang gambarnya tidak dapat digambar (disimpan tanpa gambar)</translation>
     </message>
     <message>
         <location line="+105"/>
@@ -15746,7 +15746,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+208"/>
         <location line="+53"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tertanam yang melebihi %1 per buku kerja, atau ukuran gabungannya (disimpan sebagai gambar)</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -25091,7 +25091,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+818"/>
         <source>A text box can&apos;t go on a chart sheet, which holds only its chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kotak teks tidak dapat ditempatkan pada lembar bagan, yang hanya berisi bagannya.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -25582,7 +25582,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+100"/>
         <source>An object from another app can&apos;t be put in a group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek dari aplikasi lain tidak dapat dimasukkan ke dalam kelompok.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -26595,7 +26595,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+0"/>
         <source>The objects in the workbook: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek dalam buku kerja: jenis masing-masing, serta membuka, mengubahnya menjadi gambar, atau menghapusnya.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -30422,7 +30422,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+96"/>
         <source>Drag on the sheet to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seret pada lembar untuk menggambar kotak teks; klik untuk menyisipkannya dengan ukuran standar. Shift menjaga agar tetap persegi, dan Esc untuk berhenti.</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -31048,109 +31048,109 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="-146"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Rentang JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Bagan JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Halaman JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebagai Objek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Yang disalin tidak dapat disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek…</translation>
     </message>
     <message>
         <location line="+78"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Objek</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Object inserted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek disisipkan</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>This object was made in another program, so it can&apos;t be copied here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek ini dibuat di program lain, sehingga tidak dapat disalin di sini.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Object cut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek dipotong</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Object copied</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek disalin</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek ini dibuat di program lain, sehingga tidak dapat diedit di sini.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sedang mengedit objek. Simpan di jendelanya sendiri untuk memperbaruinya di sini.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The object was deleted, so the change wasn&apos;t kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek telah dihapus, sehingga perubahan tidak disimpan.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perbarui Objek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek telah diperbarui.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan pada objek tidak dapat dimasukkan ke dalam buku kerja.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>%1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, objek %2</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+2"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi Objek menjadi Gambar</translation>
     </message>
 </context>
 <context>
@@ -36436,7 +36436,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+18"/>
         <source>The pieces of other programs in the presentation: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagian dari program lain dalam presentasi: jenis masing-masing, serta membuka, mengubahnya menjadi gambar, atau menghapusnya.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -36756,88 +36756,88 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_objects.cpp" line="+57"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Rentang JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Bagan JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Halaman JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebagai Objek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Yang disalin tidak dapat disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek…</translation>
     </message>
     <message>
         <location line="+45"/>
         <location line="+23"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Objek</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>This can&apos;t be put in the presentation as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini tidak dapat disisipkan ke dalam presentasi sebagai objek.</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek ini dibuat di program lain, sehingga tidak dapat diedit di sini.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sedang mengedit objek. Simpan di jendelanya sendiri untuk memperbaruinya di sini.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perbarui Objek</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek telah diperbarui.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan pada objek tidak dapat dimasukkan ke dalam presentasi.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Slide %1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid %1, objek %2</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi Objek menjadi Gambar</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -48143,19 +48143,19 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../libs/shell/app/objects.cpp" line="+207"/>
         <source>The file can&apos;t be opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas tidak dapat dibuka.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas terlalu besar untuk disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+276"/>
         <location line="+30"/>
         <source>This can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini tidak dapat disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="-265"/>
@@ -48165,93 +48165,93 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>Spreadsheet range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rentang lembar kerja</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Document page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman dokumen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Other object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek lain</translation>
     </message>
     <message>
         <location line="+96"/>
         <source>This is not a workbook that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini bukan buku kerja yang dapat dibaca.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The workbook&apos;s first sheet can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar pertama buku kerja tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>That is not a range of cells. Write it like A1:C5.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini bukan rentang sel. Tulis seperti A1:C5.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+83"/>
         <source>The range holds nothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rentang ini kosong.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The workbook has no chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja tidak memiliki bagan.</translation>
     </message>
     <message>
         <location line="+35"/>
         <source>The document is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen terlalu besar untuk disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This is not a document that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini bukan dokumen yang dapat dibaca.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document ends at page %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen berakhir pada halaman %1.</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/objectsdialog.cpp" line="+25"/>
         <source>From JeffCrunch Range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Rentang JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Bagan JeffCrunch</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>From JeffWrite Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Halaman JeffWrite</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 by %2 in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 x %2 inci</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Use the page copied in JeffWrite</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gunakan halaman yang disalin di JeffWrite</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the chart copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gunakan bagan yang disalin di JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the range copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gunakan rentang yang disalin di JeffCrunch</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -48271,7 +48271,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+6"/>
         <source>A1:C5</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A1:C5</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48286,7 +48286,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+13"/>
         <source>Documents (*.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen (*.docx)</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48326,7 +48326,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+2"/>
         <source>Convert to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Gambar</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -57317,7 +57317,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+0"/>
         <source>The pieces of other programs in the document: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagian dari program lain di dokumen: apa itu, serta membuka, mengubahnya menjadi gambar, atau menghapusnya.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -59624,7 +59624,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+3"/>
         <source>Drag on the page to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seret di halaman untuk menggambar kotak teks; klik untuk menyisipkannya dengan ukuran biasanya. Shift menjaga agar tetap persegi, dan Esc menghentikan.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -60042,62 +60042,62 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Rentang JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Bagan JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dari Halaman JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebagai Objek</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Yang disalin tidak dapat disisipkan sebagai objek.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek…</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek ini dibuat di program lain, sehingga tidak dapat diedit di sini.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch tidak dapat dibuka di sini, sehingga objek ini tidak dapat diedit.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sedang mengedit objek. Simpan di jendelanya sendiri untuk memperbaruinya di sini.</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>The changes to the object could not be put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan pada objek tidak dapat dimasukkan ke dalam dokumen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek telah diperbarui.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -68744,27 +68744,27 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-108"/>
         <source>Objects can only be put on a sheet of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek hanya dapat ditempatkan pada lembar sel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This can&apos;t be put on a sheet as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini tidak dapat disisipkan ke lembar sebagai objek.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This sheet is too large to put objects on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini terlalu besar untuk menempatkan objek.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A workbook can&apos;t have more than %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja tidak dapat memiliki lebih dari %1 objek.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The objects of this workbook would come to more than a file can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek dalam buku kerja ini melebihi ukuran yang dapat ditampung sebuah berkas.</translation>
     </message>
 </context>
 <context>
@@ -70024,12 +70024,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../libs/office/ole/odfobject.cpp" line="+259"/>
         <source>an embedded object holds more files or bytes than a file may keep (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat berisi lebih banyak berkas atau byte daripada yang dapat disimpan sebuah berkas (disimpan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>an embedded object holds a file with a name that is not safe to save (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat berisi berkas dengan nama yang tidak aman untuk disimpan (disimpan sebagai gambarnya)</translation>
     </message>
 </context>
 <context>
@@ -70710,7 +70710,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+6"/>
         <location line="+5"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat melebihi %1 yang boleh dimiliki buku kerja, atau ukuran gabungannya (ditampilkan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+64"/>
@@ -70893,7 +70893,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+27"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -70968,7 +70968,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+19"/>
         <source>A sheet has too many embedded objects (%1 or more) for this program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar memiliki terlalu banyak objek tersemat (%1 atau lebih) untuk diubah oleh program ini.</translation>
     </message>
     <message>
         <location line="+204"/>
@@ -76025,7 +76025,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/pageview_objects.cpp" line="+27"/>
         <source>This can&apos;t be put in the document as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini tidak dapat disisipkan ke dalam dokumen sebagai objek.</translation>
     </message>
 </context>
 <context>
@@ -76814,7 +76814,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+43"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat melebihi %1 yang boleh dimiliki dokumen, atau ukuran gabungannya (disimpan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -76907,7 +76907,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+199"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
     <message>
         <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>

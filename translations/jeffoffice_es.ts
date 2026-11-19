@@ -8761,7 +8761,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+244"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos incrustados que superen el %1 que puede tener un archivo, o el tamaño que alcancen en conjunto, se guardan como sus imágenes.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -8968,7 +8968,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+47"/>
         <source>Embedded objects past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos incrustados que superen el %1 que puede tener un archivo, o el tamaño que alcancen en conjunto, se muestran como sus imágenes.</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -10219,7 +10219,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+176"/>
         <source>Some objects are saved as pictures: a .pptx file can&apos;t hold them. Save as an .odp file to keep them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algunos objetos se guardan como imágenes: un archivo .pptx no puede contenerlos. Guárdalo como archivo .odp para conservarlos.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -15735,7 +15735,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+37"/>
         <source>embedded objects whose picture can&apos;t be drawn (saved without one)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados cuya imagen no se puede dibujar (guardados sin ella)</translation>
     </message>
     <message>
         <location line="+105"/>
@@ -15756,7 +15756,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+208"/>
         <location line="+53"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (saved as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados que superen el %1 que puede tener un libro, o el tamaño que alcancen en conjunto (guardados como imágenes)</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -24774,7 +24774,7 @@ Origen: %3</translation>
     <message>
         <location line="+100"/>
         <source>An object from another app can&apos;t be put in a group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un objeto de otra aplicación no se puede agrupar.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -26028,7 +26028,7 @@ El archivo no existe.</translation>
         <location line="+51"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="+818"/>
         <source>A text box can&apos;t go on a chart sheet, which holds only its chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un cuadro de texto no puede ir en una hoja de gráfico, que solo contiene su gráfico.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -28850,7 +28850,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+0"/>
         <source>The objects in the workbook: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos del libro: qué es cada uno, y abrirlo, convertirlo en imagen o eliminarlo.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -30444,7 +30444,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+96"/>
         <source>Drag on the sheet to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrastra sobre la hoja para dibujar el cuadro de texto; haz clic para insertar uno de su tamaño habitual. Mayús mantiene el cuadro cuadrado y Esc lo cancela.</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -31071,109 +31071,109 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_embeds.cpp" line="-235"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde rango de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde gráfico de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde página de JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Como objeto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo que se copió no se puede insertar como objeto.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetos…</translation>
     </message>
     <message>
         <location line="+78"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insertar objeto</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Object inserted</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objeto insertado</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>This object was made in another program, so it can&apos;t be copied here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este objeto se creó en otro programa, así que no se puede copiar aquí.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Object cut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objeto cortado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Object copied</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objeto copiado</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este objeto se creó en otro programa, así que no se puede editar aquí.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite no se puede abrir aquí, así que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch no se puede abrir aquí, así que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editando el objeto. Guárdalo en su propia ventana para actualizarlo aquí.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The object was deleted, so the change wasn&apos;t kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El objeto se eliminó, así que el cambio no se guardó.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Actualizar objeto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El objeto se actualizó.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudieron guardar en el libro los cambios en el objeto.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>%1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, objeto %2</translation>
     </message>
     <message>
         <location line="+19"/>
         <location line="+2"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Convertir objeto en imagen</translation>
     </message>
 </context>
 <context>
@@ -36461,7 +36461,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+18"/>
         <source>The pieces of other programs in the presentation: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las piezas de otros programas en la presentación: qué es cada una, y abrirla, convertirla en imagen o eliminarla.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -36781,88 +36781,88 @@ No se puede leer el archivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_objects.cpp" line="+57"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde rango de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde gráfico de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde página de JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Como objeto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo que se copió no se puede insertar como objeto.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetos…</translation>
     </message>
     <message>
         <location line="+45"/>
         <location line="+23"/>
         <source>Insert Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insertar objeto</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>This can&apos;t be put in the presentation as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esto no se puede insertar en la presentación como objeto.</translation>
     </message>
     <message>
         <location line="+53"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este objeto se creó en otro programa, así que no se puede editar aquí.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite no se puede abrir aquí, así que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch no se puede abrir aquí, así que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editando el objeto. Guárdalo en su propia ventana para actualizarlo aquí.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>Update Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Actualizar objeto</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El objeto se actualizó.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The changes to the object could not be put in the presentation.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudieron guardar en la presentación los cambios en el objeto.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Slide %1, object %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositiva %1, objeto %2</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Convert Object to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Convertir objeto en imagen</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -48175,19 +48175,19 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location filename="../libs/shell/app/objects.cpp" line="+207"/>
         <source>The file can&apos;t be opened.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede abrir el archivo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo es demasiado grande para insertarlo como objeto.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+276"/>
         <location line="+30"/>
         <source>This can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esto no se puede insertar como objeto.</translation>
     </message>
     <message>
         <location line="-265"/>
@@ -48197,93 +48197,93 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+0"/>
         <source>Spreadsheet range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rango de hoja de cálculo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Document page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Página de documento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Other object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Otro objeto</translation>
     </message>
     <message>
         <location line="+96"/>
         <source>This is not a workbook that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este no es un libro que se pueda leer.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The workbook&apos;s first sheet can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede leer la primera hoja del libro.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>That is not a range of cells. Write it like A1:C5.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eso no es un rango de celdas. Escríbelo como A1:C5.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+83"/>
         <source>The range holds nothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El rango no contiene nada.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The workbook has no chart.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El libro no tiene ningún gráfico.</translation>
     </message>
     <message>
         <location line="+35"/>
         <source>The document is too large to put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El documento es demasiado grande para insertarlo como objeto.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This is not a document that can be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este no es un documento que se pueda leer.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document ends at page %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El documento termina en la página %1.</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/objectsdialog.cpp" line="+25"/>
         <source>From JeffCrunch Range</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde rango de JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde gráfico de JeffCrunch</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>From JeffWrite Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde página de JeffWrite</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 by %2 in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 por %2 pulg.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Use the page copied in JeffWrite</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Usar la página copiada en JeffWrite</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the chart copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Usar el gráfico copiado en JeffCrunch</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Use the range copied in JeffCrunch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Usar el rango copiado en JeffCrunch</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -48298,17 +48298,17 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+0"/>
         <source>Workbook</source>
-        <translation type="unfinished">Libro</translation>
+        <translation type="unfinished">Libro de trabajo</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A1:C5</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A1:C5</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Range</source>
-        <translation type="unfinished">Intervalo</translation>
+        <translation type="unfinished">Rango</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -48318,12 +48318,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+13"/>
         <source>Documents (*.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Documentos (*.docx)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Workbooks (*.xlsx)</source>
-        <translation type="unfinished">Libros (*.xlsx)</translation>
+        <translation type="unfinished">Libros de trabajo (*.xlsx)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48358,7 +48358,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+2"/>
         <source>Convert to Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Convertir en imagen</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -56660,7 +56660,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+3"/>
         <source>Drag on the page to draw the text box; click to put in one of its usual size. Shift keeps it square, and Esc stops.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrastre sobre la página para dibujar el cuadro de texto; haga clic para insertarlo con su tamaño habitual. Mayús mantiene el cuadro cuadrado y Esc lo cancela.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -57072,62 +57072,62 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde el rango de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffCrunch Chart…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde el gráfico de JeffCrunch…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From JeffWrite Page…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desde la página de JeffWrite…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>As Object</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Como objeto</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>What was copied can&apos;t be put in as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo copiado no se puede insertar como objeto.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Objects…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetos…</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>This object was made in another program, so it can&apos;t be edited here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este objeto se creó en otro programa, por lo que no se puede editar aquí.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>JeffWrite can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite no se puede abrir aquí, por lo que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JeffCrunch can&apos;t be opened here, so this object can&apos;t be edited.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffCrunch no se puede abrir aquí, por lo que este objeto no se puede editar.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Editing the object. Save it in its own window to update it here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editando el objeto. Guárdelo en su propia ventana para actualizarlo aquí.</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>The changes to the object could not be put in the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudieron insertar en el documento los cambios del objeto.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The object was updated.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El objeto se actualizó.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -58902,7 +58902,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+0"/>
         <source>The pieces of other programs in the document: what each is, and opening, turning into a picture, or deleting it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los fragmentos de otros programas incluidos en el documento: qué es cada uno, y cómo abrirlo, convertirlo en imagen o eliminarlo.</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -68785,27 +68785,27 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-108"/>
         <source>Objects can only be put on a sheet of cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos solo se pueden insertar en una hoja de celdas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This can&apos;t be put on a sheet as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esto no se puede insertar en una hoja como objeto.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This sheet is too large to put objects on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta hoja es demasiado grande para insertar objetos.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>A workbook can&apos;t have more than %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un libro de trabajo no puede tener más de %1 objetos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The objects of this workbook would come to more than a file can hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los objetos de este libro de trabajo ocuparían más de lo que un archivo puede contener.</translation>
     </message>
 </context>
 <context>
@@ -70068,12 +70068,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../libs/office/ole/odfobject.cpp" line="+259"/>
         <source>an embedded object holds more files or bytes than a file may keep (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">un objeto incrustado contiene más archivos o bytes de los que un archivo puede guardar (se conserva como su imagen)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>an embedded object holds a file with a name that is not safe to save (kept as its picture)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">un objeto incrustado contiene un archivo con un nombre que no es seguro guardar (se conserva como su imagen)</translation>
     </message>
 </context>
 <context>
@@ -70760,7 +70760,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+6"/>
         <location line="+5"/>
         <source>embedded objects past the %1 a workbook may have, or the size they may come to together (shown as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados que superan los %1 que puede tener un libro de trabajo, o el tamaño que alcanzarían en conjunto (se muestran como sus imágenes)</translation>
     </message>
     <message>
         <location line="+64"/>
@@ -70996,7 +70996,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+19"/>
         <source>A sheet has too many embedded objects (%1 or more) for this program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una hoja tiene demasiados objetos incrustados (%1 o más) para que este programa pueda modificarlos.</translation>
     </message>
     <message>
         <location line="+204"/>
@@ -71177,7 +71177,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+27"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados creados en otro tipo de archivo (se conservan como imágenes)</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -76079,7 +76079,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../apps/write/app/pageview_objects.cpp" line="+27"/>
         <source>This can&apos;t be put in the document as an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esto no se puede insertar en el documento como objeto.</translation>
     </message>
 </context>
 <context>
@@ -76868,7 +76868,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+43"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados que superan los %1 que puede tener un documento, o el tamaño que alcanzarían en conjunto (se conservan como sus imágenes)</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -76961,7 +76961,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+199"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">objetos incrustados creados en otro tipo de archivo (se conservan como imágenes)</translation>
     </message>
     <message>
         <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>

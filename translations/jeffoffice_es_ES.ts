@@ -315,6 +315,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Las secciones no se pueden guardar en este tipo de fichero.</translation>
     </message>
     <message>
+        <source>Embedded objects past the %1 a file may have, or the size they may come to together, are saved as their pictures.</source>
+        <translation type="unfinished">Los objetos incrustados que superen el %1 que puede tener un fichero, o el tamaño que alcancen en conjunto, se guardan como sus imágenes.</translation>
+    </message>
+    <message>
         <source>The captions of a movie are not kept in a document presentation file, so they were left out.</source>
         <translation type="unfinished">Los títulos de un vídeo no se conservan en un fichero de presentación de documento, así que se omitieron.</translation>
     </message>
@@ -364,6 +368,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>Equations past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
         <translation type="unfinished">Las ecuaciones que superan el %1 que puede tener un fichero, o el tamaño que alcanzan en conjunto, se muestran como sus imágenes.</translation>
+    </message>
+    <message>
+        <source>Embedded objects past the %1 a file may have, or the size they may come to together, are shown as their pictures.</source>
+        <translation type="unfinished">Los objetos incrustados que superen el %1 que puede tener un fichero, o el tamaño que alcancen en conjunto, se muestran como sus imágenes.</translation>
     </message>
     <message>
         <source>Embedded objects that are not charts were left out: the file keeps no picture of them that JeffDeck can show.</source>
@@ -534,6 +542,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>%1: the %2 aims at shapes by their numbers in the old file, and was left out.</source>
         <translation type="unfinished">%1: se omitió un elemento (%2) que apunta a formas por su número en el fichero antiguo.</translation>
+    </message>
+    <message>
+        <source>Some objects are saved as pictures: a .pptx file can't hold them. Save as an .odp file to keep them.</source>
+        <translation type="unfinished">Algunos objetos se guardan como imágenes: un fichero .pptx no puede contenerlos. Guárdalo como fichero .odp para conservarlos.</translation>
     </message>
     <message>
         <source>%1: the presentation holds more embedded objects than a file can keep, so the rest are saved as their pictures.</source>
@@ -1848,6 +1860,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
 <context>
     <name>jp::Objects</name>
     <message>
+        <source>The file can't be opened.</source>
+        <translation type="unfinished">No se puede abrir el fichero.</translation>
+    </message>
+    <message>
+        <source>The file is too large to put in as an object.</source>
+        <translation type="unfinished">El fichero es demasiado grande para insertarlo como objeto.</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
@@ -2410,6 +2430,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::crunch::SheetEmbeds</name>
+    <message>
+        <source>The objects of this workbook would come to more than a file can hold.</source>
+        <translation type="unfinished">Los objetos de este libro de trabajo ocuparían más de lo que un fichero puede contener.</translation>
+    </message>
+</context>
+<context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
         <source>The file stores this object together with %n other(s), so they can't be deleted one at a time.</source>
@@ -2510,6 +2537,17 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>No document could be found in the file.</source>
         <translation type="unfinished">No se encontró ningún documento en el fichero.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::ole::OdfObject</name>
+    <message>
+        <source>an embedded object holds more files or bytes than a file may keep (kept as its picture)</source>
+        <translation type="unfinished">un objeto incrustado contiene más ficheros o bytes de los que un fichero puede guardar (se conserva como su imagen)</translation>
+    </message>
+    <message>
+        <source>an embedded object holds a file with a name that is not safe to save (kept as its picture)</source>
+        <translation type="unfinished">un objeto incrustado contiene un fichero con un nombre que no es seguro guardar (se conserva como su imagen)</translation>
     </message>
 </context>
 <context>
@@ -2805,6 +2843,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">El libro no se leyó desde un fichero de otro formato.</translation>
     </message>
     <message>
+        <source>embedded objects made in another kind of file (kept as pictures)</source>
+        <translation type="unfinished">objetos incrustados creados en otro tipo de fichero (se conservan como imágenes)</translation>
+    </message>
+    <message>
         <source>The notes part of the file is cut off.</source>
         <translation type="unfinished">La parte de notas del fichero está truncada.</translation>
     </message>
@@ -3046,6 +3088,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The file has no text in it.</source>
         <translation type="unfinished">El fichero no contiene texto.</translation>
+    </message>
+    <message>
+        <source>embedded objects made in another kind of file (kept as pictures)</source>
+        <translation type="unfinished">objetos incrustados creados en otro tipo de fichero (se conservan como imágenes)</translation>
     </message>
 </context>
 </TS>
