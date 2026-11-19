@@ -77,6 +77,9 @@ struct CellChange {
     bool wrapToSet = false;
     // Only the format of the cell changes (its value, formula, and the array it may be part of stay as they are).
     bool styleOnly = false;
+    // The change puts an array formula in or takes one out, as a whole: the arrays the cells are part of are taken apart before any cell is put, and the cell that holds an array's formula (its
+    // `arrayRange` valid) is put last, which makes the array again.
+    bool array = false;
     // The format the change gives the cell keeps the borders the cell had (Paste Special > All Except Borders).
     bool keepBorders = false;
 };
@@ -403,6 +406,14 @@ public:
     // Clears the contents of the cells in the range (their formats stay): one step. Not ok, and nothing changed, if a cell in it is part of an array, or there are more cells than
     // kMaxCellsPerEdit.
     Outcome clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
+    // The same for several ranges (a cell in more than one is cleared once): one step, and nothing changed if one of them can't be.
+    Outcome clearRanges(int sheet, const std::vector<jp::office::sheet::CellRange> &ranges);
+    // The entry as an array formula over the block (Ctrl+Shift+Enter): one formula that fills the block, shown in braces, edited and cleared as a whole. A block of one cell inside an array stands for
+    // that whole array (the array is entered again). One step. Nothing is changed, and the reason told, if the entry is no formula, the block is more than kMaxCellsPerEdit cells, holds merged cells,
+    // a table, a data table, cells a formula spills into, or locked cells, or cuts through an array (an array that is wholly inside the block is replaced).
+    Outcome typeArray(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, const QString &typed);
+    // The cells of the array formula the cell is part of; not valid if it is part of none.
+    jp::office::sheet::CellRange arrayAt(int sheet, quint32 row, quint32 col) const;
 
     // ---- pivot tables (editpivot.cpp). A table is named by its place among the workbook's pivot tables (Workbook::pivots()); every change is one step of Undo that puts the cells right and the
     // table's parts as they are to be saved. A table nobody changed is saved as the file has it, to the byte.

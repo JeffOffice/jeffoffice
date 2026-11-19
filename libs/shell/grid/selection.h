@@ -73,6 +73,10 @@ public:
     Selection selectRows(qint64 from, qint64 to) const;
     Selection selectColumns(qint64 from, qint64 to) const;
     Selection selectAll(const Selection &s) const;
+    // The block of cells with something in them around the active cell, bounded by empty rows and columns (Ctrl+Shift+*, and the first Ctrl+A): the selection with that range, the active cell kept. `found` is
+    // false, and the selection as it was given, when the cell has nothing around it or the search ran past `kRegionLooks` cells.
+    static constexpr qint64 kRegionLooks = 4000000;
+    Selection currentRegion(const Selection &s, bool *found) const;
     Selection selectWholeRows(const Selection &s) const;      // Shift+Space
     Selection selectWholeColumns(const Selection &s) const;   // Ctrl+Space
     // The headers' drags and shift-clicks: from the rows (columns) the selection began at to this one.

@@ -272,6 +272,8 @@ void CellEditor::keyPressEvent(QKeyEvent *e)
     case Qt::Key_Enter:
         if (alt) {
             insert(QStringLiteral("\n"));
+        } else if ((e->modifiers() & Qt::ControlModifier) && shift) {
+            Q_EMIT finished(Way::Array);
         } else if (e->modifiers() & Qt::ControlModifier) {
             Q_EMIT finished(Way::Fill);
         } else {

@@ -72,7 +72,7 @@ bool GridView::headerButtonPress(const QPoint &layoutPoint)
 
 void GridView::paintMarks(QPainter *painter, const QRect &clip)
 {
-    if (m_marks.empty() && m_headerButtons.empty() && m_checkCircles.empty() && m_checkArrows.empty() && m_invalidCircles.empty() && m_errorCorners.empty()) return;
+    if (m_marks.empty() && m_extra.empty() && m_headerButtons.empty() && m_checkCircles.empty() && m_checkArrows.empty() && m_invalidCircles.empty() && m_errorCorners.empty()) return;
     const GridLayout &L = m_sheet.layout();
     const QRect inLayout = mirror(clip);
     painter->save();
@@ -82,7 +82,9 @@ void GridView::paintMarks(QPainter *painter, const QRect &clip)
     }
     QColor tint = uiAccent();
     tint.setAlpha(uiDark() ? 70 : 45);
-    for (const GridRange &r : m_marks) {
+    std::vector<GridRange> tinted = m_marks;
+    tinted.insert(tinted.end(), m_extra.begin(), m_extra.end());   // (the ranges selected besides the one with the cursor)
+    for (const GridRange &r : tinted) {
         for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
             const PaneView v = L.pane(p);
             if (v.isEmpty() || r.row2 < v.firstRow || r.row1 > v.lastRow || r.col2 < v.firstCol || r.col1 > v.lastCol) continue;

@@ -161,6 +161,11 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
     connect(m_ribbon, &Ribbon::leaveRequested, this, [this] { m_view->setFocus(Qt::OtherFocusReason); });
     new CommandSearchBox(this, QStringLiteral(":/crunch/cmdsearch.json"));
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateBars);
+    connect(m_view, &grid::GridView::endModeChanged, this, [this](bool on) {
+        // (End mode shows in the status bar until an arrow or another key ends it)
+        if (m_edit.active || m_calculating || m_loading) return;
+        setStatus(on ? tr("End") : tr("Ready"));
+    });
     connect(m_view, &grid::GridView::breakMoveRequested, this, &CrunchWindow::breakLineMoved);
     connect(m_view, &grid::GridView::printEdgeRequested, this, &CrunchWindow::printEdgeMoved);
     connect(m_view, &grid::GridView::zoomChanged, this, [this](double z) {
@@ -313,11 +318,12 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
     a->setCheckable(checkable);
     a->setEnabled(enabled);
     // Each command counts by its id for the usage statistics (when they're on).
-    connect(a, &QAction::triggered, this, [this, fn, id] {
+    connect(a, &QAction::triggered, this, [this, fn, id, text] {
         if (isReadOnly() && !commandAllowedReadOnly(id)) {
             refuseReadOnlyChange();
             return;
         }
+        if (needsOneRange(id) && refuseSeveralRanges(QString(text).remove(QLatin1Char('&')).remove(QStringLiteral("…")))) return;
         telemetry::count(id);
         // (a box being drawn is put down by any other command: one tool at a time)
         if (m_objects && id != QLatin1String("insert.textBox.draw")) m_objects->layer()->armBox(false);
@@ -1039,7 +1045,8 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
         auto *k = static_cast<QKeyEvent *>(e);
         if (!m_edit.active && m_linkBarId >= 0 && linkBarKey(k)) return true;
         if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
-            if (m_edit.active) commitEdit((k->modifiers() & Qt::ShiftModifier) ? CellEditor::Way::ShiftEnter : CellEditor::Way::Enter);
+            const bool asArray = (k->modifiers() & Qt::ControlModifier) && (k->modifiers() & Qt::ShiftModifier);
+            if (m_edit.active) commitEdit(asArray ? CellEditor::Way::Array : (k->modifiers() & Qt::ShiftModifier) ? CellEditor::Way::ShiftEnter : CellEditor::Way::Enter);
             else m_view->setFocus(Qt::OtherFocusReason);
             return true;
         }

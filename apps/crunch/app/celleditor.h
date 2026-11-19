@@ -27,7 +27,7 @@ public:
     void setMode(Mode mode) { m_mode = mode; }
 
     // How an entry was finished: the key, and so the way the selection goes.
-    enum class Way { Stay, Enter, ShiftEnter, Tab, ShiftTab, Up, Down, Left, Right, Fill };
+    enum class Way { Stay, Enter, ShiftEnter, Tab, ShiftTab, Up, Down, Left, Right, Fill, Array };
 
     // The misspelled words in the entry, as [start, end) places in its text, as they are underlined (an entry that is a formula has none; the word still being typed is not one).
     QVector<QPair<int, int>> misspellings() const { return m_wrong; }

@@ -897,6 +897,9 @@ private:
     void linkEntry(const QString &text);
     void onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells);
     void clearSelection();
+    // Several ranges are selected (Ctrl with a click or a drag): a command that works on one range only says so, and does nothing. True when it did.
+    bool refuseSeveralRanges(const QString &what);
+    static bool needsOneRange(const QString &commandId);
     void undoRedo(bool redo);
     void updateEditActions();
     bool editingAllowed();

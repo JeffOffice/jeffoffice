@@ -144,6 +144,60 @@ Selection Navigator::selectAll(const Selection &s) const
     return out;
 }
 
+Selection Navigator::currentRegion(const Selection &s, bool *found) const
+{
+    *found = false;
+    qint64 usedRows = 0, usedCols = 0;
+    m_source->usedExtent(&usedRows, &usedCols);
+    if (usedRows <= 0 || usedCols <= 0) return s;
+    GridRange r{s.activeRow, s.activeCol, s.activeRow, s.activeCol};
+    r = expanded(r);   // (a merged cell is one)
+    const qint64 lastRow = usedRows - 1, lastCol = usedCols - 1;
+    qint64 looks = 0;
+    // a line of cells beside the block that has something in it joins the block; until none does
+    auto anyIn = [&](qint64 row1, qint64 col1, qint64 row2, qint64 col2) {
+        row1 = std::max<qint64>(row1, 0);
+        col1 = std::max<qint64>(col1, 0);
+        row2 = std::min(row2, lastRow);
+        col2 = std::min(col2, lastCol);
+        for (qint64 y = row1; y <= row2; ++y)
+            for (qint64 x = col1; x <= col2; ++x) {
+                ++looks;
+                if (m_source->hasValue(y, x)) return true;
+            }
+        return false;
+    };
+    for (bool grew = true; grew;) {
+        grew = false;
+        if (looks > kRegionLooks) return s;
+        if (r.row1 > 0 && anyIn(r.row1 - 1, r.col1 - 1, r.row1 - 1, r.col2 + 1)) {
+            --r.row1;
+            grew = true;
+        }
+        if (r.row2 < lastRow && anyIn(r.row2 + 1, r.col1 - 1, r.row2 + 1, r.col2 + 1)) {
+            ++r.row2;
+            grew = true;
+        }
+        if (r.col1 > 0 && anyIn(r.row1 - 1, r.col1 - 1, r.row2 + 1, r.col1 - 1)) {
+            --r.col1;
+            grew = true;
+        }
+        if (r.col2 < lastCol && anyIn(r.row1 - 1, r.col2 + 1, r.row2 + 1, r.col2 + 1)) {
+            ++r.col2;
+            grew = true;
+        }
+        r = expanded(r);
+    }
+    Selection out = s;
+    out.whole = Selection::Whole::None;
+    out.range = r;
+    // (the active cell stays; the corner that moves is the far one)
+    out.headRow = s.activeRow == r.row1 ? r.row2 : r.row1;
+    out.headCol = s.activeCol == r.col1 ? r.col2 : r.col1;
+    *found = !(r.row1 == r.row2 && r.col1 == r.col2);
+    return *found ? out : s;
+}
+
 Selection Navigator::selectWholeRows(const Selection &s) const
 {
     Selection out = s;

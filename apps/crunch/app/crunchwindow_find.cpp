@@ -362,6 +362,56 @@ bool CrunchWindow::goToReference(const QString &text)
 {
     if (!m_session || !m_loaded) return false;
     if (!commitEdit()) return false;
+    // (several references with commas between them, "A1:B2,D4", select all of them)
+    {
+        QStringList parts;
+        QString part;
+        bool quoted = false;
+        for (const QChar ch : text) {
+            if (ch == QLatin1Char('\'')) quoted = !quoted;
+            if (ch == QLatin1Char(',') && !quoted) {
+                parts << part;
+                part.clear();
+            } else {
+                part += ch;
+            }
+        }
+        parts << part;
+        if (parts.size() > 1) {
+            if (parts.size() > 64) {
+                notice(tr("Go To"), tr("That names more than 64 ranges. Name fewer."));
+                return false;
+            }
+            std::vector<grid::GridRange> ranges;
+            int sheet = -1;
+            for (const QString &one : parts) {
+                const crunch::GoToTarget t = crunch::resolveGoTo(*m_session, one.trimmed(), m_sheet);
+                if (!t.ok) {
+                    notice(tr("Go To"), t.problem);
+                    return false;
+                }
+                if (sheet >= 0 && t.sheet != sheet) {
+                    notice(tr("Go To"), tr("The ranges are on different sheets. Name ranges on one sheet."));
+                    return false;
+                }
+                sheet = t.sheet;
+                const qint64 lastRow = t.wholeColumns ? jp::office::sheet::kMaxRows - 1 : t.range.row2, lastCol = t.wholeRows ? jp::office::sheet::kMaxColumns - 1 : t.range.col2;
+                ranges.push_back(grid::GridRange{t.wholeColumns ? 0 : qint64(t.range.row1), t.wholeRows ? 0 : qint64(t.range.col1), lastRow, lastCol});
+            }
+            if (sheet != m_sheet) {
+                if (!sheetHasTab(sheet)) {
+                    notice(tr("Go To"), hiddenSheetText());
+                    return false;
+                }
+                setActiveSheet(sheet);
+                if (m_sheet != sheet) return false;
+            }
+            m_view->selectRanges(ranges);
+            m_view->ensureVisible(ranges.back().row1, ranges.back().col1);
+            m_view->setFocus(Qt::OtherFocusReason);
+            return true;
+        }
+    }
     const crunch::GoToTarget t = crunch::resolveGoTo(*m_session, text, m_sheet);
     if (!t.ok) {
         notice(tr("Go To"), t.problem);

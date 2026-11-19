@@ -206,7 +206,9 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
     QString why;
     const bool forcedToBar = !fromBar && !m_editInCell;
     if (forcedToBar) fromBar = true;
-    if (!m_session->canEditCell(sheet, row, col, &why)) {
+    // (a cell of an array is opened to be looked at and entered again with Ctrl+Shift+Enter; Enter alone says part of an array can't be changed)
+    const bool ofArray = mode == CellEditor::Mode::Editing && m_session->arrayAt(sheet, row, col).valid;
+    if (!ofArray && !m_session->canEditCell(sheet, row, col, &why)) {
         // a cell in a range that has a password is opened with it
         const QString title = m_session->passwordRangeAt(sheet, row, col);
         if (!title.isEmpty() && !m_passwordJob) {
@@ -443,7 +445,9 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     // with a function this program lacks keeps the result the file stored, and is not written again as this program reads it back)
     const bool richNow = m_editRich.text == text && !m_editRich.isEmpty();
     const bool sameRuns = m_editRich.text == m_editRichFirst.text && m_editRich.runs == m_editRichFirst.runs && m_editRich.fonts == m_editRichFirst.fonts;
-    if (m_cellEditor->mode() == CellEditor::Mode::Editing && text == m_session->editText(m_edit.sheet, m_edit.row, m_edit.col)) {
+    // (Ctrl+Shift+Enter makes an array of what is typed even when it is the cell's own text: a formula in a cell that is not part of an array becomes one)
+    const bool asArray = way == CellEditor::Way::Array && CellEditor::isFormulaEntry(text);
+    if (!asArray && m_cellEditor->mode() == CellEditor::Mode::Editing && text == m_session->editText(m_edit.sheet, m_edit.row, m_edit.col)) {
         // (the text is as it was: only the formatting inside it may be new)
         if (!sameRuns || (!richNow && !m_editRichFirst.isEmpty())) {
             const crunch::EditSession::Outcome o = m_session->setRichText(m_edit.sheet, m_edit.row, m_edit.col, richNow ? m_editRich : jp::office::sheet::RichText(), tr("Format Text"));
@@ -459,8 +463,14 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     const int stackBefore = m_session->undoStack()->index();
     // Ctrl+Enter puts the entry in every selected cell
     const grid::GridRange block = m_view->selection().range;
+    if ((way == CellEditor::Way::Fill || way == CellEditor::Way::Array) && m_edit.sheet == m_sheet && refuseSeveralRanges(way == CellEditor::Way::Fill ? tr("Fill") : tr("Array Formula"))) return false;
     const bool fill = way == CellEditor::Way::Fill && m_edit.sheet == m_sheet && !m_view->selection().isOneCell();
     auto enter = [&](bool checkRule) {
+        if (asArray) {
+            // (the selected block, or the cell alone when the selection is elsewhere)
+            const bool here = m_edit.sheet == m_sheet && block.contains(m_edit.row, m_edit.col);
+            return here ? m_session->typeArray(m_edit.sheet, block.row1, block.col1, block.row2, block.col2, text) : m_session->typeArray(m_edit.sheet, m_edit.row, m_edit.col, m_edit.row, m_edit.col, text);
+        }
         return fill ? m_session->typeInto(m_edit.sheet, block.row1, block.col1, block.row2, block.col2, m_edit.row, m_edit.col, text, checkRule)
                     : m_session->type(m_edit.sheet, m_edit.row, m_edit.col, text, checkRule, richNow ? &m_editRich : nullptr);
     };
@@ -485,7 +495,12 @@ bool CrunchWindow::commitEdit(CellEditor::Way way)
     }
     if (m_loader.changesMade() != before) m_calculating = true;
     if (m_session->undoStack()->index() > stackBefore) widenForEntry(m_edit.sheet, m_edit.row, m_edit.col);   // (an entry that made no step has none to widen in)
-    if (!fill) linkEntry(text);
+    if (!fill && !asArray) linkEntry(text);
+    if (asArray && m_edit.sheet == m_sheet) {
+        // (the array is what is selected, as the entry left it)
+        const jp::office::sheet::CellRange made = m_session->arrayAt(m_edit.sheet, m_edit.row, m_edit.col);
+        if (made.valid) m_view->selectRange(made.row1, made.col1, made.row2, made.col2);
+    }
     finishEdit(way);
     return true;
 }
@@ -529,6 +544,7 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     m_finishing = true;
     switch (way) {
     case Way::Stay:
+    case Way::Array:
     case Way::Fill: break;
     case Way::Enter:
     case Way::ShiftEnter: {
@@ -600,7 +616,15 @@ void CrunchWindow::clearSelection()
     if (m_edit.active || !editingAllowed()) return;
     const grid::Selection &sel = m_view->selection();
     const qint64 before = m_loader.changesMade();
-    const crunch::EditSession::Outcome o = m_session->clear(m_sheet, sel.range.row1, sel.range.col1, sel.range.row2, sel.range.col2);
+    crunch::EditSession::Outcome o;
+    if (m_view->hasSeveralRanges()) {
+        // (every selected range is cleared, in one step)
+        std::vector<jp::office::sheet::CellRange> ranges;
+        for (const grid::GridRange &r : m_view->allRanges()) ranges.push_back(jp::office::sheet::CellRange{quint32(std::max<qint64>(0, r.row1)), quint32(std::max<qint64>(0, r.col1)), quint32(std::max<qint64>(0, r.row2)), quint32(std::max<qint64>(0, r.col2)), true});
+        o = m_session->clearRanges(m_sheet, ranges);
+    } else {
+        o = m_session->clear(m_sheet, sel.range.row1, sel.range.col1, sel.range.row2, sel.range.col2);
+    }
     if (!o.ok) notice(tr("Clear"), o.problem);
     else if (m_loader.changesMade() != before) m_calculating = true;
 }
@@ -638,6 +662,29 @@ void CrunchWindow::undoRedoNow(bool redo)
     m_undoing = false;
     if (m_loader.changesMade() != before) m_calculating = true;
     setStatus(redo ? tr("Redone: %1").arg(what) : tr("Undone: %1").arg(what));
+}
+
+} // namespace jp
+
+namespace jp {
+
+bool CrunchWindow::needsOneRange(const QString &id)
+{
+    // (the commands that read or change the selected cells; the rest, such as saving, the view, and the sheets, do not depend on them)
+    static const char *const prefixes[] = {"cells.", "comments.", "cond.", "data.", "fill", "filter.", "fmt.", "format.", "sort.", "style.", "table.", "spark.", "notes.", "link.", "paste.", "pivot.", "outline.",
+                                           "edit.autosum", "edit.clear.all", "edit.clear.formats", "edit.clear.links", "edit.clear.notes", "edit.copy", "edit.cut", "edit.paste", "edit.sort",
+                                           "edit.insertDate", "edit.insertTime", "insert.barcode", "insert.chart", "insert.link", "insert.pivot", "insert.recommendedCharts", "insert.table",
+                                           "formulas.nameFromCells", "formulas.defineName", "find.selectVisible"};
+    for (const char *p : prefixes)
+        if (id.startsWith(QLatin1String(p))) return true;
+    return false;
+}
+
+bool CrunchWindow::refuseSeveralRanges(const QString &what)
+{
+    if (!m_view || !m_view->hasSeveralRanges()) return false;
+    notice(what, tr("That can't be done on several ranges at once. Select one range, and try again."));
+    return true;
 }
 
 } // namespace jp

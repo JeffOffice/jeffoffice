@@ -132,6 +132,10 @@ public:
     void selectRows(qint64 from, qint64 to);
     void selectColumns(qint64 from, qint64 to);
     void selectAll();
+    // The block of cells around the cursor (Ctrl+Shift+*); false if there is none.
+    bool selectCurrentRegion();
+    // End mode (the key End, then an arrow goes to the edge of the data): whether it is on. The window shows it in the status bar.
+    bool endMode() const { return m_endMode; }
     // The address of the cell with the cursor ("B7"; a merged range's first cell), and its text as the formula bar shows it: its formula, or what it holds. rangeName() is what
     // is selected ("A1:C5", "A:C", "2:4", or the cell's address).
     QString selectionName() const;
@@ -211,6 +215,14 @@ public:
     qint64 hoverCol() const { return m_hoverCol; }
     QRect cellRectAt(qint64 row, qint64 col) const { return cellRect(row, col); }
 
+    // Several ranges selected (Ctrl with a click or a drag adds one): the selection's own range is the last one added (where the cursor is), and these are the ones before it. Any other change of
+    // the selection leaves one range. A command that works on the selection but not on several ranges asks `hasSeveralRanges`.
+    const std::vector<GridRange> &extraRanges() const { return m_extra; }
+    bool hasSeveralRanges() const { return !m_extra.empty(); }
+    // Every selected range: the earlier ones, then the selection's own.
+    std::vector<GridRange> allRanges() const;
+    // Selects the ranges (the last is the selection's own, the cursor at its first cell); empty ones are left out.
+    void selectRanges(const std::vector<GridRange> &ranges);
     void setMarks(const std::vector<GridRange> &ranges);
     const std::vector<GridRange> &marks() const { return m_marks; }
     // Notes over the cells while a person checks formulas: cells outlined as circular, and arrows from the cells a formula reads to the formula (or from a cell to the formulas that read
@@ -314,6 +326,7 @@ Q_SIGNALS:
     void selectionChanged();
     // The selection is where the person left it: a key moved it, or the button was let go after a click or a drag (during a drag it is only changed).
     void selectionSettled();
+    void endModeChanged(bool on);
     void zoomChanged(double zoom);
     void statsChanged(const QString &text);
     void contextMenuRequested(const QPoint &globalPos);
@@ -461,6 +474,9 @@ private:
     int m_resizeFrom = 0, m_resizeEdge = 0, m_resizeSize0 = 0, m_resizeSize = 0;
     qint64 m_dropRow = -1, m_dropCol = -1;
     std::vector<GridRange> m_marks;
+    std::vector<GridRange> m_extra;   // the ranges selected before the selection's own (see extraRanges)
+    bool m_endMode = false;           // the key End was pressed: the next arrow goes to the edge of the data
+    bool m_adding = false;            // a press with Ctrl: the drag that follows makes one more range
     std::vector<quint64> m_noteCells;
     std::vector<ShownNote> m_shownNotes;
     mutable std::vector<QSize> m_shownSizes;
@@ -517,6 +533,7 @@ private:
     bool m_splitBoxes = false;
     QPointer<QWidget> m_boxRows, m_boxCols;   // (children of the scroll bars' containers: they go if a container does)
     void moveSplitBar(const QPoint &lp);
+    void addingPress(bool add, const std::function<void()> &select);
     bool m_dragEditing = true;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditable = true;

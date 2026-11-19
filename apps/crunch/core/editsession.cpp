@@ -1054,7 +1054,114 @@ EditSession::Outcome EditSession::typeInHeader(int sheet, quint32 row, quint32 c
     return out;
 }
 
+CellRange EditSession::arrayAt(int sheet, quint32 row, quint32 col) const
+{
+    if (!m_book || !m_book->calc) return CellRange();
+    return m_book->calc->arrayRangeAt(sheet, row, col);
+}
+
+EditSession::Outcome EditSession::typeArray(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2, const QString &typed)
+{
+    Outcome out;
+    auto refuse = [&](const QString &text) {
+        out.ok = false;
+        out.problem = text;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) return refuse(why);
+    row1 = std::max<qint64>(0, row1);
+    col1 = std::max<qint64>(0, col1);
+    row2 = std::min<qint64>(row2, jp::calc::kGridRows - 1);
+    col2 = std::min<qint64>(col2, jp::calc::kGridCols - 1);
+    if (row2 < row1 || col2 < col1) return out;
+    const Calculation *calc = m_book->calc.get();
+    // (one cell of an array stands for the whole array)
+    if (row1 == row2 && col1 == col2) {
+        const CellRange whole = calc->arrayRangeAt(sheet, quint32(row1), quint32(col1));
+        if (whole.valid) {
+            row1 = whole.row1;
+            col1 = whole.col1;
+            row2 = whole.row2;
+            col2 = whole.col2;
+        }
+    }
+    if ((row2 - row1 + 1) * (col2 - col1 + 1) > kMaxCellsPerEdit)
+        return refuse(tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit)));
+    PlanScope plan(this);
+    const Calculation::CellContent first = calc->content(sheet, quint32(row1), quint32(col1));
+    const quint32 baseStyle = first.exists ? first.style : implicitStyle(sheet, quint32(row1), quint32(col1));
+    const QString code = m_book->book->styles().formatCode(baseStyle, m_locale);
+    const EntryResult r = readEntry(linkTypedReferences(typed), entryOptions(sheet, code == QLatin1String("@")));
+    if (!r.ok) {
+        out.ok = false;
+        out.problem = r.problem;
+        out.problemAt = r.problemAt;
+        return out;
+    }
+    if (r.entry.kind != Entry::Kind::Formula) return refuse(tr("An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again."));
+    for (const CellRange &m : calc->mergesOf(sheet))
+        if (qint64(m.row1) <= row2 && qint64(m.row2) >= row1 && qint64(m.col1) <= col2 && qint64(m.col2) >= col1)
+            return refuse(tr("An array formula can't be entered over merged cells. Unmerge them, or select other cells."));
+    std::vector<CellChange> changes;
+    for (qint64 row = row1; row <= row2; ++row) {
+        for (qint64 col = col1; col <= col2; ++col) {
+            const quint32 rr = quint32(row), cc = quint32(col);
+            Calculation::CellContent before = calc->content(sheet, rr, cc);
+            if (before.dataTable) return refuse(tr("A data table can't be changed this way."));
+            if (before.spilled || before.dynamic) return refuse(tr("%1 is part of a block that a formula fills. Clear that formula first.").arg(cellName(rr, cc)));
+            if (isLocked(sheet, before.exists ? before.style : implicitStyle(sheet, rr, cc), rr, cc)) return refuse(lockedMessage());
+            if (tableAt(sheet, rr, cc) >= 0 || m_book->book->tableHeaderAt(sheet, rr, cc, nullptr) >= 0) return refuse(tr("An array formula can't be entered in a table. Select cells outside the table."));
+            if (!before.editable) {
+                const CellRange whole = calc->arrayRangeAt(sheet, rr, cc);
+                if (!whole.valid || qint64(whole.row1) < row1 || qint64(whole.row2) > row2 || qint64(whole.col1) < col1 || qint64(whole.col2) > col2) return refuse(tr("You can't change part of an array or a data table."));
+                if (!before.arrayRange.valid) {
+                    before.isFormula = false;
+                    before.formula.clear();
+                    before.value = Value();
+                    before.editable = true;
+                }
+            }
+            CellChange ch;
+            ch.sheet = sheet;
+            ch.row = rr;
+            ch.col = quint16(cc);
+            ch.before = before;
+            ch.after = before;
+            ch.after.exists = true;
+            ch.after.style = before.exists ? before.style : implicitStyle(sheet, rr, cc);
+            ch.after.isFormula = false;
+            ch.after.dynamic = false;
+            ch.after.formula.clear();
+            ch.after.hasHeld = false;
+            ch.after.hasStored = false;
+            ch.after.value = Value();
+            ch.after.sharedString = -1;
+            ch.after.arrayRange = CellRange();
+            ch.array = true;
+            if (row == row1 && col == col1) {
+                ch.after.isFormula = true;
+                ch.after.formula = r.entry.text;
+                ch.after.arrayRange = CellRange{quint32(row1), quint32(col1), quint32(row2), quint32(col2), true};
+            }
+            changes.push_back(std::move(ch));
+        }
+    }
+    // (the cells that hold a formula of an array go last, the new one's among them: Undo and Redo make the arrays from them when the others are put)
+    std::stable_partition(changes.begin(), changes.end(), [](const CellChange &c) { return !c.before.arrayRange.valid && !c.after.arrayRange.valid; });
+    commitLinkPlan();
+    Step step;
+    step.cells = std::move(changes);
+    pushStep(std::move(step), tr("Array formula in %1").arg(rangeName(CellRange{quint32(row1), quint32(col1), quint32(row2), quint32(col2), true})));
+    return out;
+}
+
 EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qint64 row2, qint64 col2)
+{
+    return clearRanges(sheet, {CellRange{quint32(std::max<qint64>(0, row1)), quint32(std::max<qint64>(0, col1)), quint32(std::max<qint64>(0, row2)), quint32(std::max<qint64>(0, col2)), true}});
+}
+
+EditSession::Outcome EditSession::clearRanges(int sheet, const std::vector<CellRange> &ranges)
 {
     Outcome out;
     QString why;
@@ -1067,13 +1174,30 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
     const Sheet &s = calc->sheet(sheet);
     std::vector<CellChange> changes;
     bool tooMany = false, array = false, locked = false, header = false;
+    std::set<quint64> done;   // (a cell in two of the ranges is cleared once)
+    for (const CellRange &range : ranges) {
+    const qint64 row1 = range.row1, col1 = range.col1, row2 = range.row2, col2 = range.col2;
     s.cells.forEachInRange(quint32(row1), quint32(col1), quint32(row2), quint32(col2), [&](quint32 cellRow, quint32 cellCol, const Cell &c) {
-        const Calculation::CellContent before = calc->content(sheet, cellRow, cellCol);
+        if (!done.insert((quint64(cellRow) << 32) | cellCol).second) return true;
+        Calculation::CellContent before = calc->content(sheet, cellRow, cellCol);
+        bool inArray = false;
         if (!before.editable) {
-            array = true;
-            return false;
+            // (an array goes whole: when every cell of it is in the range, they are all cleared; part of one is not)
+            const CellRange whole = calc->arrayRangeAt(sheet, cellRow, cellCol);
+            if (!whole.valid || qint64(whole.row1) < row1 || qint64(whole.row2) > row2 || qint64(whole.col1) < col1 || qint64(whole.col2) > col2) {
+                array = true;
+                return false;
+            }
+            inArray = true;
+            if (!before.arrayRange.valid) {
+                // (a cell that is not the array's first holds only what the array gives it)
+                before.isFormula = false;
+                before.formula.clear();
+                before.value = Value();
+                before.editable = true;
+            }
         }
-        if (!before.isFormula && before.value.isEmpty()) return true;   // (only a format: it stays)
+        if (!inArray && !before.isFormula && before.value.isEmpty()) return true;   // (only a format: it stays)
         if (m_book->book->tableHeaderAt(sheet, cellRow, cellCol, nullptr) >= 0) {
             header = true;
             return false;
@@ -1096,10 +1220,16 @@ EditSession::Outcome EditSession::clear(int sheet, qint64 row1, qint64 col1, qin
         ch.after.formula.clear();
         ch.after.value = Value();
         ch.after.sharedString = -1;
+        ch.after.arrayRange = CellRange();
+        ch.array = inArray;
         if (ch.after.style == 0) ch.after.exists = false;
         changes.push_back(std::move(ch));
         return true;
     });
+    if (array || locked || header || tooMany) break;
+    }
+    // (the cell that holds an array's formula goes last: Undo makes the array again from it, when the others are put back)
+    std::stable_partition(changes.begin(), changes.end(), [](const CellChange &c) { return !c.before.arrayRange.valid; });
     if (array) {
         out.ok = false;
         out.problem = tr("You can't change part of an array or a data table.");
@@ -1203,6 +1333,8 @@ bool EditSession::apply(Step *step, bool forward)
         Calculation::BulkEdit bulk(calc);   // (what waits to be worked out is put right once, not at each of the cells)
         std::optional<ShownRounder> shown;   // (precision as displayed: a number put in is kept as its cell shows it)
         if (forward && m_calcNow.precisionAsShown) shown.emplace(book.styles(), book.info().dateSystem);
+        for (const CellChange &ch : step->cells)
+            if (ch.array) calc->dissolveArrayAt(ch.sheet, ch.row, ch.col);   // (an array is put in or taken out whole: its cells are ordinary ones while they are put)
         for (CellChange &ch : step->cells) {
             if (forward) {
                 if (ch.textToShare) {
@@ -1247,7 +1379,8 @@ bool EditSession::apply(Step *step, bool forward)
                 cells[ch.sheet].push_back(styled);
                 continue;
             }
-            calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
+            if (ch.array && c.isFormula && c.arrayRange.valid) calc->putArray(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
+            else calc->put(ch.sheet, ch.row, ch.col, c, Calculation::Marking::Later);
             markTouched(ch.sheet, ch.row, ch.col);
             ValueStore::Item it;
             it.sheet = ch.sheet;

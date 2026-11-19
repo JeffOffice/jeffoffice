@@ -307,6 +307,7 @@ bool CrunchWindow::formatSelection(const FormatChange &change, const QString &te
     }
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return false;
     if (!editingAllowed()) return false;
+    if (refuseSeveralRanges(tr("Format Cells"))) return false;
     m_formatting = true;
     const crunch::EditSession::Outcome o = m_session->formatCells(m_sheet, selectedRange(), change, text);
     m_formatting = false;
