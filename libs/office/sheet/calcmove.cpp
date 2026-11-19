@@ -116,6 +116,40 @@ qint32 Calculation::makeArray(int sheet, quint32 row, quint32 col, const CellRan
     return slot;
 }
 
+// The range of the array formula the cell is part of (first cell or member), else not valid. A formula that spills is no array here: its block is its own.
+CellRange Calculation::arrayRangeAt(int sheet, quint32 row, quint32 col) const
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return CellRange();
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c || !(c->flags & (ArrayFormula | ArrayMember)) || (c->flags & (SpillFormula | SpillMember)) || c->formula < 0 || c->formula >= s.formulas.size()) return CellRange();
+    const qint32 slot = s.formulas[c->formula].range;
+    if (slot < 0 || slot >= s.ranges.size() || !s.ranges[slot].valid) return CellRange();
+    return s.ranges[slot];
+}
+
+// The array the cell is part of is taken apart: its cells are ordinary ones, to be cleared or written over (the first cell keeps its formula until it is).
+void Calculation::dissolveArrayAt(int sheet, quint32 row, quint32 col)
+{
+    if (sheet < 0 || sheet >= int(m_sheets.size())) return;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const Cell *c = s.cells.find(row, col);
+    if (!c || !(c->flags & (ArrayFormula | ArrayMember)) || (c->flags & (SpillFormula | SpillMember)) || c->formula < 0 || c->formula >= s.formulas.size()) return;
+    abandonNow();
+    dissolveArray(sheet, s.formulas[c->formula].range);
+}
+
+bool Calculation::putArray(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
+{
+    if (!c.isFormula || !c.arrayRange.valid || c.dynamic || c.dataTable) return false;
+    const CellRange &r = c.arrayRange;
+    if (r.row1 != row || r.col1 != col || r.row2 < r.row1 || r.col2 < r.col1 || r.row2 >= kGridRows || r.col2 >= kMaxColumns) return false;
+    if (!setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, false)) return false;
+    bool added = false;
+    if (makeArray(sheet, row, col, r, -1, &added) < 0) return false;
+    return setStyle(sheet, row, col, c.style);
+}
+
 // The cells of an array's range, but its first, are its: they read its value (those of an array kept apart are marked, as the calculation's loading does).
 void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
 {

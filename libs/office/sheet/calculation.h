@@ -338,6 +338,11 @@ public:
     bool formulasNameSheets(int sheet, const QStringList &names) const;
     // Puts the content in the cell (the cell taken away if it does not exist): its constant or formula, then its format. False if the cell cannot be changed, or the formula is no formula.
     bool put(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
+    // An array formula: the cell's content is a formula whose `arrayRange` starts at the cell; it is made the first cell of that block, whose other cells are the array's (they must not hold a formula or be
+    // part of another array: take those apart first). False, with nothing changed, if the content is no such formula. The array the cell is part of (its range, not valid if none), and taking it apart.
+    bool putArray(int sheet, quint32 row, quint32 col, const CellContent &content, Marking marking = Marking::Now);
+    CellRange arrayRangeAt(int sheet, quint32 row, quint32 col) const;
+    void dissolveArrayAt(int sheet, quint32 row, quint32 col);
     // ---- structure: rows, columns, and cells inserted and deleted (see sheet/refshift.h). The cells move, every formula of every sheet that reads cells that moved is written again with
     // its references following them (and the defined names too), a reference to deleted cells is #REF!, and what must be worked out again is marked. Not for a Move (a cut and paste,
     // which is done cell by cell).
