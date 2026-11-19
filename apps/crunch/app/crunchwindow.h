@@ -12,7 +12,6 @@
 #include "app/recovery.h"
 #include "app/filetasks.h"
 #include "app/infopage.h"
-#include "app/objects.h"
 #include "app/objectsdialog.h"
 #include "io/pdfcrypt.h"
 

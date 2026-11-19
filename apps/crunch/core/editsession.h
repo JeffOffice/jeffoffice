@@ -17,13 +17,10 @@
 #include "core/nametable.h"
 #include "core/sortspec.h"
 #include "core/objectstate.h"
-#include "grid/valuestore.h"
 #include "sheet/entry.h"
 #include "sheet/namerefs.h"
 #include "sheet/pivotexternal.h"
-#include "calc/numfmt.h"
 #include "sheet/textmatch.h"
-#include "sheet/xlsxsave.h"
 
 #include <QLocale>
 #include <QMap>

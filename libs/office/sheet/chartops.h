@@ -6,7 +6,6 @@
 
 #include "core/itemsfwd.h"
 #include "office/chart.h"
-#include "office/theme.h"
 
 #include <QByteArray>
 #include <QString>

@@ -7,7 +7,6 @@
 
 #include "sheet/chartdata.h"
 
-#include "office/theme.h"
 
 #include <QString>
 #include <QVector>
