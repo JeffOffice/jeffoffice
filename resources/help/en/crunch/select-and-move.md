@@ -10,6 +10,7 @@
 - **Shift+click** another cell to select from the active cell to there.
 - Click a **column letter** or a **row number** to select the whole column or row. Drag across the letters or numbers, or Shift+click, to select several.
 - Click the **corner** where the letters and numbers meet to select everything.
+- Hold **Ctrl** while you click or drag to **add a range** to the selection. The ranges you added are tinted, and the one with the cursor has the green border. **Delete** clears every range, in one step. A command that works on one range at a time, such as Copy, Sort, or a format, tells you so and changes nothing; click once to go back to one range.
 - **Drag the border** of the selection to move the cells to another place. Point at the edge of the green border until the pointer shows four arrows. A dashed outline shows where the cells will land. Anything that points at the cells, such as a formula, follows them. Hold **Ctrl** while you drag to copy the cells instead. If you only click the border without moving, it selects the cell as usual.
 - Turn the **mouse wheel** to scroll three rows. Hold **Shift** to scroll sideways, or hold **Ctrl** to zoom.
 
@@ -17,10 +18,16 @@
 
 The arrow keys move the active cell, skipping hidden rows and columns. Hold **Shift** to extend the selection. **Ctrl** with an arrow goes to the edge of the data: to the end of a run of cells that hold something, or, from the end of a run, to the next cell that holds something. See [Use JeffCrunch with the keyboard](keyboard) for all the keys.
 
+**Ctrl+A** selects the block of cells around the active cell, bounded by empty rows and columns; press it again to select the whole sheet. **Ctrl+Shift+*** selects just the block. Press **End**, then an arrow, to go to the edge of the data as **Ctrl** with the arrow does; the status bar says **End** until you press the arrow.
+
 ## Go to a cell
 
-Type an address in the **Name box**, such as **C5**, **A1:D10**, **B:D**, or **3:7**, and press **Enter**.
+Type an address in the **Name box**, such as **C5**, **A1:D10**, **B:D**, or **3:7**, and press **Enter**. Press **F5** (or Ctrl+G) to open Go To, and type the address there. Put commas between addresses, such as **A1:B2,D4**, to select several ranges at once.
 
 ## The numbers of the selection
 
 When you select two or more cells, the status bar shows the **average**, the **count**, and the **sum** of the cells. The count is the number of cells that hold something; the average and the sum use only the numbers. Hidden rows and columns are left out. To copy the selection as text, press **Ctrl+C**.
+
+## What the status bar says
+
+The left of the status bar says **Ready** when you can work, **Enter** while you type in a cell, **Edit** after you press F2, **Point** while you can click or arrow to a cell to put its address in a formula, and **End** after you press the End key. When a filter is on, it also says how many rows the filter left, such as **3 of 8 records found**.

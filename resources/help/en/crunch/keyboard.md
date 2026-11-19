@@ -13,6 +13,11 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Shift+arrow | Extend the selection one cell |
 | Ctrl+arrow | Go to the edge of the data (Esc stops a long search) |
 | Ctrl+Shift+arrow | Extend the selection to the edge of the data |
+| End, then an arrow | Go to the edge of the data (the status bar says End) |
+| Ctrl+A | Select the block around the active cell, then the whole sheet |
+| Ctrl+Shift+* | Select the block around the active cell |
+| Ctrl+click or Ctrl+drag | Add a range to the selection |
+| Ctrl+Shift+Enter | Enter the formula as an array formula over the selected cells |
 | Home | Go to the first column of the row |
 | Ctrl+Home | Go to the first cell (A1, or the first cell that scrolls when rows or columns are frozen) |
 | Ctrl+End | Go to the last cell that holds something or has a format |
