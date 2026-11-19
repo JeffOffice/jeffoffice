@@ -852,6 +852,23 @@ void FlowTests::wordLineHeightsFollowTheirRules()
 }
 
 
+// A multiple of single spacing below one sets the lines that much closer, whatever the text: the line is the multiple of its single height, and the next line
+// is that far below it (the text's top is cut off, not the next line pushed down to leave room for it).
+void FlowTests::aMultipleBelowSingleSetsLinesAsCloseAsItSays()
+{
+    const QString tnr = QStringLiteral("Times New Roman");
+    for (const double share : {90.0, 70.0, 50.0, 25.0}) {
+        const auto lines = wordLinesOf({{tnr, 12}, {tnr, 12}, {tnr, 12}}, [&](int, QTextBlockFormat &bf) { bf.setLineHeight(share, QTextBlockFormat::ProportionalHeight); });
+        QCOMPARE(lines.size(), 3);
+        const double single = (1825 + 443 + 87) / 2048.0 * 12;
+        const double want = single * share / 100.0;
+        QVERIFY2(std::abs(lines[0].rect.height() - want) < 0.02, qPrintable(QString::number(lines[0].rect.height())));
+        QVERIFY2(std::abs((lines[1].rect.top() - lines[0].rect.top()) - want) < 0.02, qPrintable(QStringLiteral("%1 percent: %2 apart, wanted %3").arg(share).arg(lines[1].rect.top() - lines[0].rect.top()).arg(want)));
+        QVERIFY2(std::abs((lines[2].rect.top() - lines[1].rect.top()) - want) < 0.02, qPrintable(QString::number(lines[2].rect.top() - lines[1].rect.top())));
+    }
+}
+
+
 // A mark that shows nothing in a line (a tag's or a bookmark's, kept as a character that shows no text) is no run of it: it doesn't make the line taller.
 void FlowTests::aMarkThatShowsNothingIsNoRunOfTheLine()
 {

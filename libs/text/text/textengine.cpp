@@ -4869,7 +4869,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                         below = 0;
                         textH = h;
-                        const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle);
+                        const bool bottom = bf.lineHeightType() == QTextBlockFormat::FixedHeight || (bf.lineHeightType() == QTextBlockFormat::MinimumHeight && h > ownSingle) ||
+                                            (bf.lineHeightType() == QTextBlockFormat::ProportionalHeight && h < ownSingle);   // (a multiple below one cuts the top of the text off)
                         // (An exact height keeps the line's parts in proportion: the baseline is the ascent's share of the single line, of the exact height.)
                         baseDown = bf.lineHeightType() == QTextBlockFormat::FixedHeight && ownSingle > 0 ? wl.ascent * h / ownSingle : bottom ? std::max(0.0, h - wl.descent) : wl.ascent;
                         // A paragraph's first line that holds only a page break or a column break (the paragraph begins with it) takes no room: it is at the foot of the page

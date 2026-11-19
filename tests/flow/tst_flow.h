@@ -1461,6 +1461,7 @@ private Q_SLOTS:
     void pageNumbersInDashes();
     void numberIsFollowedByATab();
     void wordLineHeightsFollowTheirRules();
+    void aMultipleBelowSingleSetsLinesAsCloseAsItSays();
     void aMarkThatShowsNothingIsNoRunOfTheLine();
     void aBulletInItsOwnFontHasRoomInTheFirstLine();
     void aNumberFollowedByASpaceOrNothingIsFollowedByTheText();
@@ -1554,6 +1555,7 @@ private Q_SLOTS:
     void aTableInAContinuousTwoColumnSectionIsInsideItsColumnBelowTheTextAbove();
     void aNoteLongerThanThePageCitedFromACellHasPagesOfItsOwn();
     void aTableIsNotShiftedByItsPlaceholderUnderProcessorLineHeights();
+    void aRowOfOneLineCellsGoesWholeWhereItsSpaceAfterDoesNotFit();
     void pageFieldsInAFooterKeepRightForATableThatSpansPages();
     void positionsInARowThatGoesOverPageBreaksAreOnThePagesThatShowThem();
     void marginsLargerThanThePageLeaveTheLeastTextArea();
