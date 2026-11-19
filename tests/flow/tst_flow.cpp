@@ -1,4 +1,5 @@
 #include "tst_flow.h"
+#include "../testrunner.h"
 
 void FlowTests::initTestCase()
 {
@@ -2030,4 +2031,5 @@ void FlowTests::aStretchOfWhiteSpaceLongerThanQtLaysOutIsLaidOutInAFewLines()
 }
 
 
-QTEST_MAIN(FlowTests)
+// (the shared runner, not QTEST_MAIN: it runs every n-th test function for --part k/n, so a machine with many processors runs this one big class in parts)
+JP_TEST_CLASS(FlowTests)

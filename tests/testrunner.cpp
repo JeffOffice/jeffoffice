@@ -71,6 +71,23 @@ bool hasTestFunction(const QObject &object, const std::string &requested)
     return false;
 }
 
+// The test functions of a class, in the order they are declared: its private slots without parameters that give nothing back, but for the ones that
+// set up and clean up and the ones that only give data.
+std::vector<std::string> testFunctions(const QObject &object)
+{
+    std::vector<std::string> out;
+    const QMetaObject *mo = object.metaObject();
+    for (int i = mo->methodOffset(); i < mo->methodCount(); ++i) {
+        const QMetaMethod m = mo->method(i);
+        if (m.methodType() != QMetaMethod::Slot || m.access() != QMetaMethod::Private || m.parameterCount() != 0) continue;
+        if (m.returnType() != QMetaType::Void) continue;   // (a private slot that gives something back is a helper, not a test: QtTest's own rule)
+        const QByteArray n = m.name();
+        if (n == "initTestCase" || n == "cleanupTestCase" || n == "init" || n == "cleanup" || n.endsWith("_data")) continue;
+        out.push_back(n.toStdString());
+    }
+    return out;
+}
+
 // The file of a "-o file,format" (or old-style "-o file") option, or nothing when it names the screen.
 std::string fileOf(const std::string &value)
 {
@@ -108,11 +125,20 @@ int main(int argc, char *argv[])
     // Our own options first; the rest are QtTest's.
     std::vector<std::string> chosen, rest{argv[0]};
     bool list = false;
+    // --part k/n: part k of n of every class's test functions (the k-th, the n+k-th, and so on), for a program of one big class that a machine with many
+    // processors runs in n parts side by side (tools/ci_tests.sh). The names never go on a command line, which on Windows is too short for them.
+    int partK = 0, partN = 0;
     for (int i = 1; i < argc; ++i) {
         const std::string a = argv[i];
         if (a == "--classes") list = true;
         else if (a == "--class" && i + 1 < argc) chosen.push_back(argv[++i]);
         else if (startsWith(a, "--class=")) chosen.push_back(a.substr(8));
+        else if (a == "--part" && i + 1 < argc) {
+            if (std::sscanf(argv[++i], "%d/%d", &partK, &partN) != 2 || partN < 1 || partK < 1 || partK > partN) {
+                std::fprintf(stderr, "--part takes k/n with k from 1 to n\n");
+                return 1;
+            }
+        }
         else rest.push_back(a);
     }
     if (list) {
@@ -178,6 +204,13 @@ int main(int argc, char *argv[])
             any = true;
         }
         if (!any) continue;
+        if (partN > 1 && functions.empty()) {
+            const std::vector<std::string> all = testFunctions(*object);
+            const size_t before = args.size();
+            for (size_t f = 0; f < all.size(); ++f)
+                if (int(f % size_t(partN)) == partK - 1) args.push_back(all[f]);
+            if (args.size() == before) continue;   // (nothing of this class is in this part)
+        }
         std::vector<char *> cargv;
         for (std::string &s : args) cargv.push_back(s.data());
         cargv.push_back(nullptr);

@@ -50,6 +50,10 @@ mode=${4:-targets}
 case "$part/$shard" in
 tests/)
     runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
+# (our own Windows machine: the whole part in one job, and JeffDeck's checks with it, which GitHub's job that packages and signs the installer ran until
+# Nov 19 2026: 5 of that job's 14 minutes, the longest of a run)
+tests/ours)
+    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests deckchecks" ;;
 tests/1/2)
     runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests" ;;
 tests/2/2)
@@ -63,12 +67,16 @@ checks/1/2)
 checks/2/2)
     runs="crunchchecks:1/2 crunchchecks:2/2 writechecks pubchecks"
     extra="" ;;
+# (GitHub's Windows job that packages and signs, while our own Windows machine runs deckchecks: it builds the apps and the tools and runs no check program)
+checks/pack)
+    runs=""
+    extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;
 tests/*|checks/*) echo "ci_targets.sh: unknown shard '$shard'" >&2; exit 2 ;;
 *) echo "ci_targets.sh: unknown part '$part'" >&2; exit 2 ;;
 esac
 
 case $mode in
 run) echo $runs ;;
-targets) for r in $runs; do echo "${r%%:*}"; done | awk '!seen[$0]++' | tr '\n' ' ' | sed "s/\$/${extra:-}/;s/ *\$//"; echo ;;
+targets) { for r in $runs; do echo "${r%%:*}"; done | awk '!seen[$0]++' | tr '\n' ' '; echo "${extra:-}"; } | sed 's/^ *//;s/ *$//' ;;
 *) echo "ci_targets.sh: unknown mode '$mode'" >&2; exit 2 ;;
 esac

@@ -226,7 +226,9 @@ jobs:
       # (Until November 19, 2026, this read "linux and '' or k/2", which is k/2 for Linux too, an empty text being false: the Linux jobs ran only the first
       # half of each part, and there is no second Linux job. The local gate ran every program on Linux before each push, so nothing went untested, but
       # these jobs did not run what they said. The Windows test job on our own machine runs its whole part in one job as well.)
-      SHARD: ${{ !(matrix.name == 'linux' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format('{0}/2', matrix.shard) || '' }}
+      # ("ours": our own Windows machine's test job, the whole part and JeffDeck's checks; "pack": GitHub's Windows job that packages and signs, which runs no
+      # check program then; tools/ci_targets.sh)
+      SHARD: ${{ (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'ours' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'pack' || !(matrix.name == 'linux' || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both))) && format('{0}/2', matrix.shard) || '' }}
       # Our own machines keep the compiler cache in a folder of their own, kept from run to run; GitHub's machines keep it in GitHub's cache.
       CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
@@ -264,7 +266,31 @@ jobs:
     runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && inputs.mac_both)) && fromJSON('["self-hosted", "jo-ryzen"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
+      # Our own Windows machine and our own Mac keep the build folder from run to run (the next step), so the checkout does not sweep the folder clean there.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          clean: ${{ !(runner.environment == 'self-hosted' && runner.os != 'Linux') }}
+
+      # A build there starts from the last one of the same part: only what changed is compiled and linked, where an empty folder took 4.5 minutes on our
+      # Windows machine even with every file in the compiler cache (the generated code and the linking are not cached; November 19, 2026). Everything
+      # else that is not part of the tree is swept away as a clean checkout would. Each part has a folder of its own (the parts are configured
+      # differently), kept beside the tree under the part's name while the other part builds. A timed run, four times a day, builds from an empty
+      # folder, so a folder gone stale cannot hide for long.
+      - name: The build folder of the last run (our Windows, our Mac)
+        if: runner.environment == 'self-hosted' && runner.os != 'Linux'
+        shell: bash
+        run: |
+          part=${{ matrix.part }}
+          git clean -ffdxq -e build -e 'build-keep-*'
+          if [ -d build ]; then
+            was=$(cat build/.jo-part 2>/dev/null || echo unknown)
+            if [ "$was" = unknown ]; then rm -rf build
+            elif [ "$was" != "$part" ]; then rm -rf "build-keep-$was"; mv build "build-keep-$was"; fi
+          fi
+          if [ ! -d build ] && [ -d "build-keep-$part" ]; then mv "build-keep-$part" build; fi
+          if [ "${{ github.event_name }}" = schedule ]; then rm -rf build; echo "a timed run: building from an empty folder"; fi
+          mkdir -p build; echo "$part" > build/.jo-part
+          echo "build folder: $(ls build | wc -l) entries from the last run"
 
       # (our own Linux machine keeps its workspace between runs, and an earlier run left it with a sparse checkout: files are missing until this)
       - name: Whole tree
@@ -315,7 +341,8 @@ jobs:
             [ -x "$BASE/venv/bin/aqt" ] || { python3 -m venv "$BASE/venv" && "$BASE/venv/bin/pip" -q install "git+https://github.com/miurahr/aqtinstall.git@5a49f2b391ae8ee1d3c0dd87f8b33c1d49a4deb7"; }
             (cd "$BASE" && "$BASE/venv/bin/aqt" install-qt mac desktop $V clang_64 -m qtimageformats qtmultimedia qtspeech)
           fi
-          Q="$RUNNER_TEMP/qt"; rm -rf "$Q"; cp -Rc "$BASE/$V/macos" "$Q"
+          # (-p: the copy keeps the files' times, or every run's copy of Qt would look new and the kept build folder would compile everything again)
+          Q="$RUNNER_TEMP/qt"; rm -rf "$Q"; cp -Rcp "$BASE/$V/macos" "$Q"
           { echo "QT_ROOT_DIR=$Q"; echo "Qt6_DIR=$Q/lib/cmake/Qt6"; echo "QT_PLUGIN_PATH=$Q/plugins"; echo "QML2_IMPORT_PATH=$Q/qml"; echo "PKG_CONFIG_PATH=$Q/lib/pkgconfig"; } >> "$GITHUB_ENV"
           echo "$Q/bin" >> "$GITHUB_PATH"
 
@@ -677,7 +704,9 @@ jobs:
         run: |
           # (the same runner as the tests: side by side, a results file each, the debugger's stack for a crash; on our own Linux machine each
           # program's three long checks run in four parts, JO_APPCHECK_SHARD; on Windows and macOS the second half runs crunchchecks in two parts for the same reason)
-          bash tools/ci_tests.sh $(bash tools/ci_targets.sh checks "$RUNNER_OS" "$SHARD" run)
+          programs=$(bash tools/ci_targets.sh checks "$RUNNER_OS" "$SHARD" run)
+          if [ -z "$programs" ]; then echo "this job runs no check program (another job of the run does)"; exit 0; fi
+          bash tools/ci_tests.sh $programs
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'

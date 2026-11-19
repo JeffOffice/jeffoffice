@@ -80,13 +80,24 @@ for A in "$@"; do
         rest=$(QT_QPA_PLATFORM=offscreen "$P" -functions 2>/dev/null | sed 's/()$//' | grep -vxF "$(echo $LONG | tr ' ' '\n')" | grep -vxE 'initTestCase|cleanupTestCase' | tr '\n' ' ')
         echo "$N.rest $N - $rest" >> "$parts" ;;
     crunchtests|sheettests|jdtests|jptests)
+        # (dealt by the weights, as the halves above are: taking every n-th class in the order of the list gave parts of 370, 274, 253, and 205 seconds
+        # for crunchtests on our Windows machine, Nov 19 2026)
         list=$(QT_QPA_PLATFORM=offscreen "$P" --classes 2>/dev/null)
         for k in $(seq 1 "$split"); do
-            args=$(echo "$list" | awk -v k=$k -v n=$split 'NF && NR % n == k % n {printf "--class %s ", $0}')
+            args=$(echo "$list" | awk -v k="$k" -v n="$split" -v w="$(echo $WEIGHTS)" '
+                BEGIN { m = split(w, a, /[ \n]+/); for (i = 1; i <= m; i++) { split(a[i], kv, "="); wt[kv[1]] = kv[2] } }
+                NF { c[++t] = $0; v[t] = ($0 in wt) ? wt[$0] : 1 }
+                END {
+                    for (i = 1; i <= t; i++) { best = 0; for (j = 1; j <= t; j++) if (!done[j] && (best == 0 || v[j] > v[best])) best = j; done[best] = 1
+                        p = 1; for (q = 2; q <= n; q++) if (sum[q] < sum[p]) p = q
+                        sum[p] += v[best]; if (p == k) printf "--class %s ", c[best] }
+                }')
             [ -n "$args" ] && echo "$N.part$k $N - $args" >> "$parts"
         done ;;
-    # (writetests and flowtests run whole: their test names, passed on one command line, ran past what xargs takes on Windows, so no part
-    # started and each was rerun under the debugger until its 15-minute limit; Nov 14 2026)
+    # (writetests and flowtests are one big class each: the program itself takes every n-th test function of it, --part k/n in tests/testrunner.cpp.
+    # Their test names on a command line ran past what xargs takes on Windows, Nov 14 2026, and until Nov 19 they ran whole, 5 to 6 minutes each.)
+    writetests|flowtests)
+        for k in $(seq 1 "$split"); do echo "$N.part$k $N - --part $k/$split" >> "$parts"; done ;;
     *) echo "$N $N -" >> "$parts" ;;
     esac
 done
