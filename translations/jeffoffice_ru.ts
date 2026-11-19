@@ -31035,7 +31035,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Художественный текст</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+73"/>
+        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+74"/>
         <source>Read Aloud stops after 20,000 cells</source>
         <translation type="unfinished">Чтение вслух останавливается после 20 000 ячеек</translation>
     </message>

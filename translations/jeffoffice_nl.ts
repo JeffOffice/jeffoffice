@@ -31012,7 +31012,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Tekstopmaak</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+73"/>
+        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+74"/>
         <source>Read Aloud stops after 20,000 cells</source>
         <translation type="unfinished">Voorlezen stopt na 20.000 cellen</translation>
     </message>

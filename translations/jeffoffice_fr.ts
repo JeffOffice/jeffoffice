@@ -31012,7 +31012,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Texte artistique</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+73"/>
+        <location filename="../apps/crunch/app/crunchwindow_speech.cpp" line="+74"/>
         <source>Read Aloud stops after 20,000 cells</source>
         <translation type="unfinished">La lecture à voix haute s&apos;arrête après 20 000 cellules</translation>
     </message>
