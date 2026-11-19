@@ -1177,7 +1177,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1717"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1723"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished"></translation>
     </message>
