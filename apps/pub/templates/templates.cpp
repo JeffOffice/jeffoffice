@@ -1134,7 +1134,8 @@ std::unique_ptr<Document> certificateAppreciation(const TemplateOptions &o)
     b.text(QRectF(90, 340, ps.width() - 180, 70), {C(QCoreApplication::translate("Templates", "Recipient Name"), 40, Accent1, 1, true)})->autofit = TextItem::ShrinkOnOverflow;
     b.line(QPointF(120, 418), QPointF(ps.width() - 120, 418), ColorRef::scheme(Accent3), 1);
     b.text(QRectF(100, 432, ps.width() - 200, 90), {C(QCoreApplication::translate("Templates", "for generously giving time, talent and heart to our community this year."), 13, Main, 1)});
-    b.shapeText("ribbon2", QRectF(ps.width() / 2 - 120, 540, 240, 70), Fill::solid(ColorRef::scheme(Accent1)), {W(QCoreApplication::translate("Templates", "THANK YOU"), 15, 1, false, 700)});
+    // (the ribbon's middle band, where its words go, is at its widest: the standard's usual band is half the ribbon, too narrow for the words in most languages)
+    b.shapeText("ribbon2", QRectF(ps.width() / 2 - 140, 540, 280, 70), Fill::solid(ColorRef::scheme(Accent1)), {W(QCoreApplication::translate("Templates", "THANK YOU"), 15, 1, false, 700)})->adj = {0.16667, 0.75};
     for (int i = 0; i < 2; ++i) {
         const double x = i == 0 ? 90 : ps.width() - 290;
         b.line(QPointF(x, ps.height() - 170), QPointF(x + 200, ps.height() - 170), ColorRef::scheme(Main), 0.75);
@@ -1722,7 +1723,7 @@ const QVector<BuildingBlock> &buildingBlocks()
                 case 0: out.push_back(shapeOf("rect", QRectF(r.left(), r.top(), 8, r.height()), Fill::solid(ColorRef::scheme(Accent1)))); break;
                 case 2: out.push_back(shapeOf("rect", r, Fill::solid(ColorRef::scheme(Accent1)))); break;
                 case 3: out.push_back(shapeOf("snip2same", QRectF(r.left(), r.top(), r.width() * 0.6, r.height()), Fill::solid(ColorRef::scheme(Accent2)))); break;
-                case 5: out.push_back(shapeOf("ribbon2", r.adjusted(-10, -6, 10, 6), Fill::solid(ColorRef::scheme(Accent1)))); break;
+                case 5: { auto rb = shapeOf("ribbon2", r.adjusted(-10, -6, 10, 6), Fill::solid(ColorRef::scheme(Accent1))); rb->adj = {0.16667, 0.75}; out.push_back(rb); break; }   // (the widest middle band, for the words over it)
                 default: break;
                 }
                 const bool white = i == 2 || i == 3 || i == 5;
