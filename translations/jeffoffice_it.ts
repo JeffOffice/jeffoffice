@@ -1177,7 +1177,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1717"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Titolo con barra decorativa</translation>
     </message>
@@ -16143,7 +16143,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1444"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished">Arti in Comunità Riverbend</translation>
     </message>
@@ -16159,12 +16159,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+1"/>
-        <location line="+831"/>
+        <location line="+832"/>
         <source>Program Director</source>
         <translation type="unfinished">Direttrice dei programmi</translation>
     </message>
     <message>
-        <location line="-830"/>
+        <location line="-831"/>
         <source>1450 Mill Street
 Riverbend, MI 49001</source>
         <translation type="unfinished">Via del Mulino 14
@@ -16508,7 +16508,7 @@ Calendario	2</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+388"/>
+        <location line="+389"/>
         <source>Place
 stamp
 here</source>
@@ -16517,7 +16517,7 @@ il
 francobollo</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-376"/>
         <source>CLOSED</source>
         <translation type="unfinished">CHIUSO</translation>
     </message>
@@ -16618,12 +16618,12 @@ francobollo</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+675"/>
+        <location line="+676"/>
         <source>Gift Certificate</source>
         <translation type="unfinished">Buono regalo</translation>
     </message>
     <message>
-        <location line="-674"/>
+        <location line="-675"/>
         <source>To: ______________________</source>
         <translation type="unfinished">Per: ______________________</translation>
     </message>
@@ -16664,77 +16664,77 @@ francobollo</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>Dear neighbor,</source>
         <translation type="unfinished">Caro vicino,</translation>
     </message>
     <message>
-        <location line="-365"/>
+        <location line="-366"/>
         <location filename="../apps/write/core/templates.cpp" line="+8"/>
         <source>Sincerely,</source>
         <translation type="unfinished">Cordiali saluti,</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>{biz:person}
 {biz:title}</source>
         <translation type="unfinished">{biz:person}
 {biz:title}</translation>
     </message>
     <message>
-        <location line="-352"/>
+        <location line="-353"/>
         <source>Objective</source>
         <translation type="unfinished">Obiettivo</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+373"/>
+        <location line="+374"/>
         <source>Program director with ten years of experience building community arts programs and the volunteer teams that run them.</source>
         <translation type="unfinished">Direttore di programma con dieci anni di esperienza nella creazione di programmi artistici per la comunità e dei gruppi di volontari che li gestiscono.</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <source>Experience</source>
         <translation type="unfinished">Esperienza</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+374"/>
+        <location line="+375"/>
         <source>Program Director, {biz:name}	2019 – present</source>
         <translation type="unfinished">Direttore di programma, {biz:name}	2019 – oggi</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Grew the summer concert series from 8 to 13 weeks; recruited and trained 40 volunteers; secured three foundation grants.</source>
         <translation type="unfinished">Ampliata la rassegna di concerti estivi da 8 a 13 settimane; reclutati e formati 40 volontari; ottenuti tre finanziamenti da fondazioni.</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Outreach Coordinator, Kalamazoo Arts Council	2014 – 2019</source>
         <translation type="unfinished">Coordinatore delle attività sul territorio, Kalamazoo Arts Council	2014 – 2019</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Ran school partnerships reaching 2,000 students a year.</source>
         <translation type="unfinished">Gestite collaborazioni con le scuole che coinvolgevano 2.000 studenti all&apos;anno.</translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-374"/>
         <source>Education</source>
         <translation type="unfinished">Istruzione</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+375"/>
+        <location line="+376"/>
         <source>B.A., Music Education, Western Michigan University	2013</source>
         <translation type="unfinished">Laurea in Didattica della musica, Western Michigan University	2013</translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-375"/>
         <source>Skills</source>
         <translation type="unfinished">Competenze</translation>
     </message>
@@ -16919,13 +16919,13 @@ Totale</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+337"/>
+        <location line="+338"/>
         <location line="+129"/>
         <source>With Compliments</source>
         <translation type="unfinished">Con i nostri omaggi</translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-447"/>
         <source>Fold along the dashed lines, center line first.</source>
         <translation type="unfinished">Piegare lungo le linee tratteggiate, iniziando dalla linea centrale.</translation>
     </message>
@@ -16945,7 +16945,7 @@ Totale</translation>
         <translation type="unfinished">per aver dedicato con generosità tempo, talento e cuore alla nostra comunità quest&apos;anno.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>THANK YOU</source>
         <translation type="unfinished">GRAZIE</translation>
     </message>

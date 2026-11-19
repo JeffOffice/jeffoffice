@@ -1177,7 +1177,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1717"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16110,7 +16110,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1444"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16126,12 +16126,12 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+831"/>
+        <location line="+832"/>
         <source>Program Director</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-830"/>
+        <location line="-831"/>
         <source>1450 Mill Street
 Riverbend, MI 49001</source>
         <translation type="unfinished"></translation>
@@ -16468,14 +16468,14 @@ Calendar	2</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+388"/>
+        <location line="+389"/>
         <source>Place
 stamp
 here</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-376"/>
         <source>CLOSED</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16576,12 +16576,12 @@ here</source>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+675"/>
+        <location line="+676"/>
         <source>Gift Certificate</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-674"/>
+        <location line="-675"/>
         <source>To: ______________________</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16622,76 +16622,76 @@ here</source>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>Dear neighbor,</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-365"/>
+        <location line="-366"/>
         <location filename="../apps/write/core/templates.cpp" line="+8"/>
         <source>Sincerely,</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>{biz:person}
 {biz:title}</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-352"/>
+        <location line="-353"/>
         <source>Objective</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+373"/>
+        <location line="+374"/>
         <source>Program director with ten years of experience building community arts programs and the volunteer teams that run them.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <source>Experience</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+374"/>
+        <location line="+375"/>
         <source>Program Director, {biz:name}	2019 – present</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Grew the summer concert series from 8 to 13 weeks; recruited and trained 40 volunteers; secured three foundation grants.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Outreach Coordinator, Kalamazoo Arts Council	2014 – 2019</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Ran school partnerships reaching 2,000 students a year.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-374"/>
         <source>Education</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+375"/>
+        <location line="+376"/>
         <source>B.A., Music Education, Western Michigan University	2013</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-375"/>
         <source>Skills</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16864,13 +16864,13 @@ Total</source>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+337"/>
+        <location line="+338"/>
         <location line="+129"/>
         <source>With Compliments</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-447"/>
         <source>Fold along the dashed lines, center line first.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16890,7 +16890,7 @@ Total</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>THANK YOU</source>
         <translation type="unfinished"></translation>
     </message>

@@ -1177,7 +1177,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1717"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Заголовок с акцентной полосой</translation>
     </message>
@@ -16153,7 +16153,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1444"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished">Творческий центр Riverbend</translation>
     </message>
@@ -16169,12 +16169,12 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+831"/>
+        <location line="+832"/>
         <source>Program Director</source>
         <translation type="unfinished">Руководитель программы</translation>
     </message>
     <message>
-        <location line="-830"/>
+        <location line="-831"/>
         <source>1450 Mill Street
 Riverbend, MI 49001</source>
         <translation type="unfinished">Милл-стрит, 1450
@@ -16518,7 +16518,7 @@ Calendar	2</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+388"/>
+        <location line="+389"/>
         <source>Place
 stamp
 here</source>
@@ -16527,7 +16527,7 @@ here</source>
 марки</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-376"/>
         <source>CLOSED</source>
         <translation type="unfinished">ЗАКРЫТО</translation>
     </message>
@@ -16628,12 +16628,12 @@ here</source>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+675"/>
+        <location line="+676"/>
         <source>Gift Certificate</source>
         <translation type="unfinished">Подарочный сертификат</translation>
     </message>
     <message>
-        <location line="-674"/>
+        <location line="-675"/>
         <source>To: ______________________</source>
         <translation type="unfinished">Кому: ______________________</translation>
     </message>
@@ -16674,77 +16674,77 @@ here</source>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>Dear neighbor,</source>
         <translation type="unfinished">Дорогой сосед,</translation>
     </message>
     <message>
-        <location line="-365"/>
+        <location line="-366"/>
         <location filename="../apps/write/core/templates.cpp" line="+8"/>
         <source>Sincerely,</source>
         <translation type="unfinished">С уважением,</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>{biz:person}
 {biz:title}</source>
         <translation type="unfinished">{biz:person}
 {biz:title}</translation>
     </message>
     <message>
-        <location line="-352"/>
+        <location line="-353"/>
         <source>Objective</source>
         <translation type="unfinished">Цель</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+373"/>
+        <location line="+374"/>
         <source>Program director with ten years of experience building community arts programs and the volunteer teams that run them.</source>
         <translation type="unfinished">Руководитель программы с десятилетним опытом создания программ для сообщества в сфере культуры и работы с волонтерскими командами, которые их реализуют.</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <source>Experience</source>
         <translation type="unfinished">Опыт работы</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+374"/>
+        <location line="+375"/>
         <source>Program Director, {biz:name}	2019 – present</source>
         <translation type="unfinished">Руководитель программы, {biz:name}	2019 – наст. время</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Grew the summer concert series from 8 to 13 weeks; recruited and trained 40 volunteers; secured three foundation grants.</source>
         <translation type="unfinished">Летний концертный цикл расширен с 8 до 13 недель; набраны и обучены 40 волонтеров; получено три гранта фондов.</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Outreach Coordinator, Kalamazoo Arts Council	2014 – 2019</source>
         <translation type="unfinished">Координатор по работе с аудиторией, Kalamazoo Arts Council	2014 – 2019</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Ran school partnerships reaching 2,000 students a year.</source>
         <translation type="unfinished">Вел школьные партнерские программы, охватывающие 2 000 учеников в год.</translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-374"/>
         <source>Education</source>
         <translation type="unfinished">Образование</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+375"/>
+        <location line="+376"/>
         <source>B.A., Music Education, Western Michigan University	2013</source>
         <translation type="unfinished">Бакалавр, музыкальное образование, Western Michigan University	2013</translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-375"/>
         <source>Skills</source>
         <translation type="unfinished">Навыки</translation>
     </message>
@@ -16929,13 +16929,13 @@ Total</source>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+337"/>
+        <location line="+338"/>
         <location line="+129"/>
         <source>With Compliments</source>
         <translation type="unfinished">С наилучшими пожеланиями</translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-447"/>
         <source>Fold along the dashed lines, center line first.</source>
         <translation type="unfinished">Согните по пунктирным линиям, сначала по центральной.</translation>
     </message>
@@ -16955,7 +16955,7 @@ Total</source>
         <translation type="unfinished">за щедрый вклад времени, таланта и сердца в жизнь нашего сообщества в этом году.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>THANK YOU</source>
         <translation type="unfinished">СПАСИБО</translation>
     </message>

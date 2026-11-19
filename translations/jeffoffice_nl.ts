@@ -1177,7 +1177,7 @@
 <context>
     <name>BuildingBlocks</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="+1716"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="+1717"/>
         <source>Accent Bar Heading</source>
         <translation type="unfinished">Kop met accentbalk</translation>
     </message>
@@ -16143,7 +16143,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>Templates</name>
     <message>
-        <location filename="../apps/pub/templates/templates.cpp" line="-1443"/>
+        <location filename="../apps/pub/templates/templates.cpp" line="-1444"/>
         <source>Riverbend Community Arts</source>
         <translation type="unfinished">Kunstcentrum Rivierbocht</translation>
     </message>
@@ -16159,12 +16159,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+1"/>
-        <location line="+831"/>
+        <location line="+832"/>
         <source>Program Director</source>
         <translation type="unfinished">Programmadirecteur</translation>
     </message>
     <message>
-        <location line="-830"/>
+        <location line="-831"/>
         <source>1450 Mill Street
 Riverbend, MI 49001</source>
         <translation type="unfinished">Molenstraat 145
@@ -16508,7 +16508,7 @@ Agenda	2</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+388"/>
+        <location line="+389"/>
         <source>Place
 stamp
 here</source>
@@ -16517,7 +16517,7 @@ hier
 plakken</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-376"/>
         <source>CLOSED</source>
         <translation type="unfinished">GESLOTEN</translation>
     </message>
@@ -16618,12 +16618,12 @@ plakken</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+675"/>
+        <location line="+676"/>
         <source>Gift Certificate</source>
         <translation type="unfinished">Cadeaubon</translation>
     </message>
     <message>
-        <location line="-674"/>
+        <location line="-675"/>
         <source>To: ______________________</source>
         <translation type="unfinished">Voor: ______________________</translation>
     </message>
@@ -16664,77 +16664,77 @@ plakken</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>Dear neighbor,</source>
         <translation type="unfinished">Beste buren,</translation>
     </message>
     <message>
-        <location line="-365"/>
+        <location line="-366"/>
         <location filename="../apps/write/core/templates.cpp" line="+8"/>
         <source>Sincerely,</source>
         <translation type="unfinished">Met vriendelijke groet,</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+366"/>
+        <location line="+367"/>
         <source>{biz:person}
 {biz:title}</source>
         <translation type="unfinished">{biz:person}
 {biz:title}</translation>
     </message>
     <message>
-        <location line="-352"/>
+        <location line="-353"/>
         <source>Objective</source>
         <translation type="unfinished">Doel</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+373"/>
+        <location line="+374"/>
         <source>Program director with ten years of experience building community arts programs and the volunteer teams that run them.</source>
         <translation type="unfinished">Programmadirecteur met tien jaar ervaring in het opzetten van culturele buurtprogramma&apos;s en de vrijwilligersteams die ze draaiende houden.</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <source>Experience</source>
         <translation type="unfinished">Werkervaring</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+374"/>
+        <location line="+375"/>
         <source>Program Director, {biz:name}	2019 – present</source>
         <translation type="unfinished">Programmadirecteur, {biz:name}	2019 – heden</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Grew the summer concert series from 8 to 13 weeks; recruited and trained 40 volunteers; secured three foundation grants.</source>
         <translation type="unfinished">Zomerconcertreeks uitgebreid van 8 naar 13 weken; 40 vrijwilligers geworven en opgeleid; drie fondssubsidies binnengehaald.</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Outreach Coordinator, Kalamazoo Arts Council	2014 – 2019</source>
         <translation type="unfinished">Coördinator publieksbereik, Kalamazoo Arts Council	2014 – 2019</translation>
     </message>
     <message>
-        <location line="-373"/>
-        <location line="+374"/>
+        <location line="-374"/>
+        <location line="+375"/>
         <source>Ran school partnerships reaching 2,000 students a year.</source>
         <translation type="unfinished">Verantwoordelijk voor samenwerkingen met scholen die jaarlijks 2.000 leerlingen bereikten.</translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-374"/>
         <source>Education</source>
         <translation type="unfinished">Opleiding</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+375"/>
+        <location line="+376"/>
         <source>B.A., Music Education, Western Michigan University	2013</source>
         <translation type="unfinished">Bachelor Muziekeducatie, Western Michigan University	2013</translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-375"/>
         <source>Skills</source>
         <translation type="unfinished">Vaardigheden</translation>
     </message>
@@ -16919,13 +16919,13 @@ Totaal</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+337"/>
+        <location line="+338"/>
         <location line="+129"/>
         <source>With Compliments</source>
         <translation type="unfinished">Met de complimenten</translation>
     </message>
     <message>
-        <location line="-446"/>
+        <location line="-447"/>
         <source>Fold along the dashed lines, center line first.</source>
         <translation type="unfinished">Vouw langs de stippellijnen, eerst langs de middellijn.</translation>
     </message>
@@ -16945,7 +16945,7 @@ Totaal</translation>
         <translation type="unfinished">voor het dit jaar royaal schenken van tijd, talent en hart aan onze gemeenschap.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>THANK YOU</source>
         <translation type="unfinished">BEDANKT</translation>
     </message>
