@@ -1,6 +1,7 @@
 // JeffCrunch's Read Aloud and missing fonts (libs/shell/app/readaloud, libs/shell/app/missingfonts): the selected cells row by row, one cell said at a time and tinted as it is said, and the
 // fonts the cells use.
 #include "app/crunchwindow.h"
+#include "app/otherformats.h"
 #include "core/editsession.h"
 #include "grid/gridview.h"
 #include "sheet/calculation.h"
@@ -103,7 +104,7 @@ jp::MissingFontsHost CrunchWindow::missingFontsHost()
     jp::MissingFontsHost host;
     host.usage = [this] {
         jp::FontUsage u;
-        if (!m_session) return u;
+        if (!m_session || crunch::isCsvName(m_originalPath) || crunch::isCsvName(m_path)) return u;
         for (const crunch::EditSession::FontUse &use : m_session->fontsInUse())
             for (const QString &sheet : use.sheets) u.add(use.family, sheet);
         return u;
