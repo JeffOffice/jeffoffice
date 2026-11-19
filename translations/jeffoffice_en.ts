@@ -102,8 +102,8 @@
 <context>
     <name>jp::CrunchWindow</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+328"/>
-        <location line="+189"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+330"/>
+        <location line="+240"/>
         <source>%n cell(s)</source>
         <translation>
             <numerusform>%n cell</numerusform>
@@ -201,7 +201,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-189"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-240"/>
         <source>%n place(s)</source>
         <translation>
             <numerusform>%n place</numerusform>
@@ -367,7 +367,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1125"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1276"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
