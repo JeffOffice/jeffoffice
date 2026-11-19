@@ -108,6 +108,14 @@ sed 's/[[:space:]]*$//' "$parts" > "$parts.trim" && mv "$parts.trim" "$parts"
 # shellcheck disable=SC2016
 xargs -P "$jobs" -L 1 bash -c 'id=$1; prog=$2; shard=$3; shift 3; started=$(date +%s)
     if [ "$shard" != "-" ]; then export JO_APPCHECK_SHARD=$shard; fi
+    # (a home folder of its own for each part, as tools/gate.sh gives its parts: the four parts of writetests, side by side in one home, changed the
+    # spelling choices of one another and eight tests failed on Linux; Nov 19 2026. macOS keeps its one home: a program there asks the system, not HOME.
+    # No apostrophe in these lines: they are inside the quoted script that xargs runs.)
+    h="$PWD/.part-home/$id"; mkdir -p "$h"
+    case "$(uname -s)" in
+    Linux) export HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_DATA_HOME="$h/.local/share" XDG_CACHE_HOME="$h/.cache" ;;
+    MINGW*|MSYS*) mkdir -p "$h/Roaming" "$h/Local"; APPDATA=$(cygpath -w "$h/Roaming"); LOCALAPPDATA=$(cygpath -w "$h/Local"); export APPDATA LOCALAPPDATA ;;
+    esac
     export JP_CLASS_TIMES=1
     "build/$prog'"$ext"'" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1; echo $? > "$id.code"
     echo "$id finished in $(( $(date +%s) - started )) s"' _ < "$parts"
