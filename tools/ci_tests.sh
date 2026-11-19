@@ -20,18 +20,20 @@ set -u
 
 ext=""; [ "${RUNNER_OS:-}" = "Windows" ] && ext=".exe"
 
-# Seconds of the test classes that take the longest (Windows, Nov 14 2026, run 43634499414), for dealing the classes of a program to its parts. They are stale:
+# Seconds of the test classes that take the longest (Windows, the larger of main runs 44448516425 and 44436758934, Nov 19 2026; S22), for dealing the classes of a
+# program to its parts. Before Nov 19 they were from Nov 14 and stale:
 # on Nov 15 the two parts of crunchtests, dealt equal by these, took 266 s and 738 s on Windows (run 43728103514). Every run now prints the 12 slowest classes of each
 # part ("<part> CLASSTIME <class> <seconds>", from JP_CLASS_TIMES, tests/testrunner.cpp): take the weights from there.
-WEIGHTS="CrunchReviewTests=139 CrunchPrintTests=125 CrunchStructModelTests=112 CrunchWindowTests=72 CrunchBarcodeTests=65 CrunchCellsTests=48
-CrunchHostileTests=31 CrunchEditTests=29 CrunchPivotTests=27 CrunchXlsTests=24 CrunchSortTests=20 CrunchChartTests=19 CrunchDrawingTests=19
-CrunchProtectTests=18 CrunchKeepTests=18 CrunchScenarioShapeTests=17 CrunchSheetsTests=16 CrunchPointTests=14 CrunchTablesTests=13 CrunchProofTests=13
-CrunchFormatUiTests=12 CrunchSparklineTests=10 CrunchNotesTests=9 CrunchInfoTests=8
+WEIGHTS="CrunchWindowTests=146 CrunchStructModelTests=122 CrunchReviewTests=94 CrunchViewEditTests=93 CrunchTablesTests=88 CrunchBarcodeTests=78
+CrunchTextBoxTests=70 CrunchPrintTests=58 CrunchCellsTests=52 CrunchEditTests=41 CrunchHostileTests=36 CrunchPivotTests=32 CrunchFindTests=30
+CrunchChartTests=29 CrunchDrawingTests=28 CrunchFormulasTests=28 CrunchXlsTests=27 CrunchKeepTests=25 CrunchSortTests=20 CrunchProofTests=15
+CrunchFormatUiTests=13 CrunchNotesTests=11 CrunchOpsTests=11 CrunchTabs2Tests=9
 SheetEvalTests=118 SheetStructureTests=40 SheetCalculationTests=18 SheetPivotTests=17 SheetOdsChartTests=13 SheetCryptTests=13
-DeckTableLimitsTests=66 DeckThemeTests=32 DeckFileTests=23 DeckMediaTests=18 DeckMasterTests=15
-PubCommentTests=39 PubCommandsTests=36 PubPictureTests=21 PubObjectsTests=15 PubExportTests=15 PubFindTests=14"
+DeckTableLimitsTests=77 DeckReviewTests=55 DeckTableTests=51 DeckThemeTests=32 DeckFileTests=28 DeckOdpTests=26 DeckMediaTests=20 DeckMasterTests=18
+ShellGrammarRulesTests=388 ShellPackAndGoTests=175 PubCommentTests=76 PubCommandsTests=44 PubPictureTests=26 PubFileTests=20 PubFindTests=19
+PubExportTests=18 PubObjectsTests=17 PubTextTests=17 PubWindowTests=16 ShellIsolationTests=10"
 # Until the weights are set again, the last part of a program is dealt this much less (as if it already held it): the parts of crunchtests took 266 s and 738 s (Nov 15).
-LAST_PART_HOLDS=150
+LAST_PART_HOLDS=0   # (150 until Nov 19, while the weights were stale)
 
 # A program the build did not make (a CI part builds only the targets in tools/ci_targets.sh) stops everything here, by name.
 missing=0
