@@ -49,17 +49,17 @@ JeffDeck makes presentations and plays them as slide shows.
 ### What it does
 
 - **Slides** with layouts and slide masters, themes and their color variants (nine built in, or the theme of another presentation), backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
-- **On a slide:** text, shapes, pictures (from your computer or the open Online Pictures libraries), icons, tables, Text Art, charts (drawn from the numbers saved with them), and diagrams and equations (shown as the presentation program drew them, and saved back whole).
+- **On a slide:** text, shapes, pictures (from your computer or the open Online Pictures libraries), icons, tables, Text Art, charts (put in from a gallery of kinds, or drawn from the numbers a file saved with them), connectors that stay attached to the shapes they join, equations typed and changed in an equation box, and diagrams (shown as the presentation program drew them, and saved back whole).
 - **Animations** made and changed on the Animations tab and in the Animation Pane: entrance, emphasis, and exit effects and motion paths, with their directions, timing, and order, saved so the presentation program lists each by name.
 - **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides (Morph among them) and animations that play click by click. Draw on slides with a pen or highlighter, point with a laser pointer, make custom shows, run a show at a kiosk that loops by itself, and rehearse to record how long each slide stays up.
 - **Movies and sounds** put on a slide (Insert > Media) play in place while you edit, with a control bar, and in the slide show as the file says: at a click, by themselves, or when clicked on, with their volume, trim, looping, and full screen. The Playback tab sets them.
-- **Comments** on slides, with replies, which other presentation programs show too.
-- **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures.
+- **Comments** on slides, with replies, which other presentation programs show too, and **Compare**, which brings in another version of the presentation so you can accept or reject each change.
+- **Print and export** slides, notes pages, handouts, and the outline, to paper or PDF, and slides as pictures. **Pack and Go** copies a presentation with its movies, sounds, and fonts to a folder or a `.zip` for another computer.
 - **Presentation files.** Opens `.pptx`, `.potx`, `.ppsx`, and the older `.ppt` files from Microsoft PowerPoint, and OpenDocument presentations (`.odp`, `.otp`); saves `.pptx`, `.potx`, `.ppsx`, `.odp`, and `.otp`. A saved `.pptx` carries the fonts JeffOffice brings that others may not have, so it looks the same on their computers.
 
 ### Not yet in JeffDeck
 
-Slides drawn a little differently from the presentation program's in places (most often text it shrank to fit its box, a picture's brightness and contrast, and some text shadows); editing diagrams, equations, and charts (they're shown and kept); and animation triggers, sounds, and color effects (kept as the file has them). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
+Slides drawn a little differently from the presentation program's in places (most often text it shrank to fit its box, a picture's brightness and contrast, and some text shadows); editing diagrams and some parts of a chart (they're shown and kept); and animation triggers, sounds, and color effects (kept as the file has them). Help covers what JeffDeck does today, and [docs/jeffdeck.md](docs/jeffdeck.md) lists each feature and where it stands.
 
 ## JeffWrite
 
@@ -68,10 +68,10 @@ JeffWrite writes and edits documents. It's a **beta**: about 3 of 4 pages lay ou
 ### What it does
 
 - **Pages as they print**, in a continuous view with zoom, laid out as the document's own settings say: page size and margins, sections, columns, facing pages, page borders, and line numbers.
-- **Editing** with undo: typing, the clipboard, character and paragraph formatting (the Font dialog among it), bulleted and numbered lists, styles, tables, fields, tracked changes and comments, page and section breaks, and page setup.
-- **What a document holds:** tables, headers and footers with page numbers and other fields, footnotes and endnotes, pictures and text boxes that the text wraps around, frames, form fields and content controls, and equations (shown as a line of text).
+- **Editing** with undo: typing, the clipboard, character and paragraph formatting (the Font dialog among it), bulleted and numbered lists, styles, tables, fields, tracked changes and comments, Compare (two versions shown as tracked changes), page and section breaks, and page setup.
+- **What a document holds:** tables, headers and footers with page numbers and other fields, footnotes and endnotes, pictures and text boxes that the text wraps around, frames, form fields and content controls, and equations (typed and changed in an equation box, and shown on the page as a line of text).
 - **Find and Replace**, and **spelling** as you type, with suggestions and the Spelling pane (F7).
-- **Print and export** to paper or PDF, with copies, page ranges, and a preview.
+- **Print and export** to paper or PDF, with copies, page ranges, and a preview. **Pack and Go** puts a document with its fonts and pictures in one package for another computer.
 - **Document files.** Opens `.docx`, `.docm`, `.dotx`, and `.dotm`, the older `.doc` and `.dot`, `.rtf`, and `.odt` (also `.fodt` and `.ott`); saves `.docx`, `.dotx`, and `.odt`. A `.doc`, `.rtf`, or `.fodt` file is saved as a new `.docx` or `.odt` file. What JeffWrite doesn't show or edit yet is kept and saved back as the file had it.
 
 ### Not yet in the beta
@@ -88,9 +88,9 @@ JeffCrunch makes and edits spreadsheets. It's a **beta**: it opens most workbook
 - **Editing** with undo: typing numbers, text, and formulas, formatting cells and cell styles, cut, copy, and paste, filling cells, inserting and deleting rows, columns, and sheets, sizing, and finding and replacing.
 - **Formulas** worked out as you type, with more than 200 functions, names, and the other sheets of the workbook. A formula whose function isn't in JeffCrunch yet keeps the result the file stored.
 - **Sorting, filtering, tables, and pivot tables** (made, laid out, refreshed, and read with GETPIVOTDATA), with a sort or filter kept in the file.
-- **Charts, pictures, and shapes**, made and changed in the sheet, **notes and links**, and **form controls** (check boxes, option buttons, drop-downs, list boxes, spin buttons, scroll bars, buttons, labels, and group boxes) that are shown, work through the cell they are linked to without macros, and can be inserted.
+- **Charts, pictures, shapes, and text boxes** (with text that can run up or down the box), made and changed in the sheet, **equations**, **objects** from JeffWrite and JeffDeck (shown as the picture they saved, and opened in their own program), **notes and links**, and **form controls** (check boxes, option buttons, drop-downs, list boxes, spin buttons, scroll bars, buttons, labels, and group boxes) that are shown, work through the cell they are linked to without macros, and can be inserted.
 - **Protection** of a sheet or the workbook, with or without a password, and password-protected files (`.xlsx`, `.xls`, and `.ods`) opened; an `.xlsx` can be saved with a password.
-- **Print and export** to paper or PDF, with page setup, page breaks, headers and footers, and a preview.
+- **Print and export** to paper or PDF, with page setup, page breaks, headers and footers, and a preview. **Pack and Go** puts a workbook with its pictures in one package for another computer.
 - **Workbook files.** Opens `.xlsx`, `.xlsm`, the older `.xls`, OpenDocument `.ods` and `.fods`, and text files of values (`.csv`, `.tsv`, and `.txt`, asking how their columns are read); saves `.xlsx`, and `.xls` and `.ods` copies (saying first what the file can't hold). A workbook opened from anything but `.xlsx` or `.xlsm` is saved as a new `.xlsx` file by default, and a workbook's macros are kept and never run. What JeffCrunch doesn't show or edit yet is kept and saved back as the file had it.
 
 ### Not yet in the beta
