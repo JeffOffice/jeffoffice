@@ -11074,136 +11074,136 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+269"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+260"/>
         <source>Rectangle</source>
         <translation type="unfinished">Persegi Panjang</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Rectangles</source>
         <translation type="unfinished">Persegi Panjang</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-7"/>
         <source>Rounded Rectangle</source>
         <translation type="unfinished">Persegi Panjang Sudut Membulat</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Snip Single Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Satu Sudut Terpotong</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Same Side Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Sudut Sisi Sama Terpotong</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Diagonal Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Sudut Diagonal Terpotong</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip and Round Single Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Satu Sudut Terpotong dan Membulat</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Single Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Satu Sudut Membulat</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Same Side Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Sudut Sisi Sama Membulat</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Diagonal Corner Rectangle</source>
         <translation type="unfinished">Persegi Panjang Sudut Diagonal Membulat</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+3"/>
         <source>Oval</source>
         <translation type="unfinished">Oval</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+1"/>
-        <location line="+4"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+5"/>
-        <location line="+6"/>
-        <location line="+6"/>
-        <location line="+11"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+335"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+129"/>
         <source>Basic Shapes</source>
         <translation type="unfinished">Bentuk Dasar</translation>
     </message>
     <message>
-        <location line="-473"/>
+        <location line="-168"/>
         <source>Isosceles Triangle</source>
         <translation type="unfinished">Segitiga Sama Kaki</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Triangle</source>
         <translation type="unfinished">Segitiga Siku-Siku</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Parallelogram</source>
         <translation type="unfinished">Jajar Genjang</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Trapezoid</source>
         <translation type="unfinished">Trapesium</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Diamond</source>
         <translation type="unfinished">Belah Ketupat</translation>
     </message>
@@ -11218,7 +11218,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Segi Enam</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Heptagon</source>
         <translation type="unfinished">Segi Tujuh</translation>
     </message>
@@ -11228,7 +11228,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Segi Delapan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Decagon</source>
         <translation type="unfinished">Segi Sepuluh</translation>
     </message>
@@ -11243,324 +11243,324 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Lingkaran Sebagian</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chord</source>
         <translation type="unfinished">Tali Busur</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Teardrop</source>
         <translation type="unfinished">Tetesan Air</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Frame</source>
         <translation type="unfinished">Bingkai</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Half Frame</source>
         <translation type="unfinished">Setengah Bingkai</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>L-Shape</source>
         <translation type="unfinished">Bentuk L</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Diagonal Stripe</source>
         <translation type="unfinished">Garis Diagonal</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Cross</source>
         <translation type="unfinished">Silang</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Plaque</source>
         <translation type="unfinished">Plak</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Can</source>
         <translation type="unfinished">Kaleng</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Cube</source>
         <translation type="unfinished">Kubus</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bevel</source>
         <translation type="unfinished">Bevel</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Donut</source>
         <translation type="unfinished">Donat</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>&quot;No&quot; Symbol</source>
         <translation type="unfinished">Simbol &quot;Tidak&quot;</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Block Arc</source>
         <translation type="unfinished">Busur Blok</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Folded Corner</source>
         <translation type="unfinished">Sudut Terlipat</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Smiley Face</source>
         <translation type="unfinished">Wajah Tersenyum</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Heart</source>
         <translation type="unfinished">Hati</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Lightning Bolt</source>
         <translation type="unfinished">Kilat</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Sun</source>
         <translation type="unfinished">Matahari</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+1"/>
         <source>Moon</source>
         <translation type="unfinished">Bulan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Cloud</source>
         <translation type="unfinished">Awan</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Arc</source>
         <translation type="unfinished">Busur</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Double Bracket</source>
         <translation type="unfinished">Kurung Ganda</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Double Brace</source>
         <translation type="unfinished">Kurung Kurawal Ganda</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Left Bracket</source>
         <translation type="unfinished">Kurung Kiri</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Right Bracket</source>
         <translation type="unfinished">Kurung Kanan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left Brace</source>
         <translation type="unfinished">Kurung Kurawal Kiri</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Brace</source>
         <translation type="unfinished">Kurung Kurawal Kanan</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Right Arrow</source>
         <translation type="unfinished">Panah Kanan</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+8"/>
-        <location line="+8"/>
-        <location line="+7"/>
-        <location line="+6"/>
-        <location line="+7"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+240"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+106"/>
         <source>Block Arrows</source>
         <translation type="unfinished">Panah Blok</translation>
     </message>
     <message>
-        <location line="-329"/>
+        <location line="-126"/>
         <source>Left Arrow</source>
         <translation type="unfinished">Panah Kiri</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Up Arrow</source>
         <translation type="unfinished">Panah Atas</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Down Arrow</source>
         <translation type="unfinished">Panah Bawah</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left-Right Arrow</source>
         <translation type="unfinished">Panah Kiri-Kanan</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Up-Down Arrow</source>
         <translation type="unfinished">Panah Atas-Bawah</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Quad Arrow</source>
         <translation type="unfinished">Panah Empat Arah</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Bent Arrow</source>
         <translation type="unfinished">Panah Bengkok</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>U-Turn Arrow</source>
         <translation type="unfinished">Panah Putar Balik</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Left-Up Arrow</source>
         <translation type="unfinished">Panah Kiri-Atas</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bent-Up Arrow</source>
         <translation type="unfinished">Panah Bengkok-Atas</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Right Arrow</source>
         <translation type="unfinished">Panah Melengkung Kanan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Left Arrow</source>
         <translation type="unfinished">Panah Melengkung Kiri</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Arrow</source>
         <translation type="unfinished">Panah Melengkung Atas</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Down Arrow</source>
         <translation type="unfinished">Panah Melengkung Bawah</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Striped Right Arrow</source>
         <translation type="unfinished">Panah Kanan Bergaris</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Notched Right Arrow</source>
         <translation type="unfinished">Panah Kanan Bertakik</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Pentagon Arrow</source>
         <translation type="unfinished">Panah Segi Lima</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chevron</source>
         <translation type="unfinished">Chevron</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Arrow Callout</source>
         <translation type="unfinished">Keterangan Panah Kanan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Arrow Callout</source>
         <translation type="unfinished">Keterangan Panah Bawah</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Circular Arrow</source>
         <translation type="unfinished">Panah Melingkar</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+3"/>
         <source>Plus</source>
         <translation type="unfinished">Plus</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+5"/>
-        <location line="+2"/>
-        <location line="+7"/>
-        <location line="+7"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Equation Shapes</source>
         <translation type="unfinished">Bentuk Persamaan</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-4"/>
         <source>Minus</source>
         <translation type="unfinished">Minus</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Multiply</source>
         <translation type="unfinished">Kali</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Division</source>
         <translation type="unfinished">Bagi</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Equal</source>
         <translation type="unfinished">Sama Dengan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Not Equal</source>
         <translation type="unfinished">Tidak Sama Dengan</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+3"/>
         <source>Flowchart: Process</source>
         <translation type="unfinished">Bagan Alir: Proses</translation>
     </message>
@@ -11570,34 +11570,34 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+9"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Flowchart</source>
         <translation type="unfinished">Bagan Alir</translation>
     </message>
     <message>
-        <location line="-68"/>
+        <location line="-26"/>
         <source>Flowchart: Alternate Process</source>
         <translation type="unfinished">Bagan Alir: Proses Alternatif</translation>
     </message>
@@ -11617,22 +11617,22 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Bagan Alir: Proses Telah Ditentukan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Internal Storage</source>
         <translation type="unfinished">Bagan Alir: Penyimpanan Internal</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Document</source>
         <translation type="unfinished">Bagan Alir: Dokumen</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Multidocument</source>
         <translation type="unfinished">Bagan Alir: Multidokumen</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Flowchart: Terminator</source>
         <translation type="unfinished">Bagan Alir: Terminator</translation>
     </message>
@@ -11642,17 +11642,17 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Bagan Alir: Persiapan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Input</source>
         <translation type="unfinished">Bagan Alir: Input Manual</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Operation</source>
         <translation type="unfinished">Bagan Alir: Operasi Manual</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Connector</source>
         <translation type="unfinished">Bagan Alir: Konektor</translation>
     </message>
@@ -11662,84 +11662,82 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Bagan Alir: Konektor Luar Halaman</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Card</source>
         <translation type="unfinished">Bagan Alir: Kartu</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Punched Tape</source>
         <translation type="unfinished">Bagan Alir: Pita Berlubang</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Summing Junction</source>
         <translation type="unfinished">Bagan Alir: Penjumlahan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Or</source>
         <translation type="unfinished">Bagan Alir: Atau</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Collate</source>
         <translation type="unfinished">Bagan Alir: Pengumpulan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sort</source>
         <translation type="unfinished">Bagan Alir: Pengurutan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Extract</source>
         <translation type="unfinished">Bagan Alir: Ekstrak</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Merge</source>
         <translation type="unfinished">Bagan Alir: Penggabungan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Stored Data</source>
         <translation type="unfinished">Bagan Alir: Data Tersimpan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Delay</source>
         <translation type="unfinished">Bagan Alir: Penundaan</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sequential Access Storage</source>
         <translation type="unfinished">Bagan Alir: Penyimpanan Akses Berurutan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Magnetic Disk</source>
         <translation type="unfinished">Bagan Alir: Disk Magnetik</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Direct Access Storage</source>
         <translation type="unfinished">Bagan Alir: Penyimpanan Akses Langsung</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Display</source>
         <translation type="unfinished">Bagan Alir: Tampilan</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
         <source>Explosion 1</source>
         <translation type="unfinished">Ledakan 1</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+9"/>
-        <location line="+10"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -11750,23 +11748,25 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <location line="+1"/>
         <source>Stars and Banners</source>
         <translation type="unfinished">Bintang dan Spanduk</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-18"/>
         <source>Explosion 2</source>
         <translation type="unfinished">Ledakan 2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+1"/>
         <source>4-Point Star</source>
         <translation type="unfinished">Bintang 4 Sudut</translation>
     </message>
@@ -11821,32 +11821,32 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Pita Ke Atas</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Ribbon</source>
         <translation type="unfinished">Pita Ke Bawah</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Ribbon</source>
         <translation type="unfinished">Pita Melengkung Ke Atas</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Curved Down Ribbon</source>
         <translation type="unfinished">Pita Melengkung Ke Bawah</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Vertical Scroll</source>
         <translation type="unfinished">Gulungan Vertikal</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Horizontal Scroll</source>
         <translation type="unfinished">Gulungan Horizontal</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Wave</source>
         <translation type="unfinished">Gelombang</translation>
     </message>
@@ -11866,15 +11866,15 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+8"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Callouts</source>
         <translation type="unfinished">Balon</translation>
     </message>
     <message>
-        <location line="-17"/>
+        <location line="-6"/>
         <source>Rounded Rectangular Callout</source>
         <translation type="unfinished">Balon Persegi Panjang Membulat</translation>
     </message>
@@ -11889,33 +11889,33 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Balon Awan</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Line Callout 1</source>
         <translation type="unfinished">Balon Garis 1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 2</source>
         <translation type="unfinished">Balon Garis 2</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 1 (Accent Bar)</source>
         <translation type="unfinished">Balon Garis 1 (Batang Aksen)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Line Callout 1 (No Border)</source>
         <translation type="unfinished">Balon Garis 1 (Tanpa Bingkai)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Action Button: Blank</source>
         <translation type="unfinished">Tombol Aksi: Kosong</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
+        <location line="+1"/>
         <location line="+3"/>
         <location line="+3"/>
         <location line="+3"/>
@@ -75920,8 +75920,8 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="-1"/>
-        <location line="+17"/>
-        <location line="+8"/>
+        <location line="+18"/>
+        <location line="+7"/>
         <source>Edit Points is not offered for this shape: it is drawn in more than one part.</source>
         <translation type="unfinished">Edit Titik tidak tersedia untuk bentuk ini: bentuk ini digambar dalam lebih dari satu bagian.</translation>
     </message>

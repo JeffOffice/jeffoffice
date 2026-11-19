@@ -11082,136 +11082,136 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+269"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+260"/>
         <source>Rectangle</source>
         <translation type="unfinished">Rectángulo</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Rectangles</source>
         <translation type="unfinished">Rectángulos</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-7"/>
         <source>Rounded Rectangle</source>
         <translation type="unfinished">Rectángulo redondeado</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Snip Single Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con una esquina cortada</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Same Side Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con esquinas del mismo lado cortadas</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Diagonal Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con esquinas diagonales cortadas</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip and Round Single Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con una esquina cortada y redondeada</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Single Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con una esquina redondeada</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Same Side Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con esquinas del mismo lado redondeadas</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Diagonal Corner Rectangle</source>
         <translation type="unfinished">Rectángulo con esquinas diagonales redondeadas</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+3"/>
         <source>Oval</source>
         <translation type="unfinished">Elipse</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+1"/>
-        <location line="+4"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+5"/>
-        <location line="+6"/>
-        <location line="+6"/>
-        <location line="+11"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+335"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+129"/>
         <source>Basic Shapes</source>
         <translation type="unfinished">Formas básicas</translation>
     </message>
     <message>
-        <location line="-473"/>
+        <location line="-168"/>
         <source>Isosceles Triangle</source>
         <translation type="unfinished">Triángulo isósceles</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Triangle</source>
         <translation type="unfinished">Triángulo rectángulo</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Parallelogram</source>
         <translation type="unfinished">Paralelogramo</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Trapezoid</source>
         <translation type="unfinished">Trapecio</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Diamond</source>
         <translation type="unfinished">Rombo</translation>
     </message>
@@ -11226,7 +11226,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Hexágono</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Heptagon</source>
         <translation type="unfinished">Heptágono</translation>
     </message>
@@ -11236,7 +11236,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Octágono</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Decagon</source>
         <translation type="unfinished">Decágono</translation>
     </message>
@@ -11251,324 +11251,324 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Círculo parcial</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chord</source>
         <translation type="unfinished">Cuerda</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Teardrop</source>
         <translation type="unfinished">Lágrima</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Frame</source>
         <translation type="unfinished">Marco</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Half Frame</source>
         <translation type="unfinished">Medio marco</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>L-Shape</source>
         <translation type="unfinished">Forma de L</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Diagonal Stripe</source>
         <translation type="unfinished">Franja diagonal</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Cross</source>
         <translation type="unfinished">Cruz</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Plaque</source>
         <translation type="unfinished">Placa</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Can</source>
         <translation type="unfinished">Cilindro</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Cube</source>
         <translation type="unfinished">Cubo</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bevel</source>
         <translation type="unfinished">Bisel</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Donut</source>
         <translation type="unfinished">Anillo</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>&quot;No&quot; Symbol</source>
         <translation type="unfinished">Símbolo &quot;No permitido&quot;</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Block Arc</source>
         <translation type="unfinished">Arco de bloque</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Folded Corner</source>
         <translation type="unfinished">Esquina doblada</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Smiley Face</source>
         <translation type="unfinished">Cara sonriente</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Heart</source>
         <translation type="unfinished">Corazón</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Lightning Bolt</source>
         <translation type="unfinished">Rayo</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Sun</source>
         <translation type="unfinished">Sol</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+1"/>
         <source>Moon</source>
         <translation type="unfinished">Luna</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Cloud</source>
         <translation type="unfinished">Nube</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Arc</source>
         <translation type="unfinished">Arco</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Double Bracket</source>
         <translation type="unfinished">Doble corchete</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Double Brace</source>
         <translation type="unfinished">Doble llave</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Left Bracket</source>
         <translation type="unfinished">Abrir corchete</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Right Bracket</source>
         <translation type="unfinished">Cerrar corchete</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left Brace</source>
         <translation type="unfinished">Abrir llave</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Brace</source>
         <translation type="unfinished">Cerrar llave</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Right Arrow</source>
         <translation type="unfinished">Flecha derecha</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+8"/>
-        <location line="+8"/>
-        <location line="+7"/>
-        <location line="+6"/>
-        <location line="+7"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+240"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+106"/>
         <source>Block Arrows</source>
         <translation type="unfinished">Flechas de bloque</translation>
     </message>
     <message>
-        <location line="-329"/>
+        <location line="-126"/>
         <source>Left Arrow</source>
         <translation type="unfinished">Flecha izquierda</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Up Arrow</source>
         <translation type="unfinished">Flecha arriba</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Down Arrow</source>
         <translation type="unfinished">Flecha abajo</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left-Right Arrow</source>
         <translation type="unfinished">Flecha izquierda y derecha</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Up-Down Arrow</source>
         <translation type="unfinished">Flecha arriba y abajo</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Quad Arrow</source>
         <translation type="unfinished">Flecha de cuatro puntas</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Bent Arrow</source>
         <translation type="unfinished">Flecha doblada</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>U-Turn Arrow</source>
         <translation type="unfinished">Flecha de cambio de sentido</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Left-Up Arrow</source>
         <translation type="unfinished">Flecha izquierda y arriba</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bent-Up Arrow</source>
         <translation type="unfinished">Flecha doblada hacia arriba</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Right Arrow</source>
         <translation type="unfinished">Flecha curvada hacia la derecha</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Left Arrow</source>
         <translation type="unfinished">Flecha curvada hacia la izquierda</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Arrow</source>
         <translation type="unfinished">Flecha curvada hacia arriba</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Down Arrow</source>
         <translation type="unfinished">Flecha curvada hacia abajo</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Striped Right Arrow</source>
         <translation type="unfinished">Flecha a rayas hacia la derecha</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Notched Right Arrow</source>
         <translation type="unfinished">Flecha con muesca hacia la derecha</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Pentagon Arrow</source>
         <translation type="unfinished">Flecha: pentágono</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chevron</source>
         <translation type="unfinished">Cheurón</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Arrow Callout</source>
         <translation type="unfinished">Llamada de flecha a la derecha</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Arrow Callout</source>
         <translation type="unfinished">Llamada de flecha hacia abajo</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Circular Arrow</source>
         <translation type="unfinished">Flecha circular</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+3"/>
         <source>Plus</source>
         <translation type="unfinished">Más</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+5"/>
-        <location line="+2"/>
-        <location line="+7"/>
-        <location line="+7"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Equation Shapes</source>
         <translation type="unfinished">Formas de ecuación</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-4"/>
         <source>Minus</source>
         <translation type="unfinished">Menos</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Multiply</source>
         <translation type="unfinished">Multiplicar</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Division</source>
         <translation type="unfinished">División</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Equal</source>
         <translation type="unfinished">Igual</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Not Equal</source>
         <translation type="unfinished">No es igual</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+3"/>
         <source>Flowchart: Process</source>
         <translation type="unfinished">Diagrama de flujo: proceso</translation>
     </message>
@@ -11578,34 +11578,34 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+9"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Flowchart</source>
         <translation type="unfinished">Diagrama de flujo</translation>
     </message>
     <message>
-        <location line="-68"/>
+        <location line="-26"/>
         <source>Flowchart: Alternate Process</source>
         <translation type="unfinished">Diagrama de flujo: proceso alternativo</translation>
     </message>
@@ -11625,22 +11625,22 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diagrama de flujo: proceso predefinido</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Internal Storage</source>
         <translation type="unfinished">Diagrama de flujo: almacenamiento interno</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Document</source>
         <translation type="unfinished">Diagrama de flujo: documento</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Multidocument</source>
         <translation type="unfinished">Diagrama de flujo: multidocumento</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Flowchart: Terminator</source>
         <translation type="unfinished">Diagrama de flujo: terminador</translation>
     </message>
@@ -11650,17 +11650,17 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diagrama de flujo: preparación</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Input</source>
         <translation type="unfinished">Diagrama de flujo: entrada manual</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Operation</source>
         <translation type="unfinished">Diagrama de flujo: operación manual</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Connector</source>
         <translation type="unfinished">Diagrama de flujo: conector</translation>
     </message>
@@ -11670,84 +11670,82 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diagrama de flujo: conector fuera de página</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Card</source>
         <translation type="unfinished">Diagrama de flujo: tarjeta</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Punched Tape</source>
         <translation type="unfinished">Diagrama de flujo: cinta perforada</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Summing Junction</source>
         <translation type="unfinished">Diagrama de flujo: unión de suma</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Or</source>
         <translation type="unfinished">Diagrama de flujo: o</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Collate</source>
         <translation type="unfinished">Diagrama de flujo: intercalar</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sort</source>
         <translation type="unfinished">Diagrama de flujo: ordenar</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Extract</source>
         <translation type="unfinished">Diagrama de flujo: extraer</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Merge</source>
         <translation type="unfinished">Diagrama de flujo: combinar</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Stored Data</source>
         <translation type="unfinished">Diagrama de flujo: datos almacenados</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Delay</source>
         <translation type="unfinished">Diagrama de flujo: retraso</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sequential Access Storage</source>
         <translation type="unfinished">Diagrama de flujo: almacenamiento de acceso secuencial</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Magnetic Disk</source>
         <translation type="unfinished">Diagrama de flujo: disco magnético</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Direct Access Storage</source>
         <translation type="unfinished">Diagrama de flujo: almacenamiento de acceso directo</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Display</source>
         <translation type="unfinished">Diagrama de flujo: pantalla</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
         <source>Explosion 1</source>
         <translation type="unfinished">Explosión 1</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+9"/>
-        <location line="+10"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -11758,23 +11756,25 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <location line="+1"/>
         <source>Stars and Banners</source>
         <translation type="unfinished">Cintas y estrellas</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-18"/>
         <source>Explosion 2</source>
         <translation type="unfinished">Explosión 2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+1"/>
         <source>4-Point Star</source>
         <translation type="unfinished">Estrella de 4 puntas</translation>
     </message>
@@ -11829,32 +11829,32 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Cinta hacia arriba</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Ribbon</source>
         <translation type="unfinished">Cinta hacia abajo</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Ribbon</source>
         <translation type="unfinished">Cinta curvada hacia arriba</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Curved Down Ribbon</source>
         <translation type="unfinished">Cinta curvada hacia abajo</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Vertical Scroll</source>
         <translation type="unfinished">Pergamino vertical</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Horizontal Scroll</source>
         <translation type="unfinished">Pergamino horizontal</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Wave</source>
         <translation type="unfinished">Onda</translation>
     </message>
@@ -11874,15 +11874,15 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+8"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Callouts</source>
         <translation type="unfinished">Llamadas</translation>
     </message>
     <message>
-        <location line="-17"/>
+        <location line="-6"/>
         <source>Rounded Rectangular Callout</source>
         <translation type="unfinished">Llamada rectangular redondeada</translation>
     </message>
@@ -11897,33 +11897,33 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Llamada de nube</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Line Callout 1</source>
         <translation type="unfinished">Llamada con línea 1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 2</source>
         <translation type="unfinished">Llamada con línea 2</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 1 (Accent Bar)</source>
         <translation type="unfinished">Llamada con línea 1 (barra de énfasis)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Line Callout 1 (No Border)</source>
         <translation type="unfinished">Llamada con línea 1 (sin borde)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Action Button: Blank</source>
         <translation type="unfinished">Botón de acción: en blanco</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
+        <location line="+1"/>
         <location line="+3"/>
         <location line="+3"/>
         <location line="+3"/>
@@ -75974,8 +75974,8 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="-1"/>
-        <location line="+17"/>
-        <location line="+8"/>
+        <location line="+18"/>
+        <location line="+7"/>
         <source>Edit Points is not offered for this shape: it is drawn in more than one part.</source>
         <translation type="unfinished">Modificar puntos no se ofrece para esta forma: está dibujada en más de una parte.</translation>
     </message>

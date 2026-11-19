@@ -11090,136 +11090,136 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+269"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+260"/>
         <source>Rectangle</source>
         <translation type="unfinished">Прямоугольник</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Rectangles</source>
         <translation type="unfinished">Прямоугольники</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-7"/>
         <source>Rounded Rectangle</source>
         <translation type="unfinished">Прямоугольник со скруглёнными углами</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Snip Single Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник с одним срезанным углом</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Same Side Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник со срезанными углами на одной стороне</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip Diagonal Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник со срезанными диагональными углами</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Snip and Round Single Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник с одним срезанным и скруглённым углом</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Single Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник с одним скруглённым углом</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Same Side Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник со скруглёнными углами на одной стороне</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Round Diagonal Corner Rectangle</source>
         <translation type="unfinished">Прямоугольник со скруглёнными диагональными углами</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+3"/>
         <source>Oval</source>
         <translation type="unfinished">Овал</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+1"/>
-        <location line="+4"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+5"/>
-        <location line="+6"/>
-        <location line="+6"/>
-        <location line="+11"/>
-        <location line="+3"/>
-        <location line="+7"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+6"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+335"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+129"/>
         <source>Basic Shapes</source>
         <translation type="unfinished">Основные фигуры</translation>
     </message>
     <message>
-        <location line="-473"/>
+        <location line="-168"/>
         <source>Isosceles Triangle</source>
         <translation type="unfinished">Равнобедренный треугольник</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Triangle</source>
         <translation type="unfinished">Прямоугольный треугольник</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Parallelogram</source>
         <translation type="unfinished">Параллелограмм</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Trapezoid</source>
         <translation type="unfinished">Трапеция</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Diamond</source>
         <translation type="unfinished">Ромб</translation>
     </message>
@@ -11234,7 +11234,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Шестиугольник</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Heptagon</source>
         <translation type="unfinished">Семиугольник</translation>
     </message>
@@ -11244,7 +11244,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Восьмиугольник</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Decagon</source>
         <translation type="unfinished">Десятиугольник</translation>
     </message>
@@ -11259,324 +11259,324 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Частичный круг</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chord</source>
         <translation type="unfinished">Сегмент</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Teardrop</source>
         <translation type="unfinished">Капля</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Frame</source>
         <translation type="unfinished">Рамка</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Half Frame</source>
         <translation type="unfinished">Половина рамки</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>L-Shape</source>
         <translation type="unfinished">Г-образная фигура</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Diagonal Stripe</source>
         <translation type="unfinished">Диагональная полоса</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Cross</source>
         <translation type="unfinished">Крест</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Plaque</source>
         <translation type="unfinished">Табличка</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Can</source>
         <translation type="unfinished">Цилиндр</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Cube</source>
         <translation type="unfinished">Куб</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bevel</source>
         <translation type="unfinished">Рельеф</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Donut</source>
         <translation type="unfinished">Бублик</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>&quot;No&quot; Symbol</source>
         <translation type="unfinished">Знак «Запрещено»</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Block Arc</source>
         <translation type="unfinished">Блочная дуга</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Folded Corner</source>
         <translation type="unfinished">Загнутый уголок</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Smiley Face</source>
         <translation type="unfinished">Улыбающееся лицо</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Heart</source>
         <translation type="unfinished">Сердце</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Lightning Bolt</source>
         <translation type="unfinished">Молния</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Sun</source>
         <translation type="unfinished">Солнце</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+1"/>
         <source>Moon</source>
         <translation type="unfinished">Полумесяц</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Cloud</source>
         <translation type="unfinished">Облако</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Arc</source>
         <translation type="unfinished">Дуга</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Double Bracket</source>
         <translation type="unfinished">Двойная скобка</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Double Brace</source>
         <translation type="unfinished">Двойная фигурная скобка</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>Left Bracket</source>
         <translation type="unfinished">Левая скобка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Right Bracket</source>
         <translation type="unfinished">Правая скобка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left Brace</source>
         <translation type="unfinished">Левая фигурная скобка</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Brace</source>
         <translation type="unfinished">Правая фигурная скобка</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+3"/>
         <source>Right Arrow</source>
         <translation type="unfinished">Стрелка вправо</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+8"/>
-        <location line="+8"/>
-        <location line="+7"/>
-        <location line="+6"/>
-        <location line="+7"/>
-        <location line="+5"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+240"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+106"/>
         <source>Block Arrows</source>
         <translation type="unfinished">Блочные стрелки</translation>
     </message>
     <message>
-        <location line="-329"/>
+        <location line="-126"/>
         <source>Left Arrow</source>
         <translation type="unfinished">Стрелка влево</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Up Arrow</source>
         <translation type="unfinished">Стрелка вверх</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Down Arrow</source>
         <translation type="unfinished">Стрелка вниз</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Left-Right Arrow</source>
         <translation type="unfinished">Стрелка влево-вправо</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Up-Down Arrow</source>
         <translation type="unfinished">Стрелка вверх-вниз</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Quad Arrow</source>
         <translation type="unfinished">Четырёхсторонняя стрелка</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Bent Arrow</source>
         <translation type="unfinished">Изогнутая стрелка</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+1"/>
         <source>U-Turn Arrow</source>
         <translation type="unfinished">Стрелка разворота</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Left-Up Arrow</source>
         <translation type="unfinished">Стрелка влево-вверх</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Bent-Up Arrow</source>
         <translation type="unfinished">Изогнутая стрелка вверх</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Right Arrow</source>
         <translation type="unfinished">Изогнутая стрелка вправо</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Left Arrow</source>
         <translation type="unfinished">Изогнутая стрелка влево</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Arrow</source>
         <translation type="unfinished">Изогнутая стрелка вверх</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Down Arrow</source>
         <translation type="unfinished">Изогнутая стрелка вниз</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Striped Right Arrow</source>
         <translation type="unfinished">Полосатая стрелка вправо</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Notched Right Arrow</source>
         <translation type="unfinished">Выемчатая стрелка вправо</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Pentagon Arrow</source>
         <translation type="unfinished">Стрелка-пятиугольник</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Chevron</source>
         <translation type="unfinished">Шеврон</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Right Arrow Callout</source>
         <translation type="unfinished">Выноска-стрелка вправо</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Arrow Callout</source>
         <translation type="unfinished">Выноска-стрелка вниз</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Circular Arrow</source>
         <translation type="unfinished">Круговая стрелка</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+3"/>
         <source>Plus</source>
         <translation type="unfinished">Плюс</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+5"/>
-        <location line="+2"/>
-        <location line="+7"/>
-        <location line="+7"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Equation Shapes</source>
         <translation type="unfinished">Фигуры для формул</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-4"/>
         <source>Minus</source>
         <translation type="unfinished">Минус</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Multiply</source>
         <translation type="unfinished">Умножение</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Division</source>
         <translation type="unfinished">Деление</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+1"/>
         <source>Equal</source>
         <translation type="unfinished">Равно</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Not Equal</source>
         <translation type="unfinished">Не равно</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+3"/>
         <source>Flowchart: Process</source>
         <translation type="unfinished">Блок-схема: процесс</translation>
     </message>
@@ -11586,34 +11586,34 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+9"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
         <location line="+1"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
-        <location line="+3"/>
-        <location line="+2"/>
-        <location line="+4"/>
-        <location line="+4"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Flowchart</source>
         <translation type="unfinished">Блок-схема</translation>
     </message>
     <message>
-        <location line="-68"/>
+        <location line="-26"/>
         <source>Flowchart: Alternate Process</source>
         <translation type="unfinished">Блок-схема: альтернативный процесс</translation>
     </message>
@@ -11633,22 +11633,22 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: предопределённый процесс</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Internal Storage</source>
         <translation type="unfinished">Блок-схема: внутреннее запоминающее устройство</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Document</source>
         <translation type="unfinished">Блок-схема: документ</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Multidocument</source>
         <translation type="unfinished">Блок-схема: несколько документов</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Flowchart: Terminator</source>
         <translation type="unfinished">Блок-схема: пуск/остановка</translation>
     </message>
@@ -11658,17 +11658,17 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: подготовка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Input</source>
         <translation type="unfinished">Блок-схема: ручной ввод</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Manual Operation</source>
         <translation type="unfinished">Блок-схема: ручная операция</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Connector</source>
         <translation type="unfinished">Блок-схема: соединитель</translation>
     </message>
@@ -11678,84 +11678,82 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Блок-схема: внемашинный соединитель</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Card</source>
         <translation type="unfinished">Блок-схема: перфокарта</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Punched Tape</source>
         <translation type="unfinished">Блок-схема: перфолента</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Summing Junction</source>
         <translation type="unfinished">Блок-схема: суммирующий узел</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Or</source>
         <translation type="unfinished">Блок-схема: объединение</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Collate</source>
         <translation type="unfinished">Блок-схема: сортировка с объединением</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sort</source>
         <translation type="unfinished">Блок-схема: сортировка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Extract</source>
         <translation type="unfinished">Блок-схема: извлечение</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Merge</source>
         <translation type="unfinished">Блок-схема: слияние</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Stored Data</source>
         <translation type="unfinished">Блок-схема: хранимые данные</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Delay</source>
         <translation type="unfinished">Блок-схема: задержка</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Flowchart: Sequential Access Storage</source>
         <translation type="unfinished">Блок-схема: последовательное запоминающее устройство</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Flowchart: Magnetic Disk</source>
         <translation type="unfinished">Блок-схема: магнитный диск</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Direct Access Storage</source>
         <translation type="unfinished">Блок-схема: запоминающее устройство прямого доступа</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Flowchart: Display</source>
         <translation type="unfinished">Блок-схема: дисплей</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
         <source>Explosion 1</source>
         <translation type="unfinished">Взрыв 1</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+9"/>
-        <location line="+10"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -11766,23 +11764,25 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+4"/>
-        <location line="+4"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
-        <location line="+5"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <location line="+1"/>
         <source>Stars and Banners</source>
         <translation type="unfinished">Звёзды и ленты</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-18"/>
         <source>Explosion 2</source>
         <translation type="unfinished">Взрыв 2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+1"/>
         <source>4-Point Star</source>
         <translation type="unfinished">4-конечная звезда</translation>
     </message>
@@ -11837,32 +11837,32 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Лента вверх</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Down Ribbon</source>
         <translation type="unfinished">Лента вниз</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+1"/>
         <source>Curved Up Ribbon</source>
         <translation type="unfinished">Изогнутая лента вверх</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Curved Down Ribbon</source>
         <translation type="unfinished">Изогнутая лента вниз</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Vertical Scroll</source>
         <translation type="unfinished">Вертикальный свиток</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Horizontal Scroll</source>
         <translation type="unfinished">Горизонтальный свиток</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+1"/>
         <source>Wave</source>
         <translation type="unfinished">Волна</translation>
     </message>
@@ -11882,15 +11882,15 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+8"/>
-        <location line="+2"/>
-        <location line="+2"/>
-        <location line="+3"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Callouts</source>
         <translation type="unfinished">Выноски</translation>
     </message>
     <message>
-        <location line="-17"/>
+        <location line="-6"/>
         <source>Rounded Rectangular Callout</source>
         <translation type="unfinished">Выноска с закруглёнными углами</translation>
     </message>
@@ -11905,33 +11905,33 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Выноска-облако</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+1"/>
         <source>Line Callout 1</source>
         <translation type="unfinished">Линейная выноска 1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 2</source>
         <translation type="unfinished">Линейная выноска 2</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Line Callout 1 (Accent Bar)</source>
         <translation type="unfinished">Линейная выноска 1 (с акцентной полосой)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+1"/>
         <source>Line Callout 1 (No Border)</source>
         <translation type="unfinished">Линейная выноска 1 (без границы)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Action Button: Blank</source>
         <translation type="unfinished">Управляющая кнопка: пустая</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+2"/>
+        <location line="+1"/>
         <location line="+3"/>
         <location line="+3"/>
         <location line="+3"/>
@@ -76028,8 +76028,8 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="-1"/>
-        <location line="+17"/>
-        <location line="+8"/>
+        <location line="+18"/>
+        <location line="+7"/>
         <source>Edit Points is not offered for this shape: it is drawn in more than one part.</source>
         <translation type="unfinished">Изменить узлы недоступно для этой фигуры: она нарисована из нескольких частей.</translation>
     </message>
