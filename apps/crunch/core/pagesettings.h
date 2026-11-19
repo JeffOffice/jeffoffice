@@ -4,7 +4,6 @@
 // what to put in the file; the file is changed only where it differs from this.
 
 #include "sheet/calculation.h"
-#include "sheet/pagefollow.h"
 #include "sheet/pagesetup.h"
 #include "sheet/xlsxsave.h"
 

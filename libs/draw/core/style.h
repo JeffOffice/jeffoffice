@@ -3,7 +3,6 @@
 
 #include "core/color.h"
 #include "core/fill.h"
-#include "core/stylefwd.h"
 
 #include <QBrush>
 #include <QJsonObject>

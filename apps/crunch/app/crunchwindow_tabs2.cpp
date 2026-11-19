@@ -1,5 +1,8 @@
 // Tools of the Review, Data, and Formulas tabs that are not part of an older group: Workbook Statistics, Goal Seek, Subtotal, and Advanced Filter.
 #include "app/crunchwindow.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 #include "app/spellingdialog.h"
 #include "app/translate.h"
 #include "core/richadjust.h"

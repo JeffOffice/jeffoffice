@@ -1,5 +1,6 @@
 // The file's properties: the parts of docProps, kept as the file has them, with the person's edits put in.
 #include "core/writedoc.h"
+#include "office/packageprops.h"
 
 #include <QTextBlock>
 #include <functional>

@@ -1,4 +1,5 @@
 #include "tst_crunch_edit.h"
+#include "grid/pagelayoutview.h"
 #include "app/minitoolbar.h"
 #include "app/settings.h"
 #include "core/collation.h"

@@ -13,7 +13,6 @@
 #include "core/tablemodel.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
-#include "office/packageprops.h"
 #include "wml/wml.h"
 
 #include <QHash>

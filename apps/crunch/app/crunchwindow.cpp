@@ -1,4 +1,7 @@
 #include "app/commandsearch.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/crunchwindow.h"

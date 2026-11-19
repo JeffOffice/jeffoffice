@@ -1,6 +1,7 @@
 // Links to other workbooks, for Inspect Workbook: a formula that reads another workbook (`[1]Prices!A1`) is changed to the value it shows, a name that stands for such a place is #REF!, and
 // the saver is told to leave the link parts out (libs/office/sheet/xlsxsave.h, dropExternalLinks).
 #include "core/editsession.h"
+#include "sheet/externalbooks.h"
 #include "core/gotospecial.h"
 #include "office/package.h"
 #include "sheet/cellref.h"

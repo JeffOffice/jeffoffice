@@ -1,6 +1,9 @@
 // Opening a workbook in JeffCrunch's window: the first rows at once, the sheets, and the calculation done in slices.
 
 #include "app/crunchwindow.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 #include "app/functionargumentsdialog.h"
 
 #include "io/crypto.h"

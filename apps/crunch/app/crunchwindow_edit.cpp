@@ -2,6 +2,9 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 #include "app/keymap.h"
 
 #include "core/autocomplete.h"

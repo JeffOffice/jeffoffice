@@ -1,4 +1,7 @@
 #include "app/crunchwindow.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 #include "app/icons.h"
 #include "app/minitoolbar.h"
 #include "app/settings.h"

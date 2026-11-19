@@ -1,6 +1,9 @@
 // Sort on the window: Sort A–Z and Z–A, Sort… and its dialog, and the work behind them. The keys are read from the cells a slice at a time on the window's thread, the order is
 // worked out on a thread of its own from the keys alone (and can be given up with Esc), and the cells are put in order as one step on the window's thread.
 #include "app/crunchwindow.h"
+#include "core/invalidcells.h"
+#include "app/sortdialog.h"
+#include "grid/pagelayoutview.h"
 
 #include "app/crunchinfo.h"
 #include "sheet/cellref.h"

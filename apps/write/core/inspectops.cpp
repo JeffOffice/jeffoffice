@@ -1,3 +1,4 @@
+#include "office/packageprops.h"
 #include "core/inspectops.h"
 
 #include "core/fieldops.h"

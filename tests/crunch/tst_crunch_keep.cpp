@@ -4,6 +4,7 @@
 #include "findbooks.h"
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
+#include "sheet/externalbooks.h"
 #include "app/editlinksdialog.h"
 #include "app/infopage.h"
 #include "app/otherformats.h"

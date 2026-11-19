@@ -8,7 +8,6 @@
 #include "grid/gridsheet.h"
 #include "grid/valuestore.h"
 #include "sheet/calculation.h"
-#include "sheet/externalbooks.h"
 #include "sheet/notes.h"
 #include "sheet/sheetreader.h"
 

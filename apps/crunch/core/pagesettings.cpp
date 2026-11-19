@@ -1,4 +1,5 @@
 #include "core/pagesettings.h"
+#include "sheet/pagefollow.h"
 
 #include <algorithm>
 

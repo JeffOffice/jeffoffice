@@ -1,5 +1,6 @@
 #include "sheet/chartops.h"
 #include "sheet/chartembed.h"
+#include "sheet/chartmake.h"
 
 #include "office/chart_write.h"
 

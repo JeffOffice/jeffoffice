@@ -1,4 +1,5 @@
 #include "core/loader.h"
+#include "sheet/externalbooks.h"
 #include "sheet/drawing.h"
 #include "sheet/xlsxbase.h"
 #include "io/crypto.h"

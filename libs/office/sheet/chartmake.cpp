@@ -1,4 +1,5 @@
 #include "sheet/chartmake.h"
+#include "office/chart_write.h"
 
 #include <QCoreApplication>
 #include <QRegularExpression>
