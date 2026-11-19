@@ -1061,6 +1061,13 @@ TableLayout::Piece TableLayout::pieceOf(int r, int index, const QVector<double> 
             if (!ls.empty()) lines = std::max(lines, ls.back().bottom - offs[i] + c.margins.top() + c.margins.bottom() + pad);
         }
         piece.height = lines <= text + 0.01 ? std::min(need, text) : need;
+        // A row of cells of one line each has no line to cut it at: its space after the last line is not let go at a page's foot, the row goes to the next page whole.
+        if (k == 0 && !force && lines <= text + 0.01 && need > text + 0.01) {
+            bool oneLine = true;
+            for (int i = 0; i < n && oneLine; ++i)
+                if (runs[size_t(i)].lines && int(runs[size_t(i)].lines->size()) - runs[size_t(i)].a > 1) oneLine = false;
+            if (oneLine) piece.progress = false;
+        }
         // The last part of a row that was set to a height is that tall as well (the page it is on has room for it, or it is as tall as the room). This rests on one practice
         // document, W066, whose row cut by a page break has its last part as tall as the row was set to be.
         if (k > 0 && row.data->height > 0 && !row.data->exact) piece.height = std::max(piece.height, std::min(row.least, text));

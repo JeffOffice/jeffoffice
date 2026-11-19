@@ -232,6 +232,50 @@ void FlowTests::aTableIsNotShiftedByItsPlaceholderUnderProcessorLineHeights()
 }
 
 
+// A row whose cells are each one line, which has the room for the lines but not for the space after the last paragraph in them (and the cell's margins), is not set on
+// that page with its foot cut off: a line is not cut from its own space after, so the row goes to the next page whole.
+void FlowTests::aRowOfOneLineCellsGoesWholeWhereItsSpaceAfterDoesNotFit()
+{
+    constexpr double kAfter = 10;
+    constexpr int kRowsThatFit = 5;
+    auto build = [&](double bodyHeight) {
+        auto fd = std::make_unique<FlowDocument>();
+        fd->env.wordLines = true;
+        fd->sections[0].paper = QSizeF(300, bodyHeight + 80);
+        fd->sections[0].margins = QMarginsF(40, 40, 40, 40);
+        TestTable spec;
+        spec.rows = 12;
+        spec.cols = 2;
+        spec.columnWidth = 100;
+        addTable(*fd, spec);
+        QTextCursor c(fd->story());
+        for (QTextBlock b = fd->story()->begin(); b.isValid(); b = b.next()) {
+            if (!b.blockFormat().intProperty(fp::Cell)) continue;
+            c.setPosition(b.position());
+            QTextBlockFormat bf;
+            bf.setBottomMargin(kAfter);
+            bf.setLineHeight(100, QTextBlockFormat::ProportionalHeight);
+            c.mergeBlockFormat(bf);
+        }
+        return fd;
+    };
+    // One tall page gives a row's height (its line, margins, and space after).
+    auto roomy = build(2000);
+    Paginator tall(roomy.get());
+    const auto all = rowLines(tall, *roomy, 0);
+    QCOMPARE(all.size(), 12);
+    // (A paragraph is before the table: the body's height counts from the top of the page.)
+    const double whole = all[kRowsThatFit - 1].rect.bottom();
+    QVERIFY(whole > all[0].rect.top() + kAfter);
+    // A page with room for five rows' lines and the space after the first four, but not the fifth's: four rows are on it.
+    auto fd = build(whole - kAfter / 2);
+    Paginator pg(fd.get());
+    QVERIFY(pg.pageCount() >= 3);
+    QCOMPARE(rowLines(pg, *fd, 0).size(), kRowsThatFit - 1);
+    QCOMPARE(rowLines(pg, *fd, 1).first().pos, all[kRowsThatFit - 1].pos);
+}
+
+
 // A footer with the page's number and the document's page count, on every page of a document whose table spans pages, shows them right, and the pages made after an
 // edit that adds rows show the new count.
 void FlowTests::pageFieldsInAFooterKeepRightForATableThatSpansPages()
