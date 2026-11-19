@@ -281,7 +281,12 @@ jobs:
         shell: bash
         run: |
           part=${{ matrix.part }}
-          git clean -ffdxq -e build -e 'build-keep-*'
+          # (a run that was cancelled can leave its test programs running on Windows; one held a results file open and the sweep below failed, and one
+          # would keep the next build from writing its program: November 19, 2026)
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { \$_.Path -like '$(cygpath -w "$PWD")\*' } | ForEach-Object { 'stopping a program an earlier run left: ' + \$_.ProcessName; Stop-Process -Id \$_.Id -Force }" || true
+          fi
+          git clean -ffdxq -e build -e 'build-keep-*' || echo "some files of an earlier run could not be swept away"
           if [ -d build ]; then
             was=$(cat build/.jo-part 2>/dev/null || echo unknown)
             if [ "$was" = unknown ]; then rm -rf build
