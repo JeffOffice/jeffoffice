@@ -104,26 +104,6 @@ private Q_SLOTS:
         g_engine->end();
         QCOMPARE(g_engine->said.last(), QStringLiteral("12"));
     }
-    // A .csv names no fonts: its cells are in the program's own font, so even on a computer that has none of the fonts the bar stays away (the snap of 0.43.0 showed it for the
-    // default font). The same check on a workbook that names its fonts shows the bar, so the check itself is working.
-    void aTextFileShowsNoMissingFontsBarEvenWhenNoFontIsInstalled()
-    {
-        const jp::FontInstalled none = [](const QString &) { return false; };
-        EditWindow csv;
-        QVERIFY(csv.open("Alpha,12\nBeta,=A1\n", QStringLiteral("data.csv")));
-        QVERIFY(!csv.win.w.session()->fontsInUse().isEmpty());   // (the cells do have a font: the program's own)
-        jp::checkMissingFonts(&csv.win.w, csv.win.w.missingFontsHost(), none);
-        auto *dock = csv.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
-        QVERIFY(!dock || !dock->isVisible());
-        QVERIFY(csv.win.w.missingFontsHost().usage().isEmpty());
-
-        EditWindow book;
-        QVERIFY(book.open(speechBook()));
-        jp::checkMissingFonts(&book.win.w, book.win.w.missingFontsHost(), none);
-        auto *shown = book.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
-        QVERIFY(shown);
-        QTRY_VERIFY(shown->isVisible());
-    }
     void aWorkbookWithAFontThisComputerLacksShowsTheBarAndReplaceChangesItInOneStep()
     {
         EditWindow e;
@@ -237,6 +217,28 @@ private Q_SLOTS:
         QVERIFY(e.openBlank());
         auto *dock = e.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
         QVERIFY(!dock || !dock->isVisible());
+    }
+
+    // A .csv names no fonts: its cells are in the program's own font, so even on a computer that has none of the fonts the bar stays away (the snap of 0.43.0 showed it for the
+    // default font). The same check on a workbook that names its fonts shows the bar, so the check itself is working. (Last in the class: on Windows the
+    // other tests' stand-in is the first font the system lists, and that list changes once a .csv has been read.)
+    void aTextFileShowsNoMissingFontsBarEvenWhenNoFontIsInstalled()
+    {
+        const jp::FontInstalled none = [](const QString &) { return false; };
+        EditWindow csv;
+        QVERIFY(csv.open("Alpha,12\nBeta,=A1\n", QStringLiteral("data.csv")));
+        QVERIFY(!csv.win.w.session()->fontsInUse().isEmpty());   // (the cells do have a font: the program's own)
+        jp::checkMissingFonts(&csv.win.w, csv.win.w.missingFontsHost(), none);
+        auto *dock = csv.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(!dock || !dock->isVisible());
+        QVERIFY(csv.win.w.missingFontsHost().usage().isEmpty());
+
+        EditWindow book;
+        QVERIFY(book.open(speechBook()));
+        jp::checkMissingFonts(&book.win.w, book.win.w.missingFontsHost(), none);
+        auto *shown = book.win.w.findChild<QDockWidget *>(QStringLiteral("missingFontsDock"));
+        QVERIFY(shown);
+        QTRY_VERIFY(shown->isVisible());
     }
 };
 
