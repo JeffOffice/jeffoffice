@@ -76,6 +76,8 @@ SpellCheck::SpellCheck(QTextDocument *story, QObject *parent) : QObject(parent),
     m_idle.setSingleShot(true);
     m_idle.setInterval(0);
     connect(&m_idle, &QTimer::timeout, this, &SpellCheck::idle);
+    // (Words another app added or excluded: the pages are drawn again, and the paragraphs are checked as the words now stand.)
+    connect(Speller::get().watch(), &SpellingWatch::changed, this, &SpellCheck::refresh);
 }
 
 void SpellCheck::setEnabled(bool on)

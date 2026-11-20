@@ -3203,12 +3203,13 @@ void WriteTests::theUserDictionaryIsReadAndWrittenSafely()
     // A file that doesn't end with a newline: the next word begins a line of its own.
     put("alpha\nbeta");
     QString error;
-    QVERIFY(addToUserDictionary(path, QStringLiteral("gamma"), &error));
+    Speller speller(path);
+    QVERIFY(speller.add(QStringLiteral("gamma"), &error));
     QCOMPARE(get(), QByteArray("alpha\nbeta\ngamma\n"));
     QCOMPARE(userDictionaryWords(path), (QStringList{"alpha", "beta", "gamma"}));
     // A word that is empty or has a line in it is not written, so that no two words are made of one.
-    QVERIFY(!addToUserDictionary(path, QStringLiteral("  "), &error));
-    QVERIFY(!addToUserDictionary(path, QStringLiteral("two\nwords"), &error));
+    QVERIFY(!speller.add(QStringLiteral("  "), &error));
+    QVERIFY(!speller.add(QStringLiteral("two\nwords"), &error));
     QCOMPARE(get(), QByteArray("alpha\nbeta\ngamma\n"));
     // A byte order mark, Windows line ends, blanks, and spaces around a word.
     put("\xEF\xBB\xBF" "one\r\n\r\n  two \r\nthree");
@@ -3220,13 +3221,15 @@ void WriteTests::theUserDictionaryIsReadAndWrittenSafely()
     const int words = int(userDictionaryWords(path).size());
     QVERIFY2(words > 10000 && words < 400000, qPrintable(QString::number(words)));
     // A file that can't be written is said, with the reason.
-    QVERIFY(!addToUserDictionary(dir.filePath(QStringLiteral("none/custom.dic")), QStringLiteral("x"), &error));
+    Speller nowhere(dir.filePath(QStringLiteral("none/custom.dic")));
+    error.clear();
+    QVERIFY(!nowhere.add(QStringLiteral("x"), &error));
     QVERIFY(!error.isEmpty());
     QVERIFY(userDictionaryWords(dir.filePath(QStringLiteral("none/custom.dic"))).isEmpty());
 }
 
 
-void WriteTests::addingAWordThatCantBeSavedStillCountsAndIsSaidOnce()
+void WriteTests::addingAWordThatCantBeSavedDoesNotCountAndIsSaidOnce()
 {
     QTemporaryDir dir;
     struct Restore {
@@ -3239,7 +3242,7 @@ void WriteTests::addingAWordThatCantBeSavedStillCountsAndIsSaidOnce()
     QVERIFY(!first.isEmpty());
     QVERIFY(!spellingAdd(QStringLiteral("qzxfailtwo"), &second));
     QVERIFY(second.isEmpty());   // (said once)
-    QVERIFY(Speller::get().check(QStringLiteral("en-US"), QStringLiteral("qzxfailone")));   // (the word is accepted for the session all the same)
+    QVERIFY(!Speller::get().check(QStringLiteral("en-US"), QStringLiteral("qzxfailone")));   // (a word that was not saved is not accepted: what is kept is what the file holds)
     // When a save works the next failure is news again.
     Speller::setUserDictionaryPath(dir.filePath(QStringLiteral("custom.dic")));
     QVERIFY(spellingAdd(QStringLiteral("qzxsaved")));

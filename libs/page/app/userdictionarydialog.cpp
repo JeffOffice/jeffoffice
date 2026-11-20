@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QDialog>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -33,6 +34,8 @@ UserDictionaryPage::UserDictionaryPage(QWidget *parent) : QWidget(parent)
     m_words[0] = QSet<QString>(added.begin(), added.end());
     const QStringList excluded = speller.excludedWords();
     m_words[1] = QSet<QString>(excluded.begin(), excluded.end());
+    m_opened[0] = m_words[0];
+    m_opened[1] = m_words[1];
     auto *v = new QVBoxLayout(this);
     v->setContentsMargins(0, 0, 0, 0);
     m_tabWidget = new QTabWidget(this);
@@ -58,7 +61,7 @@ UserDictionaryPage::Tab UserDictionaryPage::makeTab(bool excluded)
     t.page = new QWidget(m_tabWidget);
     t.page->setObjectName(excluded ? QStringLiteral("excludedWordsTab") : QStringLiteral("addedWordsTab"));
     auto *v = new QVBoxLayout(t.page);
-    auto *note = plainLabel(new QLabel(excluded ? QCoreApplication::translate("UserDictionary", "Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested.")
+    auto *note = plainLabel(new QLabel(excluded ? QCoreApplication::translate("UserDictionary", "Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (\"house\" does not exclude \"houses\"). Adding a word to the dictionary takes it off this list.")
                                                 : QCoreApplication::translate("UserDictionary", "Words you added: the spelling check accepts them in every language.")));
     note->setWordWrap(true);
     v->addWidget(note);
@@ -126,14 +129,14 @@ bool UserDictionaryPage::addWord(bool excluded, const QString &raw)
     if (!userWordIsFit(word)) return false;
     const int which = excluded ? 1 : 0;
     if (excluded) {
-        const QString lower = word.toLower();
-        m_words[1].insert(lower);
+        const QString key = Speller::wordKey(word);
+        m_words[1].insert(key);
         for (const QString &w : m_words[0].values())
-            if (w.toLower() == lower) m_words[0].remove(w);
+            if (Speller::wordKey(w) == key) m_words[0].remove(w);
         fill(0);
     } else {
         m_words[0].insert(word);
-        m_words[1].remove(word.toLower());
+        m_words[1].remove(Speller::wordKey(word));
         fill(1);
     }
     fill(which);
@@ -145,7 +148,7 @@ void UserDictionaryPage::addTyped(int which)
     const QString word = m_tabs[which].edit->text();
     if (word.trimmed().isEmpty()) return;
     if (!addWord(which == 1, word)) {
-        m_status->setText(QCoreApplication::translate("UserDictionary", "A word can't have a space or a control character in it, or be longer than 100 letters."));
+        m_status->setText(QCoreApplication::translate("UserDictionary", "A word can't have a space or a control character in it, or be longer than %n letters.", nullptr, kMaxWordLength));
         return;
     }
     m_status->clear();
@@ -161,7 +164,11 @@ void UserDictionaryPage::removeSelected(int which)
 QString UserDictionaryPage::importFile(bool excluded, const QString &path)
 {
     QString error;
-    const WordList list = readWordListFile(path, &error);
+    // (A device or a pipe is not read: it may never end, and it is not a list.)
+    const QFileInfo info(path);
+    WordList list;
+    if (info.exists() && !info.isFile()) error = QCoreApplication::translate("UserDictionary", "It is not a regular file.");
+    else list = readWordListFile(path, &error);
     if (!error.isEmpty()) {
         m_status->setText(QCoreApplication::translate("UserDictionary", "The file can't be read: %1").arg(error));
         return m_status->text();
@@ -170,21 +177,21 @@ QString UserDictionaryPage::importFile(bool excluded, const QString &path)
     // (Each word goes in with a set's insert, and the lists are drawn once at the end: a long file takes as long as it is long.)
     QSet<QString> lower;
     if (excluded) {
-        for (const QString &w : list.words) m_words[1].insert(w.toLower());
-        for (const QString &w : list.words) lower.insert(w.toLower());
+        for (const QString &w : list.words) m_words[1].insert(Speller::wordKey(w));
+        for (const QString &w : list.words) lower.insert(Speller::wordKey(w));
         for (const QString &w : m_words[0].values())
-            if (lower.contains(w.toLower())) m_words[0].remove(w);
+            if (lower.contains(Speller::wordKey(w))) m_words[0].remove(w);
     } else {
         for (const QString &w : list.words) {
             m_words[0].insert(w);
-            lower.insert(w.toLower());
+            lower.insert(Speller::wordKey(w));
         }
         for (const QString &w : lower) m_words[1].remove(w);
     }
     fill(0);
     fill(1);
     QString text = QCoreApplication::translate("UserDictionary", "Words read from the file: %1.").arg(list.words.size());
-    if (list.skipped > 0) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "Lines left out: %1. A word can't have a space or a control character in it, or be longer than 100 letters.").arg(list.skipped);
+    if (list.skipped > 0) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "Lines left out: %1. A word can't have a space or a control character in it, or be longer than %n letters.", nullptr, kMaxWordLength).arg(list.skipped);
     if (list.truncated) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "The file is longer than a word list can be, so the rest was left out.");
     m_status->setText(text);
     return text;
@@ -211,9 +218,19 @@ void UserDictionaryPage::chooseExport(int which)
     else m_status->setText(QCoreApplication::translate("UserDictionary", "The file can't be written: %1").arg(error));
 }
 
+// What the person changed since the dialog opened, as changes to what the files hold now (a word that another app added meanwhile stays).
 bool UserDictionaryPage::apply(QString *error)
 {
-    return Speller::get().setWordLists(addedWords(), excludedWords(), error);
+    Speller::WordChanges changes;
+    for (const QString &w : sorted(m_words[0]))
+        if (!m_opened[0].contains(w)) changes.addCustom << w;
+    for (const QString &w : sorted(m_opened[0]))
+        if (!m_words[0].contains(w)) changes.removeCustom << w;
+    for (const QString &w : sorted(m_words[1]))
+        if (!m_opened[1].contains(w)) changes.addExcluded << w;
+    for (const QString &w : sorted(m_opened[1]))
+        if (!m_words[1].contains(w)) changes.removeExcluded << w;
+    return Speller::get().change(changes, error);
 }
 
 bool userDictionaryDialog(QWidget *parent)

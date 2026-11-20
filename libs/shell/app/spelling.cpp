@@ -7,6 +7,10 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
+#include <QFileSystemWatcher>
+#include <QLockFile>
+#include <QTimer>
 #include <QMessageBox>
 #include <QRegularExpression>
 #include <QSaveFile>
@@ -61,9 +65,13 @@ bool Speller::check(const QString &code, const QString &w) { return check(code, 
 bool Speller::check(const QString &code, const QString &w, const Rules &r)
 {
     if (w.isEmpty()) return true;
-    if (!m_excluded.isEmpty() && m_excluded.contains(w.toLower())) return false;   // (the person's own say beats every list that accepts)
+    if (!m_ignore.isEmpty() || !m_excluded.isEmpty()) {
+        const QString key = wordKey(w);
+        if (m_ignore.contains(key)) return true;                         // (Ignore All, for this session, beats the exclusion)
+        if (m_excluded.contains(key)) return false;                      // (the person's own say beats every list that accepts)
+    }
     if (isOwnName(w)) return true;
-    if (m_ignore.contains(w.toLower()) || m_custom.contains(w) || m_custom.contains(w.toLower())) return true;
+    if (m_custom.contains(w) || m_custom.contains(w.toLower())) return true;
     if (r.ignoreUpper && w == w.toUpper() && w.size() > 1) return true;
     if (r.ignoreNumbers && std::any_of(w.cbegin(), w.cend(), [](QChar c) { return c.isDigit(); })) return true;
     return dict::spell(code, w);
@@ -73,98 +81,26 @@ QStringList Speller::suggest(const QString &code, const QString &w)
 {
     QStringList found = dict::suggest(code, w);
     if (!m_excluded.isEmpty())
-        found.erase(std::remove_if(found.begin(), found.end(), [this](const QString &s) { return m_excluded.contains(s.toLower()); }), found.end());
+        found.erase(std::remove_if(found.begin(), found.end(), [this](const QString &s) { return m_excluded.contains(wordKey(s)); }), found.end());
     return found;
 }
 
 void Speller::ignore(const QString &w)
 {
-    m_ignore.insert(w.toLower());
+    m_ignore.insert(wordKey(w));
     ++m_revision;
 }
 
 namespace {
 
-constexpr qint64 kMaxUserDictionaryBytes = 1 << 20;   // as much of the file as is read
-constexpr int kMaxUserWordLength = 100;
-QString s_userDictionaryPath;                          // a test's own file
+QString s_userDictionaryPath;   // a test's own file
 
-} // namespace
-
-QStringList userDictionaryWords(const QString &path)
+QString defaultDictionaryFolder()
 {
-    QStringList words;
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) return words;
-    QByteArray bytes = f.read(kMaxUserDictionaryBytes);
-    // (A file longer than the limit is cut in the middle of a word: that word goes.)
-    if (f.read(1).size() > 0) {
-        const qsizetype end = bytes.lastIndexOf('\n');
-        bytes.truncate(end < 0 ? 0 : end);
-    }
-    QString text = QString::fromUtf8(bytes);
-    if (text.startsWith(QChar(0xFEFF))) text.remove(0, 1);
-    for (const QString &line : text.split(QLatin1Char('\n'))) {
-        const QString w = line.trimmed();
-        if (!w.isEmpty() && w.size() <= kMaxUserWordLength) words << w;
-    }
-    return words;
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return dir;
 }
-
-bool addToUserDictionary(const QString &path, const QString &word, QString *error)
-{
-    const QString w = word.trimmed();
-    if (w.isEmpty() || w.contains(QLatin1Char('\n')) || w.contains(QLatin1Char('\r'))) {
-        if (error) *error = QCoreApplication::translate("Proofing", "A word to add can't be empty or run over more than one line.");
-        return false;
-    }
-    QFile f(path);
-    if (!f.open(QIODevice::ReadWrite)) {
-        if (error) *error = f.errorString();
-        return false;
-    }
-    // On a line of its own: the file may not end with a line end.
-    QByteArray line = w.toUtf8() + '\n';
-    if (f.size() > 0 && f.seek(f.size() - 1)) {
-        char last = 0;
-        if (f.read(&last, 1) == 1 && last != '\n') line.prepend('\n');
-    }
-    if (!f.seek(f.size()) || f.write(line) != line.size() || !f.flush()) {
-        if (error) *error = f.errorString();
-        return false;
-    }
-    return true;
-}
-
-bool Speller::add(const QString &w, QString *error)
-{
-    m_custom.insert(w);
-    ++m_revision;
-    QString reason;
-    // (A word added is no longer one the person wants flagged.)
-    if (m_excluded.remove(w.toLower())) {
-        QStringList rest = m_excluded.values();
-        rest.sort();
-        writeWordListFile(excludedDict(), rest, nullptr);
-    }
-    if (addToUserDictionary(userDict(), w, &reason)) {
-        m_saveFailed = false;
-        return true;
-    }
-    if (error && !m_saveFailed) *error = reason.isEmpty() ? QCoreApplication::translate("Proofing", "The word couldn't be saved.") : reason;
-    m_saveFailed = true;
-    return false;
-}
-
-void Speller::setUserDictionaryPath(const QString &path) { s_userDictionaryPath = path; }
-
-Speller::Speller()
-{
-    for (const QString &w : userDictionaryWords(userDict())) m_custom.insert(w);
-    for (const QString &w : readWordListFile(excludedDict()).words) m_excluded.insert(w.toLower());
-}
-
-namespace {
 
 // Whether a line is fit to be a word of a list: not empty, not long, no space or control character in it (nor a stray byte of a text that was not UTF-8).
 bool fitWord(const QString &w)
@@ -175,24 +111,12 @@ bool fitWord(const QString &w)
     return true;
 }
 
-// Each fit word once, as far as a file of kMaxWordListBytes holds them.
-QStringList boundedWords(const QStringList &in, bool *truncated)
+// The bytes a list takes in its file.
+qint64 listBytes(const QStringList &words)
 {
-    QStringList out;
-    QSet<QString> seen;
-    qint64 used = 0;
-    for (const QString &raw : in) {
-        const QString w = raw.trimmed();
-        if (!fitWord(w) || seen.contains(w)) continue;
-        used += w.toUtf8().size() + 1;
-        if (used > kMaxWordListBytes) {
-            if (truncated) *truncated = true;
-            break;
-        }
-        seen.insert(w);
-        out << w;
-    }
-    return out;
+    qint64 n = 0;
+    for (const QString &w : words) n += w.toUtf8().size() + 1;
+    return n;
 }
 
 } // namespace
@@ -206,7 +130,7 @@ WordList parseWordList(const QByteArray &input)
     if (bytes.size() > kMaxWordListBytes) {
         bytes.truncate(kMaxWordListBytes);
         // (Cut in the middle of a word: that word goes.)
-        const qsizetype end = bytes.lastIndexOf('\n');
+        const qsizetype end = std::max(bytes.lastIndexOf('\n'), bytes.lastIndexOf('\r'));
         bytes.truncate(end < 0 ? 0 : end);
         list.truncated = true;
     }
@@ -215,13 +139,17 @@ WordList parseWordList(const QByteArray &input)
     qint64 used = 0;
     qsizetype at = 0;
     while (at < bytes.size()) {
-        qsizetype end = bytes.indexOf('\n', at);
-        if (end < 0) end = bytes.size();
-        const QString w = QString::fromUtf8(bytes.constData() + at, end - at).trimmed();
+        // (A line ends with a line feed, a carriage return, or both: the old Macintosh files have only the second.)
+        qsizetype end = at;
+        while (end < bytes.size() && bytes[end] != '\n' && bytes[end] != '\r') ++end;
+        const QByteArray raw = bytes.mid(at, end - at);
         at = end + 1;
+        if (end + 1 < bytes.size() && bytes[end] == '\r' && bytes[end + 1] == '\n') ++at;
+        const QString w = QString::fromUtf8(raw).trimmed();
         if (w.isEmpty()) continue;
-        if (!fitWord(w)) {
+        if (!fitWord(w) || QString::fromUtf8(raw).contains(QChar(0xFFFD))) {
             ++list.skipped;
+            list.rejected << raw;
             continue;
         }
         if (seen.contains(w)) continue;
@@ -246,21 +174,29 @@ WordList readWordListFile(const QString &path, QString *error)
     return parseWordList(f.read(kMaxWordListBytes + 1));
 }
 
-bool writeWordListFile(const QString &path, const QStringList &words, QString *error)
+bool writeWordListFile(const QString &path, const QStringList &words, QString *error, const QList<QByteArray> &rejected)
 {
+    // (A file that is read-only is the person's choice: the file is put in place by a rename, which would get round it.)
+    const QFileInfo info(path);
+    if (info.exists() && !info.isWritable()) {
+        if (error) *error = QCoreApplication::translate("Proofing", "The file is read-only.");
+        return false;
+    }
     QSaveFile f(path);
     if (!f.open(QIODevice::WriteOnly)) {
         if (error) *error = f.errorString();
         return false;
     }
-    for (const QString &w : words) {
-        const QByteArray line = w.toUtf8() + '\n';
-        if (f.write(line) != line.size()) {
-            if (error) *error = f.errorString();
-            f.cancelWriting();
-            return false;
-        }
-    }
+    auto put = [&](const QByteArray &line) {
+        if (f.write(line) == line.size()) return true;
+        if (error) *error = f.errorString();
+        f.cancelWriting();
+        return false;
+    };
+    for (const QString &w : words)
+        if (!put(w.toUtf8() + '\n')) return false;
+    for (const QByteArray &line : rejected)
+        if (!put(line + '\n')) return false;
     if (!f.commit()) {
         if (error) *error = f.errorString();
         return false;
@@ -268,14 +204,93 @@ bool writeWordListFile(const QString &path, const QStringList &words, QString *e
     return true;
 }
 
-QStringList Speller::customWords(bool reload)
+QStringList userDictionaryWords(const QString &path) { return readWordListFile(path).words; }
+
+QString Speller::wordKey(const QString &w)
 {
-    if (reload) {
-        m_custom.clear();
-        for (const QString &w : userDictionaryWords(userDict())) m_custom.insert(w);
-        m_excluded.clear();
-        for (const QString &w : readWordListFile(excludedDict()).words) m_excluded.insert(w.toLower());
+    QString key = w.toLower();
+    key.replace(QChar(0x2019), QLatin1Char('\''));
+    return key;
+}
+
+Speller::Speller() { reload(); }
+
+Speller::Speller(const QString &customPath) : m_fixedPath(customPath) { reload(); }
+
+Speller::~Speller() { delete m_watch; }
+
+QString Speller::customPath() const
+{
+    if (!m_fixedPath.isEmpty()) return m_fixedPath;
+    if (!s_userDictionaryPath.isEmpty()) return s_userDictionaryPath;
+    return defaultDictionaryFolder() + QStringLiteral("/custom.dic");
+}
+
+QString Speller::excludedPath() const
+{
+    if (!m_fixedPath.isEmpty() || !s_userDictionaryPath.isEmpty()) return customPath() + QStringLiteral(".excluded");
+    return defaultDictionaryFolder() + QStringLiteral("/excluded.dic");
+}
+
+void Speller::setUserDictionaryPath(const QString &path)
+{
+    s_userDictionaryPath = path;
+    Speller &s = get();
+    s.reload();
+    if (s.m_watch) s.m_watch->watchFiles({s.customPath(), s.excludedPath()});
+}
+
+bool Speller::reload()
+{
+    QSet<QString> custom, excluded;
+    for (const QString &w : readWordListFile(customPath()).words) custom.insert(w);
+    for (const QString &w : readWordListFile(excludedPath()).words) excluded.insert(wordKey(w));
+    if (custom == m_custom && excluded == m_excluded) return false;
+    m_custom = custom;
+    m_excluded = excluded;
+    ++m_revision;
+    if (m_watch) Q_EMIT m_watch->changed();
+    return true;
+}
+
+SpellingWatch *Speller::watch()
+{
+    if (!m_watch) {
+        m_watch = new SpellingWatch(this);
+        m_watch->watchFiles({customPath(), excludedPath()});
     }
+    return m_watch;
+}
+
+SpellingWatch::SpellingWatch(Speller *speller) : m_speller(speller), m_files(new QFileSystemWatcher(this)), m_later(new QTimer(this))
+{
+    m_later->setSingleShot(true);
+    m_later->setInterval(200);   // (a save is a few events: they are read once)
+    connect(m_files, &QFileSystemWatcher::fileChanged, this, &SpellingWatch::touched);
+    connect(m_files, &QFileSystemWatcher::directoryChanged, this, &SpellingWatch::touched);
+    connect(m_later, &QTimer::timeout, this, [this] {
+        watchFiles(m_paths);   // (a file put in place by a rename is a new file: watched again)
+        m_speller->reload();
+    });
+}
+
+void SpellingWatch::watchFiles(const QStringList &files)
+{
+    m_paths = files;
+    if (!m_files->files().isEmpty()) m_files->removePaths(m_files->files());
+    if (!m_files->directories().isEmpty()) m_files->removePaths(m_files->directories());
+    for (const QString &f : files) {
+        const QFileInfo info(f);
+        if (info.exists()) m_files->addPath(f);
+        if (info.dir().exists()) m_files->addPath(info.absolutePath());
+    }
+}
+
+void SpellingWatch::touched() { m_later->start(); }
+
+QStringList Speller::customWords(bool again)
+{
+    if (again) reload();
     QStringList out = m_custom.values();
     out.sort();
     return out;
@@ -288,52 +303,76 @@ QStringList Speller::excludedWords()
     return out;
 }
 
-bool Speller::isExcluded(const QString &w) const { return m_excluded.contains(w.toLower()); }
+bool Speller::isExcluded(const QString &w) const { return m_excluded.contains(wordKey(w)); }
 
-bool Speller::setWordLists(const QStringList &customIn, const QStringList &excludedIn, QString *error)
+bool Speller::change(const WordChanges &c, QString *error)
 {
-    QStringList excluded = boundedWords(excludedIn, nullptr);
-    QSet<QString> lower;
-    for (QString &w : excluded) {
-        w = w.toLower();
-        lower.insert(w);
+    auto fail = [&](const QString &why) {
+        if (error) *error = why;
+        reload();   // (what the files hold is what is kept: nothing is changed by a failure)
+        return false;
+    };
+    if (c.isEmpty()) return true;
+    for (const QStringList *list : {&c.addCustom, &c.addExcluded})
+        for (const QString &w : *list)
+            if (!fitWord(w.trimmed()))
+                return fail(QCoreApplication::translate("Proofing", "A word can't be empty, have a space or a control character in it, or be longer than %n letters.", nullptr, kMaxWordLength));
+    const QString customFile = customPath(), excludedFile = excludedPath();
+    // One lock for both files, beside the first, waited for a short time: another app may be saving its words at this moment.
+    QLockFile lock(customFile + QStringLiteral(".lock"));
+    lock.setStaleLockTime(30000);
+    if (!lock.tryLock(5000))
+        return fail(lock.error() == QLockFile::LockFailedError ? QCoreApplication::translate("Proofing", "Another program is saving words just now. Try again in a moment.")
+                                                               : QCoreApplication::translate("Proofing", "The folder of the dictionary can't be written to."));
+    for (const QString &file : {customFile, excludedFile}) {
+        const QFileInfo info(file);
+        if (info.exists() && !info.isWritable()) return fail(QCoreApplication::translate("Proofing", "The file is read-only."));
     }
-    excluded = lower.values();
-    excluded.sort();
-    QStringList custom;
-    for (const QString &w : boundedWords(customIn, nullptr))
-        if (!lower.contains(w.toLower())) custom << w;   // (a word is in one list: the excluded one wins)
-    // (The excluded list first: if the next write fails, a word that is in both is excluded, and none is lost.)
     QString reason;
-    if (!writeWordListFile(excludedDict(), excluded, &reason)) {
-        if (error) *error = reason;
-        return false;
+    const WordList custom = readWordListFile(customFile, &reason);
+    if (!reason.isEmpty()) return fail(reason);
+    const WordList excluded = readWordListFile(excludedFile, &reason);
+    if (!reason.isEmpty()) return fail(reason);
+    // (A list that is longer than is read would lose its end when written whole.)
+    if (custom.truncated || excluded.truncated) return fail(QCoreApplication::translate("Proofing", "The list of words is too long to change."));
+    QStringList customWords = custom.words, excludedWords;
+    for (const QString &w : excluded.words) {
+        const QString key = wordKey(w);
+        if (!excludedWords.contains(key)) excludedWords << key;
     }
-    m_excluded = lower;
-    ++m_revision;
-    if (!writeWordListFile(userDict(), custom, &reason)) {
-        if (error) *error = reason;
-        return false;
+    const QStringList excludedBefore = excludedWords;
+    auto dropKey = [](QStringList &list, const QString &key) {
+        list.erase(std::remove_if(list.begin(), list.end(), [&](const QString &w) { return wordKey(w) == key; }), list.end());
+    };
+    // (Removals first, then the additions: a word moved from one list to the other is both.)
+    for (const QString &w : c.removeCustom) customWords.removeAll(w.trimmed());
+    for (const QString &w : c.removeExcluded) dropKey(excludedWords, wordKey(w.trimmed()));
+    for (const QString &w : c.addExcluded) {
+        const QString key = wordKey(w.trimmed());
+        if (!excludedWords.contains(key)) excludedWords << key;
+        dropKey(customWords, key);   // (a word is in one list: the excluded one)
     }
-    m_custom = QSet<QString>(custom.begin(), custom.end());
+    for (const QString &w : c.addCustom) {
+        const QString word = w.trimmed();
+        dropKey(excludedWords, wordKey(word));   // (a word added is no longer one the person wants flagged)
+        if (!customWords.contains(word)) customWords << word;
+    }
+    if (listBytes(customWords) > kMaxWordListBytes || listBytes(excludedWords) > kMaxWordListBytes) return fail(QCoreApplication::translate("Proofing", "The list of words is too long to add to."));
+    // (The excluded list first: if the next write fails, a word that is in both is excluded, and none is lost.)
+    if (excludedWords != excludedBefore && !writeWordListFile(excludedFile, excludedWords, &reason, excluded.rejected)) return fail(reason);
+    if (customWords != custom.words && !writeWordListFile(customFile, customWords, &reason, custom.rejected)) return fail(reason);
+    reload();
     m_saveFailed = false;
     return true;
 }
 
-QString Speller::excludedDict()
+bool Speller::add(const QString &w, QString *error)
 {
-    if (!s_userDictionaryPath.isEmpty()) return s_userDictionaryPath + QStringLiteral(".excluded");
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(dir);
-    return dir + "/excluded.dic";
-}
-
-QString Speller::userDict()
-{
-    if (!s_userDictionaryPath.isEmpty()) return s_userDictionaryPath;
-    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(dir);
-    return dir + "/custom.dic";
+    QString reason;
+    if (change(WordChanges{{w}, {}, {}, {}}, &reason)) return true;
+    if (error && !m_saveFailed) *error = reason.isEmpty() ? QCoreApplication::translate("Proofing", "The word couldn't be saved.") : reason;
+    m_saveFailed = true;
+    return false;
 }
 
 const QRegularExpression &spellingWordPattern()

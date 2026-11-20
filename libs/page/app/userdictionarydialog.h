@@ -30,7 +30,7 @@ public:
     QString importFile(bool excluded, const QString &path);
     // Writes a list as a plain word list file (UTF-8, one a line); false, with the reason, when it can't be written.
     bool exportFile(bool excluded, const QString &path, QString *error = nullptr);
-    // Keeps the lists (as Speller::setWordLists); false, with the reason, when a file could not be written.
+    // Keeps what was changed (as Speller::change, to the words the files hold now); false, with the reason, when a file could not be written.
     bool apply(QString *error = nullptr);
 
 private:
@@ -46,7 +46,8 @@ private:
     void chooseImport(int which);
     void chooseExport(int which);
     static QStringList sorted(const QSet<QString> &words);
-    QSet<QString> m_words[2];   // the user's words, and the excluded words (lowercase)
+    QSet<QString> m_words[2];   // the user's words, and the excluded words (as Speller::wordKey)
+    QSet<QString> m_opened[2];  // the same when the dialog opened
     Tab m_tabs[2];
     QTabWidget *m_tabWidget = nullptr;
     QLabel *m_status = nullptr;

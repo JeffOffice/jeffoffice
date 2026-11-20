@@ -990,7 +990,7 @@ private Q_SLOTS:
     void aLongParagraphIsCheckedInPiecesOfBoundedWork();
     void theSpellingCacheDoesNotKeepTheTextOfTheDocument();
     void theUserDictionaryIsReadAndWrittenSafely();
-    void addingAWordThatCantBeSavedStillCountsAndIsSaidOnce();
+    void addingAWordThatCantBeSavedDoesNotCountAndIsSaidOnce();
     void theNamesOfTheSuiteAreNeverFlaggedInAnyLanguage();
     void theWordCountSaysWordAndWordsInEnglish();
     void countedTextHasItsEnglishFormsAndNoneIsLeftAsPluralMarker();
