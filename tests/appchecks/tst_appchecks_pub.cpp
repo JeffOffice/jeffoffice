@@ -532,6 +532,7 @@ private Q_SLOTS:
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
         };
         m_app.neverRun = {
+            {QStringLiteral("mm.formatField"), QStringLiteral("it works only with the caret in a merge field, which no place here has; the Format Merge Field test runs it on one")},
             {QStringLiteral("ins.pageNumberRemove"), QStringLiteral("it works only where a master page has a page number, which no place here has; the page number tests run it on one")},
         };
     }

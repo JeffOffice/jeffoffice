@@ -16,7 +16,7 @@
       {"small": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "AY", "menu": [
         "arr.rotR", "arr.rotL", "arr.flipV", "arr.flipH", "-", "arr.freeRotate"]},
       {"small": "edit.duplicateMany", "keytip": "DD"},
-      {"small": "arr.sendMaster", "keytip": "SM"}
+      {"small": "arr.sendMaster", "keytip": "QM"}
     ]},
     "Size": {"name": "Size", "keytip": "ZS", "launcher": "sizePosition", "launcherTip": "Size and Position", "launcherKeytip": "SZ", "items": [
       {"row": [{"label": "Height"}, {"widget": "heightSpin", "keytip": "HT"}]},
