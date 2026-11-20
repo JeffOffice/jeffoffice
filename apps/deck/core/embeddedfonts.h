@@ -19,7 +19,7 @@ using office::RegularSlot;
 
 class EmbeddedFonts {
 public:
-    // Adds the fonts of the faces that were read and sets `doc`'s fontAliases (a presentation that was just read; not kept alive: release it when the document goes).
+    // Adds the fonts of the faces that were read and sets `doc`'s fontAliases (a presentation that was just read; its fonts go when the document is destroyed).
     static void use(Document *doc, QVector<EmbeddedFace> faces) { doc->fontAliases = office::EmbeddedFonts::use(doc, std::move(faces)); }
     // The document has been closed or replaced: its fonts go, unless another document carries the same font.
     static void release(const Document *doc) { office::EmbeddedFonts::release(doc); }

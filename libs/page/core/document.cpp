@@ -1,5 +1,6 @@
 #include "core/document.h"
 #include "office/connectionsites.h"
+#include "office/embeddedfonts.h"
 #include "core/remotepath.h"
 #include <QSet>
 #include "core/chartobject.h"
@@ -742,7 +743,8 @@ QVector<TextStyle> defaultStyles()
 
 // ---------- Document ----------
 Document::Document() { resetDefaults(); }
-Document::~Document() = default;
+// (Fonts a file carried are added for the document while it exists: its going is what takes them away, whoever made it.)
+Document::~Document() { office::EmbeddedFonts::release(this); }
 
 void Document::resetDefaults()
 {

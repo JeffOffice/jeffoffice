@@ -1213,6 +1213,24 @@ private Q_SLOTS:
         QCOMPARE(int(deck::EmbeddedFonts::facesOf(plain.get()).size()), 0);
     }
 
+    // A presentation read and thrown away takes its fonts with it: none stays registered under its address.
+    void anOldPresentationThatIsDroppedTakesItsFontsWithIt()
+    {
+        QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(latoFile.open(QIODevice::ReadOnly));
+        const QByteArray eot = office::makeEot(jp::fontWithFamilyName(latoFile.readAll(), QStringLiteral("Zobster")));
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006, QByteArray(), QByteArray(), QByteArray(), QByteArray(), fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, eot)), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        const Document *address = d.get();
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(address).size()), 1);
+        d.reset();
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(address).size()), 0);
+    }
+
     // Damaged and hostile font collections never stop the presentation opening: a cut-off blob, one whose lengths lie, a license that forbids it, and thousands of
     // entries (at most the most a document carries are taken, and the person is told).
     void aHostileOldFontCollectionStillOpensThePresentation()
@@ -1236,6 +1254,7 @@ private Q_SLOTS:
         qToLittleEndian<quint32>(0x7FFFFFF0u, lying.data() + lying.size() - eot.size() - 4);
         auto liar = open(lying, &err);
         QVERIFY2(liar, qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(liar.get()).size()), 0);
         // Restricted.
         QByteArray locked = lato;
         for (int i = 0, n = qFromBigEndian<quint16>(locked.constData() + 4); i < n; ++i)
@@ -1250,7 +1269,7 @@ private Q_SLOTS:
         auto big = open(many, &err);
         QVERIFY2(big, qPrintable(err));
         QCOMPARE(int(deck::EmbeddedFonts::facesOf(big.get()).size()), jp::kMaxEmbeddedFonts);
-        QVERIFY2(err.contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(err));
         for (auto *doc : {cut.get(), liar.get(), restricted.get(), big.get()}) deck::EmbeddedFonts::release(doc);
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
     }

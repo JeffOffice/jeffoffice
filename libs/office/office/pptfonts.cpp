@@ -50,8 +50,8 @@ QVector<EmbeddedFace> readPptFonts(const QByteArray &stream, qint64 begin, qint6
     }
     QVector<EmbeddedFace> faces = intake.take(notes);
     if (notes) {
-        if (orphans > 0) *notes << QCoreApplication::translate("jp::office::wml", "%1 embedded fonts in the file can't be used: %2").arg(orphans).arg(QCoreApplication::translate("jp::office", "its record is not where a font belongs."));
-        if (tooMany) *notes << QCoreApplication::translate("jp::office::wml", "Only the first %1 embedded fonts are read.").arg(faces.size());
+        if (orphans > 0) *notes << QCoreApplication::translate("jp::office::wml", "%n embedded font(s) in the file can't be used: %1", nullptr, orphans).arg(QCoreApplication::translate("jp::office", "its record is not where a font belongs."));
+        if (tooMany) *notes << QCoreApplication::translate("jp::office", "Only the first %n record(s) of the font list are read.", nullptr, kMaxPptFontRecords);
     }
     return faces;
 }

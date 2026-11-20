@@ -145,6 +145,14 @@ QString formatForMime(const QString &mime)
     return "bin";
 }
 
+// A publication is never saved back with its fonts as the file had them, so the parts are not kept.
+static office::EmbeddedFontLimits pubFontLimits()
+{
+    office::EmbeddedFontLimits limits;
+    limits.keepParts = false;
+    return limits;
+}
+
 class Collector : public librevenge::RVNGDrawingInterface {
 public:
     Collector(Document &d, PubImportReport &r) : m_doc(d), m_rep(r) {}
@@ -1536,7 +1544,7 @@ private:
     QString m_fillOnlyKey;
     int m_fillOnlyCount = 0;
     PubImportReport &m_rep;
-    office::EmbeddedFaceIntake m_fontIntake;
+    office::EmbeddedFaceIntake m_fontIntake{pubFontLimits()};
     Page *m_page = nullptr;
     MasterPage *m_master = nullptr;       // set while a master page's objects arrive
     QHash<int, QString> m_masterIds;      // .pub master page sequence number -> master id
@@ -1639,18 +1647,16 @@ std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error
     return doc;
 }
 
-void takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::RVNGPropertyList &p)
+bool takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::RVNGPropertyList &p)
 {
     const librevenge::RVNGProperty *data = p["office:binary-data"];
-    if (!data) return;
+    if (!data) return false;
     const librevenge::RVNGString text = data->getStr();
-    // Base64 is 4 characters for 3 bytes: a part over the limit is never decoded.
-    if (qint64(text.size()) / 4 * 3 > office::EmbeddedFontLimits().partBytes + 3) {
-        intake.refuseTooLarge();
-        return;
-    }
+    // Base64 is 4 characters for 3 bytes: asked before the text is decoded, so a part the limits have no room for (too large, too many, or too many tried) is left as text.
+    if (!intake.wouldTake(qint64(text.size()) / 4 * 3)) return false;
     const QByteArray bytes = QByteArray::fromBase64(QByteArray::fromRawData(text.cstr(), qsizetype(text.size())));
     intake.add(str(p["librevenge:name"]), -1, bytes);
+    return true;
 }
 
 std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report)

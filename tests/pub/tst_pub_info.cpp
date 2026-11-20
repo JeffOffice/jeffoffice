@@ -7,7 +7,10 @@
 #include "app/filedialogs.h"
 #include "app/infopage.h"
 #include "app/passworddialogs.h"
+#include "office/embeddedfonts.h"
 #include "office/officecrypt.h"
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
 #include "office/packageprops.h"
 #include "../settingguard.h"
 #include "../privacyhooks.h"
@@ -1483,6 +1486,40 @@ private Q_SLOTS:
         QVERIFY(w.editor()->isModified());
         QCOMPARE(w.versions().size(), 2);
         QVERIFY(w.versions().first().name.startsWith(QLatin1String("Before restoring")));
+    }
+
+    // The fonts a publication carries are its own: whatever replaces the publication in the window (New, a version restored) takes them away, and the missing-fonts
+    // bar does not list a font that was registered.
+    void aPublicationsEmbeddedFontsGoWhenAnotherReplacesItInTheWindow()
+    {
+        QFile lato(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(lato.open(QIODevice::ReadOnly));
+        const QByteArray font = jp::fontWithFamilyName(lato.readAll(), QStringLiteral("Zobster"));
+        QVERIFY(!font.isEmpty());
+        auto carry = [&](jp::Document *doc) {
+            office::EmbeddedFaceIntake intake;
+            intake.add(QStringLiteral("Zobster"), -1, font);
+            doc->fontAliases = office::EmbeddedFonts::use(doc, intake.take(nullptr));
+        };
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const int before = office::EmbeddedFonts::addedFontCount();
+        jp::MainWindow w;
+        Quiet quiet(w);
+        carry(w.editor()->doc());
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(w.missingFontsHost().carried(QStringLiteral("Zobster")));
+        QVERIFY(!w.missingFontsHost().carried(QStringLiteral("Qobster")));
+        w.newPublication(jp::Document::blank(QSizeF(612, 792)));
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
+        QVERIFY(!w.missingFontsHost().carried(QStringLiteral("Zobster")));
+        // A version restored replaces the publication too.
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("v.jpub"))));
+        QVERIFY(w.saveVersion(QStringLiteral("First")));
+        carry(w.editor()->doc());
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(w.restoreVersion(w.versions().first().file));
+        QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
     }
 };
 

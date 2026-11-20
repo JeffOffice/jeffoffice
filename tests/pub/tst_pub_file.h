@@ -139,4 +139,5 @@ private Q_SLOTS:
     void renderSmoke();
     void aPublicationsEmbeddedFontsAreTakenWithinTheLimits();
     void aHostilePublicationFontListIsBounded();
+    void aPublicationFontIsNotDecodedWhenTheIntakeHasNoRoomForIt();
 };

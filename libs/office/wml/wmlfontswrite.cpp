@@ -43,7 +43,7 @@ int slotOfElement(const QStringView name)
     return -1;
 }
 
-// The font table with the additions made; empty if it can't be (not well formed, a DOCTYPE, or no prefix the elements can be written with).
+// The font table with the additions made; empty if it can't be (not well formed, a DOCTYPE, or a root that is not the font table).
 QByteArray rewrittenTable(const QByteArray &table, const QVector<Add> &adds)
 {
     // The additions by family (lower-cased), in the order the families come.
@@ -59,7 +59,7 @@ QByteArray rewrittenTable(const QByteArray &table, const QVector<Add> &adds)
     QXmlStreamWriter w(&out);
     QXmlStreamReader r(table);
     r.setEntityExpansionLimit(1);
-    QString wPrefix, rPrefix, wUri;
+    QString wPrefix, rPrefix, aPrefix, wUri;   // (aPrefix: the prefix the attributes of the main namespace are written with; an element with no prefix is in the default namespace, an attribute never is)
     int depth = 0, skip = 0;
     bool inFont = false;
     QString fontKey;
@@ -69,7 +69,7 @@ QByteArray rewrittenTable(const QByteArray &table, const QVector<Add> &adds)
     auto writeNew = [&](const Add &a) {
         w.writeEmptyElement(name(wPrefix, kEmbedNames[a.slot]));
         w.writeAttribute(name(rPrefix, "id"), a.rId);
-        w.writeAttribute(name(wPrefix, "fontKey"), a.key);
+        w.writeAttribute(name(aPrefix, "fontKey"), a.key);
     };
     while (!r.atEnd()) {
         r.readNext();
@@ -86,18 +86,33 @@ QByteArray rewrittenTable(const QByteArray &table, const QVector<Add> &adds)
             if (depth == 1) {
                 wUri = r.namespaceUri().toString();
                 wPrefix = r.prefix().toString();
-                if (wPrefix.isEmpty() || r.name() != QLatin1String("fonts")) return QByteArray();
-                w.writeStartElement(r.qualifiedName().toString());
+                if (r.name() != QLatin1String("fonts")) return QByteArray();
+                if (wPrefix.isEmpty()) {   // (the main namespace is the default: the root is written in it, so the elements the reader hands over keep their place)
+                    w.writeStartElement(wUri, r.name().toString());
+                    w.writeDefaultNamespace(wUri);
+                } else {
+                    w.writeStartElement(r.qualifiedName().toString());
+                }
                 bool haveR = false;
+                aPrefix = wPrefix;
+                QSet<QString> taken;
                 for (const QXmlStreamNamespaceDeclaration &d : r.namespaceDeclarations()) {
+                    if (wPrefix.isEmpty() && d.prefix().isEmpty()) continue;   // (written above)
                     w.writeNamespace(d.namespaceUri().toString(), d.prefix().toString());
+                    taken.insert(d.prefix().toString());
+                    if (aPrefix.isEmpty() && !d.prefix().isEmpty() && d.namespaceUri() == wUri) aPrefix = d.prefix().toString();
                     if (rPrefix.isEmpty() && !d.prefix().isEmpty() && (d.namespaceUri() == kRNs || d.namespaceUri() == kStrictRNs)) {
                         rPrefix = d.prefix().toString();
                         haveR = true;
                     }
                 }
+                if (aPrefix.isEmpty()) {
+                    aPrefix = taken.contains(QStringLiteral("w")) ? QStringLiteral("wm") : QStringLiteral("w");
+                    taken.insert(aPrefix);
+                    w.writeNamespace(wUri, aPrefix);
+                }
                 if (!haveR) {
-                    rPrefix = QStringLiteral("r");
+                    rPrefix = taken.contains(QStringLiteral("r")) ? QStringLiteral("rl") : QStringLiteral("r");
                     w.writeNamespace(wUri == kWNs ? kRNs : kStrictRNs, rPrefix);
                 }
                 w.writeAttributes(r.attributes());
@@ -139,7 +154,7 @@ QByteArray rewrittenTable(const QByteArray &table, const QVector<Add> &adds)
                 for (const QString &key : std::as_const(order)) {
                     if (seen.contains(key)) continue;
                     w.writeStartElement(name(wPrefix, "font"));
-                    w.writeAttribute(name(wPrefix, "name"), adds[byFamily[key].first()].typeface);
+                    w.writeAttribute(name(aPrefix, "name"), adds[byFamily[key].first()].typeface);
                     for (int slot = 0; slot < 4; ++slot)
                         for (int i : byFamily[key])
                             if (adds[i].slot == slot) writeNew(adds[i]);

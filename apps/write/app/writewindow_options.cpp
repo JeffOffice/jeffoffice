@@ -7,6 +7,7 @@
 #include "app/pageview.h"
 #include "app/privacy.h"
 #include "app/ruler.h"
+#include "app/plaintext.h"
 #include "app/settings.h"
 
 #include <QAction>
@@ -48,16 +49,28 @@ QVector<OptionsPage> WriteWindow::optionsPages()
     struct Fields {
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
-        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr;
+        QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr, *embedFonts = nullptr;
     };
     auto f = std::make_shared<Fields>();
     QVector<OptionsPage> pages;
     pages << saveOptionsPage({{QStringLiteral("docx"), QCoreApplication::translate("Dialogs", "Document (*.docx)")}, {QStringLiteral("odt"), QCoreApplication::translate("Dialogs", "OpenDocument Text (*.odt)")}},
                              [f](QFormLayout *form, QWidget *page) {
+                                 f->embedFonts = new QCheckBox(QCoreApplication::translate("Dialogs", "Save fonts in the file"), page);
+                                 f->embedFonts->setObjectName(QStringLiteral("embedFonts"));
+                                 const QString about = QCoreApplication::translate("Dialogs", "Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. "
+                                                                                              "It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.");
+                                 f->embedFonts->setToolTip(jp::plainToolTip(about));
+                                 f->embedFonts->setWhatsThis(jp::plainToolTip(about));
+                                 f->embedFonts->setAccessibleDescription(about);
+                                 f->embedFonts->setChecked(Settings::get().value(QStringLiteral("save/embedFonts"), false).toBool());
+                                 form->addRow(f->embedFonts);
                                  f->privacy = privacy::makeOption(page, QStringLiteral("removePersonalOnSave"));
                                  form->addRow(f->privacy);
                              },
-                             [f] { privacy::setRemoveOnSave(f->privacy->isChecked()); });
+                             [f] {
+                                 Settings::get().setValue(QStringLiteral("save/embedFonts"), f->embedFonts->isChecked());
+                                 privacy::setRemoveOnSave(f->privacy->isChecked());
+                             });
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Display"), [f] {
         Settings &st = Settings::get();
         auto *page = new QWidget();

@@ -51,8 +51,10 @@ struct EmbeddedFace {
 // What one document may carry in fonts (the defaults are the limits every reader holds a file to; a test may lower them).
 struct EmbeddedFontLimits {
     int faces = kMaxEmbeddedFonts;                     // faces taken
+    int tried = 4 * kMaxEmbeddedFonts;                 // parts looked at, taken or not (a file of thousands of damaged parts is not decoded part by part)
     qint64 partBytes = kMaxEmbeddedFontBytes + 65536;  // one part as the file has it (a wrapper's header comes on top of the font)
-    qint64 totalBytes = kMaxEmbeddedFontsTotal;        // the parts together, and the fonts made whole together
+    qint64 totalBytes = kMaxEmbeddedFontsTotal;        // what is held at most: the parts and the fonts made whole, counted together
+    bool keepParts = true;                             // keep each part as the file has it, to write it back (a reader that never writes it back turns this off)
     int nameChars = 255;                               // a typeface name is cut to this
 };
 
@@ -64,19 +66,21 @@ public:
     explicit EmbeddedFaceIntake(const EmbeddedFontLimits &limits = EmbeddedFontLimits()) : m_limits(limits) {}
     // `slot` is the style the file gives the part (0 to 3), or -1 to take it from the font itself.
     void add(const QString &typeface, int slot, QByteArrayView part);
-    // A part the caller saw was over the limit and did not hand over.
-    void refuseTooLarge() { m_tooLarge = true; }
+    // Asked before a part of about `bytes` is made ready (decoded from text, say): false when the count is used up, too many parts were tried, or the part
+    // would pass what may be held. The part is then to be left alone, and the person is told as add() would tell.
+    bool wouldTake(qint64 bytes);
     // The faces taken, with what couldn't be taken said in `notes`.
     QVector<EmbeddedFace> take(QStringList *notes);
-    // For a test: how many parts were decoded (looked at past the limits).
+    // For a test: how many parts were decoded (looked at past the limits), and how many bytes the faces taken hold (parts and fonts).
     int decodedCount() const { return m_decoded; }
+    qint64 heldBytes() const { return m_total + m_whole; }
 
 private:
     EmbeddedFontLimits m_limits;
     QVector<EmbeddedFace> m_faces;
     qint64 m_total = 0, m_whole = 0;
-    int m_unusable = 0, m_forbidden = 0, m_decoded = 0;
-    bool m_tooMany = false, m_tooLarge = false;
+    int m_unusable = 0, m_forbidden = 0, m_decoded = 0, m_tried = 0;
+    bool m_tooMany = false, m_tooManyTried = false, m_tooLarge = false;
     QString m_firstReason;
 };
 
@@ -86,7 +90,7 @@ public:
     // Adds the fonts of the faces that were read, under private family names, and keeps the faces for writing back. Gives the aliases for the document: each family
     // (lower-cased) the faces are for and the private family its font was added under. The faces of a family the computer has are kept but not added.
     static QHash<QString, QString> use(const void *owner, QVector<EmbeddedFace> faces);
-    // The document has been closed or replaced: its fonts go, unless another document carries the same font.
+    // The document has been closed or replaced: its fonts go, unless another document carries the same font. (A page document releases its own when it is destroyed.)
     static void release(const void *owner);
     // The faces a document was read with, for writing back (without the fonts' data).
     static QVector<EmbeddedFace> facesOf(const void *owner);

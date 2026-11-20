@@ -1741,7 +1741,7 @@ private Q_SLOTS:
         }
     }
 
-    // A collection of thousands of entities: the records read are at most kMaxPptFontRecords (a lower count of unusable blobs than the file lists says it), and valid fonts
+    // A collection of thousands of entities: the records read are at most kMaxPptFontRecords (the parts tried are at most the most a file may have tried, so a lower count of unusable blobs than the file lists says it), and valid fonts
     // are taken only up to the most a document carries.
     void aPptFontCollectionOfThousandsOfEntriesIsBounded()
     {
@@ -1749,13 +1749,14 @@ private Q_SLOTS:
         for (int i = 0; i < 5000; ++i) junk += pptEntity(QStringLiteral("F%1").arg(i)) + pptBlob(0, QByteArray(100, 'j'));
         QStringList notes;
         QCOMPARE(jp::office::readPptFonts(junk, 0, junk.size(), &notes).size(), 0);
-        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("%1 embedded fonts in the file can't be used").arg(jp::office::kMaxPptFontRecords / 2)), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("%1 embedded font(s) in the file can't be used").arg(jp::office::EmbeddedFontLimits().tried)), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("embedded font(s) in the file were looked at")), qPrintable(notes.join(QLatin1Char('|'))));
         const QByteArray eot = jp::office::makeEot(bundledFontBytes(QStringLiteral("Lato")));
         QByteArray many;
         for (int i = 0; i < jp::kMaxEmbeddedFonts + 40; ++i) many += pptEntity(QStringLiteral("G%1").arg(i)) + pptBlob(0, eot);
         notes.clear();
         QCOMPARE(jp::office::readPptFonts(many, 0, many.size(), &notes).size(), jp::kMaxEmbeddedFonts);
-        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The intake's limits are the format's constants, and a part over the limit is never decoded: the count of parts decoded is what the limits allow.
@@ -1783,6 +1784,99 @@ private Q_SLOTS:
         const auto faces = named.take(nullptr);
         QCOMPARE(faces.size(), 1);
         QCOMPARE(faces[0].typeface, QString(8, QLatin1Char('N')));
+    }
+
+    // Each cap of the intake alone: the parts tried (damaged ones too), the faces taken, and the one total for parts and fonts together. Each test feeds a file that the
+    // other caps do not stop, so it fails if its own cap is gone.
+    void theFontIntakeLooksAtAtMostTheMostPartsEvenWhenNoneIsUsable()
+    {
+        jp::office::EmbeddedFontLimits limits;
+        limits.tried = 5;
+        jp::office::EmbeddedFaceIntake intake(limits);
+        for (int i = 0; i < 40; ++i) intake.add(QStringLiteral("J%1").arg(i), 0, QByteArray(50, 'j'));
+        QCOMPARE(intake.decodedCount(), 5);
+        QStringList notes;
+        QCOMPARE(intake.take(&notes).size(), 0);
+        const QString all = notes.join(QLatin1Char('|'));
+        QVERIFY2(all.contains(QStringLiteral("5 embedded font(s) in the file can't be used")), qPrintable(all));
+        QVERIFY2(all.contains(QStringLiteral("Only the first 5 embedded font(s) in the file were looked at.")), qPrintable(all));
+        QVERIFY2(!all.contains(QStringLiteral("are read.")), qPrintable(all));
+        QVERIFY(jp::office::EmbeddedFontLimits().tried > jp::office::EmbeddedFontLimits().faces);
+    }
+
+    void theFontIntakeTakesAtMostTheMostFaces()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        jp::office::EmbeddedFontLimits limits;
+        limits.faces = 3;
+        jp::office::EmbeddedFaceIntake intake(limits);
+        for (int i = 0; i < 10; ++i) intake.add(QStringLiteral("G%1").arg(i), 0, lato);
+        QCOMPARE(intake.decodedCount(), 3);
+        QStringList notes;
+        QCOMPARE(intake.take(&notes).size(), 3);
+        QCOMPARE(notes, QStringList{QStringLiteral("Only the first 3 embedded font(s) are read.")});
+    }
+
+    // The total is what is held: the part as the file has it and the font made whole from it count together (a bare font is both), so the faces taken never hold more than it.
+    void theFontIntakeHoldsPartsAndFontsToOneTotal()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        jp::office::EmbeddedFontLimits limits;
+        limits.totalBytes = lato.size() * 5;
+        jp::office::EmbeddedFaceIntake intake(limits);
+        for (int i = 0; i < 6; ++i) intake.add(QStringLiteral("T%1").arg(i), 0, lato);
+        QVERIFY(intake.heldBytes() <= limits.totalBytes);
+        QStringList notes;
+        const auto faces = intake.take(&notes);
+        QCOMPARE(faces.size(), 2);
+        qint64 held = 0;
+        for (const auto &face : faces) held += face.part.size() + face.font.size();
+        QVERIFY2(held <= limits.totalBytes, qPrintable(QString::number(held)));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("they are too large")), qPrintable(notes.join(QLatin1Char('|'))));
+        // A reader that never writes the parts back keeps none of them.
+        limits.keepParts = false;
+        jp::office::EmbeddedFaceIntake lean(limits);
+        lean.add(QStringLiteral("L"), 0, lato);
+        const auto kept = lean.take(nullptr);
+        QCOMPARE(kept.size(), 1);
+        QVERIFY(kept[0].part.isEmpty() && !kept[0].font.isEmpty());
+    }
+
+    // What the person is told says the number of fonts, once and many, and the limit (not how many were usable).
+    void theFontIntakeNotesCountTheFontsRight()
+    {
+        jp::office::EmbeddedFontLimits limits;
+        limits.faces = 1;
+        jp::office::EmbeddedFaceIntake one(limits);
+        one.add(QStringLiteral("Bad"), 0, QByteArray(50, 'j'));
+        QStringList notes;
+        one.take(&notes);
+        QVERIFY2(notes.size() == 1 && notes[0].startsWith(QStringLiteral("1 embedded font(s) in the file can't be used: ")), qPrintable(notes.join(QLatin1Char('|'))));
+        jp::office::EmbeddedFaceIntake many(limits);
+        for (int i = 0; i < 3; ++i) many.add(QStringLiteral("Bad%1").arg(i), 0, QByteArray(50, 'j'));
+        notes.clear();
+        many.take(&notes);
+        QVERIFY2(notes.size() == 1 && notes[0].startsWith(QStringLiteral("3 embedded font(s) in the file can't be used: ")), qPrintable(notes.join(QLatin1Char('|'))));
+        // The limit is the number in the note, one font or more.
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        for (int faces : {1, 2}) {
+            limits.faces = faces;
+            jp::office::EmbeddedFaceIntake over(limits);
+            for (int i = 0; i < 5; ++i) over.add(QStringLiteral("O%1").arg(i), 0, lato);
+            notes.clear();
+            QCOMPARE(over.take(&notes).size(), faces);
+            QCOMPARE(notes, QStringList{QStringLiteral("Only the first %1 embedded font(s) are read.").arg(faces)});
+        }
+        // An old presentation's list: one blob in the wrong place is "1", and its record cap says its own number.
+        QStringList pptNotes;
+        const QByteArray stray = pptBlob(0, lato);
+        jp::office::readPptFonts(stray, 0, stray.size(), &pptNotes);
+        QVERIFY2(pptNotes.size() == 1 && pptNotes[0].startsWith(QStringLiteral("1 embedded font(s) in the file can't be used")), qPrintable(pptNotes.join(QLatin1Char('|'))));
+        QByteArray names;
+        for (int i = 0; i < jp::office::kMaxPptFontRecords + 10; ++i) names += pptEntity(QStringLiteral("N%1").arg(i));
+        pptNotes.clear();
+        QCOMPARE(jp::office::readPptFonts(names, 0, names.size(), &pptNotes).size(), 0);
+        QCOMPARE(pptNotes, QStringList{QStringLiteral("Only the first %1 record(s) of the font list are read.").arg(jp::office::kMaxPptFontRecords)});
     }
 
     // ---- fonts written into a saved .docx
@@ -1915,6 +2009,29 @@ private Q_SLOTS:
         asked = 0;
         QCOMPARE(wml::embedFontsInDocx(&g, thousands, junk).faces, 0);
         QVERIFY2(asked <= 4096, qPrintable(QString::number(asked)));
+    }
+
+    // A font table whose root has no prefix (the main namespace is the default one) takes the fonts too: the attributes that need a prefix get one, and what is written reads back.
+    void aDocxFontTableInTheDefaultNamespaceTakesTheFonts()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const wml::FontFileSource source = [&](const QString &, bool, bool) { return lato; };
+        for (const QByteArray &root : {QByteArray("<fonts xmlns=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><font name=\"Lato\"/></fonts>"),
+                                       QByteArray("<fonts xmlns=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:w=\"urn:other\"/>")}) {
+            wml::Document d = docWithFonts({});
+            for (auto &p : d.parts)
+                if (p.name == QLatin1String("/word/fontTable.xml")) p.data = root;
+            const auto done = wml::embedFontsInDocx(&d, {{QStringLiteral("Lato"), false, false}}, source);
+            QCOMPARE(done.faces, 1);
+            QVERIFY2(done.notes.isEmpty(), qPrintable(done.notes.join(QLatin1Char('|'))));
+            QStringList notes;
+            const auto faces = wml::readEmbeddedFonts(d, &notes);
+            QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+            QCOMPARE(faces.size(), 1);
+            QCOMPARE(faces[0].typeface, QStringLiteral("Lato"));
+            QCOMPARE(faces[0].font, lato);
+        }
     }
 
     // A font table of thousands of fonts is rewritten in work that grows with it, and a table that can't be (cut off, with a DOCTYPE, or not a font table) is left alone.

@@ -3,7 +3,6 @@
 #include "app/icons.h"
 #include "app/settings.h"
 #include "app/theme.h"
-#include "core/embeddedfonts.h"
 #include "core/reuse.h"
 #include "io/presentationfile.h"
 #include "render/renderer.h"
@@ -68,8 +67,8 @@ ReusePane::ReusePane(QWidget *parent) : QWidget(parent), m_cache(std::make_uniqu
     setMinimumWidth(kThumbWidth + 56);
 }
 
-// The source presentation's own fonts go with it (core/embeddedfonts.h).
-ReusePane::~ReusePane() { deck::EmbeddedFonts::release(m_doc.get()); }
+// (The source presentation's own fonts go with it: core/embeddedfonts.h.)
+ReusePane::~ReusePane() = default;
 
 int ReusePane::slideCount() const { return m_doc ? int(m_doc->pages.size()) : 0; }
 
@@ -89,7 +88,6 @@ bool ReusePane::open(const QString &path)
 {
     m_timer.stop();
     m_list->clear();
-    deck::EmbeddedFonts::release(m_doc.get());
     m_doc.reset();
     m_cache = std::make_unique<LayoutCache>();
     m_next = m_rendered = 0;

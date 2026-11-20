@@ -1394,10 +1394,13 @@ void MainWindow::replaceFonts()
 
 jp::MissingFontsHost MainWindow::missingFontsHost()
 {
-    return jp::pageMissingFontsHost(
+    jp::MissingFontsHost host = jp::pageMissingFontsHost(
         m_ed,
         [this](const jp::FindStory &story) { return !story.master.isEmpty() ? tr("Master page %1").arg(story.master) : tr("Page %1").arg(story.page + 1); },
         [this] { return refuseIfReadOnly(); });
+    // A font the file carries is not missing, whatever this computer has.
+    host.carried = [this](const QString &family) { return m_ed->doc()->fontAliases.contains(family.toLower()); };
+    return host;
 }
 
 // The Equation tab (equationtab.h): shown while an equation is selected. Its buttons open the equation's dialog with the structure or symbol put in; Professional and Linear change

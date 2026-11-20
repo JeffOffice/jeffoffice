@@ -442,7 +442,7 @@ bool WriteWindow::saveTo(const QString &path, bool asCopy)
     QStringList notKept;
     QApplication::setOverrideCursor(Qt::WaitCursor);
     int lostChars = 0;
-    // Options > Save, "Embed fonts in the file": the fonts a .docx's text uses are written into it where each font's license allows, and the person is told of those left out.
+    // Options > Save, "Save fonts in the file": the fonts a .docx's text uses are written into it where each font's license allows, and the person is told of those left out.
     write::WriteDoc::DocxFonts docxFonts;
     docxFonts.embed = Settings::get().value(QStringLiteral("save/embedFonts"), false).toBool();
     QByteArray bytes = text ? write::plainTextFile(*m_doc, textForm.encoding, textForm.ends, &lostChars, textForm.codePage) : rtf ? m_doc->toRtf(&err, &notKept) : odt ? m_doc->toOdt(&err, &notKept) : m_doc->toDocx(&err, tmpl, macroFile, &docxFonts);

@@ -1434,6 +1434,8 @@ private Q_SLOTS:
     void theMissingFontsBarLeavesOutAFontTheFileCarries();
     void aSavedDocxCarriesTheFontsItsTextUsesOnlyWhenAsked();
     void aSavedDocxLeavesOutAFontWhoseLicenseForbidsItAndSaysSo();
+    void optionsSaveHasASaveFontsInTheFileBoxThatTheSaveFollows();
+    void aSavedDocxWithFontsOffIsTheSameBytesAsWithNoFontArgument();
     void aDocxThatFailsToOpenLeavesNoFontsRegistered();
     void aSavedDocumentRoundTripsItsOwnParagraphFormatting();
     void kerningComesFromTheFilesKernSetting();

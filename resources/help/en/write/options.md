@@ -1,15 +1,16 @@
 # Change JeffWrite's settings
-<!-- keywords: overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
+<!-- keywords: save fonts in the file, embed fonts, fonts in the file, overtype, insert key, typing replaces selection, ctrl+click, follow link, drag and drop, personal information, remove personal information, advanced, units, measurements, inches, centimeters, options, settings, preferences, save, default format, default folder, default file location, recovery, formatting marks, gridlines, display, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys -->
 
 Your settings are in the **JeffWrite Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
 ## Save
 
-The **Save** page of the Options window has four choices.
+The **Save** page of the Options window has five choices.
 
 - **Save new documents as** picks the kind of file that **Save As** offers first for a document that has no file yet: a .docx file or an .odt file.
 - **Save automatic recovery information every** is how many minutes pass between the spare copies JeffWrite keeps of unsaved work. See [Open, save, print, and export](open-save).
 - **Default file location** is the folder the **Open** and **Save As** boxes start in. Click **Browse** to pick it. Leave it empty to start in your Documents folder.
+- **Save fonts in the file** is off at first. When it is on, a .docx file you save carries the fonts its text is set in, so the document looks the same on a computer that doesn't have them. It only puts in the fonts that come with JeffWrite, never one whose license does not allow it, and it makes the file bigger. See "Fonts in the file" in [Open, save, print, and export](open-save).
 - **Remove personal information from this file when saving** takes out the author, the person who saved the file last, the company, the manager, the names and initials on comments, and the names and times on tracked changes, from the file that is written (a .docx or .odt file, a template, and a document sent by email). What the file says stays as it is. The file's custom properties are left as they are, and the document you have open is not changed. It is the same choice in every JeffOffice app: change it in one and it changes in all of them. To do this just once, use **Inspect Document** in [Info](info). The same box is on the **Info** page.
 
 ## Display

@@ -168,7 +168,7 @@ public:
     static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr, const QString &baseDir = QString());
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     // `macros`: the macro project, its signature, and its data are kept as they were (for a .docm or .dotm); otherwise they are left out.
-    // `fonts` (Options > Save, "Embed fonts in the file"): the fonts the text uses are written into the package, where each font's own license allows it (office::wml::embedFontsInDocx).
+    // `fonts` (Options > Save, "Save fonts in the file"): the fonts the text uses are written into the package, where each font's own license allows it (office::wml::embedFontsInDocx).
     struct DocxFonts {
         bool embed = false;
         office::wml::FontFileSource source;   // where a face's font file comes from; none: the fonts that ship with the program

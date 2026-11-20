@@ -1669,7 +1669,7 @@ void PubFileTests::aHostilePublicationFontListIsBounded()
     big.insert("librevenge:name", "Big");
     big.insert("office:binary-data", librevenge::RVNGBinaryData(reinterpret_cast<const unsigned char *>(QByteArray(int(jp::kMaxEmbeddedFontBytes) + 200000, 'x').constData()), static_cast<unsigned long>(jp::kMaxEmbeddedFontBytes) + 200000));
     jp::office::EmbeddedFaceIntake over;
-    jp::takePubEmbeddedFont(over, big);
+    QVERIFY(!jp::takePubEmbeddedFont(over, big));
     QCOMPARE(over.decodedCount(), 0);
     QStringList overNotes;
     QCOMPARE(over.take(&overNotes).size(), 0);
@@ -1677,5 +1677,46 @@ void PubFileTests::aHostilePublicationFontListIsBounded()
     QCOMPARE(intake.decodedCount(), jp::kMaxEmbeddedFonts);
     QStringList notes;
     QCOMPARE(intake.take(&notes).size(), jp::kMaxEmbeddedFonts);
-    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+}
+
+// Each cap of the intake keeps a part from being decoded from its text at all: the count used up, too many parts tried (usable or not), and the total held.
+void PubFileTests::aPublicationFontIsNotDecodedWhenTheIntakeHasNoRoomForIt()
+{
+    const QByteArray lato = pubLatoFile(false);
+    QVERIFY(!lato.isEmpty());
+    {
+        jp::office::EmbeddedFontLimits limits;
+        limits.faces = 1;
+        jp::office::EmbeddedFaceIntake intake(limits);
+        QVERIFY(jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("A"), lato)));
+        for (int i = 0; i < 5; ++i) QVERIFY(!jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("B%1").arg(i), lato)));
+        QCOMPARE(intake.decodedCount(), 1);
+    }
+    {
+        jp::office::EmbeddedFontLimits limits;
+        limits.tried = 3;
+        jp::office::EmbeddedFaceIntake intake(limits);
+        int decoded = 0;
+        for (int i = 0; i < 20; ++i) decoded += jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("J%1").arg(i), QByteArray(300, 'j'))) ? 1 : 0;
+        QCOMPARE(decoded, 3);
+        QCOMPARE(intake.decodedCount(), 3);
+    }
+    {
+        jp::office::EmbeddedFontLimits limits;
+        limits.totalBytes = lato.size() * 5 / 2;   // (a font taken is held twice: as the part and as the font)
+        jp::office::EmbeddedFaceIntake intake(limits);
+        QVERIFY(jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("A"), lato)));
+        QVERIFY(!jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("B"), lato)));
+        QCOMPARE(intake.decodedCount(), 1);
+        QVERIFY(intake.heldBytes() <= limits.totalBytes);
+    }
+    // A publication keeps no part as the file had it: nothing reads it.
+    jp::office::EmbeddedFontLimits lean;
+    lean.keepParts = false;
+    jp::office::EmbeddedFaceIntake intake(lean);
+    QVERIFY(jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("Zobster"), lato)));
+    const auto faces = intake.take(nullptr);
+    QCOMPARE(faces.size(), 1);
+    QVERIFY(faces[0].part.isEmpty());
 }

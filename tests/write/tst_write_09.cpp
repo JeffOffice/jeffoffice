@@ -3,7 +3,12 @@
 #include "core/fontfiles.h"
 #include "core/sfnt.h"
 #include "office/embeddedfonts.h"
+#include "../settingguard.h"
+#include "app/optionsdialog.h"
+#include "app/settings.h"
+#include <QCheckBox>
 #include <QFontDatabase>
+#include <QTemporaryDir>
 #include <QScopeGuard>
 #include <QUuid>
 
@@ -2252,7 +2257,7 @@ int fontPartsIn(const QByteArray &docx)
 }
 } // namespace
 
-// Options > Save, "Embed fonts in the file": the fonts the text uses (here the program's own Lato, which other computers may lack) are written into the .docx only when
+// Options > Save, "Save fonts in the file": the fonts the text uses (here the program's own Lato, which other computers may lack) are written into the .docx only when
 // asked, read back as the document's own fonts, and the saved file still opens as the document it was.
 void WriteTests::aSavedDocxCarriesTheFontsItsTextUsesOnlyWhenAsked()
 {
@@ -2297,4 +2302,68 @@ void WriteTests::aSavedDocxLeavesOutAFontWhoseLicenseForbidsItAndSaysSo()
     QCOMPARE(fontPartsIn(bytes), 0);
     QCOMPARE(on.notes, QStringList{QStringLiteral("These fonts were not saved in the file, because their licenses do not allow it: Lato.")});
     QVERIFY(WriteDoc::fromDocx(bytes, &err));
+}
+
+// Options > Save has "Save fonts in the file", off unless turned on; it is the setting the save follows, and a save then carries the fonts.
+void WriteTests::optionsSaveHasASaveFontsInTheFileBoxThatTheSaveFollows()
+{
+    jptest::SettingGuard guard(QStringLiteral("save/embedFonts"), false, false);
+    auto box = [](WriteWindow &w, QVector<OptionsPage> *pages, QList<QWidget *> *built) {
+        *pages = w.optionsPages();
+        for (const OptionsPage &page : *pages) *built << page.build();
+        QCheckBox *found = nullptr;
+        for (QWidget *page : std::as_const(*built))
+            if (!found) found = page->findChild<QCheckBox *>(QStringLiteral("embedFonts"));
+        return found;
+    };
+    WriteWindow w;
+    w.setDocument(open(docxCarrying(QStringLiteral("Lato"), {})), QString());
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    auto savedParts = [&](const QString &name) {
+        QFile f(dir.filePath(name));
+        return f.open(QIODevice::ReadOnly) ? fontPartsIn(f.readAll()) : -1;
+    };
+    QVERIFY(w.saveTo(dir.filePath(QStringLiteral("off.docx"))));
+    QCOMPARE(savedParts(QStringLiteral("off.docx")), 0);
+    {
+        QVector<OptionsPage> pages;
+        QList<QWidget *> built;
+        QCheckBox *on = box(w, &pages, &built);
+        QVERIFY(on);
+        QCOMPARE(on->text(), QStringLiteral("Save fonts in the file"));
+        QVERIFY(!on->isChecked());
+        on->setChecked(true);
+        for (const OptionsPage &page : pages)
+            if (page.apply) page.apply();
+        qDeleteAll(built);
+    }
+    QVERIFY(Settings::get().value(QStringLiteral("save/embedFonts"), false).toBool());
+    w.document()->story()->setModified(true);
+    QVERIFY(w.saveTo(dir.filePath(QStringLiteral("on.docx"))));
+    QVERIFY(savedParts(QStringLiteral("on.docx")) >= 1);
+    {
+        QVector<OptionsPage> pages;
+        QList<QWidget *> built;
+        QCheckBox *on = box(w, &pages, &built);
+        QVERIFY(on && on->isChecked());   // (the box shows the setting)
+        on->setChecked(false);
+        for (const OptionsPage &page : pages)
+            if (page.apply) page.apply();
+        qDeleteAll(built);
+    }
+    QVERIFY(!Settings::get().value(QStringLiteral("save/embedFonts"), false).toBool());
+}
+
+// With the option off, the bytes of a saved .docx are the same as before the option was there: the path with no font argument and the one with the option off agree.
+void WriteTests::aSavedDocxWithFontsOffIsTheSameBytesAsWithNoFontArgument()
+{
+    auto doc = open(docxCarrying(QStringLiteral("Lato"), {}));
+    QVERIFY(doc);
+    QString err;
+    const QByteArray plain = doc->toDocx(&err);
+    QVERIFY2(!plain.isEmpty(), qPrintable(err));
+    WriteDoc::DocxFonts off;
+    QCOMPARE(doc->toDocx(&err, false, false, &off), plain);
+    QVERIFY(off.notes.isEmpty());
 }

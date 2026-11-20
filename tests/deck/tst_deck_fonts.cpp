@@ -259,6 +259,29 @@ private Q_SLOTS:
         QCOMPARE(int(deck::EmbeddedFonts::facesOf(have.get()).size()), 0);
     }
 
+    // A presentation that is read and thrown away (a salvage, a compare, a slide show's copy) never has to say so: its fonts go with it, and nothing a later
+    // document is made at the same address is given what it carried.
+    void aPresentationThatIsDroppedTakesItsFontsWithIt()
+    {
+        const QByteArray font = renamedFont(fontFileOf(QStringLiteral("Lobster"), false, false), QStringLiteral("Lobster"), QStringLiteral("Zobster"));
+        QVERIFY(!font.isEmpty());
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QString err;
+        auto doc = deck::importPresentation(pack(withEmbeddedFonts(samplePptx(), {{QStringLiteral("Zobster"), {{0, office::makeEot(font)}}}})), &err);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        const Document *address = doc.get();
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(address).size()), 1);
+        doc.reset();
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(address).size()), 0);
+        // A document made after it, wherever it stands, has no faces to be written into its file.
+        for (int i = 0; i < 4; ++i) {
+            Document later;
+            QCOMPARE(int(deck::EmbeddedFonts::facesOf(&later).size()), 0);
+        }
+    }
+
     // A family's styles are all available, not only the first: a font the computer lacks comes in a regular and a bold face, say.
     void allTheStylesOfAnEmbeddedFamilyAreAvailable()
     {

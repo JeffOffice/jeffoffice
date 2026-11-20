@@ -51,16 +51,27 @@ QSet<QString> computerFamilies()
 
 } // namespace
 
-void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView part)
+bool EmbeddedFaceIntake::wouldTake(qint64 bytes)
 {
+    if (m_tried >= m_limits.tried) {
+        m_tooManyTried = true;
+        return false;
+    }
     if (m_faces.size() >= m_limits.faces) {
         m_tooMany = true;
-        return;
+        return false;
     }
-    if (part.size() > m_limits.partBytes || m_total + part.size() > m_limits.totalBytes) {
+    if (bytes > m_limits.partBytes || m_total + m_whole + bytes > m_limits.totalBytes) {
         m_tooLarge = true;
-        return;
+        return false;
     }
+    return true;
+}
+
+void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView part)
+{
+    if (!wouldTake(part.size())) return;
+    ++m_tried;
     m_total += part.size();
     ++m_decoded;
     EmbeddedFace face;
@@ -74,7 +85,7 @@ void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView p
         ++m_forbidden;
         return;
     }
-    if (m_whole + face.font.size() > m_limits.totalBytes) {   // (a compressed font is several times its part)
+    if (m_total + m_whole + face.font.size() > m_limits.totalBytes) {   // (a compressed font is several times its part)
         m_tooLarge = true;
         return;
     }
@@ -82,7 +93,7 @@ void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView p
     face.typeface = typeface.left(m_limits.nameChars).trimmed();
     if (face.typeface.isEmpty()) face.typeface = face.info.family;
     face.slot = slot >= 0 && slot < 4 ? FontSlot(slot) : fontSlot(face.info.bold, face.info.italic);
-    face.part = QByteArray(part.data(), part.size());
+    if (m_limits.keepParts) face.part = QByteArray(part.data(), part.size());
     face.pitchFamily = face.info.pitchFamily();
     face.charset = face.info.charset();
     m_faces << std::move(face);
@@ -91,10 +102,10 @@ void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView p
 QVector<EmbeddedFace> EmbeddedFaceIntake::take(QStringList *notes)
 {
     if (notes) {
-        if (m_unusable == 1) *notes << QCoreApplication::translate("jp::office::wml", "An embedded font in the file can't be used: %1").arg(m_firstReason);
-        else if (m_unusable > 1) *notes << QCoreApplication::translate("jp::office::wml", "%1 embedded fonts in the file can't be used: %2").arg(m_unusable).arg(m_firstReason);
+        if (m_unusable > 0) *notes << QCoreApplication::translate("jp::office::wml", "%n embedded font(s) in the file can't be used: %1", nullptr, m_unusable).arg(m_firstReason);
         if (m_forbidden > 0) *notes << QCoreApplication::translate("jp::office::wml", "Some embedded fonts in the file were not used, because their licenses do not allow it.");
-        if (m_tooMany) *notes << QCoreApplication::translate("jp::office::wml", "Only the first %1 embedded fonts are read.").arg(m_limits.faces);
+        if (m_tooMany) *notes << QCoreApplication::translate("jp::office::wml", "Only the first %n embedded font(s) are read.", nullptr, m_limits.faces);
+        if (m_tooManyTried) *notes << QCoreApplication::translate("jp::office::wml", "Only the first %n embedded font(s) in the file were looked at.", nullptr, m_limits.tried);
         if (m_tooLarge) *notes << QCoreApplication::translate("jp::office::wml", "Some embedded fonts are left out: they are too large.");
     }
     QVector<EmbeddedFace> out = std::move(m_faces);
