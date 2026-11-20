@@ -2180,7 +2180,7 @@ QByteArray Writer::changeRegion(const T &t, int node, const char *kind, bool wit
     QString date = t.attr(node, "date");
     if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
     const QByteArray k = kind;
-    m_changeRegions += "<text:changed-region text:id=\"" + id + "\"><text:" + k + "><office:change-info><dc:creator>" + esc(t.attr(node, "author"), false) + "</dc:creator>" +
+    m_changeRegions += "<text:changed-region xml:id=\"" + id + "\" text:id=\"" + id + "\"><text:" + k + "><office:change-info><dc:creator>" + esc(t.attr(node, "author"), false) + "</dc:creator>" +
                        (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info>" +
                        (withParagraph ? QByteArray("<text:p text:style-name=\"Standard\"/>") : QByteArray()) + "</text:" + k + "></text:changed-region>";
     return id;
@@ -2262,7 +2262,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
             const QString id = QStringLiteral("ct%1").arg(++m_changeCount);
             QString date = t.attr(c, "date");
             if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
-            m_changeRegions += "<text:changed-region text:id=\"" + id.toUtf8() + "\"><text:insertion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
+            m_changeRegions += "<text:changed-region xml:id=\"" + id.toUtf8() + "\" text:id=\"" + id.toUtf8() + "\"><text:insertion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
                                (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info></text:insertion></text:changed-region>";
             pc->xml += "<text:change-start text:change-id=\"" + id.toUtf8() + "\"/>";
             emitInline(t, c, pc, depth + 1);
@@ -2307,7 +2307,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                 const QString id = QStringLiteral("ct%1").arg(++m_changeCount);
                 QString date = t.attr(c, "date");
                 if (date.endsWith(QLatin1Char('Z'))) date.chop(1);
-                m_changeRegions += "<text:changed-region text:id=\"" + id.toUtf8() + "\"><text:deletion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
+                m_changeRegions += "<text:changed-region xml:id=\"" + id.toUtf8() + "\" text:id=\"" + id.toUtf8() + "\"><text:deletion><office:change-info><dc:creator>" + esc(t.attr(c, "author"), false) + "</dc:creator>" +
                                    (date.isEmpty() ? QByteArray() : "<dc:date>" + esc(date, false) + "</dc:date>") + "</office:change-info><text:p text:style-name=\"Standard\">" + dpc.xml + "</text:p></text:deletion></text:changed-region>";
                 pc->xml += "<text:change text:change-id=\"" + id.toUtf8() + "\"/>";
             }

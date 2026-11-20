@@ -514,18 +514,23 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_csvhostile.cpp
   tests/sheet/tst_sheet_odsreview.cpp
   tests/sheet/tst_sheet_odsnotes.cpp
+  tests/sheet/tst_sheet_odsvalid.cpp
+  tests/office/odfvalidate.cpp
   tests/sheet/tst_sheet_csvreview.cpp
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
   tests/sheet/sheettests.qrc)
 target_link_libraries(sheettests PRIVATE jeffoffice-common jp_zlib Qt6::Test)
+target_compile_definitions(sheettests PRIVATE JO_ODF_SCHEMA_DIR="${CMAKE_SOURCE_DIR}/third_party/odf_schema")
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
 # The tests of OpenDocument text (libs/office/odt): read into the parts of a .docx and written from them.
-qt_add_executable(odttests tests/office/tst_odt.cpp)
+# (odfvalidate.cpp checks what they write against the standard's schema in third_party/odf_schema, with the machine's libxml2 loaded at run time: nothing is linked)
+qt_add_executable(odttests tests/office/tst_odt.cpp tests/office/odfvalidate.cpp)
 target_link_libraries(odttests PRIVATE jeffoffice-common Qt6::Test)
+target_compile_definitions(odttests PRIVATE JO_ODF_SCHEMA_DIR="${CMAKE_SOURCE_DIR}/third_party/odf_schema")
 set_target_properties(odttests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME odttests COMMAND odttests)
 set_tests_properties(odttests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
@@ -626,6 +631,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_objects.cpp
   tests/deck/tst_deck_media.cpp
   tests/deck/tst_deck_odp.cpp
+  tests/office/odfvalidate.cpp
   tests/deck/tst_deck_output.cpp
   tests/deck/tst_deck_pptxexport.cpp
   tests/deck/tst_deck_pptximport.cpp
@@ -645,6 +651,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_transitions.cpp
   tests/deck/tst_deck_window.cpp)
 target_link_libraries(jdtests PRIVATE jdcore Qt6::Test)
+target_compile_definitions(jdtests PRIVATE JO_ODF_SCHEMA_DIR="${CMAKE_SOURCE_DIR}/third_party/odf_schema")
 # (tests/plainpdfwatch.h uses a private Qt header; tests/deck/tst_deck_media.cpp asks Qt Multimedia which backend plays)
 target_link_libraries(jdtests PRIVATE Qt6::CorePrivate)
 if(TARGET Qt6::MultimediaPrivate)

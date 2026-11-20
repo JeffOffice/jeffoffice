@@ -1,5 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
 #include "deckhelpers.h"
+#include "../office/odfvalidate.h"
 #include "office/packageprops.h"
 #include "app/lossywarning.h"
 #include "office/hyperlink.h"
@@ -3595,6 +3596,24 @@ private Q_SLOTS:
         const deck::HandoutMaster back = deck::handoutMasterOf(*read, deck::localePaper());
         QVERIFY(deck::isHandoutCount(back.perPage));
         QVERIFY(back.header.left() >= 0 && back.header.right() <= 1.0000001 && back.header.width() >= 0.0049);
+    }
+
+    // A presentation written as an open document is valid against the standard's schema (third_party/odf_schema; tests/office/odfvalidate.cpp loads the machine's libxml2, and a machine
+    // without it skips this and says why): content.xml, styles.xml, settings.xml when there is one, and the manifest. It says it is version 1.3, which the schema here (1.2) cannot check, so the version is read as 1.2 and what 1.3 added would show as errors; the names of the other suite's extension namespaces are taken out and listed apart.
+    void aPlainPresentationIsValidAgainstTheSchema()
+    {
+        auto d = lettered(3);
+        QString err;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(bytes, parts));
+        QStringList wanted{QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("META-INF/manifest.xml")};
+        if (parts.contains(QStringLiteral("settings.xml"))) wanted << QStringLiteral("settings.xml");
+        const odfcheck::Result r = odfcheck::checkPackage(bytes, wanted, true);
+        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        QVERIFY2(r.errors.isEmpty(), qPrintable(QString::number(r.errors.size()) + QLatin1String(" errors: ") + r.errors.mid(0, 6).join(QLatin1Char('\n'))));
+        for (const QString &name : r.privateNames) QVERIFY2(name.startsWith(QLatin1String("{urn:jeffoffice:odf-extension}")) || name.startsWith(QLatin1String("{urn:org:documentfoundation:names:experimental:")), qPrintable(QLatin1String("a name of another maker: ") + name));
     }
 };
 

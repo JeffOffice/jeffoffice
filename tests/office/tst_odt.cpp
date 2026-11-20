@@ -2,6 +2,7 @@
 
 #include "core/fonts.h"
 #include "core/wrapoutline.h"
+#include "odfvalidate.h"
 #include "io/zip.h"
 #include "io/zipindex.h"
 #include "odt/odt.h"
@@ -397,107 +398,6 @@ QStringList standardParagraphsOf(const QString &bodyXmlOfDocx)
         }
     }
     return out;
-}
-
-// ---- the standard's schema, when the machine has it (a developer's checkout; the build machines do not, and the tests that use it then skip)
-
-const char kSchemaFile[] = "/home/user/jo-deps-dl/odf/1.2/OpenDocument-v1.2-os-schema.rng";
-
-// What the schema says of the content.xml and styles.xml of a written document. Attributes and elements in a namespace that is not the standard's (ours, jo:, and the other program's names that
-// the format has no words for) make a document an "extended" one by the standard's own terms: they are taken out before the check and listed apart, so that what is left is the standard's own part.
-struct OdfCheck {
-    bool ran = false;
-    QString skip;
-    QStringList errors, privateNames;
-};
-
-OdfCheck checkAgainstSchema(const QByteArray &odt)
-{
-    OdfCheck r;
-    if (!QFileInfo::exists(QString::fromLatin1(kSchemaFile))) {
-        r.skip = QStringLiteral("the standard's schema file is not on this machine");
-        return r;
-    }
-    const QString python = QStandardPaths::findExecutable(QStringLiteral("python3"));
-    if (python.isEmpty()) {
-        r.skip = QStringLiteral("python3 is not on this machine");
-        return r;
-    }
-    const QMap<QString, QByteArray> files = filesOf(odt);
-    QTemporaryDir dir;
-    if (!dir.isValid() || files.isEmpty()) {
-        r.skip = QStringLiteral("no folder to write the parts in");
-        return r;
-    }
-    QStringList parts;
-    for (const QString &name : {QStringLiteral("content.xml"), QStringLiteral("styles.xml")}) {
-        QFile f(dir.filePath(name));
-        if (!f.open(QIODevice::WriteOnly) || f.write(files.value(name)) < 0) {
-            r.skip = QStringLiteral("no folder to write the parts in");
-            return r;
-        }
-        parts << f.fileName();
-    }
-    // (The checker is written beside the parts; it is run isolated, with only the schema file named.)
-    static const char script[] =
-        "import json, sys\n"
-        "try:\n"
-        "    from lxml import etree\n"
-        "except Exception:\n"
-        "    print(json.dumps({'skip': 'lxml is not installed'})); sys.exit(0)\n"
-        "std = ('urn:oasis:names:tc:opendocument:', 'http://www.w3.org/1999/xlink', 'http://purl.org/dc/elements/1.1/', 'http://www.w3.org/1998/Math/MathML', 'http://www.w3.org/XML/1998/namespace')\n"
-        "def standard(tag):\n"
-        "    if not tag.startswith('{'): return True\n"
-        "    return tag[1:].split('}')[0].startswith(std)\n"
-        "out = {'errors': [], 'private': []}\n"
-        "schema = etree.RelaxNG(etree.parse(sys.argv[1]))\n"
-        "for path in sys.argv[2:]:\n"
-        "    tree = etree.parse(path)\n"
-        "    for e in list(tree.iter()):\n"
-        "        if not isinstance(e.tag, str): continue\n"
-        "        if not standard(e.tag):\n"
-        "            out['private'].append(e.tag)\n"
-        "            e.getparent().remove(e)\n"
-        "            continue\n"
-        "        for k in list(e.attrib):\n"
-        "            if not standard(k):\n"
-        "                out['private'].append(k)\n"
-        "                del e.attrib[k]\n"
-        "    if not schema.validate(tree):\n"
-        "        for m in schema.error_log: out['errors'].append(path.rsplit('/', 1)[-1] + ' line ' + str(m.line) + ': ' + m.message[:300])\n"
-        "print(json.dumps(out))\n";
-    QFile s(dir.filePath(QStringLiteral("check.py")));
-    if (!s.open(QIODevice::WriteOnly) || s.write(script) < 0) {
-        r.skip = QStringLiteral("no folder to write the checker in");
-        return r;
-    }
-    s.close();
-    QProcess p;
-    p.setProgram(python);
-    p.setArguments(QStringList{QStringLiteral("-I"), s.fileName(), QString::fromLatin1(kSchemaFile)} + parts);
-    p.start();
-    if (!p.waitForFinished(120000)) {
-        p.kill();
-        p.waitForFinished();
-        r.skip = QStringLiteral("the checker did not finish");
-        return r;
-    }
-    const QJsonObject o = QJsonDocument::fromJson(p.readAllStandardOutput()).object();
-    if (o.isEmpty()) {
-        r.skip = QStringLiteral("the checker gave no answer: ") + QString::fromUtf8(p.readAllStandardError().left(200));
-        return r;
-    }
-    if (o.contains(QLatin1String("skip"))) {
-        r.skip = o.value(QStringLiteral("skip")).toString();
-        return r;
-    }
-    r.ran = true;
-    for (const QJsonValue &v : o.value(QStringLiteral("errors")).toArray()) r.errors << v.toString();
-    for (const QJsonValue &v : o.value(QStringLiteral("private")).toArray()) {
-        const QString name = v.toString();
-        if (!r.privateNames.contains(name)) r.privateNames << name;
-    }
-    return r;
 }
 
 } // namespace
@@ -3311,12 +3211,12 @@ private Q_SLOTS:
         }
     }
 
-    // ---- a written document, checked against the standard's schema (version 1.2, which is what the files say) when the machine has the schema file and a checker; else these tests skip
+    // ---- a written document, checked against the standard's schema (version 1.2, which is what the files say) with the schema in third_party/odf_schema and the machine's libxml2 (odfvalidate.cpp); a machine without it skips these tests with the reason
 
     // The check of a document, shared: the content and styles must have no error left once the names of ours are taken out, and what was taken out is only ours.
     static void mustBeValid(const QByteArray &odt, const char *what)
     {
-        const OdfCheck r = checkAgainstSchema(odt);
+        const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("META-INF/manifest.xml")});
         if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
         QVERIFY2(r.errors.isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(": ") + r.errors.mid(0, 6).join(QLatin1Char('\n'))));
         for (const QString &name : r.privateNames) QVERIFY2(name.startsWith(QLatin1String("{urn:jeffoffice:odf-extension}")), qPrintable(QString::fromLatin1(what) + QLatin1String(" has a name of another maker: ") + name));
@@ -3354,6 +3254,57 @@ private Q_SLOTS:
                                  "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"2500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>a</w:t></w:r></w:p></w:tc><w:tc><w:tcPr><w:tcW w:w=\"2500\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>b</w:t></w:r></w:p></w:tc></w:tr>"
                                  "<w:tr><w:tc><w:p><w:r><w:t>c</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>d</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>After</w:t></w:r></w:p>";
         mustBeValid(odtOfDrawing(table), "a table");
+    }
+
+    // KNOWN GAP (odtwrite.cpp, the page templates; found Nov 20): a different first page is written as style:header-first and style:footer-first, which the standard's version 1.2 schema does not have
+    // (it gives a left page's header only), so the file is not valid against the schema it says it follows. Writing them needs a decision (the later version, or a name of ours).
+    void aDifferentFirstPageIsValidAgainstTheSchema()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), "<w:document " + ns + "><w:body><w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH1\"/>"
+                  "<w:headerReference w:type=\"first\" r:id=\"rIdH2\"/><w:titlePg/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:body></w:document>",
+                  type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        for (int i = 1; i <= 2; ++i) {
+            const QString name = QStringLiteral("/word/header%1.xml").arg(i);
+            w.addPart(name, "<w:hdr " + ns + "><w:p><w:r><w:t>head</w:t></w:r></w:p></w:hdr>", type + QStringLiteral("header+xml"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH%1").arg(i), rel + QStringLiteral("header"), name);
+        }
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(QString::fromUtf8(filesOf(odt).value(QStringLiteral("styles.xml"))).contains(QLatin1String("style:header-first")));
+        const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("styles.xml")});
+        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        QEXPECT_FAIL("", "known gap: style:header-first is not in the version 1.2 schema", Continue);
+        QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.mid(0, 3).join(QLatin1Char('\n'))));
+    }
+
+    // KNOWN GAP (odtwrite.cpp paragraph properties; found Nov 20): "spacing between paragraphs of one style is not added" is written as style:contextual-spacing, an attribute of the later schema; version 1.2 has no such attribute.
+    void contextualSpacingIsValidAgainstTheSchema()
+    {
+        const QByteArray odt = odtOfDrawing("<w:p><w:pPr><w:contextualSpacing/><w:spacing w:after=\"200\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>");
+        const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("content.xml"), QStringLiteral("styles.xml")});
+        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        if (!QString::fromUtf8(filesOf(odt).value(QStringLiteral("content.xml"))).contains(QLatin1String("contextual-spacing"))) QSKIP("the attribute is not written for this input");
+        QEXPECT_FAIL("", "known gap: style:contextual-spacing is not in the version 1.2 schema", Continue);
+        QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.mid(0, 3).join(QLatin1Char('\n'))));
+    }
+
+    // The check itself sees an element out of the standard's order (so that a passing test above means something).
+    void theCheckSeesAnElementOutOfOrder()
+    {
+        if (!odfcheck::unavailableReason().isEmpty()) QSKIP(qPrintable(QStringLiteral("not checked: ") + odfcheck::unavailableReason()));
+        QByteArray odt = odtOfDrawing("<w:p><w:r><w:t>x</w:t></w:r></w:p>");
+        QMap<QString, QByteArray> parts = filesOf(odt);
+        QByteArray content = parts.value(QStringLiteral("content.xml"));
+        QVERIFY(odfcheck::checkPart(QStringLiteral("content.xml"), content).errors.isEmpty());
+        const qsizetype body = content.indexOf("<office:body>"), styles = content.indexOf("<office:automatic-styles");
+        QVERIFY(body > 0 && styles > 0 && styles < body);
+        const qsizetype stylesEnd = content.indexOf("</office:automatic-styles>") + 26;
+        const QByteArray swapped = content.left(styles) + content.mid(body, content.indexOf("</office:document-content>") - body) + content.mid(styles, stylesEnd - styles) + "</office:document-content>";
+        QVERIFY(!odfcheck::checkPart(QStringLiteral("content.xml"), swapped).errors.isEmpty());
     }
 
     void aDocumentWithMirroredPagesIsValidAgainstTheSchema()

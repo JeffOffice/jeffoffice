@@ -1110,7 +1110,8 @@ private:
                 const quint32 last = std::min<quint32>(c.last, 16383);
                 if (c.first > lastCol && c.first >= at && !(c.hidden || c.style)) continue;
                 gap(c.first);
-                const double chars = c.width >= 0 ? c.width : defaultChars;
+                // (a width is a positive length in the standard: a hidden column of no width is written with the sheet's width, and collapsed)
+                const double chars = c.width >= 0 && !(c.hidden && c.width == 0) ? c.width : defaultChars;
                 QString x = QStringLiteral("<table:table-column table:style-name=\"%1\"").arg(columnStyleFor(widthPt(chars)));
                 if (last > c.first) x += QStringLiteral(" table:number-columns-repeated=\"%1\"").arg(last - c.first + 1);
                 if (c.hidden) x += QStringLiteral(" table:visibility=\"collapse\"");
@@ -1172,6 +1173,7 @@ private:
         }
         // the rows
         QString rowsXml;
+        bool wroteRow = false;
         {
             // the rows that matter: those with cells, with a size, with part of a merged range, or at the top of a page
             QVector<quint32> rowList;
@@ -1231,6 +1233,7 @@ private:
             std::vector<size_t> active;
             auto emptyRows = [&](quint32 until) {
                 if (until > nextRow) {
+                    wroteRow = true;
                     rowsXml += QStringLiteral("<table:table-row table:style-name=\"%1\" table:number-rows-repeated=\"%2\"><table:table-cell/></table:table-row>").arg(rowStyleFor(defaultHeight, false)).arg(until - nextRow);
                     nextRow = until;
                 }
@@ -1379,10 +1382,13 @@ private:
                     col += 1;
                 }
                 rx += QStringLiteral("</table:table-row>");
+                wroteRow = true;
                 rowsXml += rx;
                 nextRow = row + 1;
             }
         }
+        // (a table has at least one row in the standard: a sheet with no cell gets an empty one)
+        if (!wroteRow) rowsXml += QStringLiteral("<table:table-row><table:table-cell/></table:table-row>");
         spool->add(rowsXml.toUtf8());
         QString tail;
         const QString localNames = m_localNames.value(index);

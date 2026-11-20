@@ -398,7 +398,7 @@ private:
 QString element(const Section &s, const QString &name, bool main, const QString &maps, bool forceText = false)
 {
     QString kind = (s.text || forceText) && !s.percent ? QStringLiteral("text-style") : s.percent ? QStringLiteral("percentage-style") : (s.date || s.time) ? (s.date ? QStringLiteral("date-style") : QStringLiteral("time-style")) : QStringLiteral("number-style");
-    QString x = QStringLiteral("<number:%1 style:name=\"%2\" style:family=\"data-style\"").arg(kind, name);
+    QString x = QStringLiteral("<number:%1 style:name=\"%2\"").arg(kind, name);
     if (s.elapsed) x += QStringLiteral(" number:truncate-on-overflow=\"false\"");
     x += QStringLiteral(">");
     if (!s.color.isEmpty()) x += QStringLiteral("<style:text-properties fo:color=\"%1\"/>").arg(s.color);
