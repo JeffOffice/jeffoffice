@@ -33,6 +33,7 @@ namespace jp::office::sheet {
 
 namespace {
 
+constexpr QLatin1String NS_JO("urn:jeffoffice:odf-extension");
 constexpr QLatin1String NS_TABLE("urn:oasis:names:tc:opendocument:xmlns:table:1.0");
 constexpr QLatin1String NS_OFFICE("urn:oasis:names:tc:opendocument:xmlns:office:1.0");
 constexpr QLatin1String NS_TEXT("urn:oasis:names:tc:opendocument:xmlns:text:1.0");
@@ -1157,6 +1158,7 @@ struct ColRun {
     QString style;
     quint32 xf = 0;
     bool hidden = false;
+    bool zeroWidth = false;   // jo:zero-width: ours; the style has the sheet's width, the column has none
 };
 
 struct RowRun {
@@ -1413,6 +1415,7 @@ private:
         run.style = attr(a, NS_TABLE, QLatin1String("style-name"));
         const QString vis = attr(a, NS_TABLE, QLatin1String("visibility"));
         run.hidden = vis == QLatin1String("collapse") || vis == QLatin1String("filter");
+        run.zeroWidth = attr(a, NS_JO, QLatin1String("zero-width")) == QLatin1String("true");
         const QString cell = attr(a, NS_TABLE, QLatin1String("default-cell-style-name"));
         run.xf = cell.isEmpty() ? m_m.xfOf.value(QString()) : m_m.xfOf.value(cell, m_m.xfOf.value(QString()));
         m_nextCol += run.count;
@@ -1877,13 +1880,17 @@ private:
             for (const ColRun &r : m_colRuns) {
                 const double w = widthOf(r);
                 const bool differs = w > 0 && std::abs(w - defaultPt) > 0.01;
-                if (!differs && !r.hidden && r.xf == 0) continue;
+                if (!differs && !r.hidden && r.xf == 0 && !r.zeroWidth) continue;
                 ColumnSpan span;
                 span.first = r.first;
                 span.last = r.first + r.count - 1;
                 span.hidden = r.hidden;
                 span.style = r.xf;
-                if (w > 0) {
+                if (r.zeroWidth) {
+                    // (ours: a column of no width, written with the sheet's width because the standard's width is a positive length)
+                    span.width = 0;
+                    span.customWidth = true;
+                } else if (w > 0) {
                     span.width = w * 96.0 / 72.0 / m_m.maxDigitWidth;
                     span.customWidth = true;
                 } else if (r.hidden && hasZeroWidth(r)) {
@@ -1962,7 +1969,7 @@ private:
         QVector<odsdraw::Grid::Run> cols, rows;
         for (const ColRun &r : m_colRuns) {
             const double w = widthOf(r);
-            cols.append({r.first, r.first + r.count - 1, r.hidden ? 0.0 : (w > 0 ? w : defaultCol)});
+            cols.append({r.first, r.first + r.count - 1, r.hidden || r.zeroWidth ? 0.0 : (w > 0 ? w : defaultCol)});
         }
         for (const RowRun &r : m_rowRuns) {
             const double h = heightOf(r);

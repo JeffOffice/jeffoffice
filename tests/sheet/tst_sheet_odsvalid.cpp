@@ -36,11 +36,13 @@ class SheetOdsValidTests : public QObject {
     static void mustBeValid(const QByteArray &ods, const char *what)
     {
         QVERIFY2(!ods.isEmpty(), what);
-        const odfcheck::Result r = odfcheck::checkPackage(ods, {QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("settings.xml"), QStringLiteral("META-INF/manifest.xml")});
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        const odfcheck::Result r = odfcheck::checkPackage(ods, {QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("settings.xml"), QStringLiteral("meta.xml"), QStringLiteral("META-INF/manifest.xml")});
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
         QVERIFY2(r.errors.isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(" (") + QString::number(r.errors.size()) + QLatin1String(" errors): ") + r.errors.mid(0, 6).join(QLatin1Char('\n'))));
-        for (const QString &name : r.privateNames)
-            QVERIFY2(name.startsWith(QLatin1String("{urn:jeffoffice:odf-extension}")) || name.startsWith(QLatin1String("{urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0}")), qPrintable(QString::fromLatin1(what) + QLatin1String(" has a name of another maker: ") + name));
+        QVERIFY2(r.warnings.isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(" has warnings: ") + r.warnings.mid(0, 3).join(QLatin1Char('\n'))));
+        QCOMPARE(r.parts, 5);
+        QCOMPARE(r.wrappers, 0);
+        QVERIFY2(odfcheck::unlistedPrivateName(r).isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(" has a name of another maker: ") + odfcheck::unlistedPrivateName(r)));
     }
 
     // A workbook of the XML form that links to the workbooks at these addresses, its cells `rows`.
@@ -66,11 +68,16 @@ class SheetOdsValidTests : public QObject {
         return z.finish();
     }
 
+    int m_validatedBefore = 0;
+
 private Q_SLOTS:
+    void initTestCase() { m_validatedBefore = odfcheck::validatedParts(); }
+    void cleanupTestCase() { ODF_ASSERT_VALIDATED(m_validatedBefore); }
+
     // The check itself must see a fault: a part whose elements are out of the standard's order, and one with an attribute the element does not take, are errors; ours are only listed.
     void theCheckSeesAnElementOutOfOrderAndAStrayAttribute()
     {
-        if (!odfcheck::unavailableReason().isEmpty()) QSKIP(qPrintable(QStringLiteral("not checked: ") + odfcheck::unavailableReason()));
+        if (!odfcheck::unavailableReason().isEmpty()) ODF_SKIP_OR_FAIL(odfcheck::unavailableReason());
         const QByteArray fine = "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" "
                                 "xmlns:jo=\"urn:jeffoffice:odf-extension\" office:version=\"1.2\"><office:body><office:spreadsheet><table:table table:name=\"S\" jo:more=\"1\"><table:table-column/><table:table-row><table:table-cell/></table:table-row>"
                                 "</table:table></office:spreadsheet></office:body></office:document-content>";
@@ -137,7 +144,11 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(ods, parts));
         QVERIFY(parts.value(QStringLiteral("content.xml")).contains("<number:number-style"));
         const odfcheck::Result r = odfcheck::checkPackage(ods, {QStringLiteral("content.xml"), QStringLiteral("styles.xml")});
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
+        // only the known gap may be among the errors; a different error fails here
+        const QStringList other = odfcheck::errorsWithout(r.errors, {QStringLiteral("min-decimal-places")}, {QStringLiteral("number-style"), QStringLiteral("number"), QStringLiteral("automatic-styles"), QStringLiteral("styles")});
+        QVERIFY2(other.isEmpty(), qPrintable(QStringLiteral("an error other than the known gap: ") + other.mid(0, 3).join(QLatin1Char('\n'))));
+        // the marker: this fails (as an unexpected pass) once the gap is gone, so that the expectation is removed
         QEXPECT_FAIL("", "known gap: number:min-decimal-places is not in the version 1.2 schema", Continue);
         QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.mid(0, 3).join(QLatin1Char('\n'))));
     }
@@ -152,6 +163,103 @@ private Q_SLOTS:
         QVERIFY(jp::readZip(ods, parts));
         QVERIFY(parts.value(QStringLiteral("content.xml")).contains("collapse"));
         mustBeValid(ods, "a workbook with a hidden column");
+    }
+
+    // The runs of columns that have no width (hidden or not) or are hidden, as text: from, to, hidden, width, whether the width is custom.
+    static QString zeroColumnsOf(const Workbook &wb)
+    {
+        QString out;
+        Sheet sheet;
+        if (!wb.readSheet(0, &sheet)) return QStringLiteral("unreadable");
+        for (const ColumnSpan &c : sheet.columns)
+            if (c.hidden || c.width == 0) out += QStringLiteral("%1-%2 hidden=%3 width=%4 custom=%5;").arg(c.first).arg(c.last).arg(c.hidden).arg(c.width).arg(c.customWidth);
+        return out;
+    }
+
+    // A column of no width is not a valid length in the standard: it is written with the sheet's width and a mark of ours, and what comes back is the column as it was: hidden or not, width 0, custom.
+    void aColumnOfNoWidthIsValidAndComesBackAsItWas()
+    {
+        const QString cols = QStringLiteral("<cols><col min=\"2\" max=\"2\" width=\"0\" hidden=\"1\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"0\" customWidth=\"1\"/><col min=\"5\" max=\"5\" width=\"12\" customWidth=\"1\"/></cols>");
+        const QByteArray xlsx = sheettest::buildXlsx({sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"E1\"><v>2</v></c></row>"), QString(), cols)});
+        Workbook first, second;
+        QString why;
+        QVERIFY2(openBytes(xlsx, QStringLiteral("zero.xlsx"), &first, &why), qPrintable(why));
+        QCOMPARE(zeroColumnsOf(first), QStringLiteral("1-1 hidden=1 width=0 custom=1;3-3 hidden=0 width=0 custom=1;"));
+        const QByteArray ods = savedBook(first);
+        mustBeValid(ods, "a workbook with columns of no width");
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY(!parts.value(QStringLiteral("content.xml")).contains("column-width=\"0"));
+        QVERIFY(parts.value(QStringLiteral("content.xml")).contains("zero-width"));
+        QVERIFY2(openBytes(ods, QStringLiteral("zero.ods"), &second, &why), qPrintable(why));
+        QCOMPARE(zeroColumnsOf(second), zeroColumnsOf(first));
+    }
+
+    // The mark of ours is the only thing that makes the width 0 again: a file with no mark, whose hidden column has the sheet's width, reads as a column with that width.
+    void aHiddenColumnWithAWidthHasNoMarkAndKeepsNone()
+    {
+        const QByteArray xlsx = sheettest::buildXlsx({sheettest::worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QString(), QStringLiteral("<cols><col min=\"2\" max=\"2\" width=\"9\" hidden=\"1\" customWidth=\"1\"/></cols>"))});
+        Workbook first, second;
+        QString why;
+        QVERIFY2(openBytes(xlsx, QStringLiteral("nine.xlsx"), &first, &why), qPrintable(why));
+        const QByteArray ods = savedBook(first);
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY(!parts.value(QStringLiteral("content.xml")).contains("zero-width"));
+        QVERIFY2(openBytes(ods, QStringLiteral("nine.ods"), &second, &why), qPrintable(why));
+        QVERIFY(zeroColumnsOf(second).contains(QLatin1String("hidden=1 width=9")));
+    }
+
+    // The check sees what a part of another maker holds: a name of an unlisted namespace is an error (and a listed one only listed), an extension element's standard children are kept and checked in its place, and
+    // a namespace that only begins with a listed one is not listed.
+    void theCheckKeepsTheChildrenOfAnExtensionAndFailsOnUnlistedNames()
+    {
+        if (!odfcheck::unavailableReason().isEmpty()) ODF_SKIP_OR_FAIL(odfcheck::unavailableReason());
+        const auto part = [](const QByteArray &inside) {
+            return "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" xmlns:jo=\"urn:jeffoffice:odf-extension\" "
+                   "xmlns:x=\"urn:other:maker\" xmlns:y=\"urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0.1\" office:version=\"1.2\"><office:body><office:text>" + inside + "</office:text></office:body></office:document-content>";
+        };
+        const QString name = QStringLiteral("content.xml");
+        // a wrapper of ours with a standard child: the child is validated where the wrapper was
+        odfcheck::Result r = odfcheck::checkPart(name, part("<jo:wrap><text:p>a</text:p></jo:wrap><text:p>b</text:p>"));
+        QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.join(QLatin1Char('\n'))));
+        QCOMPARE(r.wrappers, 1);
+        QVERIFY(r.privateNames.contains(QStringLiteral("{urn:jeffoffice:odf-extension}wrap")));
+        // ... and a standard child that is not valid there is an error (it was dropped unseen with its wrapper before)
+        r = odfcheck::checkPart(name, part("<jo:wrap><text:bogus/></jo:wrap>"));
+        QVERIFY(!r.errors.isEmpty());
+        // a namespace nobody listed: an error, and an address that only begins like a listed one is not listed either
+        r = odfcheck::checkPart(name, part("<x:thing/><text:p>b</text:p>"));
+        QVERIFY2(r.errors.join(QLatin1Char('\n')).contains(QLatin1String("urn:other:maker")), qPrintable(r.errors.join(QLatin1Char('\n'))));
+        r = odfcheck::checkPart(name, part("<text:p y:a=\"1\">b</text:p>"));
+        QVERIFY2(r.errors.join(QLatin1Char('\n')).contains(QLatin1String("calcext:1.0.1")), qPrintable(r.errors.join(QLatin1Char('\n'))));
+        QVERIFY(!odfcheck::isExtensionNamespace(QStringLiteral("urn:org:documentfoundation:names:experimental:")));
+        QVERIFY(odfcheck::isExtensionNamespace(QStringLiteral("urn:jeffoffice:odf-extension")));
+        QVERIFY(!odfcheck::unlistedPrivateName(r).isEmpty());
+    }
+
+    // Errors and warnings are told apart; the part count is what was really checked; the switch that makes a missing validator a failure is read from the environment.
+    void warningsAreNotErrorsAndTheSwitchIsRead()
+    {
+        QStringList errors, warnings;
+        odfcheck::sortMessage(1, QStringLiteral("w"), &errors, &warnings);
+        odfcheck::sortMessage(2, QStringLiteral("e"), &errors, &warnings);
+        odfcheck::sortMessage(3, QStringLiteral("f"), &errors, &warnings);
+        QCOMPARE(warnings, QStringList{QStringLiteral("w")});
+        QCOMPARE(errors, (QStringList{QStringLiteral("e"), QStringLiteral("f")}));
+        const QByteArray was = qgetenv("JO_REQUIRE_ODF_VALIDATE");
+        qputenv("JO_REQUIRE_ODF_VALIDATE", "1");
+        QVERIFY(odfcheck::required());
+        qputenv("JO_REQUIRE_ODF_VALIDATE", "0");
+        QVERIFY(!odfcheck::required());
+        qunsetenv("JO_REQUIRE_ODF_VALIDATE");
+        QVERIFY(!odfcheck::required());
+        if (!was.isNull()) qputenv("JO_REQUIRE_ODF_VALIDATE", was);
+        if (!odfcheck::unavailableReason().isEmpty()) return;
+        const int before = odfcheck::validatedParts();
+        const odfcheck::Result r = odfcheck::checkPart(QStringLiteral("content.xml"), "<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" office:version=\"1.2\"/>");
+        QCOMPARE(r.parts, 1);
+        QCOMPARE(odfcheck::validatedParts(), before + 1);
     }
 };
 

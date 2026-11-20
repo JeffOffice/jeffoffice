@@ -4,6 +4,7 @@
 #include "app/customviewsdialog.h"
 #include "core/editsession.h"
 #include "core/errorcheck.h"
+#include "io/zip.h"
 #include "sheet/calculation.h"
 #include "sheet/customviews.h"
 #include "sheet/protection.h"
@@ -15,8 +16,10 @@
 
 #include <QAction>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QLabel>
 #include <QListWidget>
+#include <QMap>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -270,6 +273,41 @@ private Q_SLOTS:
         QVERIFY(s->resizeColumns(0, 1, 1, show, QStringLiteral("show")).ok);
         const auto after = s->calculation()->columnRuns(0, 1, 1);
         QVERIFY(after.empty() || (!after.front().hidden && after.front().width != 0));
+    }
+
+    // Columns of no width, hidden or not, are written to an .ods copy with the sheet's width (a width is a positive length in the standard) and a mark of ours; the copy opened again in the window
+    // has them as they were: the same hidden flag, width 0, and custom width.
+    void columnsOfNoWidthSurviveAnOdsCopy()
+    {
+        const auto runsOf = [](EditWindow &w) {
+            QStringList out;
+            for (const auto &c : w.win.w.session()->calculation()->columnRuns(0, 0, 5))
+                if (c.hidden || c.width == 0) out << QStringLiteral("%1-%2 hidden=%3 width=%4 custom=%5").arg(c.first).arg(c.last).arg(c.hidden).arg(c.width).arg(c.customWidth);
+            return out;
+        };
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"E1\"><v>5</v></c></row>"), QString(),
+                                            QStringLiteral("<cols><col min=\"2\" max=\"2\" width=\"0\" hidden=\"1\" customWidth=\"1\"/><col min=\"4\" max=\"4\" width=\"0\" customWidth=\"1\"/></cols>"))})));
+        const QStringList before = runsOf(e);
+        QCOMPARE(before.size(), 2);
+        const QString copy = e.folder.dir.filePath(QStringLiteral("zero.ods"));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return copy; });
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.saveCopy());
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QVERIFY(made.first().at(1).toBool());
+        QByteArray ods;
+        {
+            QFile f(copy);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            ods = f.readAll();
+        }
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY2(!parts.value(QStringLiteral("content.xml")).contains("column-width=\"0"), "a width of nothing is written");
+        EditWindow again;
+        QVERIFY(again.open(ods, QStringLiteral("zero.ods")));
+        QCOMPARE(runsOf(again), before);
     }
 
     void aViewKeepsTheLookOfTheWorkbookAndShowsItAgain()

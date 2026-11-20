@@ -170,7 +170,8 @@ const char *kNamespaces =
     " xmlns:number=\"urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0\" xmlns:svg=\"urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0\""
     " xmlns:of=\"urn:oasis:names:tc:opendocument:xmlns:of:1.2\" xmlns:config=\"urn:oasis:names:tc:opendocument:xmlns:config:1.0\""
     " xmlns:calcext=\"urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0\" xmlns:tableooo=\"http://openoffice.org/2009/table\""
-    " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\"";
+    " xmlns:loext=\"urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0\""
+    " xmlns:jo=\"urn:jeffoffice:odf-extension\"";
 
 class OdsWriter {
 public:
@@ -1110,11 +1111,12 @@ private:
                 const quint32 last = std::min<quint32>(c.last, 16383);
                 if (c.first > lastCol && c.first >= at && !(c.hidden || c.style)) continue;
                 gap(c.first);
-                // (a width is a positive length in the standard: a hidden column of no width is written with the sheet's width, and collapsed)
-                const double chars = c.width >= 0 && !(c.hidden && c.width == 0) ? c.width : defaultChars;
+                // (a width is a positive length in the standard: a column of no width, hidden or not, is written with the sheet's width, and jo:zero-width says it is none)
+                const double chars = c.width > 0 ? c.width : defaultChars;
                 QString x = QStringLiteral("<table:table-column table:style-name=\"%1\"").arg(columnStyleFor(widthPt(chars)));
                 if (last > c.first) x += QStringLiteral(" table:number-columns-repeated=\"%1\"").arg(last - c.first + 1);
                 if (c.hidden) x += QStringLiteral(" table:visibility=\"collapse\"");
+                if (c.width == 0) x += QStringLiteral(" jo:zero-width=\"true\"");
                 if (c.style && !cellStyleFor(c.style).isEmpty()) x += QStringLiteral(" table:default-cell-style-name=\"%1\"").arg(cellStyleFor(c.style));
                 columns += x + QStringLiteral("/>");
                 at = last + 1;
