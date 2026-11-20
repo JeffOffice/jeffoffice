@@ -30,6 +30,10 @@ struct MediaListener {
     QString url(const char *path) const { return QStringLiteral("http://127.0.0.1:%1/%2").arg(server.serverPort()).arg(QLatin1String(path)); }
 };
 
+// The longest any wait on real playback may take. A hang guard, not an expectation: playback is waited for by its signal or state, and how long
+// that takes depends on the machine (13 s under a load of 40 on Nov 20), so no test counts on a time.
+static constexpr int kHangGuardMs = 120000;
+
 class DeckMediaTests : public QObject {
     Q_OBJECT
 
@@ -1350,7 +1354,7 @@ private Q_SLOTS:
         QVERIFY2(!pb.failed(), qPrintable(pb.error()));
         QCOMPARE(int(pb.state()), int(MediaPlayback::State::Playing));
         const qint64 first = pb.played();
-        QTRY_VERIFY_WITH_TIMEOUT(pb.played() > first, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.played() > first, kHangGuardMs);
         QVERIFY(pb.played() <= pb.length() + 100);
         pb.stop();
     }
@@ -1369,7 +1373,7 @@ private Q_SLOTS:
         QCOMPARE(int(pb.state()), int(MediaPlayback::State::Playing));
         QVERIFY(!pb.frame().isNull());
         const qint64 first = pb.played();
-        QTRY_VERIFY_WITH_TIMEOUT(pb.played() > first, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.played() > first, kHangGuardMs);
         pb.stop();
     }
 
@@ -1394,7 +1398,7 @@ private Q_SLOTS:
         QCOMPARE(pb.frame().size(), QSize(64, 48));
         // It plays to its end and stops, holding its last picture.
         QSignalSpy ended(&pb, &MediaPlayback::ended);
-        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 0, 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 0, kHangGuardMs);
         QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
         QVERIFY(!pb.frame().isNull());
         // With rewind, the picture goes back to the poster.
@@ -1404,7 +1408,7 @@ private Q_SLOTS:
         again.setPlay(play);
         again.play();
         QSignalSpy over(&again, &MediaPlayback::ended);
-        QTRY_VERIFY_WITH_TIMEOUT(over.count() > 0, 15000);
+        QTRY_VERIFY_WITH_TIMEOUT(over.count() > 0, kHangGuardMs);
         QVERIFY(again.frame().isNull());
     }
 
@@ -1471,9 +1475,9 @@ private Q_SLOTS:
             QVERIFY2(!pb.failed(), qPrintable(info.fileName() + QStringLiteral(": ") + pb.error()));
             QVERIFY2(pb.state() == MediaPlayback::State::Playing, qPrintable(info.fileName()));
             const qint64 first = pb.played();
-            QTRY_VERIFY2_WITH_TIMEOUT(pb.played() > first, qPrintable(info.fileName() + QStringLiteral(" does not advance")), 15000);
+            QTRY_VERIFY2_WITH_TIMEOUT(pb.played() > first, qPrintable(info.fileName() + QStringLiteral(" does not advance")), kHangGuardMs);
             if (movie) {
-                QTRY_VERIFY2_WITH_TIMEOUT(!pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" gives no picture")), 15000);
+                QTRY_VERIFY2_WITH_TIMEOUT(!pb.frame().isNull(), qPrintable(info.fileName() + QStringLiteral(" gives no picture")), kHangGuardMs);
             }
             pb.stop();
         }
@@ -2604,15 +2608,14 @@ private Q_SLOTS:
         pb.setPlay(play);
         pb.play();
         QSignalSpy ended(&pb, &MediaPlayback::ended);
-        QTest::qWait(100);
-        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, 8000);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, kHangGuardMs);
         if (pb.failed() || ended.count() == 0) QSKIP("this computer's player doesn't run a sound out here");
         // Moved back into it, and played again.
         pb.seek(100);
-        QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Paused), 5000);
+        QTRY_COMPARE_WITH_TIMEOUT(int(pb.state()), int(MediaPlayback::State::Paused), kHangGuardMs);
         pb.resume();
-        QTRY_VERIFY_WITH_TIMEOUT(pb.state() == MediaPlayback::State::Playing || ended.count() > 1, 5000);
-        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 1, 5000);   // at 800, not at 3,000
+        QTRY_VERIFY_WITH_TIMEOUT(pb.state() == MediaPlayback::State::Playing || ended.count() > 1, kHangGuardMs);
+        QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 1, kHangGuardMs);   // at 800, not at 3,000
         QCOMPARE(int(pb.state()), int(MediaPlayback::State::Stopped));
     }
 
@@ -2739,8 +2742,7 @@ private Q_SLOTS:
         if (pb.failed()) return;
         QVERIFY2(std::abs(pb.length() - 500) < 60, qPrintable(QString::number(pb.length())));
         QCOMPARE(pb.fileLength() > 2900, true);
-        QTest::qWait(100);
-        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, 8000);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.failed() || ended.count() > 0, kHangGuardMs);
         if (ended.count() == 0) QSKIP("this computer's player doesn't run a sound out here");
         // A trim that leaves nothing is none (the presentation program ignores it too).
         MediaPlayback whole;
