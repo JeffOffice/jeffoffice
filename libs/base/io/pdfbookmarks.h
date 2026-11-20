@@ -32,6 +32,8 @@ struct PdfLink {
 };
 
 constexpr int kMostPdfLinks = 20000;
+// The longest address a link may have (in characters, with the spaces round it taken off): a longer one is left out, as a link no program could be relied on to open.
+constexpr int kLongestPdfLinkAddress = 2048;
 
 // The PDF with a link annotation over each area (an update appended at its end: only the annotation lists are replaced). The links Qt's writer makes for text are dropped from every
 // page, as the ones given cover them; the PDF as it was if there are none, or it is made in a way this doesn't know how to extend (nothing is guessed).

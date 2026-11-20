@@ -365,13 +365,15 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
     auto number = [](double v) { return QByteArray::number(v, 'f', 2); };
     for (const PdfLink &l : linksIn) {
         if (annots.size() >= kMostPdfLinks) break;
-        if (!l.uri.isEmpty() && !clickableAddress(l.uri)) continue;
+        // (the address as it is written is the one that was looked at: with spaces round it, a viewer does not take it for a web address)
+        const QString address = l.uri.trimmed();
+        if (!l.uri.isEmpty() && (!clickableAddress(address) || address.size() > kLongestPdfLinkAddress)) continue;
         if (l.page < 0 || l.page >= pageObjects.size() || l.rect.isEmpty() || (l.uri.isEmpty() && (l.toPage < 0 || l.toPage >= pageObjects.size()))) continue;
         QByteArray a = QByteArray::number(firstNew + int(annots.size())) + " 0 obj\n<< /Type /Annot /Subtype /Link /Rect [" + number(l.rect.left()) + ' ' + number(l.rect.top()) + ' ' +
                        number(l.rect.right()) + ' ' + number(l.rect.bottom()) + "] /Border [0 0 0] /F 4 ";
         if (!l.uri.isEmpty()) {
             // (an address is 7-bit text: anything else, and the characters a string needs escaped, are written as %xx)
-            a += "/A << /S /URI /URI (" + l.uri.toUtf8().toPercentEncoding("-._~:/?#[]@!$&'*+,;=%") + ") >>";
+            a += "/A << /S /URI /URI (" + address.toUtf8().toPercentEncoding("-._~:/?#[]@!$&'*+,;=%") + ") >>";
         } else
             a += "/Dest [" + QByteArray::number(pageObjects[l.toPage]) + (l.hasSpot ? " 0 R /XYZ " + number(l.spot.x()) + ' ' + number(l.spot.y()) + " null]" : QByteArray(" 0 R /Fit]"));
         a += " >>\nendobj\n";
@@ -453,13 +455,14 @@ QByteArray pdfInfoXmp(const PdfInfo &info, bool archive, int archivePart)
                    "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n"
                    "<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\" "
                    "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"" + QByteArray(archive ? " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\"" : "") + ">\n";
-    x += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(info.title) + "</rdf:li></rdf:Alt></dc:title>\n";
+    // (a property is in the packet when it is in the information dictionary, and only then: an empty one is in neither)
+    if (!infoText(info.title).isEmpty()) x += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(info.title) + "</rdf:li></rdf:Alt></dc:title>\n";
     if (!infoText(info.author).isEmpty()) x += "<dc:creator><rdf:Seq><rdf:li>" + esc(info.author) + "</rdf:li></rdf:Seq></dc:creator>\n";
     if (!infoText(info.subject).isEmpty()) x += "<dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(info.subject) + "</rdf:li></rdf:Alt></dc:description>\n";
     if (!infoText(info.keywords).isEmpty()) x += "<pdf:Keywords>" + esc(info.keywords) + "</pdf:Keywords>\n";
     if (!infoText(info.program).isEmpty()) x += "<pdf:Producer>" + esc(info.program) + "</pdf:Producer>\n";
     if (archive) x += "<pdfaid:part>" + QByteArray::number(archivePart) + "</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
-    x += "<xmp:CreatorTool>" + esc(info.program) + "</xmp:CreatorTool>\n";
+    if (!infoText(info.program).isEmpty()) x += "<xmp:CreatorTool>" + esc(info.program) + "</xmp:CreatorTool>\n";
     if (info.created.isValid()) x += "<xmp:CreateDate>" + info.created.toUTC().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ss")).toLatin1() + "Z</xmp:CreateDate>\n";
     x += "</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return x;
