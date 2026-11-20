@@ -1418,7 +1418,8 @@ private Q_SLOTS:
         auto fromOdt = WriteDoc::fromFile(odt);
         QVERIFY(fromOdt);
         for (WriteDoc *back : {fromDocx.get(), fromOdt.get()}) {
-            const PictureInfo again = pictureAt(*back, back->story(), 7);
+            const int at = back == fromOdt.get() ? 0 : 7;   // (the .odt has a floating shape at the start of its paragraph)
+            const PictureInfo again = pictureAt(*back, back->story(), at);
             QVERIFY(again.valid);
             QCOMPARE(int(again.kind), int(DrawnKind::Shape));
             QVERIFY(qAbs(again.width - 72) < 0.5 && qAbs(again.height - 72) < 0.5);
@@ -1427,8 +1428,8 @@ private Q_SLOTS:
             QCOMPARE(again.lineColor, info.lineColor);
             QCOMPARE(objectsOfPage(*back).size(), qsizetype(1));
             // (Still an icon after the trip: its lines go on keeping their share.)
-            QVERIFY(setPictureSize(*back, 7, 144, 144));
-            QVERIFY(qAbs(pictureAt(*back, back->story(), 7).lineWeight - 2 * weight) < 0.1 * weight);
+            QVERIFY(setPictureSize(*back, at, 144, 144));
+            QVERIFY(qAbs(pictureAt(*back, back->story(), at).lineWeight - 2 * weight) < 0.1 * weight);
         }
     }
 

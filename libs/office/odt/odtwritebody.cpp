@@ -2281,9 +2281,21 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
                                                                          {QStringLiteral("Page Numbers (Margins)"), "Margins"}, {QStringLiteral("Page Numbers (Current Position)"), "Position"}};
                         if (codes.contains(val)) mark = "_JOPageNumbers_" + codes.value(val) + "_" + QByteArray::number(++m_galleryMarks);
                     }
+            const qsizetype before = pc->xml.size();
             if (!mark.isEmpty()) pc->xml += "<text:bookmark-start text:name=\"" + mark + "\"/>";
             emitInline(t, content, pc, depth + 1);
             if (!mark.isEmpty()) pc->xml += "<text:bookmark-end text:name=\"" + mark + "\"/>";
+            // (A mark round shapes that are moved to the paragraph's start goes with them, so that it still holds them.)
+            if (!mark.isEmpty() && pc->xml.mid(before).contains('\x01')) {
+                QByteArray inside = pc->xml.mid(before), plain = inside;
+                QByteArray rest = plain;
+                const QByteArray moved = takeAnchoredToParagraph(&rest);
+                static const QRegularExpression markup(QStringLiteral("<text:bookmark-(start|end) [^>]*/>"));
+                if (QString::fromUtf8(rest).remove(markup).isEmpty()) {
+                    pc->xml.truncate(before);
+                    pc->xml += "\x01" + QByteArray("<text:bookmark-start text:name=\"") + mark + "\"/>" + moved + "<text:bookmark-end text:name=\"" + mark + "\"/>\x02";
+                }
+            }
         } else if ((name == "del" || name == "moveFrom") && m_sink == &m_content && m_changeCount < kMaxMadeParts) {
             // The deleted text is kept with the change, and the change is marked where it was.
             ParaCtx dpc;

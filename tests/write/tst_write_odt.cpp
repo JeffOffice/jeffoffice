@@ -2237,8 +2237,9 @@ private Q_SLOTS:
         // Read again, the picture is the SVG still (and is a graphic).
         auto again = WriteDoc::fromFile(odt, &err);
         QVERIFY2(again, qPrintable(err));
-        QVERIFY(pictureAt(*again, again->story(), 2).svg);
-        QVERIFY(graphicSvgAt(*again, 2).contains("<svg"));
+        // (A picture that floats is anchored to its paragraph, and the file has it at the paragraph's start, section 19.759.)
+        QVERIFY(pictureAt(*again, again->story(), 0).svg);
+        QVERIFY(graphicSvgAt(*again, 0).contains("<svg"));
         // Converted to shapes, it is a group of three paths in the .odt.
         QCOMPARE(int(convertGraphicToShapes(*doc, 2).result), int(GraphicConvert::Done));
         odt = doc->toOdt(&err);
