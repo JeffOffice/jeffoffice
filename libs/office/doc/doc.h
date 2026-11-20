@@ -65,6 +65,10 @@ constexpr int kMaxParagraphs = 450000;
 constexpr qint64 kMaxPictureBytes = qint64(32) << 20;
 constexpr qint64 kMaxPictureTotal = qint64(64) << 20;
 constexpr int kMaxPictures = 20000;
+// A picture of pixels (not a metafile): the most on a side and in all (read from its header; the image is not decoded here), past which it is not shown, as an object's preview that large
+// is shown as a plain picture in its place.
+constexpr int kMaxPictureSide = 30000;
+constexpr qint64 kMaxPicturePixels = qint64(100) * 1000 * 1000;
 // The XML made from the file, all parts together, counted as it is made: its bytes and its elements. The .docx reader would take a part of 256 MB and 8 million
 // elements (wml/xmltree.h), but a file is held to what it costs to read: made and read back, 600,000 elements (runs of one character, the dearest kind) take about
 // a second and a half and 250 MB, and a file of a few kilobytes can ask for any number of them (pieces of the text that share the same stored text). Real files: of 75

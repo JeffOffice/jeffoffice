@@ -12,6 +12,9 @@
 
 namespace jp::office::doc {
 
+// The namespaces a part of the package declares on its root element.
+extern const char kNamespaces[];
+
 struct Picture {
     QByteArray bytes;
     QString extension;                    // png, jpeg, emf, wmf, bmp, or tiff
@@ -90,6 +93,11 @@ public:
     QVector<CommentInfo> comments;
     // The number of the comment whose reference is at character `cp` (-1 if none).
     int commentAt(qint64 cp) const;
+    int commentsDeclared = 0;            // the entries of the file's table of comments that were looked at
+    bool inComments = false;             // the comments' own text is being made (it has a budget of its own, so the end of it being cut does not say the document was)
+    // Once the main text `body` is made: writes the comments whose references are in it (each with the text it has in the file, within a budget of its own), takes out of `body` the marks
+    // of every comment that is not written (and the starts of ranges that have no end), and says what was left out. The comments part's XML; empty if there is none.
+    QByteArray finishComments(QByteArray *body);
     PackageWriter pkg;
     int paragraphs = 0;                  // made so far, in all the stories
     int tableCells = 0;                  // the cells of all the tables so far
@@ -118,7 +126,7 @@ private:
     void readBookmarks();
     void readComments();
     void addDocumentProperties();
-    QByteArray commentsXml();
+    QByteArray commentsXml(const QVector<int> &ids, QVector<int> *written);
     QByteArray fontTableXml() const;
     Sep withNoteFormats(Sep sep) const;
     QByteArray settingsXml() const;

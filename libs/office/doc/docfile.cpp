@@ -14,13 +14,14 @@
 
 namespace jp::office::doc {
 
-namespace {
-
 const char kNamespaces[] =
     "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
     "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
     "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
     "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"";
+
+namespace {
+
 const char kXmlHeader[] = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n";
 const char kRel[] = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/";
 const char kWml[] = "application/vnd.openxmlformats-officedocument.wordprocessingml.";
@@ -91,6 +92,7 @@ bool Converter::spend(const QByteArray &xml)
 void Converter::cutShort()
 {
     truncated = true;
+    if (inComments) return;   // (the comments are counted on their own: what is left out of them is said with them)
     left(QStringLiteral("long"), QCoreApplication::translate("jp::office::doc", "The document is longer than this program can open: the end of it was left out."));
 }
 
@@ -161,19 +163,32 @@ bool Converter::open(const QByteArray &file, QString *error)
 // The properties of the document (title, author, dates...) as the package's core and extended parts, from the two property set streams.
 void Converter::addDocumentProperties()
 {
-    // (A text kept to what a property of a package holds: no control characters, and no more than a few thousand characters.)
-    auto clean = [](const OleProperty &p) {
+    // (A text kept to what a property of a package holds: no control characters, nor the invisible ones of formatting (the marks that turn the direction of text, the characters of no
+    // width, and the like), which would reach the name of an exported file and a mail's subject; and no more than `most` characters, counted in whole characters.)
+    auto clean = [](const OleProperty &p, int most) {
         QString t;
-        for (const QChar c : p.text.left(4096))
-            if (c.unicode() >= 0x20 || c == QLatin1Char('\t')) t += c;
+        int kept = 0;
+        const QString &raw = p.text;
+        for (qsizetype i = 0; i < raw.size() && kept < most; ++i) {
+            char32_t u = raw[i].unicode();
+            const bool pair = raw[i].isHighSurrogate() && i + 1 < raw.size() && raw[i + 1].isLowSurrogate();
+            if (pair) u = QChar::surrogateToUcs4(raw[i], raw[i + 1]);
+            else if (raw[i].isSurrogate()) continue;
+            const QChar::Category cat = QChar::category(u);
+            if (u == '\t' || (cat != QChar::Other_Control && cat != QChar::Other_Format && cat != QChar::Separator_Line && cat != QChar::Separator_Paragraph)) {
+                t += raw.mid(i, pair ? 2 : 1);
+                ++kept;
+            }
+            if (pair) ++i;
+        }
         return t.trimmed();
     };
     PackageProps props;
     bool any = false;
-    auto text = [&](const OlePropertySet &set, quint32 id, QString *to) {
+    auto text = [&](const OlePropertySet &set, quint32 id, QString *to, int most = 255) {
         const auto it = set.values.constFind(id);
         if (it == set.values.constEnd() || it->type == 0x40 || it->type == 2 || it->type == 3) return;
-        *to = clean(*it);
+        *to = clean(*it, most);
         any = any || !to->isEmpty();
     };
     auto time = [&](const OlePropertySet &set, quint32 id, QDateTime *to) {
@@ -182,19 +197,19 @@ void Converter::addDocumentProperties()
         *to = it->time;
         any = true;
     };
-    for (const OlePropertySet &set : readOlePropertySets(summaryStream)) {
+    for (const OlePropertySet &set : readOlePropertySets(summaryStream, {2, 3, 4, 5, 6, 8, 12, 13})) {
         if (set.format != summaryInformationFormat()) continue;
         text(set, 2, &props.title);
         text(set, 3, &props.subject);
         text(set, 4, &props.creator);
-        text(set, 5, &props.keywords);
-        text(set, 6, &props.comments);
+        text(set, 5, &props.keywords, 1024);
+        text(set, 6, &props.comments, 4096);
         text(set, 8, &props.lastModifiedBy);
         time(set, 12, &props.created);
         time(set, 13, &props.modified);
         break;
     }
-    for (const OlePropertySet &set : readOlePropertySets(documentSummaryStream)) {
+    for (const OlePropertySet &set : readOlePropertySets(documentSummaryStream, {2, 14, 15})) {
         if (set.format != documentSummaryInformationFormat()) continue;
         text(set, 2, &props.category);
         text(set, 14, &props.manager);
@@ -461,8 +476,8 @@ QByteArray Converter::build()
     // The parts the document reads from.
     pkg.addPart(QStringLiteral("/word/styles.xml"), styles.xml(fonts, lists.instances), wml + QStringLiteral("styles+xml"));
     pkg.addRelationship(mainName, rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
-    // (The numbering counts against what the output may hold, as the rest of the XML does; past it, it is left out and the document is cut short.)
-    if (!lists.xml.isEmpty() && spend(lists.xml)) {
+    // (The numbering has its own bound, the bytes of the lists read (kMaxListBytes); it is not counted against the text, which it must not crowd out.)
+    if (!lists.xml.isEmpty()) {
         pkg.addPart(QStringLiteral("/word/numbering.xml"), lists.xml, wml + QStringLiteral("numbering+xml"));
         pkg.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
@@ -539,19 +554,17 @@ QByteArray Converter::build()
     }
 
     // The main text.
-    const QByteArray body = story(0, fib.ccpText, Kind::Main, mainName);
+    QByteArray body = story(0, fib.ccpText, Kind::Main, mainName);
+    // The comments the main text cites (it has first call on what the output may hold; they are made after it, within a budget of their own).
+    const QByteArray commentsPart = finishComments(&body);
     if (sections.last().xml.isEmpty()) sections.last().xml = "<w:sectPr>" + sectionPropertiesXml(withNoteFormats(sections.last().sep), QByteArray()) + "</w:sectPr>";
     pkg.addPart(mainName, QByteArray(kXmlHeader) + "<w:document " + kNamespaces + "><w:body>" + (body.isEmpty() ? QByteArray("<w:p/>") : body) + sections.last().xml + "</w:body></w:document>",
                 wml + QStringLiteral("document.main+xml"));
-    addDocumentProperties();
-    // The comments (after the main text, which has first call on what the output may hold).
-    if (!comments.isEmpty() && !truncated) {
-        const QByteArray x = commentsXml();
-        if (!x.isEmpty()) {
-            pkg.addPart(QStringLiteral("/word/comments.xml"), x, wml + QStringLiteral("comments+xml"));
-            pkg.addRelationship(mainName, rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
-        }
+    if (!commentsPart.isEmpty()) {
+        pkg.addPart(QStringLiteral("/word/comments.xml"), commentsPart, wml + QStringLiteral("comments+xml"));
+        pkg.addRelationship(mainName, rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
     }
+    addDocumentProperties();
     if (embeddedObjects > 0)
         left(QStringLiteral("objects"), QCoreApplication::translate("jp::office::doc", "%n embedded object(s) are shown as pictures.", nullptr, embeddedObjects));
     return pkg.finish();

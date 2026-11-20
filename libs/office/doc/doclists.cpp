@@ -93,7 +93,7 @@ Lists readLists(const Span &plfLst, qint64 lcbLst, const Span &plfLfo, qint64 lc
     const int lfoMac = int(std::min<qint64>({qint64(plfLfo.u32(0)), qint64(kMaxListInstances), (lcbLfo - 4) / 16}));
     QByteArray nums;
     qint64 d = 4 + 16 * qint64(lfoMac);
-    for (int i = 0; i < lfoMac && plfLfo.fits(4 + 16 * qint64(i), 16) && nums.size() < kMaxListBytes; ++i) {
+    for (int i = 0; i < lfoMac && plfLfo.fits(4 + 16 * qint64(i), 16) && abstracts.size() + nums.size() < kMaxListBytes; ++i) {
         const Span lfo = plfLfo.sub(4 + 16 * qint64(i), 16);
         const auto it = byId.constFind(lfo.u32(0));
         const int clfolvl = lfo.u8(12);

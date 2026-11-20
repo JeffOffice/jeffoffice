@@ -75,11 +75,12 @@ QByteArray Converter::formFieldXml(qint32 position)
     if (known != m_formFieldAt.constEnd()) return known.value();
     if (m_formFieldAt.size() >= kMaxFormFields) return QByteArray();
     QByteArray xml;
-    // The header (section 2.9.158): the size of the whole, and where the field's data begins.
-    const quint32 lcb = data.u32(position);
-    const int header = data.u16(position + 4);
-    if (data.fits(position, header) && header >= 6 && lcb >= quint32(header) && qint64(lcb) <= data.size() - position) {
-        const Span b = data.sub(position + header, std::min<qint64>(qint64(lcb) - header, kMaxFormFieldBytes));
+    // The header (section 2.9.158): the size of the whole, and where the field's data begins. (The place is widened first: it is a stranger's 32-bit number, and nothing added to it may wrap.)
+    const qint64 at = position;
+    const quint32 lcb = data.u32(at);
+    const int header = data.u16(at + 4);
+    if (data.fits(at, header) && header >= 6 && lcb >= quint32(header) && qint64(lcb) <= data.size() - at) {
+        const Span b = data.sub(at + header, std::min<qint64>(qint64(lcb) - header, kMaxFormFieldBytes));
         // The data (section 2.9.78, 2.9.79): a version, the bits (the kind, the state, whether it is protected, the kind of text), the longest text, the size of a check box.
         const int bits = b.u16(4), type = bits & 3, state = (bits >> 2) & 0x1F, textType = (bits >> 11) & 7;
         const bool ownHelp = bits & 0x80, ownStatus = bits & 0x100, locked = bits & 0x200, autoSize = bits & 0x400;

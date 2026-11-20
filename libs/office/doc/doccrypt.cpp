@@ -54,6 +54,11 @@ bool rc4Stream(QByteArray *s, qsizetype from, const Rc4Keys &keys, const std::fu
     return true;
 }
 
+// NOTE (open question, left as it is on purpose): the specification for the document format's obfuscation is method 2 of MS-OFFCRYPTO, whose data transformation (section 2.3.7.6) is a
+// plain XOR with the 16-byte array that leaves a byte alone when it or the result is zero, with no rotation. This is method 1's transformation (section 2.3.7.3: XOR, then a rotation by
+// five bits, the workbook format's), and the array and the verifier below are method 1's too (sections 2.3.7.1, 2.3.7.2; method 2's are 2.3.7.4, 2.3.7.5). The code differs from the
+// specification and was not changed: there is no real protected file of this kind to settle which is right, and a change made from the text alone could break files that open today. The
+// workbook format's code follows its own specification and has a real-file test.
 void xorStream(QByteArray *s, qsizetype from, const std::array<quint8, 16> &table)
 {
     s->detach();
@@ -101,6 +106,7 @@ CryptResult decryptDoc(const QByteArray &file, const QString &password, qint64 m
         Wiper pwWiper;
         pwWiper.add(&pw);
         if (!ansiPassword(password, &pw) || pw.isEmpty()) return CryptResult::WrongPassword;
+        // (The verifier and the key are method 1's, sections 2.3.7.1 and 2.3.7.2, not method 2's, sections 2.3.7.4 and 2.3.7.5, which the document format's specification names: see xorStream.)
         const quint16 key = quint16(h.key & 0xFFFF), verifier = quint16(h.key >> 16);
         if (((xorVerifier(pw) ^ verifier) | (xorKey(pw) ^ key)) != 0) return CryptResult::WrongPassword;
         if (verifyOnly) return CryptResult::Ok;

@@ -121,6 +121,7 @@ private:
         bool result = false;         // past the separator
         bool object = false;         // an embedded object's field (its separator says so), and whether a picture of it has been shown
         bool objectShown = false;
+        bool formData = false;       // a form field's data mark has been taken (a begin mark has at most one; more are not given to the next field's)
         int builder = 0;             // the paragraph whose runs hold its begin mark, and where in them
         qint64 beginAt = 0;
     };
@@ -208,6 +209,14 @@ QByteArray StoryWriter::run()
     }
     flushParagraph();
     adjustTables(0);
+    // The marks of bookmarks and comment ranges that come after the last paragraph mark (a range that ends where the text ends) go in the last paragraph, in order.
+    if (kind == Converter::Kind::Main && !c.truncated && nextBookmark < c.bookmarkEvents.size()) {
+        QByteArray rest;
+        while (nextBookmark < c.bookmarkEvents.size()) rest += c.bookmarkEvents[nextBookmark++].xml;
+        c.spend(rest);
+        if (out.endsWith("</w:p>")) out.insert(out.size() - 6, rest);
+        else out += "<w:p>" + rest + "</w:p>";
+    }
     return out;
 }
 
@@ -472,14 +481,15 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
         case 0x01:
             flushPlain();
             // (In the instruction of a field, a mark with data is the data of a form field: its begin mark is made again with it.)
-            if (chp.special && chp.data && chp.picture >= 0 && instruction && fields.last().real && fields.last().builder == rb.id) {
+            if (chp.special && chp.data && chp.picture >= 0 && instruction && fields.last().real && fields.last().builder == rb.id && !fields.last().formData) {
+                fields.last().formData = true;
                 const QByteArray form = c.formFieldXml(chp.picture);
                 if (!form.isEmpty()) rb.formFieldData(fields.last().beginAt, form);
             }
             if (chp.special && chp.picture >= 0 && !chp.data && !instruction) {
                 rb.flushRun();
                 // (The mark of an embedded object of the older kind holds the object's own picture, which shows in its place; with none, a plain one does.)
-                QByteArray drawing = c.pictureXml(chp.picture, part, chp.ole2);
+                QByteArray drawing = c.pictureXml(chp.picture, part, chp.ole2 || (!fields.isEmpty() && fields.last().object));   // (an object's preview that can't be shown is not said to be left out: a plain picture stands in)
                 if (chp.ole2) {
                     ++c.embeddedObjects;
                     if (drawing.isEmpty()) drawing = c.objectPlaceholderXml(chp.picture, part);

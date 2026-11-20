@@ -87,6 +87,14 @@ bool Converter::readPicture(qint32 position, Picture *out)
     if (out->bytes.isEmpty() || out->bytes.size() > kMaxPictureBytes) return false;
     out->extension = format == QLatin1String("jpeg") ? QStringLiteral("jpeg") : format;
     if (out->extension.isEmpty()) return false;
+    // (Its size in pixels is read from its header: one past what a picture may be is not taken.)
+    if (out->extension != QLatin1String("emf") && out->extension != QLatin1String("wmf")) {
+        QBuffer probe(&out->bytes);
+        if (probe.open(QIODevice::ReadOnly)) {
+            const QSize px = QImageReader(&probe).size();
+            if (px.isValid() && (px.width() > kMaxPictureSide || px.height() > kMaxPictureSide || qint64(px.width()) * px.height() > kMaxPicturePixels)) return false;
+        }
+    }
     cropOf(rec, &out->cropL, &out->cropT, &out->cropR, &out->cropB);
     if (out->width < 1 || out->height < 1) {
         // (Its own size, from its header: the image is not decoded, which for a small file could take a great deal of memory and time.)
