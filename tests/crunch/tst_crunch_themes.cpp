@@ -273,10 +273,15 @@ private Q_SLOTS:
         QCOMPARE(QColor::fromRgb(lookAt(e, QStringLiteral("B1")).textColor), ours.colors[Theme::Accent2]);
         e.select(QStringLiteral("D3"));
         e.enter(QStringLiteral("7"));
+        // (a cell with a font that names the theme is made bold: the font is written again, as a new one, with its color)
+        FormatChange bold;
+        bold.bold = true;
+        QVERIFY(e.win.w.session()->formatCells(0, rangeOf(QStringLiteral("B1")), bold, QStringLiteral("Bold")).ok);
         QVERIFY(saveNow(e));
         const QMap<QString, QByteArray> parts = partsOf(e.path);
         const QByteArray styles = parts.value(QStringLiteral("xl/styles.xml"));
         QVERIFY2(styles.contains("theme=\"4\"") && styles.contains("tint=\"0.399") && styles.contains("theme=\"5\""), styles.constData());
+        QCOMPARE(styles.count("<color theme=\"5\"/>"), 2);
         QVERIFY(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("tabColor theme=\"7\""));
         QCOMPARE(parts.value(QStringLiteral("xl/theme/theme1.xml")), writeTheme(ours));
         EditWindow again;
