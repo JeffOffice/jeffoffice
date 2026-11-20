@@ -69,6 +69,8 @@ public:
     // Where it is in what plays (the part the trim leaves), and how long that is, in milliseconds; 0 until the file says.
     qint64 played() const;
     qint64 length() const;
+    // How many times it has gone back to its start by itself because it loops.
+    int loops() const { return m_loops; }
     // How long the whole file lasts, once the decoder has said (0 until it has).
     qint64 fileLength() const { return m_fileDuration; }
     // The movie's picture now, null for a sound or before the first frame, and what it was when the movie ended unless it rewinds.
@@ -102,6 +104,8 @@ Q_SIGNALS:
     void changed();
     // It reached its end (not when it loops, and not when it was stopped).
     void ended();
+    // It reached its end and started again, because it loops.
+    void looped();
 
 private:
     bool ensurePlayer();
@@ -123,6 +127,7 @@ private:
     State m_state = State::Stopped;
     bool m_started = false;
     bool m_ending = false;
+    int m_loops = 0;
     QString m_error;
     QImage m_frame;
     double m_volume = 0.8;

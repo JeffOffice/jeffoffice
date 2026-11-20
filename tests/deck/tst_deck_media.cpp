@@ -2495,10 +2495,9 @@ private Q_SLOTS:
             if (r.song->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no sound output here: ") + r.song->error()));
             r.show->next();
             QCOMPARE(r.show->currentSlide(), 1);
-            // It comes back to the start of the file by itself while the show is on the second slide: the place it has played to goes down.
-            qint64 most = 0;
-            QTRY_VERIFY_WITH_TIMEOUT((most = std::max(most, r.song->played())) > 0 && r.song->played() + 100 < most, kHangGuardMs);
-            QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Playing));
+            // It starts again by itself while the show is on the second slide (its own count of restarts, not the place it has played to), and does not end.
+            QTRY_VERIFY_WITH_TIMEOUT(r.song->loops() > 0, kHangGuardMs);
+            QTRY_COMPARE_WITH_TIMEOUT(int(r.song->state()), int(MediaPlayback::State::Playing), kHangGuardMs);
             QCOMPARE(ended.count(), 0);
             r.show->next();
             QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);

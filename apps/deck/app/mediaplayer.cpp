@@ -138,7 +138,9 @@ bool MediaPlayback::ensurePlayer()
     });
     connect(m_player, &QMediaPlayer::positionChanged, this, [this](qint64 position) {
         const qint64 end = trimEnd();
-        if (m_state == State::Playing && !m_ending && m_play.trimEnd > 0 && end > 0 && end < m_fileDuration && position >= end) reachedEnd();
+        // Where the file ends the player says so by its status, but not every back end does (Windows may only report the position), so a position at the end counts as well.
+        const bool atFileEnd = m_fileDuration > 0 && position >= m_fileDuration && (m_play.trimEnd <= 0 || end <= 0 || end >= m_fileDuration);
+        if (m_state == State::Playing && !m_ending && ((m_play.trimEnd > 0 && end > 0 && end < m_fileDuration && position >= end) || atFileEnd)) reachedEnd();
         else if (m_play.fadeIn > 0 || m_play.fadeOut > 0) applyVolume();
         Q_EMIT changed();
     });
@@ -264,6 +266,8 @@ void MediaPlayback::reachedEnd()
     if (m_play.loop) {
         seekFile(trimStart());
         m_player->play();
+        ++m_loops;
+        Q_EMIT looped();
         return;
     }
     m_ending = true;
