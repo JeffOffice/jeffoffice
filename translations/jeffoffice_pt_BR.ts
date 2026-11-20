@@ -60324,6 +60324,11 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Substituir Células</translation>
     </message>
@@ -75034,7 +75039,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+432"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+435"/>
         <source>Paragraph style</source>
         <translation>Estilo de parágrafo</translation>
     </message>
@@ -76206,7 +76211,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation>Cabeçalho</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+253"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+255"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Local neste documento: %1</translation>
     </message>
@@ -76237,23 +76242,23 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">+%1 mais</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+596"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+631"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Opções de Colagem</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-34"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Manter Formatação da Origem</translation>
     </message>
     <message>
-        <location line="-405"/>
+        <location line="-435"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">A Área de Transferência está cheia. Cole-a para esvaziá-la.</translation>
     </message>
     <message>
-        <location line="+406"/>
+        <location line="+436"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Mesclar Formatação</translation>
     </message>
@@ -76293,6 +76298,11 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Inserir como Novas Linhas</translation>
     </message>
     <message>
+        <location line="+5"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Substituir Células</translation>
@@ -76303,7 +76313,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Tabela</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+12"/>
+        <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+200"/>
+        <source>Control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ctrl</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sobrescrever: a digitação substitui as letras após o cursor. Pressione Insert para voltar.</translation>
     </message>
@@ -76313,7 +76343,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Inserir: a digitação empurra as letras após o cursor para a frente.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+67"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">Uma caixa de texto só pode ser seguida por outra caixa de texto que não tenha palavras e ainda não esteja em nenhuma cadeia.</translation>
     </message>
@@ -77233,17 +77263,30 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Uma tabela pode ter no máximo 20.000 linhas.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+67"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 256 columns.</source>
         <translation type="unfinished">Uma tabela pode ter no máximo 256 colunas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 50,000 cells.</source>
         <translation type="unfinished">Uma tabela pode ter no máximo 50.000 células.</translation>
     </message>
     <message>
-        <location line="+1884"/>
+        <location line="+5"/>
+        <source>New columns cannot go there: a row has no cell where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+46"/>
+        <source>New columns cannot go there: joined cells run across the place where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Uma tabela não pode ser aninhada em profundidade maior que 8 tabelas.</translation>
     </message>
@@ -77347,6 +77390,20 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+3"/>
         <source>Rows whose cells are not in the same columns can&apos;t be sorted.</source>
         <translation type="unfinished">Linhas cujas células não estão nas mesmas colunas não podem ser classificadas.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-62"/>
+        <location line="+35"/>
+        <source>To paste cells as new columns, click in a table that has room for them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-10"/>
+        <location line="+9"/>
+        <source>There are no cells to paste.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -57474,6 +57474,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Timpa Sel</translation>
     </message>
@@ -74975,7 +74980,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+432"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+435"/>
         <source>Paragraph style</source>
         <translation>Gaya paragraf</translation>
     </message>
@@ -76147,7 +76152,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+253"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+255"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>
@@ -76178,23 +76183,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">+%1 lagi</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+596"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+631"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Opsi Tempel</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-34"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Pertahankan Format Sumber</translation>
     </message>
     <message>
-        <location line="-405"/>
+        <location line="-435"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Spike penuh. Tempel untuk mengosongkannya.</translation>
     </message>
     <message>
-        <location line="+406"/>
+        <location line="+436"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Gabungkan Format</translation>
     </message>
@@ -76234,6 +76239,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Sisipkan sebagai Baris Baru</translation>
     </message>
     <message>
+        <location line="+5"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Timpa Sel</translation>
@@ -76244,7 +76254,27 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+12"/>
+        <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+200"/>
+        <source>Control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ctrl</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Timpa: mengetik menggantikan huruf setelah kursor. Tekan Insert untuk kembali.</translation>
     </message>
@@ -76254,7 +76284,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Sisip: mengetik mendorong huruf setelah kursor ke depan.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+67"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">Kotak teks hanya dapat diikuti kotak teks lain yang tidak berisi kata dan belum berada dalam rantai.</translation>
     </message>
@@ -77174,17 +77204,30 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel dapat memiliki paling banyak 20.000 baris.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+67"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 256 columns.</source>
         <translation type="unfinished">Tabel dapat memiliki paling banyak 256 kolom.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 50,000 cells.</source>
         <translation type="unfinished">Tabel dapat memiliki paling banyak 50.000 sel.</translation>
     </message>
     <message>
-        <location line="+1884"/>
+        <location line="+5"/>
+        <source>New columns cannot go there: a row has no cell where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+46"/>
+        <source>New columns cannot go there: joined cells run across the place where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Tabel tidak dapat disarangkan lebih dari 8 tabel.</translation>
     </message>
@@ -77288,6 +77331,20 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+3"/>
         <source>Rows whose cells are not in the same columns can&apos;t be sorted.</source>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-62"/>
+        <location line="+35"/>
+        <source>To paste cells as new columns, click in a table that has room for them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-10"/>
+        <location line="+9"/>
+        <source>There are no cells to paste.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

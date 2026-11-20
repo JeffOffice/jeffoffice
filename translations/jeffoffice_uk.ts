@@ -57599,6 +57599,11 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Перезаписати комірки</translation>
     </message>
@@ -75093,7 +75098,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Inspector</name>
     <message>
-        <location filename="../apps/write/core/homeops.cpp" line="+432"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+435"/>
         <source>Paragraph style</source>
         <translation>Стиль абзацу</translation>
     </message>
@@ -76265,7 +76270,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation>Верхній колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+253"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+255"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Місце в цьому документі: %1</translation>
     </message>
@@ -76296,23 +76301,23 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">+%1 більше</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+596"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+631"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Параметри вставлення</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-34"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Зберегти вихідне форматування</translation>
     </message>
     <message>
-        <location line="-405"/>
+        <location line="-435"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Буфер переповнено. Вставте його, щоб очистити.</translation>
     </message>
     <message>
-        <location line="+406"/>
+        <location line="+436"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Об&apos;єднати форматування</translation>
     </message>
@@ -76352,6 +76357,11 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставити як нові рядки</translation>
     </message>
     <message>
+        <location line="+5"/>
+        <source>Insert as New Columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
         <source>Overwrite Cells</source>
         <translation type="unfinished">Перезаписати комірки</translation>
@@ -76362,7 +76372,27 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблиця</translation>
     </message>
     <message>
-        <location line="+280"/>
+        <location line="+12"/>
+        <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+200"/>
+        <source>Control</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Ctrl</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Режим заміни: введений текст замінює літери після курсора. Натисніть Insert, щоб повернутися.</translation>
     </message>
@@ -76372,7 +76402,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Режим вставлення: введений текст зсуває літери після курсора.</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+67"/>
         <source>A text box can be followed only by a text box that has no words and is in no chain yet.</source>
         <translation type="unfinished">За текстовим полем можна розмістити лише текстове поле, яке не містить слів і ще не пов&apos;язане з іншими.</translation>
     </message>
@@ -77292,17 +77322,30 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблиця може містити не більше 20 000 рядків.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/core/homeops.cpp" line="+67"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 256 columns.</source>
         <translation type="unfinished">Таблиця може містити не більше 256 стовпців.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1"/>
         <source>A table can have at most 50,000 cells.</source>
         <translation type="unfinished">Таблиця може містити не більше 50 000 комірок.</translation>
     </message>
     <message>
-        <location line="+1884"/>
+        <location line="+5"/>
+        <source>New columns cannot go there: a row has no cell where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+46"/>
+        <source>New columns cannot go there: joined cells run across the place where they would be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Таблицю не можна вкладати глибше ніж у 8 таблиць.</translation>
     </message>
@@ -77406,6 +77449,20 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+3"/>
         <source>Rows whose cells are not in the same columns can&apos;t be sorted.</source>
         <translation type="unfinished">Рядки, комірки яких розташовані не в тих самих стовпцях, не можна сортувати.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-62"/>
+        <location line="+35"/>
+        <source>To paste cells as new columns, click in a table that has room for them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../apps/write/core/homeops.cpp" line="-10"/>
+        <location line="+9"/>
+        <source>There are no cells to paste.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
