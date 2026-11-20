@@ -163,7 +163,7 @@ private Q_SLOTS:
         const QString r1 = row(floatCell(1) + floatCell(2) + cell(QStringLiteral("table:formula=\"of:=SUM([.A1:.B1])\" office:value-type=\"float\" office:value=\"3\""), QStringLiteral("<text:p>3</text:p>"))
                                + cell(QStringLiteral("table:formula=\"of:=[.A1]&amp;&quot;x&quot;\" office:value-type=\"string\" office:string-value=\"1x\""), QStringLiteral("<text:p>1x</text:p>"))
                                + cell(QStringLiteral("table:formula=\"of:=[$Other.A1]\" office:value-type=\"float\" office:value=\"9\""))
-                               + cell(QStringLiteral("table:formula=\"of:=[ 'file:///x.ods'#$S.A1]\" office:value-type=\"float\" office:value=\"7\""))
+                               + cell(QStringLiteral("table:formula=\"of:=[ 'file:///x.ods'#]\" office:value-type=\"float\" office:value=\"7\""))
                                + cell(QStringLiteral("table:formula=\"of:=COM.MICROSOFT.STDEV.S([.A1:.B1])\" office:value-type=\"float\" office:value=\"0.70710678118654757\"")));
         Workbook wb = open(simple(table(QStringLiteral("S"), columns(7) + r1)));
         const Sheet s = readSheet(wb);

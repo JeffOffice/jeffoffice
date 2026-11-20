@@ -246,7 +246,7 @@ private Q_SLOTS:
         QVERIFY(links.readSheet(0, &s));
         QCOMPARE(shown(links, s, QStringLiteral("A1")), QStringLiteral("i:see the page"));
         // formulas that could not be converted keep their values, and the notice says how many once the sheets are read
-        const QString bad = cell(QStringLiteral("table:formula=\"of:=[ 'file:///x.ods'#$S.A1]\" office:value-type=\"float\" office:value=\"7\"")) + cell(QStringLiteral("table:formula=\"of:=MULTIPLE.OPERATIONS([.A1];[.B1];[.C1])\" office:value-type=\"float\" office:value=\"8\""));
+        const QString bad = cell(QStringLiteral("table:formula=\"of:=[ 'file:///x.ods'#]\" office:value-type=\"float\" office:value=\"7\"")) + cell(QStringLiteral("table:formula=\"of:=MULTIPLE.OPERATIONS([.A1];[.B1];[.C1])\" office:value-type=\"float\" office:value=\"8\""));
         Workbook failed;
         QVERIFY2(openIt(simple(table(QStringLiteral("S"), columns(2) + row(bad))), &failed, &why), qPrintable(why));
         QVERIFY(failed.changedFeatures().filter(QStringLiteral("formula")).isEmpty());   // (not known until the sheet is read)
@@ -257,7 +257,7 @@ private Q_SLOTS:
         QVERIFY(failed.readSheet(0, &s));
         QVERIFY(!failed.changedFeatures().filter(QStringLiteral("2 formula")).isEmpty());
         // names that could not be converted are left out, and the notice says how many
-        const QString badNames = QStringLiteral("<table:named-expressions><table:named-expression table:name=\"Far\" table:base-cell-address=\"$S.$A$1\" table:expression=\"[ 'file:///x.ods'#$S.A1]\"/>"
+        const QString badNames = QStringLiteral("<table:named-expressions><table:named-expression table:name=\"Far\" table:base-cell-address=\"$S.$A$1\" table:expression=\"[ 'file:///x.ods'#]\"/>"
                                                 "<table:named-expression table:name=\"Fine\" table:base-cell-address=\"$S.$A$1\" table:expression=\"[$S.A1]*2\"/></table:named-expressions>");
         Workbook withNames;
         QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(floatCell(1))) + badNames), &withNames, &why), qPrintable(why));
