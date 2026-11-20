@@ -7,7 +7,7 @@
 #include "app/writewindow.h"
 #include "core/captionops.h"
 #include "core/citeops.h"
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/indexops.h"
 #include "core/items.h"

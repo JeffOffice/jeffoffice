@@ -3,7 +3,7 @@
 // ADDRESSBLOCK, GREETINGLINE, and the rules IF, SKIPIF, NEXT, NEXTIF, SET, ASK, FILLIN, MERGEREC, MERGESEQ), and the merge itself: one new document with a copy of the text for each recipient.
 // The list is read by the shared reader of libs/page/core/mergesource.h.
 
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/mergesource.h"
 #include "core/writedoc.h"
 #include "wml/wml.h"

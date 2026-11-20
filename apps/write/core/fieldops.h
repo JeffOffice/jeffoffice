@@ -4,7 +4,7 @@
 // program makes, kFieldGroupTag); the result is the text between the separator and the end. An update changes only the text of results (and a mark's dirty flag), in one step of the
 // history, and never as a tracked change: the original program does not track one either.
 
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/writedoc.h"
 
 #include <QDateTime>

@@ -1,4 +1,4 @@
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 
 #include "text/numbersystems.h"
 

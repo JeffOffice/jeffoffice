@@ -3,7 +3,7 @@
 // shows a citation in the style the sources ask for (APA, MLA, Chicago, Harvard, or IEEE), and the BIBLIOGRAPHY field whose result is the list of the sources cited, worked out as the
 // other tables are (core/fieldops.h calls the functions that make the text). The master list that documents share is a file in the program's data folder.
 
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/tocops.h"
 

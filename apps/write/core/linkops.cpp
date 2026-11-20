@@ -1,7 +1,7 @@
 #include "core/linkops.h"
 
 #include "core/editops.h"
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
 #include "office/hyperlink.h"

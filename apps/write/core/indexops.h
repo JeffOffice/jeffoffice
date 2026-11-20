@@ -2,7 +2,7 @@
 // The index and the table of authorities: Mark Entry and Mark Citation put the hidden fields XE and TA at the words, and Insert Index and Insert Table of Authorities put an INDEX or a TOA
 // field whose result is the paragraphs worked out from them (updated as a table of contents is, core/fieldops.h calls the two functions at the top).
 
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/tocops.h"
 

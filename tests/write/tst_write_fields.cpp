@@ -2,7 +2,7 @@
 // of the fields the program works out, and updating, unlinking, and locking the fields of a document. Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 #include "core/refops.h"
 #include "core/tocops.h"

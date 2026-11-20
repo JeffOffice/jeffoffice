@@ -1,7 +1,7 @@
 #include "core/wordformat.h"
 
 #include "core/color.h"
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/themeops.h"
 #include "core/writeprops.h"
 #include "text/numbersystems.h"

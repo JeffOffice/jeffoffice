@@ -2,7 +2,7 @@
 // The table of contents: its lines worked out from the headings (or the styles and levels a code names), and the field's result made again from them. Insert Table of Contents,
 // Update Table, and Remove Table are here; F9 on a table is core/fieldops.h's, which calls the two functions at the top.
 
-#include "core/fieldcode.h"
+#include "fields/fieldcode.h"
 #include "core/fieldops.h"
 
 #include <functional>
