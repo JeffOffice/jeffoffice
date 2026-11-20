@@ -899,15 +899,20 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // A table's row kept with the next (a paragraph in its cells is) at the end of its table is kept with what follows the table, as a paragraph is: where the page would end after it, it
         // goes to the next page, and the rows kept with the next before it go too. (Rows of a table that are not at its end are kept by the table's own layout, which knows where a page can end.)
         // At most as many rows as the table layout keeps together are moved this way: a longer chain is no chain, and the page is cut where the text ran out of room.
-        constexpr int kMostKeptRows = 32;
         int rowsMoved = 0, beforeRows = -1;   // (beforeRows: where the page ended before the first row of the chain was moved)
         bool inRowChain = false;
+        int chainSpan = -1;
         auto rowKeepsWithNext = [&](const StoryLayout::LineBrief &ln) {
             if (!m_tables->any() || !m_doc->story()->findBlock(ln.pos).blockFormat().intProperty(fp::Cell)) return false;
             const int sp = m_tables->index().spanAt(ln.pos);
             const std::shared_ptr<TableLayout> table = sp >= 0 ? m_tables->layout(sp) : nullptr;
             if (!table) return false;
             const int r = table->rowOfPosition(ln.pos);
+            if (sp != chainSpan) {   // (a chain that goes from one table into another begins again: each table's rows are counted for themselves)
+                chainSpan = sp;
+                rowsMoved = 0;
+                beforeRows = -1;
+            }
             if (r + 1 < table->rowCount() && !inRowChain) return false;
             return table->keepsWithNext(r);
         };

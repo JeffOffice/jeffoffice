@@ -280,7 +280,7 @@ void FlowTests::aRowOfOneLineCellsGoesWholeWhereItsSpaceAfterDoesNotFit()
 // from which the paragraph of each row's cell is kept with the next (rows, to have none), `keptAfter` of the paragraphs after the table are kept with the next as well.
 namespace {
 struct KeepStory {
-    int before = 3, kept = 1, rows = 4, after = 3, keptAfter = 0, keepRowsFrom = -1;
+    int before = 3, kept = 1, rows = 4, after = 3, keptAfter = 0, keepRowsFrom = -1, cols = 1, keepCell = 0;   // (keepCell: the cell of a row whose paragraph is kept)
     std::shared_ptr<FlowDocument> fd;
     TestTable table;
     QVector<int> keptBlocks;   // the blocks kept with the next, before the table (their story positions)
@@ -300,11 +300,13 @@ KeepStory buildKeepStory(KeepStory k, double bodyHeight)
     }, 2, 3);
     TestTable spec;
     spec.rows = k.rows;
-    spec.cols = 1;
+    spec.cols = k.cols;
     spec.columnWidth = 200;
     spec = addTableAfter(fd, k.before + k.kept - 1, spec);
     for (int r = std::max(0, k.keepRowsFrom); k.keepRowsFrom >= 0 && r < k.rows; ++r) {
-        QTextCursor c(fd.story()->findBlock(spec.rowStarts[r]));
+        QTextBlock cellBlock = fd.story()->findBlock(spec.rowStarts[r]);
+        while (cellBlock.isValid() && cellBlock.blockFormat().intProperty(fp::Cell) != spec.keys[size_t(r * k.cols + k.keepCell)]) cellBlock = cellBlock.next();
+        QTextCursor c(cellBlock);
         QTextBlockFormat bf;
         bf.setProperty(tp::KeepWithNext, true);
         c.mergeBlockFormat(bf);
@@ -386,14 +388,33 @@ void FlowTests::aTablesLastRowKeptWithTheNextMovesWithTheParagraphs()
         Paginator wide(room.fd.get());
         QCOMPARE(rowLines(wide, *room.fd, 0).size(), spec.rows);
     }
+    // A row of two cells of which only the second one's last paragraph is kept with the next is kept all the same (it follows the table's rule for its rows: any cell's last
+    // paragraph keeps the row).
+    KeepStory one;
+    one.kept = 0;
+    one.cols = 2;
+    one.keepCell = 1;
+    one.keepRowsFrom = 3;
+    KeepStory tall = buildKeepStory(one, 2000);
+    Paginator all(tall.fd.get());
+    const auto rows = rowLines(all, *tall.fd, 0);
+    QCOMPARE(rows.size(), one.rows);
+    QVector<StoryLayout::LineBrief> below;
+    for (const auto &l : all.lines(0))
+        if (l.rect.top() >= rows.last().rect.bottom() - 0.01 && !tall.fd->story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) below << l;
+    QVERIFY(!below.isEmpty());
+    KeepStory fit = buildKeepStory(one, below[0].rect.bottom() - below[0].rect.height() / 2);
+    Paginator pg(fit.fd.get());
+    QCOMPARE(rowLines(pg, *fit.fd, 0).size(), one.rows - 1);
+    QCOMPARE(rowLines(pg, *fit.fd, 1).first().pos, rows.last().pos);
 }
 
 
-// A chain of rows kept with the next that is longer than the table layout keeps together (32 rows), ending the table where the paragraph after it does not fit, is no chain: the
+// A chain of rows kept with the next that is longer than the table layout keeps together (kMostKeptRows, the same for both), ending the table where the paragraph after it does not fit, is no chain: the
 // rows stay where they are, as they would without the keeping, and no page is left empty by moving the whole chain. A shorter chain goes to the next page whole.
 void FlowTests::aLongKeptChainThroughATableIsBoundedAndLeavesNoEmptyPage()
 {
-    for (const int rows : {20, 40}) {
+    for (const int rows : {20, jp::flow::kMostKeptRows, jp::flow::kMostKeptRows + 1, 40}) {
         KeepStory spec;
         spec.before = 5;
         spec.kept = 0;
@@ -410,11 +431,11 @@ void FlowTests::aLongKeptChainThroughATableIsBoundedAndLeavesNoEmptyPage()
         QVERIFY(pg.pageCount() >= 2);
         for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(!pg.lines(k).isEmpty(), qPrintable(QStringLiteral("page %1 is empty").arg(k)));
         QVERIFY(coverageProblem(pg, *fit.fd).isEmpty());
-        if (rows == 20) {
+        if (rows <= jp::flow::kMostKeptRows) {
             QCOMPARE(rowLines(pg, *fit.fd, 0).size(), 0);   // (the chain and the paragraphs before it that are not kept stay: the whole table goes to the next page)
             QCOMPARE(rowLines(pg, *fit.fd, 1).size(), rows);
         } else {
-            QCOMPARE(rowLines(pg, *fit.fd, 0).size(), rows);   // (more than 32: no chain)
+            QCOMPARE(rowLines(pg, *fit.fd, 0).size(), rows);   // (more than the table layout keeps together: no chain)
         }
     }
 }

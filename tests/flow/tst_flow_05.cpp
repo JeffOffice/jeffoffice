@@ -1539,7 +1539,7 @@ void FlowTests::aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo()
 // page with the note whole (where the note is not cut, as before, its lines are kept the same).
 void FlowTests::aNoteOfLinesKeptTogetherIsNotCutAtTheFoot()
 {
-    auto layout = [&](double height, bool together) {
+    auto layout = [&](double height, bool together, bool rules = true, bool oneLine = false) {
         TestNotes notes;
         auto note = std::make_unique<QTextDocument>();
         {
@@ -1562,7 +1562,8 @@ void FlowTests::aNoteOfLinesKeptTogetherIsNotCutAtTheFoot()
         run.setFontFamilies({QStringLiteral("Times New Roman")});
         run.setFontPointSize(12);
         c.setBlockFormat(QTextBlockFormat());
-        c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+        if (oneLine) c.insertText(QStringLiteral("one"), run);
+        else c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
         QTextCharFormat ref = run;
         ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
         c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
@@ -1570,11 +1571,14 @@ void FlowTests::aNoteOfLinesKeptTogetherIsNotCutAtTheFoot()
         env.wordLines = true;
         auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
         StoryLayout lay;
-        lay.build(&doc, {frame(height), frame(300)}, env);
+        StoryLayout::Span span;
+        span.keepRules = rules;
+        lay.build(&doc, {frame(height), frame(300)}, env, span);
         const auto lines = lay.lineBriefs();
-        struct Out { int lastLineFrame = -9, noteFrame = -9; bool cut = false; };
+        struct Out { int lastLineFrame = -9, noteFrame = -9, firstLineFrame = -9; bool cut = false; };
         Out out;
-        if (lines.size() == 4) out.lastLineFrame = lines.last().frame;
+        if (!lines.isEmpty()) out.firstLineFrame = lines.first().frame;
+        if (lines.size() == (oneLine ? 1 : 4)) out.lastLineFrame = lines.last().frame;
         if (lay.notes().size() == 1) {
             out.noteFrame = lay.notes().first().frame;
             out.cut = !lay.notes().first().more.isEmpty();
@@ -1588,6 +1592,15 @@ void FlowTests::aNoteOfLinesKeptTogetherIsNotCutAtTheFoot()
     QCOMPARE(kept.lastLineFrame, 1);
     QCOMPARE(kept.noteFrame, 1);
     QVERIFY(!kept.cut);
+    // A note cited from a table's cell or a header (text not set under the keeping rules) is cut as it was.
+    const auto cell = layout(100, true, false);
+    QCOMPARE(cell.lastLineFrame, 0);
+    QVERIFY2(cell.cut, "a note under no keeping rules is cut at the foot");
+    // A note taller than the column, cited on the column's first line, begins there: nothing moves to the next column, and the layout ends.
+    const auto tall = layout(40, true, true, true);
+    QCOMPARE(tall.firstLineFrame, 0);
+    QCOMPARE(tall.lastLineFrame, 0);
+    QCOMPARE(tall.noteFrame, 0);
     QCOMPARE(keptRoomy.lastLineFrame, 0);
     QCOMPARE(keptRoomy.noteFrame, 0);
     QVERIFY(!keptRoomy.cut);

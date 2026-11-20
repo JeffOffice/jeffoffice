@@ -26,6 +26,9 @@ class QTextDocument;
 
 namespace jp::flow {
 
+// How many rows kept with the next are kept together (the rows of one table, or those that end it before a paragraph): a chain of more is no chain, and the page is cut where it runs out of room.
+inline constexpr int kMostKeptRows = 32;
+
 // A paragraph of a table, where it is, and which cell it is in.
 struct BlockRef {
     int pos = 0, end = 0;       // the paragraph's first position, and the one after it (the next paragraph's first)
