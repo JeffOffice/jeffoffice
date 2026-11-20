@@ -86,7 +86,7 @@ void CrunchWindow::createNoteActions()
     connect(m_view, &grid::GridView::hoverCellChanged, this, &CrunchWindow::hoverCell);
     connect(m_view, &grid::GridView::cellClicked, this, &CrunchWindow::cellClicked);
     connect(m_view, &grid::GridView::noteBoxRequested, this, [this](qint64 row, qint64 col, const QRect &box) { noteBoxDragged(row, col, box); });
-    connect(m_view, &grid::GridView::noteKeysChanged, this, [this] { noteKeysChanged(); });
+    connect(m_view, &grid::GridView::noteKeysChanged, this, [this](grid::GridView::NoteKeys what) { noteKeysChanged(what); });
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateNoteActions);
     connect(m_view, &grid::GridView::viewChanged, this, [this] { hideHoverTip(); });
 }
@@ -140,29 +140,40 @@ void CrunchWindow::noteBoxDragged(qint64 row, qint64 col, const QRect &box)
     }
 }
 
-// The keys move or size a shown note's box (Move or Size Note): the sheet says so to a screen reader (its name and description, and each step said aloud) and in the status bar.
-void CrunchWindow::noteKeysChanged()
+// The keys move or size a shown note's box (Move or Size Note): the sheet says so to a screen reader (its name and description while it lasts), each step is said aloud once (a key held down
+// says its place when it is let go), the end is said, and the status bar says it too. The steps go through the announcement alone; the description does not repeat them.
+void CrunchWindow::noteKeysChanged(grid::GridView::NoteKeys what)
 {
-    if (!m_view->inNoteKeys()) {
-        m_view->setAccessibleName(tr("Sheet"));
-        m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
+    using NK = grid::GridView::NoteKeys;
+    auto say = [this](const QString &words) {
+        QAccessibleAnnouncementEvent event(m_view, words);
+        QAccessible::updateAccessibility(&event);
+    };
+    auto changed = [this] {
         QAccessibleEvent name(m_view, QAccessible::NameChanged), description(m_view, QAccessible::DescriptionChanged);
         QAccessible::updateAccessibility(&name);
         QAccessible::updateAccessibility(&description);
+    };
+    if (what == NK::Kept || what == NK::GivenUp) {
+        setSheetAccessibleText();
+        changed();
         if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+        say(what == NK::Kept ? tr("The note's box is kept.") : tr("The note's box is given up."));
         return;
     }
     const QRect box = m_view->noteKeysBox();
     const QString where = jp::office::sheet::cellName(quint32(std::max<qint64>(0, m_view->pickedNoteRow())), quint32(std::max<qint64>(0, m_view->pickedNoteCol())));
-    const QString place = tr("%1 across, %2 down, %3 wide, %4 high").arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
-    m_view->setAccessibleName(tr("Sheet, moving the box of the note on %1").arg(where));
-    m_view->setAccessibleDescription(tr("Box of the note on %1, from the cell's top left corner: %2. The arrow keys move it, Shift with an arrow sizes it, Ctrl makes finer steps, Enter keeps it, and Escape gives it up.").arg(where, place));
-    setStatus(tr("Moving a note's box. Enter keeps it, and Escape gives it up."));
-    QAccessibleEvent name(m_view, QAccessible::NameChanged), description(m_view, QAccessible::DescriptionChanged);
-    QAccessible::updateAccessibility(&name);
-    QAccessible::updateAccessibility(&description);
-    QAccessibleAnnouncementEvent say(m_view, place);
-    QAccessible::updateAccessibility(&say);
+    const QString place = tr("%1 across, %2 down, %3 wide, %4 high, in pixels at 100% zoom").arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
+    if (what == NK::Began) {
+        const QString fine = grid::GridView::noteFineModifier() == Qt::AltModifier ? tr("Option") : tr("Ctrl");
+        m_view->setAccessibleName(tr("Sheet, moving the box of the note on %1").arg(where));
+        m_view->setAccessibleDescription(tr("The arrow keys move the box of the note, Shift with an arrow sizes it, %1 makes finer steps, Enter keeps it, and Escape gives it up. Its place is said at each step.").arg(fine));
+        setStatus(tr("Moving a note's box. Enter keeps it, and Escape gives it up."));
+        changed();
+        say(tr("Moving the box of the note on %1: %2").arg(where, place));
+        return;
+    }
+    say(place);
 }
 
 // Move or Size Note: the box of the shown note on the cell with the cursor is taken by the keys (the arrow keys move it, Shift with an arrow sizes it, Ctrl makes the steps fine, Enter keeps it
@@ -179,6 +190,7 @@ void CrunchWindow::moveSizeNote()
         notice(tr("Note"), tr("Show the note first. Only a note that is shown has a box to move."));
         return;
     }
+    if (m_view->inNoteKeys()) return;   // (the keys have a box already: it is not taken again, and nothing moved is lost)
     m_view->ensureVisible(row, col);
     m_view->setFocus();
     if (!m_view->beginNoteKeys(row, col)) notice(tr("Note"), tr("The note's box can't be reached from here. Scroll to its cell, and try again."));

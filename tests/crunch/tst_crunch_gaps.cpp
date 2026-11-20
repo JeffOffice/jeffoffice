@@ -1,6 +1,8 @@
 // Tests of the everyday editing gaps closed in round A: array formulas entered with Ctrl+Shift+Enter, selecting more than one range, the status bar's words, and notes' boxes. Every workbook is built here
 #include "../cmdsearchcheck.h"
 #include "app/celleditor.h"
+#include "app/settings.h"
+#include "app/sheettabs.h"
 #include "app/crunchwindow.h"
 #include "app/anchordialogs.h"
 #include "app/finddialog.h"
@@ -17,8 +19,10 @@
 #include "sheet/notes.h"
 #include "sheet/pagesetup.h"
 
+#include <QAccessible>
 #include <QAction>
 #include <QDateTime>
+#include <QFocusEvent>
 #include <QImage>
 #include <QLineEdit>
 #include <QPushButton>
@@ -121,6 +125,18 @@ QByteArray savedPart(const QString &path, const QString &name)
     QString why;
     return p.readLazyFile(path, &why) ? p.part(name) : QByteArray();
 }
+
+// Counts the announcements an accessibility client would get (the update handler sees every event, whether or not a client is there); one at a time.
+struct Announcements {
+    static inline QStringList words;
+    static void see(QAccessibleEvent *event)
+    {
+        if (event->type() == QAccessible::Announcement) words << static_cast<QAccessibleAnnouncementEvent *>(event)->message();
+    }
+    Announcements() { words.clear(); previous = QAccessible::installUpdateHandler(&see); }
+    ~Announcements() { QAccessible::installUpdateHandler(previous); }
+    QAccessible::UpdateHandler previous = nullptr;
+};
 
 }   // namespace
 
@@ -1419,14 +1435,222 @@ private Q_SLOTS:
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
         QCOMPARE(w.undoStack()->count(), protectedSteps);
         QVERIFY(!w.undoStack()->canRedo());
-        // nothing cut or copied: said
+        // nothing cut or copied: the command is off (there is no way to ask it)
         QTest::keyClick(e.view(), Qt::Key_Escape);   // (the border goes, and the copy with it)
         QVERIFY(!insertClip->isEnabled());
-        insertClip->setEnabled(true);
         e.win.told.clear();
         insertClip->trigger();
-        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY(e.win.told.isEmpty());
         QCOMPARE(w.undoStack()->count(), protectedSteps);
+    }
+
+    // Insert (Ctrl+Plus) puts copied cells in only while nothing has been changed since the copy; after an edit it inserts blank cells as it always did, and the copy is still there to paste and
+    // for the command in the menu. Cut cells on another sheet than the cut's: blank cells, with no message.
+    void theInsertKeyPutsInCopiedCellsOnlyUntilSomethingIsChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "A2=2", "A3=3"}, {"A1=a", "A2=b"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QList<bool> cellsOnly;
+        w.setShiftAsker([&](CrunchWindow::ShiftRequest *r) {
+            cellsOnly << r->cellsOnly;
+            r->way = CrunchWindow::ShiftRequest::Way::Down;
+            return true;
+        });
+        QAction *insertClip = w.act(QStringLiteral("edit.insertClip"));
+        copyRange(e, QStringLiteral("A3"));
+        e.select(QStringLiteral("C5"));
+        e.enter(QStringLiteral("x"));   // (a change made after the copy)
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        QTest::keyClick(e.view(), Qt::Key_Plus, Qt::ControlModifier | Qt::ShiftModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(cellsOnly, QList<bool>{false});   // (the box of the plain Insert)
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), QStringLiteral("|1|2|3"));
+        QVERIFY(insertClip->isEnabled());   // (the copy is still there)
+        paste(e, QStringLiteral("E1"));
+        QCOMPARE(shown(e, QStringLiteral("E1")), QStringLiteral("3"));
+        // the menu's command puts the copy in all the same
+        e.select(QStringLiteral("A1"));
+        insertClip->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(cellsOnly, (QList<bool>{false, true}));
+        QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("3||1|2|3"));
+        // copied again, and Insert at once: the copied cells go in
+        copyRange(e, QStringLiteral("A5"));
+        e.select(QStringLiteral("A1"));
+        QTest::keyClick(e.view(), Qt::Key_Plus, Qt::ControlModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(cellsOnly, (QList<bool>{false, true, true}));
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("3|3|"));
+        // an Undo is a change too
+        copyRange(e, QStringLiteral("A5"));
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        QTest::keyClick(e.view(), Qt::Key_Plus, Qt::ControlModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(cellsOnly, (QList<bool>{false, true, true, false}));
+        // cells cut on one sheet and Insert on another: blank cells, and no message
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        copyRange(e, QStringLiteral("A1"), "edit.cut");
+        w.sheetTabs()->setCurrentIndex(1);
+        QTRY_COMPARE(w.activeSheet(), 1);
+        e.select(QStringLiteral("A1"));
+        e.win.told.clear();
+        QVERIFY(insertClip->isEnabled());   // (the menu's command keeps its message for this sheet)
+        insertClip->trigger();
+        QVERIFY(!e.win.told.isEmpty());
+        e.win.told.clear();
+        QTest::keyClick(e.view(), Qt::Key_Plus, Qt::ControlModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(cellsOnly.last(), false);
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("|a|b"));
+    }
+
+    // Whole rows, whole columns, and the whole sheet have their own Insert: the command for cut or copied cells is off for them in every menu, and on again for cells. A block of cells that is
+    // not the size of the copy takes the copy once, at its top left cell.
+    void insertingCutOrCopiedCellsIsOffForWholeRowsAndColumns()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "B1=7"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setShiftAsker([&](CrunchWindow::ShiftRequest *r) {
+            r->way = CrunchWindow::ShiftRequest::Way::Down;
+            return true;
+        });
+        QAction *insertClip = w.act(QStringLiteral("edit.insertClip"));
+        copyRange(e, QStringLiteral("A1"));
+        QVERIFY(insertClip->isEnabled());
+        e.view()->selectRows(1, 1);
+        QVERIFY(!insertClip->isEnabled());
+        e.view()->selectColumns(1, 2);
+        QVERIFY(!insertClip->isEnabled());
+        e.view()->selectAll();
+        QVERIFY(!insertClip->isEnabled());
+        const int steps = w.undoStack()->count();
+        insertClip->trigger();
+        QCOMPARE(w.undoStack()->count(), steps);
+        // a block of 2 by 2 cells and a copy of one: it goes in once, at the block's top left cell
+        e.view()->selectRange(1, 1, 2, 2);
+        QVERIFY(insertClip->isEnabled());
+        insertClip->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QCOMPARE(shown(e, QStringLiteral("B1:C3")), QStringLiteral("7||1|||"));
+    }
+
+    // Insert Copied Cells pastes as the default paste says (Values here), as a plain Paste does.
+    void insertingCopiedCellsPastesAsTheDefaultPasteSays()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=4", "B1==A1+1", "B2=9"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setShiftAsker([&](CrunchWindow::ShiftRequest *r) {
+            r->way = CrunchWindow::ShiftRequest::Way::Down;
+            return true;
+        });
+        const QVariant was = Settings::get().value(QStringLiteral("crunch/defaultPaste"));
+        Settings::get().setValue(QStringLiteral("crunch/defaultPaste"), int(crunch::EditSession::PasteOptions::What::Values));
+        copyRange(e, QStringLiteral("B1"));
+        e.select(QStringLiteral("D1"));
+        w.act(QStringLiteral("edit.insertClip"))->trigger();
+        QVERIFY(e.settle());
+        paste(e, QStringLiteral("F1"));
+        const QString inserted = formulaOf(e, QStringLiteral("D1")), plain = formulaOf(e, QStringLiteral("F1"));
+        if (was.isValid()) Settings::get().setValue(QStringLiteral("crunch/defaultPaste"), was);
+        else Settings::get().remove(QStringLiteral("crunch/defaultPaste"));
+        QCOMPARE(plain, QStringLiteral("5"));   // (the value, not =E1+1)
+        QCOMPARE(inserted, plain);
+    }
+
+    // A formula in the copied block is changed for its new place as a plain Paste changes it, and a formula elsewhere that points at cells that move follows them.
+    void insertedCopiedFormulasAreAdjustedAsAPasteDoesAndWhatPointsAtShiftedCellsFollows()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B1==A1+1", "B2==B1*2", "D5=9", "D6=8", "G1==D6", "G2==SUM(D5:D6)"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setShiftAsker([&](CrunchWindow::ShiftRequest *r) {
+            r->way = CrunchWindow::ShiftRequest::Way::Down;
+            return true;
+        });
+        copyRange(e, QStringLiteral("B1:B2"));
+        paste(e, QStringLiteral("F5"));
+        QCOMPARE(formulaOf(e, QStringLiteral("F5")), QStringLiteral("=E5+1"));
+        QCOMPARE(formulaOf(e, QStringLiteral("F6")), QStringLiteral("=F5*2"));
+        e.select(QStringLiteral("D5"));
+        w.act(QStringLiteral("edit.insertClip"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("D5")), QStringLiteral("=C5+1"));
+        QCOMPARE(formulaOf(e, QStringLiteral("D6")), QStringLiteral("=D5*2"));
+        QCOMPARE(shown(e, QStringLiteral("D7:D8")), QStringLiteral("9|8"));
+        QCOMPARE(formulaOf(e, QStringLiteral("G1")), QStringLiteral("=D8"));
+        QCOMPARE(formulaOf(e, QStringLiteral("G2")), QStringLiteral("=SUM(D7:D8)"));
+        QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("n:8"));
+        QCOMPARE(formulaOf(e, QStringLiteral("B1")), QStringLiteral("=A1+1"));   // (the copied cells are where they were)
+    }
+
+    // The second part of copied cells put between others is refused after the room was made (a sheet that got protected): the room is taken back, the person is told, and nothing is left to redo.
+    void aRefusedPasteAfterTheRoomWasMadeTakesTheRoomBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 5, 5, QStringLiteral("x")).ok);
+        const crunch::ClipData clip = s->copyCells(0, rangeOf(QStringLiteral("A3")), false);
+        const int steps = e.win.w.undoStack()->count(), index = e.win.w.undoStack()->index();
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        s->setBetweenStepsHook([&] { s->setSheetProtection(0, locked, QStringLiteral("Protect")); });
+        const crunch::EditSession::Outcome o = s->insertCellsPasting(0, 0, 0, clip, true, crunch::EditSession::PasteOptions());
+        QVERIFY(!o.ok && !o.confirm);
+        QVERIFY2(o.problem.contains(QLatin1String("protected")), qPrintable(o.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.win.w.undoStack()->index(), index);
+        QVERIFY(!e.win.w.undoStack()->canRedo());
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("A1:A3")), QStringLiteral("1|2|3"));
+        s->setBetweenStepsHook(nullptr);
+    }
+
+    // Rows hidden by hand: a copy leaves them out (the clip is shorter), and a paste writes into the target's rows as they come, so the room made for the clip is exactly where the paste writes.
+    void insertingCopiedCellsWithRowsHiddenByHandMakesRoomForWhatIsPasted()
+    {
+        QStringList cells = {"A1=1", "A2=2", "A3=3", "A4=4"};
+        for (int r = 5; r <= 10; ++r) cells << QStringLiteral("C%1=c%1").arg(r);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setShiftAsker([&](CrunchWindow::ShiftRequest *r) {
+            r->way = CrunchWindow::ShiftRequest::Way::Down;
+            return true;
+        });
+        // row 3 of the source hidden: the copy is 1, 2, 4
+        e.view()->selectRows(2, 2);
+        w.act(QStringLiteral("format.hideRows"))->trigger();
+        copyRange(e, QStringLiteral("A1:A4"));
+        e.select(QStringLiteral("C5"));
+        w.act(QStringLiteral("edit.insertClip"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("C5:C12")), QStringLiteral("1|2|4|c5|c6|c7|c8|c9"));
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        // a row of the target hidden by hand: the paste writes into it, and so does the room
+        e.view()->selectRows(5, 5);
+        w.act(QStringLiteral("format.hideRows"))->trigger();
+        copyRange(e, QStringLiteral("A1:A2"));
+        e.select(QStringLiteral("C5"));
+        w.act(QStringLiteral("edit.insertClip"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("C5:C12")), QStringLiteral("1|2|c5|c6|c7|c8|c9|c10"));
     }
 
     // The new commands refuse several ranges (they are on neither list of commands that do not), they are found by the command search, and the words it has for them name commands the window has.
@@ -1459,7 +1683,7 @@ private Q_SLOTS:
         w.show();
         crunch::EditSession *s = w.session();
         const jp::office::sheet::NoteBox first = s->anchors().noteAt(0, 2, 2)->box;
-        const QString usualName = e.view()->accessibleName();
+        const QString usualName = e.view()->accessibleName(), usualDescription = e.view()->accessibleDescription();
         e.select(QStringLiteral("A1"));
         QVERIFY(!w.act(QStringLiteral("notes.moveSize"))->isEnabled());   // (the note on A1 is hidden)
         e.select(QStringLiteral("C3"));
@@ -1474,20 +1698,21 @@ private Q_SLOTS:
         QVERIFY2(e.view()->accessibleName().contains(QLatin1String("C3")), qPrintable(e.view()->accessibleName()));
         QVERIFY(e.view()->accessibleName() != usualName);
         QVERIFY(e.view()->accessibleDescription().contains(QLatin1String("Enter")));
-        QVERIFY(e.view()->accessibleDescription().contains(QString::number(e.view()->noteKeysBox().width())));
+        const QString modeDescription = e.view()->accessibleDescription();
         const QRect rel0 = e.view()->noteKeysBox();
+        const Qt::KeyboardModifier fine = grid::GridView::noteFineModifier();
         QTest::keyClick(e.view(), Qt::Key_Right);
         QTest::keyClick(e.view(), Qt::Key_Down);
-        QTest::keyClick(e.view(), Qt::Key_Down, Qt::ControlModifier);
+        QTest::keyClick(e.view(), Qt::Key_Down, fine);
         QTest::keyClick(e.view(), Qt::Key_Right, Qt::ShiftModifier);
         QTest::keyClick(e.view(), Qt::Key_Down, Qt::ShiftModifier);
-        QTest::keyClick(e.view(), Qt::Key_Left, Qt::ShiftModifier | Qt::ControlModifier);
+        QTest::keyClick(e.view(), Qt::Key_Left, Qt::ShiftModifier | fine);
         const QRect rel = e.view()->noteKeysBox();
         QCOMPARE(rel.x(), rel0.x() + 10);
         QCOMPARE(rel.y(), rel0.y() + 11);
         QCOMPARE(rel.width(), rel0.width() + 10 - 1);
         QCOMPARE(rel.height(), rel0.height() + 10);
-        QVERIFY(e.view()->accessibleDescription().contains(QString::number(rel.width())));
+        QCOMPARE(e.view()->accessibleDescription(), modeDescription);   // (the steps are said by the announcements, not again in the description)
         QVERIFY(qAbs(e.view()->shownNoteRect(2, 2).left() - (was.left() + int(std::lround(10 * z)))) <= 1);
         // nothing has been changed yet, and a key that is not the box's does nothing to the sheet
         QCOMPARE(w.undoStack()->count(), steps);
@@ -1499,6 +1724,7 @@ private Q_SLOTS:
         QTest::keyClick(e.view(), Qt::Key_Return);
         QVERIFY(!e.view()->inNoteKeys());
         QCOMPARE(e.view()->accessibleName(), usualName);
+        QCOMPARE(e.view()->accessibleDescription(), usualDescription);
         QCOMPARE(w.undoStack()->count(), steps + 1);
         QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Move or Size Note"));
         const jp::office::sheet::NoteBox kept = s->anchors().noteAt(0, 2, 2)->box;
@@ -1625,6 +1851,169 @@ private Q_SLOTS:
         QCOMPARE(w.undoStack()->count(), steps);
     }
 
+    // While the keys have a note's box no chord with Alt or Meta reaches the sheet (the selection stays where it was), and the fine key (Ctrl; Option on a Mac) makes 1 pixel steps.
+    void noChordMovesTheSelectionWhileTheKeysHaveANoteBox()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.resize(1100, 640);
+        w.show();
+        e.select(QStringLiteral("C3"));
+        w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        const QRect rel0 = e.view()->noteKeysBox();
+        const Qt::KeyboardModifier fine = grid::GridView::noteFineModifier();
+        for (const Qt::Key key : {Qt::Key_Right, Qt::Key_Down, Qt::Key_Left, Qt::Key_Up, Qt::Key_Home, Qt::Key_PageDown}) {
+            QTest::keyClick(e.view(), key, Qt::MetaModifier);
+            QTest::keyClick(e.view(), key, Qt::AltModifier | Qt::ShiftModifier);
+            if (fine != Qt::AltModifier) QTest::keyClick(e.view(), key, Qt::AltModifier);
+            if (fine != Qt::ControlModifier) QTest::keyClick(e.view(), key, Qt::ControlModifier);
+            QTest::keyClick(e.view(), key, Qt::MetaModifier | fine);
+            QCOMPARE(e.selected(), QStringLiteral("C3"));
+            QCOMPARE(e.view()->noteKeysBox(), rel0);
+            QVERIFY(e.view()->inNoteKeys());
+        }
+        QTest::keyClick(e.view(), Qt::Key_Right, fine);
+        QCOMPARE(e.view()->noteKeysBox().x(), rel0.x() + 1);
+        QCOMPARE(e.selected(), QStringLiteral("C3"));
+    }
+
+    // Any sheet switch, any other command, an Undo, a Redo, and a change to the workbook end the keys' hold of a note's box (even when the other sheet has the same note); running Move or Size Note
+    // while it is on does nothing, and what was moved is kept.
+    void theKeysHoldOfANoteBoxEndsWithAnythingElseThatHappens()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1"}, {"A1=2"}})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.resize(1100, 640);
+        w.show();
+        crunch::EditSession *s = w.session();
+        jp::office::sheet::NoteBox box;
+        box.set = true;
+        box.col1 = 2;
+        box.col2 = 4;
+        box.row1 = 0;
+        box.row2 = 3;
+        for (int sheet = 0; sheet < 2; ++sheet) {   // (the same note, shown, with the same box, on both sheets)
+            QVERIFY(s->setNote(sheet, 0, 0, QStringLiteral("Same"), QStringLiteral("me"), true, QStringLiteral("Add Note")).ok);
+            QVERIFY(s->setNoteBox(sheet, 0, 0, box, QStringLiteral("Move or Size Note")).ok);
+        }
+        QAction *command = w.act(QStringLiteral("notes.moveSize"));
+        e.select(QStringLiteral("A1"));
+        QTRY_VERIFY(command->isEnabled());
+        // another sheet
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        w.sheetTabs()->setCurrentIndex(1);
+        QTRY_COMPARE(w.activeSheet(), 1);
+        QVERIFY(!e.view()->inNoteKeys());
+        w.sheetTabs()->setCurrentIndex(0);
+        QTRY_COMPARE(w.activeSheet(), 0);
+        e.select(QStringLiteral("A1"));
+        // running the command again while it is on: it stays on, and what was moved is not lost
+        const int steps = w.undoStack()->count();
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        const QRect moved = e.view()->noteKeysBox();
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        QCOMPARE(e.view()->noteKeysBox(), moved);
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QVERIFY(!e.view()->inNoteKeys());
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        const jp::office::sheet::NoteBox kept = s->anchors().noteAt(0, 0, 0)->box;
+        QVERIFY(!(kept == box));
+        // another command
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        w.act(QStringLiteral("edit.copy"))->trigger();
+        QVERIFY(!e.view()->inNoteKeys());
+        // an Undo and a Redo
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        w.undoStack()->undo();
+        QVERIFY(!e.view()->inNoteKeys());
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        w.undoStack()->redo();
+        QVERIFY(!e.view()->inNoteKeys());
+        // a change to the workbook
+        command->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        QVERIFY(s->type(0, 5, 5, QStringLiteral("x")).ok);
+        QVERIFY(!e.view()->inNoteKeys());
+    }
+
+    // The keys leaving the sheet give the box up, except for a menu or popup that takes them for a moment.
+    void theKeysHoldOfANoteBoxEndsWhenTheSheetLosesTheFocus()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.resize(1100, 640);
+        w.show();
+        e.select(QStringLiteral("C3"));
+        w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        QFocusEvent popup(QEvent::FocusOut, Qt::PopupFocusReason);
+        QCoreApplication::sendEvent(e.view(), &popup);
+        QVERIFY(e.view()->inNoteKeys());
+        QFocusEvent away(QEvent::FocusOut, Qt::TabFocusReason);
+        QCoreApplication::sendEvent(e.view(), &away);
+        QVERIFY(!e.view()->inNoteKeys());
+    }
+
+    // The keys' box is announced once at each key press and not at each repeat of a key held down (the place is said when it is let go), the beginning and the end are said, and the place says
+    // its unit. The announcements are the events an accessibility client gets.
+    void theKeysBoxIsAnnouncedOnceAKeyAndNotAtEachRepeat()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.resize(1100, 640);
+        w.show();
+        e.select(QStringLiteral("C3"));
+        Announcements said;
+        w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QCOMPARE(Announcements::words.size(), 1);
+        QVERIFY2(Announcements::words.last().contains(QLatin1String("C3")) && Announcements::words.last().contains(QLatin1String("100%")), qPrintable(Announcements::words.join('|')));
+        const int x0 = e.view()->noteKeysBox().x();
+        QTest::keyClick(e.view(), Qt::Key_Right);
+        QCOMPARE(Announcements::words.size(), 2);
+        QCOMPARE(Announcements::words.last(), QStringLiteral("%1 across, %2 down, %3 wide, %4 high, in pixels at 100% zoom").arg(x0 + 10).arg(e.view()->noteKeysBox().y()).arg(e.view()->noteKeysBox().width()).arg(e.view()->noteKeysBox().height()));
+        // a key held down: the first press is said, the repeats are not, and the release says where it ended
+        QKeyEvent press(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier, QString(), false), repeat(QEvent::KeyPress, Qt::Key_Right, Qt::NoModifier, QString(), true);
+        QKeyEvent repeatUp(QEvent::KeyRelease, Qt::Key_Right, Qt::NoModifier, QString(), true), up(QEvent::KeyRelease, Qt::Key_Right, Qt::NoModifier, QString(), false);
+        QCoreApplication::sendEvent(e.view(), &press);
+        QCOMPARE(Announcements::words.size(), 3);
+        for (int i = 0; i < 5; ++i) {
+            QCoreApplication::sendEvent(e.view(), &repeatUp);
+            QCoreApplication::sendEvent(e.view(), &repeat);
+        }
+        QCOMPARE(e.view()->noteKeysBox().x(), x0 + 70);   // (the box went on moving)
+        QCOMPARE(Announcements::words.size(), 3);
+        QCoreApplication::sendEvent(e.view(), &up);
+        QCOMPARE(Announcements::words.size(), 4);
+        QVERIFY2(Announcements::words.last().startsWith(QString::number(x0 + 70) + QLatin1String(" across")), qPrintable(Announcements::words.last()));
+        QCoreApplication::sendEvent(e.view(), &up);   // (a release alone says nothing more)
+        QCOMPARE(Announcements::words.size(), 4);
+        // the end is said, kept or given up
+        QTest::keyClick(e.view(), Qt::Key_Return);
+        QCOMPARE(Announcements::words.size(), 5);
+        QVERIFY2(Announcements::words.last().contains(QLatin1String("kept")), qPrintable(Announcements::words.last()));
+        w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QTest::keyClick(e.view(), Qt::Key_Escape);
+        QVERIFY2(Announcements::words.last().contains(QLatin1String("given up")), qPrintable(Announcements::words.last()));
+        QCOMPARE(Announcements::words.size(), 7);
+    }
+
     // Reset Note Size puts the box back to the default (beside its cell, as large as its words need) in one step of Undo, is off when the box is already the default, and is saved.
     void resetNoteSizePutsTheBoxBackToTheDefault()
     {
@@ -1663,6 +2052,14 @@ private Q_SLOTS:
         QVERIFY(second.open(e.copyOfFile()));
         const jp::office::sheet::NoteInfo *again = second.w.session()->anchors().noteAt(0, 2, 2);
         QVERIFY(again && again->shown);
+        // (the file's form has no "no box": the default anchor is written, and read back as the box beside the cell, not the one it had)
+        QVERIFY(again->box.set && !(again->box == first));
+        QCOMPARE(again->box.y1, 10);
+        QCOMPARE(again->box.y2, 4);
+        QCOMPARE(again->box.col1, 1);
+        QCOMPARE(again->box.row1, -1);
+        QCOMPARE(again->box.col2, 3);
+        QCOMPARE(again->box.row2, 2);
     }
 };
 
