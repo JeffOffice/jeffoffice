@@ -13,6 +13,7 @@
 #include "core/fonts.h"
 #include "core/editsession.h"
 #include "office/package.h"
+#include "sheet/notes.h"
 #include "sheet/pivot.h"
 #include "sheet/pivotbook.h"
 #include "sheet/sheetreader.h"
@@ -395,6 +396,17 @@ private Q_SLOTS:
                 w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), false, QStringLiteral("Add Note"));
                 w->view()->selectCell(0, 0);
             }),
+            in(QStringLiteral("a shown note with a box of its own"), [](CrunchWindow *w) {
+                w->session()->setNote(0, 0, 0, QStringLiteral("A note"), QStringLiteral("me"), true, QStringLiteral("Add Note"));
+                jp::office::sheet::NoteBox box;
+                box.set = true;
+                box.col1 = 1;
+                box.col2 = 3;
+                box.row1 = 0;
+                box.row2 = 3;
+                w->session()->setNoteBox(0, 0, 0, box, QStringLiteral("Move or Size Note"));
+                w->view()->selectCell(0, 0);
+            }),
             in(QStringLiteral("a comment on a cell"), [](CrunchWindow *w) {
                 w->session()->newComment(0, 0, 0, QStringLiteral("A comment"), QStringLiteral("me"), QStringLiteral("New Comment"));
                 w->view()->selectCell(0, 0);
@@ -532,7 +544,7 @@ private Q_SLOTS:
             {QStringLiteral("fill.flash"), {QStringLiteral("two examples typed beside a column of data")}},
             {QStringLiteral("pivot.reportPages"), {QStringLiteral("the cursor in a pivot table that has a filter")}},
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
-            {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note")}},
+            {QStringLiteral("notes."), {QStringLiteral("a note in two cells, the later one selected"), QStringLiteral("a note in two cells, the earlier one selected"), QStringLiteral("a cell with a note"), QStringLiteral("a shown note with a box of its own")}},
             {QStringLiteral("object."), {QStringLiteral("two charts, the later one selected"), QStringLiteral("a shape selected"), QStringLiteral("a picture selected")}},
             {QStringLiteral("object.dir"), {QStringLiteral("a text box selected")}},
             {QStringLiteral("object.crop"), {QStringLiteral("a picture selected")}},
