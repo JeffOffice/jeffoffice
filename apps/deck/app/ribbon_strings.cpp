@@ -60,6 +60,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Effect Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Equation"),
     QT_TRANSLATE_NOOP("Ribbon", "Equation Tools"),
+    QT_TRANSLATE_NOOP("Ribbon", "Field"),
     QT_TRANSLATE_NOOP("Ribbon", "Font"),
     QT_TRANSLATE_NOOP("Ribbon", "Fonts"),
     QT_TRANSLATE_NOOP("Ribbon", "Format"),
