@@ -34,6 +34,8 @@ struct ListedStyle {
 // The styles the Styles pane shows for a filter: In Use lists those the text uses, All every style the document has (and the built-in ones it lacks), and Recommended those a
 // person is meant to see (not hidden, and either in the gallery, with a low priority, or in use). In Use and All are sorted by name, Recommended by priority.
 // The styles the text uses and the style `caretStyle` (an id) are always among them, and the rest follow in the order of the file up to the most that are listed.
+// The numbering definitions (ids of abstract lists) the paragraphs of the text are in: which list styles are in use.
+QSet<int> listDefinitionsInUse(WriteDoc &doc);
 QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle = QString(), StyleSort sort = StyleSort::Default);
 // Whether a style is listed for people and where: `inGallery` (recommended: it is in the gallery), `hidden` (left out of every list), and `priority` (0 to 99, lower comes first in the
 // recommended list; -1 leaves it as it is). One step of the history; nothing done when it is all as it was. False, with `problem` told, when it can't be done.

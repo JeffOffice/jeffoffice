@@ -1481,6 +1481,66 @@ void WriteTests::findNextSelectsTheMatchAndScrollsToIt()
 }
 
 
+// Find Next goes down, up, or all the way round as the Search box says; down and up stop at the end and the start of the document and say so.
+void WriteTests::findNextGoesDownUpOrAllTheWayRoundAsTheSearchBoxSays()
+{
+    WriteWindow w;
+    w.show();
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("one cat two cat three cat four"));
+    w.showFindPane();
+    WriteFindPane *pane = w.findPane();
+    pane->findBox()->setText(QStringLiteral("cat"));
+    const QString text = w.document()->story()->toPlainText();
+    const int first = text.indexOf(QStringLiteral("cat")), second = text.indexOf(QStringLiteral("cat"), first + 1), third = text.indexOf(QStringLiteral("cat"), second + 1);
+    QVERIFY(first > 0 && second > first && third > second);
+    auto choose = [&](WriteFindPane::Direction d) { pane->direction()->setCurrentIndex(pane->direction()->findData(int(d))); };
+    auto at = [&] { return w.view()->cursor().selectionStart(); };
+    auto caretAt = [&](int position) {
+        QTextCursor c(w.document()->story());
+        c.setPosition(position);
+        w.view()->setCursor(c);
+    };
+    // Down: each match in turn, then it stops at the end and the selection stays on the last.
+    choose(WriteFindPane::Direction::Down);
+    caretAt(0);
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), first);
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), second);
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), third);
+    QVERIFY(!pane->findNext());
+    QVERIFY2(pane->status().contains(QStringLiteral("below")), qPrintable(pane->status()));
+    QCOMPARE(at(), third);
+    // Up: from the end, each match before the caret in turn, then it stops at the start.
+    choose(WriteFindPane::Direction::Up);
+    caretAt(text.size());
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), third);
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), second);
+    QVERIFY(pane->findNext());
+    QCOMPARE(at(), first);
+    QVERIFY(!pane->findNext());
+    QVERIFY2(pane->status().contains(QStringLiteral("above")), qPrintable(pane->status()));
+    QCOMPARE(at(), first);
+    // All: past the last it goes round to the first.
+    choose(WriteFindPane::Direction::All);
+    caretAt(0);
+    for (int expected : {first, second, third, first}) {
+        QVERIFY(pane->findNext());
+        QCOMPARE(at(), expected);
+    }
+    // (Replace follows the same way: the match above the caret is the one replaced next.)
+    choose(WriteFindPane::Direction::Up);
+    pane->replaceBox()->setText(QStringLiteral("dog"));
+    caretAt(text.size());
+    QVERIFY(pane->findNext());
+    pane->replaceOne();
+    QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("one cat two cat three dog four")));
+}
+
+
 void WriteTests::findFollowsMatchCaseAndWholeWords()
 {
     WriteWindow w;

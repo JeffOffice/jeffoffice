@@ -234,6 +234,9 @@ public:
     void syncVerticalRuler();
     // What Save As asks for a name with: the file dialog, unless this stands in for it (tests): the name to suggest and the filter to
     // start on in, the path chosen out (empty for none).
+    // The kinds the last Save As offered (the filter texts of its box), for a test of what it lists.
+    int recoveryIntervalMs() const { return m_recoverTimer.interval(); }
+    QStringList offeredSaveFilters() const { return m_offeredFilters; }
     void setSavePathChooser(const std::function<QString(const QString &suggested, const QString &filter)> &chooser) { m_pathChooser = chooser; }
     // What a short message to the person (a sentence said at Save, or on a refusal to write over a file) is shown with: a message box, unless this stands in for it
     // (tests): the title and the sentence.
@@ -432,6 +435,10 @@ public:
     // paints once, or until Esc. Turning it on copies the look of the selection as it is then.
     enum class PainterMode { Off, Once, Locked };
     PainterMode painterMode() const { return m_painter; }
+    // Highlighting with the pointer: each selection made with the mouse is highlighted in the color chosen (an empty name takes the highlight off), until Stop Highlighting or Esc.
+    bool highlighting() const { return m_highlighting; }
+    void startHighlighting(const QString &name);
+    void stopHighlighting();
     void setPainterMode(PainterMode mode);
     // Paints the selection with the look held (what the end of a selection by the mouse does while the painter is on).
     void paintFormatNow();
@@ -713,6 +720,8 @@ private:
     StylesPane *m_styles = nullptr;
     QDockWidget *m_stylesDock = nullptr;
     PainterMode m_painter = PainterMode::Off;
+    bool m_highlighting = false;
+    QString m_highlightName;
     qint64 m_painterPicked = 0;   // when the painter was picked up (milliseconds since the epoch)
     write::FormatBrush m_brush;
     QList<MeasureSpin *> m_pictureFields;   // the height and width of the Picture Format tab
@@ -742,6 +751,7 @@ private:
     bool m_updatingFields = false;
     MiniToolbar *m_mini = nullptr;
     std::function<QString(const QString &, const QString &)> m_pathChooser;
+    QStringList m_offeredFilters;
     std::function<QString()> m_pictureChooser;
     std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;

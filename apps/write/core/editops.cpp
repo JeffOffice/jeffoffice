@@ -5,6 +5,7 @@
 #include "core/listpresets.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
+#include "core/themeops.h"
 
 #include "core/pictureops.h"
 #include "core/tableops.h"
@@ -2507,6 +2508,28 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color)
             f.clearProperty(QTextFormat::ForegroundBrush);
             f.clearProperty(tp::ColorRefP);
         }
+    });
+}
+
+void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &ref)
+{
+    const QColor plain = ref.isNone() ? QColor() : ref.resolve(doc.flow().env.colors);
+    // (the palette's slots, in the order of the scheme: the main text color, five accents, and the two link colors)
+    static const char *const names[] = {"text1", "accent1", "accent2", "accent3", "accent4", "accent5", "hyperlink", "followedHyperlink"};
+    static_assert(sizeof names / sizeof *names == SlotCount, "a name for every slot of a color scheme");
+    if (ref.kind() != ColorRef::Scheme || ref.slot() < 0 || ref.slot() >= SlotCount) return setTextColor(doc, c, plain);
+    auto hexOf = [](int percentKept) { return QStringLiteral("%1").arg(std::clamp(int(std::lround(percentKept * 255 / 100.0)), 0, 255), 2, 16, QLatin1Char('0')).toUpper(); };
+    const QString name = QLatin1String(names[ref.slot()]);
+    const QString tint = ref.lighten() > 0 ? hexOf(100 - ref.lighten()) : QString(), shade = ref.darken() > 0 && ref.lighten() <= 0 ? hexOf(100 - ref.darken()) : QString();
+    QColor shown;
+    if (!themeColorOf(doc, name, tint, shade, &shown)) return setTextColor(doc, c, plain);
+    const NoteScopeGuard scopeGuard(doc, c);
+    if (!intoBody(c)) return;
+    changeCharFormat(doc, c, [&](QTextCharFormat &f) {
+        f.setForeground(QBrush(shown));
+        f.setProperty(tp::ColorRefP, ColorRef::rgb(shown).toString());
+        f.setProperty(prop::ColorAttrs, name + QLatin1Char(';') + tint + QLatin1Char(';') + shade);
+        f.setProperty(prop::ColorAttrsRgb, shown.name(QColor::HexRgb).mid(1).toUpper());
     });
 }
 

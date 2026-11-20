@@ -156,7 +156,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             if (!m_doc || refuseIfReadOnly()) return;
             const QColor color = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
             if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
-            else write::setTextColor(*m_doc, m_view->cursor(), color);
+            else write::setTextColorRef(*m_doc, m_view->cursor(), c);
             m_view->focusText();
         });
         m_colorButtons << b;
@@ -168,7 +168,10 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             QAction *a = m->addAction(colorSquare(write::highlightColor(name)), name);
             connect(a, &QAction::triggered, this, [this, name] {
                 if (refuseIfReadOnly()) return;
-                if (m_doc) write::setHighlight(*m_doc, m_view->cursor(), name);
+                if (!m_doc) return;
+                // With text selected the color goes on at once; with none, the pointer highlights what is selected next.
+                if (m_view->cursor().hasSelection()) write::setHighlight(*m_doc, m_view->cursor(), name);
+                else startHighlighting(name);
                 m_view->setFocus();
             });
         }
@@ -178,6 +181,7 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
             if (m_doc) write::setHighlight(*m_doc, m_view->cursor(), QString());
             m_view->setFocus();
         });
+        m->addAction(act(QStringLiteral("fmt.stopHighlighting")));
         return m;
     };
     parts.menus[QStringLiteral("shadingColors")] = [this](QWidget *owner) {

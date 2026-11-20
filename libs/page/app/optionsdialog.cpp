@@ -113,7 +113,9 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     auto *gen = new QWidget();
     auto *gf = new QFormLayout(gen);
     auto *name = new QLineEdit(st.userName(), gen);
+    name->setObjectName(QStringLiteral("userName"));
     auto *initials = new QLineEdit(st.value("user/initials").toString(), gen);
+    initials->setObjectName(QStringLiteral("userInitials"));
     auto *theme = new QComboBox(gen);
     theme->addItems({QCoreApplication::translate("Dialogs", "Use system setting"), QCoreApplication::translate("Dialogs", "Light"), QCoreApplication::translate("Dialogs", "Dark")});
     const int oldTheme = st.value("ui/theme", 0).toInt();

@@ -59,6 +59,8 @@ You can leave **Find what** empty. Then every stretch of text with that look is 
 - **Match case** finds only words with the same capital letters. With it on, "Plan" does not find "plan."
 - **Find whole words only** skips longer words that hold yours. With it on, "plan" does not find "planet."
 
+- **Search** sets which way **Find Next** goes from the cursor. **Down** goes to the end of the document, and **Up** goes to the start. Each stops there and says so. **All** goes on round to the other end and is the usual choice. **Replace All** always changes the whole document.
+
 ## Replace words
 
 1. Press **Ctrl+H**, or click **Home > Editing > Replace**. The cursor goes to **Replace with**.

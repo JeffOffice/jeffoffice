@@ -1759,6 +1759,9 @@ private Q_SLOTS:
     void rtfDroppedFromAnotherProgramKeepsItsLooks();
     void aClickInsideTheSelectionPutsTheCaretThereAndWithTheDragOffAPressStartsANewSelection();
     void theStylesPaneOfADocumentWithTenThousandStylesListsAtMostWhatItHolds();
+    void theStylesPaneInUseListFollowsAListStylesUseAlone();
+    void findNextGoesDownUpOrAllTheWayRoundAsTheSearchBoxSays();
+    void pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep();
     void aCancelledStyleDialogOnABuiltInStyleTheDocumentLacksChangesNothing();
     void savesTheDocumentWithHeaderAndFooter();
     void aSavedDocumentIsTheSameBytesInEachProcess();

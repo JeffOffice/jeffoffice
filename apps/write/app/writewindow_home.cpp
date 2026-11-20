@@ -313,7 +313,7 @@ void WriteWindow::createMiniToolbar()
         if (!m_doc || refuseIfReadOnly()) return;
         const QColor chosen = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
         if (auto *typing = m_view->shapeEditor()) typing->setColor(chosen.isValid() ? chosen : QColor(Qt::black));
-        else write::setTextColor(*m_doc, m_view->cursor(), chosen);
+        else write::setTextColorRef(*m_doc, m_view->cursor(), c);
         m_view->focusText();
     };
     auto *mini = new MiniToolbar(m_view->viewport(), std::move(target));

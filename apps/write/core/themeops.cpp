@@ -191,6 +191,11 @@ bool change(WriteDoc &doc, const Theme &to)
 
 } // namespace
 
+bool themeColorOf(const WriteDoc &doc, const QString &name, const QString &tint, const QString &shade, QColor *out)
+{
+    return doc.theme() && colorOf(*doc.theme(), name, tint, shade, out);
+}
+
 bool canChangeTheme(const WriteDoc &doc) { return doc.theme() != nullptr; }
 
 Theme documentTheme(const WriteDoc &doc)

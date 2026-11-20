@@ -42,6 +42,7 @@ public:
 private:
     void rebuild();
     void recheckUse();
+    static size_t usedSignature(write::WriteDoc &doc);
     void mark(const QString &key);
     WriteWindow *m_win;
     QComboBox *m_filter;

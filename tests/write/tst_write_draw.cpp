@@ -1122,6 +1122,66 @@ private Q_SLOTS:
         QVERIFY(!applyThemeColors(*doc, colors));
     }
 
+    // Font Color from the palette keeps a theme color (with its tint) as the file writes one, through the window's own save and open, and a change of theme recolors it; a color
+    // that is no theme color stays plain.
+    void aThemeColorPickedInFontColorIsKeptAsOneAndFollowsTheTheme()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        w.setDocument(WriteDoc::blank(), QString());
+        QTextCursor typed(w.document()->story());
+        insertText(*w.document(), typed, QStringLiteral("themed plain"));
+        ColorButton *fontColor = nullptr;
+        for (ColorButton *b : w.ribbon()->findChildren<ColorButton *>())
+            if (b->toolTip() == QStringLiteral("Font Color")) fontColor = b;
+        QVERIFY(fontColor);
+        auto pick = [&](int from, int to, const ColorRef &color) {
+            QTextCursor &c = w.view()->cursor();
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            Q_EMIT fontColor->colorPicked(color);
+        };
+        const quint64 before = w.document()->nextStepSerial();
+        pick(0, 6, ColorRef::scheme(Accent2, 40));   // (Accent 2, lighter 40%: kept 60%, 0x99)
+        QCOMPARE(w.document()->nextStepSerial(), before + 1);
+        pick(7, 12, ColorRef::rgb(QColor(0xC0, 0, 0)));
+        auto formatAt = [&](WriteDoc &doc, int at) {
+            QTextCursor r(doc.story());
+            r.setPosition(at);
+            return r.charFormat();
+        };
+        QCOMPARE(formatAt(*w.document(), 3).stringProperty(prop::ColorAttrs), QStringLiteral("accent2;99;"));
+        QVERIFY(formatAt(*w.document(), 10).stringProperty(prop::ColorAttrs).isEmpty());
+        QColor expected;
+        QVERIFY(themeColorOf(*w.document(), QStringLiteral("accent2"), QStringLiteral("99"), QString(), &expected));
+        QCOMPARE(formatAt(*w.document(), 3).foreground().color().rgb(), expected.rgb());
+        // saved and opened again through the window
+        const QString path = dir.filePath(QStringLiteral("themed.docx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w.saveAs());
+        const QByteArray xml = partOf([&] { QFile f(path); return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray(); }(), QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("w:themeColor=\"accent2\"") && xml.contains("w:themeTint=\"99\""), xml.left(2000).constData());
+        QCOMPARE(xml.count("w:themeColor="), 1);
+        WriteWindow v;
+        QVERIFY(v.openFile(path));
+        QCOMPARE(formatAt(*v.document(), 3).stringProperty(prop::ColorAttrs), QStringLiteral("accent2;99;"));
+        QCOMPARE(formatAt(*v.document(), 3).foreground().color().rgb(), expected.rgb());
+        // a new theme recolors the theme color and leaves the plain one
+        const office::ThemeColors colors = office::builtinThemeColors().at(3);
+        QVERIFY(applyThemeColors(*v.document(), colors));
+        QColor now;
+        QVERIFY(themeColorOf(*v.document(), QStringLiteral("accent2"), QStringLiteral("99"), QString(), &now));
+        QVERIFY(now != expected);
+        QCOMPARE(formatAt(*v.document(), 3).foreground().color().rgb(), now.rgb());
+        QCOMPARE(formatAt(*v.document(), 10).foreground().color(), QColor(0xC0, 0, 0));
+        // Undo takes the pick back as one step
+        QVERIFY(w.document()->undo());
+        QVERIFY(formatAt(*w.document(), 10).stringProperty(prop::ColorAttrs).isEmpty());
+        QVERIFY(w.document()->undo());
+        QVERIFY(formatAt(*w.document(), 3).stringProperty(prop::ColorAttrs).isEmpty());
+    }
+
     void themeFontsAndAWholeThemeChangeTheDocumentAndResetPutsTheOldOneBack()
     {
         auto doc = WriteDoc::blank();

@@ -4,6 +4,7 @@
 #include "core/captionops.h"
 #include "core/citeops.h"
 #include "app/keymap.h"
+#include "core/listpresets.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -1370,6 +1371,53 @@ void WriteTests::theFormatPainterPaintsOnceOrStaysOnUntilEscapeAndEachPaintIsOne
 }
 
 
+// Text Highlight Color with nothing selected turns the pointer into a highlighter: each selection made with the mouse is highlighted, one step each, until Stop Highlighting or Esc.
+void WriteTests::pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep()
+{
+    auto w = styWindow("<w:p><w:r><w:t>Alpha beta gamma delta epsilon</w:t></w:r></w:p>");
+    w->show();
+    PageView *view = w->view();
+    QAction *stop = w->act(QStringLiteral("fmt.stopHighlighting"));
+    QVERIFY(stop);
+    QVERIFY(!w->highlighting());
+    const QString yellow = write::highlightNames().first();
+    auto highlighted = [&](int at) { return !styCharAt(*w->document(), at).stringProperty(tp::HighlightRefP).isEmpty(); };
+    auto drag = [&](int from, int to) {
+        const QPoint a = styPointOf(view, from), b = styPointOf(view, to);
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, a);
+        QTest::mouseMove(view->viewport(), b);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, b);
+    };
+    // Not on: a selection changes nothing.
+    const quint64 start = w->document()->nextStepSerial();
+    drag(6, 10);
+    QCOMPARE(w->document()->nextStepSerial(), start);
+    w->startHighlighting(yellow);
+    QVERIFY(w->highlighting());
+    drag(6, 10);
+    drag(23, 30);
+    QVERIFY(highlighted(7));
+    QVERIFY(highlighted(25));
+    QVERIFY(!highlighted(12));
+    QCOMPARE(w->document()->nextStepSerial(), start + 2);
+    QVERIFY(w->highlighting());
+    // Esc stops it, and the next selection is left alone.
+    QTest::keyClick(view, Qt::Key_Escape);
+    QVERIFY(!w->highlighting());
+    drag(12, 16);
+    QVERIFY(!highlighted(13));
+    QCOMPARE(w->document()->nextStepSerial(), start + 2);
+    // The command stops it too, and one Undo takes back one highlight.
+    w->startHighlighting(yellow);
+    stop->trigger();
+    QVERIFY(!w->highlighting());
+    w->refreshNow();
+    w->act(QStringLiteral("edit.undo"))->trigger();
+    QVERIFY(!highlighted(25));
+    QVERIFY(highlighted(7));
+}
+
+
 void WriteTests::goToOpensWithCtrlGAndPutsTheCaretAtThePlaceNamed()
 {
     QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>First heading</w:t></w:r></w:p>";
@@ -1579,6 +1627,32 @@ void WriteTests::theStylesPaneOfADocumentWithTenThousandStylesListsAtMostWhatItH
     QTRY_VERIFY(w->document()->inUseScansForTest() > scans);
 }
 
+
+// The In Use list of the Styles pane follows a list style's use alone: a paragraph put in the list style makes the style appear, and taking it out makes it go.
+void WriteTests::theStylesPaneInUseListFollowsAListStylesUseAlone()
+{
+    auto w = styWindow("<w:p><w:r><w:t>One</w:t></w:r></w:p><w:p><w:r><w:t>Two</w:t></w:r></w:p>");
+    WriteDoc &doc = *w->document();
+    const QString id = saveListStyle(doc, QStringLiteral("Outline Style"), multilevelPresets().at(0).def);
+    QVERIFY(!id.isEmpty());
+    w->act(QStringLiteral("style.pane"))->trigger();
+    StylesPane *pane = w->stylesPane();
+    QVERIFY(pane);
+    pane->setFilter(write::StyleFilter::InUse);
+    const QString key = QStringLiteral("l:") + id;
+    QVERIFY2(pane->rowOf(key) < 0, "not in use yet");
+    // (only the use changes from here on: the styles themselves stay as they are)
+    QTextCursor first(doc.story());
+    first.setPosition(1);
+    QVERIFY(applyListStyle(doc, first, id));
+    w->refreshNow();
+    QTRY_VERIFY(pane->rowOf(key) >= 0);
+    QTextCursor all(doc.story());
+    all.select(QTextCursor::Document);
+    write::clearList(doc, all);
+    w->refreshNow();
+    QTRY_VERIFY(pane->rowOf(key) < 0);
+}
 
 void WriteTests::aCancelledStyleDialogOnABuiltInStyleTheDocumentLacksChangesNothing()
 {

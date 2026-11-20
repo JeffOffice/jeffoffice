@@ -320,8 +320,10 @@ bool WriteWindow::saveAs()
     if (from.isEmpty() && defaultSaveFormat() == QLatin1String("odt")) selected = odtFilter;
     auto endingOf = [&](const QString &filter) { return filter == rtfFilter ? QStringLiteral(".rtf") : filter == txtFilter ? QStringLiteral(".txt") : filter == docmFilter ? QStringLiteral(".docm") : filter == dotmFilter ? QStringLiteral(".dotm") : filter == dotxFilter ? QStringLiteral(".dotx") : filter == odtFilter ? QStringLiteral(".odt") : filter == ottFilter ? QStringLiteral(".ott") : QStringLiteral(".docx"); };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
+    const QString filters = docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter + QStringLiteral(";;") + docmFilter + QStringLiteral(";;") + dotmFilter + QStringLiteral(";;") + txtFilter + QStringLiteral(";;") + rtfFilter;
+    m_offeredFilters = filters.split(QStringLiteral(";;"));
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
-                                 : askSavePath(this, tr("Save As"), suggested, docxFilter + QStringLiteral(";;") + dotxFilter + QStringLiteral(";;") + odtFilter + QStringLiteral(";;") + ottFilter + QStringLiteral(";;") + docmFilter + QStringLiteral(";;") + dotmFilter + QStringLiteral(";;") + txtFilter + QStringLiteral(";;") + rtfFilter, &selected);
+                                 : askSavePath(this, tr("Save As"), suggested, filters, &selected);
     if (path.isEmpty()) return false;
     if (!isWrittenEnding(path)) path += endingOf(selected);
     return saveTo(path);

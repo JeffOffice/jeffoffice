@@ -53,6 +53,7 @@ void WriteWindow::createStyleActions()
         act(QStringLiteral("edit.formatPainter"))->setChecked(m_painter != PainterMode::Off);
     }, true);
     painter->setToolTip(tr("Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop."));
+    mk("fmt.stopHighlighting", tr("Stop Highlighting"), "", QKeySequence(), [this] { stopHighlighting(); });
     mk("edit.copyFormat", tr("Copy Format"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C), [this] {
         if (!m_doc) return;
         m_brush = write::copyFormat(*m_doc, m_view->cursor());
@@ -122,13 +123,37 @@ void WriteWindow::setPainterMode(PainterMode mode)
     }
     m_painter = mode;
     act(QStringLiteral("edit.formatPainter"))->setChecked(mode != PainterMode::Off);
-    m_view->setTextDragAllowed(mode == PainterMode::Off);
+    m_view->setTextDragAllowed(mode == PainterMode::Off && !m_highlighting);
     if (mode == PainterMode::Off) statusBar()->clearMessage();
     else statusBar()->showMessage(tr("Copy Formatting: select the text to paint. Press Esc to stop."));
 }
 
+void WriteWindow::startHighlighting(const QString &name)
+{
+    if (!m_doc) return;
+    if (m_painter != PainterMode::Off) setPainterMode(PainterMode::Off);
+    m_highlighting = true;
+    m_highlightName = name;
+    m_view->setTextDragAllowed(false);
+    statusBar()->showMessage(tr("Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop."));
+}
+
+void WriteWindow::stopHighlighting()
+{
+    if (!m_highlighting) return;
+    m_highlighting = false;
+    m_highlightName.clear();
+    m_view->setTextDragAllowed(m_painter == PainterMode::Off);
+    statusBar()->clearMessage();
+}
+
 void WriteWindow::paintFormatNow()
 {
+    if (m_highlighting && m_doc && m_view->cursor().hasSelection() && !refuseIfReadOnly()) {
+        write::setHighlight(*m_doc, m_view->cursor(), m_highlightName);
+        m_view->setFocus(Qt::OtherFocusReason);
+        return;
+    }
     if (m_painter == PainterMode::Off || !m_doc) return;
     write::pasteFormat(*m_doc, m_view->cursor(), m_brush);
     if (m_painter == PainterMode::Once) setPainterMode(PainterMode::Off);

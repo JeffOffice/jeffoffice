@@ -212,6 +212,14 @@ bool paragraphKeepsOwn(int key)
     return own.contains(key);
 }
 
+QSet<int> listDefinitionsInUse(WriteDoc &doc)
+{
+    QSet<int> used;
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+        if (b.blockFormat().hasProperty(prop::NumId)) used.insert(doc.numbering().definitionOf(b.blockFormat().intProperty(prop::NumId)));
+    return used;
+}
+
 QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString &caretStyle, StyleSort sort)
 {
     const StyleSheet &sheet = doc.styleSheet();
@@ -222,11 +230,8 @@ QVector<ListedStyle> listStyles(WriteDoc &doc, StyleFilter filter, const QString
     bool firstPass = true;
     // The list styles, and which of them a paragraph has (its numbering id is of the style's definition).
     QHash<QString, int> listIds;
-    QSet<int> listUsed;
     for (const WriteDoc::ListStyleEntry &e : doc.listStyleEntries()) listIds.insert(e.id, e.abstractId);
-    if (!listIds.isEmpty())
-        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
-            if (b.blockFormat().hasProperty(prop::NumId)) listUsed.insert(doc.numbering().definitionOf(b.blockFormat().intProperty(prop::NumId)));
+    const QSet<int> listUsed = listIds.isEmpty() ? QSet<int>() : listDefinitionsInUse(doc);
     auto consider = [&](const Style &s, bool inDocument) {
         const bool isList = s.type == QLatin1String("numbering") && listIds.contains(s.id);
         if (s.type != QLatin1String("paragraph") && s.type != QLatin1String("character") && !isList) return;

@@ -1,6 +1,8 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../withdialog.h"
+#include "core/commentops.h"
 #include "../cardchecks.h"
 #include "../packedpackagecheck.h"
 #include "../localepin.h"
@@ -690,6 +692,93 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("save/format"), QStringLiteral("docx"));
         Settings::get().setValue(QStringLiteral("dirs/default"), QString());
         Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), 10);
+    }
+
+    // Save As lists every kind JeffWrite writes, a new document starts on .docx, and each kind saves and opens again through the window's own Save As and Open.
+    void saveAsListsEveryKindAndEachSavesAndOpensAgain()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("alpha beta\ngamma delta"));
+        w.setTextFormChooser([](write::TextForm *, const QByteArray *) { return true; });
+        QString suggested, selected;
+        w.setSavePathChooser([&](const QString &s, const QString &f) {
+            suggested = s;
+            selected = f;
+            return QString();
+        });
+        QVERIFY(!w.saveAs());
+        QVERIFY2(suggested.endsWith(QLatin1String(".docx")), qPrintable(suggested));
+        QVERIFY(selected.contains(QLatin1String("*.docx")));
+        const QStringList offered = w.offeredSaveFilters();
+        const QStringList endings = {QStringLiteral("docx"), QStringLiteral("dotx"), QStringLiteral("odt"), QStringLiteral("ott"), QStringLiteral("docm"), QStringLiteral("dotm"), QStringLiteral("txt"), QStringLiteral("rtf")};
+        QCOMPARE(offered.size(), endings.size());
+        for (const QString &ending : endings) {
+            bool listed = false;
+            for (const QString &f : offered) listed = listed || f.contains(QLatin1String("*.") + ending + QLatin1Char(')'));
+            QVERIFY2(listed, qPrintable(ending));
+            const QString path = dir.filePath(QStringLiteral("kind.") + ending);
+            QVERIFY2(saveInto(w, dir, QStringLiteral("kind.") + ending), qPrintable(ending));
+            QVERIFY2(QFileInfo(path).size() > 0, qPrintable(ending));
+            WriteWindow v;
+            Quiet quietV(v);
+            QVERIFY2(v.openFile(path), qPrintable(ending));
+            QVERIFY2(v.document()->story()->toPlainText().startsWith(QStringLiteral("alpha beta")), qPrintable(ending));
+            QVERIFY2(v.document()->story()->toPlainText().contains(QStringLiteral("gamma delta")), qPrintable(ending));
+            // (Save As moved the first window to the file: the next kind is chosen from it; a template opens as a new document, and is left unsaved)
+        }
+    }
+
+    // Options > Save > recovery interval: a window's recovery timer runs at the minutes Options names.
+    void theRecoveryTimerFollowsTheOptionsInterval()
+    {
+        Settings &st = Settings::get();
+        const QVariant old = st.value(QStringLiteral("save/autoRecoverMinutes"));
+        st.setValue(QStringLiteral("save/autoRecoverMinutes"), 3);
+        {
+            WriteWindow w;
+            QCOMPARE(w.recoveryIntervalMs(), 3 * 60 * 1000);
+        }
+        st.setValue(QStringLiteral("save/autoRecoverMinutes"), 7);
+        {
+            WriteWindow w;
+            QCOMPARE(w.recoveryIntervalMs(), 7 * 60 * 1000);
+        }
+        st.setValue(QStringLiteral("save/autoRecoverMinutes"), old.isValid() ? old : QVariant(10));
+    }
+
+    // Options > General: the name and initials typed there are who comments in the open document, and the saved .docx and its reopened comment keep both.
+    void theNameAndInitialsOfOptionsAreOnTheCommentsOfASavedFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("some words to remark on"));
+        withDialog([&] { w.act(QStringLiteral("file.options"))->trigger(); }, QStringLiteral("optionsDialog"), [](QDialog *d) {
+            auto *name = d->findChild<QLineEdit *>(QStringLiteral("userName"));
+            auto *initials = d->findChild<QLineEdit *>(QStringLiteral("userInitials"));
+            QVERIFY(name && initials);
+            name->setText(QStringLiteral("Quincy Xavier"));
+            initials->setText(QStringLiteral("QX"));
+        });
+        QCOMPARE(w.document()->reviewerInitials(), QStringLiteral("QX"));
+        QTextCursor c(w.document()->story());
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        const int made = write::addComment(*w.document(), c, QStringLiteral("A remark"));
+        QVERIFY(made >= 0);
+        QVERIFY(saveInto(w, dir, QStringLiteral("who.docx")));
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("who.docx"))));
+        const std::optional<write::Comment> back = write::commentById(*v.document(), made);
+        QVERIFY(back.has_value());
+        QCOMPARE(back->author, QStringLiteral("Quincy Xavier"));
+        QCOMPARE(back->initials, QStringLiteral("QX"));
+        Settings::get().setValue(QStringLiteral("user/name"), QStringLiteral("Tester"));
+        Settings::get().setValue(QStringLiteral("user/initials"), QString());
     }
 
     void bookmarksAreAddedToAPdfAndItStillOpens()

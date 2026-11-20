@@ -839,6 +839,14 @@ bool WriteWindow::eventFilter(QObject *o, QEvent *e)
             return true;
         }
     }
+    // Esc stops highlighting with the pointer.
+    if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_highlighting) {
+        auto *w = qobject_cast<QWidget *>(o);
+        if (w && w->window() == this) {
+            stopHighlighting();
+            return true;
+        }
+    }
     // Escape leaves Focus mode.
     if (e->type() == QEvent::KeyPress && static_cast<QKeyEvent *>(e)->key() == Qt::Key_Escape && m_focusMode) {
         auto *w = qobject_cast<QWidget *>(o);

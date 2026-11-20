@@ -191,6 +191,9 @@ void setFontFamily(WriteDoc &doc, QTextCursor &c, const QString &family);   // "
 void setFontSize(WriteDoc &doc, QTextCursor &c, double points);
 void changeFontSize(WriteDoc &doc, QTextCursor &c, int steps);               // Grow and Shrink: along the sizes of the size box
 void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color);       // invalid: automatic
+// A color picked from the palette: one of the theme's (with a tint or shade) is kept as the file writes a theme color, w:themeColor with w:themeTint or w:themeShade (ECMA-376 Part 1
+// section 17.3.2.6), so that a change of theme recolors it; any other color, or a document with no theme, gets the plain color the palette shows.
+void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &color);
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name);       // empty: none
 void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color);   // invalid: none; the shading of the letters (w:shd), not the highlight
 void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on);                  // a thin line round the letters (w:bdr)

@@ -18,6 +18,7 @@
 #include <memory>
 
 class QCheckBox;
+class QComboBox;
 class QLabel;
 class QLineEdit;
 class QTimer;
@@ -36,7 +37,10 @@ public:
     // Puts the cursor in Find what, or in Replace with.
     void focusBox(bool replace);
     // False, with the reason in status(), when there is no such text.
+    // Which way Find Next goes from the caret: down the document, up it, or all the way round.
+    enum class Direction { Down, Up, All };
     bool findNext();
+    QComboBox *direction() const { return m_direction; }
     void replaceOne();
     void replaceAll();
     QString status() const;
@@ -87,6 +91,7 @@ private:
     bool searchStory(QTextDocument *story, int from, QTextCursor *found, QString *problem);
     QString whereIs(QTextDocument *story, int page);
     QVector<QTextDocument *> sideStories();
+    bool lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem);
     int replaceInStory(QTextDocument *story, QString *problem);
     bool selectionIsMatch();
     static bool holdsMark(const QString &plain, int from, int to);
@@ -94,6 +99,7 @@ private:
     WriteWindow *m_win;
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
+    QComboBox *m_direction = nullptr;
     QCheckBox *m_case, *m_whole, *m_wild, *m_sounds, *m_forms, *m_ignorePunct, *m_ignoreSpace;
     QToolButton *m_special = nullptr, *m_formatButton = nullptr;
     QLabel *m_formatLabel = nullptr;

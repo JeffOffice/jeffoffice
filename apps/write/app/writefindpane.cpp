@@ -200,6 +200,19 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     m_ignoreSpace = new QCheckBox(tr("Ignore white-space characters"), this);
     m_ignoreSpace->setObjectName(QStringLiteral("ignoreSpaces"));
     for (QCheckBox *c : {m_sounds, m_forms, m_ignorePunct, m_ignoreSpace}) v->addWidget(c);
+    // Which way Find Next and Replace go from the caret: down to the end, up to the start, or all the way round (Replace All always does every story).
+    auto *directionRow = new QHBoxLayout();
+    auto *directionLabel = new QLabel(tr("Search"), this);
+    m_direction = new QComboBox(this);
+    m_direction->setObjectName(QStringLiteral("findDirection"));
+    m_direction->addItem(tr("Down"), int(Direction::Down));
+    m_direction->addItem(tr("Up"), int(Direction::Up));
+    m_direction->addItem(tr("All"), int(Direction::All));
+    m_direction->setCurrentIndex(m_direction->findData(int(Direction::All)));
+    directionLabel->setBuddy(m_direction);
+    directionRow->addWidget(directionLabel);
+    directionRow->addWidget(m_direction, 1);
+    v->addLayout(directionRow);
     auto *more = new QHBoxLayout();
     m_special = new QToolButton(this);
     m_special->setObjectName(QStringLiteral("findSpecial"));
@@ -725,14 +738,34 @@ bool WriteFindPane::findNext()
         if (story != body && view->editedSideStory() != story && !view->enterSideStory(story)) return false;
         return got = true;
     };
-    // From the end of the selection to the end of the text, then the headers, footers, and notes, then the text again from the start.
-    if (here == body || view->editedSideStory() == here) got = look(here, view->cursor().selectionEnd());
-    if (!got && problem.isEmpty()) {
-        QVector<QTextDocument *> order = sideStories();
-        order.prepend(body);
-        const int n = int(order.size()), at = std::max(0, int(order.indexOf(here)));
-        for (int k = 1; k < n && !got && problem.isEmpty(); ++k) got = look(order[(at + k) % n], 0);
-        if (!got && problem.isEmpty()) got = look(here, 0);
+    const Direction direction = Direction(m_direction->currentData().toInt());
+    QVector<QTextDocument *> order = sideStories();
+    order.prepend(body);
+    const int n = int(order.size()), at = std::max(0, int(order.indexOf(here)));
+    if (direction == Direction::All) {
+        // From the end of the selection to the end of the text, then the headers, footers, and notes, then the text again from the start.
+        if (here == body || view->editedSideStory() == here) got = look(here, view->cursor().selectionEnd());
+        if (!got && problem.isEmpty()) {
+            for (int k = 1; k < n && !got && problem.isEmpty(); ++k) got = look(order[(at + k) % n], 0);
+            if (!got && problem.isEmpty()) got = look(here, 0);
+        }
+    } else if (direction == Direction::Down) {
+        // To the end of the headers, footers, and notes, and no further.
+        if (here == body || view->editedSideStory() == here) got = look(here, view->cursor().selectionEnd());
+        for (int k = at + 1; k < n && !got && problem.isEmpty(); ++k) got = look(order[k], 0);
+    } else {
+        // Up: the last match before the selection, then the matches of the stories before this one, and no further.
+        QTextCursor last;
+        if ((here == body || view->editedSideStory() == here) && lastMatchBefore(here, view->cursor().selectionStart(), &last, &problem) && (here == body || view->editedSideStory() == here || view->enterSideStory(here))) {
+            found = last;
+            got = true;
+        }
+        for (int k = at - 1; k >= 0 && !got && problem.isEmpty(); --k) {
+            if (!lastMatchBefore(order[k], -1, &last, &problem)) continue;
+            if (order[k] != body && view->editedSideStory() != order[k] && !view->enterSideStory(order[k])) continue;
+            found = last;
+            got = true;
+        }
     }
     if (!problem.isEmpty()) {
         m_status->setText(problem);
@@ -753,8 +786,25 @@ bool WriteFindPane::findNext()
         if (index > 0 && m_matches.size() < kMostMatches) m_status->setText(tr("Match %1 of %2").arg(index).arg(m_matches.size()));
         return true;
     }
-    m_status->setText(tr("JeffWrite finished searching the document. \"%1\" was not found.").arg(findTextForMessage(q)));
+    m_status->setText(direction == Direction::Down ? tr("JeffWrite reached the end of the document. \"%1\" was not found below.").arg(findTextForMessage(q))
+                      : direction == Direction::Up ? tr("JeffWrite reached the start of the document. \"%1\" was not found above.").arg(findTextForMessage(q))
+                                                   : tr("JeffWrite finished searching the document. \"%1\" was not found.").arg(findTextForMessage(q)));
     return false;
+}
+
+// The last match of a story that ends at or before a place of its text (before its end when `before` is negative), shown as a cursor in the story.
+bool WriteFindPane::lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem)
+{
+    bool got = false;
+    QTextCursor m;
+    for (int at = 0, seen = 0; seen < kMostMatches; ++seen) {
+        if (!searchStory(story, at, &m, problem)) break;
+        if (before >= 0 && m.selectionEnd() > before) break;
+        *found = m;
+        got = true;
+        at = std::max(m.selectionEnd(), at + 1);
+    }
+    return got;
 }
 
 void WriteFindPane::replaceOne()

@@ -26,7 +26,7 @@ If nothing is selected, your choices apply to the text you type next.
 - **Font** is the typeface, such as Times or Arial. The first two choices are the document's heading font and body font. They follow the document if you change its fonts later.
 - **Font style** is **Regular**, **Italic**, **Bold**, or **Bold Italic**.
 - **Size** is the height of the letters, in points. There are 72 points in an inch.
-- **Font color** is the color of the letters. **Automatic** leaves the color to the document.
+- **Font color** is the color of the letters. **Automatic** leaves the color to the document. The colors of the document's theme, in the top rows with lighter and darker shades, are kept as theme colors: if you later change the theme in **Design**, the letters change with it. The standard colors and **More Colors** are kept as the plain color you pick.
 - **Underline style** has a single line, a double line, a thick line, dotted and dashed lines, and a wavy line. **Words only** leaves the spaces between words without a line.
 - **Underline color** is the color of the line. **Automatic** uses the color of the letters.
 
@@ -75,6 +75,10 @@ JeffWrite saves every effect in the .docx file, and other programs show them the
 
 - [Find and replace words](find-replace)
 - [Welcome to JeffWrite](start)
+
+## Highlight words with the pointer
+
+Click the arrow beside **Text Highlight Color** and pick a color. If words are selected, they are highlighted at once. If nothing is selected, the pointer becomes a highlighter: select words with the mouse, and each selection is highlighted in that color. Each one is a step that **Undo** takes back. Choose **Stop Highlighting** at the bottom of the same list, or press **Esc**, to go back to normal selecting. **No Color** takes the highlight off the selected words.
 
 ## Shading and a border behind letters
 

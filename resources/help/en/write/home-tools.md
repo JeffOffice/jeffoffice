@@ -75,6 +75,14 @@ Choose **Bar** to set a bar. A bar does not stop the text. It draws a thin strai
 
 **Default tab stops** is the distance between the stops that a paragraph gets when it has none of its own, and past the last stop it does have. The usual distance is half an inch. This one is for the whole document, not just the paragraph you are in. The new distance applies to every paragraph as soon as you click **OK**.
 
+## Borders and shading for paragraphs
+
+Select one or more paragraphs. In the **Paragraph** group, the **Borders** button has the quick choices: **Bottom Border**, **Top Border**, **Left Border**, **Right Border**, **All Borders**, and **No Border**. A quick choice draws a single line, half a point thick, a point away from the words. A choice for one side leaves the other sides as they were.
+
+**Borders and Shading** at the bottom of that list opens a box. Tick the sides that get a line, or click **Box** or **None**. Then pick the **Style** (single, double, thick, dotted, or dashed), the **Width**, the **Color**, and the **Distance from text**. **Shading** fills the paragraphs with a color. The **Shading** button beside **Borders** sets only the fill, from the same colors as **Font color**.
+
+The lines and the fill are one step that **Undo** takes back, and they are kept when you save a .docx or .odt file. If a paragraph came from a file with its own border or fill, your choice takes its place.
+
 ## Draw a horizontal line
 
 Click **Horizontal Line** in the **Paragraph** group. JeffWrite adds a paragraph of its own with a thin line under it, after the paragraph the cursor is in. The cursor moves to a plain paragraph below the line. To take the line away, select its paragraph and delete it.

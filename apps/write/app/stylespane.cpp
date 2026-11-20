@@ -125,12 +125,21 @@ void StylesPane::refresh()
     }
 }
 
+// What the In Use list is made of: the paragraph and character styles the text has, and the list styles its paragraphs are in (a list style can change use alone).
+size_t StylesPane::usedSignature(write::WriteDoc &doc)
+{
+    size_t used = 0;
+    for (const QString &id : doc.stylesInUse()) used += qHash(id);
+    if (!doc.listStyleEntries().isEmpty())
+        for (const int definition : write::listDefinitionsInUse(doc)) used += qHash(definition) * 31 + 7;
+    return used;
+}
+
 void StylesPane::recheckUse()
 {
     write::WriteDoc *doc = m_win->document();
     if (!doc || m_madeDoc != doc || filter() != write::StyleFilter::InUse) return;
-    size_t used = 0;
-    for (const QString &id : doc->stylesInUse()) used += qHash(id);
+    const size_t used = usedSignature(*doc);
     m_usedAtRevision = doc->story()->revision();
     if (used != m_madeUsed) rebuild();
 }
@@ -192,9 +201,7 @@ void StylesPane::rebuild()
     m_madeStyles = doc->styleSheetRevision();
     m_madeFilter = int(filter());
     m_madeSort = m_sort->currentIndex();
-    m_madeUsed = 0;
-    if (filter() == write::StyleFilter::InUse)
-        for (const QString &id : doc->stylesInUse()) m_madeUsed += qHash(id);
+    m_madeUsed = filter() == write::StyleFilter::InUse ? usedSignature(*doc) : 0;
     m_usedAtRevision = doc->story()->revision();
     mark(m_caretKey);
     const int at = rowOf(chosen.isEmpty() ? m_caretKey : chosen);
