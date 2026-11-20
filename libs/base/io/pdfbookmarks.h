@@ -4,6 +4,7 @@
 
 #include <QByteArray>
 #include <QDateTime>
+#include <QIODevice>
 #include <QRectF>
 #include <QString>
 #include <QVector>
@@ -43,7 +44,9 @@ bool clickableAddress(const QString &uri);
 // `archivePart` (1 or 2), conformance B.
 QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false, int archivePart = 1);
 
-// The document information a PDF reader lists (File > Properties): what the PDF's information dictionary holds. Empty fields are left out.
+// The document information a PDF reader lists (File > Properties): what the PDF's information dictionary holds. Empty fields are left out; each is cut to kMostPdfInfoChars characters
+// (at a whole character, never between the two halves of one), with control characters made spaces.
+constexpr int kMostPdfInfoChars = 4000;
 struct PdfInfo {
     QString title, author, subject, keywords;
     QString program;      // the program that made the file: written as both its creator and its producer
@@ -53,5 +56,12 @@ struct PdfInfo {
 // The PDF with its information dictionary set to `info` (an update appended at its end, as the bookmarks are, so the pages are not touched; the dictionary Qt wrote is replaced as a
 // whole, which is what takes its producer, the Qt version, out). The PDF as it was if it is made in a way this doesn't know how to extend.
 QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info);
+// The same update made in place on a file (or any device that can be read and written), reading only the end of it, so that a large file is not held in memory. False, with the file as it
+// was, when it is made in a way this doesn't know how to extend.
+bool appendPdfInfo(QIODevice *file, const PdfInfo &info);
+
+// The metadata packet (XMP) that says the same as `info`, for a PDF/A file, whose information dictionary and metadata must agree: write both from the same PdfInfo, or neither. `archive`
+// names the standard in it (part `archivePart`, conformance B); the dates are to the second, as the dictionary's are.
+QByteArray pdfInfoXmp(const PdfInfo &info, bool archive = false, int archivePart = 1);
 
 } // namespace jp

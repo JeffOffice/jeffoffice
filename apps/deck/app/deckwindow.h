@@ -389,6 +389,8 @@ public:
     void applyProperties(const office::PackageProps &edited);
     // Takes the personal information out of the properties, and keeps it out (a later change of a property does not name the person again). How many names were there.
     int removePersonalInformation();
+    // Whether Inspect took the personal information out (a PDF made now keeps the names, and a title from the file's name, out too).
+    bool personalInfoRemoved() const { return m_personalInfoRemoved; }
     bool markedAsFinal() const;
     QString markFinalBlocked() const;
     void setMarkedFinal(bool on);

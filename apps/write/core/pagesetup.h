@@ -23,6 +23,16 @@ struct SectionSetup {
     bool operator==(const SectionSetup &o) const;
 };
 
+// The margin presets (Layout > Margins and the Print page's Margins), in points. Mirrored is wider on the inside and turns on the document's mirror margins.
+struct MarginPreset {
+    const char *id;
+    double top, right, bottom, left;
+    bool mirrored;
+};
+const MarginPreset *marginPresets(int *count);
+// The preset with this id ("normal", "narrow", "moderate", "wide", "mirrored"), or null.
+const MarginPreset *marginPreset(const QString &id);
+
 enum class PageSetupScope { ThisSection, WholeDocument, ThisPointForward };
 
 // The page setup a section has now (`oddEven` is the document's different odd and even pages).

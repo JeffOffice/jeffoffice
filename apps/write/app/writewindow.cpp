@@ -4,6 +4,7 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/writewindow.h"
+#include "core/pagesetup.h"
 #include "core/themeops.h"
 #include "core/normaltemplate.h"
 #include "core/pagenumberops.h"
@@ -440,10 +441,12 @@ void WriteWindow::changeSection(const std::function<void(flow::Section &)> &chan
 
 void WriteWindow::createLayoutActions()
 {
-    struct Margins { const char *id; const char *text; double top, right, bottom, left; };
-    for (const Margins &m : {Margins{"normal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Normal"), 72, 72, 72, 72}, Margins{"narrow", QT_TRANSLATE_NOOP("jp::WriteWindow", "Narrow"), 36, 36, 36, 36}, Margins{"moderate", QT_TRANSLATE_NOOP("jp::WriteWindow", "Moderate"), 72, 54, 72, 54},
-                             Margins{"wide", QT_TRANSLATE_NOOP("jp::WriteWindow", "Wide"), 72, 144, 72, 144}}) {
-        const double t = m.top, r = m.right, b = m.bottom, l = m.left;
+    // (the numbers of the presets are core/pagesetup.h's, which the Print page uses too)
+    struct Margins { const char *id; const char *text; };
+    for (const Margins &m : {Margins{"normal", QT_TRANSLATE_NOOP("jp::WriteWindow", "Normal")}, Margins{"narrow", QT_TRANSLATE_NOOP("jp::WriteWindow", "Narrow")}, Margins{"moderate", QT_TRANSLATE_NOOP("jp::WriteWindow", "Moderate")},
+                             Margins{"wide", QT_TRANSLATE_NOOP("jp::WriteWindow", "Wide")}}) {
+        const write::MarginPreset *preset = write::marginPreset(QString::fromLatin1(m.id));
+        const double t = preset->top, r = preset->right, b = preset->bottom, l = preset->left;
         mk(QStringLiteral("layout.margins.") + QLatin1String(m.id), QCoreApplication::translate("jp::WriteWindow", m.text), "", QKeySequence(), [this, t, r, b, l] {
             changeSection([=](flow::Section &s) { s.margins = QMarginsF(l, t, r, b); });
         });

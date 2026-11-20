@@ -14,6 +14,7 @@
 #include <QStatusBar>
 #include "core/textexport.h"
 #include "app/filetasks.h"
+#include "io/pdfbookmarks.h"
 #include "io/pdfcrypt.h"
 #include "core/reviewops.h"
 #include "core/styleops.h"
@@ -30,8 +31,8 @@
 #include "app/objectsdialog.h"
 
 #include <QHash>
-#include <QMarginsF>
 #include <QImage>
+#include <QMarginsF>
 #include <QSizeF>
 #include <QPointer>
 #include <QPrinter>
@@ -111,7 +112,6 @@ struct WriteOutputOptions {
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
     jp::PrintTurn turn = jp::PrintTurn::AsSet;   // the paper turned tall or wide, whichever way each page is (its page is scaled to fit); as set: each page's own way
-    QMarginsF margins;          // points: blank space round each sheet, the pages scaled to fit inside it (the Print page's Margins; none: the pages fill the sheet)
     bool openAfter = false;     // a PDF file: opened in the system's viewer once saved (Open the PDF after saving)
     bool markup = true;         // tracked changes as the screen shows them, and the comments in the margin; else the text as it stands, with no comments
     bool hidden = false;        // text formatted as hidden is printed
@@ -344,6 +344,12 @@ public:
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();
+    // The margins of the page setup (the cursor's section): the id of the preset they are ("normal", "narrow", "moderate", "wide", or "mirrored"; empty for any other), the margins in
+    // points (the gutter on the left), and the Print page's choice of them: a preset is applied to the whole document as one step through Page Setup's own command, "custom" opens Page
+    // Setup. False when nothing was changed.
+    QString marginsPreset() const;
+    QMarginsF pageMargins() const;
+    bool setMargins(const QString &preset);
     // Shrink by One Page: the text made a little smaller, step by step, until the document is one page shorter. It is tried on a copy first: when it can't be done, nothing is changed
     // (and nothing is left to redo); when it can, the document is changed in one step of the history. False when nothing was changed.
     bool shrinkByOnePage();
@@ -599,7 +605,8 @@ private:
     // The sheets (pages by index, -1 for a blank one) of `source` as a PDF with the choices of `options`, in memory; empty, with the reason, when they can't be made.
     // What prints besides the text for these options (the marks over the pages are the window's own, for the document in the window).
     write::PrintLook printLook(const WriteOutputOptions &options, const write::WriteDoc &source) const;
-    QByteArray withPdfInfo(const QByteArray &pdf, bool properties) const;
+    PdfInfo pdfInfo(bool properties) const;
+    void reportOpening(const QString &path);
     QByteArray pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);

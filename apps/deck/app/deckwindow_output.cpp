@@ -270,6 +270,12 @@ QString suggestedPath(DeckWindow *w, const QString &name, const QString &ending)
     return dir + QLatin1Char('/') + name + ending;
 }
 
+// "Open the PDF after saving": when the system won't open the file, the status bar says so (the file is saved all the same).
+void reportOpening(DeckWindow *w, const QString &path)
+{
+    if (!openSavedPdf(path)) w->statusBar()->showMessage(DeckWindow::tr("%1 is saved, but your computer would not open it.").arg(QFileInfo(path).fileName()), 8000);
+}
+
 bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
 {
     settle(w);
@@ -277,6 +283,7 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     PdfProtection protect;
     const auto wipePasswords = qScopeGuard([&protect] { protect.wipe(); });
     if (!askWhatToPrint(w, &options, &protect)) return false;
+    options.namesOut = w->personalInfoRemoved();
     const QString filter = DeckWindow::tr("PDF (*.pdf)");
     const QString suggested = suggestedPath(w, w->editor()->displayName(), QStringLiteral(".pdf"));
     QString path = chooser ? chooser(suggested, filter) : askSavePath(w, DeckWindow::tr("Export to PDF"), suggested, filter);
@@ -295,7 +302,7 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()) +
                                     (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + DeckWindow::tr("(not tagged for screen readers: %1)").arg(notTagged)),
                                 notTagged.isEmpty() ? 5000 : 8000);
-    if (options.openAfter) openSavedPdf(path);
+    if (options.openAfter) reportOpening(w, path);
     return true;
 }
 
@@ -477,16 +484,20 @@ QPrinter &DeckWindow::printer()
     return *m_printer;
 }
 
-bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::DuplexMode duplex, bool byHand)
+bool DeckWindow::printOutput(const deck::OutputOptions &optionsIn, QPrinter::DuplexMode duplex, bool byHand)
 {
     settle(this);
+    deck::OutputOptions options = optionsIn;
+    options.namesOut = optionsIn.namesOut || m_personalInfoRemoved;
     const Document &doc = *m_ed->doc();
     if (!options.toFile && !options.printer.isEmpty() && !m_printerPreparer && !printerExists(options.printer)) {
         printNotice(this, tr("Print"), tr("The printer \"%1\" is not there any more. Choose another printer.").arg(options.printer));
         return false;
     }
     QPrinter &printer = this->printer();
-    printer.setDocName(m_ed->displayName());
+    // (a PDF file is named as its properties name it: with personal information out, not for the file)
+    const PdfInfo pdfInfo = pdfDocumentInfo(doc.props.toPackageProps(), m_ed->displayName(), options.namesOut);
+    printer.setDocName(options.toFile ? pdfInfo.title : m_ed->displayName());
     // A PDF file is made in a temporary file and put in place when it is whole, so that a file that is there is not lost to one that fails.
     QString path;
     std::unique_ptr<QTemporaryFile> made;
@@ -504,6 +515,8 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
         printer.setOutputFormat(QPrinter::PdfFormat);
         printer.setOutputFileName(made->fileName());
     } else {
+        // (the printer is kept from job to job: one that made a file before is not told to again)
+        printer.setOutputFileName(QString());
         printer.setOutputFormat(QPrinter::NativeFormat);
         if (!options.printer.isEmpty() && printer.printerName() != options.printer) printer.setPrinterName(options.printer);
     }
@@ -549,11 +562,13 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
         QString err;
         QFile whole(made->fileName());
         QSaveFile file(path);
-        bool ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
-        // (the document's properties go into the file the printer made)
-        if (ok) {
-            const QByteArray bytes = setPdfInfo(whole.readAll(), pdfDocumentInfo(doc.props.toPackageProps(), m_ed->displayName(), false));
-            ok = file.write(bytes) == bytes.size();
+        // (the document's properties go on the end of the file the printer made, which is then copied to the place a piece at a time: no whole PDF is held in memory)
+        bool ok = whole.open(QIODevice::ReadWrite) && file.open(QIODevice::WriteOnly);
+        if (ok) appendPdfInfo(&whole, pdfInfo);
+        ok = ok && whole.seek(0);
+        while (ok && !whole.atEnd()) {
+            const QByteArray piece = whole.read(1 << 20);
+            ok = !piece.isEmpty() && file.write(piece) == piece.size();
         }
         if (ok) ok = file.commit();
         else file.cancelWriting();
@@ -563,7 +578,7 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
             return false;
         }
         statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 5000);
-        if (options.openAfter) openSavedPdf(path);
+        if (options.openAfter) reportOpening(this, path);
         return true;
     }
     statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);

@@ -5,7 +5,6 @@
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QLabel>
-#include <QDoubleSpinBox>
 #include <QGuiApplication>
 #include <QPrintDialog>
 #include <QPrinter>
@@ -21,6 +20,7 @@
 #include "app/icons.h"
 #include <QSpinBox>
 #include <algorithm>
+#include <cmath>
 
 namespace jp {
 
@@ -214,53 +214,6 @@ QSizeF paperChoiceSize(const QComboBox *box)
     return id < 0 ? QSizeF() : QPageSize(QPageSize::PageSizeId(id)).size(QPageSize::Point);
 }
 
-MarginBoxes makeMarginBoxes(QWidget *parent)
-{
-    MarginBoxes boxes;
-    auto make = [parent](const char *name, const QString &accessible) {
-        auto *box = new QDoubleSpinBox(parent);
-        box->setObjectName(QString::fromLatin1(name));
-        box->setRange(0.0, 2.0);
-        box->setSingleStep(0.05);
-        box->setDecimals(2);
-        box->setSuffix(QCoreApplication::translate("Print", " in"));
-        box->setAccessibleName(accessible);
-        return box;
-    };
-    boxes.top = make("printMarginTop", QCoreApplication::translate("Print", "Top margin"));
-    boxes.bottom = make("printMarginBottom", QCoreApplication::translate("Print", "Bottom margin"));
-    boxes.left = make("printMarginLeft", QCoreApplication::translate("Print", "Left margin"));
-    boxes.right = make("printMarginRight", QCoreApplication::translate("Print", "Right margin"));
-    return boxes;
-}
-
-QMarginsF marginsOf(const MarginBoxes &boxes)
-{
-    auto points = [](const QDoubleSpinBox *b) { return b ? b->value() * 72.0 : 0.0; };
-    return QMarginsF(points(boxes.left), points(boxes.top), points(boxes.right), points(boxes.bottom));
-}
-
-bool hasMargins(const QMarginsF &m) { return m.left() > 0 || m.top() > 0 || m.right() > 0 || m.bottom() > 0; }
-
-QRectF insideMargins(const QSizeF &sheet, const QMarginsF &margins)
-{
-    if (!hasMargins(margins)) return QRectF(QPointF(0, 0), sheet);
-    auto cut = [](double a, double b, double whole) {
-        a = std::max(0.0, a);
-        b = std::max(0.0, b);
-        const double most = whole * 0.75;
-        if (a + b > most) {
-            const double k = most / (a + b);
-            a *= k;
-            b *= k;
-        }
-        return std::pair<double, double>(a, b);
-    };
-    const auto across = cut(margins.left(), margins.right(), sheet.width());
-    const auto down = cut(margins.top(), margins.bottom(), sheet.height());
-    return QRectF(across.first, down.first, sheet.width() - across.first - across.second, sheet.height() - down.first - down.second);
-}
-
 QPushButton *makePrinterPropertiesButton(QWidget *parent)
 {
     auto *button = new QPushButton(QCoreApplication::translate("Print", "Printer Properties…"), parent);
@@ -291,6 +244,8 @@ bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &
 {
     const PrinterChoice choice = printerChoice(c.printer);
     if (!choice.toFile && !choice.printer.isEmpty()) {
+        // (a printer kept from a job that made a file is a printer again)
+        p.setOutputFileName(QString());
         p.setOutputFormat(QPrinter::NativeFormat);
         p.setPrinterName(choice.printer);
     }
@@ -299,6 +254,8 @@ bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &
     const bool grayWanted = c.color ? c.color->currentData().toInt() != int(PrintColor::Color) : c.gray && c.gray->isChecked();
     p.setColorMode(grayWanted ? QPrinter::GrayScale : QPrinter::Color);
     const QString before = p.printerName();
+    const QPageSize sizeBefore = p.pageLayout().pageSize();
+    const QPageLayout::Orientation turnBefore = p.pageLayout().orientation();
     QPrintDialog dialog(&p, parent);
     if (execPrintDialog(dialog) != QDialog::Accepted) return false;
     const int at = p.printerName() != before ? c.printer->findData(p.printerName(), Qt::UserRole) : -1;
@@ -317,6 +274,20 @@ bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &
         const int sized = c.paper->findData(int(p.pageLayout().pageSize().id()));
         if (sized >= 0) c.paper->setCurrentIndex(sized);
     }
+    // (a page that scales to a paper, and the way the paper turns: only what the window changed comes back, so that "as each section says" is not made a choice by a window that was only closed)
+    const QPageSize sizeNow = p.pageLayout().pageSize();
+    if (c.scaleTo && sizeNow.id() != sizeBefore.id()) {
+        const QSizeF now = sizeNow.size(QPageSize::Point);
+        for (int i = 0; i < c.scaleTo->count(); ++i) {
+            const QSizeF entry = c.scaleTo->itemData(i).toSizeF();
+            if (entry.isEmpty()) continue;
+            if (std::abs(entry.width() - std::min(now.width(), now.height())) < 2 && std::abs(entry.height() - std::max(now.width(), now.height())) < 2) c.scaleTo->setCurrentIndex(i);
+        }
+    }
+    if (c.turn && p.pageLayout().orientation() != turnBefore) {
+        const int at = c.turn->findData(int(p.pageLayout().orientation() == QPageLayout::Landscape ? PrintTurn::Wide : PrintTurn::Tall));
+        if (at >= 0) c.turn->setCurrentIndex(at);
+    }
     return true;
 }
 
@@ -332,7 +303,7 @@ QCheckBox *makeOpenPdfBox(QWidget *parent, const QString &objectName)
 
 bool openPdfAfterSaving() { return Settings::get().value(QStringLiteral("pdf/openAfterSaving"), false).toBool(); }
 void setOpenPdfAfterSaving(bool on) { Settings::get().setValue(QStringLiteral("pdf/openAfterSaving"), on); }
-void openSavedPdf(const QString &path) { help::openUrl(QUrl::fromLocalFile(path)); }
+bool openSavedPdf(const QString &path) { return help::openUrl(QUrl::fromLocalFile(path)); }
 
 QComboBox *makeZoomBox(QWidget *parent)
 {

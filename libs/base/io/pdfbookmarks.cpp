@@ -1,5 +1,6 @@
 #include "io/pdfbookmarks.h"
 
+#include <QBuffer>
 #include <QRegularExpression>
 
 #include <algorithm>
@@ -14,10 +15,17 @@ struct Entry {
 };
 
 // The text of a title as a PDF string: UTF-16 with its byte order mark, in hexadecimal.
-QByteArray pdfTitle(const QString &title)
+QString cutAtCharacter(const QString &text, int most)
+{
+    if (text.size() <= most) return text;
+    // (a pair of surrogates is one character: never cut between its halves)
+    return text.left(most > 0 && text[most - 1].isHighSurrogate() ? most - 1 : most);
+}
+
+QByteArray pdfTitle(const QString &title, int most = 200)
 {
     QByteArray bytes("\xFE\xFF", 2);
-    for (const QChar c : title.left(200)) {
+    for (const QChar c : cutAtCharacter(title, most)) {
         bytes.append(char(c.unicode() >> 8));
         bytes.append(char(c.unicode() & 0xFF));
     }
@@ -236,26 +244,47 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
     return pdf + tail + x;
 }
 
-QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info)
+namespace {
+// What a document information entry may hold: the longest cut at a whole character, control characters made spaces, the ends trimmed. The entries of the information dictionary and
+// the metadata are made from the same cleaned text, so that they agree.
+QString infoText(const QString &text)
 {
-    if (!pdf.startsWith("%PDF-")) return pdf;
-    const int sx = pdf.lastIndexOf("startxref");
-    if (sx < 0) return pdf;
-    const qint64 xref = pdf.mid(sx + 9, 24).trimmed().split('\n').value(0).trimmed().toLongLong();
-    if (xref <= 0 || xref >= pdf.size() || pdf.mid(xref, 4) != "xref") return pdf;
-    const int trailerAt = pdf.indexOf("trailer", xref);
-    if (trailerAt < 0 || trailerAt > sx) return pdf;
-    const int tOpen = pdf.indexOf("<<", trailerAt), tClose = pdf.lastIndexOf(">>", sx);
-    if (tOpen < 0 || tClose < tOpen) return pdf;
-    const QByteArray trailer = pdf.mid(tOpen + 2, tClose - tOpen - 2);
-    const int size = numberAfter(trailer, "/Size");
-    if (size < 3) return pdf;
+    QString t = text;
+    for (QChar &c : t)
+        if (c.category() == QChar::Other_Control) c = QLatin1Char(' ');
+    return cutAtCharacter(t.trimmed(), kMostPdfInfoChars).trimmed();
+}
+
+QString pdfDate(const QDateTime &when) { return QStringLiteral("D:") + when.toUTC().toString(QStringLiteral("yyyyMMddHHmmss")) + QLatin1Char('Z'); }
+} // namespace
+
+bool appendPdfInfo(QIODevice *file, const PdfInfo &info)
+{
+    if (!file || !file->isReadable() || !file->isWritable()) return false;
+    const qint64 size = file->size();
+    if (size < 32 || !file->seek(0) || file->read(5) != "%PDF-") return false;
+    // (only the end of the file is read: the table is looked at where the last "startxref" says it is)
+    const qint64 from = std::max<qint64>(0, size - 16384);
+    if (!file->seek(from)) return false;
+    const QByteArray tail = file->read(size - from);
+    const int sx = tail.lastIndexOf("startxref");
+    if (sx < 0) return false;
+    const qint64 xref = tail.mid(sx + 9, 24).trimmed().split('\n').value(0).trimmed().toLongLong();
+    if (xref <= 0 || xref >= size || !file->seek(xref) || file->read(4) != "xref") return false;
+    const int trailerAt = tail.lastIndexOf("trailer", sx);
+    if (trailerAt < 0) return false;
+    const int tOpen = tail.indexOf("<<", trailerAt), tClose = tail.lastIndexOf(">>", sx);
+    if (tOpen < 0 || tClose < tOpen) return false;
+    const QByteArray trailer = tail.mid(tOpen + 2, tClose - tOpen - 2);
+    const int count = numberAfter(trailer, "/Size");
+    if (count < 3) return false;
     int obj = numberAfter(trailer, "/Info");
-    const bool had = obj >= 1 && obj < size;
-    if (!had) obj = size;
+    const bool had = obj >= 1 && obj < count;
+    if (!had) obj = count;
     QByteArray dict = "<<";
     auto text = [&](const char *key, const QString &value) {
-        if (!value.trimmed().isEmpty()) dict += QByteArray(" /") + key + ' ' + pdfTitle(value.trimmed());
+        const QString t = infoText(value);
+        if (!t.isEmpty()) dict += QByteArray(" /") + key + ' ' + pdfTitle(t, kMostPdfInfoChars);
     };
     text("Title", info.title);
     text("Author", info.author);
@@ -263,20 +292,30 @@ QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info)
     text("Keywords", info.keywords);
     text("Creator", info.program);
     text("Producer", info.program);
-    if (info.created.isValid()) dict += " /CreationDate (D:" + info.created.toUTC().toString(QStringLiteral("yyyyMMddHHmmss")).toLatin1() + "Z)";
+    if (info.created.isValid()) dict += " /CreationDate (" + pdfDate(info.created).toLatin1() + ")";
     dict += " >>";
-    QByteArray tail;
-    if (!pdf.endsWith('\n')) tail += '\n';
-    const qint64 objAt = pdf.size() + tail.size();
-    tail += QByteArray::number(obj) + " 0 obj\n" + dict + "\nendobj\n";
-    const qint64 newXref = pdf.size() + tail.size();
+    QByteArray add;
+    if (!tail.endsWith('\n')) add += '\n';
+    const qint64 objAt = size + add.size();
+    add += QByteArray::number(obj) + " 0 obj\n" + dict + "\nendobj\n";
+    const qint64 newXref = size + add.size();
     QByteArray x = "xref\n" + QByteArray::number(obj) + " 1\n" + QByteArray::number(objAt).rightJustified(10, '0') + " 00000 n \n";
     QString t = QString::fromLatin1(trailer);
     t.replace(QRegularExpression(QStringLiteral("/Size\\s+\\d+")), QString());
     t.replace(QRegularExpression(QStringLiteral("/Prev\\s+\\d+")), QString());
     if (!had) t += QStringLiteral(" /Info %1 0 R").arg(obj);
-    x += "trailer\n<<" + t.toLatin1() + " /Size " + QByteArray::number(had ? size : size + 1) + " /Prev " + QByteArray::number(xref) + " >>\nstartxref\n" + QByteArray::number(newXref) + "\n%%EOF\n";
-    return pdf + tail + x;
+    x += "trailer\n<<" + t.toLatin1() + " /Size " + QByteArray::number(had ? count : count + 1) + " /Prev " + QByteArray::number(xref) + " >>\nstartxref\n" + QByteArray::number(newXref) + "\n%%EOF\n";
+    add += x;
+    return file->seek(size) && file->write(add) == add.size();
+}
+
+QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info)
+{
+    QByteArray out = pdf;
+    QBuffer buffer(&out);
+    if (!buffer.open(QIODevice::ReadWrite) || !appendPdfInfo(&buffer, info)) return pdf;
+    buffer.close();
+    return out;
 }
 
 bool clickableAddress(const QString &uri)
@@ -407,20 +446,34 @@ QByteArray addPdfLinks(const QByteArray &pdf, const QVector<PdfLink> &linksIn)
     return pdf + tail + x;
 }
 
-QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive, int archivePart)
+QByteArray pdfInfoXmp(const PdfInfo &info, bool archive, int archivePart)
 {
-    auto esc = [](const QString &t) { return t.toHtmlEscaped().toUtf8(); };
+    auto esc = [](const QString &t) { return infoText(t).toHtmlEscaped().toUtf8(); };
     QByteArray x = "<?xpacket begin=\"\xEF\xBB\xBF\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>\n"
                    "<x:xmpmeta xmlns:x=\"adobe:ns:meta/\"><rdf:RDF xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\">\n"
                    "<rdf:Description rdf:about=\"\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" xmlns:pdf=\"http://ns.adobe.com/pdf/1.3/\" "
                    "xmlns:xmp=\"http://ns.adobe.com/xap/1.0/\"" + QByteArray(archive ? " xmlns:pdfaid=\"http://www.aiim.org/pdfa/ns/id/\"" : "") + ">\n";
-    x += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(title) + "</rdf:li></rdf:Alt></dc:title>\n";
-    if (!author.isEmpty()) x += "<dc:creator><rdf:Seq><rdf:li>" + esc(author) + "</rdf:li></rdf:Seq></dc:creator>\n";
-    if (!subject.isEmpty()) x += "<dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(subject) + "</rdf:li></rdf:Alt></dc:description>\n";
-    if (!keywords.isEmpty()) x += "<pdf:Keywords>" + esc(keywords) + "</pdf:Keywords>\n";
+    x += "<dc:title><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(info.title) + "</rdf:li></rdf:Alt></dc:title>\n";
+    if (!infoText(info.author).isEmpty()) x += "<dc:creator><rdf:Seq><rdf:li>" + esc(info.author) + "</rdf:li></rdf:Seq></dc:creator>\n";
+    if (!infoText(info.subject).isEmpty()) x += "<dc:description><rdf:Alt><rdf:li xml:lang=\"x-default\">" + esc(info.subject) + "</rdf:li></rdf:Alt></dc:description>\n";
+    if (!infoText(info.keywords).isEmpty()) x += "<pdf:Keywords>" + esc(info.keywords) + "</pdf:Keywords>\n";
+    if (!infoText(info.program).isEmpty()) x += "<pdf:Producer>" + esc(info.program) + "</pdf:Producer>\n";
     if (archive) x += "<pdfaid:part>" + QByteArray::number(archivePart) + "</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
-    x += "<xmp:CreatorTool>" + esc(program) + "</xmp:CreatorTool>\n</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
+    x += "<xmp:CreatorTool>" + esc(info.program) + "</xmp:CreatorTool>\n";
+    if (info.created.isValid()) x += "<xmp:CreateDate>" + info.created.toUTC().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ss")).toLatin1() + "Z</xmp:CreateDate>\n";
+    x += "</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return x;
+}
+
+QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive, int archivePart)
+{
+    PdfInfo info;
+    info.title = title;
+    info.author = author;
+    info.subject = subject;
+    info.keywords = keywords;
+    info.program = program;
+    return pdfInfoXmp(info, archive, archivePart);
 }
 
 } // namespace jp

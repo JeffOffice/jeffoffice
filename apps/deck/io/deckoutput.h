@@ -18,7 +18,6 @@
 #include "render/renderer.h"
 
 #include <QImage>
-#include <QMarginsF>
 #include <QSizeF>
 #include <QStringList>
 #include <QString>
@@ -48,8 +47,8 @@ struct OutputOptions {
     int copies = 1;
     bool collate = true;          // the whole set again for each copy, else each page's copies together
     bool reverse = false;         // the last page first
-    QMarginsF margins;            // printing: blank space round each sheet, in points; the whole page is scaled to fit inside it (none: the page uses the whole sheet)
-    bool highQuality = false;     // printing: pages that are made into pixels (grayscale and pure black and white) are made at 600 to the inch, not 300
+    bool highQuality = false;     // printing: pages that are made into pixels (grayscale and pure black and white) are made at 600 to the inch, not 300 (300 for a page of more than kMostHighQualityPixels)
+    bool namesOut = false;        // Inspect took the personal information out of the presentation: the PDF keeps its names, and a title from the file's name, out too
     bool comments = false;        // slides and notes pages: a page of the slide's review comments (who wrote them and what they say) after each slide that has any
     bool openAfter = false;       // for a PDF: opened in the system's viewer once saved
     bool bookmarks = true;        // for a PDF: a bookmark for each slide (its title, or "Slide N")
@@ -71,9 +70,21 @@ QVector<int> parseSlideRange(const QString &text, int count);
 int slidesPerPage(PrintLayout layout);
 // The locale's paper (letter or A4), upright, in points.
 QSizeF localePaper();
+// The most pixels the picture of one page has at 600 to the inch (80 million: 320 MB); a page that would have more is made at 300 to the inch, and the Print page says so.
+constexpr qint64 kMostHighQualityPixels = 80000000;
+bool highQualityFits(const QSizeF &paper);
 // The size of a page of the output in points: the slide's for printed slides,
 // else `paper` (the locale's when empty).
 QSizeF outputPageSize(const Document &d, const OutputOptions &o, const QSizeF &paper = QSizeF());
+// The pages of one slide's comments as they are set on a sheet (for the preview's count and for tests): each page's lines, where each stands (from the top of the text area), the height of a
+// line, where the line that says comments are left out stands (-1 for none), and the bottom of the text area. `notShown` (on the last page) is how many comments and replies have no line.
+struct CommentsPage {
+    QStringList lines;
+    QVector<double> tops;
+    double lineHeight = 0, noticeTop = -1, bottom = 0;
+    int notShown = 0;
+};
+QVector<CommentsPage> commentsPages(const Document &d, int slide, const QSizeF &sheet, bool names = true);
 // The size of a sheet that printing makes: what the output's own size is, or the paper chosen (a slide's sheet turned to its shape).
 QSizeF printSheetSize(const Document &d, const OutputOptions &o);
 // Pages of the output. The outline's depends on the paper (the locale's when empty).

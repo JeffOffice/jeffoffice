@@ -11,12 +11,63 @@
 #include "app/writedialogs.h"
 #include "core/designops.h"
 #include "core/layoutops.h"
+#include "core/pagesetup.h"
 #include "core/watermarkops.h"
 
 #include <QAction>
 #include <QMenu>
 
 namespace jp {
+
+QString WriteWindow::marginsPreset() const
+{
+    if (!m_doc) return {};
+    const write::SectionSetup now = write::pageSetupOf(m_doc->sectionProps(std::clamp(m_view->cursorSection(), 0, m_doc->sectionCount() - 1)), m_doc->differentOddEven());
+    if (std::abs(now.gutter) > 0.5) return {};
+    int n = 0;
+    const write::MarginPreset *all = write::marginPresets(&n);
+    for (int i = 0; i < n; ++i) {
+        const write::MarginPreset &m = all[i];
+        if (m.mirrored && !m_doc->mirrorMargins()) continue;
+        if (std::abs(now.top - m.top) < 0.5 && std::abs(now.right - m.right) < 0.5 && std::abs(now.bottom - m.bottom) < 0.5 && std::abs(now.left - m.left) < 0.5) return QString::fromLatin1(m.id);
+    }
+    return {};
+}
+
+QMarginsF WriteWindow::pageMargins() const
+{
+    if (!m_doc) return {};
+    const write::SectionSetup now = write::pageSetupOf(m_doc->sectionProps(std::clamp(m_view->cursorSection(), 0, m_doc->sectionCount() - 1)), m_doc->differentOddEven());
+    return QMarginsF(now.left + now.gutter, now.top, now.right, now.bottom);
+}
+
+bool WriteWindow::setMargins(const QString &preset)
+{
+    if (!m_doc) return false;
+    if (preset == QLatin1String("custom")) {
+        showPageSetupDialog();
+        return true;
+    }
+    const write::MarginPreset *m = write::marginPreset(preset);
+    if (!m || refuseIfReadOnly()) return false;
+    const int section = std::clamp(m_view->cursorSection(), 0, m_doc->sectionCount() - 1);
+    const write::SectionSetup before = write::pageSetupOf(m_doc->sectionProps(section), m_doc->differentOddEven());
+    write::SectionSetup after = before;
+    after.top = m->top;
+    after.right = m->right;
+    after.bottom = m->bottom;
+    after.left = m->left;
+    after.gutter = 0;
+    // (one step of the history, the whole document: what the margins say is the document's, not one section's)
+    const write::WriteDoc::StepGroup group(*m_doc);
+    int changed = write::applyPageSetup(*m_doc, section, write::PageSetupScope::WholeDocument, before, after);
+    if (m->mirrored && !m_doc->mirrorMargins()) {
+        m_doc->setMirrorMargins(true);
+        ++changed;
+    }
+    if (changed) refreshUi();
+    return changed > 0;
+}
 
 void WriteWindow::createLayoutExtraActions()
 {
@@ -25,7 +76,7 @@ void WriteWindow::createLayoutExtraActions()
     mk("layout.margins.mirrored", tr("Mirrored"), "", QKeySequence(), [this] {
         if (!m_doc) return;
         const write::WriteDoc::StepGroup group(*m_doc);
-        changeSection([](flow::Section &s) { s.margins = QMarginsF(90, 72, 72, 72); });
+        changeSection([](flow::Section &s) { const write::MarginPreset *m = write::marginPreset(QStringLiteral("mirrored")); s.margins = QMarginsF(m->left, m->top, m->right, m->bottom); });
         m_doc->setMirrorMargins(true);
         refreshUi();
     });

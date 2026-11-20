@@ -2,9 +2,7 @@
 // What the Print pages of the four apps share, so that each choice has the same words, the same name, and the same effect in all of them (printpage.cpp): the printer box, the
 // copies and how they come out, the order of the pages, gray, the way the paper turns, and the zoom of the preview.
 
-#include <QMarginsF>
 #include <QPageSize>
-#include <QRectF>
 #include <QSizeF>
 #include <QStringList>
 #include <QVector>
@@ -13,7 +11,6 @@
 #include <functional>
 
 class QCheckBox;
-class QDoubleSpinBox;
 class QPrinter;
 class QPushButton;
 class QVBoxLayout;
@@ -107,18 +104,6 @@ QComboBox *makePaperBox(QWidget *parent, const QString &asSet);
 // The size in points, upright, of the paper an entry of the paper box stands for (empty for what the job says).
 QSizeF paperChoiceSize(const QComboBox *box);
 
-// The margins of the job: space left blank round each sheet, with the page scaled to fit inside it (the sheet's own printable edge is the printer's). The four boxes are named
-// printMarginTop, printMarginBottom, printMarginLeft, and printMarginRight, in inches; all zero is no margin.
-struct MarginBoxes {
-    QDoubleSpinBox *top = nullptr, *bottom = nullptr, *left = nullptr, *right = nullptr;
-};
-MarginBoxes makeMarginBoxes(QWidget *parent);
-// What the boxes say, in points.
-QMarginsF marginsOf(const MarginBoxes &boxes);
-// The part of a sheet inside `margins`: never less than a quarter of the sheet across or down (a margin that would leave nothing is cut back), and the whole sheet for no margins.
-QRectF insideMargins(const QSizeF &sheet, const QMarginsF &margins);
-bool hasMargins(const QMarginsF &margins);
-
 // "Printer Properties…": the system's own window for the printer the job goes to. Where the platform has none, or "Save as PDF" is chosen, the button is hidden (not disabled);
 // `updatePrinterPropertiesButton` says so after each change of the printer box. A test stands in for the platform's answer (setPrinterPropertiesStandIn; the program never does).
 QPushButton *makePrinterPropertiesButton(QWidget *parent);
@@ -133,8 +118,10 @@ struct PrinterControls {
     QComboBox *color = nullptr;   // the data of its entries are PrintColor values
     QCheckBox *gray = nullptr;
     QComboBox *paper = nullptr;   // the data of its entries are QPageSize::PageSizeId values
+    QComboBox *scaleTo = nullptr; // the data of its entries are sizes in points, upright (empty for none): the paper a page is scaled to
+    QComboBox *turn = nullptr;    // the data of its entries are PrintTurn values
 };
-// Opens the system's window on `p`, set to the printer box's printer and what the page says; what it comes back with (printer, copies, collate, color, paper) is put into the controls.
+// Opens the system's window on `p`, set to the printer box's printer and what the page says; what it comes back with (printer, copies, collate, color, paper, and for `scaleTo` and `turn` what the window changed) is put into the controls.
 // False when it was cancelled.
 bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &controls);
 
@@ -143,7 +130,8 @@ bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &
 QCheckBox *makeOpenPdfBox(QWidget *parent, const QString &objectName);
 bool openPdfAfterSaving();
 void setOpenPdfAfterSaving(bool on);
-void openSavedPdf(const QString &path);
+// False when the system would not open it.
+bool openSavedPdf(const QString &path);
 
 // The zoom of the preview: Fit, 150%, 200%, and 300%. The zoom is how many times larger than the fit the page is drawn (1 is the page that fits the window).
 QComboBox *makeZoomBox(QWidget *parent);

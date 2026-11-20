@@ -21,6 +21,7 @@
 #include <QButtonGroup>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QSignalBlocker>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGuiApplication>
@@ -31,7 +32,6 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QPainter>
-#include <QDoubleSpinBox>
 #include <QPrinterInfo>
 #include <QPushButton>
 #include <QRadioButton>
@@ -341,13 +341,29 @@ QWidget *WriteFileScreen::buildPrint()
     printerLine->addWidget(printer, 1);
     printerLine->addWidget(properties);
     QCheckBox *openPdf = makeOpenPdfBox(w, QStringLiteral("printOpenPdf"));
-    const MarginBoxes margins = makeMarginBoxes(w);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     // One side, or both sides by the printer or by hand (the odd pages, the stack turned over, then the even pages).
     auto *duplex = new QComboBox(w);
     duplex->setObjectName(QStringLiteral("printDuplex"));
     fillSidesBox(duplex, true, Settings::get().value(QStringLiteral("print/sides"), int(SidesChoice::OneSide)).toInt());
     QComboBox *orientation = makeOrientationBox(w, tr("As each section says"));
+    // The document's margins, the same setting as Page Setup (a choice changes the document).
+    auto *margins = new QComboBox(w);
+    margins->setObjectName(QStringLiteral("printMargins"));
+    margins->setAccessibleName(tr("Margins"));
+    margins->setToolTip(tr("The margins of the document's pages, as Page Setup has them. A choice changes the document."));
+    for (const char *id : {"normal", "narrow", "moderate", "wide", "mirrored"}) margins->addItem(m_win->act(QStringLiteral("layout.margins.") + QLatin1String(id))->text(), QString::fromLatin1(id));
+    margins->addItem(tr("Custom…"), QStringLiteral("custom"));
+    // (shows the margins the document has now: the preset they are, or the numbers in the user's units)
+    auto showMargins = [=] {
+        const QString now = m_win->marginsPreset();
+        const QSignalBlocker block(margins);
+        const int custom = margins->count() - 1;
+        const QMarginsF m = m_win->pageMargins();
+        auto in = [](double points) { return Settings::get().format(points, 2); };
+        margins->setItemText(custom, now.isEmpty() ? tr("Custom (top %1, bottom %2, left %3, right %4)").arg(in(m.top()), in(m.bottom()), in(m.left()), in(m.right())) : tr("Custom…"));
+        margins->setCurrentIndex(now.isEmpty() ? custom : std::max(0, int(margins->findData(now))));
+    };
     auto *paper = new QLabel(w);
     paper->setObjectName(QStringLiteral("printPaper"));
     paper->setWordWrap(true);
@@ -416,8 +432,7 @@ QWidget *WriteFileScreen::buildPrint()
     column.link(shrink);
     column.group(PrintColumn::paperHeading(), tr("(as each section says unless changed)"));
     column.pair(tr("Turned"), orientation, tr("Paper"), paper);
-    column.pair(tr("Top margin"), margins.top, tr("Bottom margin"), margins.bottom);
-    column.pair(tr("Left margin"), margins.left, tr("Right margin"), margins.right);
+    column.field(tr("Margins"), margins);
     column.checks(gray);
     column.group(PrintColumn::whatPrintsHeading());
     column.field(tr("Markup"), markup);
@@ -496,7 +511,6 @@ QWidget *WriteFileScreen::buildPrint()
         o.scaleTo = scaleTo->currentData().toSizeF();
         o.grayscale = gray->isChecked();
         o.turn = PrintTurn(orientation->currentData().toInt());
-        o.margins = marginsOf(margins);
         o.openAfter = openPdf->isChecked();
         o.markup = markup->currentData().toInt() != 0;
         o.hidden = hiddenText->isChecked();
@@ -506,6 +520,7 @@ QWidget *WriteFileScreen::buildPrint()
     auto page = std::make_shared<int>(0);
     // The words, the arrows, and the Print button for what is chosen; the pages it covers.
     auto covered = [=]() {
+        showMargins();
         // (the selection can be printed only while there is one)
         const bool hasSelection = view->cursor().hasSelection() && view->cursor().document() == m_win->document()->story();
         selection->setEnabled(hasSelection);
@@ -626,7 +641,15 @@ QWidget *WriteFileScreen::buildPrint()
         m_win->shrinkByOnePage();
         restart();
     });
-    for (QDoubleSpinBox *box : {margins.top, margins.bottom, margins.left, margins.right}) connect(box, &QDoubleSpinBox::valueChanged, w, [=] { paint(); });
+    // The margins are the document's own, the same setting as Page Setup: a choice is made through the window's command for it (one step of the history), and the page is counted
+    // and drawn again with the text laid out afresh. Custom opens Page Setup itself.
+    connect(margins, &QComboBox::activated, w, [=](int at) {
+        const QString what = margins->itemData(at).toString();
+        if (what.isEmpty()) return;
+        m_win->setMargins(what);
+        showMargins();
+        restart();
+    });
     // The system's print window, on the printer the job is printed on, so that what is chosen there is kept; what the page also has comes back to it.
     connect(properties, &QPushButton::clicked, this, [=] {
         PrinterControls controls;
@@ -634,6 +657,8 @@ QWidget *WriteFileScreen::buildPrint()
         controls.copies = copies;
         controls.collate = collate;
         controls.gray = gray;
+        controls.scaleTo = scaleTo;
+        controls.turn = orientation;
         showPrinterProperties(this, m_win->printer(), controls);
     });
     connect(duplex, &QComboBox::currentIndexChanged, w, [=] {

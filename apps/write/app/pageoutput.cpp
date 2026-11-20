@@ -49,18 +49,16 @@ QSizeF sharedSheetSize(QSizeF sheet, const QSize &grid, const SheetLayout &layou
 struct SheetSlot {
     double x = 0, y = 0, fit = 1;
 };
-SheetSlot slotOnSheet(const QSizeF &sheetWhole, const QSize &grid, int k, const QSizeF &page, int perSheet, const QMarginsF &margins)
+SheetSlot slotOnSheet(const QSizeF &sheet, const QSize &grid, int k, const QSizeF &page, int perSheet)
 {
     const double inset = perSheet > 1 ? 8.0 : 0.0;
-    const QRectF area = insideMargins(sheetWhole, margins);
-    const QSizeF sheet = area.size();
     const double cellW = sheet.width() / grid.width(), cellH = sheet.height() / grid.height();
     const double boxW = cellW - 2 * inset, boxH = cellH - 2 * inset;
     SheetSlot slot;
     slot.fit = std::min(boxW / page.width(), boxH / page.height());
     const double w = page.width() * slot.fit, h = page.height() * slot.fit;
-    slot.x = area.left() + (k % grid.width()) * cellW + (cellW - w) / 2;
-    slot.y = area.top() + (k / grid.width()) * cellH + (cellH - h) / 2;
+    slot.x = (k % grid.width()) * cellW + (cellW - w) / 2;
+    slot.y = (k / grid.width()) * cellH + (cellH - h) / 2;
     return slot;
 }
 
@@ -75,7 +73,7 @@ QVector<PagePlace> placesOfPages(WriteDoc &doc, const QVector<int> &pages, const
     QVector<PagePlace> out(pages.size());
     const QSize grid = sheetGrid(layout.perSheet);
     const int perSheet = grid.width() * grid.height();
-    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet || hasMargins(layout.margins);
+    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet;
     // (a blank sheet is made only when some page gives it its size)
     bool some = false;
     for (int i = 0; !some && i < pages.size(); ++i) some = pages[i] >= 0 && doc.pager().materialize(pages[i]);
@@ -101,7 +99,7 @@ QVector<PagePlace> placesOfPages(WriteDoc &doc, const QVector<int> &pages, const
             PagePlace &place = out[at[k]];
             place.sheet = sheetNumber;
             place.sheetSize = sheet;
-            if (shared) place.slot = slotOnSheet(sheet, grid, k, sizes[k], perSheet, layout.margins);
+            if (shared) place.slot = slotOnSheet(sheet, grid, k, sizes[k], perSheet);
         }
         ++sheetNumber;
     }
@@ -404,7 +402,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
     bool started = false;
     const QSize grid = sheetGrid(layout.perSheet);
     const int perSheet = grid.width() * grid.height();
-    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet || hasMargins(layout.margins);
+    const bool shared = perSheet > 1 || (layout.paper.width() > 0 && layout.paper.height() > 0) || layout.turn != PrintTurn::AsSet;
     const int frameTag = tagger ? tagger->tags().add({QStringLiteral("Artifact"), QString(), -1, false}) : -1;
     auto draw = [&](flow::MaterializedPage &page) {
         const double scale = double(device->logicalDpiX()) / 72.0;
@@ -478,7 +476,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         }
         for (qsizetype k = 0; k < group.size(); ++k) {
             flow::MaterializedPage &page = *group[k];
-            const SheetSlot slot = slotOnSheet(sheet, grid, int(k), page.size, perSheet, layout.margins);
+            const SheetSlot slot = slotOnSheet(sheet, grid, int(k), page.size, perSheet);
             const double fit = slot.fit, x = slot.x, y = slot.y;
             const double w = page.size.width() * fit, h = page.size.height() * fit;
             p.save();

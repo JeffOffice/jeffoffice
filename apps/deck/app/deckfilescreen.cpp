@@ -33,7 +33,6 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
-#include <QDoubleSpinBox>
 #include <QPrintDialog>
 #include <QPrinter>
 #include <QPushButton>
@@ -370,9 +369,14 @@ QWidget *DeckFileScreen::buildPrint()
     comments->setToolTip(tr("A page of the slide's review comments after each slide that has any (slides and notes pages)."));
     auto *highQuality = new QCheckBox(tr("High quality"), w);
     highQuality->setObjectName(QStringLiteral("printHighQuality"));
-    highQuality->setToolTip(tr("Grayscale and pure black and white pages are made at 600 to the inch, not 300. It takes longer and more memory."));
+    highQuality->setToolTip(tr("Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory."));
+    // (said when the pages are larger than the picture High quality makes: they are made at 300 to the inch)
+    auto *highQualityNote = new QLabel(w);
+    highQualityNote->setObjectName(QStringLiteral("printHighQualityNote"));
+    highQualityNote->setWordWrap(true);
+    highQualityNote->setTextFormat(Qt::PlainText);
+    highQualityNote->hide();
     QCheckBox *openPdf = makeOpenPdfBox(w, QStringLiteral("printOpenPdf"));
-    const MarginBoxes margins = makeMarginBoxes(w);
     // the groups of the Print page (docs/design/STYLE.md)
     column.group(PrintColumn::printerHeading());
     column.wide(printerRow);
@@ -388,9 +392,8 @@ QWidget *DeckFileScreen::buildPrint()
     column.checks(scaleFit, frame);
     column.group(PrintColumn::paperHeading(), tr("(as each slide says unless changed)"));
     column.pair(tr("Paper"), paper, tr("Color"), color);
-    column.pair(tr("Top margin"), margins.top, tr("Bottom margin"), margins.bottom);
-    column.pair(tr("Left margin"), margins.left, tr("Right margin"), margins.right);
     column.checks(comments, highQuality);
+    column.wide(highQualityNote);
     column.link(headerFooter);
     left->addLayout(column.layout());
     left->addStretch(1);
@@ -464,7 +467,6 @@ QWidget *DeckFileScreen::buildPrint()
         o.copies = copies->value();
         o.collate = collate->isChecked();
         o.paper = paperChoiceSize(paper);
-        o.margins = marginsOf(margins);
         o.comments = comments->isChecked();
         o.highQuality = highQuality->isChecked();
         o.openAfter = openPdf->isChecked();
@@ -479,6 +481,9 @@ QWidget *DeckFileScreen::buildPrint()
         order->setEnabled(per >= 4);
         frame->setEnabled(o.layout == deck::PrintLayout::Slides);
         comments->setEnabled(o.layout == deck::PrintLayout::Slides || o.layout == deck::PrintLayout::NotesPages);
+        const bool tooBig = highQuality->isChecked() && !deck::highQualityFits(deck::printSheetSize(*ed->doc(), o));
+        highQualityNote->setText(tooBig ? tr("These pages are too large for High quality, so they are made at 300 to the inch.") : QString());
+        highQualityNote->setVisible(tooBig);
         updatePrinterPropertiesButton(properties, printer);
         openPdf->setVisible(printerChoice(printer).toFile);
         scaleFit->setEnabled(o.layout == deck::PrintLayout::Slides);
@@ -571,7 +576,6 @@ QWidget *DeckFileScreen::buildPrint()
         controls.paper = paper;
         showPrinterProperties(this, m_win->printer(), controls);
     });
-    for (QDoubleSpinBox *box : {margins.top, margins.bottom, margins.left, margins.right}) connect(box, &QDoubleSpinBox::valueChanged, w, [=] { paint(); });
     connect(comments, &QCheckBox::toggled, w, [=] { restart(); });
     connect(highQuality, &QCheckBox::toggled, w, [=] { paint(); });
     connect(copies, &QSpinBox::valueChanged, w, [=] { refresh(); });

@@ -5,6 +5,7 @@
 #include <QTextCursor>
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace jp::write {
 
@@ -90,6 +91,23 @@ SectionSetup normalized(SectionSetup s)
     s.footer = margin(s.footer, defaults.footer, h / 2);
     if (s.start != QLatin1String("continuous") && s.start != QLatin1String("oddPage") && s.start != QLatin1String("evenPage")) s.start = QStringLiteral("nextPage");
     return s;
+}
+
+const MarginPreset *marginPresets(int *count)
+{
+    static const MarginPreset presets[] = {{"normal", 72, 72, 72, 72, false}, {"narrow", 36, 36, 36, 36, false}, {"moderate", 72, 54, 72, 54, false}, {"wide", 72, 144, 72, 144, false},
+                                           {"mirrored", 72, 72, 72, 90, true}};
+    *count = int(std::size(presets));
+    return presets;
+}
+
+const MarginPreset *marginPreset(const QString &id)
+{
+    int n = 0;
+    const MarginPreset *all = marginPresets(&n);
+    for (int i = 0; i < n; ++i)
+        if (id == QLatin1String(all[i].id)) return &all[i];
+    return nullptr;
 }
 
 int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const SectionSetup &before, const SectionSetup &afterAsGiven)
