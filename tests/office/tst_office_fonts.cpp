@@ -1927,12 +1927,13 @@ private Q_SLOTS:
         QVector<DocxFace> many;
         for (int i = 0; i < n; ++i) many << DocxFace{QStringLiteral("F%1").arg(i), QStringLiteral("Regular"), QByteArray(40, 'x'), kTestKey};
         wml::Document d = docWithFonts(many);
-        wml::treeStepsForTest();
+        const qint64 stepsBefore = wml::treeStepsForTest();   // (a running count: the steps this call takes are the difference)
         EmbeddedFontLimits wide;   // (the table carries 3000 faces already, which the count of a document's fonts would have refused)
         wide.faces = n + 10;
         const auto done = wml::embedFontsInDocx(&d, {{QStringLiteral("F7"), true, false}, {QStringLiteral("Brand new"), false, false}}, source, wide);
         QCOMPARE(done.faces, 2);
-        QVERIFY(wml::treeStepsForTest() <= 20 * n + 50);   // (a few steps a font; a scan of the fonts before each would be n squared)
+        const qint64 steps = wml::treeStepsForTest() - stepsBefore;
+        QVERIFY2(steps <= 20 * n + 50, qPrintable(QString::number(steps)));   // (a few steps a font; a scan of the fonts before each would be n squared)
         QByteArray table;
         for (const auto &p : d.parts)
             if (p.name == QLatin1String("/word/fontTable.xml")) table = p.data;
