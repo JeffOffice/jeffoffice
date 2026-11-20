@@ -560,7 +560,7 @@
         },
         {
          "status": "partly",
-         "text": "6d01d7c652eb55a2a8ca0607f52f327c255a19e5a83026f685e4b6167595800a"
+         "text": "139c791dfe48b740a11a301eee1005705306c4ced8db8f9d1a8d6b2aaede0197"
         }
        ]
       },
@@ -627,8 +627,9 @@
          "text": "2e815d16d68f772a0e5b0930d20c28489c54538dabd001f7e28a3e7e9eabcb0c"
         },
         {
-         "status": "partly",
-         "text": "78cad92fabb3d5eb07cf3322cd72022e90115775244ab94b6973c4b3905347b2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "0e74ccd17fe8f7919a06b1c192aa4313a24629860356a1dc7658f000fd7227a2"
         },
         {
          "hide_soon": true,
@@ -637,7 +638,7 @@
         },
         {
          "status": "partly",
-         "text": "57153a182d29631431e0f08440f39805fb4e8a1e6655937dda2215220808dd24"
+         "text": "2ffee8e791823f68e9cdb53ec03cf3ecbeb14f2f5d909301c0d2b9782e35acc8"
         },
         {
          "status": "partly",
@@ -1149,7 +1150,7 @@
         },
         {
          "status": "partly",
-         "text": "f031eac7c7d8e89f01ef1939b726b04ea3436c092fa45efc076ea6bd663ef431"
+         "text": "132358b65ec6337ed031e2484b2cb3fe0286550d26705ac3ed3acfa99323917f"
         },
         {
          "status": "partly",
@@ -8842,6 +8843,18 @@
     "fr": ""
    }
   },
+  "0e74ccd17fe8f7919a06b1c192aa4313a24629860356a1dc7658f000fd7227a2": {
+   "drop": false,
+   "en": "Clear all, formats, contents, comments and notes, or hyperlinks from cells. Remove hyperlinks, which also takes the link color and underline off cells that use the Hyperlink style while keeping their fill and number format.",
+   "es": "Borre todo, los formatos, el contenido, los comentarios y notas, o los hipervínculos de las celdas. Quite los hipervínculos, lo que también elimina el color y el subrayado del vínculo en las celdas con el estilo Hipervínculo, conservando su relleno y su formato de número.",
+   "fr": "Effacez tout, les formats, le contenu, les commentaires et notes, ou les liens hypertexte des cellules. Supprimez les liens hypertexte, ce qui retire aussi la couleur et le soulignement du lien des cellules qui utilisent le style Lien hypertexte, en conservant leur remplissage et leur format de nombre.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0e7b7aeaf4d25cf42d37cf6fafd45dfdc0e0999cda9a72813a428d6495aa442f": {
    "drop": false,
    "en": "During a slide show, click a link to a slide, the last slide viewed, a custom show, another presentation, or a file, or click an action button. Press `Tab` and `Shift+Tab` to move between links and `Enter` to follow one.",
@@ -9166,6 +9179,18 @@
     "fr": ""
    }
   },
+  "132358b65ec6337ed031e2484b2cb3fe0286550d26705ac3ed3acfa99323917f": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
+    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
+    "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
+   }
+  },
   "13568da8935054403b7a6bc9f02824f6592d5243c5390c3a6f760ab308cec725": {
    "drop": false,
    "en": "Editing",
@@ -9212,6 +9237,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "139c791dfe48b740a11a301eee1005705306c4ced8db8f9d1a8d6b2aaede0197": {
+   "drop": false,
+   "en": "Create a new cell style from the look of the current cell, give it to selected cells, modify it, and delete it, with cells reverting to Normal. Merge styles from another open workbook, and save styles with the workbook.",
+   "es": "Cree un nuevo estilo de celda a partir del aspecto de la celda actual, aplíquelo a las celdas seleccionadas, modifíquelo y elimínelo, con lo que las celdas vuelven a Normal. Combine estilos de otro libro abierto y guarde los estilos con el libro.",
+   "fr": "Créez un nouveau style de cellule à partir de l’aspect de la cellule active, appliquez-le aux cellules sélectionnées, modifiez-le et supprimez-le, les cellules revenant alors à Normal. Fusionnez les styles d’un autre classeur ouvert et enregistrez les styles avec le classeur.",
+   "soon": {
+    "drop": false,
+    "en": "Cell styles carried by a row or column",
+    "es": "Estilos de celda aplicados a una fila o columna",
+    "fr": "Styles de cellule appliqués à une ligne ou une colonne"
    }
   },
   "13e8ce171926e635898a582e4790e8b8a9adfe87e36db0900987dca29707b078": {
@@ -11456,6 +11493,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "2ffee8e791823f68e9cdb53ec03cf3ecbeb14f2f5d909301c0d2b9782e35acc8": {
+   "drop": false,
+   "en": "Find, Find All, Replace, and Replace All in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, wildcards, and by format. Go To a reference, another sheet's reference, or a name, and Go To Special for blanks, constants, formulas, errors, current region, current array, row and column differences, last cell, visible cells, conditional formats, and data validation. Select Objects and the Selection Pane.",
+   "es": "Busque, busque todo, reemplace y reemplace todo en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas y minúsculas, de celda completa, caracteres comodín y por formato. Vaya a una referencia, a la referencia de otra hoja o a un nombre, y use Ir a Especial para celdas en blanco, constantes, fórmulas, errores, región actual, matriz actual, diferencias de fila y columna, última celda, celdas visibles, formatos condicionales y validación de datos. Seleccione objetos y use el panel de selección.",
+   "fr": "Recherchez, recherchez tout, remplacez et remplacez tout dans la feuille ou le classeur, par lignes ou colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière, caractères génériques et par format. Atteignez une référence, la référence d’une autre feuille ou un nom, et utilisez Atteindre spécial pour les cellules vides, les constantes, les formules, les erreurs, la région active, la matrice active, les différences de ligne et de colonne, la dernière cellule, les cellules visibles, les mises en forme conditionnelles et la validation des données. Sélectionnez des objets et utilisez le volet de sélection.",
+   "soon": {
+    "drop": false,
+    "en": "Go To Special: precedents and dependents",
+    "es": "Ir a Especial: precedentes y dependientes",
+    "fr": "Atteindre spécial : antécédents et dépendants"
    }
   },
   "30237bc915206c02b514dbf7284511f47c2972373e9ddfbea7808f99fce0aa78": {
@@ -14422,18 +14471,6 @@
     "fr": ""
    }
   },
-  "57153a182d29631431e0f08440f39805fb4e8a1e6655937dda2215220808dd24": {
-   "drop": false,
-   "en": "Find, Find All, Replace, and Replace All in the sheet or workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, and wildcards. Go To works by reference or name, and Go To Special selects blanks, constants, formulas, errors, current region, current array, last cell, visible cells, row and column differences, conditional formats, and data validation. Select Objects and the Selection Pane are available.",
-   "es": "Buscar, Buscar todo, Reemplazar y Reemplazar todo en la hoja o el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas, de celda completa y comodines. Ir a funciona por referencia o nombre, e Ir a Especial selecciona celdas en blanco, constantes, fórmulas, errores, región actual, matriz actual, última celda, celdas visibles, diferencias de fila y columna, formatos condicionales y validación de datos. Seleccionar objetos y el panel de selección están disponibles.",
-   "fr": "Rechercher, Rechercher tout, Remplacer et Remplacer tout dans la feuille ou le classeur, par lignes ou colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière et caractères génériques. Atteindre fonctionne par référence ou par nom, et Atteindre spécial sélectionne les cellules vides, les constantes, les formules, les erreurs, la région courante, la matrice courante, la dernière cellule, les cellules visibles, les différences de ligne et de colonne, les mises en forme conditionnelles et la validation des données. Sélectionner des objets et le volet Sélection sont disponibles.",
-   "soon": {
-    "drop": false,
-    "en": "Find by format, replace in notes, and Go To Special for objects, precedents, and dependents",
-    "es": "Buscar por formato, reemplazar en notas e Ir a Especial para objetos, precedentes y dependientes",
-    "fr": "Recherche par format, remplacement dans les notes, et Atteindre spécial pour les objets, les antécédents et les dépendants"
-   }
-  },
   "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51": {
    "drop": false,
    "en": "Other formats and parts",
@@ -16294,18 +16331,6 @@
     "fr": ""
    }
   },
-  "6d01d7c652eb55a2a8ca0607f52f327c255a19e5a83026f685e4b6167595800a": {
-   "drop": false,
-   "en": "New Cell Style saves the look of the current cell under a name, offers it in the gallery, applies it to the selected cells, and saves it with the workbook. Delete Cell Style removes a style from the gallery and returns its cells to Normal, in one step of Undo.",
-   "es": "Nuevo estilo de celda guarda el aspecto de la celda actual con un nombre, lo ofrece en la galería, lo aplica a las celdas seleccionadas y lo guarda con el libro. Eliminar estilo de celda quita un estilo de la galería y devuelve sus celdas a Normal, en un solo paso de Deshacer.",
-   "fr": "Nouveau style de cellule enregistre l’aspect de la cellule active sous un nom, le propose dans la galerie, l’applique aux cellules sélectionnées et l’enregistre avec le classeur. Supprimer le style de cellule retire un style de la galerie et remet ses cellules en Normal, en une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Merge Styles from another workbook, and styles carried by a row or column",
-    "es": "Combinar estilos desde otro libro, y estilos aplicados a una fila o columna",
-    "fr": "Fusion de styles depuis un autre classeur, et styles portés par une ligne ou une colonne"
-   }
-  },
   "6d3164dd2b4765b0a005716f1c520e2205837083e6c079580b7910a5cbae35e3": {
    "drop": false,
    "en": "Right-to-left and mixed-direction text is laid out.",
@@ -16988,18 +17013,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "78cad92fabb3d5eb07cf3322cd72022e90115775244ab94b6973c4b3905347b2": {
-   "drop": false,
-   "en": "Clear all, contents, formats, comments and notes, or hyperlinks from cells with the Clear menu.",
-   "es": "Borre todo, el contenido, los formatos, los comentarios y notas, o los hipervínculos de las celdas con el menú Borrar.",
-   "fr": "Effacez tout, le contenu, les formats, les commentaires et notes, ou les liens hypertexte des cellules avec le menu Effacer.",
-   "soon": {
-    "drop": false,
-    "en": "Remove Hyperlinks: also remove the link look from the text",
-    "es": "Quitar hipervínculos: también quitar el aspecto de vínculo del texto",
-    "fr": "Supprimer les liens hypertexte : retirer aussi l’aspect de lien du texte"
    }
   },
   "78e4a0f74b62bee0908f7458f062ba7830a8de68d06ed4881fdf4878470ac4f3": {
@@ -25220,18 +25233,6 @@
     "en": "Pasted equations drawn in two dimensions right away",
     "es": "Ecuaciones pegadas dibujadas en dos dimensiones de inmediato",
     "fr": "Équations collées dessinées aussitôt en deux dimensions"
-   }
-  },
-  "f031eac7c7d8e89f01ef1939b726b04ea3436c092fa45efc076ea6bd663ef431": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
-    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
-    "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
    }
   },
   "f046a58ffc31f9fc7e620618016bcbfbd3e635843c3402d9e24c5e692425be79": {
