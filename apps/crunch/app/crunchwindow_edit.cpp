@@ -165,6 +165,7 @@ void CrunchWindow::updateEditActions()
     updatePrintAreaAction();
     updateSparklineTab();
     updateFormatState(false);
+    updateInsertClipAction();
 }
 
 // Whether a cell can be changed now; if not, the person is told why (as a note in the status line while the workbook is still being opened, else in a message).

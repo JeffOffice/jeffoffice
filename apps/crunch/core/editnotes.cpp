@@ -125,13 +125,23 @@ EditSession::Outcome EditSession::showNotes(int sheet, const std::vector<std::pa
 
 EditSession::Outcome EditSession::setNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText)
 {
+    return changeNoteBox(sheet, row, col, box, stepText, false);
+}
+
+EditSession::Outcome EditSession::resetNoteBox(int sheet, quint32 row, quint32 col, const QString &stepText)
+{
+    return changeNoteBox(sheet, row, col, jp::office::sheet::NoteBox(), stepText, true);
+}
+
+EditSession::Outcome EditSession::changeNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText, bool reset)
+{
     QString why;
     if (!canEditNotes(sheet, &why)) return refused(why);
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
     if (model.isProtected && model.protection.objects) return refused(tr("This sheet is protected, so its notes can't be changed. Take the protection off first."));
     const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
     if (!was) return refused(tr("There is no note on that cell."));
-    if (!box.set) return refused(tr("Drag the note's box to where you want it on the sheet."));
+    if (!box.set && !reset) return refused(tr("Drag the note's box to where you want it on the sheet."));
     if (was->threaded) return refused(tr("This note is a conversation of comments. Change it with the commands in Comments, on the Review tab."));
     NoteInfo now = *was;
     now.box = box;

@@ -140,6 +140,24 @@
   "page.deleteBackground": [
    "remove background",
    "remove picture behind cells"
+  ],
+  "edit.insertClip": [
+   "insert cut cells",
+   "insert copied cells",
+   "paste between cells",
+   "shift cells to paste"
+  ],
+  "notes.moveSize": [
+   "move note",
+   "size note",
+   "resize note",
+   "note box",
+   "note with keys"
+  ],
+  "notes.resetSize": [
+   "default note size",
+   "reset note box",
+   "note back"
   ]
  },
  "file": {

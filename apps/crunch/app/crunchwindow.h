@@ -503,6 +503,7 @@ public:
     struct ShiftRequest {
         bool inserting = true;
         enum class Way { Right, Down, Left, Up, Rows, Columns } way = Way::Down;
+        bool cellsOnly = false;   // only the two ways of cells (Insert Cut Cells: whole rows and columns are not a choice)
     };
     void setShiftAsker(const std::function<bool(ShiftRequest *)> &asker) { m_shiftAsker = asker; }
     // What Column Width and Row Height ask for: the size (the width a person is shown, in characters of the default font's widest digit; the height in points), with the one it has now. A dialog
@@ -1313,6 +1314,8 @@ private:
     bool ownClipboardBlock(crunch::ClipData *clip, const QString &title);
     void onClipboardChanged();
     void forgetClip();
+    void insertClipCells();
+    void updateInsertClipAction();
     void cancelCut();
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
@@ -1902,6 +1905,9 @@ private:
     void showAllNotes();
     void goToNote(bool next);
     void noteBoxDragged(qint64 row, qint64 col, const QRect &box);
+    void moveSizeNote();
+    void resetNoteSize();
+    void noteKeysChanged();
     // ---- comments: threads (crunchwindow_comments.cpp)
     void createCommentActions();
     void updateCommentActions();

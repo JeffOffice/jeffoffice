@@ -44,6 +44,7 @@ void GridView::setShownNotes(std::vector<ShownNote> notes)
     if (notes.size() == m_shownNotes.size() && std::equal(notes.begin(), notes.end(), m_shownNotes.begin(), sameNote)) return;   // (the same notes again: nothing to draw)
     m_shownNotes = std::move(notes);
     m_shownSizes.assign(m_shownNotes.size(), QSize());
+    if (m_noteKeys) endNoteKeys(false);   // (the notes changed under the keys: what was being moved is let go)
     if (m_pickRow >= 0 && shownIndexAt(m_pickRow, m_pickCol) < 0) m_pickRow = m_pickCol = -1;
     viewport()->update();
 }
@@ -91,9 +92,10 @@ bool GridView::shownBoxRect(size_t index, QRect *out, QRect *pane) const
     if (inPane.isEmpty()) return false;
     const QRect cell = cellRectInLayout(n.row, n.col);
     if (cell.isEmpty()) return false;
-    if (n.placed) {
+    const bool keys = m_noteKeys && n.row == m_pickRow && n.col == m_pickCol;
+    if (n.placed || keys) {
         const double z = L.zoom();
-        const QRect rel = keepBoxSane(n.box);
+        const QRect rel = keepBoxSane(keys ? m_noteKeyRel : n.box);
         *out = QRect(cell.left() + int(std::lround(rel.x() * z)), cell.top() + int(std::lround(rel.y() * z)), std::max(1, int(std::lround(rel.width() * z))), std::max(1, int(std::lround(rel.height() * z))));
     } else {
         const QSize size = shownSize(index);
@@ -137,6 +139,7 @@ QRect GridView::noteHandleRect(int handle) const
 
 bool GridView::noteBoxPress(const QPoint &lp, Qt::KeyboardModifiers modifiers)
 {
+    if (m_noteKeys) endNoteKeys(false);   // (a press gives up a box being moved with the keys)
     // (a press is in layout coordinates, as the boxes are; Shift or Ctrl with a press is the sheet's: it extends the selection or adds to it, also over a box)
     if (modifiers & (Qt::ShiftModifier | Qt::ControlModifier)) return false;
     if (m_pickRow >= 0) {
@@ -216,6 +219,86 @@ void GridView::noteBoxRelease()
     const QRect rel = keepBoxSane(QRect(int(std::lround((now.left() - cell.left()) / z)), int(std::lround((now.top() - cell.top()) / z)), std::max(1, int(std::lround(now.width() / z))),
                                         std::max(1, int(std::lround(now.height() / z)))));
     Q_EMIT noteBoxRequested(m_pickRow, m_pickCol, rel);
+}
+
+// ---- the keys
+
+namespace {
+// How far an arrow key moves or sizes a box, and a finer step (Ctrl), in pixels at 100%; and the least a box may be sized to (as a drag has it).
+constexpr int kKeyStep = 10, kKeyFineStep = 1, kBoxLeastWidth = 24, kBoxLeastHeight = 16;
+}
+
+bool GridView::beginNoteKeys(qint64 row, qint64 col)
+{
+    if (m_drag != Drag::None) return false;
+    const int i = shownIndexAt(row, col);
+    QRect box;
+    if (i < 0 || !shownBoxRect(size_t(i), &box)) return false;
+    const QRect cell = cellRectInLayout(row, col);
+    if (cell.isEmpty()) return false;
+    const double z = m_sheet.layout().zoom();
+    m_pickRow = row;
+    m_pickCol = col;
+    m_noteKeyRel0 = keepBoxSane(QRect(int(std::lround((box.left() - cell.left()) / z)), int(std::lround((box.top() - cell.top()) / z)), std::max(1, int(std::lround(box.width() / z))),
+                                      std::max(1, int(std::lround(box.height() / z)))));
+    m_noteKeyRel = m_noteKeyRel0;
+    m_noteKeys = true;
+    viewport()->update();
+    Q_EMIT noteKeysChanged();
+    return true;
+}
+
+void GridView::endNoteKeys(bool keep)
+{
+    if (!m_noteKeys) return;
+    const QRect now = m_noteKeyRel;
+    const bool changed = now != m_noteKeyRel0;
+    m_noteKeys = false;
+    viewport()->update();
+    Q_EMIT noteKeysChanged();
+    if (keep && changed && m_pickRow >= 0) Q_EMIT noteBoxRequested(m_pickRow, m_pickCol, now);
+}
+
+// A key while a box is being moved: an arrow moves it (sizes it with Shift; a fine step with Ctrl), Enter keeps it, Escape gives it up; no other key reaches the sheet meanwhile.
+bool GridView::noteKeyPress(QKeyEvent *e)
+{
+    if (!m_noteKeys) return false;
+    const int key = e->key();
+    if (key == Qt::Key_Shift || key == Qt::Key_Control || key == Qt::Key_Alt || key == Qt::Key_Meta) return false;
+    if (e->modifiers() & (Qt::AltModifier | Qt::MetaModifier)) return false;
+    if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+        endNoteKeys(true);
+        return true;
+    }
+    if (key == Qt::Key_Escape) {
+        endNoteKeys(false);
+        return true;
+    }
+    int dx = 0, dy = 0;
+    switch (key) {
+    case Qt::Key_Left: dx = mirrored() ? 1 : -1; break;
+    case Qt::Key_Right: dx = mirrored() ? -1 : 1; break;
+    case Qt::Key_Up: dy = -1; break;
+    case Qt::Key_Down: dy = 1; break;
+    default: return true;   // (no other key does anything to the sheet while the box is being moved)
+    }
+    const int step = (e->modifiers() & Qt::ControlModifier) ? kKeyFineStep : kKeyStep;
+    QRect r = m_noteKeyRel;
+    if (e->modifiers() & Qt::ShiftModifier) {
+        // (the right and bottom edges move)
+        const int w = std::clamp(r.width() + dx * step, kBoxLeastWidth, kBoxMaxWidth);
+        const int h = std::clamp(r.height() + dy * step, kBoxLeastHeight, kBoxMaxHeight);
+        r.setSize(QSize(w, h));
+    } else {
+        r.translate(dx * step, dy * step);
+    }
+    r = keepBoxSane(r);
+    if (r != m_noteKeyRel) {
+        m_noteKeyRel = r;
+        viewport()->update();
+    }
+    Q_EMIT noteKeysChanged();   // (said at each key, so that the place is told again even at the end of the way)
+    return true;
 }
 
 void GridView::paintNotes(QPainter *painter, const QRect &clip)

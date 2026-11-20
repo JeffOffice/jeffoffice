@@ -225,6 +225,13 @@ public:
     qint64 pickedNoteCol() const { return m_pickCol; }
     // The handles of the picked note's box (eight, numbered from the top left corner round the box: corner, edge, corner, edge, ...), in the viewport's pixels.
     QRect noteHandleRect(int handle) const;
+    // Moving and sizing a shown note's box with the keys, for a person who does not use a pointer: the arrow keys move the box by a step (Shift with an arrow sizes it, Ctrl makes the steps
+    // fine), Enter keeps it (noteBoxRequested, as a drag does), and Escape, a click, or the note changing gives it up. `noteKeysChanged` is sent at every step and at the end. False (and
+    // nothing begins) if the note is not shown and in view. `noteKeysBox` is the box now, from the cell's top left, in pixels at 100%.
+    bool beginNoteKeys(qint64 row, qint64 col);
+    void endNoteKeys(bool keep);
+    bool inNoteKeys() const { return m_noteKeys; }
+    QRect noteKeysBox() const { return m_noteKeyRel; }
 
     // Several ranges selected (Ctrl with a click or a drag adds one): the selection's own range is the last one added (where the cursor is), and these are the ones before it. Any other change of
     // the selection leaves one range. A command that works on the selection but not on several ranges asks `hasSeveralRanges`.
@@ -363,6 +370,8 @@ Q_SIGNALS:
     void moveInsertRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &target);
     // A shown note's box was dragged (moved, or sized by a handle) and let go: its cell, and where the box is now (from the cell's top left, in pixels at 100%).
     void noteBoxRequested(qint64 row, qint64 col, const QRect &box);
+    // The keyboard mode for a note's box began, went a step, or ended.
+    void noteKeysChanged();
     // The button of a list was clicked, or Alt+Down was pressed on a cell that has one.
     void dropDownRequested();
     // Esc took away the dashed border of the cells that were copied or cut.
@@ -499,6 +508,8 @@ private:
     QPoint m_noteFrom;                       // where the press was
     QRect m_noteRect0, m_noteRectNow;        // the box as it was at the press, and as the drag has it (viewport pixels)
     bool m_noteMoved = false;
+    bool m_noteKeys = false;                 // the picked note's box is being moved or sized with the keys
+    QRect m_noteKeyRel, m_noteKeyRel0;       // the box now, and as it was when the mode began (from the cell's top left, pixels at 100%)
     bool m_moveInsert = false;               // the block being dragged goes between cells (Shift was held at the press)
     bool m_shiftBorder = false;              // a press with Shift on the selection's border: a click extends the selection, a drag past the drag distance moves the block between cells
     Selection m_shiftSelection;              // the selection (and its other ranges) as it was before that press
@@ -510,6 +521,7 @@ private:
     bool noteBoxPress(const QPoint &lp, Qt::KeyboardModifiers modifiers);
     void noteBoxDrag(const QPoint &lp);
     void noteBoxRelease();
+    bool noteKeyPress(QKeyEvent *e);
     mutable std::vector<QSize> m_shownSizes;
     mutable double m_shownZoom = 0;
     mutable qint64 m_shownLayouts = 0;

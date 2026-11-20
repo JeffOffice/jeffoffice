@@ -88,6 +88,7 @@ void CrunchWindow::insertCommand()
     const grid::Selection::Whole whole = m_view->selection().whole;
     if (whole == grid::Selection::Whole::Rows) insertLines(true);
     else if (whole == grid::Selection::Whole::Columns) insertLines(false);
+    else if (whole == grid::Selection::Whole::None && m_clip.valid() && m_view->hasCopyBorder() && act(QStringLiteral("edit.insertClip"))->isEnabled()) insertClipCells();   // (cells are cut or copied: they are what is inserted, as in the programs people know)
     else insertOrDeleteCells(true);
 }
 
@@ -203,7 +204,8 @@ bool CrunchWindow::askShift(ShiftRequest *request)
         Way way;
         QString text;
     };
-    const QList<Choice> choices = request->inserting ? QList<Choice>{{Way::Right, tr("Shift cells right")}, {Way::Down, tr("Shift cells down")}, {Way::Rows, tr("Entire row")}, {Way::Columns, tr("Entire column")}}
+    const QList<Choice> choices = request->cellsOnly ? QList<Choice>{{Way::Right, tr("Shift cells right")}, {Way::Down, tr("Shift cells down")}}
+                                  : request->inserting ? QList<Choice>{{Way::Right, tr("Shift cells right")}, {Way::Down, tr("Shift cells down")}, {Way::Rows, tr("Entire row")}, {Way::Columns, tr("Entire column")}}
                                                      : QList<Choice>{{Way::Left, tr("Shift cells left")}, {Way::Up, tr("Shift cells up")}, {Way::Rows, tr("Entire row")}, {Way::Columns, tr("Entire column")}};
     for (int i = 0; i < choices.size(); ++i) {
         auto *button = new QRadioButton(choices[i].text);
@@ -635,6 +637,7 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
         if (QAction *a = act(QString::fromLatin1(id))) menu->addAction(a);
     };
     for (const char *id : {"edit.cut", "edit.copy", "edit.paste", "paste.special"}) add(id);
+    if (act(QStringLiteral("edit.insertClip"))->isEnabled() && m_view->selection().whole == grid::Selection::Whole::None) add("edit.insertClip");
     menu->addSeparator();
     const grid::Selection::Whole whole = m_view->selection().whole;
     if (whole == grid::Selection::Whole::Rows) {
@@ -675,6 +678,8 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
         add("notes.edit");
         if (act("notes.delete")->isEnabled()) add("notes.delete");
         if (act("notes.showHide")->isEnabled()) add("notes.showHide");
+        if (act("notes.moveSize")->isEnabled()) add("notes.moveSize");
+        if (act("notes.resetSize")->isEnabled()) add("notes.resetSize");
         add("insert.link");
         if (act("link.open")->isEnabled()) add("link.open");
         if (act("link.remove")->isEnabled()) add("link.remove");

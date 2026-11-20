@@ -1,5 +1,5 @@
 # Insert and delete rows, columns, and cells
-<!-- keywords: insert, delete, remove, row, column, cell, shift, move, add, blank, Ctrl+plus, Ctrl+minus, right-click, header, undo, reference, #REF!, formula, name, merged, table, array, edge -->
+<!-- keywords: insert cut cells, insert copied cells, shift right, shift down, insert, delete, remove, row, column, cell, shift, move, add, blank, Ctrl+plus, Ctrl+minus, right-click, header, undo, reference, #REF!, formula, name, merged, table, array, edge -->
 
 You can add empty rows, columns, or cells in the middle of your data, and take rows, columns, or cells out. Everything below moves over to make room or to close the gap, and the formulas that point at the cells that moved keep pointing at them.
 
@@ -12,6 +12,15 @@ With whole rows or columns selected, the new ones go in at once, above the rows 
 
 - **Shift cells right** or **Shift cells down** moves only the cells in the columns (or rows) of your selection, and leaves the rest of the sheet where it is.
 - **Entire row** or **Entire column** adds whole rows or columns.
+
+## Insert cut or copied cells
+
+To put cells that you cut or copied between other cells, instead of over them, cut or copy them first (**Ctrl+X** or **Ctrl+C**). Then select the cell where they should go, and use **Home > Insert > Insert Cut or Copied Cells** (the command reads **Insert Cut Cells** or **Insert Copied Cells** once there is something to put), or right-click the cell and choose it, or press **Ctrl and the plus key**. A small window asks whether the cells that are there should **shift right** or **shift down** to make room.
+
+- Cut cells **move**: they leave their old place, and what points at them follows. It is the same as holding **Shift** while you drag the border of the selection, and it is all or nothing: if any part is refused, nothing changes.
+- Copied cells are **put in** as a copy, and the copy stays ready, so you can put it in again somewhere else.
+- Each is one step you can undo. Cut cells can be put between others only on the sheet they came from; to move them to another sheet, use **Paste**.
+- A cell can't be put in its own way (cells cut from A3:A4 can't go between A3 and A4), and a protected sheet refuses it. JeffCrunch says why, and changes nothing.
 
 ## Delete
 

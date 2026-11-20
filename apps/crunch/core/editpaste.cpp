@@ -558,14 +558,56 @@ EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange 
     // since cells that are to shift away are not in its way; if it is refused then, the room is taken back)
     const StructEdit insert = shiftDown ? StructEdit::insertCellsDown(sheet, target) : StructEdit::insertCellsRight(sheet, target);
     if (!canMove(insert, &why)) return refuse(why);
-    // one question for the two parts about what Undo can hold, asked before either is done
     const StructEdit moveEdit = StructEdit::move(sheet, source, sheet, toRow, toCol);
+    return pairedWithRoom(insert, &moveEdit, [&] { return structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells")); }, tr("Moving cells"));
+}
+
+EditSession::Outcome EditSession::insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    if (!clip.valid() || sheet < 0) return refuse(tr("There is nothing to paste."));
+    if (qint64(row) + clip.rows > jp::office::sheet::kMaxRows || qint64(col) + clip.cols > jp::office::sheet::kMaxColumns) return refuse(tr("That would put cells outside the sheet."));
+    CellRange target;
+    target.valid = true;
+    target.row1 = row;
+    target.col1 = col;
+    target.row2 = row + clip.rows - 1;
+    target.col2 = col + clip.cols - 1;
+    QString why;
+    const StructEdit insert = shiftDown ? StructEdit::insertCellsDown(sheet, target) : StructEdit::insertCellsRight(sheet, target);
+    if (!canMove(insert, &why)) return refuse(why);
+    Outcome pasted;
+    out = pairedWithRoom(insert, nullptr, [&] {
+        pasted = paste(sheet, target, clip, PasteOptions());
+        return pasted;
+    }, tr("Inserting cells"));
+    if (out.ok) {
+        out.range = pasted.range;
+        out.problem = pasted.problem;   // (done, but something was left out: said as a paste says it)
+    }
+    return out;
+}
+
+// Room made for something that goes in it, and that put in: one step. The question about what Undo can hold is asked once for what the room holds (and `alsoHeld`, if the second part holds
+// something as well), before either is done, and the history is let go of after both. If the second part is refused, the room is taken back and nothing is left to redo.
+EditSession::Outcome EditSession::pairedWithRoom(const StructEdit &room, const StructEdit *alsoHeld, const std::function<Outcome()> &second, const QString &macroText)
+{
+    Outcome out;
     bool big = false;
     {
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
-        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
         const qint64 limit = m_undoByteLimit;
-        big = hold->calculation()->estimateUndoBytes(insert, limit + 1) + hold->calculation()->estimateUndoBytes(moveEdit, limit + 1) > limit;
+        big = hold->calculation()->estimateUndoBytes(room, limit + 1) + (alsoHeld ? hold->calculation()->estimateUndoBytes(*alsoHeld, limit + 1) : 0) > limit;
     }
     if (big && !m_bigStepAllowed) {
         out.ok = false;
@@ -576,10 +618,10 @@ EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange 
     m_bigStepAllowed = false;
     const int start = m_undo.index();
     m_pairing = true;
-    m_undo.beginMacro(tr("Moving cells"));
-    Outcome done = structure(insert, tr("Inserting cells"));
+    m_undo.beginMacro(macroText);
+    Outcome done = structure(room, tr("Inserting cells"));
     if (done.ok && m_betweenStepsHook) m_betweenStepsHook();
-    if (done.ok) done = structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells"));
+    if (done.ok) done = second();
     m_undo.endMacro();
     m_pairing = false;
     if (!done.ok) {
