@@ -183,8 +183,25 @@
 <context>
     <name>jp::CrunchWindow</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+330"/>
-        <location line="+240"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+247"/>
+        <source>%n note(s)</source>
+        <translation>
+            <numerusform>%n note</numerusform>
+            <numerusform>%n notes</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <location line="+134"/>
+        <source>%n conversation(s) of comments with the text were left as they are.</source>
+        <translation>
+            <numerusform>%n conversation of comments with the text was left as it is.</numerusform>
+            <numerusform>%n conversations of comments with the text were left as they are.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="-32"/>
+        <location line="+293"/>
         <source>%n cell(s)</source>
         <translation>
             <numerusform>%n cell</numerusform>
@@ -282,11 +299,20 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-240"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-396"/>
+        <location line="+103"/>
         <source>%n place(s)</source>
         <translation>
             <numerusform>%n place</numerusform>
             <numerusform>%n places</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+906"/>
+        <source>%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?</source>
+        <translation>
+            <numerusform>%n style here has the same name as a style in %1, with another look. Replace it with the one from %1?</numerusform>
+            <numerusform>%n styles here have the same names as styles in %1, with another look. Replace them with the ones from %1?</numerusform>
         </translation>
     </message>
 </context>
@@ -323,7 +349,7 @@
 <context>
     <name>jp::FindDialog</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/finddialog.cpp" line="+201"/>
+        <location filename="../apps/crunch/app/finddialog.cpp" line="+238"/>
         <source>%n cell(s) match.</source>
         <translation>
             <numerusform>%n cell matches.</numerusform>
@@ -467,7 +493,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1276"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1280"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
