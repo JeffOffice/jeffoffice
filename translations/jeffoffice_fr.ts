@@ -18773,7 +18773,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6708"/>
+        <location line="+6719"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>

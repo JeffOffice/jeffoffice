@@ -18790,7 +18790,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продовження з сторінки %1)</translation>
     </message>
     <message>
-        <location line="+6708"/>
+        <location line="+6719"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
