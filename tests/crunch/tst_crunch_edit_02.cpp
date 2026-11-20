@@ -640,7 +640,7 @@ void CrunchEditTests::aBigSpillBlockMovesQuickly()
     QVERIFY(e.settle());
     qInfo() << "move of a 200,000-cell block took ms:" << timer.elapsed();
     QCOMPARE(blockOf(e, QStringLiteral("C1")), QStringLiteral("C1:C200000"));
-    QVERIFY(timer.elapsed() < 20000);
+    QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
 }
 
 namespace {

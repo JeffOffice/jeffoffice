@@ -88,7 +88,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         QCOMPARE(spansFromText(many, kCustomViewRows, 5).size(), 5);
-        QVERIFY2(t.elapsed() < 500, "the whole text was split before the cap was applied");
+        QVERIFY2(t.elapsed() < 500 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "the whole text was split before the cap was applied");
         // a run reads inside the sheet: one that starts past the last row is dropped, one that ends past it is cut, and what is not a span is skipped
         QCOMPARE(spansFromText(QStringLiteral("1048576 1048577 5:99999999 abc 7:x 8:"), kCustomViewRows), (Spans{{1048575, 1048575}, {4, 1048575}}));
         QCOMPARE(spansFromText(QStringLiteral("16384 16385 2:20000"), kCustomViewColumns), (Spans{{16383, 16383}, {1, 16383}}));
@@ -117,7 +117,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         QVERIFY(e.win.w.showCustomViewAt(0));
-        QVERIFY2(t.elapsed() < 20000, "showing a view took too long");
+        QVERIFY2(t.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "showing a view took too long");
         QVERIFY(e.view()->selection().activeRow < qint64(kCustomViewRows));
     }
 
@@ -193,7 +193,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         const auto problems = e.win.w.formulaProblems(false);
-        QVERIFY2(t.elapsed() < 400, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms")));
+        QVERIFY2(t.elapsed() < 400 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms")));
         // (A10:A12 and A20 are ignored, the rest of the first 4,000 are not; the list stops at its cap)
         QCOMPARE(problems.size(), size_t(4000 - 4));
         for (const auto &p : problems) QVERIFY(!(p.col == 0 && (p.row == 9 || p.row == 10 || p.row == 11 || p.row == 19)));

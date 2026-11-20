@@ -448,7 +448,7 @@ private Q_SLOTS:
             qint64 work = kOdrawPictWork;
             const qint64 ms = bestNanoseconds([&] { work = kOdrawPictWork; pictImage(odPict(200, 100, red + ops), &work); }, 3) / 1000000;
             QVERIFY2(kOdrawPictWork - work <= kOdrawPictWork / 4, qPrintable(QStringLiteral("%1: %2 units of work").arg(QLatin1String(what)).arg(kOdrawPictWork - work)));
-            QVERIFY2(ms < 20000, qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));   // (the dearest, the fonts, takes 1.7 s alone: the ceiling is ten times that)
+            QVERIFY2(ms < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1: %2 ms").arg(QLatin1String(what)).arg(ms)));   // (the dearest, the fonts, takes 1.7 s alone: the ceiling is ten times that)
         };
         // A region of 4,000 places in a row that every one of 500 rows after it shifts one of (a million rectangles).
         QByteArray region = pictU16(0) + pictRect(0, 0, 100, 200) + pictU16(1);

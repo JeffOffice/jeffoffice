@@ -1425,7 +1425,7 @@ private Q_SLOTS:
         const qint64 first = f.grid.sparklineCellsRead();
         f.render();
         QVERIFY(f.grid.sparklineCellsRead() <= first + GridSheet::kMaxSparklineReadsPerPaint);
-        QVERIFY2(timer.elapsed() < 20000, "bounded time");
+        QVERIFY2(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "bounded time");
         // the colors of the group are made once in a paint, whatever the number of its sparklines in view
         QCOMPARE(f.painter->stats().sparklineColorSets, qint64(1));
     }

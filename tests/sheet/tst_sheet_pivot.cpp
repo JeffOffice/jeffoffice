@@ -639,7 +639,7 @@ private Q_SLOTS:
         f.dataField = 0;
         QString why;
         QVERIFY2(pivotFilterField(&w.table, w.cache, 0, f, &why), qPrintable(why));
-        QVERIFY2(timer.elapsed() < 20000, qPrintable(QString::number(timer.elapsed())));   // (a scan for each item would be 3e10 steps)
+        QVERIFY2(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));   // (a scan for each item would be 3e10 steps)
     }
 
     // A refresh of a field with 100,000 group labels finds where each old label went in bounded time.
@@ -675,7 +675,7 @@ private Q_SLOTS:
         timer.start();
         PivotCache fresh;
         QVERIFY2(buildPivotCache(src, prev, &fresh, &why), qPrintable(why));
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));   // (a scan of the new labels for each old one is 1e10 steps)
+        QVERIFY2(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));   // (a scan of the new labels for each old one is 1e10 steps)
         QCOMPARE(fresh.fields[0].items.size(), prev.fields[0].items.size());
     }
 
@@ -2018,7 +2018,7 @@ private Q_SLOTS:
         timer.start();
         const QByteArray written = writePivotTable(deep, w.table, false);
         QVERIFY(written.isEmpty());
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
     }
 
     // GETPIVOTDATA over a table of sixty thousand lines finds each value by the place of its item, not by passing the items of the field: six thousand asks, each for an item near the end, take

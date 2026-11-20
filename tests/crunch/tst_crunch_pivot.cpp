@@ -3821,7 +3821,7 @@ private Q_SLOTS:
         QCOMPARE(int(loc.row2 - loc.row1 + 1), tableRows);
         QCOMPARE(int(loc.col2 - loc.col1 + 1), tableCols);
         QCOMPARE(s->valueAt(0, loc.row2, loc.col2).number(), total);
-        QVERIFY2(ms < 120000, qPrintable(QString::number(ms)));
+        QVERIFY2(ms < 120000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(ms)));
         s->undoStack()->undo();
         finish(e);
         QCOMPARE(valueOf(e, QStringLiteral("E4")), QStringLiteral("-"));   // (the file had no cells there)

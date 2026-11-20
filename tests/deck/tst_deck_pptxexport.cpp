@@ -1935,7 +1935,7 @@ private Q_SLOTS:
         timer.start();
         auto read = deck::importPresentation(zip.finish(), &err);
         QVERIFY2(read, qPrintable(err));
-        QVERIFY2(timer.elapsed() < 20000, "the crowd of shapes costs bounded work");
+        QVERIFY2(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "the crowd of shapes costs bounded work");
         // The cap is what bounds it: of 3,000 shapes in each master, no more than kMaxMasterShapes are looked at (and that many were, so the cap was reached).
         QCOMPARE(deck::pptxImportWorkForTest().masterShapesRead, qint64(deck::kMaxMasterShapes));
         const QSizeF page(540, 720);

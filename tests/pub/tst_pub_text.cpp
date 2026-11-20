@@ -713,7 +713,7 @@ private Q_SLOTS:
         back.changeStyles(next);
         const qint64 ms = t.elapsed();
         qInfo() << "10,000 styles, load and one change:" << ms << "ms";
-        QVERIFY2(ms < 1000, qPrintable(QStringLiteral("took %1 ms").arg(ms)));
+        QVERIFY2(ms < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("took %1 ms").arg(ms)));
         int deepest = 0;
         for (const auto &s : std::as_const(back.styles)) {
             int depth = 0;
@@ -728,7 +728,7 @@ private Q_SLOTS:
         double sum = 0;
         for (int i = 0; i < 20000; ++i) sum += back.resolvedStyle(QStringLiteral("S%1").arg(i % 10000)).chr.fontPointSize();
         QVERIFY(sum > 0);
-        QVERIFY2(lookups.elapsed() < 1000, qPrintable(QStringLiteral("20,000 look-ups took %1 ms").arg(lookups.elapsed())));
+        QVERIFY2(lookups.elapsed() < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("20,000 look-ups took %1 ms").arg(lookups.elapsed())));
     }
 
     // A loop of bases that a file holds is cut where most styles keep the look they had.

@@ -415,7 +415,7 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 60000);
         QVERIFY(e.win.w.session()->protectionOf(0).enabled);
         QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QStringLiteral("far more times")), qPrintable(e.win.told.join(QLatin1Char('\n'))));
-        QVERIFY(t.elapsed() < 5000);
+        QVERIFY(t.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     void aSheetThatDoesNotLetLockedCellsBeSelectedKeepsTheCursorOffThem()

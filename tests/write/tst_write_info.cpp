@@ -2741,7 +2741,7 @@ private Q_SLOTS:
         t.start();
         CustomPropertiesDialog d(many, nullptr);
         QCOMPARE(d.rowCount(), 5000);
-        QVERIFY2(t.elapsed() < 20000, "the box takes too long to make");
+        QVERIFY2(t.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "the box takes too long to make");
         QVERIFY(d.problem().isEmpty());
         QCOMPARE(d.result(), many);   // (the property that is not modeled is as it was, and so is every pid)
     }

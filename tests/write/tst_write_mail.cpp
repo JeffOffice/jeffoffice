@@ -536,7 +536,7 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             const QVector<mail::BarcodeField> list = mail::barcodeFields(*doc);
-            QVERIFY2(t.elapsed() < 250, type);
+            QVERIFY2(t.elapsed() < 250 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), type);
             QCOMPARE(list.size(), 1);
             QVERIFY(list[0].sample);
             QVERIFY(list[0].settings.value(QLatin1String("data")).toString().size() < 100);

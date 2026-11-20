@@ -1099,7 +1099,7 @@ private Q_SLOTS:
         QVERIFY(once <= 3);   // (C3's, and the long one's)
         longOne.win.w.grab();
         QCOMPARE(longOne.view()->shownNoteLayouts(), once);
-        QVERIFY(t.elapsed() < 20000);
+        QVERIFY(t.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     void aSheetWithMoreNotesThanAreKeptShowsThemAndLeavesThemAlone()

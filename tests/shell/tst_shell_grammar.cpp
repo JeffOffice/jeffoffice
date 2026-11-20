@@ -49,7 +49,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         grammarCheck(text, QStringLiteral("en"));
-        QVERIFY2(t.elapsed() < 5000, qPrintable(QString::number(t.elapsed())));
+        QVERIFY2(t.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(t.elapsed())));
         qInfo() << "paragraph ms" << t.elapsed();
     }
 
@@ -128,7 +128,7 @@ private Q_SLOTS:
         QElapsedTimer t;
         t.start();
         const auto issues = grammarCheck(text, QStringLiteral("en"), &truncated);
-        QVERIFY(t.elapsed() < 60000);
+        QVERIFY(t.elapsed() < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(truncated);
         QVERIFY(issues.size() <= kGrammarMaxIssues);
         for (const auto &g : issues) QVERIFY(g.end <= kGrammarMaxChars);
@@ -149,7 +149,7 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             const auto issues = grammarCheck(text, QStringLiteral("en"));
-            QVERIFY2(t.elapsed() < 20000, qPrintable(QString::number(t.elapsed())));
+            QVERIFY2(t.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(t.elapsed())));
             QVERIFY(issues.size() <= kGrammarMaxIssues);
         }
     }

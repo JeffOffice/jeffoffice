@@ -523,7 +523,7 @@ private Q_SLOTS:
                 QElapsedTimer t;
                 t.start();
                 grammar::check(text, nullptr, grammar::kAllKinds, language);
-                QVERIFY2(t.elapsed() < 1000, qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms: ") + text.left(20)));
+                QVERIFY2(t.elapsed() < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(t.elapsed()) + QStringLiteral(" ms: ") + text.left(20)));
             }
         }
     }

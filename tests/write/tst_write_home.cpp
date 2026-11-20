@@ -4701,7 +4701,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QCOMPARE(wml::checkDocumentPassword(p, QStringLiteral("x")), wml::PasswordCheck::Unsupported);
-        QVERIFY(timer.elapsed() < 1000);
+        QVERIFY(timer.elapsed() < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         // A check that is canceled stops.
         std::atomic<bool> cancel{true};
         p.xml = "<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\" w:algorithmName=\"SHA-512\" w:hashValue=\"AAAA\" w:saltValue=\"AAAA\" w:spinCount=\"900000\"/>";

@@ -441,7 +441,7 @@ private Q_SLOTS:
         timer.start();
         e.view()->selectRange(0, 0, 0, 2);
         w.act(QStringLiteral("spark.insert.line"))->trigger();
-        QVERIFY2(timer.elapsed() < 15000, "bounded time");
+        QVERIFY2(timer.elapsed() < 15000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), "bounded time");
         qint64 total = 0;
         for (const SparklineGroup &x : s->sparklinesOf(0)) total += x.sparklines.size();
         QCOMPARE(total, qint64(60000));

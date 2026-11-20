@@ -1579,7 +1579,7 @@ private Q_SLOTS:
         QElapsedTimer clock;
         clock.start();
         const QVector<PageAccessIssue> found = checkPageAccessibility(*doc);
-        QVERIFY2(clock.elapsed() < 3000, qPrintable(QStringLiteral("%1 ms").arg(clock.elapsed())));
+        QVERIFY2(clock.elapsed() < 3000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(clock.elapsed())));
         auto count = [&](int pageNumber) {
             int n = 0;
             for (const auto &i : found)

@@ -1269,7 +1269,7 @@ private Q_SLOTS:
             QVERIFY(NumberFormat(QStringLiteral("yyyy")).format(1e300).failed);
             QCOMPARE(fmt(QStringLiteral("0"), 1e300).size(), 301);
         }
-        QVERIFY2(timer.elapsed() < 30000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 30000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
     }
 
     // Random strings of the characters a code is made of: none crashes or loops, none makes a text beyond the limit, and one that is not valid is General.

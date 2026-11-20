@@ -267,7 +267,7 @@ private Q_SLOTS:
             QElapsedTimer timer;
             timer.start();
             const jp::PastedTableResult r = jp::readPastedTable(html, &pt);
-            QVERIFY2(timer.elapsed() < 2000, what);   // (16 seconds before the scan: a bound for a loaded machine, not a speed)
+            QVERIFY2(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), what);   // (16 seconds before the scan: a bound for a loaded machine, not a speed)
             QVERIFY2(r == jp::PastedTableResult::TooBig, what);
             QCOMPARE(pt.cells.size(), 0);   // (nothing was built)
         };

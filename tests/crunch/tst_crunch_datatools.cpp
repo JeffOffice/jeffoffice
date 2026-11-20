@@ -275,7 +275,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(!s->textToColumns(0, rangeOf(QStringLiteral("A1")), spec, 0, 1).ok);
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         // many lines of a few hundred pieces would fill more cells than a step may hold
         const QString line = QString(300, QLatin1Char(',')).prepend(QLatin1Char('x'));
         QStringList specs;
@@ -285,7 +285,7 @@ private Q_SLOTS:
         QVERIFY(f.settle());
         timer.restart();
         QVERIFY(!f.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A400")), spec, 0, 1).ok);
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         // one long line among thousands of short ones: the short ones are not made as wide as it is
         QStringList many;
         many << QStringLiteral("A1=%1").arg(QString(16000, QLatin1Char(',')).prepend(QLatin1Char('x')));
@@ -295,7 +295,7 @@ private Q_SLOTS:
         QVERIFY(g.settle());
         timer.restart();
         QVERIFY(!g.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A6000")), spec, 0, 0).ok);
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
     }
 
     void theWindowCommandCutsTheSelectionAtTheDestinationNamed()
@@ -700,7 +700,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(!crunch::conditionMet(c, text));
-        QVERIFY2(timer.elapsed() < 2000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         // the same pattern does match where it should
         QVERIFY(crunch::conditionMet(c, Value::text(QString(50, QLatin1Char('a')) + QLatin1Char('b'))));
         // runs of stars are one, a pattern is cut, and ? and * still mean what they did

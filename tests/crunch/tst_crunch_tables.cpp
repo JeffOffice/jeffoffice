@@ -519,7 +519,7 @@ private Q_SLOTS:
         clock.start();
         const auto o = s->removeDuplicates(0, rangeText(QStringLiteral("A1:B%1").arg((crunch::kMaxDuplicateRuns + 20) * 2 + 1)), true, {0}, &removed);
         QVERIFY(!o.ok);
-        QVERIFY(clock.elapsed() < 5000);
+        QVERIFY(clock.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QCOMPARE(e.win.w.undoStack()->count(), before);
         QCOMPARE(valueOf(e, QStringLiteral("A3")), QStringLiteral("n:0"));
         // fewer runs go through

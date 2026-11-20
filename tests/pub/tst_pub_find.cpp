@@ -367,7 +367,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         ed.reset();
-        QVERIFY2(timer.elapsed() < 1000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
     }
 
     // An editor that goes while checks are under way, again and again, is safe (an answer that comes late finds its check gone).

@@ -3093,7 +3093,7 @@ private Q_SLOTS:
         auto within = [&](const char *what) {
             const qint64 ms = clock.elapsed();
             clock.restart();
-            QVERIFY2(ms < 2000, qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
         clock.start();
         win.w.act(QStringLiteral("view.selectionPane"))->trigger();
@@ -3700,7 +3700,7 @@ private Q_SLOTS:
             *r = QRectF(400, 300, 100, 50);
             return true;
         });
-        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 10000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         QVERIFY(changed > 0 && changed <= 200);
     }
 
@@ -4161,7 +4161,7 @@ private Q_SLOTS:
             QVERIFY2(std::abs(got.x() - target.x()) <= 0.05 && std::abs(got.y() - target.y()) <= 0.05, qPrintable(QStringLiteral("move %1: at %2,%3 not %4,%5").arg(k).arg(got.x()).arg(got.y()).arg(target.x()).arg(target.y())));
         }
         if (qEnvironmentVariableIsSet("JW_SHAPE_TIME")) qInfo("DRAGTIME 100 moves: %lld us (%lld us each)", total / 1000, total / 100000);
-        QVERIFY2(total < 1000000000, qPrintable(QStringLiteral("100 moves took %1 ms").arg(total / 1000000)));
+        QVERIFY2(total < 1000000000LL * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("100 moves took %1 ms").arg(total / 1000000)));
     }
 
     // Words in a ribbon, a cloud, and an oval callout begin in the standard's text rectangle and fit its width.

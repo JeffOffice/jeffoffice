@@ -271,7 +271,7 @@ private Q_SLOTS:
         clock.start();
         const QByteArray fixed = jp::office::repairPackage(zip, &error, &report, limits);
         QVERIFY2(!fixed.isEmpty(), qPrintable(error));
-        QVERIFY(clock.elapsed() < 20000);
+        QVERIFY(clock.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(!report.trimmed.contains(QStringLiteral("word/bomb.xml")));
         QCOMPARE(report.dropped.size(), 2);
         for (const QString &d : report.dropped) QVERIFY(d.contains(QLatin1String("too large")));

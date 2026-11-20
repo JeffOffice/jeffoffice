@@ -723,7 +723,7 @@ private Q_SLOTS:
             // (a count past the limit asks for more work than is allowed; one that is not a count is damaged)
             const bool costly = QByteArray(huge) == "2000000000" || QByteArray(huge) == "2000001";
             QCOMPARE(oc::decryptPackage(changed, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), costly ? oc::CryptResult::TooCostly : oc::CryptResult::Damaged);
-            QVERIFY2(t.elapsed() < 2000, huge);
+            QVERIFY2(t.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), huge);
         }
         // (a made-up cipher, a hash that is not one, and a key of a size no cipher has)
         for (const QPair<const char *, const char *> &change : {QPair<const char *, const char *>{"cipherAlgorithm=\"AES\"", "cipherAlgorithm=\"RC2\""}, {"hashAlgorithm=\"SHA512\"", "hashAlgorithm=\"MD2\""},
@@ -774,7 +774,7 @@ private Q_SLOTS:
         int asked = 0;
         QByteArray out;
         QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
-        QVERIFY(t.elapsed() < 1000);
+        QVERIFY(t.elapsed() < 1000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(asked >= 2);
         info.replace("spinCount=\"1500000\"", "spinCount=\"2000001\"");
         QCOMPARE(oc::decryptPackage(info, packageOf(file, "EncryptedPackage"), QStringLiteral("x"), 1 << 30, false, &out), oc::CryptResult::TooCostly);
@@ -825,7 +825,7 @@ private Q_SLOTS:
             t.start();
             QByteArray out;
             QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
-            QVERIFY2(t.elapsed() < 300, c.name);
+            QVERIFY2(t.elapsed() < 300 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), c.name);
         }
     }
 
@@ -934,7 +934,7 @@ private Q_SLOTS:
         int asked = 0;
         QByteArray out;
         QCOMPARE(oc::decryptOdf(file, QStringLiteral("test"), 1 << 30, false, &out, [&asked] { return ++asked > 1; }), oc::CryptResult::Cancelled);
-        QVERIFY(t.elapsed() < 2000);
+        QVERIFY(t.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     // The key the reader makes is the standard's: PBKDF2 with HMAC-SHA-1 (Qt's own, which gives RFC 6070's value for 4096 rounds, is what the file here was made with).
@@ -1470,7 +1470,7 @@ private Q_SLOTS:
         t.start();
         QByteArray out;
         QCOMPARE(oc::decryptOdf(z.finish(), QStringLiteral("test"), 1 << 30, false, &out), oc::CryptResult::Damaged);
-        QVERIFY(t.elapsed() < 5000);
+        QVERIFY(t.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     void anOpenDocumentPartChangedAfterProtectionIsNotTakenForAWrongPassword()
@@ -1815,7 +1815,7 @@ private Q_SLOTS:
             QElapsedTimer t;
             t.start();
             QVERIFY2(oc::decryptOdf(bytes, QStringLiteral("test"), 1 << 30, false, &out) == oc::CryptResult::TooCostly, a.what);
-            QVERIFY2(t.elapsed() < 2000, a.what);
+            QVERIFY2(t.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), a.what);
             Workbook wb;
             QString why;
             Limits limits;

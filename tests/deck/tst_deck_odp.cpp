@@ -3591,7 +3591,7 @@ private Q_SLOTS:
         timer.start();
         auto read = deck::importOdp(zip.finish(), &err);
         QVERIFY2(read, qPrintable(err));
-        QVERIFY(timer.elapsed() < 20000);
+        QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         const deck::HandoutMaster back = deck::handoutMasterOf(*read, deck::localePaper());
         QVERIFY(deck::isHandoutCount(back.perPage));
         QVERIFY(back.header.left() >= 0 && back.header.right() <= 1.0000001 && back.header.width() >= 0.0049);

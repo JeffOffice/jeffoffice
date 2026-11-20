@@ -282,7 +282,7 @@ private Q_SLOTS:
         timer.start();
         const CrunchWindow::BarcodeColumnResult r = e.win.w.insertBarcodesFromCells(all, look);
         QVERIFY2(r.visited <= 100, qPrintable(QString::number(r.visited)));
-        QVERIFY(timer.elapsed() < 20000);
+        QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     // A picture of the window with a QR code on the sheet, for the docs, when JP_SHOT_DIR names a folder.
@@ -690,7 +690,7 @@ private Q_SLOTS:
         QVERIFY2(e.win.w.mostBarcodeSwapsInATurnForTest() <= 40, qPrintable(QString::number(e.win.w.mostBarcodeSwapsInATurnForTest())));
         QVERIFY2(e.win.w.barcodeTurnsForTest() >= 25, qPrintable(QString::number(e.win.w.barcodeTurnsForTest())));
         QVERIFY2(e.win.w.longestBarcodeTurnForTest() < 30000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(e.win.w.longestBarcodeTurnForTest())));
-        QVERIFY(clock.elapsed() < 240000);
+        QVERIFY(clock.elapsed() < 240000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY2((residentKb() - before) / 1024 < 3000, qPrintable(QString::number((residentKb() - before) / 1024)));
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (the swaps are part of the step of the fill)
         QCOMPARE(int(o->linkedBarcodes().size()), 2000);

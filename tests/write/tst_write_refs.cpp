@@ -1557,7 +1557,7 @@ private Q_SLOTS:
         updateFields(*doc);
         // Each instruction is read a few times for the pass (once for itself, once for the list of its kind, at most three passes), not once for each of the 2,000 tables.
         QVERIFY2(parseCodeCallsForTest() <= 40000, qPrintable(QStringLiteral("%1 instructions read").arg(parseCodeCallsForTest())));
-        QVERIFY2(timer.elapsed() < 60000, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed())));
     }
 
     void markAllMakesOneScanAndOneStep()

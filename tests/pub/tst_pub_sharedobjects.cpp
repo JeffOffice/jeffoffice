@@ -164,7 +164,7 @@ private Q_SLOTS:
         big.partBytes = book;
         const auto back = decode(encode(big));
         QVERIFY(!back || !readRange(back->partBytes, QString(), &grid, &why));
-        QVERIFY(clock.elapsed() < 20000);   // (a loose sanity bound only: the limits above are what refuse)
+        QVERIFY(clock.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));   // (a loose sanity bound only: the limits above are what refuse)
     }
 
     void aDocumentOverTheCapIsNotLaidOutForAPicture()

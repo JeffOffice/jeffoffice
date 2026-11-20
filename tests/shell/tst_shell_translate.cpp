@@ -791,7 +791,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         delete pane;
-        QVERIFY2(timer.elapsed() < 100, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 100 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         QTest::qWait(10);   // (the finished piece has nobody to tell)
         stub->stubbornMs = 0;
     }
@@ -892,7 +892,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(t.translatePieces(QStringLiteral("en"), QStringLiteral("de"), {run, solid}, true, &out, &error));
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         QVERIFY(stub->longest.load() <= kMostPieceChars + 20);
         QCOMPARE(out.size(), 2);
     }
@@ -923,7 +923,7 @@ private Q_SLOTS:
         const Source s = readSource(c);
         QVERIFY(s.tooLong);
         QVERIFY(s.paragraphs.isEmpty());
-        QVERIFY(timer.elapsed() < 500);
+        QVERIFY(timer.elapsed() < 500 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     void deletedTextIsLeftAloneAndLeftOut()
@@ -1118,7 +1118,7 @@ private Q_SLOTS:
         const QByteArray output = child.readAll();
         QVERIFY2(ended, "the program did not end while a translation was stuck: it waits for the job");
         QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0, output.right(600).constData());
-        QVERIFY2(timer.elapsed() < 10000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 10000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
     }
 
     // ---- the real engine, when a model is at hand

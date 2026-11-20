@@ -738,7 +738,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(!readThemeFromPackage(w.finish(), &t, &err));
-        QVERIFY(timer.elapsed() < 2000);
+        QVERIFY(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(!err.isEmpty());
         // parts that are large together are stopped by the byte limit, before the rest are inflated
         PackageWriter big;
@@ -766,7 +766,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         QVERIFY(!readThemeFromPackage(lying, &t, &err, true));
-        QVERIFY(timer.elapsed() < 2000);
+        QVERIFY(timer.elapsed() < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(!err.isEmpty());
         // a file over the limit on disk is not read at all
         QTemporaryDir dir;

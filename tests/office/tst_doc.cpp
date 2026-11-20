@@ -2854,10 +2854,10 @@ private Q_SLOTS:
             QVERIFY2(work.outputBytes <= doc::kMaxOutputBytes + (1 << 20) && work.outputElements <= doc::kMaxOutputElements + 100 && work.shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes
                          && work.picturesRead <= doc::kMaxPictures && work.styleSteps <= 4096 * (doc::kMaxStyleDepth + 2),
                      qPrintable(QStringLiteral("round %1: %2 bytes, %3 elements, %4 shape visits, %5 pictures, %6 style steps").arg(round).arg(work.outputBytes).arg(work.outputElements).arg(work.shapeVisits).arg(work.picturesRead).arg(work.styleSteps)));
-            QVERIFY2(one.elapsed() < 3000, qPrintable(QStringLiteral("round %1 took %2 ms").arg(round).arg(one.elapsed())));
+            QVERIFY2(one.elapsed() < 3000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("round %1 took %2 ms").arg(round).arg(one.elapsed())));
         }
         QVERIFY(read1 > 0);
-        QVERIFY(total.elapsed() < 120000);
+        QVERIFY(total.elapsed() < 120000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
     }
 
     // ---- Open and Repair
@@ -3291,7 +3291,7 @@ private Q_SLOTS:
             QVERIFY2(work.outputBytes <= doc::kMaxOutputBytes + (1 << 20) && work.outputElements <= doc::kMaxOutputElements + 100 && work.shapeVisits <= doc::kMaxShapeVisits + doc::kMaxShapes
                          && work.picturesRead <= doc::kMaxPictures && work.styleSteps <= 4096 * (doc::kMaxStyleDepth + 2),
                      qPrintable(QStringLiteral("round %1: %2 bytes, %3 elements, %4 shape visits, %5 pictures, %6 style steps").arg(round).arg(work.outputBytes).arg(work.outputElements).arg(work.shapeVisits).arg(work.picturesRead).arg(work.styleSteps)));
-            QVERIFY2(one.elapsed() < 3000, qPrintable(QStringLiteral("round %1 (%2) took %3 ms").arg(round).arg(name).arg(one.elapsed())));
+            QVERIFY2(one.elapsed() < 3000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("round %1 (%2) took %3 ms").arg(round).arg(name).arg(one.elapsed())));
         }
     }
 };

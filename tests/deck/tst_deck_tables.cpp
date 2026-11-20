@@ -1946,7 +1946,8 @@ private Q_SLOTS:
         qInfo("paste of 256 x 64 cells with bold and a fill: %lld ms", ms);
         QVERIFY(theTable(ed));
         QCOMPARE(theTable(ed)->rows, 256);
-        QVERIFY2(ms < 15000, qPrintable(QString::number(ms)));
+        const int slower = std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE"));   // (a checked build runs slower and sets this)
+        QVERIFY2(ms < 15000 * slower, qPrintable(QString::number(ms)));
         ed->undo();
         QVERIFY(!theTable(ed));
         putCells(cellsOf(1000));
@@ -1954,7 +1955,7 @@ private Q_SLOTS:
         QVERIFY(command(w, "edit.paste"));
         qInfo("paste of 1000 x 64 cells (as words): %lld ms", timer.elapsed());
         QVERIFY(!theTable(ed));
-        QVERIFY(timer.elapsed() < 15000);
+        QVERIFY(timer.elapsed() < 15000 * slower);
     }
 
     // A picture of a JeffCrunch range pasted on a slide, when JO_SHOT_DIR names a folder.

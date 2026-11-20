@@ -651,7 +651,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         const QString d = document(m);
-        QVERIFY(timer.elapsed() < 5000);
+        QVERIFY(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(d.contains(QLatin1String("<w:pStyle w:val=\"A\"/>")));
         QVERIFY(d.contains(QLatin1String("<w:jc w:val=\"right\"/>")));
         QVERIFY(d.contains(QLatin1String("<w:pStyle w:val=\"C\"/>")));
@@ -1424,7 +1424,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         const QByteArray docx = docxOf(m.build());
-        QVERIFY(timer.elapsed() < 20000);
+        QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(!docx.isEmpty());
         QVERIFY(document(m).size() < 40 * 1024 * 1024);
         // Nesting: spans, lists, and tables a few thousand deep read in bounded time, or are refused, never crash.
@@ -1434,7 +1434,7 @@ private Q_SLOTS:
         nest.body = "<text:p>" + inner + "</text:p>";
         timer.restart();
         document(nest);
-        QVERIFY(timer.elapsed() < 20000);
+        QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         // Lists and tables nested as deep as the XML reader allows (about 250 levels) or a little more: read in bounded time or refused, never a crash.
         for (const int depth : {30, 70, 300}) {
             Made lists;
@@ -1443,7 +1443,7 @@ private Q_SLOTS:
             lists.body = inner;
             timer.restart();
             const QByteArray l = docxOf(lists.build());
-            QVERIFY(timer.elapsed() < 20000);
+            QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
             if (depth <= 70) QVERIFY(!l.isEmpty());
             Made tables;
             inner = "<text:p>x</text:p>";
@@ -1451,7 +1451,7 @@ private Q_SLOTS:
             tables.body = inner;
             timer.restart();
             const QByteArray tdocx = docxOf(tables.build());
-            QVERIFY(timer.elapsed() < 20000);
+            QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
             if (depth <= 30) QVERIFY(!tdocx.isEmpty());
         }
         // A numbered list used many times makes a bounded number of numberings.
@@ -1460,7 +1460,7 @@ private Q_SLOTS:
         for (int i = 0; i < 30000; ++i) many.body += "<text:list text:style-name=\"L1\"><text:list-item><text:p>x</text:p></text:list-item></text:list>";
         timer.restart();
         const QString numbering = part(docxOf(many.build()), QStringLiteral("/word/numbering.xml"));
-        QVERIFY(timer.elapsed() < 20000);
+        QVERIFY(timer.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(numbering.count(QLatin1String("<w:num ")) <= kMaxMadeParts + 1);
     }
 
@@ -1767,7 +1767,7 @@ private Q_SLOTS:
         timer.start();
         QStringList notes;
         const QString d = document(m, &notes);
-        QVERIFY(timer.elapsed() < 30000);
+        QVERIFY(timer.elapsed() < 30000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY2(d.size() < 120 * 1024 * 1024, qPrintable(QString::number(d.size())));
         QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("spaces")));
     }
@@ -1782,7 +1782,7 @@ private Q_SLOTS:
         timer.start();
         QStringList notes;
         const QByteArray docx = docxOf(m.build(), &notes);
-        QVERIFY(timer.elapsed() < 120000);
+        QVERIFY(timer.elapsed() < 120000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         QVERIFY(!docx.isEmpty());
         Package p;
         QVERIFY(p.read(docx));

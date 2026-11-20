@@ -1727,7 +1727,7 @@ private Q_SLOTS:
         QElapsedTimer timer;
         timer.start();
         const auto out = s->clearCondRules(0, rangeOf(QStringLiteral("A1")));   // (one block of the first rule)
-        QVERIFY2(timer.elapsed() < 5000, qPrintable(QString::number(timer.elapsed())));
+        QVERIFY2(timer.elapsed() < 5000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(timer.elapsed())));
         QVERIFY(!out.ok);
         QVERIFY(!out.problem.isEmpty());
         QCOMPARE(e.win.w.undoStack()->count(), steps);

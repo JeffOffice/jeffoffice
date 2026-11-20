@@ -701,7 +701,7 @@ void WriteTests::theRemoveCommandsStateIsCachedAndFollowsTheHeaders()
     timer.start();
     for (int i = 0; i < 5; ++i) w.refreshForTest();
     QCOMPARE(pageNumberScansForTest(), scans);   // (the answer was kept: the headers were not looked through again)
-    QVERIFY2(timer.elapsed() / 5 < 50, qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed() / 5)));
+    QVERIFY2(timer.elapsed() / 5 < 50 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 ms").arg(timer.elapsed() / 5)));
     // The cache is brought up to date by what changes the headers.
     QVERIFY(w.insertPageNumberDesign(QStringLiteral("top.plain.right")));
     w.refreshForTest();
