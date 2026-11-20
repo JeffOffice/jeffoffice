@@ -324,6 +324,27 @@ bool CrunchWindow::formatSelection(const FormatChange &change, const QString &te
 
 // ---------------------------------------------------------------- the format of the cell with the cursor
 
+namespace {
+
+// A theme color made lighter or darker as the cells that name it have it: its lightness moved by a tint, not the color mixed with white or black.
+QColor workbookShade(const QColor &base, int lighten, int darken)
+{
+    return QColor::fromRgb(jp::office::sheet::tintedRgb(quint32(base.rgb() & 0xFFFFFF), lighten > 0 ? lighten / 100.0 : -darken / 100.0));
+}
+
+// The theme color (the place the styles count them by) a slot of the picker's scheme stands for: the main color is dark 1, the five accents are the theme's first five, and the two hyperlinks.
+int themeIndexOfSlot(int slot)
+{
+    switch (slot) {
+    case Main: return 1;
+    case Hyperlink: return 10;
+    case Followed: return 11;
+    default: return slot >= Accent1 && slot <= Accent5 ? 4 + (slot - Accent1) : -1;
+    }
+}
+
+} // namespace
+
 ColorScheme CrunchWindow::workbookColors() const
 {
     ColorScheme scheme = builtinColorSchemes().first();
@@ -339,12 +360,24 @@ ColorScheme CrunchWindow::workbookColors() const
     for (int i = 0; i < 5; ++i) scheme.c[Accent1 + i] = theme(4 + i, scheme.c[Accent1 + i]);
     scheme.c[Hyperlink] = theme(10, scheme.c[Hyperlink]);
     scheme.c[Followed] = theme(11, scheme.c[Followed]);
+    scheme.shade = &workbookShade;
     return scheme;
 }
 
 ColorSpec CrunchWindow::colorSpecOf(const ColorRef &c) const
 {
     if (c.isNone()) return ColorSpec();
+    // (a color of the theme is stored as that color of the theme, with its tint, so that it follows a theme the workbook is given later)
+    if (c.kind() == ColorRef::Scheme && m_loaded && m_loaded->book && m_loaded->book->hasTheme()) {
+        const int index = themeIndexOfSlot(c.slot());
+        if (index >= 0) {
+            ColorSpec spec;
+            spec.kind = ColorSpec::Kind::Theme;
+            spec.index = index;
+            spec.tint = c.lighten() > 0 ? c.lighten() / 100.0 : c.darken() > 0 ? -c.darken() / 100.0 : 0.0;
+            return spec;
+        }
+    }
     return ColorSpec::fromRgb(quint32(c.resolve(workbookColors()).rgb() & 0xFFFFFF));
 }
 

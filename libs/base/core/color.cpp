@@ -44,6 +44,10 @@ QColor ColorRef::resolve(const ColorScheme &s) const
     case Rgb: c = m_shown.isValid() && !keepInks() && !colorFilter() ? m_shown : m_rgb; break;
     case Scheme:
         c = s.slot(m_slot);
+        if (s.shade && (m_lighten > 0 || m_darken > 0)) {
+            c = s.shade(c, m_lighten, m_darken);
+            break;
+        }
         if (m_lighten > 0) c = mix(c, Qt::white, m_lighten / 100.0);
         if (m_darken > 0) c = mix(c, Qt::black, m_darken / 100.0);
         break;

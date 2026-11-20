@@ -15,6 +15,8 @@ enum SchemeSlot { Main = 0, Accent1, Accent2, Accent3, Accent4, Accent5, Hyperli
 struct ColorScheme {
     QString name;
     QColor c[SlotCount];
+    // How a slot's color is made lighter or darker (percents of white or black mixed in) where the document says it another way (a workbook's tints change the color's lightness); null: mixed in.
+    QColor (*shade)(const QColor &base, int lighten, int darken) = nullptr;
     QColor slot(int i) const { return (i >= 0 && i < SlotCount) ? c[i] : QColor(Qt::black); }
 };
 
