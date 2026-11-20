@@ -1975,7 +1975,8 @@ private:
             }
         }
         if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 note(s) on a sheet are kept.", nullptr, int(kMaxNotes)).arg(QLocale().toString(kMaxNotes));
-        if (m_notesCut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, int(std::min<qint64>(m_notesCut, 1000000000))).arg(QLocale().toString(kMaxOdsNoteChars));
+        const int cut = int(qMin(m_notesCut, qint64(1000000000)));
+        if (cut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, cut).arg(QLocale().toString(kMaxOdsNoteChars));
     }
 
     // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).
