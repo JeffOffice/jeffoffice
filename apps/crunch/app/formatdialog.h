@@ -83,6 +83,8 @@ public:
         QVector<BorderOp> borders;
         std::optional<bool> merge;    // true to merge the cells, false to take the merge away
         bool isEmpty() const;
+        // The change with the lines put on the edges of the block as the borders of the sides (the lines between cells are not part of a cell's own look, and are left out).
+        jp::office::sheet::FormatChange wholeChange() const;
     };
 
     explicit FormatCellsDialog(const Input &input, QWidget *parent = nullptr);

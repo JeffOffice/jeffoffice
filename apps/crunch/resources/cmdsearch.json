@@ -140,6 +140,22 @@
    "show hidden window",
    "bring back window"
   ],
+  "view.formulaBarExpand": [
+   "bigger formula bar",
+   "multiline formula",
+   "taller formula bar",
+   "line break in formula"
+  ],
+  "style.modify": [
+   "change style",
+   "edit cell style",
+   "redefine style"
+  ],
+  "style.merge": [
+   "import styles",
+   "copy styles from workbook",
+   "bring in styles"
+  ],
   "outline.auto": [
    "make groups",
    "group from formulas",

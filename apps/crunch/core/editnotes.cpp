@@ -1,7 +1,11 @@
 // The notes and the links of the cells: putting them on, changing them, and taking them off. One step of Undo each; the model they are kept in is core/anchors.h.
 #include "core/editsession.h"
 
+#include "sheet/cellref.h"
+#include "sheet/textmatch.h"
+
 #include <algorithm>
+#include <map>
 
 namespace jp::crunch {
 
@@ -68,6 +72,50 @@ EditSession::Outcome EditSession::setNote(int sheet, quint32 row, quint32 col, c
     Step step;
     step.sides.push_back(std::move(edit));
     pushStep(std::move(step), stepText);
+    return Outcome();
+}
+
+EditSession::Outcome EditSession::replaceInNotes(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result)
+{
+    if (result) *result = ReplaceResult();
+    const jp::office::sheet::TextMatcher matcher(pattern);
+    if (!matcher.valid()) return refused(tr("Type the text to look for."));
+    if (qint64(cells.size()) > kMaxCellsPerEdit) return refused(tr("That is more cells than JeffCrunch changes at once (%1). Narrow the search, and replace again.").arg(QLocale().toString(kMaxCellsPerEdit)));
+    std::map<int, SideEdit> sides;
+    ReplaceResult done;
+    for (const CellSpot &spot : cells) {
+        QString why;
+        if (!canEditNotes(spot.sheet, &why)) return refused(why);
+        const jp::office::sheet::Sheet &model = m_book->calc->sheet(spot.sheet);
+        if (model.isProtected && model.protection.objects) return refused(tr("This sheet is protected, so its notes can't be changed. Take the protection off first."));
+        const NoteInfo *was = m_anchors.noteAt(spot.sheet, spot.row, spot.col);
+        if (!was) continue;
+        int count = 0;
+        const QString text = matcher.replaced(was->text, with, &count);
+        if (count == 0 || text == was->text) continue;
+        const QString where = jp::office::sheet::cellName(spot.row, spot.col);
+        if (was->threaded) return refused(tr("The note in %1 is a conversation of comments. Change it with the commands in Comments, on the Review tab. Nothing was replaced.").arg(where));
+        if (text.isEmpty()) return refused(tr("Replacing in the note in %1 would leave it with no words. Nothing was replaced.").arg(where));
+        if (text.size() > kMaxNoteLength) return refused(tr("Replacing in the note in %1 would make it longer than %2 characters. Nothing was replaced.").arg(where, QLocale().toString(kMaxNoteLength)));
+        NoteInfo now = *was;
+        now.text = text;
+        now.date = NoteInfo().date;   // (the date stays with the words it was written for)
+        SideEdit &edit = sides[spot.sheet];
+        edit.sheet = spot.sheet;
+        SideEdit::Note n;
+        n.row = spot.row;
+        n.col = spot.col;
+        n.before = *was;
+        n.after = now;
+        edit.notes.push_back(std::move(n));
+        ++done.cells;
+        done.occurrences += count;
+    }
+    if (done.cells == 0) return Outcome();
+    Step step;
+    for (auto &entry : sides) step.sides.push_back(std::move(entry.second));
+    pushStep(std::move(step), tr("Replace All"));
+    if (result) *result = done;
     return Outcome();
 }
 

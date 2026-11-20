@@ -7,6 +7,8 @@
 
 #include <QDialog>
 
+#include <memory>
+
 class QCheckBox;
 class QComboBox;
 class QLabel;
@@ -36,6 +38,9 @@ public:
     // Work is going on (a search is being made): the buttons that start a search are off, and Cancel stands where Close was.
     void setBusy(bool busy);
     QTreeWidget *results() const { return m_results; }
+    // The format to look for (Find by format): none to look at the text only. `description` is what the dialog says it is.
+    void setFormat(const std::shared_ptr<const jp::office::sheet::FormatChange> &format, const QString &description);
+    std::shared_ptr<const jp::office::sheet::FormatChange> format() const { return m_format; }
 
 Q_SIGNALS:
     void findNextRequested();
@@ -43,6 +48,8 @@ Q_SIGNALS:
     void replaceRequested();
     void replaceAllRequested();
     void cancelRequested();
+    void formatRequested();            // "Format…": the window asks for a format with the Format Cells dialog
+    void formatFromCellRequested();    // "Format From Cell": the format of the cell with the cursor
     void resultChosen(int sheet, quint32 row, quint32 col);
 
 protected:
@@ -55,6 +62,9 @@ private:
     QComboBox *m_within = nullptr, *m_search = nullptr, *m_lookIn = nullptr;
     QCheckBox *m_case = nullptr, *m_whole = nullptr;
     QLabel *m_status = nullptr, *m_replaceLabel = nullptr;
+    QPushButton *m_formatButton = nullptr, *m_formatFromCell = nullptr, *m_formatClear = nullptr;
+    QLabel *m_formatLabel = nullptr;
+    std::shared_ptr<const jp::office::sheet::FormatChange> m_format;
     QPushButton *m_findAll = nullptr, *m_findNext = nullptr, *m_replaceOne = nullptr, *m_replaceAll = nullptr, *m_close = nullptr;
     QTreeWidget *m_results = nullptr;
     bool m_busy = false;

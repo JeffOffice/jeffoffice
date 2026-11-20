@@ -720,10 +720,16 @@ public:
         int sheet = 0;
         quint32 row = 0, col = 0;
     };
+    // Whether the format of the cell is one that has every field `want` sets (Find by format).
+    bool cellFormatMatches(int sheet, quint32 row, quint32 col, const jp::office::sheet::FormatChange &want) const;
     struct ReplaceResult {
         int cells = 0;          // cells that changed
         int occurrences = 0;    // and the places in them
     };
+    // Replace All in notes: puts `with` in place of what matches the pattern in the note of each of these cells (the cells with no note are passed over), as one step for all the sheets.
+    // Nothing is changed, and the reason is told, if a sheet's notes cannot be changed (protected, too many notes), a note is a conversation of comments, a note would be left with no
+    // words or with more than kMaxNoteLength characters, or there are more than kMaxCellsPerEdit.
+    Outcome replaceInNotes(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
     // Puts `with` in place of what matches the pattern in the text each of these cells holds (a formula with its "=", a constant as it is typed), and enters the new text as if typed: one
     // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
     // there are more than kMaxCellsPerEdit. (A large one is made a slice at a time: planReplace, prepareReplace, and applyReplace; replaceInCells is all of them at once.)
@@ -1044,6 +1050,25 @@ public:
     // Delete Cell Style: the cells that use the style (their format follows it) go back to Normal, and the style is taken out of the lists of styles (the file keeps it, marked hidden), as one
     // step. Not ok, and nothing changed, for Normal, a name the workbook does not have, or a style used by more runs of cells than are changed at once.
     Outcome deleteCellStyle(const QString &name);
+    // Modify (a cell style): the style's look gets the change (what the Format Cells dialog changed), and every cell that follows the style gets the same change, as one step; a cell's own look
+    // in what the change leaves alone stays. Not ok, and nothing changed, for Normal, a name the workbook does not have, a sheet that is protected against formatting that has a cell that follows
+    // the style, or a style used by more runs of cells than are changed at once.
+    Outcome modifyCellStyle(const QString &name, const jp::office::sheet::FormatChange &change);
+    // The styles of the workbook that are shown in its lists (not hidden), each as the change that gives its look: what Merge Styles takes from a workbook.
+    struct StyleLook {
+        QString name;
+        jp::office::sheet::FormatChange look;
+    };
+    std::vector<StyleLook> namedStyleLooks() const;
+    static constexpr int kMaxMergedStyles = 1000;
+    // Merge Styles: the styles are put in this workbook: one it does not have is added, and one it has by that name (whatever the capitals) with another look is changed to the new look, as
+    // Modify does, only if `same` says Replace (Ask: nothing is changed, and the outcome asks, with the number in `problem`; Keep: the workbook's own are left). Styles with the look the
+    // workbook's has are passed over. One step; nothing is changed if one cannot be (no room for the style, a protected sheet).
+    enum class Same { Ask, Replace, Keep };
+    struct MergeReport {
+        int added = 0, replaced = 0, kept = 0, alike = 0, left = 0, conflicts = 0;
+    };
+    Outcome mergeStyles(const std::vector<StyleLook> &styles, Same same, MergeReport *report = nullptr);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
     bool forgetNewStyle(const QString &name);
@@ -1052,6 +1077,7 @@ public:
     // (the step of Delete Cell Style that takes the style out of the lists: pushed after it is hidden, and Undo and Redo show it and hide it again)
     void pushStyleHidden(const QString &name);
     bool hideStyleNamed(const QString &name, bool hidden);
+    bool setStyleLookNow(quint32 xfId, const jp::office::sheet::CellFormat &look);
 
     // An object over the cells is taken away (Delete with it picked), put there, moved, or changed: one step, which Undo gives back. The hook (setObjectHook) is told the change when the step is
     // done, undone, and done again (`forward`: the object is to have the state after). A step that took an object away is like one that deleted rows: Undo goes back as far as the last such
@@ -1310,6 +1336,7 @@ Q_SIGNALS:
 private:
     friend class ChangeCells;
     friend class StyleMade;
+    friend class StyleLookChanged;
     friend class StyleHidden;
     friend class FontsRenamed;
     friend class ThemeFontRenamed;

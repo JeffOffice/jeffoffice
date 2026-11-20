@@ -523,6 +523,8 @@ public:
     };
     bool readyToQuit() override;
     void setOutlineReplaceAsker(const std::function<bool()> &asker) { m_outlineReplaceAsker = asker; }
+    // Merge Styles with styles of the same name that look different: whether to replace them (a test answers here; `count` is how many).
+    void setStyleMergeAsker(const std::function<bool(int count)> &asker) { m_styleMergeAsker = asker; }
     void setWindowPicker(const std::function<int(const QStringList &)> &picker) { m_windowPicker = picker; }
     void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
     // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
@@ -552,6 +554,9 @@ public:
     bool formatPainterLocked() const { return m_painter.mode == PainterMode::Locked; }
     // The format the dialog starts from (the cell with the cursor), and the dialog's changes made.
     FormatCellsDialog::Input formatInput() const;
+    FormatView viewOfFormat(const jp::office::sheet::CellFormat &format) const;
+    void modifyCellStyleCommand();
+    void mergeStylesCommand();
     bool applyFormatResult(const FormatCellsDialog::Result &result);
     // Where Save As writes: asked of a file dialog, unless this stands in for it (tests): the name it starts with, and the filter; an empty path gives it up.
     void setSavePicker(const std::function<QString(const QString &start, const QString &filter)> &picker) { m_savePicker = picker; }
@@ -851,6 +856,8 @@ private:
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);
     void autoOutlineSheet(bool make);
+    void chooseFindFormat(bool fromCell);
+    void setFormulaBarExpanded(bool on);
     bool askReplaceOutline();
     void applySnapChoices(bool save, const QString &changed);
     OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;
@@ -1886,6 +1893,7 @@ private:
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
     bool m_hiddenOnPurpose = false;   // Hide Window took it off the screen (and Unhide Window will put it back)
+    std::function<bool(int)> m_styleMergeAsker;
     std::function<int(const QStringList &)> m_windowPicker;   // Unhide Window with several hidden: which one (a test answers here)
     bool m_secondView = false;   // (View > New Window: this window opens the file another window has, for reading)
     QPointer<CrunchWindow> m_sidePartner;

@@ -4,6 +4,7 @@
 #include "app/equationtab.h"
 #include "app/shapetextedit.h"
 #include "app/crunchwindow.h"
+#include "core/formatfind.h"
 #include "core/richadjust.h"
 #include "app/plaintext.h"
 
@@ -144,6 +145,8 @@ void CrunchWindow::createFormatActions()
     add(QStringLiteral("fmt.percent"), tr("Percent Style"), "percent", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Percent), [this] { numberFormatCommand(7); });
     add(QStringLiteral("style.new"), tr("New Cell Style…"), "palette", QKeySequence(), [this] { newCellStyleCommand(); });
     add(QStringLiteral("style.delete"), tr("Delete Cell Style…"), "trash", QKeySequence(), [this] { deleteCellStyleCommand(); });
+    add(QStringLiteral("style.modify"), tr("Modify Cell Style…"), "palette", QKeySequence(), [this] { modifyCellStyleCommand(); });
+    add(QStringLiteral("style.merge"), tr("Merge Styles…"), "palette", QKeySequence(), [this] { mergeStylesCommand(); });
     add(QStringLiteral("fmt.comma"), tr("Comma Style"), "hash", QKeySequence(), [this] { numberFormatCommand(13); });
     // the Accounting Number Format with a currency from the list
     struct Money {
@@ -347,14 +350,25 @@ ColorSpec CrunchWindow::colorSpecOf(const ColorRef &c) const
 
 FormatView CrunchWindow::viewOfActiveCell() const
 {
-    FormatView v;
-    if (!m_loaded || !m_loaded->book) return v;
+    if (!m_loaded || !m_loaded->book) return FormatView();
     const Styles &st = m_loaded->book->styles();
     const grid::Selection &sel = m_view->selection();
     const quint32 row = quint32(std::max<qint64>(0, sel.activeRow)), col = quint32(std::max<qint64>(0, sel.activeCol));
     const grid::GridSheet &gs = m_view->sheet();
     const quint32 xf = gs.styleOf(row, col, gs.cellAt(row, col));
-    const CellFormat f = xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat();
+    FormatView v = viewOfFormat(xf < quint32(st.formats.size()) ? st.formats[int(xf)] : CellFormat());
+    v.merged = gs.layout().merges.count() > 0 && gs.layout().merges.at(row, col) >= 0;
+    v.numberFormat = m_session ? m_session->formatCodeOf(m_sheet, row, col) : QStringLiteral("General");
+    return v;
+}
+
+// A cell format (or a style's) as the Format Cells dialog starts from it.
+FormatView CrunchWindow::viewOfFormat(const CellFormat &f) const
+{
+    FormatView v;
+    if (!m_loaded || !m_loaded->book) return v;
+    const Styles &st = m_loaded->book->styles();
+    v.numberFormat = crunch::fullFormatChange(st, f).numberFormat.value_or(QStringLiteral("General"));
     const FontSpec &font = st.font(f.font);
     v.language = f.language;
     v.noProof = f.noProof;
@@ -393,8 +407,6 @@ FormatView CrunchWindow::viewOfActiveCell() const
     v.readingOrder = f.readingOrder;
     v.locked = f.locked;
     v.formulaHidden = f.formulaHidden;
-    v.merged = gs.layout().merges.count() > 0 && gs.layout().merges.at(row, col) >= 0;
-    v.numberFormat = m_session ? m_session->formatCodeOf(m_sheet, row, col) : QStringLiteral("General");
     return v;
 }
 
@@ -800,6 +812,105 @@ void CrunchWindow::newCellStyleCommand()
     updateFormatState();
 }
 
+// Modify Cell Style: the person picks a style, changes its look in the Format Cells dialog, and the style and every cell that follows it take the change, as one step.
+void CrunchWindow::modifyCellStyleCommand()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!editingAllowed() || !m_session || !m_loaded || !m_loaded->book) return;
+    QString name;
+    if (m_styleNameAsker) {
+        if (!m_styleNameAsker(&name)) return;
+    } else {
+        QStringList names;
+        for (const crunch::StyleSample &s : crunch::styleSamples(m_loaded->book->styles()))
+            if (s.inFile) names << s.name;
+        if (names.isEmpty()) {
+            notice(tr("Modify Cell Style"), tr("This workbook has no styles yet. Give a cell a style from the gallery first."));
+            return;
+        }
+        bool ok = false;
+        name = QInputDialog::getItem(this, tr("Modify Cell Style"), tr("Style to change:"), names, 0, false, &ok);
+        if (!ok) return;
+    }
+    const Styles &styles = m_loaded->book->styles();
+    CellFormat look;
+    bool have = false;
+    for (const CellStyleName &n : styles.cellStyles)
+        if (n.name.compare(name.trimmed(), Qt::CaseInsensitive) == 0 && n.xfId < quint32(styles.styleXfs.size())) {
+            look = styles.styleXfs[int(n.xfId)];
+            have = true;
+        }
+    if (!have) {
+        notice(tr("Modify Cell Style"), tr("This workbook has no style called \"%1\". A style the gallery offers is in the workbook once a cell has used it.").arg(name.trimmed()));
+        return;
+    }
+    FormatCellsDialog::Input in = formatInput();
+    in.view = viewOfFormat(look);
+    in.oneCell = true;
+    FormatCellsDialog::Result result;
+    if (m_formatAsker) {
+        if (!m_formatAsker(in, &result)) return;
+    } else {
+        FormatCellsDialog dialog(in, this);
+        dialog.setWindowTitle(tr("Modify Cell Style"));
+        if (dialog.exec() != QDialog::Accepted) return;
+        result = dialog.result();
+    }
+    const jp::office::sheet::FormatChange change = result.wholeChange();
+    if (crunch::formatIsEmpty(change)) return;
+    const crunch::EditSession::Outcome o = m_session->modifyCellStyle(name, change);
+    if (!o.ok) notice(tr("Modify Cell Style"), o.problem);
+    updateFormatState();
+}
+
+// Merge Styles: the styles of another open workbook are brought into this one. A style this workbook has by the same name, with another look, is replaced only when the person says so.
+void CrunchWindow::mergeStylesCommand()
+{
+    if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;
+    if (!editingAllowed() || !m_session || !m_loaded || !m_loaded->book) return;
+    QList<CrunchWindow *> others;
+    for (CrunchWindow *w : crunchWindows() + hiddenWindows())
+        if (w != this && w->m_session && w->m_loaded && w->m_loaded->book && !others.contains(w)) others << w;
+    if (others.isEmpty()) {
+        notice(tr("Merge Styles"), tr("Open the workbook that has the styles first. Merge Styles brings the styles of another open workbook into this one."));
+        return;
+    }
+    QStringList titles;
+    for (CrunchWindow *w : others) {
+        QString title = w->displayName();
+        for (int n = 2; titles.contains(title); ++n) title = tr("%1 (%2)").arg(w->displayName()).arg(n);
+        titles << title;
+    }
+    int pick = 0;
+    if (m_windowPicker) {
+        pick = m_windowPicker(titles);
+    } else {
+        bool ok = false;
+        const QString chosen = QInputDialog::getItem(this, tr("Merge Styles"), tr("Workbook to take the styles from:"), titles, 0, false, &ok);
+        pick = ok ? int(titles.indexOf(chosen)) : -1;
+    }
+    if (pick < 0 || pick >= others.size()) return;
+    const std::vector<crunch::EditSession::StyleLook> looks = others[pick]->m_session->namedStyleLooks();
+    if (looks.empty()) {
+        notice(tr("Merge Styles"), tr("%1 has no styles of its own to bring in.").arg(titles[pick]));
+        return;
+    }
+    crunch::EditSession::MergeReport report;
+    crunch::EditSession::Outcome o = m_session->mergeStyles(looks, crunch::EditSession::Same::Ask, &report);
+    if (!o.ok && o.confirm) {
+        const int count = report.conflicts;
+        const bool replace = m_styleMergeAsker ? m_styleMergeAsker(count) : confirm(tr("Merge Styles"), tr("%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?", nullptr, count).arg(titles[pick]));
+        o = m_session->mergeStyles(looks, replace ? crunch::EditSession::Same::Replace : crunch::EditSession::Same::Keep, &report);
+    }
+    if (!o.ok) {
+        notice(tr("Merge Styles"), o.problem);
+        return;
+    }
+    if (report.added == 0 && report.replaced == 0) setStatus(tr("No style was brought in: the styles of %1 are here already, or were kept as they are.").arg(titles[pick]));
+    else setStatus(tr("Merge Styles: %1 added, %2 replaced.").arg(report.added).arg(report.replaced));
+    updateFormatState();
+}
+
 // Delete Cell Style: the person picks a style of the workbook (not Normal); the cells that use it go back to Normal.
 void CrunchWindow::deleteCellStyleCommand()
 {
@@ -856,6 +967,8 @@ QMenu *CrunchWindow::buildStylesMenu(QWidget *owner)
         }
         menu->addSeparator();
         menu->addAction(act(QStringLiteral("style.new")));
+        menu->addAction(act(QStringLiteral("style.modify")));
+        menu->addAction(act(QStringLiteral("style.merge")));
         menu->addAction(act(QStringLiteral("style.delete")));
     });
     return menu;

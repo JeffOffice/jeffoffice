@@ -2,6 +2,7 @@
 #include "core/editsession.h"
 
 #include "calc/numfmt.h"
+#include "core/formatfind.h"
 #include "grid/text.h"
 #include "sheet/cellref.h"
 #include "sheet/namerefs.h"
@@ -262,6 +263,16 @@ EditSession::Outcome EditSession::replaceInCells(const std::vector<CellSpot> &ce
     }
     prepareReplace(*plan, 0);
     return applyReplace(*plan, result);
+}
+
+} // namespace jp::crunch
+
+namespace jp::crunch {
+
+bool EditSession::cellFormatMatches(int sheet, quint32 row, quint32 col, const FormatChange &want) const
+{
+    if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return false;
+    return formatMatches(m_book->book->styles(), m_book->calc->content(sheet, row, col).style, want);
 }
 
 } // namespace jp::crunch

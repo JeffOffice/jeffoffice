@@ -1446,7 +1446,19 @@ int xlsFunctionNumber(const QString &name)
 
 bool xlsCompileFormula(const QString &text, const XlsCompileContext &context, QByteArray *rgce, QByteArray *extra, QString *why)
 {
-    Compiler c(text, context);
+    // (a line break or tab between the parts of a formula is a space to the old form, which keeps the formula but not how it was laid out; inside a text or a quoted name it is the character)
+    QString flat = text;
+    QChar quote;
+    for (QChar &ch : flat) {
+        if (!quote.isNull()) {
+            if (ch == quote) quote = QChar();
+        } else if (ch == QLatin1Char('"') || ch == QLatin1Char('\'')) {
+            quote = ch;
+        } else if (ch == QLatin1Char('\n') || ch == QLatin1Char('\r') || ch == QLatin1Char('\t')) {
+            ch = QLatin1Char(' ');
+        }
+    }
+    Compiler c(flat, context);
     return c.run(rgce, extra, why);
 }
 

@@ -1,5 +1,5 @@
 # Change the view
-<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, split, split panes, panes, split bar, gridlines, headings, formula bar, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows, custom views, saved view, named view -->
+<!-- keywords: outline, group, ungroup, collapse, expand, detail, level, view, zoom, right-to-left, right to left, Arabic, Hebrew, mirrored, freeze, freeze panes, unfreeze, split, split panes, panes, split bar, gridlines, headings, formula bar, expand formula bar, multiline formula, line break in a formula, collapse the ribbon, full screen, status bar, minimum, maximum, show formulas, sheet tabs, hidden sheets, headers, new window, arrange all, side by side, synchronous scrolling, switch windows, custom views, saved view, named view -->
 
 The **View** tab changes how the sheet looks on your screen. It never changes the workbook.
 
@@ -22,6 +22,8 @@ Use the slider at the bottom right, the **Zoom** button on the View tab, or hold
 ## Show and hide
 
 In the **Show** group, turn the **Gridlines** (the pale lines between cells), the **Headings** (the column letters and row numbers), and the **Formula Bar** on or off. A workbook can ask for its gridlines or headings to be off; this choice is yours to change.
+
+**Expand Formula Bar** (**Ctrl+Shift+U**, in the same group) makes the formula bar several lines tall, so that a long formula shows whole. Drag the thin handle at its bottom edge to make it taller or shorter, or click the handle (or press **Tab** to it) and press **Up** or **Down**. A scroll bar appears when the formula is longer than the bar. In the bar, **Alt+Enter** puts a line break in the formula (**Enter** still finishes the entry), and **Up**, **Down**, **Home**, and **End** move by line. The line breaks are kept in the cell's formula and saved with the workbook; they change nothing about what the formula works out. The old binary form (.xls) and the OpenDocument form (.ods) keep the formula but not its line breaks, so a copy saved in either has the formula on one line. The size of the bar is your own choice, kept for every workbook you open on this computer, and not saved in a workbook. If the formula bar is hidden, Expand Formula Bar shows it.
 
 Two more choices are in the same group. **Collapse the Ribbon** (**Ctrl+F1**) folds the ribbon up so that it shows only the tab names, which leaves more room for the cells. Click it again, or click a tab, to bring it back. **Full Screen** (**Ctrl+Shift+F1**) makes the window fill the whole screen. Click it again to go back.
 

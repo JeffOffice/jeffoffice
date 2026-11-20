@@ -519,6 +519,37 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
         addToCount(&openTag, "count", changes.newCellFormats.size());
         result = result.left(open.start) + openTag + result.mid(open.end, close.start - open.end) + added + result.mid(close.start);
     }
+    // the styles of the file whose look was changed: the nth format of the style formats is written again, in place
+    if (!changes.changedStyles.isEmpty()) {
+        Tag open;
+        if (!findStart(result, "cellStyleXfs", &open, root.end) || open.selfClosing) return bad();
+        Tag close;
+        if (!findEnd(result, open, &close)) return bad();
+        const QByteArray inner = result.mid(open.end, close.start - open.end);
+        QByteArray rebuilt;
+        qsizetype pos = 0;
+        quint32 index = 0;
+        for (;;) {
+            Tag xf;
+            if (!xmlscan::nextTag(inner, pos, &xf)) break;
+            if (xf.local != "xf" || xf.closing) {
+                rebuilt += inner.mid(pos, xf.end - pos);
+                pos = xf.end;
+                continue;
+            }
+            Tag xfEnd = xf;
+            if (!xf.selfClosing && !findEnd(inner, xf, &xfEnd)) return bad();
+            const qsizetype stop = xf.selfClosing ? xf.end : xfEnd.end;
+            QByteArray element = inner.mid(xf.start, stop - xf.start);
+            for (const SaveChanges::StyleChanged &c : changes.changedStyles)
+                if (c.xfId == index) element = prefixed(xfXml(c.format, 0, false), p);
+            rebuilt += inner.mid(pos, xf.start - pos) + element;
+            pos = stop;
+            ++index;
+        }
+        rebuilt += inner.mid(pos);
+        result = result.left(open.end) + rebuilt + result.mid(close.start);
+    }
     // the named styles: their formats among the style formats, and their names
     if (!changes.newStyles.isEmpty()) {
         QByteArray xfs, names;
@@ -3691,7 +3722,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         replaced.insert(index, patched);
     }
     // ---- the styles
-    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.renamedFonts.empty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty() || !changes.newTableStyles.isEmpty()) {
+    if (!changes.newCellFormats.isEmpty() || !changes.newNumberFormats.isEmpty() || !changes.newFonts.isEmpty() || !changes.renamedFonts.empty() || !changes.newFills.isEmpty() || !changes.newBorders.isEmpty() || !changes.newStyles.isEmpty() || !changes.changedStyles.isEmpty() || !changes.styleVisibility.isEmpty() || !changes.newDxfs.isEmpty() || !changes.newTableStyles.isEmpty()) {
         const int index = entryOfPart(book.stylesPart());
         QByteArray xml, patched;
         if (index < 0 || !inflate(index, &xml)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The styles part is not in the file."));

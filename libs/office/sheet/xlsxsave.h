@@ -311,6 +311,12 @@ struct SaveChanges {
         CellStyleName name;
     };
     QVector<StyleAdded> newStyles;
+    // Styles of the file whose look was changed: the place among `cellStyleXfs` and the style format it now is (written in place of the one the file has).
+    struct StyleChanged {
+        quint32 xfId = 0;
+        CellFormat format;
+    };
+    QVector<StyleChanged> changedStyles;
     qint64 styleXfsBefore = 0;
     // Named styles hidden or shown since the file was opened (the name and whether it is hidden now): the `hidden` of its `cellStyle` is set to say so.
     QVector<QPair<QString, bool>> styleVisibility;

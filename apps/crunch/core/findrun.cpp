@@ -13,7 +13,7 @@ using namespace jp::office::sheet;
 FindRun::FindRun(const EditSession *session, const FindOptions &options, Want want, const FoundCell &from)
     : m_session(session), m_options(options), m_want(want), m_matcher(options.pattern), m_from(from), m_haveFrom(want == Want::Next)
 {
-    if (!m_matcher.valid()) {
+    if (!m_matcher.valid() && !options.formatOnly()) {
         m_problem = options.pattern.text.isEmpty() ? QCoreApplication::translate("jp::crunch::FindRun", "Type the text to look for.")
                                                    : QCoreApplication::translate("jp::crunch::FindRun", "The text to look for can have up to %1 characters.").arg(kMaxPatternChars);
         m_done = true;
@@ -113,9 +113,11 @@ qint64 FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64
         break;
     }
     }
-    if (text.isEmpty()) return 1;
+    const bool formatOnly = m_options.formatOnly();
+    if (m_options.format && !m_session->cellFormatMatches(sheet, row, col, *m_options.format)) return 1;
+    if (text.isEmpty() && !formatOnly) return 1;
     qint64 steps = 0;
-    const bool matched = m_matcher.matches(text, &steps);
+    const bool matched = formatOnly || m_matcher.matches(text, &steps);
     // (a long text costs more than a short one: about a unit for each 64 comparisons)
     const qint64 work = 1 + steps / 64;
     if (!matched) return work;

@@ -2219,6 +2219,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         for (const Workbook::AddedStyle &s : book.addedStyles()) changes.newStyles.append({s.format, s.name});
         changes.styleXfsBefore = book.styleXfsInFile();
         changes.styleVisibility = book.styleVisibility();
+        for (const Workbook::ChangedStyle &c : book.changedStyles()) changes.changedStyles.append({c.xfId, c.format});
         changes.newDxfs = book.addedDxfs();
         changes.newTableStyles = book.addedTableStyles();
     }

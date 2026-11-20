@@ -851,6 +851,7 @@ target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_barcode.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_pastetable.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_textbox.cpp)
 target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_gaps.cpp)
+target_sources(crunchtests PRIVATE tests/crunch/tst_crunch_gaps2.cpp)
 # Developer tool: pictures of JeffCrunch's dialogs (JO_SHOT_DIR), for looking at the style.
 qt_add_executable(jo_uigrab_crunch tests/testrunner.cpp tests/uigrab/tst_uigrab_crunch.cpp tests/sheet/sheethelpers.cpp tests/sheet/xlshelpers.cpp tests/sheet/odshelpers.cpp)
 target_link_libraries(jo_uigrab_crunch PRIVATE jccore Qt6::Test Qt6::CorePrivate)

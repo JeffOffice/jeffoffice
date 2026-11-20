@@ -518,6 +518,7 @@
             {"small": "view.gridlines", "keytip": "SG"},
             {"small": "view.headings", "keytip": "SH"},
             {"small": "view.formulaBar", "keytip": "SF"},
+            {"small": "view.formulaBarExpand", "keytip": "SX"},
             {"small": "view.pageBreaks", "keytip": "SB"},
             {"small": "view.outline", "keytip": "SO"},
             {"small": "view.collapseRibbon", "keytip": "SR"},

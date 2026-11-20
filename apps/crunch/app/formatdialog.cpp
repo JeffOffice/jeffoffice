@@ -165,6 +165,19 @@ private:
     FormatCellsDialog *m_owner;
 };
 
+jp::office::sheet::FormatChange FormatCellsDialog::Result::wholeChange() const
+{
+    jp::office::sheet::FormatChange c = change;
+    for (const BorderOp &op : borders) {
+        if (op.edges & 1) c.left = op.line;
+        if (op.edges & 2) c.right = op.line;
+        if (op.edges & 4) c.top = op.line;
+        if (op.edges & 8) c.bottom = op.line;
+        if (op.edges & (64 | 128)) c.diagonal = op.line;
+    }
+    return c;
+}
+
 bool FormatCellsDialog::Result::isEmpty() const
 {
     const FormatChange &c = change;

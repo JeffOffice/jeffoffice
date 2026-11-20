@@ -348,6 +348,16 @@ public:
     // The place of the cell format that is `base` with the change: one of the workbook's that is exactly that (a cell format is never made twice), else a new one at the end, with the
     // font, fill, and border it needs found among the workbook's or added. `base` itself when the change changes nothing (or the workbook can take no more cell formats).
     quint32 formatWith(quint32 base, const FormatChange &change);
+    // The cell format `base` with the change put in, the fonts, fills, and borders it needs found among the workbook's or added; the format itself is not put among the cell formats.
+    CellFormat changedFormat(CellFormat base, const FormatChange &change);
+    // A named style's look changed: the style format at `xfId` among the style formats becomes `look` (as it follows its own style, as it did). The look it had is put in *before. False, and
+    // nothing changed, for a place the workbook does not have. The file is written with the change (a style the file has is rewritten in place; one made since is written as made).
+    bool setStyleLook(quint32 xfId, const CellFormat &look, CellFormat *before = nullptr);
+    struct ChangedStyle {
+        quint32 xfId = 0;
+        CellFormat format;
+    };
+    QVector<ChangedStyle> changedStyles() const { return m_stylesChanged; }
     // Whether a format (a cell format, a font, a fill, or a border) was wanted since `clearFormatLimit` that the workbook could take no more of: the caller then says so, and does not go
     // on with what it was doing with `base`.
     bool formatLimitHit() const { return m_formatLimitHit; }
@@ -545,6 +555,7 @@ private:
     QVector<FillSpec> m_fillsAdded;
     QVector<BorderSpec> m_bordersAdded;
     QVector<AddedStyle> m_stylesAdded;
+    QVector<ChangedStyle> m_stylesChanged;   // the styles of the file whose look was changed, by place (the latest look of each)
     QVector<QPair<QString, bool>> m_stylesVisibility;
     QVector<DifferentialFormat> m_dxfsAdded;
     qint64 m_dxfsInFile = 0;

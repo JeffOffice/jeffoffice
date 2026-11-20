@@ -6,6 +6,7 @@
 
 #include "core/editsession.h"
 #include "sheet/notes.h"
+#include "sheet/styles.h"
 #include "sheet/textmatch.h"
 
 #include <QHash>
@@ -27,6 +28,9 @@ struct FindOptions {
     enum class LookIn { Formulas, Values, Notes } lookIn = LookIn::Formulas;
     int sheet = 0;                          // the sheet in view (the only one for Scope::Sheet)
     jp::office::sheet::CellRange within;    // if valid: only these cells (of `sheet`)
+    // Only the cells whose format has every field this sets (Find by format). With no text to look for, the cells with that format are all that is looked for.
+    std::shared_ptr<const jp::office::sheet::FormatChange> format;
+    bool formatOnly() const { return format && pattern.text.isEmpty(); }
 };
 
 struct FoundCell {

@@ -12,6 +12,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QStandardItemModel>
 #include <QTabBar>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -79,6 +80,25 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     grid->addWidget(m_case, 1, 2, 1, 2);
     grid->addWidget(m_whole, 2, 0, 1, 4);
     layout->addLayout(grid);
+    auto *formatRow = new QHBoxLayout;
+    m_formatButton = new QPushButton(tr("Format…"));
+    m_formatButton->setObjectName(QStringLiteral("findFormat"));
+    m_formatFromCell = new QPushButton(tr("Format From Cell"));
+    m_formatFromCell->setObjectName(QStringLiteral("findFormatFromCell"));
+    m_formatClear = new QPushButton(tr("Clear Format"));
+    m_formatClear->setObjectName(QStringLiteral("findFormatClear"));
+    m_formatLabel = plainLabel(new QLabel);
+    m_formatLabel->setObjectName(QStringLiteral("findFormatLabel"));
+    m_formatLabel->setAccessibleName(tr("The format to look for"));
+    formatRow->addWidget(m_formatButton);
+    formatRow->addWidget(m_formatFromCell);
+    formatRow->addWidget(m_formatClear);
+    formatRow->addWidget(m_formatLabel, 1);
+    layout->addLayout(formatRow);
+    setFormat(nullptr, QString());
+    connect(m_formatButton, &QPushButton::clicked, this, &FindDialog::formatRequested);
+    connect(m_formatFromCell, &QPushButton::clicked, this, &FindDialog::formatFromCellRequested);
+    connect(m_formatClear, &QPushButton::clicked, this, [this] { setFormat(nullptr, QString()); });
     auto *hint = new QLabel(tr("In the text to find, ? stands for any one character and * for any stretch of characters. Type ~ in front of ? or * to look for that mark itself."));
     hint->setWordWrap(true);
     layout->addWidget(hint);
@@ -132,7 +152,7 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     connect(m_results, &QTreeWidget::currentItemChanged, this, [this](QTreeWidgetItem *item) {
         if (item) Q_EMIT resultChosen(item->data(0, kSheetRole).toInt(), item->data(0, kRowRole).toUInt(), item->data(0, kColRole).toUInt());
     });
-    // (Notes can be looked in but a replace works on what the cells hold)
+    // (a replace works on formulas and entries, or on notes; not on values)
     connect(m_lookIn, &QComboBox::currentIndexChanged, this, [this] { updateTab(); });
     updateTab();
 }
@@ -146,12 +166,21 @@ void FindDialog::updateTab()
     m_replaceAll->setVisible(replace);
     m_replaceOne->setEnabled(!m_busy);
     m_replaceAll->setEnabled(!m_busy);
-    // a replace changes what the cells hold (their formulas and entries), whatever is looked in
-    if (replace && m_lookIn->currentIndex() != 0) {
+    // a replace changes what the cells hold (their formulas and entries) or their notes, not the values they show
+    if (replace && m_lookIn->currentIndex() == 1) {
         const QSignalBlocker block(m_lookIn);
         m_lookIn->setCurrentIndex(0);
     }
-    m_lookIn->setEnabled(!replace);
+    if (auto *model = qobject_cast<QStandardItemModel *>(m_lookIn->model())) model->item(1)->setEnabled(!replace);
+    m_formatButton->setEnabled(!m_busy);
+    m_formatFromCell->setEnabled(!m_busy);
+}
+
+void FindDialog::setFormat(const std::shared_ptr<const jp::office::sheet::FormatChange> &format, const QString &description)
+{
+    m_format = format;
+    m_formatClear->setEnabled(bool(format));
+    m_formatLabel->setText(format ? tr("Looking for the format: %1").arg(description.isEmpty() ? tr("every part of a cell's format") : description) : tr("Any format"));
 }
 
 void FindDialog::setTab(Tab tab) { m_tabs->setCurrentIndex(tab == Tab::Replace ? 1 : 0); }
@@ -167,6 +196,7 @@ crunch::FindOptions FindDialog::options() const
     o.pattern.wholeCell = m_whole->isChecked();
     o.scope = m_within->currentIndex() == 1 ? crunch::FindOptions::Scope::Workbook : crunch::FindOptions::Scope::Sheet;
     o.order = m_search->currentIndex() == 1 ? crunch::FindOptions::Order::ByColumns : crunch::FindOptions::Order::ByRows;
+    o.format = m_format;
     o.lookIn = m_lookIn->currentIndex() == 2 ? crunch::FindOptions::LookIn::Notes : m_lookIn->currentIndex() == 1 ? crunch::FindOptions::LookIn::Values : crunch::FindOptions::LookIn::Formulas;
     return o;
 }

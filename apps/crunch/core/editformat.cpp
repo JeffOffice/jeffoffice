@@ -3,12 +3,15 @@
 #include "core/editsession.h"
 #include "sheet/fonttext.h"
 
+#include "core/formatfind.h"
 #include "sheet/builtinstyles.h"
 
 #include <QCoreApplication>
 
 #include <algorithm>
 #include <map>
+#include <set>
+#include <QUndoCommand>
 
 namespace jp::crunch {
 
@@ -1063,6 +1066,297 @@ EditSession::Outcome EditSession::mergeCells(int sheet, const CellRange &range, 
     }
     if (step.empty()) return out;
     pushStep(std::move(step), kind == MergeKind::Unmerge ? tr("Unmerging cells") : kind == MergeKind::Across ? tr("Merging across") : kind == MergeKind::MergeAndCenter ? tr("Merging and centering") : tr("Merging cells"));
+    return out;
+}
+
+// The look of a style changed (Modify, Merge Styles): the workbook has it already when the step is pushed (the first Redo does nothing); Undo gives the old look back, Redo the new one again.
+class StyleLookChanged : public QUndoCommand {
+public:
+    StyleLookChanged(EditSession *session, quint32 xfId, const CellFormat &before, const CellFormat &after, const QString &text)
+        : QUndoCommand(text), m_session(session), m_xfId(xfId), m_before(before), m_after(after) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        if (!m_session->setStyleLookNow(m_xfId, m_after)) m_session->giveUpUndo(text(), true);
+    }
+    void undo() override
+    {
+        if (!m_session->setStyleLookNow(m_xfId, m_before)) m_session->giveUpUndo(text(), false);
+    }
+
+private:
+    EditSession *m_session;
+    quint32 m_xfId;
+    CellFormat m_before, m_after;
+    bool m_first = true;
+};
+
+bool EditSession::setStyleLookNow(quint32 xfId, const CellFormat &look)
+{
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) return false;
+    const bool ok = m_book->book->setStyleLook(xfId, look);
+    if (ok) Q_EMIT stylesChanged();
+    return ok;
+}
+
+namespace {
+
+struct StyleRun {
+    int sheet;
+    CellRange range;
+};
+
+// The cells that follow each of the styles (by place among the style formats), as runs along rows. False when there are more runs than are changed at once.
+bool runsOfStyles(const Styles &styles, const Calculation &calc, const std::set<quint32> &places, std::map<quint32, std::vector<StyleRun>> *out)
+{
+    qint64 total = 0;
+    for (int sheet = 0; sheet < calc.sheetCount(); ++sheet) {
+        const jp::office::sheet::Sheet &model = calc.sheet(sheet);
+        if (model.extentRows == 0 || model.extentCols == 0) continue;
+        std::map<quint32, StyleRun> open;
+        std::map<quint32, quint32> openRow;
+        bool tooMany = false;
+        model.cells.forEachInRange(0, 0, model.extentRows - 1, model.extentCols - 1, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
+            const quint32 follows = styles.format(calc.content(sheet, row, col).style).xfId;
+            if (!places.count(follows)) return true;
+            auto it = open.find(follows);
+            if (it != open.end() && it->second.range.valid && openRow[follows] == row && it->second.range.col2 + 1 == col) {
+                it->second.range.col2 = col;
+                return true;
+            }
+            if (it != open.end() && it->second.range.valid) {
+                (*out)[follows].push_back(it->second);
+                if (++total >= 5000) tooMany = true;
+            }
+            StyleRun r{sheet, CellRange()};
+            r.range.valid = true;
+            r.range.row1 = r.range.row2 = row;
+            r.range.col1 = r.range.col2 = col;
+            open[follows] = r;
+            openRow[follows] = row;
+            return !tooMany;
+        });
+        for (auto &entry : open)
+            if (entry.second.range.valid) {
+                (*out)[entry.first].push_back(entry.second);
+                ++total;
+            }
+        if (tooMany || total >= 5000) return false;
+    }
+    return true;
+}
+
+} // namespace
+
+EditSession::Outcome EditSession::modifyCellStyle(const QString &name, const FormatChange &change)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    if (formatIsEmpty(change)) return out;
+    const QString trimmed = name.trimmed();
+    quint32 place = 0;
+    CellFormat before, after;
+    std::map<quint32, std::vector<StyleRun>> runs;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        const Styles &styles = m_book->book->styles();
+        for (const CellStyleName &n : styles.cellStyles)
+            if (n.name.compare(trimmed, Qt::CaseInsensitive) == 0 && n.builtin == 0) return refuse(tr("The Normal style can't be modified here. Every cell without a style of its own uses it."));
+        const qint32 found = m_book->book->styleNamed(trimmed);
+        if (found < 0) return refuse(tr("This workbook has no style called \"%1\", and no place to keep it.").arg(trimmed));
+        place = quint32(found);
+        before = styles.styleXfs[int(place)];
+        if (!runsOfStyles(styles, *m_book->calc, {place}, &runs)) return refuse(tr("That style is used by too many cells to change at once (more than 5,000 runs of cells)."));
+        for (const StyleRun &r : runs[place])
+            if (QString notAllowed; !canEditSheet(r.sheet, &notAllowed) || !allows(r.sheet, Allow::FormatCells, &notAllowed)) return refuse(notAllowed);
+        after = m_book->book->changedFormat(before, change);
+        if (m_book->book->formatLimitHit()) {
+            m_book->book->clearFormatLimit();
+            return refuse(tr("This workbook can't take more formats."));
+        }
+        after.xfId = before.xfId;
+        after.parent = before.parent;
+        after.isStyle = before.isStyle;
+        if (after == before) return out;   // (nothing to change: the style looks so already)
+        m_book->book->setStyleLook(place, after);
+    }
+    m_undo.beginMacro(tr("Modify Cell Style"));
+    m_undo.push(new StyleLookChanged(this, place, before, after, tr("Modify Cell Style")));
+    for (const StyleRun &r : runs[place]) {
+        out = formatCells(r.sheet, r.range, change, tr("Modify Cell Style"));
+        if (!out.ok) break;
+    }
+    m_undo.endMacro();
+    if (!out.ok) m_undo.undo();   // (the cells could not all be changed: the style keeps its look)
+    Q_EMIT stylesChanged();
+    return out;
+}
+
+std::vector<EditSession::StyleLook> EditSession::namedStyleLooks() const
+{
+    std::vector<StyleLook> out;
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold || !m_book || !m_book->book) return out;
+    const Styles &styles = m_book->book->styles();
+    for (const CellStyleName &n : styles.cellStyles) {
+        if (n.hidden || n.builtin == 0 || n.xfId >= quint32(styles.styleXfs.size())) continue;   // (Normal is every workbook's own)
+        if (int(out.size()) >= kMaxMergedStyles) break;
+        out.push_back({n.name, fullFormatChange(styles, styles.styleXfs[int(n.xfId)])});
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::mergeStyles(const std::vector<StyleLook> &sources, Same same, MergeReport *report)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    MergeReport rep;
+    if (report) *report = rep;
+    QString why;
+    if (!canEdit(&why)) return refuse(why);
+    if (sources.size() > size_t(kMaxMergedStyles)) return refuse(tr("There are more styles to merge than JeffCrunch brings in at once (%1).").arg(kMaxMergedStyles));
+    struct Item {
+        QString name;
+        const FormatChange *look;
+        bool add = false;
+        quint32 place = 0;
+    };
+    std::vector<Item> items;
+    std::set<quint32> replacePlaces;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        const Styles &styles = m_book->book->styles();
+        std::set<QString> seen;
+        for (const StyleLook &s : sources) {
+            const QString name = s.name.trimmed();
+            bool control = false;
+            for (const QChar c : name) control = control || c.category() == QChar::Other_Control;
+            if (name.isEmpty() || name.size() > 255 || control || formatIsEmpty(s.look) || !seen.insert(name.toCaseFolded()).second) {
+                ++rep.left;
+                continue;
+            }
+            const CellStyleName *have = nullptr;
+            for (const CellStyleName &n : styles.cellStyles)
+                if (n.name.compare(name, Qt::CaseInsensitive) == 0) have = &n;
+            if (have && (have->builtin == 0 || have->hidden || have->xfId >= quint32(styles.styleXfs.size()))) {
+                ++rep.left;   // (Normal stays as it is; a style the workbook took out stays out)
+                continue;
+            }
+            Item item{name, &s.look};
+            if (!have) {
+                BuiltinStyle def;
+                if (builtinStyle(name, &def)) {
+                    // (a built-in style this workbook has not used yet is made with its usual look, which the style's look then changes)
+                    item.add = false;
+                    item.place = quint32(-1);
+                } else {
+                    item.add = true;
+                }
+                items.push_back(item);
+                continue;
+            }
+            if (formatMatches(styles, styles.styleXfs[int(have->xfId)], s.look)) {
+                ++rep.alike;
+                continue;
+            }
+            item.place = have->xfId;
+            ++rep.conflicts;
+            if (same == Same::Keep) {
+                ++rep.kept;
+                continue;
+            }
+            items.push_back(item);
+        }
+    }
+    if (report) *report = rep;
+    if (rep.conflicts > 0 && same == Same::Ask) {
+        out.ok = false;
+        out.confirm = true;
+        out.problem = QString::number(rep.conflicts);
+        return out;
+    }
+    if (items.empty()) return out;
+    // the cells that follow the styles that are changed, found before anything is
+    std::map<quint32, std::vector<StyleRun>> runs;
+    std::vector<std::pair<quint32, FormatChange>> restyles;
+    m_undo.beginMacro(tr("Merge Styles"));
+    for (const Item &item : items) {
+        qint32 place = -1;
+        CellFormat before, after;
+        bool changed = false;
+        {
+            std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+            if (!hold) {
+                m_undo.endMacro();
+                m_undo.undo();
+                return refuse(tr("The workbook is busy. Try again in a moment."));
+            }
+            const Styles &styles = m_book->book->styles();
+            if (item.add) {
+                const quint32 format = m_book->book->formatWith(0, *item.look);
+                place = m_book->book->addNamedStyle(item.name, format);
+                if (place >= 0) {
+                    m_book->book->setStyleLook(quint32(place), m_book->book->changedFormat(styles.styleXfs[place], *item.look));
+                    pushStyleMade(item.name, format);
+                }
+            } else {
+                place = item.place == quint32(-1) ? m_book->book->styleNamed(item.name) : qint32(item.place);
+                if (place >= 0) {
+                    before = styles.styleXfs[int(place)];
+                    after = m_book->book->changedFormat(before, *item.look);
+                    after.xfId = before.xfId;
+                    after.parent = before.parent;
+                    after.isStyle = before.isStyle;
+                    changed = !(after == before);
+                    if (changed) m_book->book->setStyleLook(quint32(place), after);
+                    std::map<quint32, std::vector<StyleRun>> found;
+                    if (changed && !runsOfStyles(styles, *m_book->calc, {quint32(place)}, &found)) place = -2;
+                    else if (changed) runs[quint32(place)] = found[quint32(place)];
+                }
+            }
+        }
+        if (place < 0) {
+            m_undo.endMacro();
+            m_undo.undo();
+            return refuse(place == -2 ? tr("A style is used by too many cells to change at once (more than 5,000 runs of cells). Nothing was merged.")
+                                      : tr("This workbook has no room for the style \"%1\". Nothing was merged.").arg(item.name));
+        }
+        if (item.add) {
+            ++rep.added;
+        } else if (changed) {
+            m_undo.push(new StyleLookChanged(this, quint32(place), before, after, tr("Merge Styles")));
+            for (const StyleRun &r : runs[quint32(place)]) {
+                const Outcome o = formatCells(r.sheet, r.range, *item.look, tr("Merge Styles"));
+                if (!o.ok) {
+                    m_undo.endMacro();
+                    m_undo.undo();
+                    return refuse(o.problem + QLatin1Char(' ') + tr("Nothing was merged."));
+                }
+            }
+            ++rep.replaced;
+        } else {
+            ++rep.alike;
+        }
+    }
+    m_undo.endMacro();
+    if (report) *report = rep;
+    Q_EMIT stylesChanged();
     return out;
 }
 

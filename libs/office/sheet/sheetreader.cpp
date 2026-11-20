@@ -3471,14 +3471,12 @@ quint32 Workbook::formatWithNumberFormat(quint32 base, int numFmtId)
     return findOrAddFormat(base, f);
 }
 
-quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
+// The cell format `f` with the change put in: the fonts, fills, and borders it needs are found among the workbook's or added (the format itself is not put among the cell formats).
+CellFormat Workbook::changedFormat(CellFormat f, const FormatChange &c)
 {
-    if (m_styles.formats.isEmpty()) return base;
-    if (base >= quint32(m_styles.formats.size())) base = 0;
-    CellFormat f = m_styles.formats[int(base)];
     if (c.namedStyle) {
         const quint32 style = *c.namedStyle;
-        if (style >= quint32(m_styles.styleXfs.size())) return base;
+        if (style >= quint32(m_styles.styleXfs.size())) return f;
         const CellFormat &sf = m_styles.styleXfs[int(style)];
         // the look of the style: its number format, font, fill, border, alignment, and protection (the font, fill, and border are places in the workbook's lists, as the style's own are)
         f.numFmtId = sf.numFmtId;
@@ -3535,6 +3533,14 @@ quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
     if (c.formulaHidden) f.formulaHidden = *c.formulaHidden;
     if (c.language) f.language = *c.language;
     if (c.noProof) f.noProof = *c.noProof;
+    return f;
+}
+
+quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
+{
+    if (m_styles.formats.isEmpty()) return base;
+    if (base >= quint32(m_styles.formats.size())) base = 0;
+    const CellFormat f = changedFormat(m_styles.formats[int(base)], c);
     if (f == m_styles.formats[int(base)]) return base;
     return findOrAddFormat(base, f);
 }
@@ -3593,6 +3599,31 @@ qint32 Workbook::addNamedStyle(const QString &name, quint32 format)
     m_styles.cellStyles.append(n);
     m_stylesAdded.append({f, n});
     return qint32(n.xfId);
+}
+
+bool Workbook::setStyleLook(quint32 xfId, const CellFormat &look, CellFormat *before)
+{
+    if (xfId >= quint32(m_styles.styleXfs.size())) return false;
+    const CellFormat old = m_styles.styleXfs[int(xfId)];
+    if (before) *before = old;
+    CellFormat f = look;
+    f.xfId = old.xfId;
+    f.parent = old.parent;
+    f.isStyle = old.isStyle;
+    f.quotePrefix = false;
+    m_styles.styleXfs[int(xfId)] = f;
+    for (AddedStyle &a : m_stylesAdded)
+        if (a.name.xfId == xfId) {
+            a.format = f;
+            return true;
+        }
+    for (ChangedStyle &c : m_stylesChanged)
+        if (c.xfId == xfId) {
+            c.format = f;
+            return true;
+        }
+    m_stylesChanged.append({xfId, f});
+    return true;
 }
 
 bool Workbook::removeAddedStyle(const QString &name)

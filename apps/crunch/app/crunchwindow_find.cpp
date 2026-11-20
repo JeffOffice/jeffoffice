@@ -6,6 +6,8 @@
 
 #include "app/crunchinfo.h"
 #include "app/finddialog.h"
+#include "app/formatdialog.h"
+#include "core/formatfind.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -85,6 +87,8 @@ void CrunchWindow::showFindDialog(bool replace)
             if (!refuseIfReadOnly()) startSearch(SearchFor::ReplaceAll);
         });
         connect(m_findDialog, &FindDialog::cancelRequested, this, [this] { cancelSearch(); });
+        connect(m_findDialog, &FindDialog::formatRequested, this, [this] { chooseFindFormat(false); });
+        connect(m_findDialog, &FindDialog::formatFromCellRequested, this, [this] { chooseFindFormat(true); });
         connect(m_findDialog, &FindDialog::resultChosen, this, [this](int sheet, quint32 row, quint32 col) { goToFound(sheet, row, col); });
         connect(m_findDialog, &QDialog::finished, this, [this] { cancelSearch(); });
     }
@@ -97,7 +101,7 @@ void CrunchWindow::showFindDialog(bool replace)
 crunch::FindOptions CrunchWindow::searchOptions(bool forReplace) const
 {
     crunch::FindOptions o = m_findDialog->options();
-    if (forReplace) o.lookIn = crunch::FindOptions::LookIn::Formulas;
+    if (forReplace && o.lookIn == crunch::FindOptions::LookIn::Values) o.lookIn = crunch::FindOptions::LookIn::Formulas;   // (a replace changes what the cells hold, or their notes: not what they show)
     o.sheet = m_sheet;
     // (with more than one cell selected, the search is in them)
     const grid::GridRange r = m_view->selection().range;
@@ -229,6 +233,20 @@ void CrunchWindow::finishSearch()
         std::vector<crunch::EditSession::CellSpot> spots;
         spots.reserve(hits.size());
         for (const crunch::FoundCell &h : hits) spots.push_back({h.sheet, h.row, h.col});
+        if (m_findDialog->options().lookIn == crunch::FindOptions::LookIn::Notes) {
+            // (the notes of a sheet are few: they are all changed at once, as one step)
+            const qint64 before = m_loader.changesMade();
+            crunch::EditSession::ReplaceResult result;
+            const crunch::EditSession::Outcome o = doStructural([&] { return m_session->replaceInNotes(spots, m_findDialog->options().pattern, m_findDialog->replacement(), &result); });
+            if (!o.ok) {
+                m_findDialog->setStatus(o.problem);
+                if (!o.problem.isEmpty()) notice(tr("Change All"), o.problem);
+                break;
+            }
+            if (m_loader.changesMade() != before) m_calculating = true;
+            m_findDialog->setStatus(result.cells == 0 ? tr("Nothing needed to change.") : tr("Changed %1 in %2.").arg(tr("%n place(s)", nullptr, result.occurrences), tr("%n note(s)", nullptr, result.cells)));
+            break;
+        }
         QString why;
         m_replacePlan = m_session->planReplace(spots, m_findDialog->options().pattern, m_findDialog->replacement(), &why);
         if (!m_replacePlan) {
@@ -344,7 +362,25 @@ void CrunchWindow::replaceCurrent()
         m_findDialog->setStatus(tr("Type the text to look for."));
         return;
     }
-    if (matcher.matches(m_session->editText(m_sheet, row, col))) {
+    if (options.lookIn == crunch::FindOptions::LookIn::Notes) {
+        const auto notes = m_session->notesOf(m_sheet);
+        const auto found = notes->find((quint64(row) << 32) | col);
+        const bool formatOk = !options.format || m_session->cellFormatMatches(m_sheet, row, col, *options.format);
+        if (found != notes->end() && formatOk && matcher.matches(found->second)) {
+            const qint64 before = m_loader.changesMade();
+            crunch::EditSession::ReplaceResult result;
+            const crunch::EditSession::Outcome o = doStructural([&] { return m_session->replaceInNotes({{m_sheet, row, col}}, options.pattern, m_findDialog->replacement(), &result); });
+            if (!o.ok) {
+                m_findDialog->setStatus(o.problem);
+                if (!o.problem.isEmpty()) notice(tr("Change"), o.problem);
+                return;
+            }
+            if (m_loader.changesMade() != before) m_calculating = true;
+        }
+        startSearch(SearchFor::Next);
+        return;
+    }
+    if ((!options.format || m_session->cellFormatMatches(m_sheet, row, col, *options.format)) && matcher.matches(m_session->editText(m_sheet, row, col))) {
         const qint64 before = m_loader.changesMade();
         crunch::EditSession::ReplaceResult result;
         const crunch::EditSession::Outcome o = doStructural([&] { return m_session->replaceInCells({{m_sheet, row, col}}, options.pattern, m_findDialog->replacement(), &result); });
@@ -356,6 +392,37 @@ void CrunchWindow::replaceCurrent()
         if (m_loader.changesMade() != before) m_calculating = true;
     }
     startSearch(SearchFor::Next);
+}
+
+// Format... (the format Find looks for, picked as the Format Cells dialog changes it from the cell with the cursor) or Format From Cell (the whole format of that cell).
+void CrunchWindow::chooseFindFormat(bool fromCell)
+{
+    if (!m_findDialog || !m_loaded || !m_loaded->book || !m_session) return;
+    const jp::office::sheet::Styles &styles = m_loaded->book->styles();
+    jp::office::sheet::FormatChange change;
+    if (fromCell) {
+        const grid::GridSheet &gs = m_view->sheet();
+        const quint32 row = quint32(std::max<qint64>(0, m_view->selection().activeRow)), col = quint32(std::max<qint64>(0, m_view->selection().activeCol));
+        change = crunch::fullFormatChange(styles, gs.styleOf(row, col, gs.cellAt(row, col)));
+    } else {
+        const FormatCellsDialog::Input in = formatInput();
+        FormatCellsDialog::Result result;
+        if (m_formatAsker) {
+            if (!m_formatAsker(in, &result)) return;
+        } else {
+            FormatCellsDialog dialog(in, m_findDialog);
+            if (dialog.exec() != QDialog::Accepted) return;
+            result = dialog.result();
+        }
+        change = result.wholeChange();
+    }
+    if (crunch::formatIsEmpty(change)) {
+        m_findDialog->setFormat(nullptr, QString());
+        m_findDialog->setStatus(tr("No format was chosen, so the search looks at the text only."));
+        return;
+    }
+    m_findDialog->setFormat(std::make_shared<const jp::office::sheet::FormatChange>(change), crunch::describeFormat(change));
+    m_findDialog->setStatus(QString());
 }
 
 // ---- Go To

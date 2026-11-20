@@ -1,5 +1,5 @@
 # Find, replace, and go to
-<!-- keywords: find, replace, change, search, find what, replace with, replace all, find next, look for, change to, change all, same capitals, wildcard, star, question mark, tilde, match case, whole cell, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
+<!-- keywords: find, replace, change, search, find what, replace with, replace all, find next, look for, change to, change all, same capitals, wildcard, star, question mark, tilde, match case, whole cell, find by format, format, replace in notes, go to, reference, name, select by kind, blanks, constants, formulas, errors, current region, current array, row differences, column differences, last cell, visible cells, conditional formats, validation, Ctrl+F, Ctrl+H, F5, notes -->
 
 ## Find
 
@@ -10,6 +10,7 @@ Press **Ctrl+F** (or choose **Find** on the Home tab, then **Find** again). Type
 | **Where** | Search this sheet, or every sheet that shows. With more than one cell selected, a search of one sheet looks only in them. |
 | **Order** | Visit the cells along rows (left to right, then down) or down columns (top to bottom, then right). **Find Next** stops at the first match in that order. |
 | **Search in** | **Formulas** looks in what is typed in each cell, **Values** in what it shows, and **Notes** in the notes on cells. |
+| **Format…** | Finds only the cells that have a format. **Format…** opens the Format Cells dialog, started from the cell with the cursor: what you change there is what to look for (a bold font, a fill color, a number format). **Format From Cell** takes every part of the format of the cell with the cursor, and **Clear Format** goes back to looking at the text only. The dialog says what is being looked for. With no text in **Find what**, **List All** and **Find Next** find the cells that have the format; with text, a cell must have both. |
 | **Match case** | Capital and small letters must be the same. |
 | **Whole cell only** | The whole cell must be the text, not just a part of it. |
 
@@ -22,6 +23,8 @@ Notes on cells follow the cells: after a sort, or after rows or columns are inse
 ## Replace
 
 Press **Ctrl+H**, type the new text in **Replace with**, and choose a button. **Replace** puts the new text in the cell with the cursor if it has the text, and goes on to the next one. **Replace All** does it in every cell that has it, as one step you can undo; a large change is put in a little at a time. The new text is entered as if you typed it: a number becomes a number, and a formula that is changed stays a formula.
+
+To replace in notes, choose **Notes** in **Search in** on the Replace page. **Replace All** then changes the words of every note that has the text, on this sheet or on every sheet, as one step you can undo, and **Replace** changes the note on the cell with the cursor and goes on to the next. Nothing is changed, and you are told why, if a sheet with a note to change is protected, a note is a conversation of comments (change those on the Review tab), or a note would be left with no words or with more than 32,767 characters. The notes are saved with the workbook, in every form that has notes. **Values** can be searched but not replaced, because a value is what a formula works out.
 
 Nothing is changed, and you are told why, if a cell that would be changed is locked on a protected sheet, is part of an array or a data table, is in the first row of a table, or would not be a formula any more.
 
