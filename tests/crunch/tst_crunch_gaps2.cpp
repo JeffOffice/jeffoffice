@@ -82,6 +82,13 @@ bool styleBold(Window &w, const QString &name)
     return w.w.loaded()->book->styles().font(f.font).bold;
 }
 
+bool styleItalic(Window &w, const QString &name)
+{
+    const jp::office::sheet::CellFormat f = styleOfName(w, name);
+    auto hold = w.w.workbookLoader().hold();
+    return w.w.loaded()->book->styles().font(f.font).italic;
+}
+
 bool hasStyle(Window &w, const QString &name)
 {
     for (const jp::office::sheet::CellStyleName &n : w.w.loaded()->book->styles().cellStyles)
@@ -521,12 +528,35 @@ private Q_SLOTS:
         QVERIFY(w.save());
         QVERIFY2(savedOk(saved), "the save failed");
         {
-            const auto again = reopen(e.copyOfFile());
+            const QString first = e.copyOfFile();
+            auto again = reopen(first);
             QVERIFY(again);
             QVERIFY(styleBold(*again, QStringLiteral("Mine")));
             QVERIFY(boldAt(*again, QStringLiteral("A3")) && boldAt(*again, QStringLiteral("B1")));
             QVERIFY(again->w.session()->applyStyleNamed(0, rangeOf(QStringLiteral("A1")), QStringLiteral("Mine"), QStringLiteral("Style")).ok);
             QVERIFY(boldAt(*again, QStringLiteral("A1")));
+            again->w.undoStack()->undo();
+            // the style is in the file now: modified there, the file's own style is written again, in place
+            again->w.setStyleNameAsker([](QString *n) {
+                *n = QStringLiteral("Mine");
+                return true;
+            });
+            again->w.setFormatAsker([](const FormatCellsDialog::Input &, FormatCellsDialog::Result *r) {
+                r->change.italic = true;
+                return true;
+            });
+            again->w.act(QStringLiteral("style.modify"))->trigger();
+            QVERIFY(styleItalic(*again, QStringLiteral("Mine")) && styleBold(*again, QStringLiteral("Mine")));
+            QSignalSpy savedAgain(&again->w, &CrunchWindow::saved);
+            QVERIFY(again->w.save());
+            QVERIFY2(savedOk(savedAgain), "the second save failed");
+            const QString second = e.folder.dir.filePath(QStringLiteral("second.xlsx"));
+            QVERIFY(QFile::copy(first, second));
+            const auto third = reopen(second);
+            QVERIFY(third);
+            QVERIFY(styleItalic(*third, QStringLiteral("Mine")) && styleBold(*third, QStringLiteral("Mine")));
+            QVERIFY(third->w.session()->applyStyleNamed(0, rangeOf(QStringLiteral("A1")), QStringLiteral("Mine"), QStringLiteral("Style")).ok);
+            QVERIFY(boldAt(*third, QStringLiteral("A1")));
         }
         for (const QString &kind : {QStringLiteral("xls"), QStringLiteral("ods")}) {
             const QString copy = e.folder.dir.filePath(QStringLiteral("copy.") + kind);
