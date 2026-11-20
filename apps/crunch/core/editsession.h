@@ -870,6 +870,8 @@ public:
     // the cells follows. Not ok, and nothing changed, if either part is refused (a protected sheet, a merged range or an array that would be cut, a pivot table), or the block is in its own way
     // (some of its cells would be shifted and some would not).
     Outcome moveCellsInserting(int sheet, const jp::office::sheet::CellRange &source, quint32 toRow, quint32 toCol, bool shiftDown);
+    // For a test: called between the two parts of the one above, to change something the second part would then refuse.
+    void setBetweenStepsHook(const std::function<void()> &hook) { m_betweenStepsHook = hook; }
 
     // The width of columns and the height of rows: one step. A `SizeChange` sets the size (the width in characters of the widest digit, with the padding; the height in points), hides or
     // shows, or both; `custom` says that a person set the size (a fit to the contents is not custom, and a column that is not custom is widened to fit a number typed in it).
@@ -1432,6 +1434,7 @@ private:
     QDate m_today;
     bool m_busy = false;
     std::function<void(jp::office::sheet::Calculation *, bool)> m_holdHook;
+    std::function<void()> m_betweenStepsHook;
     qint64 m_longestHoldWait = 0, m_lastHoldWait = 0;
     bool m_tracking = false;               // an edit has been made: results are compared with the file's
     bool m_sheetRemoved = false;                     // a sheet added was taken away by Undo (so results may come for sheets that are not there)

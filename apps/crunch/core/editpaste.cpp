@@ -560,6 +560,7 @@ EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange 
     const int start = m_undo.index();
     m_undo.beginMacro(tr("Inserting cells"));
     Outcome done = structure(insert, tr("Inserting cells"));
+    if (done.ok && !done.confirm && m_betweenStepsHook) m_betweenStepsHook();
     if (done.ok && !done.confirm) done = structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells"));
     m_undo.endMacro();
     if (!done.ok) {
