@@ -18497,7 +18497,7 @@ Desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6702"/>
+        <location line="+6708"/>
         <source>Notes</source>
         <translation type="unfinished"></translation>
     </message>
