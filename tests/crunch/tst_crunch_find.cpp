@@ -423,7 +423,7 @@ private Q_SLOTS:
         o.lookIn = FindOptions::LookIn::Notes;
         FindRun run(e.win.w.session(), o);
         QVERIFY(run.done());
-        QVERIFY2(run.problem().contains(QLatin1String(".xlsx")), qPrintable(run.problem()));
+        QVERIFY2(run.problem().contains(QLatin1String("text")) && !run.problem().contains(QLatin1String("older")), qPrintable(run.problem()));   // (a text file has no notes; the reason does not send the person to an .xlsx)
     }
 
     // ---- Replace
