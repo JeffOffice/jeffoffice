@@ -60,7 +60,8 @@ private:
     QPushButton *m_new, *m_post, *m_resolve, *m_delete, *m_prevComment, *m_nextComment;
     QPushButton *m_accept, *m_reject, *m_acceptAll, *m_rejectAll, *m_prevChange, *m_nextChange;
     const void *m_madeDoc = nullptr;
-    int m_madeRevision = -1, m_madeView = -1;
+    qint64 m_madeRevision = -1;
+    int m_madeView = -1;
     QString m_madePerson;
     int m_rebuilds = 0;
     QTimer m_idle;

@@ -192,7 +192,7 @@ void ReviewPane::refresh()
         return;
     }
     // Made again only when the text (or who reviews, or the way changes are shown) is not what the lists were made from.
-    const int revision = doc->story()->revision();
+    const qint64 revision = write::reviewStamp(*doc);
     if (m_madeDoc == doc && m_madeRevision == revision && m_madePerson == chosenPerson() && m_madeView == doc->revisionView()) return;
     rebuild();
 }
@@ -204,7 +204,7 @@ void ReviewPane::rebuild()
     m_building = true;
     ++m_rebuilds;
     m_madeDoc = doc;
-    m_madeRevision = doc->story()->revision();
+    m_madeRevision = write::reviewStamp(*doc);
     m_madeView = doc->revisionView();
     m_madePerson = chosenPerson();
     const int chosen = chosenComment();
@@ -314,6 +314,8 @@ void ReviewPane::showChosenChange()
     shown.story = story;
     shown.revision.from = sel.first()->data(0, Qt::UserRole).toInt();
     shown.revision.to = sel.first()->data(0, Qt::UserRole + 1).toInt();
+    shown.revision.kind = write::Revision::Kind(sel.first()->data(0, Qt::UserRole + 2).toInt());
+    shown.revision.id = sel.first()->data(0, Qt::UserRole + 3).toString();
     m_win->showRevision(shown);
 }
 

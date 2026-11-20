@@ -357,6 +357,20 @@ QVector<std::pair<QString, QByteArray>> openRevisionsAt(const QTextBlock &block,
     return open;
 }
 
+namespace {
+
+// The order the changes are kept in: where they begin, then the longer (outer) before the shorter, then their kind, then their Id.
+bool revisionBefore(const Revision &a, const Revision &b)
+{
+    if (a.from != b.from) return a.from < b.from;
+    if (a.to != b.to) return a.to > b.to;
+    if (a.kind != b.kind) return a.kind < b.kind;
+    const int c = QString::compare(a.id, b.id);
+    return c != 0 ? c < 0 : a.author < b.author;
+}
+
+} // namespace
+
 QVector<Revision> revisionsIn(const QTextDocument *story, int from, int to, int most)
 {
     QVector<Revision> out;
@@ -370,7 +384,7 @@ QVector<Revision> revisionsIn(const QTextDocument *story, int from, int to, int 
             out.push_back(r);
         }
     }
-    std::stable_sort(out.begin(), out.end(), [](const Revision &a, const Revision &b) { return a.from != b.from ? a.from < b.from : a.to > b.to; });
+    std::stable_sort(out.begin(), out.end(), revisionBefore);
     if (out.size() > most) out.resize(most);
     return out;
 }
@@ -403,32 +417,59 @@ std::optional<Revision> revisionAt(const QTextDocument *story, int position)
     return best;
 }
 
-std::optional<Revision> nextRevision(const QTextDocument *story, int position)
+namespace {
+
+// The first change (in the order they are kept in) that `wanted` says is after, going from the paragraph at `start` towards the end; none where there is none.
+template <typename After>
+std::optional<Revision> firstAfter(const QTextDocument *story, int start, After wanted)
 {
-    for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid(); b = b.next()) {
+    for (QTextBlock b = story->findBlock(std::max(0, start)); b.isValid(); b = b.next()) {
         if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         std::optional<Revision> best;
         for (const Revision &r : std::as_const(inBlock))
-            if (r.from > position && (!best || r.from < best->from)) best = r;
+            if (wanted(r) && (!best || revisionBefore(r, *best))) best = r;
         if (best) return best;
     }
     return std::nullopt;
 }
 
-std::optional<Revision> previousRevision(const QTextDocument *story, int position)
+template <typename Before>
+std::optional<Revision> lastBefore(const QTextDocument *story, int start, Before wanted)
 {
-    for (QTextBlock b = story->findBlock(std::min(position, story->characterCount() - 1)); b.isValid(); b = b.previous()) {
+    for (QTextBlock b = story->findBlock(std::min(start, story->characterCount() - 1)); b.isValid(); b = b.previous()) {
         if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         std::optional<Revision> best;
         for (const Revision &r : std::as_const(inBlock))
-            if (r.from < position && (!best || r.from > best->from)) best = r;
+            if (wanted(r) && (!best || revisionBefore(*best, r))) best = r;
         if (best) return best;
     }
     return std::nullopt;
+}
+
+} // namespace
+
+std::optional<Revision> nextRevision(const QTextDocument *story, int position)
+{
+    return firstAfter(story, position, [&](const Revision &r) { return r.from > position; });
+}
+
+std::optional<Revision> previousRevision(const QTextDocument *story, int position)
+{
+    return lastBefore(story, position, [&](const Revision &r) { return r.from < position; });
+}
+
+std::optional<Revision> nextRevision(const QTextDocument *story, const Revision &after)
+{
+    return firstAfter(story, after.from, [&](const Revision &r) { return revisionBefore(after, r); });
+}
+
+std::optional<Revision> previousRevision(const QTextDocument *story, const Revision &before)
+{
+    return lastBefore(story, before.from, [&](const Revision &r) { return revisionBefore(r, before); });
 }
 
 QString revisionText(const QTextDocument *story, const Revision &r, int most)
@@ -840,27 +881,58 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
     return out;
 }
 
-// The changes the tables record, which `wanted` names, as they are in the story now (by kind and Id: the places they had may have moved), resolved together.
-static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &wanted, bool accept, int *kept)
+namespace {
+
+// A change a table records, and which of its kind it is in the story (a change is told by where it is, never by its Id, which a file may repeat).
+struct PlacedTableChange {
+    Revision::Kind kind;
+    TableChange change;
+    int ordinal = 0;
+};
+
+QVector<PlacedTableChange> tableChangesOf(const QTextDocument *story)
 {
+    QVector<PlacedTableChange> out;
     const QVariant store = story->property(kTableStoreProperty);
-    if (!store.isValid()) return 0;
+    if (!store.isValid()) return out;
     static const Revision::Kind kinds[] = {Revision::RowInserted, Revision::RowDeleted, Revision::CellInserted, Revision::CellDeleted, Revision::CellMerged, Revision::TableFormat, Revision::RowFormat, Revision::CellFormat};
-    QMap<QString, int> asked;   // (how many of each kind and Id are asked for: an Id a hostile file repeats takes the first ones)
-    for (const Revision &r : wanted) ++asked[QString::number(int(r.kind)) + QLatin1Char('|') + r.id];
-    QVector<TableChange> now, chosen;
+    int perKind[16] = {};
+    QVector<TableChange> now;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
         if (!b.blockFormat().hasProperty(flow::fp::Cell)) continue;
         now.clear();
         tableChangesAt(*reinterpret_cast<const flow::TableStore *>(store.value<quintptr>()), b, &now);
-        for (const TableChange &c : std::as_const(now)) {
-            const QString key = QString::number(int(kinds[c.kind])) + QLatin1Char('|') + attributeOf(c.record, "id");
-            auto it = asked.find(key);
-            if (it == asked.end() || it.value() <= 0) continue;
-            --it.value();
-            chosen.push_back(c);
-        }
+        for (const TableChange &c : std::as_const(now)) out.push_back({kinds[c.kind], c, perKind[int(kinds[c.kind])]++});
     }
+    return out;
+}
+
+// Which table changes of the story `wanted` names, by their places as the story is now: (kind, which of that kind).
+QVector<std::pair<int, int>> tablePlacesOf(const QTextDocument *story, const QVector<Revision> &wanted)
+{
+    const QVector<PlacedTableChange> all = tableChangesOf(story);
+    QHash<qint64, QVector<int>> byPlace;
+    for (int i = 0; i < all.size(); ++i) byPlace[qint64(all[i].kind) << 40 | all[i].change.from].push_back(i);
+    QVector<std::pair<int, int>> out;
+    for (const Revision &r : wanted) {
+        auto it = byPlace.find(qint64(r.kind) << 40 | r.from);
+        if (it == byPlace.end() || it->isEmpty()) continue;
+        const PlacedTableChange &c = all[it->takeFirst()];
+        out.push_back({int(c.kind), c.ordinal});
+    }
+    return out;
+}
+
+} // namespace
+
+// The changes the tables record at `places` (found before anything else was done, as taking text out has moved them), resolved together.
+static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<std::pair<int, int>> &places, bool accept, int *kept)
+{
+    QSet<qint64> wanted;
+    for (const auto &p : places) wanted.insert(qint64(p.first) << 32 | p.second);
+    QVector<TableChange> chosen;
+    for (const PlacedTableChange &c : tableChangesOf(story))
+        if (wanted.contains(qint64(c.kind) << 32 | c.ordinal)) chosen.push_back(c.change);
     return resolveTableChanges(doc, story, chosen, accept, kept);
 }
 
@@ -875,9 +947,10 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     QTextCursor edit(story);
     edit.beginEditBlock();
     int done = 0;
-    QVector<Revision> inTables;   // (what the tables record is done last, found again: taking text out has moved it)
+    QVector<Revision> inTables;   // (what the tables record is done last, found again by its place: taking text out has moved it)
     for (const Revision &r : which)
         if (r.inTable()) inTables.push_back(r);
+    const QVector<std::pair<int, int>> tablePlaces = inTables.isEmpty() ? QVector<std::pair<int, int>>() : tablePlacesOf(story, inTables);
     for (auto bi = byBlock.end(); bi != byBlock.begin();) {
         --bi;
         const int blockNumber = bi.key();
@@ -968,7 +1041,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         }
     }
     edit.endEditBlock();
-    if (!inTables.isEmpty()) done += resolveTableRevisions(doc, story, inTables, accept, kept);
+    if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
     return done;
 }
 
@@ -1117,6 +1190,13 @@ QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most)
     return out;
 }
 
+qint64 reviewStamp(const WriteDoc &doc)
+{
+    qint64 stamp = qint64(doc.story()->revision()) * 4096 + doc.story()->characterCount();
+    for (const QTextDocument *side : doc.sideStories()) stamp += qint64(side->revision()) * 4099 + side->characterCount() + 1;
+    return stamp;
+}
+
 int documentRevisionCount(WriteDoc &doc)
 {
     const EndnoteScope scope;
@@ -1152,7 +1232,7 @@ std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &containe
     return std::nullopt;
 }
 
-std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward)
+std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward, const StoryRevision *after)
 {
     const EndnoteScope scope;
     const QVector<Site> sites = sitesOf(doc);
@@ -1161,12 +1241,12 @@ std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocu
         if (sites[i].story == story) at = i;
     if (forward) {
         for (int i = at; i < sites.size(); ++i) {
-            const std::optional<Revision> r = nextRevision(sites[i].story, i == at ? position : -1);
+            const std::optional<Revision> r = i == at && after && after->story == sites[i].story ? nextRevision(sites[i].story, after->revision) : nextRevision(sites[i].story, i == at ? position : -1);
             if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
         }
     } else {
         for (int i = at; i >= 0; --i) {
-            const std::optional<Revision> r = previousRevision(sites[i].story, i == at ? position : sites[i].story->characterCount());
+            const std::optional<Revision> r = i == at && after && after->story == sites[i].story ? previousRevision(sites[i].story, after->revision) : previousRevision(sites[i].story, i == at ? position : sites[i].story->characterCount());
             if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
         }
     }
@@ -1187,6 +1267,25 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
         if (!by.contains(w.story)) order.push_back(w.story);
         by[w.story].push_back(w.revision);
     }
+    // Where each change of the stories after the first is, by its kind and which of that kind it is in its story, told now before anything is done (the Ids a file gives may repeat).
+    QHash<const QTextDocument *, QVector<std::pair<int, int>>> places;
+    for (int i = 1; i < order.size(); ++i) {
+        const QVector<Revision> now = revisionsIn(order[i]);
+        QVector<int> perKind(32, 0);
+        QHash<qint64, QVector<int>> byPlace;
+        QVector<int> ordinal;
+        for (const Revision &n : now) {
+            ordinal.push_back(perKind[int(n.kind)]++);
+            byPlace[qint64(n.kind) << 40 | n.from].push_back(int(ordinal.size()) - 1);
+        }
+        QVector<std::pair<int, int>> mine;
+        for (const Revision &r : by.value(order[i])) {
+            auto it = byPlace.find(qint64(r.kind) << 40 | r.from);
+            if (it == byPlace.end() || it->isEmpty()) continue;
+            mine.push_back({int(r.kind), ordinal[it->takeFirst()]});
+        }
+        places.insert(order[i], mine);
+    }
     int done = 0;
     bool first = true;
     for (QTextDocument *story : std::as_const(order)) {
@@ -1196,13 +1295,11 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
         QVector<Revision> revisions = by.value(story);
         if (!first) {
             QVector<Revision> found;
-            const QVector<Revision> now = revisionsIn(story);
-            for (const Revision &r : std::as_const(revisions))
-                for (const Revision &n : now)
-                    if (n.kind == r.kind && n.id == r.id && n.author == r.author) {
-                        found.push_back(n);
-                        break;
-                    }
+            QSet<qint64> wanted;
+            for (const auto &p : places.value(story)) wanted.insert(qint64(p.first) << 32 | p.second);
+            QVector<int> perKind(32, 0);
+            for (const Revision &n : revisionsIn(story))
+                if (wanted.contains(qint64(n.kind) << 32 | perKind[int(n.kind)]++)) found.push_back(n);
             revisions = found;
         }
         first = false;

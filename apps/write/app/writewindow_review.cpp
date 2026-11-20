@@ -333,7 +333,7 @@ void WriteWindow::updateReviewState()
     }
     m_hasRevisions = write::documentHasRevisions(*m_doc);
     m_hasComments = !write::comments(*m_doc).isEmpty();
-    m_reviewStateRevision = m_doc->story()->revision();
+    m_reviewStateRevision = write::reviewStamp(*m_doc);
     m_reviewStateDoc = m_doc.get();
 }
 
@@ -342,7 +342,7 @@ void WriteWindow::refreshReviewUi()
     if (m_updatingReview) return;
     m_updatingReview = true;
     const bool has = m_doc != nullptr;
-    if (has && (m_reviewStateDoc != m_doc.get() || m_reviewStateRevision != m_doc->story()->revision())) {
+    if (has && (m_reviewStateDoc != m_doc.get() || m_reviewStateRevision != write::reviewStamp(*m_doc))) {
         // (A long document is looked through a moment after the last edit, not at each key.)
         if (m_doc->story()->blockCount() < 2000 || m_reviewStateDoc != m_doc.get()) {
             updateReviewState();
@@ -404,6 +404,8 @@ void WriteWindow::showRevision(const write::StoryRevision &r)
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
     } else if (m_view->editedSideStory() != s && !m_view->enterSideStory(s)) {
+        // (It is the last change visited all the same: Next goes on from it, and Accept and Reject act on it.)
+        rememberChange(r, false);
         statusBar()->showMessage(tr("This change is in a part of the document that no page shows."), 4000);
         return;
     }
@@ -411,12 +413,49 @@ void WriteWindow::showRevision(const write::StoryRevision &r)
     c.setPosition(std::min(r.revision.from, s->characterCount() - 1));
     c.setPosition(std::min(std::max(r.revision.from, r.revision.to), s->characterCount() - 1), QTextCursor::KeepAnchor);
     m_view->showCursor(c);
+    rememberChange(r, true);
+}
+
+void WriteWindow::rememberChange(const write::StoryRevision &r, bool shown)
+{
+    m_lastChange = r;
+    m_lastChangeShown = shown;
+    const QTextCursor &c = m_view->cursor();
+    m_lastCursorStory = c.document();
+    m_lastCursorAnchor = c.anchor();
+    m_lastCursorPosition = c.position();
+}
+
+// The change last visited, while the caret is still where that left it (else none: the caret was moved on, and the next change is the one after the caret).
+const write::StoryRevision *WriteWindow::lastVisitedChange() const
+{
+    if (!m_lastChange || !m_doc) return nullptr;
+    const QTextCursor &c = m_view->cursor();
+    if (c.document() != m_lastCursorStory || c.anchor() != m_lastCursorAnchor || c.position() != m_lastCursorPosition) return nullptr;
+    return &*m_lastChange;
 }
 
 // Accept or Reject: the change at the caret, in the text or in a header, footer, or note, and on to the next change.
 void WriteWindow::resolveHere(bool accept)
 {
     if (!m_doc) return;
+    if (const write::StoryRevision *last = lastVisitedChange(); last && !m_lastChangeShown) {
+        // The change last visited could not be shown, so the caret is elsewhere: it is that one that is done.
+        const write::StoryRevision was = *last;
+        m_lastChange.reset();
+        for (const write::Revision &r : write::revisionsIn(was.story, was.revision.from, was.revision.from))
+            if (r.from == was.revision.from && r.kind == was.revision.kind && r.id == was.revision.id) {
+                write::StoryRevision now = was;
+                now.revision = r;
+                write::resolveDocumentRevisions(*m_doc, {now}, accept);
+                break;
+            }
+        updateReviewState();
+        refreshReviewUi();
+        if (const std::optional<write::StoryRevision> next = write::nextDocumentRevision(*m_doc, was.story, was.revision.from - 1, true)) showRevision(*next);
+        m_view->setFocus(Qt::OtherFocusReason);
+        return;
+    }
     QTextCursor c = m_view->cursor();
     QTextDocument *was = c.document();
     write::resolveAtCursor(*m_doc, c, accept);
@@ -429,6 +468,7 @@ void WriteWindow::resolveHere(bool accept)
         next.revision.from = next.revision.to = c.position();
         showRevision(next);
     }
+    if (const std::optional<write::Revision> here = write::revisionAt(m_view->cursor().document(), m_view->cursor().position())) rememberChange({m_view->cursor().document(), *here, QString()}, true);
     updateReviewState();
     refreshReviewUi();
     m_view->setFocus(Qt::OtherFocusReason);
@@ -438,7 +478,10 @@ void WriteWindow::gotoChange(bool forward)
 {
     if (!m_doc) return;
     const QTextCursor &cur = m_view->cursor();
-    const std::optional<write::StoryRevision> r = write::nextDocumentRevision(*m_doc, cur.document(), cur.selectionStart(), forward);   // (from the start of what is selected: a change that begins where the one selected ends is the next)
+    const write::StoryRevision *last = lastVisitedChange();
+    // (From the start of what is selected: a change that begins where the one selected ends is the next. After a change that was visited, the one after it in the order the changes are kept
+    // in, which reaches those that begin at one place too.)
+    const std::optional<write::StoryRevision> r = last ? write::nextDocumentRevision(*m_doc, last->story, last->revision.from, forward, last) : write::nextDocumentRevision(*m_doc, cur.document(), cur.selectionStart(), forward);
     if (!r) {
         statusBar()->showMessage(tr("There are no more changes."), 4000);
         return;

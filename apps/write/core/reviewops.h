@@ -44,6 +44,10 @@ std::optional<Revision> revisionAt(const QTextDocument *story, int position);
 // The next change after `position` (the first that begins after it), or the previous before it (the last that begins before it); none where there is none. They do not wrap round.
 std::optional<Revision> nextRevision(const QTextDocument *story, int position);
 std::optional<Revision> previousRevision(const QTextDocument *story, int position);
+// The same by the order the changes are kept in (their place, then their kind, then their Id): the one after `after`, or before it. Changes that begin at one place (a table's records, and the text
+// at its start) are each reached.
+std::optional<Revision> nextRevision(const QTextDocument *story, const Revision &after);
+std::optional<Revision> previousRevision(const QTextDocument *story, const Revision &before);
 // The words of a change, for a list of them (at most `most` characters); a change of properties has none.
 QString revisionText(const QTextDocument *story, const Revision &revision, int most = 120);
 // The people who made changes in the story, in the order they first appear.
@@ -72,14 +76,17 @@ struct StoryRevision {
 // Every change of the document in its order: the text, then the footnotes by number, then the headers and footers by section. At most `most`.
 QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most = kMostRevisions);
 int documentRevisionCount(WriteDoc &doc);
+// A number that is not the same after an edit of any story (the text, a header, a footer, or a note), for what keeps a list of the changes up to date.
+qint64 reviewStamp(const WriteDoc &doc);
 // Whether there is a change anywhere in the document (the text is looked through first, the other stories only when it has none).
 bool documentHasRevisions(WriteDoc &doc);
 // The story a change's `container` names, or none where the document has no such story now.
 QTextDocument *storyOfContainer(WriteDoc &doc, const QString &container);
 // The change of that story that begins at `from` and is of that kind and Id (never one only near it); none where there is none now.
 std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &container, int kind, const QString &id, int from);
-// The next change after `position` of `story` (or the one before it), going on into the stories after it (before it); none where there is none. Next and Previous Change use it.
-std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward);
+// The next change after `position` of `story` (or the one before it), going on into the stories after it (before it); none where there is none. Next and Previous Change use it. With `after`
+// (the change last visited), the one after (before) that one in the story's order, whatever place it was at.
+std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward, const StoryRevision *after = nullptr);
 // Accepts or rejects changes of any stories, as one step of the history (the same one step as one story's). Returns how many were done.
 int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept = nullptr);
 

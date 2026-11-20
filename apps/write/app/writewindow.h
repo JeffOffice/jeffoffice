@@ -627,7 +627,15 @@ private:
     bool m_updatingReview = false;
     // Whether the text has changes and comments (looked for again when the text changed: at once in a short document, else a moment after the last edit).
     bool m_hasRevisions = false, m_hasComments = false;
-    int m_reviewStateRevision = -1;
+    qint64 m_reviewStateRevision = -1;
+    // The change last shown by Next, Previous, or the Reviewing pane, with where the caret was put, so the next step goes on from it even when it could not be shown (a header no page uses) or other
+    // changes begin at the same place.
+    std::optional<write::StoryRevision> m_lastChange;
+    const QTextDocument *m_lastCursorStory = nullptr;
+    int m_lastCursorAnchor = -1, m_lastCursorPosition = -1;
+    bool m_lastChangeShown = true;
+    const write::StoryRevision *lastVisitedChange() const;
+    void rememberChange(const write::StoryRevision &r, bool shown);
     const void *m_reviewStateDoc = nullptr;
     QTimer m_reviewStateTimer;
     std::unique_ptr<write::WriteDoc> m_doc;

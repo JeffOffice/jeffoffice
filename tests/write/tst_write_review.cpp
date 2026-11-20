@@ -392,6 +392,7 @@ QString words(const char *prefix, int n)
 struct StoryParts {
     QByteArray body = para(run("body ") + inserted(30, "new "));
     QByteArray header, footer, footnote, endnote;
+    const char *headerType = "default";
 };
 QByteArray makeDocxWithStories(const StoryParts &parts)
 {
@@ -402,7 +403,7 @@ QByteArray makeDocxWithStories(const StoryParts &parts)
     QByteArray refs, sect;
     if (!parts.footnote.isEmpty()) refs += "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
     if (!parts.endnote.isEmpty()) refs += "<w:r><w:endnoteReference w:id=\"2\"/></w:r>";
-    if (!parts.header.isEmpty()) sect += "<w:headerReference w:type=\"default\" r:id=\"rIdH\"/>";
+    if (!parts.header.isEmpty()) sect += "<w:headerReference w:type=\"" + QByteArray(parts.headerType) + "\" r:id=\"rIdH\"/>";
     if (!parts.footer.isEmpty()) sect += "<w:footerReference w:type=\"default\" r:id=\"rIdF\"/>";
     QByteArray body = parts.body;
     if (!refs.isEmpty()) body += para(refs);
@@ -3185,6 +3186,164 @@ private Q_SLOTS:
             QCOMPARE(savedTables(partXml(saved, "/word/header1.xml"))[0].rows, (QVector<QStringList>{{"k1"}}));
             QVERIFY(!partXml(saved, "/word/footer1.xml").contains("tblPrChange"));
         }
+    }
+
+    // ---------------------------------------------------------------- Round B2 review fixes: stepping through and picking changes
+    void nextChangeStepsPastAChangeInAHeaderThatNoPageUsesAndTheChangeCanStillBeAccepted()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        StoryParts p;
+        p.body = para(run("plain text"));
+        p.header = para(inserted(33, "evenhead"));
+        p.headerType = "even";   // (the document does not turn on different odd and even pages: no page uses it)
+        p.footer = para(inserted(37, "foot") + inserted(38, "more"));
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QCOMPARE(documentRevisionCount(*doc), 3);
+        QTextCursor start(doc->story());
+        start.setPosition(0);
+        w.view()->setCursor(start);
+        // Next Change: the header's (which no page shows), then the footer's two. The step past the first is not stuck.
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QVERIFY(!w.view()->inHeaderFooter());
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QTRY_VERIFY(w.view()->inHeaderFooter());
+        QCOMPARE(w.view()->cursor().document(), doc->headerFooterStory(0, true, 0));
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("37"));
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("38"));
+        // Previous Change goes back to the footer's first, then to the header's that is not shown, and Accept acts on that one.
+        w.act(QStringLiteral("review.previousChange"))->trigger();
+        w.act(QStringLiteral("review.previousChange"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 3);
+        w.act(QStringLiteral("review.accept"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        QVERIFY(!partOf(doc->toDocx(), "/word/header1.xml").contains("<w:ins "));
+        QVERIFY(partOf(doc->toDocx(), "/word/footer1.xml").contains("<w:ins "));
+    }
+
+    void nextAndPreviousVisitEveryChangeThatBeginsAtTheSamePlace()
+    {
+        // The records of a table all begin at the table's first paragraph, and so does the text inserted at its start.
+        const QByteArray body = tableOf({{revTag("ins", 60), {cellOf(revTag("cellIns", 61), para(inserted(70, "t")))}}}, 1, "<w:tblW w:w=\"5000\" w:type=\"dxa\"/><w:tblPrChange" + rev(100) + "><w:tblPr/></w:tblPrChange>");
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const QVector<Revision> all = revisionsIn(doc->story());
+        QCOMPARE(all.size(), 4);
+        for (const Revision &r : all) QCOMPARE(r.from, all.first().from);
+        QVector<Revision> forward, backward;
+        for (std::optional<Revision> r = nextRevision(doc->story(), -1); r && forward.size() < 10; r = nextRevision(doc->story(), *r)) forward << *r;
+        QCOMPARE(forward.size(), 4);
+        for (std::optional<Revision> r = previousRevision(doc->story(), doc->story()->characterCount()); r && backward.size() < 10; r = previousRevision(doc->story(), *r)) backward << *r;
+        QCOMPARE(backward.size(), 4);
+        for (int i = 0; i < 4; ++i) QVERIFY(backward[i] == forward[3 - i]);
+        QStringList kinds;
+        for (const Revision &r : forward) kinds << QString::number(int(r.kind));
+        QStringList wanted{QString::number(int(Revision::Insertion)), QString::number(int(Revision::RowInserted)), QString::number(int(Revision::CellInserted)), QString::number(int(Revision::TableFormat))};
+        kinds.sort();
+        wanted.sort();
+        QCOMPARE(kinds, wanted);
+        // Through the document's own walk, which the commands use.
+        QVector<QString> seen;
+        std::optional<StoryRevision> at = nextDocumentRevision(*doc, doc->story(), -1, true, nullptr);
+        while (at && seen.size() < 10) {
+            seen << QString::number(int(at->revision.kind));
+            at = nextDocumentRevision(*doc, at->story, at->revision.from, true, &*at);
+        }
+        QCOMPARE(seen.size(), 4);
+    }
+
+    void changesThatHaveTheSameIdAreToldApartByTheirPlace()
+    {
+        // Real files often give every mark the Id 0.
+        const QByteArray rows = tableOf({{QByteArray(), {cellOf({}, para(run("head")))}},
+                                         {revTag("ins", 0), {cellOf({}, para(run("r1")))}},
+                                         {revTag("ins", 0), {cellOf({}, para(run("r2")))}},
+                                         {revTag("ins", 0), {cellOf({}, para(run("r3")))}}}, 1);
+        {
+            auto doc = open(makeDocx(rows));
+            QVERIFY(doc);
+            QVector<Revision> third;
+            for (const Revision &r : revisionsIn(doc->story()))
+                if (r.kind == Revision::RowInserted) third = {r};
+            QCOMPARE(resolveRevisions(*doc, doc->story(), third, false), 1);
+            const QVector<SavedTable> tables = savedTables(documentXml(doc->toDocx()));
+            QCOMPARE(tables[0].rows, (QVector<QStringList>{{"head"}, {"r1"}, {"r2"}}));
+            QCOMPARE(revisionCount(doc->story()), 2);
+        }
+        // The same across stories: the third row of a header's table, picked beside a change of the text.
+        {
+            StoryParts p;
+            p.body = rows;
+            p.header = rows;
+            auto doc = open(makeDocxWithStories(p));
+            QVERIFY(doc);
+            QVector<StoryRevision> which, bodyRows, headerRows;
+            for (const StoryRevision &sr : documentRevisions(*doc))
+                if (sr.revision.kind == Revision::RowInserted) (sr.container == QLatin1String("body") ? bodyRows : headerRows) << sr;
+            QCOMPARE(bodyRows.size(), 3);
+            QCOMPARE(headerRows.size(), 3);
+            which << bodyRows[0] << headerRows[2];
+            QCOMPARE(resolveDocumentRevisions(*doc, which, false), 2);
+            const QByteArray saved = doc->toDocx();
+            QCOMPARE(savedTables(documentXml(saved))[0].rows, (QVector<QStringList>{{"head"}, {"r2"}, {"r3"}}));
+            QCOMPARE(savedTables(partXml(saved, "/word/header1.xml"))[0].rows, (QVector<QStringList>{{"head"}, {"r1"}, {"r2"}}));
+        }
+        // A text change in a story after the first, which shares its Id with another, too.
+        {
+            StoryParts p;
+            p.body = para(inserted(0, "A") + inserted(0, "B"));
+            p.header = para(inserted(0, "C") + inserted(0, "D"));
+            auto doc = open(makeDocxWithStories(p));
+            QVERIFY(doc);
+            QVector<StoryRevision> which, all = documentRevisions(*doc);
+            QCOMPARE(all.size(), 4);
+            which << all[0] << all[3];
+            QCOMPARE(resolveDocumentRevisions(*doc, which, false), 2);
+            QCOMPARE(textWithDeletions(*doc), QStringLiteral("B"));
+            QCOMPARE(documentRevisionCount(*doc), 2);
+            QVERIFY(partOf(doc->toDocx(), "/word/header1.xml").contains(">C<"));
+            QVERIFY(!partOf(doc->toDocx(), "/word/header1.xml").contains(">D<"));
+        }
+    }
+
+    void theCommandsAndThePaneFollowChangesThatAreOnlyInAHeaderOrANote()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        StoryParts p;
+        p.body = para(run("plain text"));
+        p.header = para(inserted(33, "headin"));
+        p.footnote = para(inserted(35, "notein"));
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 2);
+        QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        // The changes of the header and the note are accepted and the text is not touched: the lists and commands follow, with no change of the text's own revision.
+        const int revision = doc->story()->revision();
+        QCOMPARE(acceptAll(*doc), 2);
+        QCOMPARE(doc->story()->revision(), revision);
+        w.refreshForTest();
+        pane->refresh();
+        QVERIFY(!w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 0);
+        QVERIFY(doc->undo());
+        w.refreshForTest();
+        pane->refresh();
+        QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 2);
     }
 
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()
