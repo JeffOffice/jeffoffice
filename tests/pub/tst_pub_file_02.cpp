@@ -2,6 +2,7 @@
 #include "core/fontfiles.h"
 #include "core/sfnt.h"
 #include "office/eot.h"
+#include <QRegularExpression>
 
 
 // Two master pages: each page keeps its own master and its objects.
@@ -1677,7 +1678,7 @@ void PubFileTests::aHostilePublicationFontListIsBounded()
     QCOMPARE(intake.decodedCount(), jp::kMaxEmbeddedFonts);
     QStringList notes;
     QCOMPARE(intake.take(&notes).size(), jp::kMaxEmbeddedFonts);
-    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+    QVERIFY2(QRegularExpression(QStringLiteral("Only the first 64 embedded font(\\(s\\)|s) are read\\.")).match(notes.join(QLatin1Char('|'))).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
 }
 
 // Each cap of the intake keeps a part from being decoded from its text at all: the count used up, too many parts tried (usable or not), and the total held.

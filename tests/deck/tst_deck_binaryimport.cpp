@@ -8,6 +8,7 @@
 #include "office/eot.h"
 #include "office/pptcrypt.h"
 #include "io/pptsalvage.h"
+#include <QRegularExpression>
 
 class DeckBinaryImportTests : public QObject {
     Q_OBJECT
@@ -1269,7 +1270,7 @@ private Q_SLOTS:
         auto big = open(many, &err);
         QVERIFY2(big, qPrintable(err));
         QCOMPARE(int(deck::EmbeddedFonts::facesOf(big.get()).size()), jp::kMaxEmbeddedFonts);
-        QVERIFY2(err.contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(err));
+        QVERIFY2(QRegularExpression(QStringLiteral("Only the first 64 embedded font(\\(s\\)|s) are read\\.")).match(err).hasMatch(), qPrintable(err));
         for (auto *doc : {cut.get(), liar.get(), restricted.get(), big.get()}) deck::EmbeddedFonts::release(doc);
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
     }

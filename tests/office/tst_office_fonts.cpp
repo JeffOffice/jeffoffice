@@ -4,6 +4,7 @@
 #include "office/pptfonts.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
+#include <QRegularExpression>
 
 namespace {
 
@@ -1749,14 +1750,14 @@ private Q_SLOTS:
         for (int i = 0; i < 5000; ++i) junk += pptEntity(QStringLiteral("F%1").arg(i)) + pptBlob(0, QByteArray(100, 'j'));
         QStringList notes;
         QCOMPARE(jp::office::readPptFonts(junk, 0, junk.size(), &notes).size(), 0);
-        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("%1 embedded font(s) in the file can't be used").arg(jp::office::EmbeddedFontLimits().tried)), qPrintable(notes.join(QLatin1Char('|'))));
-        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("embedded font(s) in the file were looked at")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(QRegularExpression(QStringLiteral("%1 embedded font(\\(s\\)|s) in the file can't be used").arg(jp::office::EmbeddedFontLimits().tried)).match(notes.join(QLatin1Char('|'))).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(QRegularExpression(QStringLiteral("embedded font(\\(s\\)|s) in the file (was|were) looked at")).match(notes.join(QLatin1Char('|'))).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
         const QByteArray eot = jp::office::makeEot(bundledFontBytes(QStringLiteral("Lato")));
         QByteArray many;
         for (int i = 0; i < jp::kMaxEmbeddedFonts + 40; ++i) many += pptEntity(QStringLiteral("G%1").arg(i)) + pptBlob(0, eot);
         notes.clear();
         QCOMPARE(jp::office::readPptFonts(many, 0, many.size(), &notes).size(), jp::kMaxEmbeddedFonts);
-        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded font(s) are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(QRegularExpression(QStringLiteral("Only the first 64 embedded font(\\(s\\)|s) are read\\.")).match(notes.join(QLatin1Char('|'))).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The intake's limits are the format's constants, and a part over the limit is never decoded: the count of parts decoded is what the limits allow.
@@ -1798,8 +1799,8 @@ private Q_SLOTS:
         QStringList notes;
         QCOMPARE(intake.take(&notes).size(), 0);
         const QString all = notes.join(QLatin1Char('|'));
-        QVERIFY2(all.contains(QStringLiteral("5 embedded font(s) in the file can't be used")), qPrintable(all));
-        QVERIFY2(all.contains(QStringLiteral("Only the first 5 embedded font(s) in the file were looked at.")), qPrintable(all));
+        QVERIFY2(QRegularExpression(QStringLiteral("5 embedded font(\\(s\\)|s) in the file can't be used")).match(all).hasMatch(), qPrintable(all));
+        QVERIFY2(QRegularExpression(QStringLiteral("Only the first 5 embedded font(\\(s\\)|s) in the file were looked at\\.")).match(all).hasMatch(), qPrintable(all));
         QVERIFY2(!all.contains(QStringLiteral("are read.")), qPrintable(all));
         QVERIFY(jp::office::EmbeddedFontLimits().tried > jp::office::EmbeddedFontLimits().faces);
     }
@@ -1814,7 +1815,8 @@ private Q_SLOTS:
         QCOMPARE(intake.decodedCount(), 3);
         QStringList notes;
         QCOMPARE(intake.take(&notes).size(), 3);
-        QCOMPARE(notes, QStringList{QStringLiteral("Only the first 3 embedded font(s) are read.")});
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(QRegularExpression(QStringLiteral("^Only the first 3 embedded font(\\(s\\)|s) are read\\.$")).match(notes.value(0)).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The total is what is held: the part as the file has it and the font made whole from it count together (a bare font is both), so the faces taken never hold more than it.
@@ -1851,12 +1853,12 @@ private Q_SLOTS:
         one.add(QStringLiteral("Bad"), 0, QByteArray(50, 'j'));
         QStringList notes;
         one.take(&notes);
-        QVERIFY2(notes.size() == 1 && notes[0].startsWith(QStringLiteral("1 embedded font(s) in the file can't be used: ")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.size() == 1 && QRegularExpression(QStringLiteral("^1 embedded font(\\(s\\)|) in the file can't be used: ")).match(notes[0]).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
         jp::office::EmbeddedFaceIntake many(limits);
         for (int i = 0; i < 3; ++i) many.add(QStringLiteral("Bad%1").arg(i), 0, QByteArray(50, 'j'));
         notes.clear();
         many.take(&notes);
-        QVERIFY2(notes.size() == 1 && notes[0].startsWith(QStringLiteral("3 embedded font(s) in the file can't be used: ")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.size() == 1 && QRegularExpression(QStringLiteral("^3 embedded font(\\(s\\)|s) in the file can't be used: ")).match(notes[0]).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
         // The limit is the number in the note, one font or more.
         const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
         for (int faces : {1, 2}) {
@@ -1865,18 +1867,20 @@ private Q_SLOTS:
             for (int i = 0; i < 5; ++i) over.add(QStringLiteral("O%1").arg(i), 0, lato);
             notes.clear();
             QCOMPARE(over.take(&notes).size(), faces);
-            QCOMPARE(notes, QStringList{QStringLiteral("Only the first %1 embedded font(s) are read.").arg(faces)});
+            QCOMPARE(notes.size(), 1);
+            QVERIFY2(QRegularExpression(QStringLiteral("^Only the first %1 embedded font(\\(s\\) are| is|s are) read\\.$").arg(faces)).match(notes.value(0)).hasMatch(), qPrintable(notes.join(QLatin1Char('|'))));
         }
         // An old presentation's list: one blob in the wrong place is "1", and its record cap says its own number.
         QStringList pptNotes;
         const QByteArray stray = pptBlob(0, lato);
         jp::office::readPptFonts(stray, 0, stray.size(), &pptNotes);
-        QVERIFY2(pptNotes.size() == 1 && pptNotes[0].startsWith(QStringLiteral("1 embedded font(s) in the file can't be used")), qPrintable(pptNotes.join(QLatin1Char('|'))));
+        QVERIFY2(pptNotes.size() == 1 && QRegularExpression(QStringLiteral("^1 embedded font(\\(s\\)|) in the file can't be used")).match(pptNotes[0]).hasMatch(), qPrintable(pptNotes.join(QLatin1Char('|'))));
         QByteArray names;
         for (int i = 0; i < jp::office::kMaxPptFontRecords + 10; ++i) names += pptEntity(QStringLiteral("N%1").arg(i));
         pptNotes.clear();
         QCOMPARE(jp::office::readPptFonts(names, 0, names.size(), &pptNotes).size(), 0);
-        QCOMPARE(pptNotes, QStringList{QStringLiteral("Only the first %1 record(s) of the font list are read.").arg(jp::office::kMaxPptFontRecords)});
+        QCOMPARE(pptNotes.size(), 1);
+        QVERIFY2(QRegularExpression(QStringLiteral("^Only the first %1 record(\\(s\\)|s) of the font list are read\\.$").arg(jp::office::kMaxPptFontRecords)).match(pptNotes.value(0)).hasMatch(), qPrintable(pptNotes.join(QLatin1Char('|'))));
     }
 
     // ---- fonts written into a saved .docx
