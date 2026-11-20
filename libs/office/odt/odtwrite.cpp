@@ -824,8 +824,11 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
         const double d = v.toDouble(&ok);
         return ok ? clampedInt(std::round(d)) : fallback;
     };
+    qint64 gutter = 0;
+    bool rightToLeft = false;
     for (int c = t.firstChild(sectPr); c >= 0; c = t.next(c)) {
         const QByteArray name = t.localName(c);
+        if (name == "bidi" || name == "rtlGutter") rightToLeft = rightToLeft || !(t.val(c) == QLatin1String("0") || t.val(c) == QLatin1String("false"));
         if (name == "pgSz") {
             s.pageW = std::max<qint64>(720, tw(c, "w", s.pageW));
             s.pageH = std::max<qint64>(720, tw(c, "h", s.pageH));
@@ -834,9 +837,7 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             s.top = tw(c, "top", s.top);
             s.bottom = tw(c, "bottom", s.bottom);
             s.left = tw(c, "left", s.left);
-            // (The binding's room is added to the margin it is at: the format has no gutter. It is not done for mirrored margins or a gutter at the top, where the room is on another side.)
-            if (const qint64 gutter = std::max<qint64>(0, tw(c, "gutter", 0)); gutter > 0 && !(m_settings && (m_settings->child(m_settings->root(), "mirrorMargins") >= 0 || m_settings->child(m_settings->root(), "gutterAtTop") >= 0)))
-                s.left += gutter;
+            gutter = std::max<qint64>(0, tw(c, "gutter", 0));
             s.right = tw(c, "right", s.right);
             s.header = tw(c, "header", s.header);
             s.footer = tw(c, "footer", s.footer);
@@ -861,6 +862,16 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             (name == "headerReference" ? s.headerRef : s.footerRef)[slot] = t.attr(c, "id", wml::NsR);
         }
     }
+    // The binding's room is added to the margin it is at, the format having no gutter: the top margin for a gutter at the top, the right one for a section read from the right (or when the document puts the
+    // gutter there), else the left; on mirrored pages the margin that is inside is the left one. The gutter itself is kept apart in an attribute of ours, so that it comes back as a gutter.
+    const bool mirrored = m_settings && m_settings->child(m_settings->root(), "mirrorMargins") >= 0;
+    const bool atTop = m_settings && m_settings->child(m_settings->root(), "gutterAtTop") >= 0;
+    s.mirrored = mirrored;
+    if (gutter > 0) {
+        s.gutter = gutter;
+        s.gutterSide = atTop ? 2 : (rightToLeft && !mirrored) ? 1 : 0;
+        (s.gutterSide == 2 ? s.top : s.gutterSide == 1 ? s.right : s.left) += gutter;
+    }
     return s;
 }
 
@@ -868,6 +879,7 @@ QString Writer::masterFor(const SectionInfo &s)
 {
     // A master page for each distinct page: its size, margins, columns, and what its headers and footers are.
     QString key = QStringLiteral("%1,%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12|").arg(s.pageW).arg(s.pageH).arg(s.top).arg(s.bottom).arg(s.left).arg(s.right).arg(s.header).arg(s.footer).arg(s.landscape).arg(s.columns).arg(s.columnGap).arg(s.separator);
+    key += QStringLiteral("g%1,%2,%3|").arg(s.gutter).arg(s.gutterSide).arg(s.mirrored);
     for (int i = 0; i < 3; ++i) key += s.headerRef[i] + QLatin1Char('/') + s.footerRef[i] + QLatin1Char(';');
     key += s.titlePg ? QLatin1Char('T') : QLatin1Char('-');
     key += QString::number(s.pageStart) + s.pageFormat;
@@ -904,7 +916,8 @@ QByteArray Writer::masterPages()
         layouts += "<style:page-layout style:name=\"pm" + num(n) + "\"><style:page-layout-properties fo:page-width=\"" + inchesFromTwips(double(s.pageW)).toUtf8() + "\" fo:page-height=\"" +
                    inchesFromTwips(double(s.pageH)).toUtf8() + "\" style:num-format=\"" + pageNumFormat(s.pageFormat) + "\" style:print-orientation=\"" + (s.landscape ? "landscape" : "portrait") + "\" fo:margin-top=\"" +
                    inchesFromTwips(double(top)).toUtf8() + "\" fo:margin-bottom=\"" + inchesFromTwips(double(bottom)).toUtf8() + "\" fo:margin-left=\"" + inchesFromTwips(double(s.left)).toUtf8() +
-                   "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" + (s.pageStart > 0 ? " style:first-page-number=\"" + num(s.pageStart) + "\"" : QByteArray()) +
+                   "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" + (s.mirrored ? " style:page-usage=\"mirrored\"" : "") +
+                   (s.gutter > 0 ? " jo:gutter=\"" + inchesFromTwips(double(s.gutter)).toUtf8() + "\" jo:gutter-side=\"" + (s.gutterSide == 2 ? "top" : s.gutterSide == 1 ? "right" : "left") + "\"" : "") + (s.pageStart > 0 ? " style:first-page-number=\"" + num(s.pageStart) + "\"" : QByteArray()) +
                    " style:writing-mode=\"lr-tb\" style:footnote-max-height=\"0in\">";
         if (s.columns > 1) layouts += "<style:columns fo:column-count=\"" + num(s.columns) + "\" fo:column-gap=\"" + inchesFromTwips(double(s.columnGap)).toUtf8() + "\">" + (s.separator ? "<style:column-sep style:width=\"0.0069in\" style:color=\"#000000\" style:height=\"100%\" style:style=\"solid\"/>" : "") + "</style:columns>";
         layouts += "</style:page-layout-properties>";
@@ -1163,9 +1176,8 @@ bool Writer::run(const QByteArray &docx, QByteArray *out, QString *error, QStrin
             }
         }
     }
-    // The page's color, facing pages with mirrored margins, and automatic hyphenation are not written.
+    // The page's color and automatic hyphenation are not written.
     if (m_doc->child(m_doc->root(), "background") >= 0) left(QCoreApplication::translate("odt", "the page color"));
-    if (m_settings && m_settings->child(m_settings->root(), "mirrorMargins") >= 0) left(QCoreApplication::translate("odt", "mirrored margins"));
     if (m_settings && m_settings->child(m_settings->root(), "autoHyphenation") >= 0) left(QCoreApplication::translate("odt", "automatic hyphenation (the words stay as they are)"));
     // The kind of mail merge and where its list is have no place in an .odt (the merge fields themselves are kept).
     if (m_settings && m_settings->child(m_settings->root(), "mailMerge") >= 0)

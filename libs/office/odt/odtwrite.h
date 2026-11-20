@@ -5,6 +5,7 @@
 #include "odt/odtcommon.h"
 #include "office/package.h"
 #include "ole/odfobject.h"
+#include "wml/wml.h"
 #include "wml/xmltree.h"
 
 #include <QHash>
@@ -30,6 +31,9 @@ struct SectionInfo {
     int sectPr = -1;
     qint64 pageW = 12240, pageH = 15840, top = 1440, bottom = 1440, left = 1440, right = 1440, header = 720, footer = 720;
     bool landscape = false, continuous = false, titlePg = false, inlineSection = false;
+    qint64 gutter = 0;       // the binding's room, which is part of the margin it is at (the format has none)
+    int gutterSide = 0;      // 0 the left margin, 1 the right one, 2 the top one
+    bool mirrored = false;   // facing pages with mirrored margins
     int columns = 1;
     qint64 columnGap = 720;
     bool separator = false;
@@ -99,7 +103,10 @@ private:
     QByteArray fieldXml(const QString &instr, const QString &resultText, const QByteArray &resultXml, ParaCtx *pc, bool *known);
     QByteArray drawingXml(const T &t, int drawing, ParaCtx *pc, int depth);
     // The drawn shapes of a w:pict (the older drawing form): each as the standard's rectangle, ellipse, line, or text box in a frame; empty when there is none to write.
-    QByteArray shapesXml(const T &t, int pict, ParaCtx *pc);
+    QByteArray shapesXml(const T &t, int pict, ParaCtx *pc, const QVector<wml::Shape> &shapes);
+    // The shapes from `from` on, each as its drawing element (a group in the line as the standard's group of its members, to a bounded depth); `*written` counts the shapes made (a bounded number in all).
+    QByteArray shapeListXml(const T &t, const QVector<wml::Shape> &shapes, int from, ParaCtx *pc, int depth, int *written, bool member);
+    QByteArray shapeXml(const T &t, const wml::Shape &shape, ParaCtx *pc, int depth, bool member);
     // The address a picture is linked to (an external relationship), as the reference of an image; empty when it is not one to keep.
     QString linkedImageAddress(const QString &rid) const;
     QByteArray pictureFrame(const T &t, int anchor, int blip, bool inlineOk, int depth);

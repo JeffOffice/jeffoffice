@@ -247,6 +247,7 @@ private:
     QHash<QString, QString> m_headerParts;            // "tree:node" -> relationship Id
     int m_headerCount = 0;
     bool m_evenOdd = false;
+    bool m_mirrorMargins = false, m_gutterAtTop = false;   // a page layout says its margins are mirrored, or its gutter is at the top (the settings say so)
     QHash<QString, int> m_bookmarkIds;
     QSet<QString> m_commentNames;
     // the section being made

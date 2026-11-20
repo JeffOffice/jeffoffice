@@ -16,6 +16,7 @@
 #include "wml/xmltree.h"
 
 #include <QElapsedTimer>
+#include <cmath>
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <QTest>
@@ -208,6 +209,132 @@ const char kOlderShapes[] =
     "<w:r><w:pict><v:line id=\"l1\" style=\"position:absolute;margin-left:100pt;margin-top:200pt;width:150pt;height:0pt;z-index:251660288\" from=\"0pt,0pt\" to=\"150pt,0pt\" strokeweight=\"1pt\"/></w:pict></w:r>"
     "<w:r><w:pict><v:shape type=\"#_x0000_t202\" id=\"t1\" style=\"position:absolute;margin-left:0pt;margin-top:0pt;width:100pt;height:50pt;z-index:251660288\" filled=\"f\" stroked=\"f\"><v:textbox inset=\"7.2pt,3.6pt,7.2pt,3.6pt\">"
     "<w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>";
+
+// A .docx of this body with a settings part (its inner XML), written as an .odt.
+QByteArray odtOfBodyWithSettings(const QByteArray &bodyXml, const QByteArray &settingsInner)
+{
+    const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), "<w:document " + ns + "><w:body>" + bodyXml + "</w:body></w:document>", QStringLiteral("application/xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/settings.xml"), "<w:settings " + ns + ">" + settingsInner + "</w:settings>", QStringLiteral("application/xml"));
+    w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId8"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+    return fromDocxPackage(w.finish());
+}
+
+// A part of the .odt as a program that knows nothing of ours reads it: every attribute of ours taken out.
+QString standardPartOf(const QMap<QString, QByteArray> &files, const QString &name)
+{
+    QString c = QString::fromUtf8(files.value(name));
+    static const QRegularExpression ours(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\""));
+    c.remove(ours);
+    return c;
+}
+
+// A length of the file in inches, whatever unit it is written in.
+double lengthInches(const QString &length)
+{
+    static const QRegularExpression re(QStringLiteral("^\\s*(-?[0-9.]+(?:[eE][-+]?[0-9]+)?)\\s*(in|cm|mm|pt)\\s*$"));
+    const QRegularExpressionMatch m = re.match(length);
+    if (!m.hasMatch()) return -1e9;
+    const double v = m.captured(1).toDouble();
+    const QString u = m.captured(2);
+    return u == QLatin1String("in") ? v : u == QLatin1String("cm") ? v / 2.54 : u == QLatin1String("mm") ? v / 25.4 : v / 72.0;
+}
+
+// What the standard's transform does to a box of this size (in inches) set at the origin: the functions apply in the order written (as every program writes and reads it; a turn is against the clock,
+// about the box's own top left, and the translation then moves it). Where the box's center goes, the angle written, and the mirroring (a negative scale).
+struct TurnedBox {
+    bool ok = false;
+    double centerX = 0, centerY = 0, angle = 0;
+    bool flipX = false, flipY = false;
+};
+
+TurnedBox turnedBoxOf(const QString &transform, double w, double h)
+{
+    TurnedBox r;
+    double x = w / 2, y = h / 2;
+    static const QRegularExpression fn(QStringLiteral("([A-Za-z]+)\\s*\\(([^)]*)\\)"));
+    r.ok = !transform.isEmpty();
+    for (auto it = fn.globalMatch(transform); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        const QStringList a = m.captured(2).split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+        const QString name = m.captured(1);
+        if (name == QLatin1String("scale") && a.size() >= 1) {
+            const double sx = a[0].toDouble(), sy = a.size() > 1 ? a[1].toDouble() : sx;
+            x *= sx;
+            y *= sy;
+            r.flipX = r.flipX || sx < 0;
+            r.flipY = r.flipY || sy < 0;
+        } else if (name == QLatin1String("rotate") && a.size() == 1) {
+            const double ang = a[0].toDouble();
+            r.angle += ang;
+            const double nx = x * std::cos(ang) + y * std::sin(ang), ny = -x * std::sin(ang) + y * std::cos(ang);
+            x = nx;
+            y = ny;
+        } else if (name == QLatin1String("translate") && a.size() >= 1) {
+            x += lengthInches(a[0]);
+            y += a.size() > 1 ? lengthInches(a[1]) : 0;
+        } else r.ok = false;
+    }
+    r.centerX = x;
+    r.centerY = y;
+    return r;
+}
+
+// A drawn shape of the older form: kind "rect", "oval", "box" (a text box), or "picture" (the linked one), a box of 144 by 72 points set at 72 and 36 points, with more style.
+QByteArray vmlShape(const QString &kind, const QString &moreStyle = QString(), const QString &name = QStringLiteral("s1"))
+{
+    const QString style = QStringLiteral("position:absolute;margin-left:72pt;margin-top:36pt;width:144pt;height:72pt;z-index:251660288") + (moreStyle.isEmpty() ? QString() : QLatin1Char(';') + moreStyle);
+    if (kind == QLatin1String("rect") || kind == QLatin1String("oval"))
+        return QStringLiteral("<v:%1 id=\"%2\" style=\"%3\" filled=\"t\" fillcolor=\"#ff0000\" stroked=\"f\"/>").arg(kind == QLatin1String("rect") ? QStringLiteral("rect") : QStringLiteral("oval"), name, style).toUtf8();
+    if (kind == QLatin1String("box"))
+        return QStringLiteral("<v:shape type=\"#_x0000_t202\" id=\"%1\" style=\"%2\" filled=\"f\" stroked=\"f\"><v:textbox inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>Boxed</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape>").arg(name, style).toUtf8();
+    return QStringLiteral("<v:shape type=\"#_x0000_t75\" id=\"%1\" style=\"%2\"><v:imagedata r:id=\"rId9\"/></v:shape>").arg(name, style).toUtf8();
+}
+
+QByteArray pictBody(const QByteArray &shapes)
+{
+    return "<w:p><w:r><w:pict>" + shapes + "</w:pict></w:r></w:p>";
+}
+
+// The graphic or text-box element of a written shape of this kind, found by its own kind (not by where it stands): the shape element, and the frame that holds it for a text box and a picture.
+int shapeNodeOf(const wml::XmlTree &t, const QString &kind, int *frame)
+{
+    *frame = -1;
+    if (kind == QLatin1String("rect")) return findElement(t, "rect");
+    if (kind == QLatin1String("oval")) return findElement(t, "ellipse");
+    const int inner = findElement(t, kind == QLatin1String("box") ? "text-box" : "image");
+    if (inner >= 0) *frame = t.parent(inner);
+    return *frame;
+}
+
+// The numbers the drawing part of a .docx holds for its first shape: the turn in degrees (60000ths read), the mirroring, and where its box is set (inches from the anchor).
+struct ShapeInDocx {
+    bool found = false;
+    double turn = 0, left = -1e9, top = -1e9;
+    bool flipH = false, flipV = false;
+};
+
+ShapeInDocx firstShapeOfDocx(const QByteArray &odt)
+{
+    ShapeInDocx s;
+    wml::XmlTree d;
+    if (!d.parse(part(docxOf(odt), QStringLiteral("/word/document.xml")).toUtf8(), nullptr)) return s;
+    const int xfrm = findElement(d, "xfrm");
+    if (xfrm < 0) return s;
+    s.found = true;
+    s.turn = d.attr(xfrm, "rot").toDouble() / 60000.0;
+    s.flipH = d.attr(xfrm, "flipH") == QLatin1String("1");
+    s.flipV = d.attr(xfrm, "flipV") == QLatin1String("1");
+    for (int i = findElement(d, "posOffset"); i >= 0; i = findElement(d, "posOffset", i)) {
+        const QByteArray holder = d.localName(d.parent(i));
+        if (holder == "positionH") s.left = d.text(i).toDouble() / 914400.0;
+        else if (holder == "positionV") s.top = d.text(i).toDouble() / 914400.0;
+    }
+    return s;
+}
 
 // The paragraphs of a document part, each as its runs' text with "\f" for a page break run (and "^" where the paragraph asks to begin a page).
 QStringList paragraphsOf(const QString &documentXml)
@@ -2055,17 +2182,17 @@ private Q_SLOTS:
         QCOMPARE(drawings, 4);
         QStringList presets;
         for (int i = findElement(t, "prstGeom"); i >= 0; i = findElement(t, "prstGeom", i)) presets << t.attr(i, "prst");
-        QCOMPARE(presets, (QStringList{QStringLiteral("rect"), QStringLiteral("ellipse"), QStringLiteral("line"), QStringLiteral("rect")}));
-        const int ext = findElement(t, "extent");
-        QVERIFY(ext >= 0);
-        QCOMPARE(t.attr(ext, "cx").toLongLong(), qint64(1828800));
-        QCOMPARE(t.attr(ext, "cy").toLongLong(), qint64(914400));
+        presets.sort();
+        QCOMPARE(presets, (QStringList{QStringLiteral("ellipse"), QStringLiteral("line"), QStringLiteral("rect"), QStringLiteral("rect")}));
+        bool sized = false;
+        for (int i = findElement(t, "extent"); i >= 0; i = findElement(t, "extent", i)) sized = sized || (t.attr(i, "cx").toLongLong() == 1828800 && t.attr(i, "cy").toLongLong() == 914400);
+        QVERIFY(sized);
         const int box = findElement(t, "txbxContent");
         QVERIFY(box >= 0);
         QCOMPARE(t.text(box).trimmed(), QStringLiteral("Boxed words"));
-        const int off = findElement(t, "posOffset");
-        QVERIFY(off >= 0);
-        QCOMPARE(t.text(off).toLongLong(), qint64(914400));
+        bool placed = false;
+        for (int i = findElement(t, "posOffset"); i >= 0; i = findElement(t, "posOffset", i)) placed = placed || (t.localName(t.parent(i)) == "positionH" && t.text(i).toLongLong() == 914400);
+        QVERIFY(placed);
     }
 
     // A picture that the file links to and does not hold is the standard's image with the address as its reference; it comes back as a link, and nothing is opened or fetched on the way.
@@ -2285,18 +2412,24 @@ private Q_SLOTS:
         QCOMPARE(back.count(QLatin1String("<w:br")), 2);
     }
 
-    // A column break inside a paragraph is kept where it stands (the format has the break only as a paragraph's property); it adds nothing the standard cannot hold, and ours reads it back.
+    // A column break inside a paragraph is a line break for a program that knows nothing of ours (the words do not run together), and ours reads it back as the column break; a file of an earlier version said it with a span, and is read the same.
     void aColumnBreakInAParagraphIsKept()
     {
-        const QByteArray body = "<w:p><w:r><w:br w:type=\"column\"/><w:t>after</w:t></w:r></w:p>";
+        const QByteArray body = "<w:p><w:r><w:t>before</w:t></w:r><w:r><w:br w:type=\"column\"/><w:t>after</w:t></w:r></w:p>";
         QString c = odtContentOf(body);
-        QVERIFY2(c.contains(QLatin1String("<text:span jo:column-break=\"true\"/>")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("jo:column-break=\"true\"")), qPrintable(c));
         c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
-        QVERIFY2(c.contains(QLatin1String("<text:span/>after</text:p>")) || c.contains(QLatin1String("after</text:p>")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("before<text:line-break/>after</text:p>")), qPrintable(c));
+        QVERIFY2(!c.contains(QLatin1String("<text:span/>")), qPrintable(c));
         const QString back = roundTripBody(body);
-        QVERIFY2(back.contains(QLatin1String("<w:br w:type=\"column\"/>")), qPrintable(back));
-        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("after")}));
+        QCOMPARE(back.count(QLatin1String("<w:br w:type=\"column\"/>")), 1);
+        QCOMPARE(back.count(QLatin1String("<w:br")), 1);
+        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("beforeafter")}));
+        Made old;
+        old.body = "<text:p xmlns:jo=\"urn:jeffoffice:odf-extension\">before<text:span jo:column-break=\"true\"/>after</text:p>";
+        QCOMPARE(document(old).count(QLatin1String("<w:br w:type=\"column\"/>")), 1);
     }
+
 
     // Line spacing of "automatic" kind is a share of the line, not rounded to a whole percent: a spacing of 227 or 272 comes back as 227 or 272, not 228 or 271.
     void anAutomaticLineSpacingIsNotRoundedToAWholePercent()
@@ -2309,14 +2442,375 @@ private Q_SLOTS:
         QVERIFY2(back.contains(QLatin1String("w:line=\"227\"")) && back.contains(QLatin1String("w:line=\"272\"")) && back.contains(QLatin1String("w:line=\"360\"")), qPrintable(back));
     }
 
-    // A page's gutter (the room for the binding) is part of its left margin in the file, the format having none: the text is where it was, and it comes back as the margin it is.
-    void aPageGutterIsPartOfTheLeftMargin()
+    // A page's gutter (the room for the binding) is where the document puts it: at the left, at the right for a right-to-left section or when the document says so, at the top for a gutter there, and in the inside margin of mirrored pages; the file says it as margins (the standard has no gutter), and ours keeps the gutter apart from the margin, so that both come back.
+    void aPageGutterIsWhereTheDocumentPutsIt()
     {
-        const QByteArray body = "<w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"432\"/></w:sectPr>";
-        const QString c = odtStylesAndContentOf(body);
-        QVERIFY2(c.contains(QLatin1String("fo:margin-left=\"1.3000in\"")), qPrintable(c));
-        const QString back = roundTripBody(body);
-        QVERIFY2(back.contains(QLatin1String("w:left=\"1872\"")), qPrintable(back));
+        auto body = [](const char *sectExtra) {
+            return QByteArray("<w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"432\"/>") +
+                   sectExtra + "</w:sectPr>";
+        };
+        struct Case {
+            const char *name, *sect, *settings;
+            double left, right, top;
+            const char *usage;
+            bool rtlGutter, atTop, mirrored;
+        };
+        const Case cases[] = {
+            {"left", "", "", 1.3, 1.0, 1.0, "", false, false, false},
+            {"right: the section reads from the right", "<w:bidi/>", "", 1.0, 1.3, 1.0, "", true, false, false},
+            {"right: the document says so", "<w:rtlGutter/>", "", 1.0, 1.3, 1.0, "", true, false, false},
+            {"top", "", "<w:gutterAtTop/>", 1.0, 1.0, 1.3, "", false, true, false},
+            {"mirrored", "", "<w:mirrorMargins/>", 1.3, 1.0, 1.0, "mirrored", false, false, true},
+            {"mirrored, at the top", "", "<w:mirrorMargins/><w:gutterAtTop/>", 1.0, 1.0, 1.3, "mirrored", false, true, true},
+        };
+        for (const Case &k : cases) {
+            const QByteArray odt = odtOfBodyWithSettings(body(k.sect), k.settings);
+            const QMap<QString, QByteArray> files = filesOf(odt);
+            QVERIFY2(!files.isEmpty(), k.name);
+            wml::XmlTree t;
+            QVERIFY(t.parse(standardPartOf(files, QStringLiteral("styles.xml")).toUtf8(), nullptr));
+            const int props = findElement(t, "page-layout-properties");
+            QVERIFY2(props >= 0, k.name);
+            const QString what = QString::fromLatin1(k.name);
+            QVERIFY2(qAbs(lengthInches(t.attrAny(props, "margin-left")) - k.left) < 0.002, qPrintable(what + " left " + t.attrAny(props, "margin-left")));
+            QVERIFY2(qAbs(lengthInches(t.attrAny(props, "margin-right")) - k.right) < 0.002, qPrintable(what + " right " + t.attrAny(props, "margin-right")));
+            QVERIFY2(qAbs(lengthInches(t.attrAny(props, "margin-top")) - k.top) < 0.002, qPrintable(what + " top " + t.attrAny(props, "margin-top")));
+            QVERIFY2(qAbs(lengthInches(t.attrAny(props, "margin-bottom")) - 1.0) < 0.002, qPrintable(what));
+            QCOMPARE(t.attrAny(props, "page-usage") == QLatin1String("mirrored"), k.mirrored);
+            // The gutter itself is ours, apart from the margin.
+            const QRegularExpressionMatch own = QRegularExpression(QStringLiteral("jo:gutter=\"([^\"]+)\"")).match(QString::fromUtf8(files.value(QStringLiteral("styles.xml"))));
+            QVERIFY2(own.hasMatch() && qAbs(lengthInches(own.captured(1)) - 0.3) < 0.002, qPrintable(what));
+            // And back: the margin and the gutter apart, where the gutter was.
+            const QByteArray docx = docxOf(odt);
+            const QString doc = part(docx, QStringLiteral("/word/document.xml"));
+            wml::XmlTree d;
+            QVERIFY(d.parse(doc.toUtf8(), nullptr));
+            const int mar = findElement(d, "pgMar");
+            QVERIFY2(mar >= 0, k.name);
+            QVERIFY2(qAbs(d.attr(mar, "left").toInt() - 1440) <= 2 && qAbs(d.attr(mar, "right").toInt() - 1440) <= 2 && qAbs(d.attr(mar, "top").toInt() - 1440) <= 2, qPrintable(what + doc));
+            QVERIFY2(qAbs(d.attr(mar, "gutter").toInt() - 432) <= 2, qPrintable(what + " gutter " + d.attr(mar, "gutter")));
+            QCOMPARE(findElement(d, "rtlGutter") >= 0, k.rtlGutter);
+            wml::XmlTree s;
+            QVERIFY(s.parse(part(docx, QStringLiteral("/word/settings.xml")).toUtf8(), nullptr));
+            QCOMPARE(findElement(s, "gutterAtTop") >= 0, k.atTop);
+            QCOMPARE(findElement(s, "mirrorMargins") >= 0, k.mirrored);
+        }
+        // A file of another program (no gutter of ours) has its margin as it is; a gutter larger than the margin it is taken from is bounded by it.
+        Made foreign;
+        foreign.body = "<text:p>x</text:p>";
+        foreign.masters = "<style:master-page style:name=\"Standard\" style:page-layout-name=\"pm1\"/>";
+        const QString layout = QStringLiteral("<style:page-layout style:name=\"pm1\"><style:page-layout-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" fo:page-width=\"8.5in\" fo:page-height=\"11in\" fo:margin-top=\"1in\" fo:margin-bottom=\"1in\" "
+                                              "fo:margin-left=\"1.3in\" fo:margin-right=\"1in\"%1/></style:page-layout>");
+        foreign.layouts = layout.arg(QString()).toUtf8();
+        wml::XmlTree d;
+        QVERIFY(d.parse(document(foreign).toUtf8(), nullptr));
+        QCOMPARE(d.attr(findElement(d, "pgMar"), "gutter").toInt(), 0);
+        QVERIFY(qAbs(d.attr(findElement(d, "pgMar"), "left").toInt() - 1872) <= 2);
+        foreign.layouts = layout.arg(QStringLiteral(" jo:gutter=\"99in\" jo:gutter-side=\"left\"")).toUtf8();
+        wml::XmlTree h;
+        QVERIFY(h.parse(document(foreign).toUtf8(), nullptr));
+        const int mar = findElement(h, "pgMar");
+        QVERIFY(mar >= 0);
+        QVERIFY2(h.attr(mar, "left").toInt() >= 0 && h.attr(mar, "left").toInt() + h.attr(mar, "gutter").toInt() <= 1872 + 2, qPrintable(h.attr(mar, "left") + "/" + h.attr(mar, "gutter")));
+    }
+
+    // A shape that is turned or mirrored is written as the standard's transform of its box (the box unturned, set where, turned, its center is where the source shape's was), and comes back turned and mirrored the same.
+    void turnedAndMirroredShapesAreTheStandardsTransform()
+    {
+        struct Case {
+            double turn;
+            bool flipX, flipY;
+        };
+        const QList<Case> cases = {{30, false, false}, {90, false, false}, {270, false, false}, {0, true, false}, {0, false, true}, {30, true, false}, {270, false, true}};
+        for (const QString &kind : {QStringLiteral("rect"), QStringLiteral("oval"), QStringLiteral("box"), QStringLiteral("picture")})
+            for (const Case &k : cases) {
+                const QString what = QStringLiteral("%1 turn %2 flipX %3 flipY %4").arg(kind).arg(k.turn).arg(k.flipX).arg(k.flipY);
+                QString more = k.turn != 0 ? QStringLiteral("rotation:%1").arg(k.turn) : QString();
+                if (k.flipX || k.flipY) more += QStringLiteral(";flip:%1%2").arg(k.flipX ? QStringLiteral("x") : QString(), k.flipY ? QStringLiteral("y") : QString());
+                const QByteArray odt = odtOfDrawing(pictBody(vmlShape(kind, more)), QStringLiteral("http://127.0.0.1:9/p.png"));
+                const QMap<QString, QByteArray> files = filesOf(odt);
+                QVERIFY2(!files.isEmpty(), qPrintable(what));
+                const QString c = standardContentOf(files);
+                wml::XmlTree t;
+                QVERIFY2(t.parse(c.toUtf8(), nullptr), qPrintable(what));
+                int frame = -1;
+                const int node = shapeNodeOf(t, kind, &frame);
+                QVERIFY2(node >= 0, qPrintable(what + c));
+                const int box = frame >= 0 ? frame : node;
+                const double w = lengthInches(t.attrAny(box, "width"));
+                double h = lengthInches(t.attrAny(box, "height"));
+                if (kind == QLatin1String("box")) h = lengthInches(t.attrAny(findElement(t, "text-box"), "min-height"));
+                QVERIFY2(qAbs(w - 2.0) < 0.002 && qAbs(h - 1.0) < 0.002, qPrintable(what));
+                TurnedBox b;
+                if (t.attrAny(box, "transform").isEmpty()) {
+                    // (a picture that is only mirrored, by its own property, has a plain place)
+                    QVERIFY2(kind == QLatin1String("picture") && k.turn == 0, qPrintable(what + ": no transform"));
+                    b.ok = true;
+                    b.centerX = lengthInches(t.attrAny(box, "x")) + w / 2;
+                    b.centerY = lengthInches(t.attrAny(box, "y")) + h / 2;
+                } else {
+                    QVERIFY2(t.attrAny(box, "x").isEmpty() && t.attrAny(box, "y").isEmpty(), qPrintable(what + ": the position is the transform's"));
+                    b = turnedBoxOf(t.attrAny(box, "transform"), w, h);
+                }
+                QVERIFY2(b.ok, qPrintable(what + c));
+                QVERIFY2(qAbs(b.centerX - 2.0) < 0.002 && qAbs(b.centerY - 1.0) < 0.002, qPrintable(QStringLiteral("%1: center %2, %3").arg(what).arg(b.centerX).arg(b.centerY)));
+                double degrees = std::fmod(-b.angle * 180.0 / M_PI, 360.0);   // (the standard turns against the clock)
+                if (degrees < -0.01) degrees += 360.0;
+                QVERIFY2(qAbs(degrees - k.turn) < 0.01 || qAbs(degrees - k.turn - 360.0) < 0.01, qPrintable(QStringLiteral("%1: turn %2").arg(what).arg(degrees)));
+                QString mirror;
+                if (kind == QLatin1String("picture")) mirror = graphicPropertiesOf(t, t.attrAny(box, "style-name")).value(QStringLiteral("mirror"));
+                QCOMPARE(b.flipX || mirror.contains(QLatin1String("horizontal")), k.flipX);
+                QCOMPARE(b.flipY || mirror.contains(QLatin1String("vertical")), k.flipY);
+                // And back: the same turn, the same mirroring, and the box where it was set.
+                const ShapeInDocx back = firstShapeOfDocx(odt);
+                QVERIFY2(back.found, qPrintable(what));
+                QVERIFY2(qAbs(back.turn - k.turn) < 0.01, qPrintable(QStringLiteral("%1: back turn %2").arg(what).arg(back.turn)));
+                QCOMPARE(back.flipH, k.flipX);
+                QCOMPARE(back.flipV, k.flipY);
+                QVERIFY2(qAbs(back.left - 1.0) < 0.003 && qAbs(back.top - 0.5) < 0.003, qPrintable(QStringLiteral("%1: back at %2, %3").arg(what).arg(back.left).arg(back.top)));
+            }
+    }
+
+    // A shape whose fill is a picture is not a plain rectangle: it is the picture (the picture's address is the image's), and a text box that has one is kept without it and says so.
+    void aShapeFilledWithAPictureIsNotAWhiteRectangle()
+    {
+        const QString link = QStringLiteral("http://127.0.0.1:9/fill.png");
+        const QByteArray fillRect = "<v:rect id=\"f\" style=\"position:absolute;margin-left:10pt;margin-top:10pt;width:100pt;height:50pt\" stroked=\"f\"><v:fill r:id=\"rId9\" type=\"frame\"/></v:rect>";
+        const QMap<QString, QByteArray> files = filesOf(odtOfDrawing(pictBody(fillRect), link));
+        const QString c = standardContentOf(files);
+        QVERIFY2(c.contains(QLatin1String("xlink:href=\"") + link + QLatin1String("\"")), qPrintable(c));
+        QVERIFY2(!c.contains(QLatin1String("<draw:rect")), qPrintable(c));
+        QVERIFY2(!c.toLower().contains(QLatin1String("#ffffff")), qPrintable(c));
+        // (the same shape beside a picture of its own: both are pictures)
+        const QMap<QString, QByteArray> both = filesOf(odtOfDrawing(pictBody(fillRect + vmlShape(QStringLiteral("picture"), QString(), QStringLiteral("p2"))), link));
+        QCOMPARE(standardContentOf(both).count(QLatin1String("<draw:image ")), 2);
+        // A text box with a picture fill keeps its words and is the box without the picture; the notes say what was left out.
+        const QByteArray fillBox = "<v:shape type=\"#_x0000_t202\" id=\"b\" style=\"position:absolute;margin-left:10pt;margin-top:10pt;width:100pt;height:50pt\" stroked=\"f\"><v:fill r:id=\"rId9\" type=\"frame\"/>"
+                                   "<v:textbox><w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape>";
+        QStringList notes;
+        const QString box = standardContentOf(filesOf(odtOfDrawing(pictBody(fillBox), link, &notes)));
+        QVERIFY2(box.contains(QLatin1String("Boxed words")), qPrintable(box));
+        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("pictures that fill text boxes")), qPrintable(notes.join(QLatin1Char('\n'))));
+    }
+
+    // A group in the line is the standard's group with its members; a member that cannot be written does not take the rest with it, and the notes name what was left out.
+    void aGroupIsAGroupOfItsMembers()
+    {
+        const QByteArray red = "<v:rect id=\"a\" style=\"position:absolute;left:0pt;top:0pt;width:100pt;height:50pt\" filled=\"t\" fillcolor=\"#ff0000\" stroked=\"f\"/>";
+        const QByteArray blue = "<v:oval id=\"b\" style=\"position:absolute;left:100pt;top:50pt;width:100pt;height:50pt\" filled=\"t\" fillcolor=\"#0000ff\" stroked=\"f\"/>";
+        const QByteArray art = "<v:shape type=\"#_x0000_t136\" id=\"c\" style=\"position:absolute;left:0pt;top:50pt;width:100pt;height:50pt\"><v:textpath on=\"t\" string=\"Words on a path\" style=\"font-family:Arial\"/></v:shape>";
+        auto group = [&](const QByteArray &members) { return QByteArray("<v:group id=\"g\" style=\"width:200pt;height:100pt\" coordsize=\"200,100\">") + members + "</v:group>"; };
+        QStringList notes;
+        const QByteArray odt = odtOfDrawing(pictBody(group(red + art + blue)), QString(), &notes);
+        wml::XmlTree t;
+        QVERIFY(t.parse(standardContentOf(filesOf(odt)).toUtf8(), nullptr));
+        const int g = findElement(t, "g");
+        QVERIFY(g >= 0);
+        QStringList kinds;
+        for (int k = t.firstChild(g); k >= 0; k = t.next(k)) kinds << QString::fromLatin1(t.localName(k));
+        kinds.sort();
+        QCOMPARE(kinds, (QStringList{QStringLiteral("ellipse"), QStringLiteral("rect")}));
+        QCOMPARE(findElement(t, "rect") >= 0 && t.parent(findElement(t, "rect")) == g, true);
+        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("drawings, shapes, and charts")), qPrintable(notes.join(QLatin1Char('\n'))));
+        // The members come back with the distance between them (100 points across, 50 down).
+        wml::XmlTree d;
+        QVERIFY(d.parse(part(docxOf(odt), QStringLiteral("/word/document.xml")).toUtf8(), nullptr));
+        QList<double> xs, ys;
+        for (int i = findElement(d, "posOffset"); i >= 0; i = findElement(d, "posOffset", i)) (d.localName(d.parent(i)) == "positionH" ? xs : ys) << d.text(i).toDouble() / 12700.0;
+        QCOMPARE(xs.size(), 2);
+        QCOMPARE(ys.size(), 2);
+        std::sort(xs.begin(), xs.end());
+        std::sort(ys.begin(), ys.end());
+        QVERIFY(qAbs(xs[1] - xs[0] - 100.0) < 0.5 && qAbs(ys[1] - ys[0] - 50.0) < 0.5);
+        // A group all of whose members are written says nothing was left out.
+        QStringList none;
+        const QString whole = standardContentOf(filesOf(odtOfDrawing(pictBody(group(red + blue)), QString(), &none)));
+        QVERIFY2(whole.contains(QLatin1String("<draw:g")), qPrintable(whole));
+        QVERIFY2(!none.join(QLatin1Char('\n')).contains(QLatin1String("drawings, shapes, and charts")), qPrintable(none.join(QLatin1Char('\n'))));
+    }
+
+    // Shapes behind the text keep their order among themselves, and so do those in front; a shape behind the text is run through "background" and one in front "foreground"; a shape in the line has an order too.
+    void shapesKeepTheirOrderAndTheirSideOfTheText()
+    {
+        auto rect = [](int widthPt, qint64 z) {
+            return QStringLiteral("<w:r><w:pict><v:rect style=\"position:absolute;margin-left:10pt;margin-top:10pt;width:%1pt;height:50pt;z-index:%2\" filled=\"t\" fillcolor=\"#ff0000\" stroked=\"f\"/></w:pict></w:r>").arg(widthPt).arg(z);
+        };
+        // (written out of their order: by z-index the widths run 102, 103, 101 behind and 203, 201, 202 in front)
+        const QString body = QStringLiteral("<w:p>") + rect(101, -251658240 + 3072) + rect(102, -251658240 + 1024) + rect(103, -251658240 + 2048) + rect(201, 251660288 + 1024) + rect(202, 251660288 + 2048) + rect(203, 251660288) +
+                             QStringLiteral("<w:r><w:pict><v:rect style=\"width:30pt;height:30pt;z-index:251661312\" filled=\"t\" fillcolor=\"#00ff00\" stroked=\"f\"/></w:pict></w:r></w:p>");
+        const QMap<QString, QByteArray> files = filesOf(odtOfDrawing(body.toUtf8()));
+        wml::XmlTree t;
+        QVERIFY(t.parse(standardContentOf(files).toUtf8(), nullptr));
+        QMap<int, qint64> order;   // width in points -> z-index
+        QMap<int, QString> side;
+        bool inlineHasOrder = false;
+        for (int r = findElement(t, "rect"); r >= 0; r = findElement(t, "rect", r)) {
+            const int width = int(std::lround(lengthInches(t.attrAny(r, "width")) * 72.0));
+            const QMap<QString, QString> gp = graphicPropertiesOf(t, t.attrAny(r, "style-name"));
+            if (width == 30) {
+                inlineHasOrder = !t.attrAny(r, "z-index").isEmpty() && t.attrAny(r, "anchor-type") == QLatin1String("as-char");
+                continue;
+            }
+            QVERIFY2(!t.attrAny(r, "z-index").isEmpty(), qPrintable(QString::number(width)));
+            order.insert(width, t.attrAny(r, "z-index").toLongLong());
+            side.insert(width, gp.value(QStringLiteral("run-through")));
+        }
+        QVERIFY(inlineHasOrder);
+        QCOMPARE(order.size(), 6);
+        QVERIFY2(order[102] < order[103] && order[103] < order[101], qPrintable(QStringLiteral("behind: %1 %2 %3").arg(order[102]).arg(order[103]).arg(order[101])));
+        QVERIFY2(order[203] < order[201] && order[201] < order[202], qPrintable(QStringLiteral("in front: %1 %2 %3").arg(order[203]).arg(order[201]).arg(order[202])));
+        for (int w : {101, 102, 103}) QCOMPARE(side[w], QStringLiteral("background"));
+        for (int w : {201, 202, 203}) QCOMPARE(side[w], QStringLiteral("foreground"));
+    }
+
+    // A picture linked by a network address is the standard's address of a network location, and comes back as the same address (a UNC one).
+    void aNetworkAddressOfALinkedPictureIsAFileAddress()
+    {
+        const QString unc = QStringLiteral("\\\\host\\share\\my pictures\\x.png");
+        const QByteArray odt = odtOfDrawing(linkedPictureBody(), unc);
+        const QString c = standardContentOf(filesOf(odt));
+        QVERIFY2(c.contains(QLatin1String("xlink:href=\"file://host/share/my%20pictures/x.png\"")), qPrintable(c));
+        QVERIFY2(!c.contains(QLatin1String("xlink:href=\"//")), qPrintable(c));
+        Package p;
+        QVERIFY(p.read(docxOf(odt)));
+        QStringList targets;
+        for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
+            if (r.external) targets << r.target;
+        QCOMPARE(targets, QStringList{unc});
+        // (a path on this computer still has slashes, and an address longer than any is not kept)
+        QVERIFY2(standardContentOf(filesOf(odtOfDrawing(linkedPictureBody(), QStringLiteral("..\\pics\\y.png")))).contains(QLatin1String("xlink:href=\"../pics/y.png\"")), "a relative path");
+        QVERIFY2(!standardContentOf(filesOf(odtOfDrawing(linkedPictureBody(), QStringLiteral("\\\\host\\") + QString(5000, QLatin1Char('x'))))).contains(QLatin1String("host")), "a length no address has");
+    }
+
+    // The older form's drawing is read once, and only if it is no longer than the most one holds; a line's ends are bounded like the other lengths; a forged place in a row with a span moves the grid by it.
+    void hostileShapesAndPlacesAreBounded()
+    {
+        const qint64 parses = wml::readShapesParsesForTest();
+        QByteArray big = "<w:p><w:r><w:pict><v:rect style=\"position:absolute;width:10pt;height:10pt\"/><!--";
+        big += QByteArray(5 << 20, 'x');
+        big += "--></w:pict></w:r></w:p>";
+        QStringList notes;
+        const QMap<QString, QByteArray> files = filesOf(odtOfDrawing(big, QString(), &notes));
+        QVERIFY(!files.isEmpty());
+        QCOMPARE(wml::readShapesParsesForTest(), parses);
+        QVERIFY2(!standardContentOf(files).contains(QLatin1String("<draw:rect")), "an over-long drawing is not read");
+        // (and one of the usual length is read once)
+        const qint64 before = wml::readShapesParsesForTest();
+        filesOf(odtOfDrawing(pictBody(vmlShape(QStringLiteral("rect")))));
+        QVERIFY(wml::readShapesParsesForTest() - before <= 1);
+        // A line's ends are bounded in the file and when it is read.
+        Made far;
+        far.body = "<text:p><draw:line text:anchor-type=\"paragraph\" svg:x1=\"-50000pt\" svg:y1=\"0pt\" svg:x2=\"40000pt\" svg:y2=\"60000pt\"/></text:p>";
+        wml::XmlTree d;
+        QVERIFY(d.parse(document(far).toUtf8(), nullptr));
+        for (int i = findElement(d, "posOffset"); i >= 0; i = findElement(d, "posOffset", i)) QVERIFY2(qAbs(d.text(i).toLongLong()) <= qint64(12000) * 12700, qPrintable(d.text(i)));
+        const QString written = standardContentOf(filesOf(odtOfDrawing(pictBody("<v:line style=\"position:absolute;margin-left:0pt;margin-top:0pt;width:10pt;height:10pt\" from=\"-5000000pt,0pt\" to=\"5000000pt,9000000pt\"/>"))));
+        wml::XmlTree w;
+        QVERIFY(w.parse(written.toUtf8(), nullptr));
+        const int line = findElement(w, "line");
+        QVERIFY2(line >= 0, qPrintable(written));
+        for (const char *a : {"x1", "y1", "x2", "y2"}) QVERIFY2(qAbs(lengthInches(w.attrAny(line, a))) <= 12000.0 / 72.0 + 0.01, a);
+        // A forged place (jo:pad) with a span of three, at the start of the row, is three places of the grid.
+        Made m;
+        m.body = "<table:table xmlns:jo=\"urn:jeffoffice:odf-extension\"><table:table-column table:number-columns-repeated=\"4\"/>"
+                 "<table:table-row><table:table-cell><text:p>a</text:p></table:table-cell><table:table-cell><text:p>b</text:p></table:table-cell><table:table-cell><text:p>c</text:p></table:table-cell><table:table-cell><text:p>d</text:p></table:table-cell></table:table-row>"
+                 "<table:table-row><table:table-cell jo:pad=\"true\" table:number-columns-spanned=\"3\"/><table:covered-table-cell/><table:covered-table-cell/><table:table-cell><text:p>e</text:p></table:table-cell></table:table-row></table:table>";
+        const QString doc = document(m);
+        QVERIFY2(doc.contains(QLatin1String("<w:gridBefore w:val=\"3\"/>")), qPrintable(doc));
+        QCOMPARE(doc.count(QLatin1String("<w:tc>")), 5);
+    }
+
+    // Our attributes are in one namespace, declared once on the root of each part: nothing is declared again beside a shape or a picture, and the older namespace is only read; an arrowhead is read from either.
+    void ourAttributesAreInOneNamespaceDeclaredOnce()
+    {
+        const QByteArray lines = pictBody("<v:line style=\"position:absolute;margin-left:10pt;margin-top:10pt;width:100pt;height:0pt\" from=\"0pt,0pt\" to=\"100pt,0pt\" strokeweight=\"1pt\"><v:stroke startarrow=\"block\" endarrow=\"classic\"/></v:line>");
+        const QMap<QString, QByteArray> files = filesOf(odtOfDrawing(lines + pictBody(vmlShape(QStringLiteral("rect"), QStringLiteral("rotation:30")))));
+        for (const QString &name : {QStringLiteral("content.xml"), QStringLiteral("styles.xml")}) {
+            const QString text = QString::fromUtf8(files.value(name));
+            QCOMPARE(text.count(QLatin1String("xmlns:jo=")), 1);
+            QVERIFY2(!text.contains(QLatin1String("names:extension")), qPrintable(name));
+            const int root = text.indexOf(QLatin1String("xmlns:jo="));
+            QVERIFY2(root >= 0 && root < 3000, qPrintable(name));
+        }
+        const QString content = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QLatin1String("jo:head-end=\"")) && content.contains(QLatin1String("jo:tail-end=\"")), qPrintable(content));
+        // A picture of ours with a barcode and a drawing shape of ours with a dash: the same one declaration.
+        // The older namespace is still read (a file of an earlier version): its arrow ends come back as arrow ends.
+        Made old;
+        old.body = "<text:p><draw:custom-shape text:anchor-type=\"paragraph\" svg:width=\"2in\" svg:height=\"1in\" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\" jo:head-end=\"triangle\" jo:tail-end=\"arrow\" jo:dash=\"sysDot\" jo:rotation=\"30.0000\">"
+                   "<draw:enhanced-geometry draw:type=\"ooxml-rect\"/></draw:custom-shape></text:p>";
+        old.autoStyles = "<style:style style:name=\"gr1\" style:family=\"graphic\"><style:graphic-properties draw:stroke=\"solid\" svg:stroke-color=\"#000000\" svg:stroke-width=\"0.0139in\"/></style:style>";
+        old.body.replace("<draw:custom-shape ", "<draw:custom-shape draw:style-name=\"gr1\" ");
+        const QString doc = document(old);
+        QVERIFY2(doc.contains(QLatin1String("<a:headEnd type=\"triangle\"/>")) && doc.contains(QLatin1String("<a:tailEnd type=\"arrow\"/>")), qPrintable(doc));
+        QVERIFY2(doc.contains(QLatin1String("sysDot")) && doc.contains(QLatin1String("rot=\"1800000\"")), qPrintable(doc));
+        // And the ends of the new namespace the same.
+        Made fresh;
+        fresh.body = old.body;
+        fresh.body.replace("xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"", "xmlns:jo=\"urn:jeffoffice:odf-extension\"");
+        fresh.autoStyles = old.autoStyles;
+        const QString doc2 = document(fresh);
+        QVERIFY2(doc2.contains(QLatin1String("<a:headEnd type=\"triangle\"/>")) && doc2.contains(QLatin1String("<a:tailEnd type=\"arrow\"/>")), qPrintable(doc2));
+    }
+
+    // Text boxes inside text boxes, three deep, are three boxes in the file, each inside the one before, and come back as three.
+    void textBoxesThreeDeepAreKept()
+    {
+        auto box = [](const QByteArray &inner) {
+            return QByteArray("<w:p><w:r><w:pict><v:shape type=\"#_x0000_t202\" style=\"position:absolute;margin-left:0pt;margin-top:0pt;width:200pt;height:100pt\" filled=\"f\" stroked=\"f\"><v:textbox><w:txbxContent>") + inner +
+                   "</w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>";
+        };
+        const QByteArray body = box("<w:p><w:r><w:t>outer</w:t></w:r></w:p>" + box("<w:p><w:r><w:t>middle</w:t></w:r></w:p>" + box("<w:p><w:r><w:t>deepest</w:t></w:r></w:p>")));
+        const QByteArray odt = odtOfDrawing(body);
+        wml::XmlTree t;
+        QVERIFY(t.parse(standardContentOf(filesOf(odt)).toUtf8(), nullptr));
+        QList<int> boxes;
+        for (int i = findElement(t, "text-box"); i >= 0; i = findElement(t, "text-box", i)) boxes << i;
+        QCOMPARE(boxes.size(), 3);
+        // (one box at each depth: none, one, and two boxes around it)
+        QList<int> depths;
+        for (int b : boxes) {
+            int depth = 0;
+            for (int p = t.parent(b); p >= 0; p = t.parent(p))
+                if (t.localName(p) == "text-box") ++depth;
+            depths << depth;
+        }
+        std::sort(depths.begin(), depths.end());
+        QCOMPARE(depths, (QList<int>{0, 1, 2}));
+        const QString doc = part(docxOf(odt), QStringLiteral("/word/document.xml"));
+        QCOMPARE(doc.count(QLatin1String("<w:txbxContent>")), 3);
+        QVERIFY2(doc.contains(QLatin1String("deepest")) && doc.contains(QLatin1String("middle")) && doc.contains(QLatin1String("outer")), qPrintable(doc));
+    }
+
+    // Our place-holders of a row (jo:pad) taken out, every row has as many places as the table has columns, also with spans, and the places are the same.
+    void everyRowHasAsManyPlacesAsTheTableHasColumnsWithoutOurAttribute()
+    {
+        auto cell = [](const char *text, int span = 1) {
+            return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/>") + (span > 1 ? "<w:gridSpan w:val=\"" + QByteArray::number(span) + "\"/>" : QByteArray()) + "</w:tcPr><w:p><w:r><w:t>" + text + "</w:t></w:r></w:p></w:tc>";
+        };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"4000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("A") + cell("B", 2) + cell("C") + "</w:tr>"
+                                 "<w:tr><w:trPr><w:gridBefore w:val=\"1\"/><w:gridAfter w:val=\"1\"/></w:trPr>" + cell("D", 2) + "</w:tr>"
+                                 "<w:tr><w:trPr><w:gridBefore w:val=\"2\"/></w:trPr>" + cell("E") + cell("F") + "</w:tr></w:tbl><w:p/>";
+        const QString c = QString(odtContentOf(table)).remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        wml::XmlTree t;
+        QVERIFY(t.parse(c.toUtf8(), nullptr));
+        int columns = 0;
+        for (int k = findElement(t, "table-column"); k >= 0; k = findElement(t, "table-column", k)) columns += std::max(1, t.attrAny(k, "number-columns-repeated").toInt());
+        QCOMPARE(columns, 4);
+        int rows = 0;
+        for (int r = findElement(t, "table-row"); r >= 0; r = findElement(t, "table-row", r)) {
+            ++rows;
+            int places = 0;
+            for (int k = t.firstChild(r); k >= 0; k = t.next(k))
+                if (t.localName(k) == "table-cell" || t.localName(k) == "covered-table-cell") places += std::max(1, t.attrAny(k, "number-columns-repeated").toInt());
+            QCOMPARE(places, columns);
+        }
+        QCOMPARE(rows, 3);
+        // and ours reads the same rows back: the places are not cells
+        const QString back = roundTripBody(table);
+        QCOMPARE(back.count(QLatin1String("<w:gridBefore")), 2);
+        QCOMPARE(back.count(QLatin1String("<w:tc>")), 6);
     }
 };
 

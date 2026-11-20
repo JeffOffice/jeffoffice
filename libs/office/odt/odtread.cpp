@@ -177,7 +177,7 @@ void Reader::collectProps(const Odf &o, int node, const QString &kind, Props *in
     const int jo = t.namespaceId("urn:jeffoffice:odf-extension");
     for (const auto &a : t.attributes(node)) {
         // (the page breaks that are ours are kept apart by their namespace: an attribute of another namespace with the same name is not one)
-        if (jo >= 0 && a.ns == jo && a.local.startsWith("break-")) into->insert(kind + QStringLiteral("jo:") + QString::fromLatin1(a.local), a.value);
+        if (jo >= 0 && a.ns == jo && (a.local.startsWith("break-") || a.local.startsWith("gutter"))) into->insert(kind + QStringLiteral("jo:") + QString::fromLatin1(a.local), a.value);
         else into->insert(kind + o.canonical(a.ns, a.local), a.value);
     }
 }
@@ -679,15 +679,28 @@ QByteArray Reader::sectPrXml(const SectionState &s)
     qint64 top = margin("top", 1440), bottom = margin("bottom", 1440), left = margin("left", 1440), right = margin("right", 1440);
     const bool hasHeader = use.header >= 0 || use.headerLeft >= 0 || use.headerFirst >= 0, hasFooter = use.footer >= 0 || use.footerLeft >= 0 || use.footerFirst >= 0;
     const qint64 headerDistance = top, footerDistance = bottom;
+    // The gutter of ours (the binding's room, which the margins of the file hold, as the format has none): taken out of the margin it is at, and no more of it than that margin has.
+    qint64 gutter = std::max<qint64>(0, len(layout.props.value(QStringLiteral("page:jo:gutter")), 0));
+    const QString gutterSide = layout.props.value(QStringLiteral("page:jo:gutter-side"));
+    const bool gutterTop = gutterSide == QLatin1String("top"), gutterRight = gutterSide == QLatin1String("right");
+    if (gutter > 0) gutter = std::min(gutter, gutterTop ? top : gutterRight ? right : left);
+    const bool mirrored = lp("style:page-usage") == QLatin1String("mirrored");
     // (With dynamic spacing the space between the header or footer and the text is inside its height, not added to it.)
     const bool dynHeader = layout.props.value(QStringLiteral("hdr:style:dynamic-spacing")) == QLatin1String("true"), dynFooter = layout.props.value(QStringLiteral("ftr:style:dynamic-spacing")) == QLatin1String("true");
     if (hasHeader) top += std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:min-height")), 0)) + (dynHeader ? 0 : std::max<qint64>(0, len(layout.props.value(QStringLiteral("hdr:fo:margin-bottom")), 0)));
     if (hasFooter) bottom += std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:min-height")), 0)) + (dynFooter ? 0 : std::max<qint64>(0, len(layout.props.value(QStringLiteral("ftr:fo:margin-top")), 0)));
+    if (gutter > 0) {
+        if (gutterTop) top -= gutter;
+        else if (gutterRight) right -= gutter;
+        else left -= gutter;
+        if (gutterTop) m_gutterAtTop = true;
+    }
+    if (mirrored) m_mirrorMargins = true;
     w = std::max<qint64>(720, std::min<qint64>(w, 31680));
     h = std::max<qint64>(720, std::min<qint64>(h, 31680));
     x += "<w:pgSz w:w=\"" + num(w) + "\" w:h=\"" + num(h) + "\"" + (lp("style:print-orientation") == QLatin1String("landscape") ? " w:orient=\"landscape\"" : "") + "/>";
     x += "<w:pgMar w:top=\"" + num(top) + "\" w:right=\"" + num(right) + "\" w:bottom=\"" + num(bottom) + "\" w:left=\"" + num(left) + "\" w:header=\"" + num(headerDistance) + "\" w:footer=\"" +
-         num(footerDistance) + "\" w:gutter=\"0\"/>";
+         num(footerDistance) + "\" w:gutter=\"" + num(gutter) + "\"/>";
     {
         const QString first = lp("style:first-page-number");
         const bool hasStart = !first.isEmpty() && first != QLatin1String("continue") && first.toInt() > 0 && !s.continuous;
@@ -709,6 +722,7 @@ QByteArray Reader::sectPrXml(const SectionState &s)
     }
     if (cols > 1 && cols <= 45) x += "<w:cols w:num=\"" + num(cols) + "\" w:space=\"" + num(gap) + "\"" + (sep ? " w:sep=\"1\"" : "") + "/>";
     if (titlePg) x += "<w:titlePg/>";
+    if (gutter > 0 && gutterRight) x += "<w:rtlGutter/>";
     return x;
 }
 
@@ -803,6 +817,8 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
     }
     {
         QByteArray s = QByteArray(kXmlHeader) + "<w:settings " + docxNamespaces() + ">";
+        if (m_mirrorMargins) s += "<w:mirrorMargins/>";
+        if (m_gutterAtTop) s += "<w:gutterAtTop/>";
         if (m_evenOdd) s += "<w:evenAndOddHeaders/>";
         // Book fold printing, kept as two items of ours in the settings.
         if (items.contains("config:name=\"JeffOfficeBookFold\" config:type=\"boolean\">true<")) {

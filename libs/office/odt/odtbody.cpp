@@ -46,6 +46,113 @@ bool isWhite(QChar c)
     return c == QLatin1Char(' ') || c == QLatin1Char('\t') || c == QLatin1Char('\n') || c == QLatin1Char('\r');
 }
 
+// Our attribute of a node: in the namespace of today, else in the older one that a file of an earlier version has (the older one is only read).
+QString ourAttr(const Odf &o, int node, const char *name)
+{
+    const wml::XmlTree &t = o.tree();
+    for (const char *uri : {"urn:jeffoffice:odf-extension", "urn:jeffoffice:names:extension:1.0"}) {
+        const int ns = t.namespaceId(uri);
+        if (ns < 0) continue;
+        const QString v = t.attr(node, name, ns);
+        if (!v.isEmpty()) return v;
+    }
+    return QString();
+}
+
+// A line's end, in EMU, bounded like the other places (no line is longer than 12000 points).
+qint64 lineEndEmu(const Odf &o, int frame, const char *attr)
+{
+    return std::clamp<qint64>(lengthToEmu(o.at(frame, attr), nullptr), -qint64(12000) * 12700, qint64(12000) * 12700);
+}
+
+// What a shape's transform and mirror say: the turn (degrees with the clock), the mirroring, and where its box is set. The standard's transform is a list of functions that apply in the order written
+// (a mirror is a negative scale, a turn is against the clock about the box's top left, and the translation moves the turned box); one that holds a function not read here is not read.
+struct Turn {
+    bool has = false;      // a transform that is read: it says where the box is
+    double degrees = 0;
+    bool flipH = false, flipV = false;
+    qint64 x = 0, y = 0;   // the top left of the unturned box, in EMU
+};
+
+Turn turnOf(const Odf &o, int frame, qint64 cx, qint64 cy)
+{
+    Turn r;
+    const QString text = o.at(frame, "draw:transform").trimmed();
+    if (text.isEmpty() || text.size() > 400) return r;
+    static const QRegularExpression fn(QStringLiteral("\\s*([A-Za-z]+)\\s*\\(([^()]*)\\)\\s*,?"));
+    auto number = [](QString v, double *out) {
+        v = v.trimmed();
+        double unit = 1;
+        if (v.endsWith(QLatin1String("deg"))) {
+            v.chop(3);
+            unit = M_PI / 180.0;
+        } else if (v.endsWith(QLatin1String("rad"))) v.chop(3);
+        bool ok = false;
+        const double d = v.toDouble(&ok);
+        *out = d * unit;
+        return ok && std::isfinite(d);
+    };
+    const double hx = double(cx) / 2.0, hy = double(cy) / 2.0;
+    double px = hx, py = hy, turn = 0;
+    qsizetype at = 0;
+    int count = 0;
+    for (auto it = fn.globalMatch(text); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        if (m.capturedStart() != at || ++count > 8) return Turn();
+        at = m.capturedEnd();
+        const QStringList a = m.captured(2).split(QRegularExpression(QStringLiteral("[\\s,]+")), Qt::SkipEmptyParts);
+        const QString name = m.captured(1);
+        if (name == QLatin1String("scale") && (a.size() == 1 || a.size() == 2)) {
+            double sx = 1, sy = 1;
+            if (!number(a[0], &sx) || (a.size() == 2 && !number(a[1], &sy))) return Turn();
+            if (a.size() == 1) sy = sx;
+            px *= sx;
+            py *= sy;
+            r.flipH = r.flipH || sx < 0;
+            r.flipV = r.flipV || sy < 0;
+        } else if (name == QLatin1String("rotate") && a.size() == 1) {
+            double ang = 0;
+            if (!number(a[0], &ang)) return Turn();
+            turn -= ang;
+            const double c = std::cos(ang), s = std::sin(ang);
+            const double nx = px * c + py * s, ny = -px * s + py * c;
+            px = nx;
+            py = ny;
+        } else if (name == QLatin1String("translate") && (a.size() == 1 || a.size() == 2)) {
+            bool ox = false, oy = true;
+            const qint64 tx = lengthToEmu(a[0], &ox), ty = a.size() == 2 ? lengthToEmu(a[1], &oy) : 0;
+            if (!ox || !oy) return Turn();
+            px += double(tx);
+            py += double(ty);
+        } else return Turn();
+    }
+    if (at != text.size() || count == 0) return Turn();
+    const qint64 most = qint64(12700) * 3000 * 40;
+    r.has = true;
+    r.x = std::clamp<qint64>(std::llround(px - hx), -most, most);
+    r.y = std::clamp<qint64>(std::llround(py - hy), -most, most);
+    r.degrees = std::fmod(std::fmod(turn * 180.0 / M_PI, 360.0) + 360.0, 360.0);
+    return r;
+}
+
+// The turn and the mirror as the attributes of a drawing's transform (a:xfrm).
+QByteArray xfrmTurnAttrs(const Turn &t)
+{
+    QByteArray x;
+    if (t.flipH) x += " flipH=\"1\"";
+    if (t.flipV) x += " flipV=\"1\"";
+    if (t.degrees > 0.0001 && t.degrees < 359.9999) x += " rot=\"" + num(qint64(std::llround(t.degrees * 60000.0))) + "\"";
+    return x;
+}
+
+// A picture's own mirror (the standard's style:mirror: horizontal, vertical, or both).
+void mirrorOfPicture(const QString &value, Turn *t)
+{
+    const QStringList words = value.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    t->flipH = t->flipH || words.contains(QLatin1String("horizontal"));
+    t->flipV = t->flipV || words.contains(QLatin1String("vertical"));
+}
+
 } // namespace
 
 // What a paragraph's content is made of while it is read.
@@ -170,6 +277,8 @@ QString Reader::imageRelationship(const Odf &o, int image, bool *linked)
                 return QString();
             }
             const QString linkKey = m_owner + QLatin1String("|link:") + address;
+            // (the file address of a host, file://host/share, is the network location \\host\share it stands for; the address kept is that location)
+            static const QRegularExpression network(QStringLiteral("^file://([^/\\\\:?#]+)/(.*)$"), QRegularExpression::CaseInsensitiveOption);
             const auto known = m_imageRel.constFind(linkKey);
             if (known != m_imageRel.constEnd()) {
                 *linked = !known.value().isEmpty();
@@ -181,7 +290,10 @@ QString Reader::imageRelationship(const Odf &o, int image, bool *linked)
                 return QString();
             }
             ++m_linkedImages;
-            const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("image"), address, true);
+            QString target = address;
+            if (const QRegularExpressionMatch net = network.match(address); net.hasMatch() && net.captured(1).compare(QLatin1String("localhost"), Qt::CaseInsensitive) != 0)
+                target = QStringLiteral("\\\\") + net.captured(1) + QLatin1Char('\\') + QString(net.captured(2)).replace(QLatin1String("%20"), QLatin1String(" ")).replace(QLatin1Char('/'), QLatin1Char('\\'));
+            const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("image"), target, true);
             m_imageRel.insert(linkKey, rid);
             *linked = !rid.isEmpty();
             return rid;
@@ -294,11 +406,23 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
     // A picture frame with the marker of a barcode of ours keeps its settings in the drawing's properties (office/barcodemarker.h).
     QByteArray marker;
     if (graphic.contains("<pic:pic>"))
-        if (const int jo = o.tree().namespaceId("urn:jeffoffice:names:extension:1.0"); jo >= 0)
-            if (const BarcodeMarker found = barcodeOdfMarker(o.tree().attr(frame, "barcode", jo), o.tree().attr(frame, "barcode-sha256", jo)); !found.isEmpty()) marker = barcodeMarkerXml(found.settings, found.pngHash);
+        if (const BarcodeMarker found = barcodeOdfMarker(ourAttr(o, frame, "barcode"), ourAttr(o, frame, "barcode-sha256")); !found.isEmpty()) marker = barcodeMarkerXml(found.settings, found.pngHash);
     QByteArray docPr = "<wp:docPr id=\"" + num(docPrId) + "\" name=\"" + esc(name.isEmpty() ? QStringLiteral("Object %1").arg(docPrId) : name) + "\"" + (desc.isEmpty() ? QByteArray() : " descr=\"" + esc(desc) + "\"") +
                        (marker.isEmpty() ? QByteArray("/>") : ">" + marker + "</wp:docPr>");
-    const QString anchorType = o.at(frame, "text:anchor-type");
+    const Turn turned = turnOf(o, frame, cx, cy);
+    QString anchorType = o.at(frame, "text:anchor-type");
+    if (anchorType.isEmpty()) {
+        // A member of a group is anchored as its group is (the outermost one says); a member of a group in the line that has a place of its own is set from the paragraph the group is in.
+        QString groupAnchor;
+        bool member = false;
+        int guard = 0;
+        for (int up = o.tree().parent(frame); up >= 0 && o.is(up, "draw:g") && guard++ < 64; up = o.tree().parent(up)) {
+            member = true;
+            if (groupAnchor.isEmpty()) groupAnchor = o.at(up, "text:anchor-type");
+        }
+        anchorType = groupAnchor;
+        if (member && (anchorType.isEmpty() || anchorType == QLatin1String("as-char")) && (o.has(frame, "svg:x") || o.has(frame, "svg:y") || turned.has)) anchorType = QStringLiteral("paragraph");
+    }
     if (anchorType == QLatin1String("as-char") || anchorType.isEmpty()) {
         return "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"" + num(cx) + "\" cy=\"" + num(cy) + "\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>" +
                docPr + "<wp:cNvGraphicFramePr/>" + graphic + "</wp:inline></w:drawing>";
@@ -327,17 +451,17 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
         if (o.is(frame, "draw:line")) {
             // (a line is at the nearer of its two ends)
             const bool across = QLatin1String(attr) == QLatin1String("svg:x");
-            bool ok2 = false;
-            const qint64 a = lengthToEmu(o.at(frame, across ? "svg:x1" : "svg:y1"), &ok), b = lengthToEmu(o.at(frame, across ? "svg:x2" : "svg:y2"), &ok2);
-            return std::min(ok ? a : 0, ok2 ? b : 0);
+            return std::min(lineEndEmu(o, frame, across ? "svg:x1" : "svg:y1"), lineEndEmu(o, frame, across ? "svg:x2" : "svg:y2"));
         }
+        // (a transform holds the place of a shape that is turned or mirrored)
+        if (turned.has) return QLatin1String(attr) == QLatin1String("svg:x") ? turned.x : turned.y;
         const qint64 e = lengthToEmu(o.at(frame, attr), &ok);
         return ok ? e : 0;
     };
     QByteArray posH = "<wp:positionH relativeFrom=\"" + QByteArray(relH(hrel)) + "\">";
     if (hpos == QLatin1String("center")) posH += "<wp:align>center</wp:align>";
     else if (hpos == QLatin1String("right")) posH += "<wp:align>right</wp:align>";
-    else if (hpos == QLatin1String("left") && !o.has(frame, "svg:x")) posH += "<wp:align>left</wp:align>";
+    else if (hpos == QLatin1String("left") && !o.has(frame, "svg:x") && !turned.has) posH += "<wp:align>left</wp:align>";
     else if (hpos == QLatin1String("inside")) posH += "<wp:align>inside</wp:align>";
     else if (hpos == QLatin1String("outside")) posH += "<wp:align>outside</wp:align>";
     else posH += "<wp:posOffset>" + num(offset("svg:x")) + "</wp:posOffset>";
@@ -345,7 +469,7 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
     QByteArray posV = "<wp:positionV relativeFrom=\"" + QByteArray(relV(vrel)) + "\">";
     if (vpos == QLatin1String("middle")) posV += "<wp:align>center</wp:align>";
     else if (vpos == QLatin1String("bottom")) posV += "<wp:align>bottom</wp:align>";
-    else if (vpos == QLatin1String("top") && !o.has(frame, "svg:y")) posV += "<wp:align>top</wp:align>";
+    else if (vpos == QLatin1String("top") && !o.has(frame, "svg:y") && !turned.has) posV += "<wp:align>top</wp:align>";
     else posV += "<wp:posOffset>" + num(offset("svg:y")) + "</wp:posOffset>";
     posV += "</wp:positionV>";
     const QString wrap = g("style:wrap");
@@ -677,10 +801,14 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
     bool wOk = false, hOk = false;
     qint64 cx = lengthToEmu(o.at(frame, "svg:width"), &wOk), cy = lengthToEmu(o.at(frame, "svg:height"), &hOk);
     if (!hOk) cy = lengthToEmu(o.at(frame, "fo:min-height"), &hOk);
+    // (A text box says its height as its own minimum.)
+    if (!hOk)
+        for (int c = t.firstChild(frame); c >= 0 && !hOk; c = t.next(c))
+            if (o.is(c, "draw:text-box")) cy = lengthToEmu(o.at(c, "fo:min-height"), &hOk);
     bool lineUp = false;   // a line that runs from its lower end to its upper end
     if (o.is(frame, "draw:line")) {
         // (a line is its two ends: its box is the one they span, and it is mirrored when it rises)
-        const qint64 ex1 = lengthToEmu(o.at(frame, "svg:x1"), nullptr), ey1 = lengthToEmu(o.at(frame, "svg:y1"), nullptr), ex2 = lengthToEmu(o.at(frame, "svg:x2"), nullptr), ey2 = lengthToEmu(o.at(frame, "svg:y2"), nullptr);
+        const qint64 ex1 = lineEndEmu(o, frame, "svg:x1"), ey1 = lineEndEmu(o, frame, "svg:y1"), ex2 = lineEndEmu(o, frame, "svg:x2"), ey2 = lineEndEmu(o, frame, "svg:y2");
         cx = std::abs(ex2 - ex1);
         cy = std::abs(ey2 - ey1);
         wOk = hOk = true;
@@ -742,8 +870,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         QByteArray fill = "<a:noFill/>";
         if (sg("draw:fill") == QLatin1String("solid") && !colorHex(sg("draw:fill-color")).isEmpty()) fill = "<a:solidFill><a:srgbClr val=\"" + colorHex(sg("draw:fill-color")).toLatin1() + "\"/></a:solidFill>";
         QByteArray line = "<a:ln><a:noFill/></a:ln>";
-        const int jo = t.namespaceId("urn:jeffoffice:names:extension:1.0");
-        auto joAttr = [&](const char *name) { return jo >= 0 ? t.attr(frame, name, jo) : QString(); };
+        auto joAttr = [&](const char *name) { return ourAttr(o, frame, name); };
         static const QRegularExpression plainWord(QStringLiteral("^[A-Za-z0-9]{1,24}$"));
         auto word = [&](const QString &v) { return plainWord.match(v).hasMatch() ? v.toLatin1() : QByteArray(); };
         if (!sg("draw:stroke").isEmpty() && sg("draw:stroke") != QLatin1String("none")) {
@@ -758,12 +885,15 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         }
         // The turn, the flips, and the adjustments.
         QByteArray xfrmAttrs;
-        if (lineUp) xfrmAttrs += " flipV=\"1\"";
-        if (const double turn = joAttr("rotation").toDouble(); turn > 0 && turn < 360) xfrmAttrs += " rot=\"" + num(qint64(std::llround(turn * 60000.0))) + "\"";
+        Turn shapeTurn = turnOf(o, frame, cx, cy);
+        if (!shapeTurn.has)
+            if (const double turn = joAttr("rotation").toDouble(); turn > 0 && turn < 360) shapeTurn.degrees = turn;
+        if (lineUp) shapeTurn.flipV = !shapeTurn.flipV;
+        xfrmAttrs += xfrmTurnAttrs(shapeTurn);
         QByteArray adjust = "<a:avLst/>";
         if (const int geom = o.child(frame, "draw:enhanced-geometry"); geom >= 0) {
-            if (o.at(geom, "draw:mirror-horizontal") == QLatin1String("true")) xfrmAttrs += " flipH=\"1\"";
-            if (o.at(geom, "draw:mirror-vertical") == QLatin1String("true")) xfrmAttrs += " flipV=\"1\"";
+            if (o.at(geom, "draw:mirror-horizontal") == QLatin1String("true") && !xfrmAttrs.contains("flipH")) xfrmAttrs += " flipH=\"1\"";
+            if (o.at(geom, "draw:mirror-vertical") == QLatin1String("true") && !xfrmAttrs.contains("flipV")) xfrmAttrs += " flipV=\"1\"";
             const QStringList values = o.at(geom, "draw:modifiers").simplified().split(QLatin1Char(' '), Qt::SkipEmptyParts);
             if (!values.isEmpty() && values.size() <= 16) {
                 QByteArray gds;
@@ -856,9 +986,11 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
                 look += "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill></a:ln>";
             }
         }
+        Turn pictureTurn = turnOf(o, frame, cx, cy);
+        mirrorOfPicture(resolved(QStringLiteral("graphic"), o.at(frame, "draw:style-name")).value(QStringLiteral("gr:style:mirror")), &pictureTurn);
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + num(id) +
                                    "\" name=\"Picture " + num(id) + "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:" + QByteArray(linkedImage ? "link" : "embed") + "=\"" + rid.toLatin1() +
-                                   "\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + num(cx) + "\" cy=\"" + num(cy) +
+                                   "\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm" + xfrmTurnAttrs(pictureTurn) + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + num(cx) + "\" cy=\"" + num(cy) +
                                    "\"/></a:xfrm>" + look + "</pic:spPr></pic:pic></a:graphicData></a:graphic>";
         *ok = true;
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
@@ -893,7 +1025,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         const bool inGraphic = !g("style:writing-mode").isEmpty() || !g("loext:writing-mode").isEmpty();
         const QString modeKey = inGraphic ? QStringLiteral("gr:") : QStringLiteral("para:");
         const TextDirection boxDirection = textDirectionFromOdf(gp.value(modeKey + QStringLiteral("style:writing-mode")), gp.value(modeKey + QStringLiteral("loext:writing-mode")));
-        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm" + xfrmTurnAttrs(turnOf(o, frame, cx, cy)) + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" +
                                    num(cx) + "\" cy=\"" + num(cy) + "\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>" + fill + line +
                                    "</wps:spPr><wps:txbx><w:txbxContent>" + content + "</w:txbxContent></wps:txbx><wps:bodyPr rot=\"0\" vert=\"" + QByteArray(textDirectionVert(boxDirection)) + "\" wrap=\"square\" lIns=\"" + num(pad("left")) + "\" tIns=\"" + num(pad("top")) +
                                    "\" rIns=\"" + num(pad("right")) + "\" bIns=\"" + num(pad("bottom")) + "\" anchor=\"t\"><a:noAutofit/></wps:bodyPr></wps:wsp></a:graphicData></a:graphic>";
@@ -971,6 +1103,10 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
     } else if (o.is(n, "text:s")) addSpaces(pc, o.at(n, "text:c"), fmt);
     else if (o.is(n, "text:tab")) {
         addRun(pc, "<w:tab/>", fmt);
+        pc->lastSpace = true;
+    } else if (o.is(n, "text:line-break") && ourAttr(o, n, "column-break") == QLatin1String("true")) {
+        // (A column break of ours is said as a line break, which is what other programs show.)
+        addRun(pc, "<w:br w:type=\"column\"/>", fmt);
         pc->lastSpace = true;
     } else if (o.is(n, "text:line-break")) {
         // (A break that clears the wrapping of a drawing beside it says so in our attribute: left, right, or all.)
@@ -1370,8 +1506,18 @@ void Reader::convertBlock(const Odf &o, int n, QVector<Block> *out, int depth, i
         pc.depth = depth;
         pc.inNote = m_inNote;
         bool ok = false;
+        // (A group is its members, each read as the drawing it is.)
         const QByteArray d = o.is(n, "draw:g") ? QByteArray() : drawing(o, n, &pc, &ok);
-        if (o.is(n, "draw:g")) left(QCoreApplication::translate("odt", "drawing shapes"));
+        if (o.is(n, "draw:g")) {
+            inlineElement(o, n, &pc, RunFmt(), 0);
+            if (pc.runs.isEmpty()) left(QCoreApplication::translate("odt", "drawing shapes"));
+            else {
+                Block b;
+                b.para = true;
+                b.content = pc.runs;
+                out->push_back(b);
+            }
+        }
         if (!d.isEmpty()) {
             Block b;
             b.para = true;
@@ -1782,7 +1928,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
             if (rr.header) trPr += "<w:tblHeader/>";
         }
         QByteArray cells;
-        int col = 0, pendingCover = 0, padBefore = 0, padAfter = 0;
+        int col = 0, pendingCover = 0, padBefore = 0, padAfter = 0, padCovered = 0;
         qsizetype padAfterAt = -1;
         const int padNs = t.namespaceId("urn:jeffoffice:odf-extension");
         // The cells of the row, with the repeats made.
@@ -1793,10 +1939,15 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
             const bool hasContent = t.firstChild(c) >= 0;
             // A place the row has no cell for (marked by the file's writer; only a cell with nothing in it is one): it is a place in the grid, not a cell.
             if (!covered && padNs >= 0 && t.attr(c, "pad", padNs) == QLatin1String("true") && t.text(c).trimmed().isEmpty() && o.child(c, "table:table") < 0 && o.child(c, "draw:frame") < 0) {
-                for (int r = 0; r < rep && col < kMaxColumns && ++cellsMade <= kMaxTableCells; ++r, ++col) {
-                    if (cells.isEmpty()) ++padBefore;
-                    else ++padAfter;
+                // (a place that spans columns is as many places of the grid, and the covered cells that follow it are those places and not more)
+                const int span = std::max(1, std::min(o.at(c, "table:number-columns-spanned").isEmpty() ? 1 : o.at(c, "table:number-columns-spanned").toInt(), kMaxColumns));
+                for (int r = 0; r < rep && col < kMaxColumns && ++cellsMade <= kMaxTableCells; ++r) {
+                    for (int k = 0; k < span && col < kMaxColumns; ++k, ++col) {
+                        if (cells.isEmpty()) ++padBefore;
+                        else ++padAfter;
+                    }
                 }
+                padCovered = span - 1;
                 padAfterAt = cells.size();
                 continue;
             }
@@ -1815,6 +1966,10 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
                     for (int k = from; k < from + span; ++k) w += k < widths.size() ? widths[k] : 1440;
                     return w;
                 };
+                if (padCovered > 0 && covered) {
+                    --padCovered;
+                    continue;
+                }
                 if (pendingCover > 0 && covered) {
                     --pendingCover;
                     ++col;
