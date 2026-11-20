@@ -1765,6 +1765,11 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         }
         row += "</w:tr>";
         if (cells.isEmpty() && hadCols == 0) row = "<w:tr><w:tc><w:p/></w:tc></w:tr>";
+        else if (cells.isEmpty()) {   // (a row of nothing but covered cells that no merged cell above covers: a row of one empty cell, so the table keeps its rows)
+            qint64 w = 0;
+            for (int k = 0; k < gridCols; ++k) w += k < widths.size() ? widths[k] : 1440;
+            row = "<w:tr>" + (trPr.isEmpty() ? QByteArray() : "<w:trPr>" + trPr + "</w:trPr>") + "<w:tc><w:tcPr><w:tcW w:w=\"" + num(w) + "\" w:type=\"dxa\"/>" + (gridCols > 1 ? "<w:gridSpan w:val=\"" + num(gridCols) + "\"/>" : QByteArray()) + "</w:tcPr><w:p/></w:tc></w:tr>";
+        }
         const qint64 cellsInRow = std::max<qint64>(1, col);
         for (int r = 0; r < rowRepeat && rowCount < 200000; ++r, ++rowCount) {
             if (r > 0 && (cellsMade += cellsInRow) > kMaxTableCells) break;

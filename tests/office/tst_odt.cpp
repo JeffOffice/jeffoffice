@@ -729,6 +729,32 @@ private Q_SLOTS:
         QVERIFY(wellFormed(files.value(QStringLiteral("content.xml"))));
     }
 
+    // A run that states a property twice (<w:i/> twice, two sizes) is written with each attribute once: a document with an attribute twice in an element is not well-formed XML, and another program refuses it.
+    void aRunPropertyStatedTwiceIsWrittenOnce()
+    {
+        const QString c = odtContentOf("<w:p><w:r><w:rPr><w:i/><w:b/><w:i/><w:sz w:val=\"24\"/><w:sz w:val=\"28\"/></w:rPr><w:t>x</w:t></w:r></w:p>");
+        QVERIFY(c.contains(QLatin1String("<text:p")));
+        QVERIFY(wellFormed(c.toUtf8()));
+        QCOMPARE(c.count(QLatin1String("fo:font-style=")), 1);
+        QCOMPARE(c.count(QLatin1String("fo:font-size=")), 1);
+        QVERIFY(c.contains(QLatin1String("fo:font-size=\"14pt\"")));   // (the last one stated)
+    }
+
+    // A row of an .odt whose cells are all covered by merged cells that are not there still reads as a row (one empty cell as wide as the table), so the table stays a table and its text is not lost.
+    void anOdtRowOfOnlyCoveredCellsIsStillARow()
+    {
+        Made m;
+        m.body = "<table:table table:name=\"T\"><table:table-column table:number-columns-repeated=\"2\"/>"
+                 "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>left</text:p></table:table-cell><table:table-cell office:value-type=\"string\"><text:p>right</text:p></table:table-cell></table:table-row>"
+                 "<table:table-row><table:covered-table-cell/><table:covered-table-cell/></table:table-row>"
+                 "<table:table-row><table:table-cell office:value-type=\"string\"><text:p>below</text:p></table:table-cell><table:table-cell/></table:table-row></table:table>";
+        const QString d = part(docxOf(m.build()), QStringLiteral("/word/document.xml"));
+        QCOMPARE(d.count(QLatin1String("</w:tr>")), 3);
+        QVERIFY(!d.contains(QRegularExpression(QStringLiteral("<w:tr>(<w:trPr>.*?</w:trPr>)?</w:tr>"))));
+        QVERIFY(d.contains(QLatin1String("left")));
+        QVERIFY(d.contains(QLatin1String("below")));
+    }
+
     void flatForm()
     {
         const QByteArray flat = QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\"?><office:document") + kNs + " office:version=\"1.2\" office:mimetype=\"application/vnd.oasis.opendocument.text\">"

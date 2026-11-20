@@ -279,6 +279,33 @@ QByteArray Writer::bordersAttrs(const T &t, int parent, bool paragraph)
     return x;
 }
 
+// The attributes of a string of them (` name="value"` each) with no name twice, as XML needs: the last one stated wins (a run's properties may repeat an element, as <w:i/> twice).
+static QByteArray withoutRepeatedAttributes(const QByteArray &attrs)
+{
+    QList<std::pair<QByteArray, QByteArray>> list;
+    qsizetype p = 0;
+    bool repeated = false;
+    while (p < attrs.size()) {
+        const qsizetype eq = attrs.indexOf("=\"", p);
+        const qsizetype close = eq < 0 ? -1 : attrs.indexOf('"', eq + 2);
+        if (close < 0) return attrs;
+        const QByteArray name = attrs.mid(p, eq - p).trimmed();
+        const QByteArray whole = attrs.mid(eq, close + 1 - eq);
+        bool found = false;
+        for (auto &a : list)
+            if (a.first == name) {
+                a.second = whole;
+                found = repeated = true;
+            }
+        if (!found) list.append({name, whole});
+        p = close + 1;
+    }
+    if (!repeated) return attrs;
+    QByteArray out;
+    for (const auto &a : std::as_const(list)) out += " " + a.first + a.second;
+    return out;
+}
+
 QByteArray Writer::textAttrs(const T &t, int rPr)
 {
     QByteArray x;
@@ -413,7 +440,7 @@ QByteArray Writer::textAttrs(const T &t, int rPr)
         }
     }
     if (!features.isEmpty()) x += " fo:font-feature-settings=\"" + features.join(QLatin1String(", ")).replace(QLatin1Char('"'), QLatin1String("&quot;")).toUtf8() + "\"";
-    return x;
+    return withoutRepeatedAttributes(x);
 }
 
 QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *breakBefore, QByteArray *tabs, int *outline)
