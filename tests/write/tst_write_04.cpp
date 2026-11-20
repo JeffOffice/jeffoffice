@@ -1105,8 +1105,8 @@ void WriteTests::copyingHeaderTextKeepsWhatItsFieldsShow()
 
 // ---- entering the edit form shows what the display showed
 
-// A paragraph whose mark and text a tracked change deleted takes no room in the header, and entering the edit form for the header leaves the page as it was (the paragraph is kept and
-// written back).
+// A paragraph whose mark and text a tracked change deleted takes no room in the header, and entering the edit form for the header leaves the page as it was (the paragraph is in the story,
+// where its changes are listed, and is written back).
 void WriteTests::enteringAHeaderForEditingLeavesThePageAsItWas()
 {
     const QByteArray deleted = "<w:p><w:pPr><w:rPr><w:del w:id=\"1\" w:author=\"A\" w:date=\"2020-01-01T00:00:00Z\"/></w:rPr></w:pPr><w:del w:id=\"2\" w:author=\"A\" w:date=\"2020-01-01T00:00:00Z\">"
@@ -1124,7 +1124,7 @@ void WriteTests::enteringAHeaderForEditingLeavesThePageAsItWas()
     QTextDocument *story = doc->editableHeaderFooter(0, false, 0);
     QVERIFY(story);
     QCOMPARE(look(), before);
-    QVERIFY(!story->toPlainText().contains(QLatin1String("gone")));
+    QVERIFY(story->toPlainText().contains(QLatin1String("gone")));   // (it is in the story, as in the text, so its changes are listed and done; the page is as it was)
     typeAtEnd(*doc, story, QStringLiteral("!"));
     const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
     QVERIFY2(out.contains("gone words") && out.contains("<w:del w:id=\"1\"") && out.indexOf("One") < out.indexOf("gone words") && out.indexOf("gone words") < out.indexOf("Three!"), out.constData());
