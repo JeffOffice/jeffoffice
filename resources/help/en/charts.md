@@ -45,6 +45,7 @@ Select the chart. Three small buttons stand beside it, and the same commands are
 - **Colors** changes the colors the series are drawn in. **Looks** (the brush button) picks an overall look.
 - **Chart Filters** (the funnel button) hides a series without deleting its numbers.
 - **Format Chart** opens a window for the look of one part: the whole chart, the plot area, or one series. **Format Horizontal Axis** and **Format Vertical Axis** set the range, steps, and number format of an axis.
+- **Current Selection** lists the parts of the chart: the chart area, the plot area, and each series. Pick one, and **Format Selection** opens the format window at that part. **Reset to Match Style** takes away what was set on the picked part (a color, a line, marks, or a smooth line) and gives it back the look the chart's style says. It is one step of Undo, and it does nothing to a part that already matches.
 - **Chart Data** and **Swap Rows and Columns** change which numbers are the series and which are the categories.
 
 Each of these is one step to undo.

@@ -54,6 +54,7 @@ Select a chart and the **Chart** tab opens beside the **Chart Format** tab. Ever
 - **Edit Data** opens the table of numbers.
 - **Chart Kind** shows a picture of each kind. Pick one kind for the whole chart, or pick a kind for each series, such as columns with a line over them.
 - **Format Chart Part** sets the fill and the line of the chart's page, of the plot (the box the marks stand in), or of one series. For a line, it also sets whether it is smooth and what mark stands at each point.
+- **Current Selection** lists the parts of the chart: the chart area, the plot area, and each series. Pick one, and **Format Selection** opens the format window at that part. **Reset to Match Style** takes away what was set on the picked part (a color, a line, marks, or a smooth line) and gives it back the look the chart's style says. It is one step of Undo, and it does nothing to a part that already matches.
 - **Format Horizontal Axis** and **Format Vertical Axis** set the lowest and highest numbers, the size of each step, the order, where the other axis crosses, the look of the numbers, and the tick marks.
 
 ## The buttons beside a chart
