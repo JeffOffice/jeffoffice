@@ -101,12 +101,16 @@ private:
     void emitSpan(ParaCtx *pc, const QString &span, const QByteArray &content);
     void fieldEnd(ParaCtx *pc);
     QByteArray fieldXml(const QString &instr, const QString &resultText, const QByteArray &resultXml, ParaCtx *pc, bool *known);
-    QByteArray drawingXml(const T &t, int drawing, ParaCtx *pc, int depth);
+    // `*paragraphAnchor` is set when the drawing is anchored to its paragraph (it is then written at the start of the paragraph: see atParagraphStart).
+    QByteArray drawingXml(const T &t, int drawing, ParaCtx *pc, int depth, bool *paragraphAnchor = nullptr);
+    // A line end as the graphic properties that name its marker style (the marker is written with the common styles); empty for none or an unknown kind. `side` is "start" or "end"; the width is the line's, in EMU.
+    QByteArray lineEndAttrs(const char *side, const QString &type, qint64 lineWidth);
+    QSet<QByteArray> m_markersUsed;
     // The drawn shapes of a w:pict (the older drawing form): each as the standard's rectangle, ellipse, line, or text box in a frame; empty when there is none to write.
     QByteArray shapesXml(const T &t, int pict, ParaCtx *pc, const QVector<wml::Shape> &shapes);
     // The shapes from `from` on, each as its drawing element (a group in the line as the standard's group of its members, to a bounded depth); `*written` counts the shapes made (a bounded number in all).
-    QByteArray shapeListXml(const T &t, const QVector<wml::Shape> &shapes, int from, ParaCtx *pc, int depth, int *written, bool member);
-    QByteArray shapeXml(const T &t, const wml::Shape &shape, ParaCtx *pc, int depth, bool member);
+    QByteArray shapeListXml(const T &t, const QVector<wml::Shape> &shapes, int from, ParaCtx *pc, int depth, int *written, bool member, const QByteArray &groupAnchor);
+    QByteArray shapeXml(const T &t, const wml::Shape &shape, ParaCtx *pc, int depth, bool member, const QByteArray &groupAnchor, bool *paragraphAnchor);
     // The address a picture is linked to (an external relationship), as the reference of an image; empty when it is not one to keep.
     QString linkedImageAddress(const QString &rid) const;
     QByteArray pictureFrame(const T &t, int anchor, int blip, bool inlineOk, int depth);

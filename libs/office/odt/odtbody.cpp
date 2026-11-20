@@ -72,6 +72,7 @@ struct Turn {
     double degrees = 0;
     bool flipH = false, flipV = false;
     qint64 x = 0, y = 0;   // the top left of the unturned box, in EMU
+    bool lost = false;     // a stretch or a slant that is not kept (the shape is read unturned and unstretched)
 };
 
 Turn turnOf(const Odf &o, int frame, qint64 cx, qint64 cy)
@@ -80,6 +81,30 @@ Turn turnOf(const Odf &o, int frame, qint64 cx, qint64 cy)
     const QString text = o.at(frame, "draw:transform").trimmed();
     if (text.isEmpty() || text.size() > 400) return r;
     static const QRegularExpression fn(QStringLiteral("\\s*([A-Za-z]+)\\s*\\(([^()]*)\\)\\s*,?"));
+    // Section 19.228 says the turn is in degrees; the standard before it (and the programs that write 1.2 files, with a bare number) says radians. A value with a unit is as the unit says; a bare value is read as
+    // radians unless it is larger than a full turn in radians (2 pi), which no radian turn is: then it is degrees (a degree turn of up to 6 degrees reads as radians, which no rule can tell apart).
+    auto angle = [](QString v, double *radians) {
+        v = v.trimmed();
+        double unit = 1;
+        bool bare = true;
+        if (v.endsWith(QLatin1String("deg"))) {
+            v.chop(3);
+            unit = M_PI / 180.0;
+            bare = false;
+        } else if (v.endsWith(QLatin1String("grad"))) {
+            v.chop(4);
+            unit = M_PI / 200.0;
+            bare = false;
+        } else if (v.endsWith(QLatin1String("rad"))) {
+            v.chop(3);
+            bare = false;
+        }
+        bool ok = false;
+        const double d = v.toDouble(&ok);
+        if (bare && std::fabs(d) > 2.0 * M_PI + 1e-6) unit = M_PI / 180.0;
+        *radians = d * unit;
+        return ok && std::isfinite(d);
+    };
     auto number = [](QString v, double *out) {
         v = v.trimmed();
         double unit = 1;
@@ -112,7 +137,7 @@ Turn turnOf(const Odf &o, int frame, qint64 cx, qint64 cy)
             r.flipV = r.flipV || sy < 0;
         } else if (name == QLatin1String("rotate") && a.size() == 1) {
             double ang = 0;
-            if (!number(a[0], &ang)) return Turn();
+            if (!angle(a[0], &ang)) return Turn();
             turn -= ang;
             const double c = std::cos(ang), s = std::sin(ang);
             const double nx = px * c + py * s, ny = -px * s + py * c;
@@ -124,6 +149,27 @@ Turn turnOf(const Odf &o, int frame, qint64 cx, qint64 cy)
             if (!ox || !oy) return Turn();
             px += double(tx);
             py += double(ty);
+        } else if (name == QLatin1String("matrix") && a.size() == 6) {
+            // A matrix (the usual one: x' = a x + c y + e): a turn and a move are kept when it is no more than those; any stretch or slant is not kept, and its move is.
+            double m[4];
+            for (int i = 0; i < 4; ++i)
+                if (!number(a[i], &m[i])) return Turn();
+            bool ox = false, oy = false;
+            const qint64 tx = lengthToEmu(a[4], &ox), ty = lengthToEmu(a[5], &oy);
+            if (!ox || !oy) return Turn();
+            const bool pure = std::fabs(m[0] - m[3]) < 1e-3 && std::fabs(m[1] + m[2]) < 1e-3 && std::fabs(std::hypot(m[0], m[1]) - 1.0) < 1e-2;
+            if (pure) {
+                turn += std::atan2(m[1], m[0]);
+                const double nx = m[0] * px + m[2] * py, ny = m[1] * px + m[3] * py;
+                px = nx;
+                py = ny;
+            } else r.lost = true;
+            px += double(tx);
+            py += double(ty);
+        } else if ((name == QLatin1String("skewX") || name == QLatin1String("skewY")) && a.size() == 1) {
+            double ang = 0;
+            if (!angle(a[0], &ang)) return Turn();
+            r.lost = true;   // (the angle itself is not used)
         } else return Turn();
     }
     if (at != text.size() || count == 0) return Turn();
@@ -423,7 +469,11 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
         anchorType = groupAnchor;
         if (member && (anchorType.isEmpty() || anchorType == QLatin1String("as-char")) && (o.has(frame, "svg:x") || o.has(frame, "svg:y") || turned.has)) anchorType = QStringLiteral("paragraph");
     }
-    if (anchorType == QLatin1String("as-char") || anchorType.isEmpty()) {
+    // (Section 19.759: the element's attribute, else the graphic style's property, else the paragraph; a frame that says nothing is not set in the line.)
+    if (anchorType.isEmpty()) anchorType = gp.value(QStringLiteral("gr:text:anchor-type"));
+    if (anchorType.isEmpty()) anchorType = QStringLiteral("paragraph");
+    if (turned.lost) left(QCoreApplication::translate("odt", "shapes that are slanted or stretched (kept without that)"));
+    if (anchorType == QLatin1String("as-char")) {
         return "<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"" + num(cx) + "\" cy=\"" + num(cy) + "\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/>" +
                docPr + "<wp:cNvGraphicFramePr/>" + graphic + "</wp:inline></w:drawing>";
     }
@@ -506,7 +556,18 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
         const qint64 e = lengthToEmu(v, &ok);
         return ok ? std::clamp<qint64>(e, 0, qint64(jp::kMostWrapDistance * 12700)) : 0;
     };
-    const int z = o.at(frame, "draw:z-index").toInt();
+    int z = o.at(frame, "draw:z-index").toInt();
+    if (!o.has(frame, "draw:z-index")) {
+        // (A member of a group has none of its own, section 19.231: it is above what is below it in the group, and the group has the one order number.)
+        const wml::XmlTree &tr = o.tree();
+        const int up = tr.parent(frame);
+        if (up >= 0 && o.is(up, "draw:g") && o.has(up, "draw:z-index")) {
+            int index = 0;
+            for (int c = tr.firstChild(up); c >= 0 && c != frame; c = tr.next(c))
+                if (o.nameOf(c).startsWith(QLatin1String("draw:"))) ++index;
+            z = o.at(up, "draw:z-index").toInt() + std::min(index, 1000);
+        }
+    }
     return "<w:drawing><wp:anchor distT=\"" + num(margin("top")) + "\" distB=\"" + num(margin("bottom")) + "\" distL=\"" + num(margin("left")) + "\" distR=\"" + num(margin("right")) +
            "\" simplePos=\"0\" relativeHeight=\"" + num(251658240 + std::max(0, std::min(z, 100000))) + "\" behindDoc=\"" + (behind ? "1" : "0") +
            "\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\"><wp:simplePos x=\"0\" y=\"0\"/>" + posH + posV + "<wp:extent cx=\"" + num(cx) + "\" cy=\"" + num(cy) +
@@ -879,8 +940,19 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
             const qint64 w = lengthToEmu(sg("svg:stroke-width"), &okw);
             QByteArray ends;
             if (const QByteArray dash = word(joAttr("dash")); !dash.isEmpty()) ends += "<a:prstDash val=\"" + dash + "\"/>";
-            if (const QByteArray head = word(joAttr("head-end")); !head.isEmpty()) ends += "<a:headEnd type=\"" + head + "\"/>";
-            if (const QByteArray tail = word(joAttr("tail-end")); !tail.isEmpty()) ends += "<a:tailEnd type=\"" + tail + "\"/>";
+            // (The line ends are the standard's marker styles, by name; those of files we wrote before are in attributes of ours, which are still read.)
+            auto endKind = [&](const char *marker, const char *own) {
+                if (const QByteArray old = word(joAttr(own)); !old.isEmpty()) return old;
+                const QString name = sg(marker).trimmed().toLower();
+                if (name.isEmpty()) return QByteArray();
+                if (name.contains(QLatin1String("stealth")) || name.contains(QLatin1String("concave"))) return QByteArray("stealth");
+                if (name.contains(QLatin1String("diamond")) || name.contains(QLatin1String("square"))) return QByteArray("diamond");
+                if (name.contains(QLatin1String("oval")) || name.contains(QLatin1String("circle"))) return QByteArray("oval");
+                if (name.contains(QLatin1String("open")) || name.contains(QLatin1String("line arrow"))) return QByteArray("arrow");
+                return QByteArray("triangle");
+            };
+            if (const QByteArray head = endKind("draw:marker-start", "head-end"); !head.isEmpty()) ends += "<a:headEnd type=\"" + head + "\"/>";
+            if (const QByteArray tail = endKind("draw:marker-end", "tail-end"); !tail.isEmpty()) ends += "<a:tailEnd type=\"" + tail + "\"/>";
             line = "<a:ln w=\"" + num(okw && w > 0 ? std::min<qint64>(w, 1270000) : 9525) + "\"><a:solidFill><a:srgbClr val=\"" + (c.isEmpty() ? QByteArray("000000") : c.toLatin1()) + "\"/></a:solidFill>" + ends + "</a:ln>";
         }
         // The turn, the flips, and the adjustments.

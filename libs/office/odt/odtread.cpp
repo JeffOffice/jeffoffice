@@ -371,6 +371,8 @@ void Reader::collectPageLayout(const Odf &o, int node)
             if (hp >= 0) collectProps(o, hp, header ? QStringLiteral("hdr:") : QStringLiteral("ftr:"), &d.props);
         }
     }
+    // Section 16.5: the usage belongs to the layout itself; files we wrote before put it on the properties, which stays read (above).
+    if (!o.at(node, "style:page-usage").isEmpty()) d.props.insert(QStringLiteral("page:style:page-usage"), o.at(node, "style:page-usage"));
     m_layouts.insert(name, d);
 }
 

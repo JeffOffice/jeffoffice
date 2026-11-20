@@ -613,6 +613,16 @@ QByteArray Writer::stylesPart()
     x += "<style:style style:name=\"Frame\" style:family=\"graphic\"><style:graphic-properties text:anchor-type=\"paragraph\" svg:x=\"0in\" svg:y=\"0in\" fo:margin-left=\"0.0791in\" "
          "fo:margin-right=\"0.0791in\" fo:margin-top=\"0.0791in\" fo:margin-bottom=\"0.0791in\" style:wrap=\"parallel\" style:number-wrapped-paragraphs=\"no-limit\" "
          "style:vertical-pos=\"top\" style:vertical-rel=\"paragraph-content\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph-content\"/></style:style>";
+    // The marker styles of the line ends the document uses (in the order of their names: a file is the same bytes whatever the order of a hash).
+    static const QMap<QByteArray, QByteArray> markers = {
+        {"Open arrow", "svg:viewBox=\"0 0 20 30\" svg:d=\"M10 0l10 30h-3l-7-20-7 20h-3z\""},
+        {"Diamond", "svg:viewBox=\"0 0 20 20\" svg:d=\"M10 0l10 10-10 10-10-10z\""},
+        {"Oval", "svg:viewBox=\"0 0 20 20\" svg:d=\"M10 0c5.5 0 10 4.5 10 10s-4.5 10-10 10S0 15.5 0 10 4.5 0 10 0z\""},
+        {"Stealth", "svg:viewBox=\"0 0 20 30\" svg:d=\"M10 0l10 30-10-8-10 8z\""},
+        {"Triangle", "svg:viewBox=\"0 0 20 30\" svg:d=\"M10 0l10 30H0z\""}};
+    QList<QByteArray> used = m_markersUsed.values();
+    std::sort(used.begin(), used.end());
+    for (const QByteArray &name : std::as_const(used)) x += "<draw:marker draw:name=\"" + name + "\" " + markers.value(name) + "/>";
     return x;
 }
 
@@ -913,10 +923,10 @@ QByteArray Writer::masterPages()
         // The page's top margin is the header's distance from the edge, and the header sits in what the text's margin has beyond it.
         const qint64 top = hasHeader ? std::min(s.header, s.top) : s.top, bottom = hasFooter ? std::min(s.footer, s.bottom) : s.bottom;
         const qint64 headerHeight = hasHeader ? std::max<qint64>(0, s.top - top) : 0, footerHeight = hasFooter ? std::max<qint64>(0, s.bottom - bottom) : 0;
-        layouts += "<style:page-layout style:name=\"pm" + num(n) + "\"><style:page-layout-properties fo:page-width=\"" + inchesFromTwips(double(s.pageW)).toUtf8() + "\" fo:page-height=\"" +
+        layouts += "<style:page-layout style:name=\"pm" + num(n) + "\"" + (s.mirrored ? " style:page-usage=\"mirrored\"" : "") + "><style:page-layout-properties fo:page-width=\"" + inchesFromTwips(double(s.pageW)).toUtf8() + "\" fo:page-height=\"" +
                    inchesFromTwips(double(s.pageH)).toUtf8() + "\" style:num-format=\"" + pageNumFormat(s.pageFormat) + "\" style:print-orientation=\"" + (s.landscape ? "landscape" : "portrait") + "\" fo:margin-top=\"" +
                    inchesFromTwips(double(top)).toUtf8() + "\" fo:margin-bottom=\"" + inchesFromTwips(double(bottom)).toUtf8() + "\" fo:margin-left=\"" + inchesFromTwips(double(s.left)).toUtf8() +
-                   "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" + (s.mirrored ? " style:page-usage=\"mirrored\"" : "") +
+                   "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" +
                    (s.gutter > 0 ? " jo:gutter=\"" + inchesFromTwips(double(s.gutter)).toUtf8() + "\" jo:gutter-side=\"" + (s.gutterSide == 2 ? "top" : s.gutterSide == 1 ? "right" : "left") + "\"" : "") + (s.pageStart > 0 ? " style:first-page-number=\"" + num(s.pageStart) + "\"" : QByteArray()) +
                    " style:writing-mode=\"lr-tb\" style:footnote-max-height=\"0in\">";
         if (s.columns > 1) layouts += "<style:columns fo:column-count=\"" + num(s.columns) + "\" fo:column-gap=\"" + inchesFromTwips(double(s.columnGap)).toUtf8() + "\">" + (s.separator ? "<style:column-sep style:width=\"0.0069in\" style:color=\"#000000\" style:height=\"100%\" style:style=\"solid\"/>" : "") + "</style:columns>";

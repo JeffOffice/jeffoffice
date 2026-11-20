@@ -102,6 +102,24 @@ void readFormData(const wml::XmlTree &t, int fldChar, int *form, bool *checked, 
 
 } // namespace
 
+// The shapes anchored to a paragraph are written between two marks (U+0001 and U+0002, which no text has) where their runs were, and taken out to the paragraph's start by this.
+static QByteArray takeAnchoredToParagraph(QByteArray *xml)
+{
+    if (!xml->contains('\x01')) return QByteArray();
+    QByteArray taken, kept;
+    qsizetype at = 0;
+    for (;;) {
+        const qsizetype open = xml->indexOf('\x01', at), close = open < 0 ? -1 : xml->indexOf('\x02', open);
+        if (open < 0 || close < 0) break;
+        kept += xml->mid(at, open - at);
+        taken += xml->mid(open + 1, close - open - 1);
+        at = close + 1;
+    }
+    kept += xml->mid(at);
+    *xml = kept;
+    return taken;
+}
+
 struct Writer::ParaCtx {
     QByteArray xml;
     QString plain;
@@ -355,12 +373,16 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         pc.xml = f.savedXml + pc.xml;
         pc.plain = f.savedPlain + pc.plain;
     }
+    // The shapes anchored to the paragraph were marked where their runs were: the standard has them at the start of the paragraph's content (section 19.759), so they are taken from there.
+    QByteArray atStart = takeAnchoredToParagraph(&pc.xml);
+    for (auto &fragment : pc.fragments) atStart += takeAnchoredToParagraph(&fragment.first);
     keepTrailingBlank(&pc.xml);
     if (pc.fragments.isEmpty() || !pc.xml.isEmpty()) pc.fragments.push_back({pc.xml, pc.pageBreak});
     else if (pc.pageBreak) {
         // (the break ends this paragraph: what follows begins a page, and the paragraph says it ends with a break so it reads back as it was)
         pc.trailingBreak = true;
     }
+    if (!atStart.isEmpty()) pc.fragments.first().first.prepend(atStart);
     bool anyContent = false;
     for (const auto &f : std::as_const(pc.fragments))
         if (!f.first.isEmpty()) anyContent = true;
@@ -985,14 +1007,39 @@ QByteArray Writer::objectFrame(const T &t, int object)
     QString href;
     if (image >= 0) imagePart(t.attr(image, "id", wml::NsR), &href);
     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",
-                                       "<style:graphic-properties style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" style:wrap=\"none\"/>");
+                                       "<style:graphic-properties style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"char\" style:wrap=\"none\"/>");
     QByteArray frame = "<draw:frame draw:style-name=\"" + esc(style) + "\" draw:name=\"Object" + num(++m_frameCount) + "\" text:anchor-type=\"as-char\" svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
                        "\"><draw:" + (folder ? "object" : "object-ole") + " xlink:href=\"./" + esc(dir) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
     if (!href.isEmpty()) frame += "<draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
     return frame + "</draw:frame>";
 }
 
-QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
+namespace {
+
+QByteArray turnTransform(double cx, double cy, double w, double h, double turn, bool flipH, bool flipV);
+
+// Where a shape's anchor and its reference areas allow each other (section 19.759, and the tables of 20.299 and 20.398): a shape set in the line (as-char) is placed against the character and the baseline,
+// line, or text; one anchored to a paragraph is placed against the page, the page's text, or the paragraph, and not against a character or a line (those anchor to a character). The first pair a shape
+// asks for that the anchor does not allow is replaced by the nearest the anchor does.
+void allowedAreas(const QByteArray &anchor, QByteArray *h, QByteArray *v)
+{
+    auto isOneOf = [](const QByteArray &x, std::initializer_list<const char *> list) {
+        for (const char *e : list)
+            if (x == e) return true;
+        return false;
+    };
+    if (anchor == "as-char") {
+        *h = "char";
+        if (!isOneOf(*v, {"baseline", "char", "line", "text"})) *v = "baseline";
+        return;
+    }
+    if (*h == "char" && anchor != "char") *h = "paragraph";
+    if (isOneOf(*v, {"baseline", "line", "text"}) || (*v == "char" && anchor != "char")) *v = anchor == "char" ? "char" : "paragraph";
+}
+
+} // namespace
+
+QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth, bool *paragraphAnchor)
 {
     const int wp = t.namespaceId(kNsWp);
     if (wp < 0) return QByteArray();
@@ -1054,8 +1101,11 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
                               shapePrst.startsWith(QLatin1String("curvedConnector"));
         if (!plain.match(shapePrst).hasMatch() || !(lineKind || office::hasPresetGeometry(shapePrst) || !office::shapeForPreset(shapePrst).isEmpty())) shapePrst.clear();
     }
-    // A shape's turn, flips, adjustments, and line ends: the turn and the ends in attributes of ours (the format has no plain one), the flips and the adjustments as the format has them.
-    QByteArray shapeAttrs, geomAttrs;
+    // A shape's turn, flips, adjustments, and line ends: the turn as the format's transform (below), the ends as its marker styles, the flips and the adjustments as the format has them.
+    QByteArray shapeAttrs, geomAttrs, markerAttrs;
+    double shapeTurn = 0;      // degrees with the clock, of a custom shape
+    bool turnedShape = false;
+    QPointF turnAt;            // (points) where its unturned box is, against its reference area
     if (blip < 0 && txbx < 0 && chartNode < 0 && !shapePrst.isEmpty()) {
         int xfrm = -1, prstNode = -1, ln = -1;
         QVector<int> stack{anchor};
@@ -1068,7 +1118,10 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         }
         if (xfrm >= 0) {
             const double deg = std::fmod(std::fmod(t.attr(xfrm, "rot").toDouble() / 60000.0, 360.0) + 360.0, 360.0);
-            if (deg > 0.0001) shapeAttrs += " jo:rotation=\"" + QByteArray::number(deg, 'f', 4) + "\"";
+            if (deg > 0.0001) {
+                shapeTurn = deg;
+                turnedShape = true;
+            }
             if (t.attr(xfrm, "flipH") == QLatin1String("1") || t.attr(xfrm, "flipH") == QLatin1String("true")) geomAttrs += " draw:mirror-horizontal=\"true\"";
             if (t.attr(xfrm, "flipV") == QLatin1String("1") || t.attr(xfrm, "flipV") == QLatin1String("true")) geomAttrs += " draw:mirror-vertical=\"true\"";
         }
@@ -1091,8 +1144,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
         if (ln >= 0) {
             const int dash = t.child(ln, "prstDash", t.ns(ln)), head = t.child(ln, "headEnd", t.ns(ln)), tail = t.child(ln, "tailEnd", t.ns(ln));
             if (dash >= 0 && t.attr(dash, "val") != QLatin1String("solid")) shapeAttrs += " jo:dash=\"" + esc(t.attr(dash, "val")) + "\"";
-            if (head >= 0 && t.attr(head, "type") != QLatin1String("none") && !t.attr(head, "type").isEmpty()) shapeAttrs += " jo:head-end=\"" + esc(t.attr(head, "type")) + "\"";
-            if (tail >= 0 && t.attr(tail, "type") != QLatin1String("none") && !t.attr(tail, "type").isEmpty()) shapeAttrs += " jo:tail-end=\"" + esc(t.attr(tail, "type")) + "\"";
+            if (head >= 0) markerAttrs += lineEndAttrs("start", t.attr(head, "type"), t.attr(ln, "w").toLongLong());
+            if (tail >= 0) markerAttrs += lineEndAttrs("end", t.attr(tail, "type"), t.attr(ln, "w").toLongLong());
         }
     }
     // A shape of one freeform path with no text (an icon) is kept as an ODF path: the path's own numbers, its fill, and its line.
@@ -1219,7 +1272,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     QByteArray contour;   // a tight wrap's outline, as the frame holds it
     QByteArray frameAttrs = " draw:name=\"" + esc(name.isEmpty() ? QStringLiteral("Object%1").arg(++m_frameCount) : name) + "\"";
     if (inlineFrame) {
-        gp = " style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" fo:margin-left=\"0in\" fo:margin-right=\"0in\" fo:margin-top=\"0in\" fo:margin-bottom=\"0in\" style:wrap=\"none\"";
+        gp = " style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"char\" fo:margin-left=\"0in\" fo:margin-right=\"0in\" fo:margin-top=\"0in\" fo:margin-bottom=\"0in\" style:wrap=\"none\"";
         frameAttrs += " text:anchor-type=\"as-char\"";
     } else {
         QByteArray xy;
@@ -1273,11 +1326,23 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             }
         }
         auto dist = [&](const char *a) { return emuLength(t.attr(anchor, a).toLongLong()); };
-        gp = " style:vertical-pos=\"" + vPos.toUtf8() + "\" style:vertical-rel=\"" + vRel.toUtf8() + "\" style:horizontal-pos=\"" + hPos.toUtf8() + "\" style:horizontal-rel=\"" + hRel.toUtf8() + "\" style:wrap=\"" + wrap + "\"" + extra +
+        // A position against a character, or against the line, is a shape anchored to a character (just before it); against anything else, to the paragraph (written at its start).
+        QByteArray anchorKind = "paragraph", hArea = hRel.toUtf8(), vArea = vRel.toUtf8();
+        if (hArea == "char" || vArea == "line") anchorKind = "char";
+        if (vArea == "line") vArea = "char";
+        allowedAreas(anchorKind, &hArea, &vArea);
+        gp = " style:vertical-pos=\"" + vPos.toUtf8() + "\" style:vertical-rel=\"" + vArea + "\" style:horizontal-pos=\"" + hPos.toUtf8() + "\" style:horizontal-rel=\"" + hArea + "\" style:wrap=\"" + wrap + "\"" + extra +
              " fo:margin-left=\"" + dist("distL") + "\" fo:margin-right=\"" + dist("distR") + "\" fo:margin-top=\"" + dist("distT") + "\" fo:margin-bottom=\"" + dist("distB") + "\"";
-        frameAttrs += " text:anchor-type=\"paragraph\"";
-        frameAttrs += " svg:x=\"" + emuLength(offX) + "\" svg:y=\"" + emuLength(offY) + "\"";
+        frameAttrs += " text:anchor-type=\"" + anchorKind + "\"";
+        // (A turned custom shape is placed by its transform, which holds its place; the other shapes by their place.)
+        if (!turnedShape) frameAttrs += " svg:x=\"" + emuLength(offX) + "\" svg:y=\"" + emuLength(offY) + "\"";
+        else turnAt = QPointF(double(offX) / 12700.0, double(offY) / 12700.0);
+        if (anchorKind == "paragraph" && paragraphAnchor) *paragraphAnchor = true;
         frameAttrs += " draw:z-index=\"" + num(std::max<qint64>(0, std::min<qint64>(t.attr(anchor, "relativeHeight").toLongLong() - 251658240, 100000))) + "\"";
+    }
+    if (turnedShape) {
+        const double w = double(cx) / 12700.0, h = double(cy) / 12700.0;
+        shapeAttrs += " draw:transform=\"" + turnTransform(turnAt.x() + w / 2, turnAt.y() + h / 2, w, h, shapeTurn, false, false) + "\"";
     }
     // A picture's cut edges.
     if (blip >= 0) {
@@ -1357,6 +1422,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             }
         }
         for (auto it = pr.constBegin(); it != pr.constEnd(); ++it) boxProps += " " + it.key() + "=\"" + it.value() + "\"";
+        boxProps += markerAttrs;
         boxProps += textDirectionOdfAttributes(direction).toUtf8();
     }
     if (pathGroup >= 0) {
@@ -1435,8 +1501,10 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     if (blip < 0 && txbx < 0) {
         // A shape with no words: a custom shape that names its preset (the drawing format's), which other programs read as that shape.
         x = "<draw:custom-shape draw:style-name=\"" + esc(style) + "\"" + frameAttrs + shapeAttrs + " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) +
-            "\"><draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"" + geomAttrs + "/>";
+            "\">";
+        // (The description comes before the geometry, as the format's order for a custom shape has it.)
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
+        x += "<draw:enhanced-geometry svg:viewBox=\"0 0 21600 21600\" draw:type=\"ooxml-" + shapePrst.toLatin1() + "\"" + geomAttrs + "/>";
         if (!contour.isEmpty()) left(QCoreApplication::translate("odt", "edited wrap points on shapes"));
         return x + "</draw:custom-shape>";
     }
@@ -1476,10 +1544,23 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     if (pc->depth >= kMaxNesting - 6) return QByteArray();
     QByteArray inner;
     emitBlocks(t, txbx, &inner, pc->depth + 6, false);
-    // (The frame says the height: as it is, or at least, for a box that grows; the text box inside says none.)
-    x += (growsToFit ? " fo:min-height=\"" : " svg:height=\"") + emuLength(cy) + "\"><draw:text-box>" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
+    // (Section 19.240: a box that grows with its text says its least height on the text box inside the frame, which then has no height of its own; a box of one height says it on the frame.)
+    x += (growsToFit ? QByteArray("><draw:text-box fo:min-height=\"") : QByteArray(" svg:height=\"")) + emuLength(cy) + (growsToFit ? "\">" : "\"><draw:text-box>") + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
     Q_UNUSED(depth);
     return x;
+}
+
+QByteArray Writer::lineEndAttrs(const char *side, const QString &type, qint64 lineWidth)
+{
+    // (The drawing format's kinds of line end, and the marker style each is written as; sections 20.143 and 20.146 name a marker by its style's name.)
+    static const QHash<QString, QByteArray> names = {{QStringLiteral("triangle"), "Triangle"}, {QStringLiteral("stealth"), "Stealth"}, {QStringLiteral("diamond"), "Diamond"},
+                                                    {QStringLiteral("oval"), "Oval"}, {QStringLiteral("arrow"), "Open arrow"}};
+    const QByteArray name = names.value(type);
+    if (name.isEmpty()) return QByteArray();
+    m_markersUsed.insert(name);
+    const QByteArray s = side;
+    const qint64 width = std::clamp<qint64>(lineWidth * 3, 76200, 914400);
+    return " draw:marker-" + s + "=\"" + name + "\" draw:marker-" + s + "-width=\"" + emuLength(width) + "\" draw:marker-" + s + "-center=\"false\"";
 }
 
 QString Writer::linkedImageAddress(const QString &rid) const
@@ -1558,10 +1639,30 @@ QByteArray Writer::shapesXml(const T &t, int pict, ParaCtx *pc, const QVector<wm
 {
     Q_UNUSED(pict);
     int written = 0;
-    return shapeListXml(t, shapes, 0, pc, 0, &written, false);
+    return shapeListXml(t, shapes, 0, pc, 0, &written, false, QByteArray());
 }
 
-QByteArray Writer::shapeListXml(const T &t, const QVector<wml::Shape> &shapes, int from, ParaCtx *pc, int depth, int *written, bool member)
+namespace {
+
+// How a group is anchored: in the line when none of its members has a place of its own; to a character when one is placed against a character or a line; else to the paragraph. Its members are
+// anchored as it is (section 10.3.15 gives a member no anchor of its own).
+template <class List>
+void groupNeeds(const List &members, int depth, bool *floating, bool *charRel)
+{
+    if (depth > 8) return;
+    for (const wml::Shape &m : members) {
+        if (m.room) {
+            groupNeeds(m.parts, depth + 1, floating, charRel);
+        } else if (m.floating) {
+            *floating = true;
+            if (m.hRel == wml::Shape::Character || m.vRel == wml::Shape::LineOf) *charRel = true;
+        }
+    }
+}
+
+} // namespace
+
+QByteArray Writer::shapeListXml(const T &t, const QVector<wml::Shape> &shapes, int from, ParaCtx *pc, int depth, int *written, bool member, const QByteArray &groupAnchor)
 {
     QByteArray out;
     for (int i = from; i < shapes.size(); ++i) {
@@ -1583,23 +1684,35 @@ QByteArray Writer::shapeListXml(const T &t, const QVector<wml::Shape> &shapes, i
                 left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
                 continue;
             }
-            const QByteArray inner = shapeListXml(t, members, 0, pc, depth + 1, written, true);
+            // (Section 19.231: the members' order inside a group is their order in the file, so they are written lowest first; the group has the one order number.)
+            std::stable_sort(members.begin(), members.end(), [](const wml::Shape &a, const wml::Shape &b) { return a.behind != b.behind ? a.behind : zIndexOf(a.z) < zIndexOf(b.z); });
+            QByteArray kind = groupAnchor;
+            if (!member) {
+                bool floating = false, charRel = false;
+                groupNeeds(members, 0, &floating, &charRel);
+                kind = !floating ? "as-char" : charRel ? "char" : "paragraph";
+            }
+            const QByteArray inner = shapeListXml(t, members, 0, pc, depth + 1, written, true, kind);
             if (inner.isEmpty()) {
                 left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
                 continue;
             }
-            out += "<draw:g draw:name=\"" + esc(QStringLiteral("Group%1").arg(++m_frameCount)) + "\"" + (member ? QByteArray() : QByteArray(" text:anchor-type=\"as-char\"")) + ">" + inner + "</draw:g>";
+            QByteArray group = "<draw:g draw:name=\"" + esc(QStringLiteral("Group%1").arg(++m_frameCount)) + "\"";
+            if (!member) group += " text:anchor-type=\"" + kind + "\" draw:z-index=\"" + num(s.z != 0 ? zIndexOf(s.z) : zIndexOf(members.first().z)) + "\"";
+            group += ">" + inner + "</draw:g>";
+            out += !member && kind == "paragraph" ? "\x01" + group + "\x02" : group;
             continue;
         }
-        const QByteArray one = shapeXml(t, s, pc, depth, member);
+        bool atParagraph = false;
+        const QByteArray one = shapeXml(t, s, pc, depth, member, groupAnchor, &atParagraph);
         if (one.isEmpty()) continue;
-        out += one;
+        out += atParagraph ? "\x01" + one + "\x02" : one;
         ++*written;
     }
     return out;
 }
 
-QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, int depth, bool member)
+QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, int depth, bool member, const QByteArray &groupAnchor, bool *paragraphAnchor)
 {
     Q_UNUSED(t);
     wml::Shape s = source;
@@ -1669,8 +1782,15 @@ QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, i
     const bool mirrorByStyle = s.kind == wml::Shape::Picture;
     const bool turned = !isLine && (std::abs(std::fmod(s.rotation, 360.0)) > 0.0001 || ((s.flipH || s.flipV) && !mirrorByStyle));
     QByteArray extra;
+    // The anchor: a shape in the line is set as a character; one with a place of its own is anchored to the paragraph (written at its start), or to a character when it is placed against a character or a
+    // line; a member is anchored as its group is (sections 19.759, 20.299, 20.398).
+    QByteArray kind = member ? groupAnchor : QByteArray(s.floating ? "paragraph" : "as-char");
+    if (!member && s.floating && (s.hRel == wml::Shape::Character || s.vRel == wml::Shape::LineOf)) kind = "char";
+    if (!member && kind == "paragraph" && paragraphAnchor) *paragraphAnchor = true;
     if (!s.floating) {
-        gp = " style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" style:wrap=\"none\"";
+        QByteArray hArea = "char", vArea = "baseline";
+        allowedAreas(kind, &hArea, &vArea);
+        gp = " style:vertical-pos=\"top\" style:vertical-rel=\"" + vArea + "\" style:horizontal-pos=\"center\" style:horizontal-rel=\"" + hArea + "\" style:wrap=\"none\"";
         if (s.behind) gp += " style:run-through=\"background\"";
         where += member ? QByteArray() : QByteArray(" text:anchor-type=\"as-char\"");
         if (isLine) where += " svg:x1=\"0in\" svg:y1=\"0in\" svg:x2=\"" + emuLength(pointsEmu(width)) + "\" svg:y2=\"" + emuLength(pointsEmu(height)) + "\"";
@@ -1695,24 +1815,26 @@ QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, i
             }
         }
         auto gap = [&](double v) { return emuLength(pointsEmu(std::clamp(v, 0.0, 1584.0))); };
-        gp = " style:vertical-pos=\"" + QByteArray(vPos) + "\" style:vertical-rel=\"" + relV(s.vRel) + "\" style:horizontal-pos=\"" + hPos + "\" style:horizontal-rel=\"" + relH(s.hRel) + "\" style:wrap=\"" + wrap + "\"" + extra +
+        QByteArray hArea = relH(s.hRel), vArea = relV(s.vRel);
+        if (vArea == "line") vArea = "char";
+        allowedAreas(kind, &hArea, &vArea);
+        gp = " style:vertical-pos=\"" + QByteArray(vPos) + "\" style:vertical-rel=\"" + vArea + "\" style:horizontal-pos=\"" + hPos + "\" style:horizontal-rel=\"" + hArea + "\" style:wrap=\"" + wrap + "\"" + extra +
              " fo:margin-left=\"" + gap(s.gapLeft) + "\" fo:margin-right=\"" + gap(s.gapRight) + "\" fo:margin-top=\"" + gap(s.gapTop) + "\" fo:margin-bottom=\"" + gap(s.gapBottom) + "\"";
-        if (!member) where += " text:anchor-type=\"paragraph\"";
+        if (!member) where += " text:anchor-type=\"" + kind + "\"";
         if (isLine) where += " svg:x1=\"" + emuLength(pointsEmu(x1)) + "\" svg:y1=\"" + emuLength(pointsEmu(y1)) + "\" svg:x2=\"" + emuLength(pointsEmu(x2)) + "\" svg:y2=\"" + emuLength(pointsEmu(y2)) + "\"";
         else if (turned) where += " draw:transform=\"" + turnTransform(left0 + width / 2, top0 + height / 2, width, height, s.rotation, s.flipH && !mirrorByStyle, s.flipV && !mirrorByStyle) + "\"";
         else where += " svg:x=\"" + emuLength(pointsEmu(left0)) + "\" svg:y=\"" + emuLength(pointsEmu(top0)) + "\"";
     }
-    // (Every shape has its place in the order, the one in the line too.)
-    where += " draw:z-index=\"" + num(zIndexOf(s.z)) + "\"";
+    // (Every shape has its place in the order, the one in the line too; a member of a group has none, its order is its place in the group, section 19.231.)
+    if (!member) where += " draw:z-index=\"" + num(zIndexOf(s.z)) + "\"";
     const qint64 cx = std::max<qint64>(0, pointsEmu(width)), cy = std::max<qint64>(0, pointsEmu(height));
     // Fill and line.
     QByteArray look = s.filled ? " draw:fill=\"solid\" draw:fill-color=\"" + colorAttr(s.fillColor, "#ffffff") + "\"" : QByteArray(" draw:fill=\"none\"");
     look += s.stroked ? " draw:stroke=\"solid\" svg:stroke-color=\"" + colorAttr(s.strokeColor, "#000000") + "\" svg:stroke-width=\"" + emuLength(std::max<qint64>(1, pointsEmu(s.strokeWeight))) + "\"" : QByteArray(" draw:stroke=\"none\"");
-    QByteArray jo;
-    if (isLine && (s.arrowStart || s.arrowEnd)) {
-        // (a line's ends: the standard says them with marker styles; ours is the drawing format's name for the kind of end)
-        if (s.arrowStart) jo += " jo:head-end=\"triangle\"";
-        if (s.arrowEnd) jo += " jo:tail-end=\"triangle\"";
+    // (A line's ends are the standard's marker styles.)
+    if (isLine && s.stroked) {
+        if (s.arrowStart) look += lineEndAttrs("start", QStringLiteral("triangle"), pointsEmu(s.strokeWeight));
+        if (s.arrowEnd) look += lineEndAttrs("end", QStringLiteral("triangle"), pointsEmu(s.strokeWeight));
     }
     if (s.kind == wml::Shape::Picture) {
         QString href;
@@ -1749,7 +1871,7 @@ QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, i
     const QByteArray size = isLine ? QByteArray() : " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\"";
     const QByteArray descr = s.alt.isEmpty() ? QByteArray() : "<svg:desc>" + esc(s.alt, false) + "</svg:desc>";
     Q_UNUSED(depth);
-    return "<" + element + " draw:style-name=\"" + esc(style) + "\"" + where + size + jo + (descr.isEmpty() ? QByteArray("/>") : ">" + descr + "</" + element + ">");
+    return "<" + element + " draw:style-name=\"" + esc(style) + "\"" + where + size + (descr.isEmpty() ? QByteArray("/>") : ">" + descr + "</" + element + ">");
 }
 
 QByteArray Writer::noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark)
@@ -1954,9 +2076,10 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 if (!a.isEmpty()) pc->xml += a;
             }
         } else if (name == "drawing") {
-            const QByteArray d = drawingXml(t, c, pc, depth);
+            bool atParagraph = false;
+            const QByteArray d = drawingXml(t, c, pc, depth, &atParagraph);
             if (!d.isEmpty()) {
-                pc->xml += d;
+                pc->xml += atParagraph ? "\x01" + d + "\x02" : d;
                 pc->hasContent = true;
                 pc->lastSpace = false;
             }
@@ -1965,9 +2088,10 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 if (t.localName(k) != "Choice") continue;
                 for (int d = t.firstChild(k); d >= 0; d = t.next(d))
                     if (t.is(d, "drawing")) {
-                        const QByteArray x = drawingXml(t, d, pc, depth);
+                        bool atParagraph = false;
+                        const QByteArray x = drawingXml(t, d, pc, depth, &atParagraph);
                         if (!x.isEmpty()) {
-                            pc->xml += x;
+                            pc->xml += atParagraph ? "\x01" + x + "\x02" : x;
                             pc->hasContent = true;
                         }
                     }
@@ -2012,7 +2136,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                     if (const auto m = w.match(st); m.hasMatch()) cx = std::max<qint64>(9525, toEmu(m));
                     if (const auto m = h.match(st); m.hasMatch()) cy = std::max<qint64>(9525, toEmu(m));
                     const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"",
-                                                       "<style:graphic-properties style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" style:wrap=\"none\"/>");
+                                                       "<style:graphic-properties style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"char\" style:wrap=\"none\"/>");
                     pc->xml += "<draw:frame draw:style-name=\"" + esc(style) + "\" draw:name=\"Object" + num(++m_frameCount) + "\" text:anchor-type=\"as-char\" svg:width=\"" + emuLength(cx) + "\" svg:height=\"" +
                                emuLength(cy) + "\"><draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/></draw:frame>";
                     pc->hasContent = true;
@@ -2166,6 +2290,7 @@ void Writer::emitInline(const T &t, int parent, ParaCtx *pc, int depth)
             dpc.depth = pc->depth;
             dpc.inNote = true;
             emitInline(t, c, &dpc, depth + 1);
+            dpc.xml.replace('\x01', "").replace('\x02', "");
             if (!dpc.xml.isEmpty()) {
                 const QString id = QStringLiteral("ct%1").arg(++m_changeCount);
                 QString date = t.attr(c, "date");
