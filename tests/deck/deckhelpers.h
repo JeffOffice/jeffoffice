@@ -278,9 +278,9 @@ QMap<quint32, quint32> pptPersistOffsets(const QByteArray &stream, quint32 newes
 QByteArray appendEdits(const QByteArray &file, const QByteArray &objects, const QList<QByteArray> &directories, quint32 ref = 50);
 QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                            const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
-                           const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
+                           const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1006, const QByteArray &documentExtra = QByteArray(),
                            const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray(), const QByteArray &linksTransition = QByteArray(),
-                           const QByteArray &fontCollectionExtra = QByteArray());
+                           const QByteArray &fontCollectionExtra = QByteArray(), const QByteArray &environmentExtra = QByteArray());
 
 // The text of a slide's placeholders by role.
 QString placeholderText(const Document &d, const Page &slide, const QString &role);

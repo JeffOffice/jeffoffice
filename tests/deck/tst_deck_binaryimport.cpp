@@ -1274,6 +1274,81 @@ private Q_SLOTS:
         for (auto *doc : {cut.get(), liar.get(), restricted.get(), big.get()}) deck::EmbeddedFonts::release(doc);
         QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
     }
+    // The fonts a file carries are also in a second list, in the ___PPT10 tag of the document (section 2.9.11), with the same entries: a face only
+    // that list holds is used, and one both lists hold is taken once (the first list's).
+    void anOldPresentationsSecondFontListIsRead()
+    {
+        QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(latoFile.open(QIODevice::ReadOnly));
+        const QByteArray lato = latoFile.readAll();
+        const QByteArray one = office::makeEot(jp::fontWithFamilyName(lato, QStringLiteral("Zobster"))), two = office::makeEot(jp::fontWithFamilyName(lato, QStringLiteral("Zebstor")));
+        QVERIFY(!one.isEmpty() && !two.isEmpty());
+        const QByteArray second = pptBox(2006, fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, one) + fontEntity(QStringLiteral("Zebstor")) + pptFontBlob(0, two));
+        const QByteArray tag = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT10")), 0) + pptBox(5003, second)));
+        auto open = [&](const QByteArray &first, const QByteArray &documentExtra, QString *err) {
+            const QByteArray none;
+            return deck::importBinaryPresentation(buildPpt(false, false, false, false, none, none, none, none, none, none, 1006, documentExtra, none, none, none, first), err);
+        };
+        QString err;
+        const QByteArray firstList = fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, one);
+        auto both = open(firstList, tag, &err);
+        QVERIFY2(both, qPrintable(err));
+        QStringList names;
+        for (const auto &f : deck::EmbeddedFonts::facesOf(both.get())) names << f.typeface;
+        names.sort();
+        QCOMPARE(names, (QStringList{QStringLiteral("Zebstor"), QStringLiteral("Zobster")}));   // two faces: Zobster once, and the one only the second list holds
+        // Without the tag the second list's own face is not there.
+        auto onlyFirst = open(firstList, QByteArray(), &err);
+        QVERIFY2(onlyFirst, qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(onlyFirst.get()).size()), 1);
+        // A font only the second list holds, with no blob in the first.
+        auto onlySecond = open(QByteArray(), tag, &err);
+        QVERIFY2(onlySecond, qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(onlySecond.get()).size()), 2);
+        for (auto *doc : {both.get(), onlyFirst.get(), onlySecond.get()}) deck::EmbeddedFonts::release(doc);
+    }
+
+    // A main master is told from a title master by its container (section 2.5.5), not by the placeholders it lists: a master record that lists only the
+    // centered title and subtitle is still a main master.
+    void anOldPresentationsMasterIsATitleMasterByItsContainer()
+    {
+        QString err;
+        auto asMain = deck::importBinaryPresentation(buildPpt(true, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016), &err);
+        QVERIFY2(asMain, qPrintable(err));
+        int masters = 0;
+        for (const auto &m : asMain->masters) masters += deck::isSlideMaster(*m);
+        QCOMPARE(masters, 2);
+    }
+
+    // Only one font collection is in force (section 2.9.1): a second one in the environment adds no names, so a run that names the index past the first
+    // collection's fonts gets no font name from it, and its blobs are not read either.
+    void anOldPresentationsSecondFontCollectionIsLeftAlone()
+    {
+        QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(latoFile.open(QIODevice::ReadOnly));
+        const QByteArray eot = office::makeEot(jp::fontWithFamilyName(latoFile.readAll(), QStringLiteral("Zobster")));
+        QVERIFY(!eot.isEmpty());
+        const QByteArray secondCollection = pptBox(2005, fontEntity(QStringLiteral("Gamma Mono")) + fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, eot));
+        // The first collection has 5 fonts (0 to 4); the run names font 5, the first of the second collection.
+        const QString text = QStringLiteral("abcdef");
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0x10000, le(5, 2));
+        const QByteArray none;
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true), none, none, none, none, none, 1006, none, none, none, none, none, secondCollection), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(d.get()).size()), 0);
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QVERIFY(body->toPlainText() == text);
+        QVERIFY2(!body->begin().begin().fragment().charFormat().fontFamilies().toStringList().contains(QStringLiteral("Gamma Mono")), "a name of the second collection");
+        // The names of the first collection still reach the text (font 1).
+        const QByteArray styles1 = pfRun(int(text.size()) + 1, 0, 0) + cfRun(int(text.size()) + 1, 0x10000, le(1, 2));
+        auto e = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles1, true), none, none, none, none, none, 1006, none, none, none, none, none, secondCollection), &err);
+        QVERIFY2(e, qPrintable(err));
+        QCOMPARE(placeholderStory(*e, *e->pages[0], QStringLiteral("ph:body:1"))->begin().begin().fragment().charFormat().fontFamilies().toStringList(), QStringList{"Beta Serif"});
+        deck::EmbeddedFonts::release(d.get());
+        deck::EmbeddedFonts::release(e.get());
+    }
 };
 
 JP_TEST_CLASS(DeckBinaryImportTests)

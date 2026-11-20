@@ -192,7 +192,7 @@ enum : quint16 {
     RT_Document = 1000, RT_DocumentAtom = 1001, RT_Slide = 1006, RT_SlideAtom = 1007, RT_Notes = 1008, RT_NotesAtom = 1009, RT_Environment = 1010,
     RT_SlidePersistAtom = 1011, RT_MainMaster = 1016, RT_SlideShowSlideInfoAtom = 1017, RT_ExObjList = 1033, RT_DrawingGroup = 1035, RT_PPDrawing = 1036,
     RT_RoundTripThemeAtom = 1038, RT_RoundTripColorMappingAtom = 1039,
-    RT_List = 2000, RT_FontCollection = 2005, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
+    RT_List = 2000, RT_FontCollection = 2005, RT_FontCollection10 = 2006, RT_ColorSchemeAtom = 2032, RT_PlaceholderAtom = 3011, RT_OutlineTextRefAtom = 3998, RT_TextHeaderAtom = 3999,
     RT_TextCharsAtom = 4000, RT_StyleTextPropAtom = 4001, RT_MasterTextPropAtom = 4002, RT_TextMasterStyleAtom = 4003, RT_TextCFExceptionAtom = 4004,
     RT_TextPFExceptionAtom = 4005, RT_TextRulerAtom = 4006, RT_TextBytesAtom = 4008, RT_TextSpecialInfoAtom = 4010, RT_FontEntityAtom = 4023,
     RT_CString = 4026, RT_ExHyperlinkAtom = 4051, RT_ExHyperlink = 4055, RT_SlideNumberMCAtom = 4056, RT_HeadersFooters = 4057, RT_HeadersFootersAtom = 4058,
@@ -465,6 +465,7 @@ QString readChars(const QByteArray &d, const Rec &r, bool wide)
         s.reserve(int(len));
         for (qint64 i = 0; i < len; ++i) {
             const quint8 b = quint8(d.at(r.off + i));
+            // (Section 2.9.43 reads each byte as the low half of a UTF-16 character; the 0x80 to 0x9F codes are read as the Western code page's characters instead, on purpose: the other reading gives invisible controls.)
             s += QChar(b >= 0x80 && b < 0xA0 ? kWin1252[b - 0x80] : b);
         }
     }
@@ -480,7 +481,7 @@ void readStyleRuns(const QByteArray &d, const Rec &r, qint64 textLength, TextGro
     while (total < need && c.left() >= 10 && g->pf.size() < kMaxRuns) {
         PfRun run;
         run.count = c.u32();
-        run.level = std::min<int>(c.u16(), 8);
+        run.level = std::min<int>(c.u16(), 4);   // (section 2.2.13: at most 4)
         if (!readPf(c, &run.pf) || run.count <= 0) break;
         g->pf << run;
         total += run.count;
@@ -948,6 +949,7 @@ private:
     void readHyperlinks(const Rec &r);
     QVector<SlideEntry> readSlideList(const Rec &list);
     void readTextExtensions(const QVector<Rec> &documentRecords);
+    void readFontLists(const QVector<Rec> &documentRecords);
     QVector<Pp9> shapeTextExtension(const QByteArray &clientData) const;
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
     QString pictureId(int blipIndex);
@@ -1010,6 +1012,7 @@ private:
 
     // What the document says.
     QStringList m_fonts;
+    QList<QPair<qint64, qint64>> m_fontLists;   // where the font lists are (the environment's, then the second one the ___PPT10 tag holds)
     QVector<EmbeddedFace> m_embedded;   // the fonts the file carries (see core/embeddedfonts.h)
     Pf m_defaultPf;
     Cf m_defaultCf;
@@ -1227,14 +1230,13 @@ void Importer::readDocumentAtom(const Rec &r)
 void Importer::readEnvironment(const Rec &r)
 {
     const QByteArray &d = m_ppt.data();
+    bool haveCollection = false;
     for (const Rec &k : m_ppt.in(r)) {
         if (k.type == RT_FontCollection) {
-            // (the first collection's fonts only: a file has one)
-            if (m_embedded.isEmpty()) {
-                QStringList fontNotes;
-                m_embedded = office::readPptFonts(d, k.off, k.end(), &fontNotes);
-                for (const QString &n : std::as_const(fontNotes)) note(n);
-            }
+            // Only one collection is in force (section 2.9.1 allows one): the first, for its names and its font data alike, so the indices keep to the one list.
+            if (haveCollection) continue;
+            haveCollection = true;
+            m_fontLists << qMakePair(k.off, k.end());
             for (const Rec &f : m_ppt.in(k)) {
                 if (f.type != RT_FontEntityAtom || m_fonts.size() >= 4096) continue;
                 // The face name: 32 characters of UTF-16, ended by a zero.
@@ -1337,6 +1339,34 @@ static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
         entries << e;
     }
     return entries;
+}
+
+// The fonts the file carries: the environment's collection, and the second list (section 2.9.11, in the ___PPT10 tag) with the same entries; one run of the
+// shared intake over both. Its names are not added to the font names: its indices (section 2.2.11) are another count.
+void Importer::readFontLists(const QVector<Rec> &documentRecords)
+{
+    const QByteArray &d = m_ppt.data();
+    QVector<Rec> candidates = documentRecords;
+    for (const Rec &r : documentRecords)
+        if (r.type == RT_List) candidates += m_ppt.in(r);
+    bool second = false;
+    for (const Rec &tags : candidates) {
+        if (tags.type != RT_ProgTags || second) continue;
+        for (const Rec &tag : m_ppt.in(tags)) {
+            if (tag.type != RT_ProgBinaryTag || second) continue;
+            const QVector<Rec> parts = m_ppt.in(tag);
+            const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
+            if (!name || !data || readChars(d, *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT10")) continue;
+            if (const Rec *list = find(m_ppt.in(*data), RT_FontCollection10)) {
+                m_fontLists << qMakePair(list->off, list->end());
+                second = true;
+            }
+        }
+    }
+    if (m_fontLists.isEmpty()) return;
+    QStringList fontNotes;
+    m_embedded = office::readPptFonts(d, m_fontLists, &fontNotes);
+    for (const QString &n : std::as_const(fontNotes)) note(n);
 }
 
 // The extension of the document's text (the outline properties its ___PPT9 tag keeps: for each slide's text of a kind, what its runs of paragraphs
@@ -1781,11 +1811,8 @@ void Importer::readMasters()
             const Rec *map = find(kids, RT_RoundTripColorMappingAtom);
             m->theme = readWritersTheme(view(*t, 0), map ? view(*map, 0) : QByteArray());
         }
-        // A title master has the centered title and the subtitle, and a main master the title and the body; a master
-        // that lists no placeholders is known by its layout.
-        const bool main = m->placeholders.contains(char(1)) || m->placeholders.contains(char(2));
-        const bool centered = m->placeholders.contains(char(3)) || m->placeholders.contains(char(4));
-        m->title = main ? false : centered || m->geom == 2 || m->geom == 3;
+        // The container says which it is (section 2.5.5): a slide record holds a title master, a master record a main master.
+        m->title = c.type == RT_Slide;
         m_masters.push_back(std::move(m));
     }
     // A title master belongs to the main master before it, else the first after it; with no main master at all it is one.
@@ -3014,6 +3041,7 @@ bool Importer::run(QString *error)
     if (const Rec *r = find(kids, RT_DrawingGroup)) readDrawingGroup(*r);
     if (const Rec *r = find(kids, RT_ExObjList)) readHyperlinks(*r);
     readTextExtensions(kids);
+    readFontLists(kids);
     for (const Rec &r : kids) {
         if (r.type != RT_SlideListWithText) continue;
         QVector<SlideEntry> list = readSlideList(r);

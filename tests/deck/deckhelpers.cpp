@@ -447,7 +447,7 @@ QByteArray persistDirectory(const QVector<QPair<quint32, quint32>> &entries)
 QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, const QByteArray &bodyGroup,
                            const QByteArray &drawingGroup, const QByteArray &firstSlideShapes, const QByteArray &masterTitleProps, const QByteArray &masterBackground,
                            const QByteArray &masterExtra, quint16 titleMasterRecord, const QByteArray &documentExtra,
-                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes, const QByteArray &linksTransition, const QByteArray &fontCollectionExtra)
+                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes, const QByteArray &linksTransition, const QByteArray &fontCollectionExtra, const QByteArray &environmentExtra)
 {
     constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
     const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")) + fontCollectionExtra);
@@ -457,7 +457,7 @@ QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, 
         + le(0x70000, 4) + le(0, 2) + le(28, 2) + pptColor(0, 0, 0, 1)
         + le(0x581, 4) + le(1, 2) + le(0x2013, 2) + le(720, 2) + le(360, 2)
         + le(0x20000, 4) + le(24, 2);
-    const QByteArray environment = pptBox(1010, fonts + pptRec(4003, bodyStyle, 1));
+    const QByteArray environment = pptBox(1010, fonts + environmentExtra + pptRec(4003, bodyStyle, 1));
     const QByteArray document = pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
         + environment
         + drawingGroup
