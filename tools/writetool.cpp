@@ -10,7 +10,7 @@
 //   writetool docsave <file.docx> <out.docx>                     the document read and saved again (to compare two saves)
 //   writetool review-text <file.docx> accept|reject|none         the text of the body (UTF-8, a paragraph ends in \r) after Accept All or Reject All of its tracked changes, or as it stands
 //   writetool review-save <file.docx> accept|reject <out.docx>   the document with all its changes accepted or rejected, saved
-//   writetool review-list <file.docx>                            the tracked changes: kind, author, date, and words
+//   writetool review-list <file.docx>                            the tracked changes of the text, the notes, the headers and footers, and the tables: kind, author, date, places, words, and the story
 //   writetool field-check <file.docx>                           every field of the text with the result it has and the one an update works out (a tab-separated line each: name, outcome, machine, before, after, code)
 //   writetool bench [paragraphs=26443] [options]                 a made-up long story: the time to its first page, to all of its pages, and to repaginate after a typed character,
 //                                                                against the targets (all of 26,443 paragraphs in 5 s, the first page in 0.3 s, a typed character in 50 ms); exits 1 if one is missed.
@@ -475,8 +475,10 @@ int reviewCommand(const QStringList &args, QTextStream &out)
     if (!d) { out << "cannot open: " << why << "\n"; return 1; }
     const QString cmd = args[1];
     if (cmd == QLatin1String("review-list")) {
-        for (const Revision &r : revisionsIn(d->story()))
-            out << int(r.kind) << "\t" << r.author << "\t" << r.date.toString(Qt::ISODate) << "\t" << r.from << "\t" << r.to << "\t" << revisionText(d->story(), r, 60) << "\n";
+        for (const StoryRevision &sr : documentRevisions(*d)) {
+            const Revision &r = sr.revision;
+            out << int(r.kind) << "\t" << r.author << "\t" << r.date.toString(Qt::ISODate) << "\t" << r.from << "\t" << r.to << "\t" << revisionText(sr.story, r, 60) << "\t" << sr.container << "\n";
+        }
         return 0;
     }
     const QString mode = args.value(3);

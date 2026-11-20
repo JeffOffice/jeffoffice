@@ -55,15 +55,21 @@ To accept a change is to keep it for good. To reject it is to undo it.
 
 Each of these is one step, so **Ctrl+Z** brings back the document exactly as it was.
 
-Accepting a deletion removes the text for good. Rejecting an insertion removes the text too. Accepting an insertion keeps the text and removes the mark that it was new. Rejecting a deletion keeps the text and removes the strike-through. Rejecting a change of look puts back the look the text had. Text that was moved is a pair of changes, one where it left and one where it arrived. When the pair is marked with the same name, as other programs save it, accepting or rejecting either half does the same to the other half, so the text is moved for good or put back.
+Accepting a deletion removes the text for good. Rejecting an insertion removes the text too. Accepting an insertion keeps the text and removes the mark that it was new. Rejecting a deletion keeps the text and removes the strike-through. Rejecting a change of look puts back the look the text had. Text that was moved is a pair of changes, one where it left and one where it arrived, joined by the name of the move. When the pair is marked with the same name, as other programs save it, accepting or rejecting either half does the same to the other half, so the text is moved for good or put back. A name that is used more than once, or has only one half, joins nothing: each half is a change of its own.
 
 ## The Reviewing pane
 
 Click **Review > Reviewing Pane** to open a list of the changes in the document: what kind, who made it, when, and the words. A click on one shows it in the text. Use **Accept**, **Reject**, **Previous**, and **Next** under the list, or choose one reviewer from the box above it to see only that person's changes.
 
+## Changes in headers, footers, notes, and tables
+
+Changes other people made in a header, a footer, a footnote, or an endnote are shown and listed like the changes in the text. **Next**, **Previous**, **Accept**, **Reject**, and the **Reviewing** pane take you into the header, footer, or note that has the change, and the order is the text first, then the footnotes, then the headers and footers. **Accept All** and **Reject All** cover every one of them.
+
+Changes to tables are listed too: an inserted or deleted row or cell, cells that were merged, and a change of the look of a table, a row, or a cell. A bar in the margin marks the lines of the row or cell. Accepting a deleted row, or rejecting an inserted one, removes the row and its words. Rejecting a change of look puts back the look the table, row, or cell had, and rejecting a merge splits the cells again. A cell that is joined with others down or across keeps its change, because it can't be removed alone.
+
 ## What is not tracked yet
 
-Changes to tables (rows, cells, merging), to numbering and lists, to sections and page setup, and to text in headers, footers, and notes are made as usual, without a record. Changes other programs have recorded in those places are kept and saved as they were.
+Changes you make yourself to tables (rows, cells, merging), to numbering and lists, to sections and page setup, and to text in headers, footers, and notes are made as usual, without a record. Changes other programs have recorded in numbering and in sections are kept and saved as they were, but they are not listed, and Accept and Reject do not act on them.
 
 ## Compare two versions
 
