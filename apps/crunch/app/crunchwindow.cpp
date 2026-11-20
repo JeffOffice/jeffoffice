@@ -290,6 +290,7 @@ CrunchWindow::~CrunchWindow()
     stopPasswordJob();   // (a password being worked on is given up with the window)
     if (m_tabs) m_tabs->cancelRename();   // (a name being typed is given up with the window, not given to a window that is going)
     if (m_view) m_view->setOverlay(nullptr);   // (the objects over the cells go before the grid does)
+    if (m_view) m_view->disconnect(this);   // (closing a window that is going hides it, which sends the grid focus-out: a box being moved with the keys is let go of, and the window is no longer whole to be told)
     if (m_pageView) m_pageView->setSource(nullptr);
     openWindows().removeAll(this);
     if (m_pivotDock) m_pivotDock->disconnect(this);   // (the pane going is not told to a window that is going)

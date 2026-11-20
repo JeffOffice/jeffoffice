@@ -2150,6 +2150,35 @@ private Q_SLOTS:
         QVERIFY(!e.view()->inNoteKeys());
     }
 
+    // A window closed while a note's box is being moved with the keys lets the box go without telling the window that is going (the checked build stopped on the call into a window
+    // that was only a widget by then; the ordinary build sees the window's accessible text set from the destructor).
+    void aWindowClosedWhileTheKeysMoveANoteBoxIsNotToldAfterItsGoing()
+    {
+        static int told = 0;
+        static QObject *watched = nullptr;
+        auto owner = std::make_unique<EditWindow>();
+        EditWindow &e = *owner;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+        e.win.w.activateWindow();
+        e.view()->setFocus();
+        QTRY_VERIFY(e.view()->hasFocus());
+        e.select(QStringLiteral("C3"));
+        e.win.w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        told = 0;
+        watched = e.view();
+        QAccessible::installUpdateHandler([](QAccessibleEvent *ev) {
+            if (ev->object() == watched && ev->type() == QAccessible::NameChanged) ++told;
+        });
+        owner.reset();
+        QAccessible::installUpdateHandler(nullptr);
+        QCOMPARE(told, 0);
+    }
+
     // The keys' box is kept to what the pointer's is: at most 640 by 480, within 1,000 pixels of its cell, and no smaller than a drag can make it.
     void aNoteBoxMovedWithTheKeysKeepsTheLimitsOfTheMouse()
     {
