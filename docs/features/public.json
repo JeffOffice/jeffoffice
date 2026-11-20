@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "18",
+    "day": "20",
     "month": "November",
     "year": "2026"
    },
@@ -29,7 +29,7 @@
       },
       {
        "status": "partly",
-       "text": "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67"
+       "text": "44aa28f46ceedfcd6664cc12a5a2236333ba3f35a5c2cb06ed94221021d6b9e0"
       },
       {
        "hide_soon": true,
@@ -65,8 +65,8 @@
        "text": "a01cee174c33518608ce6de980cfdc7faf82668718c3c4d9bf8034872de00f31"
       },
       {
-       "status": "todo",
-       "text": "c5d2330907f0800bca3df1215be68905622bf53c70cf0704add444d37861b495"
+       "status": "partly",
+       "text": "3163a31bf454a96df3ff2e76071a56173b3345171485f0a6573e57a0124863ea"
       },
       {
        "hide_soon": true,
@@ -110,7 +110,8 @@
          "text": "f92a5c11ac5a4f1518376076ebcdd0c713f2a7c91243d795022ed69c5a0be3e3"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "00a4fb5484e8c072662174815ca185b250d0ed972f9f69f73f84cf434b7165ee"
         },
         {
@@ -586,7 +587,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "c490e1191bacecaf6269ead06e990028290494b1a1eb4aa85f49a8d78ef8b885"
+         "text": "e8770a82e3e43571a6b1344b9e5bcc32356708aa02e4d7266a7b5166cca0c84e"
         },
         {
          "hide_soon": true,
@@ -633,7 +634,7 @@
         },
         {
          "status": "partly",
-         "text": "eab6e62fb26a175eeb50644ca8ec8643de46f5e8b0dfa6ced997a2b6d7ba1000"
+         "text": "57153a182d29631431e0f08440f39805fb4e8a1e6655937dda2215220808dd24"
         },
         {
          "status": "partly",
@@ -914,7 +915,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d"
+         "text": "ff0d917731497100a3e02316a4906ceff7d61c7d8acbfaab3e1a74ce61358748"
         }
        ]
       }
@@ -995,7 +996,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "5616b3062c183d4483b822d1ff8d778d446840289d97e2c9d194c1cb0c9d8cbd"
+         "text": "9c5bd5a71665e89a3c52c4e7ccdd5c5018d8e040472df65a1527ba4bae31128c"
         }
        ]
       },
@@ -1177,6 +1178,10 @@
          "text": "69b666e8becbc4fed0c3450210a99626d4118c5ee049f1e7585a6fb6ec00eecb"
         },
         {
+         "status": "partly",
+         "text": "b354fdda305f77c61c61e171584d4fa2f99dd1b03d4980b81042dcf43158ff65"
+        },
+        {
          "hide_soon": true,
          "status": "done",
          "text": "69cb156d7a8423c5acdfe36ad6f884bbb3ef3590f20f97b6cf6b80b4718cd922"
@@ -1235,7 +1240,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "044d958297d94436c68f2818ec0de46cf2886e0adc2c275fcf95e81a3015324c"
+         "text": "c4eefbd4ee3059cd48c86469d54c46dd9688665f907c5d299f017ad5c3c7d6b6"
         },
         {
          "status": "partly",
@@ -1750,7 +1755,8 @@
        "text": "bdf6e50f597cdda517d628acfdab82f657f5d21ebe908ca51862181e129c193c"
       },
       {
-       "status": "partly",
+       "hide_soon": true,
+       "status": "done",
        "text": "0c9838ddd71b2de7f7f321f34554f8d323af26712a6a0f49dd74e1cf13481a04"
       },
       {
@@ -1769,8 +1775,9 @@
        "text": "e327f08d0103e1c72091de9b5fd28e82ad9a2947b16193ea3837cdbc71af817d"
       },
       {
-       "status": "partly",
-       "text": "115f22fde689dd9a13c92d7533d9811f18d3a0219fc7f3456769dcf2226811f4"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2b3ae44a23b3f16100a2d5d75d1e9887c71ba324b2002e3dec93f730f654f2de"
       },
       {
        "hide_soon": true,
@@ -2036,11 +2043,12 @@
         },
         {
          "status": "partly",
-         "text": "70230e112ef023bffbf4f2d7342f65a93ab34d4b49239f0b7a6ddcf38fbae4bc"
+         "text": "8bc060e604b336c5e7685c2de554561a307e174185f4d87190e87524a2883193"
         },
         {
-         "status": "partly",
-         "text": "750e87e1faceebef8a740515825bb9ec99566a2401ce865b3b60ea7e3103acde"
+         "hide_soon": true,
+         "status": "done",
+         "text": "bcef39e3458fc0f939b981edf4cd5b86f624c6f2f43e9fe745589c80db414346"
         },
         {
          "status": "partly",
@@ -2084,8 +2092,8 @@
        "text": "8c78c706e0069f732df58bc5046cbda6c9482e541a285c8b1ca10b58655b1ef2"
       },
       {
-       "status": "todo",
-       "text": "08c0910f694c1639b64b9fae76aefb11f7b8f3424fc79c650101d900d380479e"
+       "status": "partly",
+       "text": "532b38649f67069e61c1edb0ccb450e36e8b067f78e7353aeff0d977b258b89b"
       },
       {
        "status": "partly",
@@ -2319,7 +2327,7 @@
   "jeffdeck": {
    "name": "JeffDeck",
    "reviewed": {
-    "day": "18",
+    "day": "20",
     "month": "November",
     "year": "2026"
    },
@@ -2390,8 +2398,9 @@
        "text": "19ea276fadb54b98d078875fde497554afdff2c7c2482ee818c8d168e6ee3ff7"
       },
       {
-       "status": "partly",
-       "text": "28f7176c5b465cb8200617e7fffb20a33a8f080f97cd301af40f640cd6e191cb"
+       "hide_soon": true,
+       "status": "done",
+       "text": "fe37bd2918b62640cfbedf59b84cb0abb3c81ee7688082ed98ce4e243fe0e2f2"
       },
       {
        "status": "partly",
@@ -2436,7 +2445,7 @@
         },
         {
          "status": "partly",
-         "text": "ccd1867c60a4a53290d043d91e705765b60f2025eb7e6d141a1c4a162e6c686c"
+         "text": "4e88b5ed49ccf12f71b1d32f739fb42b1f861dbf2a2b1fc2dacd19b8b43a1578"
         },
         {
          "status": "partly",
@@ -2538,6 +2547,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "102b122b81a9e221543c19ee46aeefba41193f35385d0688eb372b1559900811"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "1d9fa99b66e1b8914deb110319e75b6a9be03dbebbf4fd2af8168059220dc16e"
         }
        ]
       },
@@ -2590,12 +2604,13 @@
          "text": "ec35902a3f72c0ab7a67fc37e651e0b6cdb9cfa111da94e1548bd0f971057bb9"
         },
         {
-         "status": "partly",
-         "text": "ec367482b173298e1a06009e6b3810263f1017a0d84fac40cf4a2cad72bc23c2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b0b38488b6d1d7083276adb86b7df9fa58f35cf79d28258c23f34201a3b4076b"
         },
         {
          "status": "partly",
-         "text": "5981df7e409ab82090054c72329ba0273b1321a652e87f584f5c52af7f40e513"
+         "text": "2216a051f0eb755d5c1deed65b6639656c4211cbb4622c12f813448dc34ce430"
         },
         {
          "status": "todo",
@@ -2965,6 +2980,11 @@
          "text": "6baf5e555acd10b45b014804b701e70670d3dfb96194e1731835b2d67a6fa13c"
         },
         {
+         "hide_soon": true,
+         "status": "done",
+         "text": "d015e4578f67e933042808b9df1537f1aa15a5080ded1104051adfdabc4ac77b"
+        },
+        {
          "status": "partly",
          "text": "822b42ba14744d836796758434b90b25f62c4d9a73056f4936728429defd355b"
         }
@@ -3014,7 +3034,7 @@
         },
         {
          "status": "partly",
-         "text": "ab1c090499b7ba91b92e52fa942f0b5d6cc22565f3b14079dbd0ea2c3f6f4785"
+         "text": "e0d3e93a49ed6560eea9ecbe09fc35a68f22a7fc3162dcf7195d29a8a2fc78e6"
         }
        ]
       },
@@ -3276,6 +3296,10 @@
       {
        "status": "todo",
        "text": "495e28d0d186481bf6738c07e9edef468c6f07e1488c1b2c84847768eb6cdbdb"
+      },
+      {
+       "status": "partly",
+       "text": "171a3b00db8451f2c477fefe1b8ec51917ef3b5d4862d335488c4614cd26a344"
       }
      ]
     },
@@ -3548,6 +3572,10 @@
        "hide_soon": true,
        "status": "done",
        "text": "9c71d4938b82914c68a361074f32be63f2e4eaae1697aee738d26ceec37ce02b"
+      },
+      {
+       "status": "partly",
+       "text": "47fc5962182189d7fb3c0e486e88f050ed1f8beced4b68af4a2ff4247b59785f"
       },
       {
        "hide_soon": true,
@@ -3948,8 +3976,9 @@
        "text": "055f8cdea5e2267a99569722538aa84397052a0f55e6eda0057a0808f61da7db"
       },
       {
-       "status": "partly",
-       "text": "ffd4d56ec2e94899a508b04a8bbd73daf454c7b6a76a3e448576ab898467e34b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "309568dde853ecad8c9f0e9dbbfc529415e0d3768f66ef8d4d6428451ae50be0"
       },
       {
        "hide_soon": true,
@@ -4072,8 +4101,9 @@
        "text": "54a001a714fbb43a59ce5048030dc84b9e4a6cb9cfd3fa9ffb1669e0952e96ff"
       },
       {
-       "status": "todo",
-       "text": "213354f21904622f635ec7509bd542c360097e7db1702c4437eb41622a38800c"
+       "hide_soon": true,
+       "status": "done",
+       "text": "cbc85a46b69b92fd273ad85f67d2f86d85bd6c41482dc5ad2fd6e4feebc9ec8b"
       }
      ]
     },
@@ -4214,8 +4244,8 @@
         },
         {
          "hide_soon": true,
-         "status": "partly",
-         "text": "b5554f93302bf91b68c9057f202b413de38f0354997a5021185faee0f0f2280d"
+         "status": "done",
+         "text": "94a0347cc8edcc427cb11efe55bbf6ddff143f5ebc6e0d0b564c38ed2f67f9d2"
         },
         {
          "hide_soon": true,
@@ -4253,7 +4283,7 @@
   "jeffpub": {
    "name": "JeffPub",
    "reviewed": {
-    "day": "18",
+    "day": "20",
     "month": "November",
     "year": "2026"
    },
@@ -4448,11 +4478,16 @@
         {
          "hide_soon": true,
          "status": "done",
+         "text": "e7f25d89adbc871bbaa528520cb7cd214da4af332f0f1af0daff609c507a4e01"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "7e3e92fb4d6a38ed8ccc6bcda2ad2924103ffa12c51850829dcbb219aac2ea81"
         },
         {
          "status": "partly",
-         "text": "dc8252d172270cfa120debbb76a111c84164d64384fd71998fbd4483a4920790"
+         "text": "56c298c02886589c53adeb13c6b39f7e3e86f930b1264043b1464700bb34e41a"
         },
         {
          "hide_soon": true,
@@ -5621,7 +5656,11 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "b9d50e075216a7b658464efdac453525d4fc2aa13232f6bd54c82d07f55d09a6"
+         "text": "b7b00c287413dfb56dd459b4bf4061d82e1ea17ec094dba9ff9248dea04aac02"
+        },
+        {
+         "status": "partly",
+         "text": "37dd787ba79df56ac7b51033436135ca3726b527b574be39e24b9216ccf97c75"
         }
        ]
       },
@@ -7896,18 +7935,6 @@
     "fr": ""
    }
   },
-  "044d958297d94436c68f2818ec0de46cf2886e0adc2c275fcf95e81a3015324c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Lock a workbook's structure",
-    "es": "Bloquear la estructura de un libro",
-    "fr": "Verrouillage de la structure d’un classeur"
-   }
-  },
   "0462f6269d11f2c5ae6b1ba91b1d3f04f7765090b7fa2ec0b3f9e98d606dcd8e": {
    "drop": false,
    "en": "Behind the scenes: the rendering engine",
@@ -8314,18 +8341,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "08c0910f694c1639b64b9fae76aefb11f7b8f3424fc79c650101d900d380479e": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Locale tags, alternative calendars, and East Asian numeral forms in number formats",
-    "es": "Etiquetas de configuración regional, calendarios alternativos y formas numéricas de Asia oriental en los formatos de número",
-    "fr": "Balises de paramètres régionaux, calendriers alternatifs et formes numériques d’Asie orientale dans les formats de nombre"
    }
   },
   "08f6ee380de54b8f4cbac7cc02c958c127ee77e8a9cd2424866ceab492c3127f": {
@@ -8976,18 +8991,6 @@
     "fr": ""
    }
   },
-  "115f22fde689dd9a13c92d7533d9811f18d3a0219fc7f3456769dcf2226811f4": {
-   "drop": false,
-   "en": "Use FILTER, SORT, SORTBY, UNIQUE, XLOOKUP, XMATCH, FORMULATEXT, and GETPIVOTDATA. The array functions give their block in an array formula.",
-   "es": "Utilice FILTER, SORT, SORTBY, UNIQUE, XLOOKUP, XMATCH, FORMULATEXT y GETPIVOTDATA. Las funciones matriciales devuelven su bloque en una fórmula matricial.",
-   "fr": "Utilisez FILTER, SORT, SORTBY, UNIQUE, XLOOKUP, XMATCH, FORMULATEXT et GETPIVOTDATA. Les fonctions matricielles renvoient leur bloc dans une formule matricielle.",
-   "soon": {
-    "drop": false,
-    "en": "Spill of results into the cells beside the formula",
-    "es": "Desbordamiento de resultados en las celdas contiguas a la fórmula",
-    "fr": "Débordement des résultats dans les cellules voisines de la formule"
-   }
-  },
   "116e5f5da98340890ce1e378fba27eb23d95f534baa0be2c1de645c43f18c9ba": {
    "drop": false,
    "en": "Check what a `.pub` file can't hold, such as hidden objects, a password, or the final mark, before saving. Saving as `.pub` shows the same list with the choice to save anyway, save as `.jpub`, or cancel.",
@@ -9346,6 +9349,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "171a3b00db8451f2c477fefe1b8ec51917ef3b5d4862d335488c4614cd26a344": {
+   "drop": false,
+   "en": "After Animation can hide an object after the animation or on the next click, in the Effect Options box.",
+   "es": "Después de la animación puede ocultar un objeto tras la animación o al hacer clic siguiente, en el cuadro de opciones de efectos.",
+   "fr": "Après l’animation peut masquer un objet après l’animation ou au clic suivant, dans la boîte d’options d’effet.",
+   "soon": {
+    "drop": false,
+    "en": "Dimming after animation, animating text by word or by letter, and sounds on effects",
+    "es": "Atenuación tras la animación, animación de texto por palabra o por letra y sonidos en los efectos",
+    "fr": "Atténuation après l’animation, animation du texte par mot ou par lettre, et sons sur les effets"
    }
   },
   "171f0848835e19b33e58af9e8850b365d3b6d8b68ae9b7b5deb3a8bfee0b3c71": {
@@ -9804,6 +9819,18 @@
     "fr": ""
    }
   },
+  "1d9fa99b66e1b8914deb110319e75b6a9be03dbebbf4fd2af8168059220dc16e": {
+   "drop": false,
+   "en": "Files from the Internet or another computer open for reading only, with a bar to enable editing for that presentation for the session. The choice is on the Security page of the options.",
+   "es": "Los archivos de Internet o de otro equipo se abren solo para lectura, con una barra para habilitar la edición de esa presentación durante la sesión. La opción está en la página de seguridad de las opciones.",
+   "fr": "Les fichiers provenant d’Internet ou d’un autre ordinateur s’ouvrent en lecture seule, avec une barre pour activer la modification de cette présentation pendant la session. Le choix se trouve sur la page Sécurité des options.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1db56d1b1eb814a1a09d3d5482f651440495744fcc565b924dc338b3ed06f150": {
    "drop": false,
    "en": "Add Animation gives a shape a second effect, started on a click.",
@@ -10176,18 +10203,6 @@
     "fr": ""
    }
   },
-  "213354f21904622f635ec7509bd542c360097e7db1702c4437eb41622a38800c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Playback of linked movies and sounds when the file can be found",
-    "es": "Reproducción de películas y sonidos vinculados cuando se encuentra el archivo",
-    "fr": "Lecture des films et sons liés lorsque le fichier est trouvé"
-   }
-  },
   "216c52721693e443f90aaa4fdbf5da02e65616357ca25c9c69d6822e245ecc98": {
    "drop": false,
    "en": "Drag a picture to a place on the page. Positions in files relative to the page, margin, column, paragraph, and line are laid out.",
@@ -10313,6 +10328,18 @@
    "en": "Open `.xls` files from older programs: cells, formulas with their stored results, formats, styles, merged cells, column widths and row heights, defined names, hyperlinks, notes, data validation, conditional formats, page setup, panes, protection, shapes, pictures, charts, and form controls.",
    "es": "Abra archivos `.xls` de programas anteriores: celdas, fórmulas con sus resultados almacenados, formatos, estilos, celdas combinadas, anchos de columna y alturas de fila, nombres definidos, hipervínculos, notas, validación de datos, formatos condicionales, configuración de página, paneles, protección, formas, imágenes, gráficos y controles de formulario.",
    "fr": "Ouvrez des fichiers `.xls` de programmes plus anciens : cellules, formules avec leurs résultats stockés, formats, styles, cellules fusionnées, largeurs de colonnes et hauteurs de lignes, noms définis, liens hypertexte, notes, validation des données, formats conditionnels, mise en page, volets, protection, formes, images, graphiques et contrôles de formulaire.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2216a051f0eb755d5c1deed65b6639656c4211cbb4622c12f813448dc34ce430": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -10896,18 +10923,6 @@
     "fr": "Recherche dans le menu du texte"
    }
   },
-  "28f7176c5b465cb8200617e7fffb20a33a8f080f97cd301af40f640cd6e191cb": {
-   "drop": false,
-   "en": "Spelling works offline with the bundled dictionaries, with no cloud service, including as you type.",
-   "es": "La revisión ortográfica funciona sin conexión con los diccionarios incluidos, sin servicio en la nube, también mientras escribe.",
-   "fr": "La vérification orthographique fonctionne hors ligne avec les dictionnaires inclus, sans service en ligne, y compris pendant la saisie.",
-   "soon": {
-    "drop": false,
-    "en": "Set Language command",
-    "es": "Comando para establecer el idioma",
-    "fr": "Commande de définition de la langue"
-   }
-  },
   "290132427cd62812233f5e3933e69fab65a46ebeb41acf69b7b0f788a5c14076": {
    "drop": false,
    "en": "Create a PDF with one bookmark for each page, named for the page or \"Page N\". The `Create bookmarks` option is on by default.",
@@ -11134,6 +11149,18 @@
     "en": "macOS app signed and notarized so it opens without warnings",
     "es": "Aplicación para macOS firmada y notarizada para abrirse sin advertencias",
     "fr": "Application macOS signée et notariée pour s’ouvrir sans avertissement"
+   }
+  },
+  "2b3ae44a23b3f16100a2d5d75d1e9887c71ba324b2002e3dec93f730f654f2de": {
+   "drop": false,
+   "en": "Use the lookup and reference functions GETPIVOTDATA, FILTER, FORMULATEXT, SORT, SORTBY, UNIQUE, XLOOKUP, and XMATCH. In an array formula they give their block of results.",
+   "es": "Use las funciones de búsqueda y referencia GETPIVOTDATA, FILTER, FORMULATEXT, SORT, SORTBY, UNIQUE, XLOOKUP y XMATCH. En una fórmula matricial devuelven su bloque de resultados.",
+   "fr": "Utilisez les fonctions de recherche et référence GETPIVOTDATA, FILTER, FORMULATEXT, SORT, SORTBY, UNIQUE, XLOOKUP et XMATCH. Dans une formule matricielle, elles renvoient leur bloc de résultats.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2b7836952e6d98cbc6951596ca1e0a7620ec6fbe8a9f78b2b82e2184de86c9c6": {
@@ -11436,6 +11463,18 @@
     "fr": ""
    }
   },
+  "309568dde853ecad8c9f0e9dbbfc529415e0d3768f66ef8d4d6428451ae50be0": {
+   "drop": false,
+   "en": "The date, the time, and the slide number are fields in the text that follow the slide and are saved as fields.",
+   "es": "La fecha, la hora y el número de diapositiva son campos en el texto que siguen a la diapositiva y se guardan como campos.",
+   "fr": "La date, l’heure et le numéro de diapositive sont des champs dans le texte qui suivent la diapositive et sont enregistrés comme champs.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "30ad4c796c981186c3d2fd25c56b16202dbd0d6baa22b4195571f50dec5cffa4": {
    "drop": false,
    "en": "Insert, remove, and reset all page breaks, horizontal and vertical. Breaks are saved, move with edits, and automatic breaks show as dashed lines on the sheet.",
@@ -11489,6 +11528,18 @@
    "en": "Behind the scenes: the text engine",
    "es": "Detrás de escena: el motor de texto",
    "fr": "Dans les coulisses : le moteur de texte",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3163a31bf454a96df3ff2e76071a56173b3345171485f0a6573e57a0124863ea": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -11938,6 +11989,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "37dd787ba79df56ac7b51033436135ca3726b527b574be39e24b9216ccf97c75": {
+   "drop": false,
+   "en": "The recipient picker reads lists in `.xls`, `.ods`, and `.fods`, with numbers as the cells show them.",
+   "es": "El selector de destinatarios lee listas en `.xls`, `.ods` y `.fods`, con los números tal como los muestran las celdas.",
+   "fr": "Le sélecteur de destinataires lit les listes `.xls`, `.ods` et `.fods`, avec les nombres tels que les cellules les affichent.",
+   "soon": {
+    "drop": false,
+    "en": "Contacts written back as vCard",
+    "es": "Contactos guardados de nuevo como vCard",
+    "fr": "Contacts réécrits au format vCard"
    }
   },
   "37e594a047eb41b8889f01c4198c4bac0b9bc1d37476f14996d433fc3a0f6231": {
@@ -12984,6 +13047,18 @@
     "fr": ""
    }
   },
+  "44aa28f46ceedfcd6664cc12a5a2236333ba3f35a5c2cb06ed94221021d6b9e0": {
+   "drop": false,
+   "en": "Open OpenDocument spreadsheets (`.ods`, `.ots`), with a note of what is skipped. Save as `.xlsx` by default, as an `.ods` copy, or as an `.ots` template with Save As and Save as Template.",
+   "es": "Abra hojas de cálculo OpenDocument (`.ods`, `.ots`), con un aviso de lo que se omite. Guarde como `.xlsx` de forma predeterminada, como copia `.ods` o como plantilla `.ots` con Guardar como y Guardar como plantilla.",
+   "fr": "Ouvrez des feuilles de calcul OpenDocument (`.ods`, `.ots`), avec un avis de ce qui est ignoré. Enregistrez en `.xlsx` par défaut, en copie `.ods` ou en modèle `.ots` avec Enregistrer sous et Enregistrer comme modèle.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "44d1081dbb68637ec86727e0b8d9fd52bf581b7acc0d5863db7b8b88e7649a4f": {
    "drop": false,
    "en": "Insert building blocks: page parts (headings, pull quotes, sidebars, stories, tables of contents), calendars (by month and year, with options), borders and accents, and advertisements. Save your own with Save as Building Block; Page Parts lists them under My Building Blocks.",
@@ -13234,6 +13309,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "47fc5962182189d7fb3c0e486e88f050ed1f8beced4b68af4a2ff4247b59785f": {
+   "drop": false,
+   "en": "Swap the two screens in Presenter View.",
+   "es": "Intercambie las dos pantallas en la vista del presentador.",
+   "fr": "Échangez les deux écrans dans le mode Présentateur.",
+   "soon": {
+    "drop": false,
+    "en": "Presenter View extras: zoom into the slide, show the taskbar, and a strip of slide thumbnails",
+    "es": "Extras de la vista del presentador: ampliar la diapositiva, mostrar la barra de tareas y una tira de miniaturas de diapositivas",
+    "fr": "Extras du mode Présentateur : zoom sur la diapositive, affichage de la barre des tâches et bandeau de miniatures de diapositives"
    }
   },
   "482dcaf1cef8030f994cc0ceddb00f4b1ad9b81face0a33a8399e656f28323ef": {
@@ -13606,6 +13693,18 @@
     "en": "Building blocks: AutoText, document properties, fields, and saving a selection to a gallery",
     "es": "Bloques de creación: autotexto, propiedades del documento, campos y guardado de una selección en una galería",
     "fr": "Blocs de construction : texte automatique, propriétés du document, champs et enregistrement d’une sélection dans une galerie"
+   }
+  },
+  "4e88b5ed49ccf12f71b1d32f739fb42b1f861dbf2a2b1fc2dacd19b8b43a1578": {
+   "drop": false,
+   "en": "Check Compatibility lists what an `.odp` file would leave out, without saving, and a warning comes before the save. After saving an `.odp`, a message lists what was left out.",
+   "es": "Comprobar compatibilidad enumera lo que un archivo `.odp` omitiría, sin guardar, y se muestra una advertencia antes de guardar. Después de guardar un `.odp`, un mensaje enumera lo que se omitió.",
+   "fr": "La vérification de compatibilité indique ce qu’un fichier `.odp` omettrait, sans enregistrer, et un avertissement précède l’enregistrement. Après l’enregistrement d’un `.odp`, un message indique ce qui a été omis.",
+   "soon": {
+    "drop": false,
+    "en": "Check Compatibility for `.ppt` files",
+    "es": "Comprobar compatibilidad para archivos `.ppt`",
+    "fr": "Vérification de compatibilité pour les fichiers `.ppt`"
    }
   },
   "4eb96e4971089c81c91cfbe218121363e76134bcba89210451f8b1ad5452eb59": {
@@ -14064,6 +14163,18 @@
     "fr": ""
    }
   },
+  "532b38649f67069e61c1edb0ccb450e36e8b067f78e7353aeff0d977b258b89b": {
+   "drop": false,
+   "en": "Number formats accept locale tags such as `[$-409]` and `[$€-407]`, and the system's long date and time with `[$-F800]` and `[$-F400]`.",
+   "es": "Los formatos de número aceptan etiquetas de configuración regional como `[$-409]` y `[$€-407]`, y la fecha y hora largas del sistema con `[$-F800]` y `[$-F400]`.",
+   "fr": "Les formats numériques acceptent les balises de paramètres régionaux comme `[$-409]` et `[$€-407]`, ainsi que la date et l’heure longues du système avec `[$-F800]` et `[$-F400]`.",
+   "soon": {
+    "drop": false,
+    "en": "Calendars in number formats (Hijri, Thai Buddhist, Japanese eras) and East Asian numeral forms such as `[DBNum1]`",
+    "es": "Calendarios en formatos de número (Hijri, budista tailandés, eras japonesas) y formas numéricas de Asia oriental como `[DBNum1]`",
+    "fr": "Calendriers dans les formats numériques (hégirien, bouddhiste thaï, ères japonaises) et formes numériques d’Asie orientale comme `[DBNum1]`"
+   }
+  },
   "532c8fa15b8e7a146a5578d14612c968d83c5c751fdf387f3291b8b68a9ad0e7": {
    "drop": false,
    "en": "Insert an equation typed in a line (`Alt+=`) with a preview, in one undoable step; names such as `\\alpha` turn into symbols. Insert one of twelve built-in equations, or open an equation next to the caret to change it.",
@@ -14232,18 +14343,6 @@
     "fr": "Notes du présentateur mises en forme : gras, italique, listes, liens et images"
    }
   },
-  "552e99313727bdc6b30f346137141bdedd3d06eac65141b9c95d5f7d0e4ec29d": {
-   "drop": false,
-   "en": "Bring objects to the front or send them to the back.",
-   "es": "Traiga objetos al frente o envíelos al fondo.",
-   "fr": "Placez des objets au premier plan ou à l’arrière-plan.",
-   "soon": {
-    "drop": false,
-    "en": "Selection pane, align, group, rotate, flip, and snap",
-    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
-    "fr": "Volet de sélection, alignement, groupement, rotation, retournement et magnétisme"
-   }
-  },
   "553acb1ef0f072c9ad28fa881d9938f292def3e339a1656c4387bed6d732f606": {
    "drop": false,
    "en": "Add a new slide after the current one with `Ctrl+M`, using its layout. The arrow opens a gallery of nine built-in layouts: Title Slide, Title and Content, Section Header, Two Content, Comparison, Title Only, Blank, Content with Caption, and Picture with Caption.",
@@ -14292,18 +14391,6 @@
     "fr": ""
    }
   },
-  "5616b3062c183d4483b822d1ff8d778d446840289d97e2c9d194c1cb0c9d8cbd": {
-   "drop": false,
-   "en": "Circular references are named once when a circle begins, outlined on the sheet, noted in the status bar, and listed under Circular References, where a double-click goes to the cell.",
-   "es": "Las referencias circulares se nombran una vez cuando comienza el ciclo, se resaltan en la hoja, se indican en la barra de estado y se enumeran en Referencias circulares, donde un doble clic lleva a la celda.",
-   "fr": "Les références circulaires sont nommées une fois lorsqu’un cycle commence, entourées sur la feuille, signalées dans la barre d’état et listées sous Références circulaires, où un double-clic mène à la cellule.",
-   "soon": {
-    "drop": false,
-    "en": "Evaluate Formula",
-    "es": "Evaluar fórmula",
-    "fr": "Évaluation de formule"
-   }
-  },
   "561f42f062ad94f951545754a3b1ccb9f23811dbe184d98bcc7dd6fc684ffa1b": {
    "drop": false,
    "en": "Paste text through the Text Import dialog, splitting it into columns by the separators, quote, first row, and column kinds chosen, or by fixed-width cuts, in one step of Undo. Set Default Paste to make Paste and `Ctrl+V` use the last choice of the Paste arrow.",
@@ -14328,6 +14415,18 @@
     "fr": ""
    }
   },
+  "56c298c02886589c53adeb13c6b39f7e3e86f930b1264043b1464700bb34e41a": {
+   "drop": false,
+   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
+   "fr": "Ouvre les fichiers `.pub` depuis 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
+   "soon": {
+    "drop": false,
+    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
+    "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
+    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
+   }
+  },
   "56ce6ae88dea6594e09db596253eb03b1a917a1e935add3e08fb058e9d581628": {
    "drop": true,
    "en": "",
@@ -14350,6 +14449,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "57153a182d29631431e0f08440f39805fb4e8a1e6655937dda2215220808dd24": {
+   "drop": false,
+   "en": "Find, Find All, Replace, and Replace All in the sheet or workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, and wildcards. Go To works by reference or name, and Go To Special selects blanks, constants, formulas, errors, current region, current array, last cell, visible cells, row and column differences, conditional formats, and data validation. Select Objects and the Selection Pane are available.",
+   "es": "Buscar, Buscar todo, Reemplazar y Reemplazar todo en la hoja o el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas, de celda completa y comodines. Ir a funciona por referencia o nombre, e Ir a Especial selecciona celdas en blanco, constantes, fórmulas, errores, región actual, matriz actual, última celda, celdas visibles, diferencias de fila y columna, formatos condicionales y validación de datos. Seleccionar objetos y el panel de selección están disponibles.",
+   "fr": "Rechercher, Rechercher tout, Remplacer et Remplacer tout dans la feuille ou le classeur, par lignes ou colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière et caractères génériques. Atteindre fonctionne par référence ou par nom, et Atteindre spécial sélectionne les cellules vides, les constantes, les formules, les erreurs, la région courante, la matrice courante, la dernière cellule, les cellules visibles, les différences de ligne et de colonne, les mises en forme conditionnelles et la validation des données. Sélectionner des objets et le volet Sélection sont disponibles.",
+   "soon": {
+    "drop": false,
+    "en": "Find by format, replace in notes, and Go To Special for objects, precedents, and dependents",
+    "es": "Buscar por formato, reemplazar en notas e Ir a Especial para objetos, precedentes y dependientes",
+    "fr": "Recherche par format, remplacement dans les notes, et Atteindre spécial pour les objets, les antécédents et les dépendants"
    }
   },
   "57a97100cd61826e7a17a18d6c3b64d697e478e2840d91322683fc40ca4cab51": {
@@ -14501,18 +14612,6 @@
    "en": "Start a blank document with the defaults of the Normal template.",
    "es": "Inicie un documento en blanco con los valores predeterminados de la plantilla Normal.",
    "fr": "Démarrez un document vierge avec les valeurs par défaut du modèle Normal.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "5981df7e409ab82090054c72329ba0273b1321a652e87f584f5c52af7f40e513": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -16404,18 +16503,6 @@
     "fr": ""
    }
   },
-  "70230e112ef023bffbf4f2d7342f65a93ab34d4b49239f0b7a6ddcf38fbae4bc": {
-   "drop": false,
-   "en": "Go To Special selects a block of cells by the type of content.",
-   "es": "Ir a especial selecciona un bloque de celdas según el tipo de contenido.",
-   "fr": "Atteindre spécial sélectionne un bloc de cellules selon le type de contenu.",
-   "soon": {
-    "drop": false,
-    "en": "Select Objects and the Selection pane",
-    "es": "Seleccionar objetos y el panel de selección",
-    "fr": "Sélectionner les objets et le volet Sélection"
-   }
-  },
   "702bb448a6ac626c8cdb8f574837567007a8c993bc49313e88402a183657e57f": {
    "drop": false,
    "en": "Open a document read-only, as a copy, or in a new window. A read-only document refuses changes, and Save asks for a new name.",
@@ -16702,18 +16789,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "750e87e1faceebef8a740515825bb9ec99566a2401ce865b3b60ea7e3103acde": {
-   "drop": false,
-   "en": "The status bar shows Ready, Calculating, Edit, Enter, and Point, the average, count, and sum of the selection, the filter count (for example \"3 of 8 records found\"), and a zoom slider.",
-   "es": "La barra de estado muestra Listo, Calculando, Editar, Introducir y Señalar, el promedio, el recuento y la suma de la selección, el recuento del filtro (por ejemplo, «3 de 8 registros encontrados») y un control deslizante de zoom.",
-   "fr": "La barre d’état affiche Prêt, Calcul en cours, Modifier, Entrer et Pointer, la moyenne, le nombre et la somme de la sélection, le nombre de résultats du filtre (par exemple « 3 enregistrements sur 8 trouvés ») et un curseur de zoom.",
-   "soon": {
-    "drop": false,
-    "en": "Status bar statistics: choose which to show",
-    "es": "Estadísticas de la barra de estado: elegir cuáles mostrar",
-    "fr": "Statistiques de la barre d’état : choisir lesquelles afficher"
    }
   },
   "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033": {
@@ -18156,6 +18231,18 @@
     "fr": ""
    }
   },
+  "8bc060e604b336c5e7685c2de554561a307e174185f4d87190e87524a2883193": {
+   "drop": false,
+   "en": "Go To Special selects a block of cells by the type of content.",
+   "es": "Ir a Especial selecciona un bloque de celdas por el tipo de contenido.",
+   "fr": "Atteindre spécial sélectionne un bloc de cellules selon le type de contenu.",
+   "soon": {
+    "drop": false,
+    "en": "Select Objects and the Selection pane",
+    "es": "Seleccionar objetos y el panel de selección",
+    "fr": "Sélectionner des objets et le volet Sélection"
+   }
+  },
   "8c64ef5b34bf9eb33805e5caa716f3a5485d72396cc5a24cfafa7802d478bfc1": {
    "drop": false,
    "en": "Add shape effects: shadow, reflection, glow, soft edges, bevel, and 3-D rotation.",
@@ -18694,6 +18781,18 @@
     "en": "Text styles: change the style or warp once placed on the slide, and apply to any selected text",
     "es": "Estilos de texto: cambiar el estilo o la deformación una vez colocados en la diapositiva, y aplicarlos a cualquier texto seleccionado",
     "fr": "Styles de texte : modifier le style ou la déformation une fois placés sur la diapositive, et les appliquer à tout texte sélectionné"
+   }
+  },
+  "94a0347cc8edcc427cb11efe55bbf6ddff143f5ebc6e0d0b564c38ed2f67f9d2": {
+   "drop": false,
+   "en": "The current slide can be exported to PNG or JPEG.",
+   "es": "La diapositiva actual se puede exportar a PNG o JPEG.",
+   "fr": "La diapositive actuelle peut être exportée en PNG ou JPEG.",
+   "soon": {
+    "drop": false,
+    "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
+    "es": "Imágenes de diapositivas: todas a la vez, otros tamaños y GIF, TIFF, BMP y SVG",
+    "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
    }
   },
   "94b9431fa444ef3cdede96830c127e7496673ceb706651aade7edca9d9ea430a": {
@@ -19241,6 +19340,18 @@
    "en": "In a slide show, click a link to go to its slide or end the show. Web address, email address, and file links ask first and open only if you agree.",
    "es": "En una presentación con diapositivas, haga clic en un enlace para ir a su diapositiva o finalizar la presentación. Los enlaces a direcciones web, de correo electrónico y archivos preguntan primero y se abren solo si usted acepta.",
    "fr": "Dans un diaporama, cliquez sur un lien pour aller à sa diapositive ou terminer le diaporama. Les liens vers une adresse web, une adresse e-mail ou un fichier demandent d’abord confirmation et ne s’ouvrent que si vous acceptez.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "9c5bd5a71665e89a3c52c4e7ccdd5c5018d8e040472df65a1527ba4bae31128c": {
+   "drop": false,
+   "en": "A warning appears when a formula depends on itself. The cells are named, outlined on the sheet, noted in the status bar, and listed under Circular References, where a double-click goes to the cell.",
+   "es": "Aparece una advertencia cuando una fórmula depende de sí misma. Las celdas se nombran, se resaltan en la hoja, se indican en la barra de estado y se enumeran en Referencias circulares, donde un doble clic lleva a la celda.",
+   "fr": "Un avertissement apparaît lorsqu’une formule dépend d’elle-même. Les cellules sont nommées, entourées sur la feuille, signalées dans la barre d’état et listées sous Références circulaires, où un double-clic mène à la cellule.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20220,18 +20331,6 @@
     "fr": ""
    }
   },
-  "ab1c090499b7ba91b92e52fa942f0b5d6cc22565f3b14079dbd0ea2c3f6f4785": {
-   "drop": false,
-   "en": "Link a shape, picture, text box, or words to the next, previous, first, or last slide, a numbered slide, the end of the show, a file, or a web or email address, on click. Action buttons start with the link they are for. Links are read from and saved in `.pptx`, and jumps and file links also in `.odp`. Links to a new document and to other presentations can be made from the Insert Link box.",
-   "es": "Vincule una forma, imagen, cuadro de texto o palabras a la diapositiva siguiente, anterior, primera o última, a una diapositiva numerada, al final de la presentación, a un archivo o a una dirección web o de correo electrónico, al hacer clic. Los botones de acción comienzan con el vínculo que les corresponde. Los vínculos se leen y se guardan en `.pptx`, y los saltos y vínculos a archivos también en `.odp`. Desde el cuadro Insertar vínculo puede crear vínculos a un documento nuevo y a otras presentaciones.",
-   "fr": "Liez une forme, une image, une zone de texte ou des mots à la diapositive suivante, précédente, première ou dernière, à une diapositive numérotée, à la fin du diaporama, à un fichier ou à une adresse web ou e-mail, par un clic. Les boutons d’action démarrent avec le lien qui leur correspond. Les liens sont lus et enregistrés en `.pptx`, et les sauts et liens vers des fichiers aussi en `.odp`. La boîte Insérer un lien permet de créer des liens vers un nouveau document et vers d’autres présentations.",
-   "soon": {
-    "drop": false,
-    "en": "Links to the last viewed slide and custom shows, links on pointing, running a program, and playing a sound",
-    "es": "Vínculos a la última diapositiva vista y a presentaciones personalizadas, vínculos al apuntar, ejecución de un programa y reproducción de un sonido",
-    "fr": "Liens vers la dernière diapositive vue et les diaporamas personnalisés, liens au survol, lancement d’un programme et lecture d’un son"
-   }
-  },
   "ab67eee0cd587c7011b8d13213b3e8389c2038426557dbc3ba0d4ba0619188bc": {
    "drop": false,
    "en": "Bundled open fonts include stand-ins with the same letter widths as common fonts, so column widths and wrapped text fall in the same places.",
@@ -20580,6 +20679,18 @@
     "fr": ""
    }
   },
+  "b0b38488b6d1d7083276adb86b7df9fa58f35cf79d28258c23f34201a3b4076b": {
+   "drop": false,
+   "en": "The current slide can be exported to PNG or JPEG.",
+   "es": "La diapositiva actual se puede exportar a PNG o JPEG.",
+   "fr": "La diapositive actuelle peut être exportée en PNG ou JPEG.",
+   "soon": {
+    "drop": false,
+    "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
+    "es": "Imágenes de diapositivas: todas a la vez, otros tamaños y GIF, TIFF, BMP y SVG",
+    "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
+   }
+  },
   "b0bfd94c71b89a102fd833be016b2a1e10e74e15379fcf1aa9de92a0c2f6acdb": {
    "drop": false,
    "en": "Check spelling with `F7`: a dialog finds each misspelled word and offers suggestions. Spelling is also checked as you type, ignoring words in capitals and words with numbers, and AutoCorrect works, using the bundled dictionaries.",
@@ -20676,6 +20787,18 @@
     "fr": ""
    }
   },
+  "b354fdda305f77c61c61e171584d4fa2f99dd1b03d4980b81042dcf43158ff65": {
+   "drop": false,
+   "en": "Read Aloud reads the selected cells row by row.",
+   "es": "Leer en voz alta lee las celdas seleccionadas fila por fila.",
+   "fr": "Lire à voix haute lit les cellules sélectionnées ligne par ligne.",
+   "soon": {
+    "drop": false,
+    "en": "Speak Cells: read each cell as it is entered, and read by columns",
+    "es": "Hablar celdas: leer cada celda al introducirla y leer por columnas",
+    "fr": "Énoncer les cellules : lire chaque cellule à la saisie et lire par colonnes"
+   }
+  },
   "b36238d9641e65a82e00c0dc46cdd69bbd8a3d22fa50d68501e54ca310cf400d": {
    "drop": false,
    "en": "Custom color and font sets and theme files.",
@@ -20734,18 +20857,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "b42ba8a6efed652a9d71b46bc999da05ce6a44887a14f149869e0b0d8d3bbc67": {
-   "drop": false,
-   "en": "Open `.ods` and `.ots` files, with what is skipped reported. Save an `.ods` copy; `.xlsx` is the default.",
-   "es": "Abra archivos `.ods` y `.ots`, con un aviso de lo que se omite. Guarde una copia `.ods`; `.xlsx` es el formato predeterminado.",
-   "fr": "Ouvrez des fichiers `.ods` et `.ots`, avec la liste de ce qui est ignoré. Enregistrez une copie `.ods` ; `.xlsx` est le format par défaut.",
-   "soon": {
-    "drop": false,
-    "en": "Save `.ots` templates",
-    "es": "Guardar plantillas `.ots`",
-    "fr": "Enregistrement de modèles `.ots`"
    }
   },
   "b433a0982ad8c171c9cefcefc55a3121ba6530759ef1168831d1501b2d5e48db": {
@@ -20868,18 +20979,6 @@
     "fr": ""
    }
   },
-  "b5554f93302bf91b68c9057f202b413de38f0354997a5021185faee0f0f2280d": {
-   "drop": false,
-   "en": "The current slide can be exported to PNG or JPEG.",
-   "es": "La diapositiva actual puede exportarse a PNG o JPEG.",
-   "fr": "La diapositive actuelle peut être exportée en PNG ou JPEG.",
-   "soon": {
-    "drop": false,
-    "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
-    "es": "Imágenes de diapositivas: todas a la vez, otros tamaños, y GIF, TIFF, BMP y SVG",
-    "fr": "Images de diapositives : toutes à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
-   }
-  },
   "b608a5e43ba423bc70e16ce5a8dbf74817f4b081b474bea911305d7324867973": {
    "drop": false,
    "en": "New",
@@ -21000,6 +21099,18 @@
     "fr": ""
    }
   },
+  "b7b00c287413dfb56dd459b4bf4061d82e1ea17ec094dba9ff9248dea04aac02": {
+   "drop": false,
+   "en": "Use recipient lists for a mail merge from CSV, tab-delimited, `.xlsx`, `.ods`, and vCard `.vcf` files. Save a recipient list as CSV, one `.eml` per recipient, or one PDF.",
+   "es": "Use listas de destinatarios para una combinación de correspondencia desde archivos CSV, delimitados por tabulaciones, `.xlsx`, `.ods` y vCard `.vcf`. Guarde una lista de destinatarios como CSV, un `.eml` por destinatario o un solo PDF.",
+   "fr": "Utilisez des listes de destinataires pour un publipostage à partir de fichiers CSV, délimités par tabulations, `.xlsx`, `.ods` et vCard `.vcf`. Enregistrez une liste de destinataires en CSV, en un `.eml` par destinataire ou en un seul PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b7c61535b551f3803637ec91c775268abb99e840b91e075b7bbb5b588199a786": {
    "drop": false,
    "en": "Place a password-protected PDF as a picture: the app asks for the password, asks again if it is wrong, and stops if you cancel.",
@@ -21070,18 +21181,6 @@
     "en": "Pivot table printing and printing a selected table or chart alone",
     "es": "Impresión de tablas dinámicas e impresión de una tabla o un gráfico seleccionado por separado",
     "fr": "Impression des tableaux croisés dynamiques et impression seule d’un tableau ou d’un graphique sélectionné"
-   }
-  },
-  "b9d50e075216a7b658464efdac453525d4fc2aa13232f6bd54c82d07f55d09a6": {
-   "drop": false,
-   "en": "Load recipient lists for a mail merge from CSV, tab-delimited, `.xlsx` (values only), or vCard `.vcf` files. Save a recipient list as CSV, one `.eml` per recipient, or one PDF.",
-   "es": "Cargue listas de destinatarios para una combinación de correspondencia desde archivos CSV, delimitados por tabulaciones, `.xlsx` (solo valores) o vCard `.vcf`. Guarde una lista de destinatarios como CSV, un `.eml` por destinatario o un PDF.",
-   "fr": "Chargez des listes de destinataires pour un publipostage depuis des fichiers CSV, séparés par des tabulations, `.xlsx` (valeurs seulement) ou vCard `.vcf`. Enregistrez une liste de destinataires en CSV, un `.eml` par destinataire ou un PDF.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
@@ -21209,6 +21308,18 @@
    "en": "Apply a picture style from a gallery, add a border and effects, add a caption from a gallery, and give a picture any closed shape.",
    "es": "Aplique un estilo de imagen desde una galería, agregue un borde y efectos, agregue un pie de imagen desde una galería y dé a una imagen cualquier forma cerrada.",
    "fr": "Appliquez un style d’image depuis une galerie, ajoutez une bordure et des effets, ajoutez une légende depuis une galerie et donnez à une image n’importe quelle forme fermée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "bcef39e3458fc0f939b981edf4cd5b86f624c6f2f43e9fe745589c80db414346": {
+   "drop": false,
+   "en": "The status bar shows Ready, Edit, Enter, and Point, Calculate, and the sum, count, average, minimum, and maximum of the selection, with a right click to choose which show. It also shows the filter count (\"3 of 8 records found\") and a zoom slider.",
+   "es": "La barra de estado muestra Listo, Modificar, Introducir y Señalar, Calcular, y la suma, el recuento, el promedio, el mínimo y el máximo de la selección, con un clic derecho para elegir cuáles se muestran. También muestra el recuento del filtro (\"3 de 8 registros encontrados\") y un control deslizante de zoom.",
+   "fr": "La barre d’état affiche Prêt, Modifier, Entrer et Pointer, Calculer, ainsi que la somme, le nombre, la moyenne, le minimum et le maximum de la sélection, avec un clic droit pour choisir ceux qui s’affichent. Elle affiche aussi le nombre de résultats du filtre (« 3 sur 8 enregistrements trouvés ») et un curseur de zoom.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21696,18 +21807,6 @@
     "fr": "Une page d’aide pour chaque fonction"
    }
   },
-  "c490e1191bacecaf6269ead06e990028290494b1a1eb4aa85f49a8d78ef8b885": {
-   "drop": false,
-   "en": "Lock cells with the Locked option in the Protection tab and protect the sheet. A protected sheet enforces what it allows for editing, formatting, sizes, inserting and deleting rows and columns, links, notes, sort, and filters. The password is stored as a salted hash, and the older 16-bit form is read and checked.",
-   "es": "Bloquee celdas con la opción Bloqueada de la pestaña Protección y proteja la hoja. Una hoja protegida aplica lo que permite para edición, formato, tamaños, inserción y eliminación de filas y columnas, vínculos, notas, ordenación y filtros. La contraseña se guarda como un hash con sal, y la forma antigua de 16 bits se lee y se comprueba.",
-   "fr": "Verrouillez des cellules avec l’option Verrouillée de l’onglet Protection et protégez la feuille. Une feuille protégée applique ce qu’elle autorise pour la modification, la mise en forme, les tailles, l’insertion et la suppression de lignes et de colonnes, les liens, les notes, le tri et les filtres. Le mot de passe est stocké sous forme de hachage salé, et l’ancienne forme de 16 bits est lue et vérifiée.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "c4a574f532f92aa672b797b77e87cf8afa144013763c3c42ea1c6edd5e570742": {
    "drop": false,
    "en": "Set the height and width of the whole table in your units, with columns or rows scaling in proportion, grow a table to fit its text, open Format Table (colors and lines, size with lock aspect ratio, layout, and cell properties), drag column widths and row heights, and distribute rows and columns evenly.",
@@ -21768,6 +21867,18 @@
     "fr": ""
    }
   },
+  "c4eefbd4ee3059cd48c86469d54c46dd9688665f907c5d299f017ad5c3c7d6b6": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Lock a workbook's structure",
+    "es": "Bloqueo de la estructura de un libro",
+    "fr": "Verrouillage de la structure d’un classeur"
+   }
+  },
   "c516f6df65aa674c0250b1b02367e3b6a74bdc893ec8f9f12a773dd6f77c018c": {
    "drop": false,
    "en": "The transition engine draws the ten effects as frames between two whole slides, including Morph, with the click and timing rules of the show.",
@@ -21809,18 +21920,6 @@
    "en": "Options has General and Proofing pages. General covers user name and initials, light or dark interface, display language, usage statistics (opt in), and update checks.",
    "es": "Opciones tiene las páginas General y Revisión. General incluye nombre de usuario e iniciales, interfaz clara u oscura, idioma de la interfaz, estadísticas de uso (opcionales) y búsqueda de actualizaciones.",
    "fr": "Les options comprennent les pages Général et Vérification. Général couvre le nom d’utilisateur et les initiales, l’interface claire ou sombre, la langue d’affichage, les statistiques d’utilisation (sur option) et la recherche de mises à jour.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "c5d2330907f0800bca3df1215be68905622bf53c70cf0704add444d37861b495": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -22356,6 +22455,18 @@
     "fr": ""
    }
   },
+  "cbc85a46b69b92fd273ad85f67d2f86d85bd6c41482dc5ad2fd6e4feebc9ec8b": {
+   "drop": false,
+   "en": "A movie or sound linked to a file on this computer is played when the file can be found, as the Security page says: never, after one question, or at once.",
+   "es": "Una película o sonido vinculado a un archivo de este equipo se reproduce cuando se encuentra el archivo, según indique la página de seguridad: nunca, tras una pregunta o de inmediato.",
+   "fr": "Un film ou un son lié à un fichier de cet ordinateur est lu lorsque le fichier est trouvé, comme l’indique la page Sécurité : jamais, après une question, ou immédiatement.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "cbdeebd7c5f0e102f2d3d9defec93fbdf56a3b25e7133e6f77cc01a6702d437b": {
    "drop": false,
    "en": "Set the slide size to Standard (4:3), Widescreen (16:9), 16:10, Letter, Ledger, A3, A4, B4, B5, 35mm slides, Banner, or a custom size. A change lets you scale the content to fit or keep its size, and is one step of Undo.",
@@ -22450,18 +22561,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ccd1867c60a4a53290d043d91e705765b60f2025eb7e6d141a1c4a162e6c686c": {
-   "drop": false,
-   "en": "After saving an `.odp` file, a message lists what was left out.",
-   "es": "Después de guardar un archivo `.odp`, un mensaje enumera lo que se omitió.",
-   "fr": "Après l’enregistrement d’un fichier `.odp`, un message indique ce qui a été omis.",
-   "soon": {
-    "drop": false,
-    "en": "Compatibility check before saving, and for `.ppt` files",
-    "es": "Comprobación de compatibilidad antes de guardar y para archivos `.ppt`",
-    "fr": "Vérification de compatibilité avant l’enregistrement et pour les fichiers `.ppt`"
    }
   },
   "ccdc41b7762ddef6e745fe08828da15bb6b6e96a0df3f6f5436becf1673b7ad4": {
@@ -22714,6 +22813,18 @@
     "en": "Error rules: a formula that leaves out neighboring cells, and a formula that reads empty cells",
     "es": "Reglas de error: una fórmula que omite celdas vecinas y una fórmula que lee celdas vacías",
     "fr": "Règles d’erreur : une formule qui omet des cellules voisines et une formule qui lit des cellules vides"
+   }
+  },
+  "d015e4578f67e933042808b9df1537f1aa15a5080ded1104051adfdabc4ac77b": {
+   "drop": false,
+   "en": "Draw the rows and columns of a table with a pen.",
+   "es": "Dibuje las filas y columnas de una tabla con un lápiz.",
+   "fr": "Dessinez les lignes et les colonnes d’un tableau avec un crayon.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "d04a57cde3a6fcb29f1c73ad14a2c52c49d060d6172d1a07351be59a916f1177": {
@@ -23580,18 +23691,6 @@
     "fr": ""
    }
   },
-  "dc8252d172270cfa120debbb76a111c84164d64384fd71998fbd4483a4920790": {
-   "drop": false,
-   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
-   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
-   "fr": "Ouvre les fichiers `.pub` depuis 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
-   "soon": {
-    "drop": false,
-    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
-    "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
-    "fr": "Polices intégrées aux fichiers `.pub` et numérotation des pages des sections après la première"
-   }
-  },
   "dc90f4fe881fe9b53566d23cdcab01934d9c482e39ef601be7f723844263a382": {
    "drop": true,
    "en": "",
@@ -23890,6 +23989,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e0d3e93a49ed6560eea9ecbe09fc35a68f22a7fc3162dcf7195d29a8a2fc78e6": {
+   "drop": false,
+   "en": "Link a shape, picture, text box, or words to the next, previous, first, last, or last viewed slide, a numbered slide, a custom show, the end of the show, a file, a web address, or an email address, on click or on pointing. Insert Link also offers another presentation and a new document.",
+   "es": "Vincule una forma, imagen, cuadro de texto o palabras a la diapositiva siguiente, anterior, primera, última o vista por última vez, a una diapositiva numerada, a una presentación personalizada, al final de la presentación, a un archivo, a una dirección web o a una dirección de correo, al hacer clic o al señalar. Insertar vínculo también ofrece otra presentación y un documento nuevo.",
+   "fr": "Liez une forme, une image, une zone de texte ou des mots à la diapositive suivante, précédente, première, dernière ou la dernière affichée, à une diapositive numérotée, à un diaporama personnalisé, à la fin du diaporama, à un fichier, à une adresse web ou à une adresse e-mail, au clic ou au survol. Insérer un lien propose aussi une autre présentation et un nouveau document.",
+   "soon": {
+    "drop": false,
+    "en": "Links that run a program or play a sound",
+    "es": "Vínculos que ejecutan un programa o reproducen un sonido",
+    "fr": "Liens qui lancent un programme ou jouent un son"
    }
   },
   "e10c7ed7f974a9ed1c50462141a7e8a28898776a21b4f0c8e546b318b41f5506": {
@@ -24468,6 +24579,18 @@
     "fr": "Netteté, saturation, température et définition d’une couleur transparente"
    }
   },
+  "e7f25d89adbc871bbaa528520cb7cd214da4af332f0f1af0daff609c507a4e01": {
+   "drop": false,
+   "en": "Files from the Internet open for reading only, with a bar to enable editing for that one file. The Security options can turn this off.",
+   "es": "Los archivos de Internet se abren solo para lectura, con una barra para habilitar la edición de ese archivo. Las opciones de seguridad pueden desactivar esta función.",
+   "fr": "Les fichiers provenant d’Internet s’ouvrent en lecture seule, avec une barre pour activer la modification de ce seul fichier. Les options de sécurité permettent de désactiver cette fonction.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e80fb930d6c47de477dc3fc8559a26697bb9732836f285bb95f6c66785b2640d": {
    "drop": false,
    "en": "Apply a picture style from a gallery of 26, set a picture border with color, weight, and dashes, add shadow, reflection, glow, soft edges, bevel, and 3-D rotation effects, rotate and flip, change a picture, and reset it. Each change is one step of Undo, and pictures are saved in `.xlsx` files.",
@@ -24497,6 +24620,18 @@
    "en": "Set line spacing (1, 1.15, 1.5, 2, 2.5, and 3) and use the Paragraph window for indents, spacing before and after, and tab stops.",
    "es": "Defina el interlineado (1, 1,15, 1,5, 2, 2,5 y 3) y use la ventana Párrafo para sangrías, espaciado anterior y posterior, y tabulaciones.",
    "fr": "Réglez l’interligne (1, 1,15, 1,5, 2, 2,5 et 3) et utilisez la fenêtre Paragraphe pour les retraits, l’espacement avant et après, et les taquets de tabulation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e8770a82e3e43571a6b1344b9e5bcc32356708aa02e4d7266a7b5166cca0c84e": {
+   "drop": false,
+   "en": "Lock cells and hide formulas in the Protection tab of Format Cells, and protect a sheet while choosing what it still allows. The password is stored as a salted hash, and the older 16-bit form is read and checked.",
+   "es": "Bloquee celdas y oculte fórmulas en la pestaña Protección de Formato de celdas, y proteja una hoja eligiendo lo que sigue permitido. La contraseña se almacena como un hash con sal, y se lee y comprueba también la forma antigua de 16 bits.",
+   "fr": "Verrouillez des cellules et masquez des formules dans l’onglet Protection de Format de cellule, et protégez une feuille en choisissant ce qu’elle autorise encore. Le mot de passe est stocké sous forme de hachage salé, et l’ancienne forme de 16 bits est lue et vérifiée.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24708,18 +24843,6 @@
     "fr": "Onglet Format pour les graphiques croisés dynamiques"
    }
   },
-  "eab6e62fb26a175eeb50644ca8ec8643de46f5e8b0dfa6ced997a2b6d7ba1000": {
-   "drop": false,
-   "en": "Find, Find All, Replace, and Replace All in the sheet or the workbook, by rows or columns, in formulas, values, or notes, with match case, match entire cell, and wildcards. Go To a reference, a name, or another sheet's cells, and Go To Special for blanks, constants and formulas by kind of result, errors, current region, current array, last cell, visible cells, row and column differences, conditional formats, and data validation.",
-   "es": "Busque, busque todo, reemplace y reemplace todo en la hoja o en el libro, por filas o columnas, en fórmulas, valores o notas, con coincidencia de mayúsculas y minúsculas, de celda completa y comodines. Vaya a una referencia, un nombre o celdas de otra hoja, y use Ir a Especial para blancos, constantes y fórmulas por tipo de resultado, errores, región actual, matriz actual, última celda, celdas visibles, diferencias de fila y columna, formatos condicionales y validación de datos.",
-   "fr": "Recherchez, recherchez tout, remplacez et remplacez tout dans la feuille ou le classeur, par lignes ou par colonnes, dans les formules, les valeurs ou les notes, avec respect de la casse, cellule entière et caractères génériques. Atteignez une référence, un nom ou des cellules d’une autre feuille, et utilisez Atteindre spécial pour les cellules vides, les constantes et formules par type de résultat, les erreurs, la région active, la matrice active, la dernière cellule, les cellules visibles, les différences de ligne et de colonne, les mises en forme conditionnelles et la validation des données.",
-   "soon": {
-    "drop": false,
-    "en": "Find by format, replace in notes, go to objects, precedents, and dependents, Select Objects, and the Selection Pane",
-    "es": "Buscar por formato, reemplazar en notas, ir a objetos, precedentes y dependientes, Seleccionar objetos y el panel de selección",
-    "fr": "Recherche par format, remplacement dans les notes, atteindre les objets, antécédents et dépendants, Sélectionner des objets et le volet Sélection"
-   }
-  },
   "eb49ec326a5e52225e357f8c1b688fc2fa2a1482b12a4008c26847854f4b0e22": {
    "drop": false,
    "en": "Comments",
@@ -24814,18 +24937,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ec367482b173298e1a06009e6b3810263f1017a0d84fac40cf4a2cad72bc23c2": {
-   "drop": false,
-   "en": "The current slide can be exported to PNG or JPEG.",
-   "es": "La diapositiva actual se puede exportar a PNG o JPEG.",
-   "fr": "La diapositive actuelle peut être exportée en PNG ou JPEG.",
-   "soon": {
-    "drop": false,
-    "en": "Slide pictures: all slides at once, other sizes, and GIF, TIFF, BMP, and SVG",
-    "es": "Imágenes de diapositivas: todas las diapositivas a la vez, otros tamaños y GIF, TIFF, BMP y SVG",
-    "fr": "Images de diapositives : toutes les diapositives à la fois, autres tailles, et GIF, TIFF, BMP et SVG"
    }
   },
   "ec60e3febf580f312cf977138016fd69b19186eee8d24e2b98281056928e9d88": {
@@ -26208,6 +26319,18 @@
     "fr": ""
    }
   },
+  "fe37bd2918b62640cfbedf59b84cb0abb3c81ee7688082ed98ce4e243fe0e2f2": {
+   "drop": false,
+   "en": "Check spelling offline with the bundled dictionaries, with no cloud service. Spelling is checked as you type, and you can set the proofing language for the selected words or the whole presentation.",
+   "es": "Revise la ortografía sin conexión con los diccionarios incluidos, sin servicio en la nube. La ortografía se revisa mientras escribe y puede establecer el idioma de revisión para las palabras seleccionadas o toda la presentación.",
+   "fr": "Vérifiez l’orthographe hors connexion avec les dictionnaires fournis, sans service dans le cloud. L’orthographe est vérifiée pendant la saisie, et vous pouvez définir la langue de correction pour les mots sélectionnés ou toute la présentation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "fe89ca0b74b5214bbda8c4ff573b109cf572687ee58ef14f5741db6819ad9b25": {
    "drop": false,
    "en": "Show or hide the ruler, gridlines, and guides with check boxes, and show or hide the notes box under the slide.",
@@ -26244,6 +26367,18 @@
     "fr": ""
    }
   },
+  "ff0d917731497100a3e02316a4906ceff7d61c7d8acbfaab3e1a74ce61358748": {
+   "drop": false,
+   "en": "Bring objects to the front or send them to the back.",
+   "es": "Traiga objetos al frente o envíelos al fondo.",
+   "fr": "Amenez des objets au premier plan ou envoyez-les à l’arrière-plan.",
+   "soon": {
+    "drop": false,
+    "en": "Selection pane, align, group, rotate, flip, and snap",
+    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
+    "fr": "Volet Sélection, alignement, groupement, rotation, retournement et magnétisme"
+   }
+  },
   "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28": {
    "drop": false,
    "en": "Start a mail merge for letters, email messages, directories, envelopes, or labels, use the step-by-step pane, and clear the merge type.",
@@ -26278,18 +26413,6 @@
     "en": "Comments: delete all comments shown",
     "es": "Comentarios: eliminar todos los comentarios mostrados",
     "fr": "Commentaires : supprimer tous les commentaires affichés"
-   }
-  },
-  "ffd4d56ec2e94899a508b04a8bbd73daf454c7b6a76a3e448576ab898467e34b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Fields: date, time, and slide number that follow the slide",
-    "es": "Campos: fecha, hora y número de diapositiva que siguen a la diapositiva",
-    "fr": "Champs : date, heure et numéro de diapositive qui suivent la diapositive"
    }
   },
   "ffd733f94df1af3e55e465c3577964b76be12b93dff4f4d84f420261eefda38e": {
