@@ -612,6 +612,7 @@ private Q_SLOTS:
             {QStringLiteral("chartdesign.saveAsPicture"), QStringLiteral("it writes a picture file and nothing on the screen changes; the chart tests open the file")},
         };
         m_app.neverRun = {
+            {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the workbook was opened with, which no place here changes; theMenusChangeTheThemeInOneStepAndTheCellsFollow runs it")},
             {QStringLiteral("cond.clearSelection"), QStringLiteral("it is on only when a rule of conditional formatting covers the selected cells, and no place here has a rule; the conditional formatting tests run it")},
             {QStringLiteral("cond.clearSheet"), QStringLiteral("it is on only when the sheet has a rule of conditional formatting, and no place here has one; the conditional formatting tests run it")},
         };
