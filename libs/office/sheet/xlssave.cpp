@@ -780,6 +780,7 @@ private:
         const int drawing = ++m_drawings;
         const qint64 shapes = qint64(notes.size()) + 1;   // (the group's own is the first)
         const int firstCluster = int(m_clusters.size()) + 1;
+        // (a shape's number is its cluster's block of 1,024 and its place in it: that mapping follows how files are numbered in practice, and is not defined by the specification text, section 2.2.46)
         auto spid = [&](qint64 k) { return quint32((firstCluster + k / 1024) * 1024 + k % 1024); };
         const int clusters = int((shapes + 1023) / 1024);
         for (int c = 0; c < clusters; ++c) m_clusters.push_back({drawing, int(std::min<qint64>(1024, shapes - qint64(c) * 1024))});
@@ -810,8 +811,8 @@ private:
                                     .u16(int(col2)).u16(int(NoteGrid::partOf(b.x2, grid.columnPixels(col2), 1024))).u16(int(row2)).u16(int(NoteGrid::partOf(b.y2, grid.rowPixels(row2), 256))).bytes();
             // (the look of a note: no text of its own to hold, a pale yellow box with a thin line, and hidden unless the note is shown)
             const std::pair<int, quint32> look[] = {{0x0080, 0}, {0x0085, 2}, {0x0087, 1}, {0x00BF, 0x00080008}, {0x0158, 0}, {0x0181, 0x00C0FFFF}, {0x0183, 0x003F0000}, {0x01BF, 0x00100010},
-                                                    {0x01C0, 0x00A46534}, {0x01C1, 0x00010000}, {0x01C2, 0x005B9ACB}, {0x01D0, 1}, {0x01D2, 1}, {0x01D3, 1}, {0x01D6, 2}, {0x01D7, 2},
-                                                    {0x01FF, 0x00180018}, {0x0201, 0}, {0x023F, 0x00030003}, {0x03BF, note.shown ? 0x000A0000u : 0x000A0002u}};
+                                                    {0x01C0, 0x00A46534}, {0x01C1, 0x00010000}, {0x01C2, 0x005B9ACB}, {0x01D2, 1}, {0x01D3, 1}, {0x01D6, 2}, {0x01D7, 2},
+                                                    {0x01FF, 0x00180018}, {0x0201, 0x00808080}, {0x023F, 0x00030003}, {0x03BF, note.shown ? 0x00020000u : 0x00020002u}};
             QByteArray props;
             for (const auto &p : look) props += property(p.first, p.second);
             const QByteArray inner = escher(2, 0x0CA, 0xF00A, W().u32(spid(qint64(k) + 1)).u32(0x0A00).bytes()) + escher(3, int(sizeof(look) / sizeof(look[0])), 0xF00B, props) + escher(0, 0, 0xF010, anchor) + escher(0, 0, 0xF011, QByteArray());

@@ -1669,6 +1669,46 @@ private Q_SLOTS:
         QVERIFY(now.at(noteKey(0, 2)).author.isEmpty());
     }
 
+    // The look of a note's shape is written with the format's default grey for the shadow, no arrowhead at the start of the line, and no use-bit for "is a button" among the group's booleans; the
+    // property table of each shape is decoded here.
+    void aNoteShapesPropertiesHaveTheGreyShadowAndNoOddValues()
+    {
+        const QString rows = row(annotated(QStringLiteral("<text:p>x</text:p>"), QStringLiteral("office:display=\"true\"")) + annotated(QStringLiteral("<text:p>y</text:p>")));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        int tables = 0;
+        for (const RawRecord &r : rawRecords(xls)) {
+            if (r.id != 0x00EC) continue;
+            const QByteArray &d = r.data;
+            for (qsizetype at = 0; at + 8 <= d.size();) {
+                const quint16 verInst = quint8(d[at]) | (quint8(d[at + 1]) << 8), type = quint8(d[at + 2]) | (quint8(d[at + 3]) << 8);
+                const quint32 len = quint8(d[at + 4]) | (quint8(d[at + 5]) << 8) | (quint8(d[at + 6]) << 16) | (quint32(quint8(d[at + 7])) << 24);
+                if ((verInst & 0xF) == 0xF) {
+                    at += 8;
+                    continue;
+                }
+                if (type == 0xF00B && (verInst >> 4) == 19) {   // (the options of a note's shape: 19 properties)
+                    ++tables;
+                    QMap<int, quint32> props;
+                    for (int k = 0; k < 19; ++k) {
+                        const qsizetype o = at + 8 + k * 6;
+                        props[quint8(d[o]) | (quint8(d[o + 1]) << 8)] = quint8(d[o + 2]) | (quint8(d[o + 3]) << 8) | (quint8(d[o + 4]) << 16) | (quint32(quint8(d[o + 5])) << 24);
+                    }
+                    QVERIFY(!props.contains(0x01D0));
+                    QCOMPARE(props.value(0x0201), 0x00808080u);
+                    const quint32 flags = props.value(0x03BF);
+                    QVERIFY2(flags == 0x00020000u || flags == 0x00020002u, qPrintable(QString::number(flags, 16)));
+                }
+                at += 8 + qsizetype(len);
+            }
+        }
+        QCOMPARE(tables, 2);
+    }
+
     // The table of strings is followed by the record that says where each set of strings in it begins (the stream's place of the first string of each set, and its offset in its record), so a reader can find a string
     // without reading from the start. Checked against the bytes: each place holds the string it should, with strings long enough that the table goes on in several records.
     void theStringTableIsFollowedByTheTableOfWhereItsSetsBegin()

@@ -519,7 +519,10 @@ public:
             }
             case kMsoDrawingGroup:
                 // (a group that stores no pictures is only the numbering of the shapes of notes)
-                if (holdsPictureStore(m_d, r.pos, r.pos + r.len)) m_drawings = true;
+                {
+                    const Logical group = joined(m_d, sc, r, true);   // (the store of pictures may lie in a record that continues it)
+                    if (holdsPictureStore(group.data, 0, group.data.size())) m_drawings = true;
+                }
                 break;
             default: break;
             }
@@ -1080,7 +1083,8 @@ private:
                     pendingDrawing = true;
                     {
                         XlsAnchor a;
-                        if (readXlsAnchor(m_d, r.pos, r.pos + r.len, &a)) {
+                        const Logical drawing = joined(m_d, sc, r, true);   // (an anchor may lie in a record that continues it)
+                        if (readXlsAnchor(drawing.data, 0, drawing.data.size(), &a)) {
                             lastAnchor = a;
                             haveAnchor = true;
                         }
@@ -1654,7 +1658,8 @@ private:
         case kMsoDrawing: {
             // (the record before an object has its shape: where it sits)
             XlsAnchor a;
-            m_haveShape = m_b8 && readXlsAnchor(m_d, r.pos, r.pos + r.len, &a);
+            const Logical drawing = joined(m_d, sc, r, true);   // (the continuation records of the drawing are part of it)
+            m_haveShape = m_b8 && readXlsAnchor(drawing.data, 0, drawing.data.size(), &a);
             if (m_haveShape) m_shapeAnchor = a;
             return true;
         }

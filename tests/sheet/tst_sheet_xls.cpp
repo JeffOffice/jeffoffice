@@ -12,6 +12,7 @@
 #include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xls.h"
+#include "sheet/xlschart.h"
 #include "sheet/xlslinkaddress.h"
 #include "sheet/notes.h"
 
@@ -1517,6 +1518,57 @@ private Q_SLOTS:
         QVERIFY(three.author.isEmpty());
         QCOMPARE(three.row, 4u);
         QVERIFY(wb.skippedFeatures().isEmpty());
+    }
+
+    // A shape with a child anchor (its corners in the group's own coordinates) and no client anchor of its own is placed by where its corners lie in the group's cells, not at the group's rectangle;
+    // the offsets of an anchor are signed, a negative one being the edge of the cell.
+    void aChildAnchorPlacesAShapeInsideItsGroupAndOffsetsAreSigned()
+    {
+        auto atom = [](quint16 verInst, quint16 type, const QByteArray &data) { return W().u16(verInst).u16(type).u32(quint32(data.size())).raw(data).bytes(); };
+        auto client = [&](int col1, int dx1, int row1, int dy1, int col2, int dx2, int row2, int dy2) {
+            return atom(0, 0xF010, W().u16(3).u16(col1).u16(dx1).u16(row1).u16(dy1).u16(col2).u16(dx2).u16(row2).u16(dy2));
+        };
+        auto rect = [&](quint16 verInst, quint16 type, int l, int t, int r, int b) { return atom(verInst, type, W().u32(quint32(l)).u32(quint32(t)).u32(quint32(r)).u32(quint32(b))); };
+        const QByteArray groupAtoms = rect(1, 0xF009, 0, 0, 1000, 1000) + client(2, 0, 4, 0, 6, 0, 12, 0);
+        XlsAnchor a;
+        // the note's corners at a quarter and three quarters across, a quarter and a half down the group, which spans columns 2 to 6 and rows 4 to 12
+        QVERIFY(readXlsAnchor(groupAtoms + rect(0, 0xF00F, 250, 250, 750, 500), 0, groupAtoms.size() + 24, &a));
+        QCOMPARE(QList<quint32>({a.col1, a.dx1, a.col2, a.dx2, a.row1, a.dy1, a.row2, a.dy2}), (QList<quint32>{3, 0, 5, 0, 6, 0, 8, 0}));
+        // with no group to place it in, the child anchor gives nothing (and the group's rectangle is not taken for the shape's)
+        const QByteArray lone = client(2, 0, 4, 0, 6, 0, 12, 0) + rect(0, 0xF00F, 250, 250, 750, 500);
+        QVERIFY(!readXlsAnchor(lone, 0, lone.size(), &a));
+        // a client anchor after the child anchor is the shape's own
+        const QByteArray own = groupAtoms + rect(0, 0xF00F, 250, 250, 750, 500) + client(9, 0, 9, 0, 10, 0, 10, 0);
+        QVERIFY(readXlsAnchor(own, 0, own.size(), &a));
+        QCOMPARE(a.col1, 9u);
+        // signed offsets: -5 is 0, 1500 is clamped to 1023, and a row's 300 to 255
+        const QByteArray signedOffsets = client(1, 0xFFFB, 1, 300, 2, 1500, 2, 0xFFFF);
+        QVERIFY(readXlsAnchor(signedOffsets, 0, signedOffsets.size(), &a));
+        QCOMPARE(QList<quint32>({a.dx1, a.dy1, a.dx2, a.dy2}), (QList<quint32>{0, 255, 1023, 0}));
+    }
+
+    // The records of a shape's drawing, and of the group of drawings, go on in the records that continue them: an anchor or a store of pictures that lies in the continuation is found all the same.
+    void anAnchorOrPictureStoreInAContinuationRecordIsFound()
+    {
+        QByteArray block = noteObjects(1, {QStringLiteral("hello")}, 5, {3, 512, 1, 128, 5, 256, 5, 0}, 16, true);
+        const int len = quint8(block[2]) | (quint8(block[3]) << 8);
+        const QByteArray body = block.mid(4, len), rest = block.mid(4 + len);
+        QCOMPARE(int(quint8(body[8 + 2])), 0x10);   // (the client anchor's atom follows the shape's container header)
+        const QByteArray split = rec(0x00EC, body.left(8 + 8 + 6)) + rec(0x003C, body.mid(8 + 8 + 6)) + rest;   // (cut inside the anchor's numbers)
+        // the group of drawings: a header of a container in the record, the store of pictures in the continuation
+        const QByteArray group = rec(0x00EB, W().u16(0x000F).u16(0xF000).u32(8)) + rec(0x003C, W().u16(0x001F).u16(0xF001).u32(0));
+        Book b;
+        b.after(group);
+        b.sheet(QStringLiteral("S"), number(0, 0, 1) + split + noteRec(1, 1, true, 1, QStringLiteral("Ann")));
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(1));
+        const ImportedNote &one = s.importedNotes[0];
+        QVERIFY(one.box.set);
+        QCOMPARE(QList<int>({one.box.row1, one.box.col1, one.box.y1, one.box.x1, one.box.row2, one.box.col2, one.box.y2, one.box.x2}), (QList<int>{0, 2, 9, 32, 4, 4, 0, 16}));
+        QVERIFY(wb.skippedFeatures().contains(QStringLiteral("pictures and other drawing objects")));
     }
 
     // Finding whether a cell has a note already is a lookup, not a scan of the notes read: the work done is counted, and is about one step for each note (a scan would be thousands of times that).

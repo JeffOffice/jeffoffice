@@ -162,8 +162,12 @@ ChartAxis makeAxis(ChartAxis::Kind kind, qint64 id, qint64 cross, const QString 
 bool readXlsAnchor(const QByteArray &data, qsizetype from, qsizetype to, XlsAnchor *out)
 {
     // The atoms of the drawing format: a header of 8 bytes (version and instance, kind, length); a container's atoms follow its header at once, any other is skipped by its length.
+    // A shape's own anchor is the client anchor (0xF010). One with only a child anchor (0xF00F: its corners in the coordinates of the group it is in, the group's own in its group atom
+    // 0xF009) is placed by where those corners lie in the group's cells, taking the cells as of one size; a child anchor is the note's own rectangle, so the group's is never taken for it.
     Bytes b(data, from, to);
-    bool found = false;
+    bool found = false, childAfter = false, haveGroup = false;
+    XlsAnchor client;
+    qint32 group[4] = {0, 0, 0, 0}, child[4] = {0, 0, 0, 0};
     qint64 steps = (to - from) / 8 + 1;
     while (b.left() >= 8 && steps-- > 0) {
         const quint16 verInst = b.u16();
@@ -173,23 +177,62 @@ bool readXlsAnchor(const QByteArray &data, qsizetype from, qsizetype to, XlsAnch
         if (type == 0xF010 && len >= 18 && b.left() >= 18) {
             b.u16();
             XlsAnchor a;
-            const quint32 col1 = b.u16(), dx1 = b.u16(), row1 = b.u16(), dy1 = b.u16(), col2 = b.u16(), dx2 = b.u16(), row2 = b.u16(), dy2 = b.u16();
+            const quint32 col1 = b.u16();
+            const qint16 dx1 = qint16(b.u16());
+            const quint32 row1 = b.u16();
+            const qint16 dy1 = qint16(b.u16());
+            const quint32 col2 = b.u16();
+            const qint16 dx2 = qint16(b.u16());
+            const quint32 row2 = b.u16();
+            const qint16 dy2 = qint16(b.u16());
             a.col1 = col1;
             a.row1 = row1;
             a.col2 = col2;
             a.row2 = row2;
-            a.dx1 = std::min<quint32>(dx1, 1023);
-            a.dy1 = std::min<quint32>(dy1, 255);
-            a.dx2 = std::min<quint32>(dx2, 1023);
-            a.dy2 = std::min<quint32>(dy2, 255);
-            *out = a;
+            a.dx1 = quint32(std::clamp<int>(dx1, 0, 1023));   // (the offsets are signed in the format: a negative one is the edge of the cell)
+            a.dy1 = quint32(std::clamp<int>(dy1, 0, 255));
+            a.dx2 = quint32(std::clamp<int>(dx2, 0, 1023));
+            a.dy2 = quint32(std::clamp<int>(dy2, 0, 255));
+            client = a;
             found = true;
+            childAfter = false;
             b.skip(len - 18);
+            continue;
+        }
+        if (type == 0xF009 && len >= 16 && b.left() >= 16) {
+            for (qint32 &v : group) v = qint32(b.u32());
+            haveGroup = true;
+            b.skip(len - 16);
+            continue;
+        }
+        if (type == 0xF00F && len >= 16 && b.left() >= 16) {
+            for (qint32 &v : child) v = qint32(b.u32());
+            childAfter = true;
+            b.skip(len - 16);
             continue;
         }
         if (len > quint32(b.left())) break;
         b.skip(len);
     }
+    if (childAfter) {
+        // (no client anchor after it: the child anchor is the shape's, and the group's anchor before it is not)
+        const qint64 gw = qint64(group[2]) - group[0], gh = qint64(group[3]) - group[1];
+        if (!found || !haveGroup || gw <= 0 || gh <= 0) return false;
+        auto place = [](qint64 v, qint64 lo, qint64 size, quint32 c1, quint32 d1, quint32 c2, quint32 d2, double unit, quint32 *cell, quint32 *offset) {
+            const double span = (double(c2) + d2 / unit) - (double(c1) + d1 / unit);
+            const double at = std::clamp(double(v - lo) / double(size), 0.0, 1.0) * std::max(span, 0.0) + double(c1) + d1 / unit;
+            *cell = quint32(at);
+            *offset = quint32(std::min((at - std::floor(at)) * unit, unit - 1));
+        };
+        XlsAnchor a;
+        place(child[0], group[0], gw, client.col1, client.dx1, client.col2, client.dx2, 1024.0, &a.col1, &a.dx1);
+        place(child[2], group[0], gw, client.col1, client.dx1, client.col2, client.dx2, 1024.0, &a.col2, &a.dx2);
+        place(child[1], group[1], gh, client.row1, client.dy1, client.row2, client.dy2, 256.0, &a.row1, &a.dy1);
+        place(child[3], group[1], gh, client.row1, client.dy1, client.row2, client.dy2, 256.0, &a.row2, &a.dy2);
+        *out = a;
+        return true;
+    }
+    if (found) *out = client;
     return found;
 }
 
