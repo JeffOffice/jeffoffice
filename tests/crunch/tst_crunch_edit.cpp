@@ -2619,7 +2619,7 @@ void CrunchEditTests::anEditIsRefusedWhileTheWorkbookIsBeingOpened()
     Folder folder;
     Window win;
     QSignalSpy first(&win.w, &CrunchWindow::firstScreenShown), loaded(&win.w, &CrunchWindow::loadFinished);
-    win.w.setWorkerPace(20000);
+    win.w.setWorkerPace(-1);   // (the read is held where it is until the test lets it go)
     QVERIFY(win.w.openFile(folder.write(QStringLiteral("slow.xlsx"), buildXlsx({worksheet(rows)}))));
     QVERIFY(first.wait(60000));
     QVERIFY(win.w.isLoading());
