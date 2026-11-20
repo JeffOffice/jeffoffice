@@ -27,6 +27,8 @@ struct XlsCompileContext {
     // place in the list of external sheets of the span of sheets of that link (-1 if it cannot be made).
     std::function<int(int book, const QString &sheet)> externalSheet;
     std::function<int(int book, int first, int last)> externalXti;
+    // Why the last sheet of another workbook was refused (the link is missing, or past what the format holds).
+    std::function<QString()> externalWhy;
     QHash<QString, int> names;                        // the defined names, by "<sheet place or -1>|<name in lower case>": the place from 1 in the list of names
     QSet<int> brokenNames;                            // the names (by place from 1) whose definition the form cannot hold: a formula that uses one is refused
     int sheet = -1;                                   // the sheet the formula is in (-1 for a name's formula): a bare name is looked up among this sheet's names first

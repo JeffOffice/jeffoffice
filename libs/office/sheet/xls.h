@@ -17,6 +17,7 @@
 
 #include <functional>
 #include <memory>
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -44,6 +45,8 @@ public:
     int version() const { return m_biff; }
     // The charts read from sheet `index` at the open (their number is known before the sheet is read).
     int chartCount(int index) const { return index >= 0 && index < m_charts.size() ? int(m_charts[index].size()) : 0; }
+    // The other workbooks the formulas read, in the order the formulas number them ("[1]", "[2]"): each one's address (empty if it is not a file's address) and the sheets it lists.
+    std::vector<ExternalLinkInfo> links() const;
 
 private:
     XlsBook() = default;

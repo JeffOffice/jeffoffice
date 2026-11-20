@@ -12,6 +12,7 @@
 #include "sheet/externalbooks.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
+#include "sheet/xlslinkaddress.h"
 #include "sheet/xlsrecord.h"
 #include "sheet/xlscrypt.h"
 
@@ -265,6 +266,7 @@ private:
     // the other workbooks formulas read ("[1]Sheet1!A1"): each link's address and the sheets formulas name, as the file's book records list them
     std::shared_ptr<ExternalBooks> m_links;
     QVector<QStringList> m_linkSheets;
+    QString m_linkWhy;        // why the last sheet of another workbook was refused
     int m_linksUsed = 0;      // the highest link a formula uses (the book records of 1 to this are written: the formulas number them by place)
     QStringList m_addIns;     // the functions of the add-in set that formulas call, in the order of their names in the file
     int m_addInXti = -1;
@@ -492,17 +494,26 @@ private:
         return int(m_sst.size()) - 1;
     }
 
-    // The most a link's address may be (the book record tells an internal or an add-in book by the length of its address) and sheets it may list.
+    // The most a link's address may be (the book record tells an internal or an add-in book by the length of its address) and sheets it may list; the most links.
     static constexpr int kMaxLinkTarget = 1000;
+    static constexpr int kMaxLinks = 250;
     int linkSheetFor(int book, const QString &sheet)
     {
-        if (!m_links || book < 1 || book > m_links->count() || book > 250 || m_links->target(book).size() > kMaxLinkTarget || sheet.size() > 255) return -1;
+        auto refuse = [&](const QString &why) {
+            m_linkWhy = why;
+            return -1;
+        };
+        if (!m_links || book < 1 || book > m_links->count() || m_links->target(book).isEmpty())
+            return refuse(QCoreApplication::translate("Sheet", "The formula reads another workbook that the workbook has no link to."));
+        if (book > kMaxLinks) return refuse(QCoreApplication::translate("Sheet", "The workbook has more than 250 links to other workbooks, which the old format can't hold."));
+        if (m_links->target(book).size() > kMaxLinkTarget) return refuse(QCoreApplication::translate("Sheet", "A link's address is longer than 1,000 characters, which the old format can't hold."));
+        if (sheet.size() > 255) return refuse(QCoreApplication::translate("Sheet", "The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can't hold."));
         if (m_linkSheets.size() < book) m_linkSheets.resize(book);
         QStringList &list = m_linkSheets[book - 1];
         if (list.isEmpty()) list = m_links->sheetNames(book).mid(0, 255);
         for (int i = 0; i < list.size(); ++i)
             if (list[i].compare(sheet, Qt::CaseInsensitive) == 0) return i;
-        if (list.size() >= 255) return -1;
+        if (list.size() >= 255) return refuse(QCoreApplication::translate("Sheet", "The formulas name more than 255 sheets of one other workbook, which the old format can't hold."));
         list << sheet;
         return int(list.size()) - 1;
     }
@@ -511,25 +522,11 @@ private:
         const qint64 key = (qint64(book) << 40) | (qint64(first) << 20) | qint64(last);
         auto it = m_xtiIndex.constFind(key);
         if (it != m_xtiIndex.cend()) return it.value();
-        if (m_xtis.size() >= 60000 || book > 250) return -1;
+        if (m_xtis.size() >= 60000 || book > kMaxLinks) return -1;
         m_xtis.append({1 + book, first, last});   // (the books of the list: this workbook's, the add-in's, then the links')
         m_xtiIndex.insert(key, int(m_xtis.size()) - 1);
         m_linksUsed = std::max(m_linksUsed, book);
         return int(m_xtis.size()) - 1;
-    }
-
-    // The address of a link as a book record has it: a flag byte, then the path with its folders parted by 3 and the file's name in brackets.
-    static QString encodedLinkTarget(const QString &target)
-    {
-        QString t = target;
-        if (t.startsWith(QLatin1String("file:///"))) t = t.mid(8);
-        t.replace(QLatin1Char('\\'), QLatin1Char('/'));
-        const int slash = int(t.lastIndexOf(QLatin1Char('/')));
-        const QString dir = t.left(slash + 1), file = t.mid(slash + 1);
-        QString out(QChar(1));
-        out += dir;
-        out.replace(QLatin1Char('/'), QChar(3));
-        return out + QLatin1Char('[') + file + QLatin1Char(']');
     }
 
     int xtiFor(int first, int last)
@@ -599,8 +596,12 @@ private:
         m_links = ExternalBooks::read(m_book, QString());
         m_cx.externalSheet = [this](int book, const QString &sheet) { return linkSheetFor(book, sheet); };
         m_cx.externalXti = [this](int book, int a, int b) { return linkXtiFor(book, a, b); };
+        m_cx.externalWhy = [this] { return m_linkWhy; };
         m_cx.addIn = [this](const QString &name, int *ixti, int *index) {
-            int at = int(m_addIns.indexOf(name));
+            // (names of functions are the same whatever their case: one record for MyCost and MYCOST)
+            int at = -1;
+            for (int i = 0; i < m_addIns.size() && at < 0; ++i)
+                if (m_addIns[i].compare(name, Qt::CaseInsensitive) == 0) at = i;
             if (at < 0) {
                 if (m_addIns.size() >= 255) return false;
                 m_addIns.append(name);
@@ -1368,15 +1369,18 @@ private:
             }
             for (int k = 1; k <= m_linksUsed; ++k) {
                 const QStringList sheets = k <= m_linkSheets.size() ? m_linkSheets[k - 1] : QStringList();
-                W w;
-                w.u16(int(sheets.size())).str8(encodedLinkTarget(m_links->target(k)), 2);
-                for (const QString &name : sheets) w.str8(name, 2);
-                putRecord(&extern_, 0x01AE, w.bytes());
+                // (a link's address and the names of its sheets are strings, so a record that is too long goes on in the next, with the byte of flags put first)
+                Continued c(&extern_, 0x01AE);
+                c.bytes(W().u16(int(sheets.size())).bytes());
+                c.string(xlsEncodeLinkAddress(m_links->target(k)));
+                for (const QString &name : sheets) c.string(name);
+                c.finish();
             }
-            W x;
-            x.u16(int(m_xtis.size()));
-            for (const auto &p : std::as_const(m_xtis)) x.u16(p.supbook).u16(p.first).u16(p.last);
-            putRecord(&extern_, 0x0017, x.bytes());
+            // (the list of external sheets goes on in the next record only between its entries of 6 bytes)
+            Continued x(&extern_, 0x0017);
+            x.bytes(W().u16(int(m_xtis.size())).bytes());
+            for (const auto &p : std::as_const(m_xtis)) x.bytes(W().u16(p.supbook).u16(p.first).u16(p.last).bytes());
+            x.finish();
         }
         // the strings
         QByteArray sst;

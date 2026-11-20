@@ -250,6 +250,12 @@ struct ReadOptions {
 // out->error says what it was. Every sheet is finished: its blocks are in order.
 bool readSheetPart(QIODevice *in, const ReadOptions &options, Sheet *out);
 
+// A link to another workbook that a workbook read from the older binary form holds: the address of the file, and the names of its sheets that formulas read.
+struct ExternalLinkInfo {
+    QString target;
+    QStringList sheetNames;
+};
+
 // A workbook: what its package says about it, with the sheets still in the
 // package, to be read one at a time.
 class Workbook {
@@ -282,6 +288,8 @@ public:
     // How many charts a sheet of a workbook of the older binary form has (0 for any other): known before the sheet is read, so that a file can be laid out first.
     int importedChartCount(int sheet) const;
     QString convertedKind() const;
+    // The links to other workbooks of a workbook read from the older binary form, in the order its formulas number them (none for any other).
+    std::vector<ExternalLinkInfo> convertedLinks() const;
     // The reader of a file that is neither of the XML form nor the older binary form (an OpenDocument spreadsheet, a file of delimited values), or null.
     const ForeignBook *foreignBook() const { return m_foreign.get(); }
     QStringList skippedFeatures() const;

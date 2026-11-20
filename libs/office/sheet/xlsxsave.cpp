@@ -1610,7 +1610,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     const Package *base = &book.package();
     if (!base->isLazy() && book.isConverted()) {
         QByteArray bytes;
-        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects)) return fail(why);
+        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects, requested.dropExternalLinks ? 0 : int(requested.newExternalLinks.size()))) return fail(why);
         if (!baseFile.readLazy(bytes, &why)) return fail(why);
         base = &baseFile;
     }

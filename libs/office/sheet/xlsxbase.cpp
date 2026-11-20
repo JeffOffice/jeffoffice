@@ -290,7 +290,7 @@ QByteArray stylesPart(const Styles &st, qsizetype formatCount, const QSet<int> &
 
 // ---- the workbook
 
-QByteArray workbookPart(const WorkbookInfo &fileInfo)
+QByteArray workbookPart(const WorkbookInfo &fileInfo, int links)
 {
     const WorkbookInfo &info = fileInfo;
     QByteArray o = kXmlHead;
@@ -306,6 +306,11 @@ QByteArray workbookPart(const WorkbookInfo &fileInfo)
         o += attr("r:id", "rId" + num(i + 1)) + "/>";
     }
     o += "</sheets>";
+    if (links > 0) {
+        o += "<externalReferences>";
+        for (int k = 1; k <= links; ++k) o += "<externalReference r:id=\"rIdExt" + num(k) + "\"/>";
+        o += "</externalReferences>";
+    }
     if (!info.definedNames.isEmpty()) {
         o += "<definedNames>";
         // a name the format refuses (an old file's "SMW 14") makes the whole file refused: its marks become underscores, and a number keeps it apart from the names already there
@@ -435,12 +440,64 @@ void tableInputs(const QString &text, QString *r1, QString *r2)
     if (parts.size() > 1) *r2 = parts[1].trimmed();
 }
 
+// Whether a formula's text names a link to another workbook ("[2]Sheet1!A1", "'[2]Q 2'!B2") that is not among `usable` (by the number from 1): such a formula has nothing in the file for the number to
+// mean, so it is not written as a formula.
+bool namesMissingLink(const QString &t, const std::vector<bool> &usable)
+{
+    auto skipBracket = [&](qsizetype i) {   // (the end of the bracket that begins at i, brackets inside it counted)
+        int depth = 0;
+        for (; i < t.size(); ++i) {
+            if (t[i] == QLatin1Char('[')) ++depth;
+            else if (t[i] == QLatin1Char(']') && --depth == 0) return i;
+        }
+        return t.size() - 1;
+    };
+    for (qsizetype i = 0; i < t.size(); ++i) {
+        const QChar c = t[i];
+        if (c == QLatin1Char('"')) {
+            for (++i; i < t.size(); ++i) {
+                if (t[i] != QLatin1Char('"')) continue;
+                if (i + 1 < t.size() && t[i + 1] == QLatin1Char('"')) ++i;
+                else break;
+            }
+            continue;
+        }
+        if (c == QLatin1Char('\'')) {
+            if (i + 1 < t.size() && t[i + 1] == QLatin1Char('[')) continue;   // (a quoted name that begins with a link's number: the bracket is looked at next)
+            for (++i; i < t.size(); ++i) {
+                if (t[i] != QLatin1Char('\'')) continue;
+                if (i + 1 < t.size() && t[i + 1] == QLatin1Char('\'')) ++i;
+                else break;
+            }
+            continue;
+        }
+        if (c != QLatin1Char('[')) continue;
+        const qsizetype end = skipBracket(i);
+        const bool afterName = i > 0 && (t[i - 1].isLetterOrNumber() || t[i - 1] == QLatin1Char('_') || t[i - 1] == QLatin1Char('.') || t[i - 1] == QLatin1Char(']'));
+        if (!afterName) {
+            const QString inside = t.mid(i + 1, end - i - 1);
+            bool ok = !inside.isEmpty() && inside.size() < 8;
+            for (const QChar d : inside)
+                if (!d.isDigit()) ok = false;
+            if (ok) {
+                const int n = inside.toInt();
+                if (n < 1 || n > int(usable.size()) || !usable[size_t(n - 1)]) return true;
+            }
+        }
+        i = end;
+    }
+    return false;
+}
+
 class SheetWriter {
 public:
     SheetWriter(const Workbook &book, const Sheet &sheet, Out *out, const std::atomic<bool> *cancel, qint64 *stringRefs)
         : m_book(book), m_sheet(sheet), m_out(*out), m_cancel(cancel), m_stringRefs(stringRefs)
     {
     }
+
+    // The links a formula may name (by number from 1); a formula that names another is written as its value. Without this, none is looked for.
+    void setUsableLinks(const std::vector<bool> *usable) { m_usableLinks = usable; }
 
     bool write()
     {
@@ -564,7 +621,8 @@ private:
         const bool formula = c.hasFormula() && !(c.flags & ArrayMember);
         QByteArray f;
         if (formula) {
-            const QString text = m_sheet.formulaText(c);
+            QString text = m_sheet.formulaText(c);
+            if (m_usableLinks && namesMissingLink(text, *m_usableLinks)) text.clear();
             if (c.flags & DataTable) {
                 QString r1, r2;
                 tableInputs(text, &r1, &r2);
@@ -659,6 +717,7 @@ private:
     Out &m_out;
     const std::atomic<bool> *m_cancel;
     qint64 *m_stringRefs;
+    const std::vector<bool> *m_usableLinks = nullptr;
     QVector<QByteArray> m_columns;
     QVector<RowSpec> m_specs;
     qsizetype m_spec = 0;
@@ -925,7 +984,7 @@ bool dropForeignObjects(ImportedDrawing *d)
 // An object of ours is written as an embedded package of its kind; any other (kept only for a file that goes on to be an OpenDocument one) as a binary part.
 static bool isOurObject(const ImportedObject &o) { return o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other; }
 
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects)
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -986,6 +1045,24 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             charts += int(importedOf[size_t(i)].charts.size());
         }
     }
+    // the links to other workbooks of a workbook read from the older binary form: a part for each (its sheets, no stored values) and the address in its relationships, numbered as the formulas number them
+    const std::vector<ExternalLinkInfo> links = book.convertedLinks();
+    // (the numbers a formula may name: the links written here that have an address, and the ones the save adds after them; any other number means nothing in the file)
+    std::vector<bool> usableLinks;
+    for (const ExternalLinkInfo &l : links) usableLinks.push_back(!l.target.isEmpty());
+    usableLinks.insert(usableLinks.end(), size_t(std::max(0, extraLinks)), true);
+    for (size_t k = 0; k < links.size(); ++k) {
+        QByteArray part = kXmlHead;
+        part += "<externalLink xmlns=\"" + QByteArray(kMainNs) + "\" xmlns:r=\"" + kRelNs + "\"><externalBook r:id=\"rId1\"><sheetNames>";
+        for (const QString &name : links[k].sheetNames) part += "<sheetName" + attrText("val", name) + "/>";
+        part += "</sheetNames></externalBook></externalLink>";
+        zip.add(QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(k + 1), part, true);
+        if (!links[k].target.isEmpty())
+            zip.add(QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(k + 1),
+                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/externalLinkPath\"" + attrText("Target", links[k].target)
+                        + " TargetMode=\"External\"/></Relationships>",
+                    true);
+    }
     // [Content_Types].xml and the relationships
     {
         QByteArray types = kXmlHead;
@@ -1000,6 +1077,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         for (const QString &e : std::as_const(mediaExtensions))
             if (const char *type = odt::contentTypeOf(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + type + "\"/>";
         for (const QString &e : std::as_const(objectExtensions)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + (e == QLatin1String("xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : e == QLatin1String("bin") ? "application/vnd.openxmlformats-officedocument.oleObject" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") + "\"/>";
+        for (int k = 1; k <= int(links.size()); ++k) types += "<Override PartName=\"/xl/externalLinks/externalLink" + num(k) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);
@@ -1012,10 +1090,12 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         for (int i = 0; i < info.sheets.size(); ++i)
             rels += "<Relationship Id=\"rId" + num(i + 1) + "\" Type=\"" + kRelNs + "/worksheet\" Target=\"worksheets/sheet" + num(i + 1) + ".xml\"/>";
         rels += "<Relationship Id=\"rId" + num(info.sheets.size() + 1) + "\" Type=\"" + kRelNs + "/styles\" Target=\"styles.xml\"/>";
-        rels += "<Relationship Id=\"rId" + num(info.sheets.size() + 2) + "\" Type=\"" + kRelNs + "/sharedStrings\" Target=\"sharedStrings.xml\"/></Relationships>";
+        rels += "<Relationship Id=\"rId" + num(info.sheets.size() + 2) + "\" Type=\"" + kRelNs + "/sharedStrings\" Target=\"sharedStrings.xml\"/>";
+        for (int k = 1; k <= int(links.size()); ++k) rels += "<Relationship Id=\"rIdExt" + num(k) + "\" Type=\"" + kRelNs + "/externalLink\" Target=\"externalLinks/externalLink" + num(k) + ".xml\"/>";
+        rels += "</Relationships>";
         zip.add(QStringLiteral("xl/_rels/workbook.xml.rels"), rels, true);
     }
-    zip.add(QStringLiteral("xl/workbook.xml"), workbookPart(info), true);
+    zip.add(QStringLiteral("xl/workbook.xml"), workbookPart(info, int(links.size())), true);
     QSet<int> addedFormats;
     for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) addedFormats.insert(f.id);
     zip.add(QStringLiteral("xl/styles.xml"), stylesPart(book.styles(), qsizetype(book.cellFormatsInFile()), addedFormats), true);
@@ -1034,6 +1114,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         zip.beginStream(baseSheetPart(i).mid(1), true);
         Out sink(&zip);
         SheetWriter writer(book, sheet, &sink, cancel, &references);
+        if (book.isConverted()) writer.setUsableLinks(&usableLinks);
         const bool ok = writer.write();
         zip.endStream();
         if (!ok) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));

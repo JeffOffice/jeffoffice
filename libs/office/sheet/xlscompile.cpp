@@ -797,7 +797,7 @@ private:
                 } else {
                     while (d < m_t.size() && (isIdentChar(m_t[d]) || m_t[d].unicode() > 127 || m_t[d] == QLatin1Char(':'))) names += m_t[d++];
                 }
-                if (d >= m_t.size() || m_t[d] != QLatin1Char('!') || names.isEmpty() || names.size() > 31 * 2 + 1) return false;
+                if (d >= m_t.size() || m_t[d] != QLatin1Char('!') || names.isEmpty() || names.size() > 255 * 2 + 1) return false;
                 const QStringList parts = names.split(QLatin1Char(':'));
                 if (parts.size() > 2 || parts[0].isEmpty() || parts.last().isEmpty()) return false;
                 *book = n;
@@ -872,7 +872,8 @@ private:
         const bool prefixed = sheetPrefix(&afterBang, &s1, &s2, &unknownSheet, &book);
         if (prefixed) {
             if (unknownSheet) {
-                if (book > 0 || m_t.mid(start, 2) == QLatin1String("'["))
+                if (book > 0) return failNode(m_cx.externalWhy ? m_cx.externalWhy() : QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
+                if (m_t.mid(start, 2) == QLatin1String("'["))
                     return failNode(QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
                 return failNode(QCoreApplication::translate("Sheet", "The formula names a sheet that is not in the workbook."));
             }
@@ -1042,10 +1043,12 @@ private:
         QString name = m_t.mid(m_pos, nameEnd - m_pos).toUpper();
         int number = xlsFunctionNumber(name);
         bool addIn = false;
+        if (number < 0 && m_cx.addIn && nameEnd - m_pos > 255)
+            return failNode(QCoreApplication::translate("Sheet", "The formula calls a function whose name is longer than 255 characters, which the old format can't hold."));
         if (number < 0 && xlsIsAddInFunction(name) && m_cx.addIn) {
             number = 255;
             addIn = true;
-        } else if (number < 0 && m_cx.addIn && nameEnd - m_pos <= 255) {
+        } else if (number < 0 && m_cx.addIn) {
             // (a function of an add-in, or one the format has no number for: called through its name, kept as it is written)
             name = m_t.mid(m_pos, nameEnd - m_pos);
             number = 255;
@@ -1075,7 +1078,9 @@ private:
             }
             if (arg < 0) return -1;
             n.kids.push_back(arg);
-            if (int(n.kids.size()) > kMaxArgs - (addIn ? 1 : 0)) return failNode(QCoreApplication::translate("Sheet", "The formula calls a function with more than 30 arguments, which the old format can't hold."));
+            if (int(n.kids.size()) > kMaxArgs - (addIn ? 1 : 0))
+                return failNode(addIn ? QCoreApplication::translate("Sheet", "The formula calls a function by its name with more than 29 arguments, which the old format can't hold.")
+                                      : QCoreApplication::translate("Sheet", "The formula calls a function with more than 30 arguments, which the old format can't hold."));
             skipSpaces();
             if (peek() == QLatin1Char(',')) {
                 ++m_pos;
@@ -1158,11 +1163,11 @@ private:
                     const int first = n.ref.sheet1, last = n.ref.sheet2 < 0 ? n.ref.sheet1 : n.ref.sheet2;
                     const int x = m_cx.xti(std::min(first, last), std::max(first, last));
                     if (x < 0) return fail(QCoreApplication::translate("Sheet", "The formula names more sheets than the old format can."));
-                    u8(0x3C);
+                    u8(0x1C + cls);
                     u16(x);
                     m_out.append(QByteArray(4, '\0'));
                 } else if (m_cx.isName) {
-                    u8(0x3C);
+                    u8(0x1C + cls);
                     u16(m_cx.xti ? std::max(0, m_cx.xti(-1, -1)) : 0);
                     m_out.append(QByteArray(4, '\0'));
                 } else {
@@ -1295,7 +1300,7 @@ private:
         if (n.code == 1) {
             // a function of the add-in set: the name of it comes first, then the arguments, and the call is function 255 with one more argument
             int ixti = 0, index = 0;
-            if (!m_cx.addIn(n.text, &ixti, &index)) return fail(QCoreApplication::translate("Sheet", "The formula names more functions than the old format can."));
+            if (!m_cx.addIn(n.text, &ixti, &index)) return fail(QCoreApplication::translate("Sheet", "The workbook calls more than 255 different functions by their names, which the old format can't hold."));
             u8(0x39);
             u16(ixti);
             u16(index);

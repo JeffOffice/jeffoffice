@@ -10,6 +10,8 @@
 #include "sheet/xlscompile.h"
 #include "sheet/xlsrecord.h"
 #include "sheet/xlsxbase.h"
+#include "sheet/xlsxsave.h"
+#include "sheet/externalbooks.h"
 
 #include <QRegularExpression>
 #include <QSet>
@@ -129,27 +131,179 @@ QList<RawRecord> rawRecords(const QByteArray &xls, bool *wellFormed = nullptr)
     return out;
 }
 
-// A workbook with one link to another workbook (its part names the sheets given), the link pointing at `target`.
-QByteArray withOneLink(const QString &rows, const QString &target, const QStringList &sheets)
+// The records as the stream has them with the CONTINUE records that follow each joined to it; `ends` says where each piece ends, since a string cut between two pieces has the byte of flags first in the next.
+struct LogicalRecord {
+    quint16 id;
+    QByteArray data;
+    QList<qsizetype> ends;
+    int pieces() const { return int(ends.size()); }
+};
+
+QList<LogicalRecord> logicalRecords(const QByteArray &xls)
+{
+    QList<LogicalRecord> out;
+    for (const RawRecord &r : rawRecords(xls)) {
+        if (r.id == 0x003C && !out.isEmpty()) {
+            out.last().data += r.data;
+            out.last().ends << out.last().data.size();
+        } else {
+            out.append({r.id, r.data, {r.data.size()}});
+        }
+    }
+    return out;
+}
+
+// Strings as the format has them: a count of 2 bytes, a byte whose lowest bit says one or two bytes for each character, and the characters, which may go on in the next piece after a byte of flags.
+struct StringReader {
+    const LogicalRecord &r;
+    qsizetype pos = 0;
+    bool lastWide = false;
+    quint8 u8() { return quint8(r.data.at(pos++)); }
+    int u16()
+    {
+        const int a = u8();
+        return a | (u8() << 8);
+    }
+    QString string()
+    {
+        const int n = u16();
+        bool wide = u8() & 1;
+        lastWide = wide;
+        QString s;
+        while (s.size() < n) {
+            int piece = 0;
+            while (piece < r.ends.size() && pos >= r.ends[piece]) ++piece;
+            if (piece > 0 && pos == r.ends[piece - 1]) {
+                wide = u8() & 1;
+                continue;
+            }
+            const qsizetype room = (r.ends[piece] - pos) / (wide ? 2 : 1);
+            const qsizetype take = std::min<qsizetype>(room, n - s.size());
+            for (qsizetype i = 0; i < take; ++i) {
+                const int lo = u8();
+                s += QChar(wide ? lo | (u8() << 8) : lo);
+            }
+        }
+        return s;
+    }
+};
+
+// What a copy's list of books and external sheets says: each book record (internal, the add-in's, or a link's with its address and sheet names), the entries of the list of external sheets, and the names of the add-in.
+struct BookRecord {
+    int sheets = 0;
+    int cch = 0;
+    QString address;
+    bool wideAddress = false;
+    QStringList names;
+    int pieces = 1;
+    bool isLink() const { return cch != 0x0401 && cch != 0x3A01; }
+};
+struct XtiEntry {
+    int book, first, last;
+};
+struct ExternalPart {
+    QList<BookRecord> books;
+    QList<XtiEntry> xtis;
+    QStringList addInNames;
+    int externSheetPieces = 0;
+};
+
+ExternalPart externalPart(const QByteArray &xls)
+{
+    ExternalPart out;
+    for (const LogicalRecord &r : logicalRecords(xls)) {
+        if (r.id == 0x01AE) {
+            StringReader in{r};
+            BookRecord b;
+            b.sheets = in.u16();
+            b.cch = r.data.size() >= 4 ? quint8(r.data[2]) | (quint8(r.data[3]) << 8) : 0;
+            b.pieces = r.pieces();
+            if (b.isLink()) {
+                in.pos = 2;
+                b.address = in.string();
+                b.wideAddress = in.lastWide;
+                for (int i = 0; i < b.sheets; ++i) b.names << in.string();
+            }
+            out.books << b;
+        } else if (r.id == 0x0017) {
+            const int n = quint8(r.data[0]) | (quint8(r.data[1]) << 8);
+            out.externSheetPieces = r.pieces();
+            for (int i = 0; i < n; ++i) {
+                const char *p = r.data.constData() + 2 + 6 * i;
+                out.xtis << XtiEntry{quint8(p[0]) | (quint8(p[1]) << 8), quint8(p[2]) | (quint8(p[3]) << 8), quint8(p[4]) | (quint8(p[5]) << 8)};
+            }
+        } else if (r.id == 0x0023) {
+            const int cch = quint8(r.data[6]);
+            const bool wide = quint8(r.data[7]) & 1;
+            QString name;
+            for (int i = 0; i < cch; ++i) name += QChar(wide ? quint8(r.data[8 + 2 * i]) | (quint8(r.data[9 + 2 * i]) << 8) : quint8(r.data[8 + i]));
+            out.addInNames << name;
+        }
+    }
+    return out;
+}
+
+// The tokens of the formula in the first row at column `col` (A is 0) of the first sheet, as the file has them.
+QByteArray formulaTokens(const QByteArray &xls, int col)
+{
+    for (const RawRecord &r : rawRecords(xls)) {
+        if (r.id != 0x0006 || r.data.size() < 22) continue;
+        const int row = quint8(r.data[0]) | (quint8(r.data[1]) << 8), c = quint8(r.data[2]) | (quint8(r.data[3]) << 8);
+        if (row != 0 || c != col) continue;
+        const int cce = quint8(r.data[20]) | (quint8(r.data[21]) << 8);
+        return r.data.mid(22, cce);
+    }
+    return QByteArray();
+}
+
+// The tokens of the first array formula's record (the formula of the cell itself is a pointer to it).
+QByteArray arrayFormulaTokens(const QByteArray &xls)
+{
+    for (const RawRecord &r : rawRecords(xls))
+        if (r.id == 0x0221 && r.data.size() >= 14) return r.data.mid(14, quint8(r.data[12]) | (quint8(r.data[13]) << 8));
+    return QByteArray();
+}
+
+// The notation of the codes in an address: "<1>" is the character with that number.
+QString withCodes(QString text)
+{
+    static const QRegularExpression tag(QStringLiteral("<(\\d+)>"));
+    for (QRegularExpressionMatch m = tag.match(text); m.hasMatch(); m = tag.match(text)) text.replace(m.capturedStart(), m.capturedLength(), QChar(m.captured(1).toInt()));
+    return text;
+}
+
+QString slashes(QString path) { return path.replace(QLatin1Char('\\'), QLatin1Char('/')); }
+
+// A workbook with links to other workbooks: link n (from 1) points at targets[n - 1], and its part names the sheets of sheetLists[n - 1].
+QByteArray withLinks(const QString &rows, const QStringList &targets, const QList<QStringList> &sheetLists)
 {
     QByteArray zip = buildXlsx({worksheet(rows)});
     QMap<QString, QByteArray> parts;
     jp::readZip(zip, parts);
-    QString names;
-    for (const QString &n : sheets) names += QStringLiteral("<sheetName val=\"%1\"/>").arg(n.toHtmlEscaped());
-    parts[QStringLiteral("xl/externalLinks/externalLink1.xml")] =
-        ("<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\"><sheetNames>"
-         + names + "</sheetNames></externalBook></externalLink>").toUtf8();
-    parts[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")] =
-        ("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\""
-         + target.toHtmlEscaped() + "\" TargetMode=\"External\"/></Relationships>").toUtf8();
-    parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/xl/externalLinks/externalLink1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/></Types>");
-    parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", "<Relationship Id=\"rIdEx\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink1.xml\"/></Relationships>");
-    parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", "</sheets><externalReferences><externalReference r:id=\"rIdEx\"/></externalReferences>");
+    QString refs, overrides, relationships;
+    for (int i = 0; i < targets.size(); ++i) {
+        QString names;
+        for (const QString &n : sheetLists.value(i)) names += QStringLiteral("<sheetName val=\"%1\"/>").arg(n.toHtmlEscaped());
+        const QString part = QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(i + 1);
+        parts[part] = ("<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\"><sheetNames>"
+                       + names + "</sheetNames></externalBook></externalLink>").toUtf8();
+        parts[QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(i + 1)] =
+            ("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\""
+             + targets[i].toHtmlEscaped() + "\" TargetMode=\"External\"/></Relationships>").toUtf8();
+        overrides += QStringLiteral("<Override PartName=\"/%1\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/>").arg(part);
+        relationships += QStringLiteral("<Relationship Id=\"rIdEx%1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink%1.xml\"/>").arg(i + 1);
+        refs += QStringLiteral("<externalReference r:id=\"rIdEx%1\"/>").arg(i + 1);
+    }
+    parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", (overrides + QStringLiteral("</Types>")).toUtf8());
+    parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", (relationships + QStringLiteral("</Relationships>")).toUtf8());
+    parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", ("</sheets><externalReferences>" + refs + "</externalReferences>").toUtf8());
     jp::ZipWriter z;
     for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
     return z.finish();
 }
+
+// A workbook with one link to another workbook (its part names the sheets given), the link pointing at `target`.
+QByteArray withOneLink(const QString &rows, const QString &target, const QStringList &sheets) { return withLinks(rows, {target}, {sheets}); }
 
 QString manyOnes(int n)
 {
@@ -290,6 +444,439 @@ private Q_SLOTS:
             }
         QCOMPARE(books, 3);   // this workbook's, the add-in's, and the link
         QVERIFY(named);
+    }
+
+    // The address of a link is written with the format's own codes (1 and a drive letter, or 1 and "@" for a network path, 3 between folders, 4 for a folder up, 5 and a length for a web address; no
+    // brackets) after the code 1 that says it is a file's address, and is read back as the path it stands for. Bytes are checked against the codes, as real files and the other open-source suite write them.
+    void aLinksAddressIsWrittenInTheFormatsPathCodesAndReadBack()
+    {
+        struct Case {
+            QString target, written, back;
+            bool wide;
+        };
+        const QList<Case> cases = {
+            {QStringLiteral("C:\\data\\Costs.xlsx"), QStringLiteral("<1><1>Cdata<3>Costs.xlsx"), QStringLiteral("C:\\data\\Costs.xlsx"), false},
+            {QStringLiteral("\\\\srv\\share\\a.xlsx"), QStringLiteral("<1><1>@srv<3>share<3>a.xlsx"), QStringLiteral("\\\\srv\\share\\a.xlsx"), false},
+            {QStringLiteral("..\\a.xlsx"), QStringLiteral("<1><4>a.xlsx"), QStringLiteral("..\\a.xlsx"), false},
+            {QStringLiteral("..\\..\\up\\a.xlsx"), QStringLiteral("<1><4><4>up<3>a.xlsx"), QStringLiteral("..\\..\\up\\a.xlsx"), false},
+            {QStringLiteral("a.xlsx"), QStringLiteral("<1>a.xlsx"), QStringLiteral("a.xlsx"), false},
+            {QStringLiteral("sub/a.xlsx"), QStringLiteral("<1>sub<3>a.xlsx"), QStringLiteral("sub\\a.xlsx"), false},
+            {QStringLiteral("http://h/x.xlsx"), QStringLiteral("<1><5><15>http://h/x.xlsx"), QStringLiteral("http://h/x.xlsx"), false},
+            {QStringLiteral("file:///C:/My%20Docs/a.xlsx"), QStringLiteral("<1><1>CMy Docs<3>a.xlsx"), QStringLiteral("C:\\My Docs\\a.xlsx"), false},
+            {QString::fromUtf8("C:\\\xE3\x83\x87\xE3\x83\xBC\xE3\x82\xBF\\\xE5\xA3\xB2\xE4\xB8\x8A.xlsx"), withCodes(QStringLiteral("<1><1>C")) + QString::fromUtf8("\xE3\x83\x87\xE3\x83\xBC\xE3\x82\xBF") + QChar(3) + QString::fromUtf8("\xE5\xA3\xB2\xE4\xB8\x8A.xlsx"),
+             QString::fromUtf8("C:\\\xE3\x83\x87\xE3\x83\xBC\xE3\x82\xBF\\\xE5\xA3\xB2\xE4\xB8\x8A.xlsx"), true},
+        };
+        for (const Case &k : cases) {
+            Copies c;
+            QVERIFY2(c.make(withOneLink(row(1, num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("[1]Sheet1!A1+1"), 33)), k.target, {QStringLiteral("Sheet1")}), false), qPrintable(c.why));
+            const ExternalPart part = externalPart(c.xlsBytes);
+            QCOMPARE(part.books.size(), 3);   // this workbook's, the add-in's, and the link
+            const BookRecord &b = part.books[2];
+            QVERIFY(b.isLink());
+            QCOMPARE(b.address, withCodes(k.written));
+            QCOMPARE(b.wideAddress, k.wide);
+            QCOMPARE(b.sheets, 1);
+            QCOMPARE(b.names, QStringList{QStringLiteral("Sheet1")});
+            const auto links = ExternalBooks::read(c.xls, QString());
+            QVERIFY2(links, qPrintable(k.target));
+            QCOMPARE(links->count(), 1);
+            QCOMPARE(links->target(1), k.back);
+            QCOMPARE(links->sheetNames(1), QStringList{QStringLiteral("Sheet1")});
+            // (the same file the original named)
+            const auto original = ExternalBooks::read(c.original, QString());
+            QVERIFY(original);
+            QCOMPARE(slashes(links->filePath(1)), slashes(original->filePath(1)));
+            QCOMPARE(links->isNetwork(1), original->isNetwork(1));
+        }
+    }
+
+    // The sheet of the other workbook a reference names is its place in the book record's list of sheets, through the list of external sheets, whose entry names the book (the third: this workbook's,
+    // the add-in's, then the links'); a sheet of a span names the first and the last.
+    void aReferenceToAnotherWorkbookNamesTheBookAndTheSheetByPlace()
+    {
+        Copies c;
+        const QString rows = num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("[1]Sheet1!A1+1"), 33) + fnum(QStringLiteral("C1"), QStringLiteral("'[1]Q 2'!B2*2"), 33)
+                             + fnum(QStringLiteral("D1"), QStringLiteral("SUM('[1]Sheet1:Q 2'!A1)"), 33);
+        QVERIFY2(c.make(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1"), QStringLiteral("Q 2")}), false), qPrintable(c.why));
+        const ExternalPart part = externalPart(c.xlsBytes);
+        QCOMPARE(part.books.value(2).names, (QStringList{QStringLiteral("Sheet1"), QStringLiteral("Q 2")}));
+        const int expectFirst[] = {0, 1, 0}, expectLast[] = {0, 1, 1};
+        for (int i = 0; i < 3; ++i) {
+            const QByteArray t = formulaTokens(c.xlsBytes, 1 + i);
+            // (a value operand of + and *, and the argument of SUM, which is a reference: the tokens that read a cell of another sheet, with the class of their place)
+            const int token = quint8(t[0]);
+            QVERIFY2((token & 0x1F) == 0x1A, qPrintable(QString::number(token, 16)));
+            QCOMPARE(token, i == 2 ? 0x3A : 0x5A);
+            const int ixti = quint8(t[1]) | (quint8(t[2]) << 8);
+            QVERIFY(ixti < part.xtis.size());
+            QCOMPARE(part.xtis[ixti].book, 2);
+            QCOMPARE(part.xtis[ixti].first, expectFirst[i]);
+            QCOMPARE(part.xtis[ixti].last, expectLast[i]);
+        }
+    }
+
+    // A formula that reads another workbook keeps its link through saving to the old form, opening that, and saving again to the old form, to the XML form, and to the OpenDocument form: the formula, the
+    // address, and the sheets stay (and where the form cannot hold the link, the value is what is written, never a "[1]" that means nothing).
+    void aLinkSurvivesSavingAndOpeningAgainInEveryForm()
+    {
+        Copies c;
+        const QStringList formulas = {QStringLiteral("[1]Sheet1!A1+1"), QStringLiteral("SUM('[1]Q 2'!$B$2:C3)"), QStringLiteral("SUM('[1]Sheet1:Q 2'!A1)")};
+        QString rows = num(QStringLiteral("A1"), 3);
+        for (int i = 0; i < formulas.size(); ++i) rows += fnum(QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1), formulas[i], 33);
+        const QStringList sheets = {QStringLiteral("Sheet1"), QStringLiteral("Q 2")};
+        const QString target = QStringLiteral("C:\\data\\Costs.xlsx");
+        QVERIFY2(c.make(withOneLink(row(1, rows), target, sheets), false), qPrintable(c.why));
+        auto checkFormulas = [&](const Workbook &wb, const char *what) {
+            const Sheet s = c.sheet(wb, 0);
+            for (int i = 0; i < formulas.size(); ++i) QVERIFY2(formula(s, QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1)) == formulas[i], what);
+        };
+        auto checkLink = [&](const Workbook &wb, const char *what) {
+            const auto links = ExternalBooks::read(wb, QString());
+            QVERIFY2(links && links->count() == 1, what);
+            QCOMPARE(links->target(1), target);
+            QCOMPARE(links->sheetNames(1), sheets);
+        };
+        checkFormulas(c.xls, "xls");
+        checkLink(c.xls, "xls");
+        // to the old form again
+        QByteArray again;
+        CopyReport report;
+        QVERIFY2(saveXls(c.xls, &again, &report, &c.why), qPrintable(c.why));
+        QCOMPARE(report.formulasAsValues, qint64(0));
+        Workbook second;
+        QVERIFY2(second.openBinary(again, &c.why), qPrintable(c.why));
+        checkFormulas(second, "xls twice");
+        checkLink(second, "xls twice");
+        // to the XML form: the link has its part, its address in the relationships, and its place in the workbook's list, and the formulas are formulas
+        QByteArray xml;
+        QVERIFY2(saveXlsx(c.xls, SaveChanges(), &xml, &c.why, nullptr), qPrintable(c.why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(xml, parts));
+        QVERIFY(parts.contains(QStringLiteral("xl/externalLinks/externalLink1.xml")));
+        QVERIFY(parts.value(QStringLiteral("xl/workbook.xml")).contains("<externalReference r:id="));
+        QVERIFY(parts.value(QStringLiteral("xl/externalLinks/externalLink1.xml")).contains("<sheetName val=\"Q 2\"/>"));
+        QVERIFY(parts.value(QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")).contains("Target=\"C:\\data\\Costs.xlsx\""));
+        Workbook third;
+        QVERIFY2(openXlsx(xml, &third, &c.why), qPrintable(c.why));
+        checkFormulas(third, "xlsx");
+        checkLink(third, "xlsx");
+        QByteArray fromXml;
+        QVERIFY2(saveXls(third, &fromXml, &report, &c.why), qPrintable(c.why));
+        Workbook fourth;
+        QVERIFY2(fourth.openBinary(fromXml, &c.why), qPrintable(c.why));
+        checkFormulas(fourth, "xlsx to xls");
+        checkLink(fourth, "xlsx to xls");
+        // to OpenDocument: nothing that means nothing without the link
+        QByteArray ods;
+        QVERIFY2(saveOds(c.xls, &ods, &report, &c.why), qPrintable(c.why));
+        Workbook opened;
+        QVERIFY2(openBytes(ods, QStringLiteral("copy.ods"), &opened, &c.why), qPrintable(c.why));
+        const Sheet o = c.sheet(opened, 0);
+        for (int i = 0; i < formulas.size(); ++i) {
+            const QString ref = QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1);
+            QVERIFY2(!formula(o, ref).contains(QLatin1String("[1]")), qPrintable(ref));
+            QCOMPARE(val(opened, o, ref), QStringLiteral("n:33"));
+        }
+    }
+
+    // A formula whose link is not in the workbook for any reason (here the link's address is not a file's, so the reader keeps no address) is written as its value by every writer: the old form, and the XML form.
+    void aFormulaWhoseLinkHasNoAddressIsNeverWrittenWithADanglingNumber()
+    {
+        Copies c;
+        QVERIFY2(c.make(withOneLink(row(1, num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("[1]Sheet1!A1+1"), 33)), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1")}), false), qPrintable(c.why));
+        // the first character of the book record's address says what kind of address it is: 1 for a file, and anything else is not one the reader keeps
+        jp::cfb::File file;
+        QVERIFY(jp::cfb::read(c.xlsBytes, &file, &c.why));
+        QByteArray stream = file.stream(QStringLiteral("Workbook"));
+        int books = 0;
+        for (qsizetype at = 0; at + 4 <= stream.size();) {
+            const int id = quint8(stream[at]) | (quint8(stream[at + 1]) << 8), len = quint8(stream[at + 2]) | (quint8(stream[at + 3]) << 8);
+            if (id == 0x01AE && ++books == 3) stream[at + 4 + 5] = char(0x7E);
+            at += 4 + len;
+        }
+        QCOMPARE(books, 3);
+        QVERIFY(file.setStream(QStringLiteral("Workbook"), stream));
+        Workbook broken;
+        QVERIFY2(broken.openBinary(jp::cfb::write(file), &c.why), qPrintable(c.why));
+        // (the formula is read with its number, and the link has no address)
+        const Sheet read = c.sheet(broken, 0);
+        QCOMPARE(formula(read, QStringLiteral("B1")), QStringLiteral("[1]Sheet1!A1+1"));
+        const auto links = ExternalBooks::read(broken, QString());
+        QVERIFY(links && links->count() == 1);
+        QVERIFY(links->target(1).isEmpty());
+        QByteArray xml;
+        CopyReport report;
+        QVERIFY2(saveXlsx(broken, SaveChanges(), &xml, &c.why, nullptr), qPrintable(c.why));
+        Workbook reopened;
+        QVERIFY2(openXlsx(xml, &reopened, &c.why), qPrintable(c.why));
+        QVERIFY(formula(c.sheet(reopened, 0), QStringLiteral("B1")).isEmpty());
+        QCOMPARE(val(reopened, c.sheet(reopened, 0), QStringLiteral("B1")), QStringLiteral("n:33"));
+        QByteArray old;
+        QVERIFY2(saveXls(broken, &old, &report, &c.why), qPrintable(c.why));
+        QCOMPARE(report.formulasAsValues, qint64(1));
+        QVERIFY(report.formulaReasons.join(QLatin1Char(' ')).contains(QLatin1String("has no link")));
+    }
+
+    // Links made in the session, and one whose address was changed there, are in the file the copy is made from (the save puts them in): the copy has them in the order the formulas number them.
+    void linksMadeOrChangedInTheSessionAreWrittenToo()
+    {
+        QString why;
+        const QString rows = num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("[1]Sheet1!A1"), 5) + fnum(QStringLiteral("C1"), QStringLiteral("[2]Sheet1!A1+1"), 6);
+        Workbook book;
+        QVERIFY2(openXlsx(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1")}), &book, &why), qPrintable(why));
+        SaveChanges changes;
+        const QString part = book.package().relationshipsOfType(book.mainPart(), QStringLiteral("/externalLink")).value(0).target;
+        QVERIFY(!part.isEmpty());
+        changes.externalTargets[part] = QStringLiteral("E:\\moved\\Costs.xlsx");
+        SaveChanges::NewExternalLink added;
+        added.target = QStringLiteral("D:\\new\\Book.xlsx");
+        added.sheetNames = {QStringLiteral("Sheet1")};
+        changes.newExternalLinks.push_back(added);
+        QByteArray xml;
+        QVERIFY2(saveXlsx(book, changes, &xml, &why, nullptr), qPrintable(why));
+        Workbook made;
+        QVERIFY2(openXlsx(xml, &made, &why), qPrintable(why));
+        QByteArray old;
+        CopyReport report;
+        QVERIFY2(saveXls(made, &old, &report, &why), qPrintable(why));
+        QCOMPARE(report.formulasAsValues, qint64(0));
+        const ExternalPart part2 = externalPart(old);
+        QCOMPARE(part2.books.size(), 4);   // this workbook's, the add-in's, and the two links
+        QCOMPARE(part2.books[2].address, withCodes(QStringLiteral("<1><1>Emoved<3>Costs.xlsx")));
+        QCOMPARE(part2.books[3].address, withCodes(QStringLiteral("<1><1>Dnew<3>Book.xlsx")));
+        Workbook reopened;
+        QVERIFY2(reopened.openBinary(old, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(reopened.readSheet(0, &s));
+        QCOMPARE(formula(s, QStringLiteral("B1")), QStringLiteral("[1]Sheet1!A1"));
+        QCOMPARE(formula(s, QStringLiteral("C1")), QStringLiteral("[2]Sheet1!A1+1"));
+        // and a workbook read from the old form takes a link made in the session after the ones it has
+        SaveChanges more;
+        more.newExternalLinks.push_back(added);
+        QByteArray again;
+        QVERIFY2(saveXlsx(reopened, more, &again, &why, nullptr), qPrintable(why));
+        Workbook third;
+        QVERIFY2(openXlsx(again, &third, &why), qPrintable(why));
+        const auto links = ExternalBooks::read(third, QString());
+        QVERIFY(links && links->count() == 3);
+        QCOMPARE(links->target(1), QStringLiteral("E:\\moved\\Costs.xlsx"));
+        QCOMPARE(links->target(2), QStringLiteral("D:\\new\\Book.xlsx"));
+        QCOMPARE(links->target(3), QStringLiteral("D:\\new\\Book.xlsx"));
+    }
+
+    // A book record that does not fit one record (many or long sheet names) goes on in CONTINUE records with the byte of flags put first when a string is cut, and the list of external sheets goes
+    // on only between its entries of 6 bytes; each is read back whole.
+    void recordsOverTheSizeAreContinuedAsTheFormatRequires()
+    {
+        QStringList names;
+        for (int i = 0; i < 150; ++i) names << QStringLiteral("Name %1 ").arg(i).leftJustified(100, QLatin1Char('x')) + (i % 7 == 0 ? QString(QChar(0x754C)) : QString());
+        Copies c;
+        const QString rows = num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("'[1]%1'!A1+1").arg(names.first()), 33) + fnum(QStringLiteral("C1"), QStringLiteral("'[1]%1'!A1*2").arg(names.last()), 44);
+        QVERIFY2(c.make(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), names), false), qPrintable(c.why));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(0));
+        const ExternalPart part = externalPart(c.xlsBytes);
+        QCOMPARE(part.books.value(2).names, names);
+        QVERIFY(part.books.value(2).pieces >= 3);
+        bool well = false;
+        const QList<RawRecord> raw = rawRecords(c.xlsBytes, &well);
+        QVERIFY(well);
+        for (int i = 0; i < raw.size(); ++i) {
+            QVERIFY(raw[i].data.size() <= 8224);
+        }
+        const auto links = ExternalBooks::read(c.xls, QString());
+        QVERIFY(links);
+        QCOMPARE(links->sheetNames(1), names);
+        const Sheet s = c.sheet(c.xls, 0);
+        QCOMPARE(formula(s, QStringLiteral("B1")), QStringLiteral("'[1]%1'!A1+1").arg(names.first()));
+        QCOMPARE(formula(s, QStringLiteral("C1")), QStringLiteral("'[1]%1'!A1*2").arg(names.last()));
+    }
+
+    void theListOfExternalSheetsIsContinuedOnlyBetweenItsEntries()
+    {
+        QStringList names;
+        for (int i = 1; i <= 70; ++i) names << QStringLiteral("Tab %1").arg(i);
+        QStringList formulas;
+        for (int a = 1; a <= 70 && formulas.size() < 1500; ++a)
+            for (int b = a + 1; b <= 70 && formulas.size() < 1500; ++b) formulas << QStringLiteral("SUM('[1]Tab %1:Tab %2'!A1)").arg(a).arg(b);
+        QString rows;
+        for (int i = 0; i < formulas.size(); ++i) rows += row(i + 1, fnum(QStringLiteral("A%1").arg(i + 1), formulas[i], 7));
+        Copies c;
+        QVERIFY2(c.make(withOneLink(rows, QStringLiteral("C:\\data\\Costs.xlsx"), names), false), qPrintable(c.why));
+        QCOMPARE(c.xlsReport.formulas, qint64(1500));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(0));
+        const ExternalPart part = externalPart(c.xlsBytes);
+        QVERIFY(part.xtis.size() >= 1500);
+        QVERIFY(part.externSheetPieces >= 2);
+        // the pieces of the record, as they lie: the first holds the count and whole entries, every one holds whole entries, and none is over the most
+        int seen = 0, pieces = 0;
+        const QList<RawRecord> raw = rawRecords(c.xlsBytes);
+        for (int i = 0; i < raw.size(); ++i) {
+            if (raw[i].id != 0x0017) continue;
+            for (int k = i; k < raw.size() && (k == i || raw[k].id == 0x003C); ++k, ++pieces) {
+                QVERIFY(raw[k].data.size() <= 8224);
+                const qsizetype entries = raw[k].data.size() - (k == i ? 2 : 0);
+                QCOMPARE(entries % 6, qsizetype(0));
+                seen += int(entries / 6);
+            }
+            break;
+        }
+        QCOMPARE(pieces, part.externSheetPieces);
+        QCOMPARE(seen, int(part.xtis.size()));
+        const Sheet s = c.sheet(c.xls, 0);
+        for (int i : {0, 1, 69, 700, 1499}) QCOMPARE(formula(s, QStringLiteral("A%1").arg(i + 1)), formulas[i]);
+    }
+
+    // A reference that is gone ("Sheet2!#REF!") is the token for it with the class of the place it stands in, as the tokens for a cell or a name have: 0x5C in a value, 0x7C in an array formula, 0x3C
+    // where a reference is meant (an argument of SUM); the sheet is the sheet's place in the list of external sheets.
+    void aReferenceThatIsGoneHasTheClassOfItsPlace()
+    {
+        Copies c;
+        const QByteArray x = buildXlsx({worksheet(row(1, num(QStringLiteral("A1"), 1) + fnum(QStringLiteral("B1"), QStringLiteral("Sheet2!#REF!+1"), 5)
+                                                       + QStringLiteral("<c r=\"C1\"><f t=\"array\" ref=\"C1\">Sheet2!#REF!+1</f><v>2</v></c>")
+                                                       + fnum(QStringLiteral("D1"), QStringLiteral("SUM(Sheet2!#REF!)"), 5))),
+                                        worksheet(row(1, num(QStringLiteral("A1"), 2)))});
+        QVERIFY2(c.make(x, false), qPrintable(c.why));
+        const ExternalPart part = externalPart(c.xlsBytes);
+        const struct {
+            int col, token;
+        } expected[] = {{1, 0x5C}, {2, 0x7C}, {3, 0x3C}};
+        for (const auto &e : expected) {
+            const QByteArray t = e.col == 2 ? arrayFormulaTokens(c.xlsBytes) : formulaTokens(c.xlsBytes, e.col);
+            QVERIFY(t.size() >= 7);
+            QCOMPARE(quint8(t[0]), quint8(e.token));
+            const int ixti = quint8(t[1]) | (quint8(t[2]) << 8);
+            QVERIFY(ixti < part.xtis.size());
+            QCOMPARE(part.xtis[ixti].book, 0);
+            QCOMPARE(part.xtis[ixti].first, 1);
+            QCOMPARE(part.xtis[ixti].last, 1);
+            QCOMPARE(t.mid(3, 4), QByteArray(4, '\0'));
+        }
+        const Sheet s = c.sheet(c.xls, 0);
+        QCOMPARE(formula(s, QStringLiteral("B1")), QStringLiteral("Sheet2!#REF!+1"));
+        QCOMPARE(formula(s, QStringLiteral("C1")), QStringLiteral("Sheet2!#REF!+1"));
+    }
+
+    // The names of functions are the same whatever their case: one record for the name in the add-in's list, and the same place in each call.
+    void functionNamesCompareWithoutRegardToCase()
+    {
+        Copies c;
+        QString rows = num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("MyCost(A1,2)"), 33) + fnum(QStringLiteral("C1"), QStringLiteral("MYCOST(A1)"), 33) + fnum(QStringLiteral("D1"), QStringLiteral("mycost(1)+1"), 33)
+                       + fnum(QStringLiteral("E1"), QStringLiteral("Other(1)"), 33);
+        QVERIFY2(c.make(simple(row(1, rows)), false), qPrintable(c.why));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(0));
+        const ExternalPart part = externalPart(c.xlsBytes);
+        QCOMPARE(part.addInNames, (QStringList{QStringLiteral("MyCost"), QStringLiteral("Other")}));
+        // the name comes first among a call's tokens: the token for a name of the add-in's book, then its place in that book's list of names
+        const int expectPlace[] = {1, 1, 1, 2};
+        for (int i = 0; i < 4; ++i) {
+            const QByteArray t = formulaTokens(c.xlsBytes, 1 + i);
+            QCOMPARE(quint8(t[0]), quint8(0x39));
+            const int ixti = quint8(t[1]) | (quint8(t[2]) << 8);
+            QCOMPARE(part.xtis.value(ixti).book, 1);
+            QCOMPARE(quint8(t[3]) | (quint8(t[4]) << 8), expectPlace[i]);
+        }
+    }
+
+    // What the format cannot hold of calls by name, links, and sheets of links is not guessed at: each formula keeps its value, and the message says which limit it was. The count of what is kept is checked,
+    // so a limit that is not there would show.
+    void theLimitsOfNamedCallsAndLinksKeepTheValueAndSayWhich()
+    {
+        auto joined = [](const Copies &c) { return c.xlsReport.formulaReasons.join(QLatin1Char('\n')); };
+        {   // more than 255 different functions called by name
+            QString rows;
+            for (int i = 1; i <= 256; ++i) rows += row(i, fnum(QStringLiteral("A%1").arg(i), QStringLiteral("Cost%1x(1)").arg(i), 9));
+            Copies c;
+            QVERIFY2(c.make(simple(rows), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(255));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("255 different functions")), qPrintable(joined(c)));
+            QCOMPARE(val(c.xls, c.sheet(c.xls, 0), QStringLiteral("A256")), QStringLiteral("n:9"));
+        }
+        {   // a call by name takes 29 arguments, and a function of the format 30
+            QStringList many29, many30;
+            for (int i = 0; i < 30; ++i) (i < 29 ? many29 : many30) << QStringLiteral("1");
+            many30 = many29 + QStringList{QStringLiteral("1")};
+            Copies c;
+            QVERIFY2(c.make(simple(row(1, fnum(QStringLiteral("A1"), QStringLiteral("MyCost(%1)").arg(many29.join(QLatin1Char(','))), 9) + fnum(QStringLiteral("B1"), QStringLiteral("MyCost(%1)").arg(many30.join(QLatin1Char(','))), 9)
+                                               + fnum(QStringLiteral("C1"), QStringLiteral("SUM(%1)").arg(many30.join(QLatin1Char(','))), 9) + fnum(QStringLiteral("D1"), QStringLiteral("SUM(%1,1)").arg(many30.join(QLatin1Char(','))), 9))), false),
+                     qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(2));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(2));
+            QVERIFY2(joined(c).contains(QLatin1String("29 arguments")), qPrintable(joined(c)));
+            QVERIFY2(joined(c).contains(QLatin1String("30 arguments")), qPrintable(joined(c)));
+        }
+        {   // a name of 255 characters is called, one of 256 is not (the format cannot call it)
+            const QString ok = QStringLiteral("F") + QString(254, QLatin1Char('x')), tooLong = QStringLiteral("F") + QString(255, QLatin1Char('x'));
+            Copies c;
+            QVERIFY2(c.make(simple(row(1, fnum(QStringLiteral("A1"), ok + QStringLiteral("(1)"), 9) + fnum(QStringLiteral("B1"), tooLong + QStringLiteral("(1)"), 9))), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(1));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("255 characters")), qPrintable(joined(c)));
+            QCOMPARE(formula(c.sheet(c.xls, 0), QStringLiteral("A1")), ok + QStringLiteral("(1)"));
+        }
+        {   // 250 links, not 251
+            QStringList targets;
+            for (int i = 1; i <= 251; ++i) targets << QStringLiteral("C:\\data\\Book%1.xlsx").arg(i);
+            QList<QStringList> sheets;
+            for (int i = 0; i < 251; ++i) sheets << QStringList{QStringLiteral("Sheet1")};
+            Copies c;
+            QVERIFY2(c.make(withLinks(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[250]Sheet1!A1"), 9) + fnum(QStringLiteral("B1"), QStringLiteral("[251]Sheet1!A1"), 9)), targets, sheets), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(1));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("250 links")), qPrintable(joined(c)));
+            const auto links = ExternalBooks::read(c.xls, QString());
+            QVERIFY(links);
+            QCOMPARE(links->count(), 250);
+            QCOMPARE(links->target(250), QStringLiteral("C:\\data\\Book250.xlsx"));
+        }
+        {   // an address of 1,000 characters, not 1,001
+            const QString shorter = QStringLiteral("C:\\") + QString(1000 - 3 - 5, QLatin1Char('d')) + QStringLiteral(".xlsx"), longer = shorter + QLatin1Char('d');
+            QCOMPARE(shorter.size(), 1000);
+            Copies c;
+            QVERIFY2(c.make(withLinks(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[1]Sheet1!A1"), 9) + fnum(QStringLiteral("B1"), QStringLiteral("[2]Sheet1!A1"), 9)), {shorter, longer},
+                                      {QStringList{QStringLiteral("Sheet1")}, QStringList{QStringLiteral("Sheet1")}}), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(1));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("1,000 characters")), qPrintable(joined(c)));
+            const auto links = ExternalBooks::read(c.xls, QString());
+            QVERIFY(links && links->count() >= 1);
+            QCOMPARE(links->target(1), shorter);
+        }
+        {   // 255 sheets of one other workbook, not 256
+            QString rows;
+            for (int i = 1; i <= 256; ++i) rows += row(i, fnum(QStringLiteral("A%1").arg(i), QStringLiteral("'[1]Tab %1'!A1").arg(i), 9));
+            Copies c;
+            QVERIFY2(c.make(withOneLink(rows, QStringLiteral("C:\\data\\Costs.xlsx"), QStringList()), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(255));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("255 sheets")), qPrintable(joined(c)));
+        }
+        {   // a workbook the formula names that is not linked at all
+            Copies c;
+            QVERIFY2(c.make(withOneLink(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[3]Sheet1!A1"), 9)), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1")}), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("has no link")), qPrintable(joined(c)));
+        }
+        // a function that is not in the format is refused where there is no way to call it by name (a context without the add-in's list)
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 0; };
+        QByteArray rgce, extra;
+        QString why;
+        QVERIFY(!xlsCompileFormula(QStringLiteral("NoSuchFunction(1)"), cx, &rgce, &extra, &why));
+        QVERIFY2(why.contains(QLatin1String("NOSUCHFUNCTION")), qPrintable(why));
+    }
+
+    // The message about links says what the copy has and what it does not: the formulas and the addresses stay in the old form; only the values they last read are not kept. For OpenDocument it is
+    // as before. (No counted message here: nothing in these lines depends on a plural.)
+    void theMessageAboutLinksSaysWhatTheCopyKeeps()
+    {
+        Workbook book;
+        QString why;
+        QVERIFY2(openXlsx(withOneLink(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[1]Sheet1!A1"), 9)), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1")}), &book, &why), qPrintable(why));
+        const QString xls = featuresNotInCopy(book, CopyKind::Xls).join(QLatin1Char('\n')), ods = featuresNotInCopy(book, CopyKind::Ods).join(QLatin1Char('\n'));
+        QVERIFY2(xls.contains(QLatin1String("links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)")), qPrintable(xls));
+        QVERIFY2(ods.contains(QLatin1String("links to other workbooks (their formulas keep the values they had)")), qPrintable(ods));
     }
 
     // Functions added for the first release and 1.0 are saved with the prefix a file gives them (_xlfn.) and come back the same from the .xlsx, the .xls copy, and the .ods copy.

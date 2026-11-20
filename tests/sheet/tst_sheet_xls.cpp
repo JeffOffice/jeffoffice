@@ -1190,9 +1190,13 @@ private Q_SLOTS:
         for (int i = 0; i < 400; ++i) names << QStringLiteral("Sheet number %1").arg(i);
         W book;
         book.u16(int(names.size())).u16(9).u8(0).raw("other.xls");
-        for (const QString &n : names) book.str8(n, 2);
+        qsizetype cutAt = 0;
+        for (int i = 0; i < names.size(); ++i) {
+            if (i == 250) cutAt = book.bytes().size() + 3 + 4;   // (inside the characters of a name: the next record begins with the byte of flags of the rest)
+            book.str8(names[i], 2);
+        }
         const QByteArray bookBytes = book.bytes();
-        const QByteArray supbook = rec(0x01AE, bookBytes.left(3000)) + rec(0x003C, bookBytes.mid(3000));
+        const QByteArray supbook = rec(0x01AE, bookBytes.left(cutAt)) + rec(0x003C, QByteArray(1, '\0') + bookBytes.mid(cutAt));
         W twoLists;
         twoLists.u16(2).u16(0).u16(0).u16(0).u16(1).u16(399).u16(399);
         Book c;

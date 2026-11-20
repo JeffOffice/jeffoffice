@@ -744,6 +744,22 @@ void readCache(const QByteArray &xml, Link *l, qint64 *cellBudget)
 
 std::shared_ptr<ExternalBooks> ExternalBooks::read(const Workbook &book, const QString &baseDir, const QDateTime &fileTime)
 {
+    // (a workbook read from the older binary form keeps its links in the file's records, not in parts: its list has the same entries, in the order its formulas number them)
+    if (book.isBinary()) {
+        const std::vector<ExternalLinkInfo> held = book.convertedLinks();
+        if (held.empty()) return nullptr;
+        auto converted = std::make_shared<ExternalBooks>();
+        converted->d->baseDir = baseDir;
+        converted->d->fileTime = fileTime;
+        for (const ExternalLinkInfo &info : held) {
+            if (int(converted->d->links.size()) >= kMostLinks) break;
+            Link l;
+            l.target = info.target.left(8192);
+            l.sheetNames = info.sheetNames;
+            converted->d->links.push_back(std::move(l));
+        }
+        return converted;
+    }
     const jp::office::Package &package = book.package();
     const QString main = book.mainPart();
     if (main.isEmpty()) return nullptr;

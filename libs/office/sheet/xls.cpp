@@ -2,6 +2,7 @@
 
 #include "sheet/cellref.h"
 #include "sheet/xlsbytes.h"
+#include "sheet/xlslinkaddress.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xlsprint.h"
 #include "sheet/xlschart.h"
@@ -340,6 +341,14 @@ const char *const kBuiltinNames[] = {"Consolidate_Area", "Auto_Open", "Auto_Clos
                                      "Recorder", "Data_Form", "Auto_Activate", "Auto_Deactivate", "Sheet_Title", "_FilterDatabase"};
 
 } // namespace
+
+std::vector<ExternalLinkInfo> XlsBook::links() const
+{
+    std::vector<ExternalLinkInfo> out;
+    for (const XlsSupBook &b : m_cx.supbooks)
+        if (b.kind == XlsSupBook::Kind::External) out.push_back({b.url, b.sheets});
+    return out;
+}
 
 bool startsCompoundFile(const QByteArray &head) { return head.size() >= 8 && head.startsWith(QByteArray::fromHex("D0CF11E0A1B11AE1")); }
 
@@ -859,7 +868,7 @@ private:
 
     void readSupBook(const Logical &lg)
     {
-        Bytes b(lg.data, 0, lg.data.size());
+        Chars b(lg, 0);
         XlsSupBook sb;
         if (m_biff < 8) return;
         const int sheets = b.u16();
@@ -870,17 +879,16 @@ private:
             sb.kind = XlsSupBook::Kind::AddIn;
         } else {
             sb.kind = XlsSupBook::Kind::External;
+            // (the address and the names of the sheets are strings that may go on in the next record: the format puts the byte of flags at the start of the rest)
             const quint8 flags = b.u8();
-            const bool high = flags & 1;
-            const char *p = b.take(qint64(cch) * (high ? 2 : 1));
-            if (p) sb.url = high ? QString::fromUtf16(reinterpret_cast<const char16_t *>(p), cch) : QString::fromLatin1(p, cch);
-            for (int i = 0; i < sheets && !b.bad(); ++i) {
+            const QString address = b.chars(cch, flags & 1);
+            if (b.ok()) sb.url = xlsDecodeLinkAddress(address);
+            for (int i = 0; i < sheets && b.ok(); ++i) {
                 const int n = b.u16();
                 const quint8 f = b.u8();
-                const bool h = f & 1;
-                const char *q = b.take(qint64(n) * (h ? 2 : 1));
-                if (!q) break;
-                sb.sheets << (h ? QString::fromUtf16(reinterpret_cast<const char16_t *>(q), n) : QString::fromLatin1(q, n));
+                const QString name = b.chars(n, f & 1);
+                if (!b.ok()) break;
+                sb.sheets << name;
             }
             sb.ordinal = ++m_externals;
         }
