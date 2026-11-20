@@ -28,6 +28,9 @@ constexpr quint16 pageWidth = 0xB01F, pageHeight = 0xB020, marginLeft = 0xB021, 
 constexpr quint16 columns = 0x500B, columnSpace = 0x900C, sectionType = 0x3009, landscape = 0x301D;
 } // namespace sprm
 
+// The short modifier of a piece (a Prm0): the sprm number in the old numbering, and its one-byte operand.
+quint16 prm0(int isprm, int val);
+
 // A date and time as the old format keeps them (a DTTM): minutes, hours, day, month (1 to 12), and years since 1900, packed in four bytes; for a sprm4.
 quint32 dttm(int year, int month, int day, int hour, int minute);
 
@@ -57,9 +60,23 @@ struct ListLevelSpec {
     int start = 1;
     QByteArray paragraph, character;
 };
+// A stretch of the main text whose stored pieces carry a short modifier (as a fast-saved file's do): the one sprm of the old numbering `isprm` with the
+// one-byte operand `val`, by `prm0()`.
+struct PieceMod {
+    int from, to;                      // characters [from, to) of the main text
+    quint16 prm;
+};
 struct BookmarkSpec {
     QString name;
     int from, to;                      // characters [from, to) of the main text
+};
+// A comment: the character of the main text that cites it (a \x05, which the writer marks as special), who made it, when, its text (paragraphs end in \r), and the
+// characters [from, to) of the main text it covers (-1: none, as a comment on a point).
+struct CommentSpec {
+    int ref = 0;
+    QString author, initials, text;
+    quint32 date = 0;                  // a DTTM (0: the file keeps no date, as the files of before 2002)
+    int from = -1, to = -1;
 };
 struct SectionSpec {
     int end;                           // the character after the section's last
@@ -85,6 +102,34 @@ struct ShapeSpec {
     QVector<int> moreAnchors;          // other characters of the main text that anchor this same shape (a hostile file does; a program's file doesn't)
 };
 
+// One property of a property set (section 2.20 of the property set format) for a test's stream: its number and type, and its value: a text in the code page (`raw`, the bytes as
+// the page has them, for type 0x1E), a wide text (0x1F), a whole number (2, 3), or a time as 100-nanosecond ticks since 1601 (0x40).
+struct PropSpec {
+    quint32 id = 0;
+    quint16 type = 0;
+    QString text;
+    QByteArray raw;
+    qint64 number = 0;
+};
+// The two kinds of set, by the 16 bytes that name them.
+QByteArray summaryFormat();
+QByteArray documentSummaryFormat();
+// A property set stream (section 2.21): one set of the given kind with its code page property and the properties, or two (the user-defined set second, with nothing in it) for the
+// document summary.
+QByteArray propertySetStream(const QByteArray &format, int codePage, const QVector<PropSpec> &props, bool twoSets = false);
+// The ticks of the property set format's time value (section 2.8) for a date and time (UTC).
+qint64 fileTime(int year, int month, int day, int hour, int minute);
+
+// The data of a legacy form field (section 2.9.78, 2.9.79): `type` 0 text field, 1 check box, 2 drop-down; `state` is the check box's (0, 1, 25 none) or the drop-down's chosen entry.
+struct FormFieldSpec {
+    int type = 0, state = 0;
+    QString name, text, format, help, status;   // (`text` is a text field's default)
+    int longest = 0, wDef = 0, textType = 0, boxSize = 20;
+    bool locked = false, autoSize = true, ownHelp = false, ownStatus = false;
+    QStringList entries;
+};
+QByteArray formFieldData(const FormFieldSpec &f);
+
 class DocWriter {
 public:
     QString text;                      // the main text: paragraphs end in \r (a table's cells in \a)
@@ -101,12 +146,15 @@ public:
     QVector<int> footnoteStarts;       // where the file says each note's text begins in the notes' text, other than where it does (a hostile file); none: where it does
     QStringList headerStories;         // six for the notes' separators then six for each section; a story's text without the mark that ends it
     QVector<BookmarkSpec> bookmarks;
+    QVector<CommentSpec> comments;
+    QVector<PieceMod> pieceMods;       // stretches (not overlapping) of the main text that are pieces of their own, with a short modifier
     QVector<ShapeSpec> shapes;
     QVector<QVector<ListLevelSpec>> lists;   // each list's levels; the instance of list i is number i + 1
     bool evenAndOddHeaders = false;
     int compatByte84 = -1;   // the first of the document settings' compatibility bytes (at 84), where not -1 (the settings then reach it)
     int defaultTab = 720;
     QByteArray data;                   // the data stream: pictures
+    QByteArray summaryInformation, documentSummaryInformation;   // the streams of the document's properties (by propertySetStream), when not empty
     bool password = false;             // the header says the file is protected
     int tableReserve = 0;              // bytes left at the start of the table stream (where a protected file keeps its description of the protection)
     bool oldVersion = false;           // a header from before 1997
@@ -115,6 +163,8 @@ public:
 
     // A picture (PNG bytes) set in the data stream, shown at the size in twips; the place to give a run (sprm::picture).
     int addPicture(const QByteArray &png, int widthTwips, int heightTwips);
+    // The data of a form field (from formFieldData) set in the data stream with the header that goes before it (section 2.9.158); the place to give a run (sprm::picture).
+    int addFormFieldData(const QByteArray &ffData);
     // A picture that is a metafile of that many bytes (all zero), kept deflated as such pictures are: a few kilobytes of file that make that many once read.
     int addMetafile(int inflatedBytes, int widthTwips, int heightTwips);
     // A rule across the line, in the data stream as a shape with no picture; the place to give a run (sprm::picture).

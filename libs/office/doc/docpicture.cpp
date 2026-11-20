@@ -8,6 +8,8 @@
 
 #include <QCoreApplication>
 #include <QBuffer>
+#include <QColor>
+#include <QImage>
 #include <QImageReader>
 #include <algorithm>
 
@@ -124,7 +126,41 @@ QString Converter::addMedia(const QString &part, const Picture &pic, const QStri
     return rid;
 }
 
-QByteArray Converter::pictureXml(qint32 position, const QString &part)
+QByteArray Converter::objectPlaceholderXml(qint32 position, const QString &part)
+{
+    if (m_pictures >= kMaxPictures) {
+        left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
+        return QByteArray();
+    }
+    ++m_pictures;
+    Picture pic;
+    pic.extension = QStringLiteral("png");
+    pic.width = pic.height = 72;
+    // The size the object is shown at, from its header where it has one (section 2.9.158 of the picture header: the goal size in twips, scaled in thousandths).
+    if (position >= 0 && data.fits(position, 68) && data.u16(position + 4) >= 68) {
+        const double w = double(data.u16(position + 28)) * data.u16(position + 32) / 1000.0 / 20.0, h = double(data.u16(position + 30)) * data.u16(position + 34) / 1000.0 / 20.0;
+        if (w >= 1 && h >= 1) {
+            pic.width = std::clamp(w, 1.0, 1584.0);
+            pic.height = std::clamp(h, 1.0, 1584.0);
+        }
+    }
+    if (m_placeholderPng.isEmpty()) {
+        QImage image(32, 32, QImage::Format_RGB32);
+        image.fill(QColor(0xEE, 0xEE, 0xEE));
+        for (int i = 0; i < 32; ++i)
+            for (int edge : {0, 31}) {
+                image.setPixelColor(i, edge, QColor(0x80, 0x80, 0x80));
+                image.setPixelColor(edge, i, QColor(0x80, 0x80, 0x80));
+            }
+        QBuffer buffer(&m_placeholderPng);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+    }
+    pic.bytes = m_placeholderPng;
+    return drawingXml(pic, addMedia(part, pic, QStringLiteral("placeholder")));
+}
+
+QByteArray Converter::pictureXml(qint32 position, const QString &part, bool quiet)
 {
     if (m_pictures >= kMaxPictures) {
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
@@ -142,6 +178,7 @@ QByteArray Converter::pictureXml(qint32 position, const QString &part)
         cached = m_pictureAt.insert(position, read);
     }
     if (cached->bytes.isEmpty() && cached->shape.isEmpty()) {
+        if (quiet) return QByteArray();
         left(QStringLiteral("pictures"), QCoreApplication::translate("jp::office::doc", "Some pictures could not be shown, and were left out."));
         return QByteArray();
     }

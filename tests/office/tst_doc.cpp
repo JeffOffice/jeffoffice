@@ -5,12 +5,17 @@
 #include "office/package.h"
 
 #include "doc/doc.h"
+#include "office/binarycrypt.h"
+#include "office/oleprops.h"
+#include "office/packageprops.h"
+#include "doc/docformat.h"
 #include "doc/docsalvage.h"
 #include "office/cfbsalvage.h"
 #include "io/cfb.h"
 #include "wml/wml.h"
 
 #include <QBuffer>
+#include <array>
 #include <QDir>
 #include <QDirIterator>
 #include <QImage>
@@ -225,6 +230,35 @@ QByteArray bodyXml(const DocWriter &w)
     return pkg.part(QStringLiteral("/word/document.xml"));
 }
 
+// The XML of any part of the package a file comes to (empty if there is none), and the notes the reader gave.
+QByteArray partXml(const DocWriter &w, const QString &name, QStringList *notes = nullptr)
+{
+    QString why;
+    wml::ReadNotes rn;
+    const QByteArray zip = doc::toDocxPackage(w.build(), &why, &rn);
+    if (notes) *notes = rn.notes;
+    Package pkg;
+    if (zip.isEmpty() || !pkg.read(zip)) return QByteArray();
+    return pkg.part(name);
+}
+
+// The properties of the document a file comes to.
+PackageProps propertiesOf(const DocWriter &w)
+{
+    return readPackageProps(partXml(w, QStringLiteral("/docProps/core.xml")), partXml(w, QStringLiteral("/docProps/app.xml")), QByteArray());
+}
+
+// The file with the size the header gives for a table of the table stream (slot `slot` of the header's pairs) changed.
+QByteArray withSlotSize(const QByteArray &file, int slot, quint32 size)
+{
+    jp::cfb::File f;
+    if (!jp::cfb::read(file, &f)) return QByteArray();
+    QByteArray wd = f.stream(QStringLiteral("WordDocument"));
+    for (int i = 0; i < 4; ++i) wd[158 + 8 * slot + i] = char((size >> (8 * i)) & 0xFF);
+    f.setStream(QStringLiteral("WordDocument"), wd);
+    return jp::cfb::write(f);
+}
+
 // The sprms of a tracked insertion or deletion by the author at `by` of the file's list, on the date.
 QByteArray insertion(int by, quint32 date = 0) { return sprm1(sprm::inserted, 0x81) + sprm2(sprm::insertedBy, by) + (date ? sprm4(sprm::insertedAt, date) : QByteArray()); }
 QByteArray deletion(int by, quint32 date = 0) { return sprm1(sprm::deleted, 0x81) + sprm2(sprm::deletedBy, by) + (date ? sprm4(sprm::deletedAt, date) : QByteArray()); }
@@ -272,10 +306,90 @@ QVector<int> tableEdges(const QByteArray &wd, const QByteArray &table)
     return out;
 }
 
+// The reference. Section 2.3.7.4 makes the verifier of the file from the key (high half) and the check value (low half); 2.3.7.6 transforms the data by the array with
+// no rotation, leaving a byte that is 0 or that the array turns to 0 as it is.
+struct XorReference {
+    static quint8 ror(quint8 b) { return quint8((b / 2) | (b * 128)); }
+    static quint16 key(const QByteArray &pw)
+    {
+        static const quint16 initialCode[15] = {0xE1F0, 0x1D0F, 0xCC9C, 0x84C0, 0x110C, 0x0E10, 0xF1CE, 0x313E, 0x1872, 0xE139, 0xD40F, 0x84F9, 0x280C, 0xA96A, 0x4EC3};
+        static const quint16 matrix[105] = {
+    0xAEFC, 0x4DD9, 0x9BB2, 0x2745, 0x4E8A, 0x9D14, 0x2A09,
+    0x7B61, 0xF6C2, 0xFDA5, 0xEB6B, 0xC6F7, 0x9DCF, 0x2BBF,
+    0x4563, 0x8AC6, 0x05AD, 0x0B5A, 0x16B4, 0x2D68, 0x5AD0,
+    0x0375, 0x06EA, 0x0DD4, 0x1BA8, 0x3750, 0x6EA0, 0xDD40,
+    0xD849, 0xA0B3, 0x5147, 0xA28E, 0x553D, 0xAA7A, 0x44D5,
+    0x6F45, 0xDE8A, 0xAD35, 0x4A4B, 0x9496, 0x390D, 0x721A,
+    0xEB23, 0xC667, 0x9CEF, 0x29FF, 0x53FE, 0xA7FC, 0x5FD9,
+    0x47D3, 0x8FA6, 0x0F6D, 0x1EDA, 0x3DB4, 0x7B68, 0xF6D0,
+    0xB861, 0x60E3, 0xC1C6, 0x93AD, 0x377B, 0x6EF6, 0xDDEC,
+    0x45A0, 0x8B40, 0x06A1, 0x0D42, 0x1A84, 0x3508, 0x6A10,
+    0xAA51, 0x4483, 0x8906, 0x022D, 0x045A, 0x08B4, 0x1168,
+    0x76B4, 0xED68, 0xCAF1, 0x85C3, 0x1BA7, 0x374E, 0x6E9C,
+    0x3730, 0x6E60, 0xDCC0, 0xA9A1, 0x4363, 0x86C6, 0x1DAD,
+    0x3331, 0x6662, 0xCCC4, 0x89A9, 0x0373, 0x06E6, 0x0DCC,
+    0x1021, 0x2042, 0x4084, 0x8108, 0x1231, 0x2462, 0x48C4,
+        };
+        quint16 k = initialCode[pw.size() - 1];
+        int element = 0x68;
+        for (int i = int(pw.size()) - 1; i >= 0; --i) {
+            int c = quint8(pw[i]);
+            for (int n = 0; n < 7; ++n) {
+                if (c & 0x40) k ^= matrix[element];
+                c = (c * 2) & 0xFF;
+                --element;
+            }
+        }
+        return k;
+    }
+    static quint16 check(const QByteArray &pw)
+    {
+        quint16 v = 0;
+        QByteArray all;
+        all.append(char(pw.size()));
+        all.append(pw);
+        for (int i = int(all.size()) - 1; i >= 0; --i) v = quint16((((v & 0x4000) ? 1 : 0) | ((v * 2) & 0x7FFF)) ^ quint8(all[i]));
+        return quint16(v ^ 0xCE4B);
+    }
+    static quint32 verifier(const QByteArray &pw) { return (quint32(key(pw)) << 16) | check(pw); }
+    static std::array<quint8, 16> array(const QByteArray &pw)
+    {
+        static const quint8 pad[15] = {0xBB, 0xFF, 0xFF, 0xBA, 0xFF, 0xFF, 0xB9, 0x80, 0x00, 0xBE, 0x0F, 0x00, 0xBF, 0x0F, 0x00};
+        const quint16 high = quint16(verifier(pw) >> 16);
+        const quint8 keyHigh = quint8(high >> 8), keyLow = quint8(high & 0xFF);
+        std::array<quint8, 16> a{};
+        for (int i = 0; i < 16; ++i) a[size_t(i)] = i < pw.size() ? quint8(pw[i]) : pad[i - pw.size()];
+        for (int i = 0; i < 16; i += 2) {
+            a[size_t(i)] = ror(quint8(a[size_t(i)] ^ keyLow));
+            a[size_t(i + 1)] = ror(quint8(a[size_t(i + 1)] ^ keyHigh));
+        }
+        return a;
+    }
+    static QByteArray transform(const QByteArray &data, const std::array<quint8, 16> &a, int firstIndex)
+    {
+        QByteArray out = data;
+        for (int i = 0; i < out.size(); ++i) {
+            const quint8 in = quint8(data[i]), x = quint8(in ^ a[size_t((firstIndex + i) % 16)]);
+            if (in != 0 && x != 0) out[i] = char(x);
+        }
+        return out;
+    }
+};
+
 DocWriter simple(const QString &text)
 {
     DocWriter w;
     w.text = text;
+    return w;
+}
+
+// A document with one form field, `kind` its instruction, whose data is `ff`; the field's text between its marks is `result`.
+DocWriter withFormField(const QString &kind, const QByteArray &ff, const QString &result)
+{
+    DocWriter w = simple(QStringLiteral("A \x13 ") + kind + QStringLiteral(" \x01\x14") + result + QStringLiteral("\x15 B\r"));
+    const int at = int(w.text.indexOf(QChar(1)));
+    const int place = w.addFormFieldData(ff);
+    w.chars = {{at, at + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(place))}};
     return w;
 }
 
@@ -578,6 +692,104 @@ private Q_SLOTS:
         QVERIFY(b.keepNext.value_or(false));
     }
 
+    // ---- the short modifiers of fast-saved files (section 2.9.215)
+
+    void aShortModifierOfMirrorIndentsIsNotNoLineNumbers()
+    {
+        DocWriter w = simple(QStringLiteral("mirror\rnumbers\r"));
+        w.pieceMods = {{0, 7, prm0(0x0D, 1)}, {7, 15, prm0(0x0E, 1)}};
+        const QByteArray x = bodyXml(w);
+        const int second = int(x.indexOf("numbers"));
+        QVERIFY(second > 0);
+        QCOMPARE(x.count("suppressLineNumbers"), 1);
+        QVERIFY2(x.indexOf("suppressLineNumbers") > x.indexOf("mirror"), x.constData());
+        QVERIFY2(x.indexOf("suppressLineNumbers") < second, x.constData());
+    }
+
+    void aShortModifierOfInTableAndRowEndMakeTheTable()
+    {
+        // Cell paragraph: the short modifier says "in a table"; the row's end paragraph says it ends the row (the old reading took the first for the second).
+        DocWriter w = simple(QStringLiteral("cell\a\ra\r"));
+        const QByteArray in = sprm1(sprm::inTable, 1);
+        w.paras = {{0, 5, 0, QByteArray()}, {5, 6, 0, in + tableRow({0, 3000})}};
+        w.pieceMods = {{0, 5, prm0(0x18, 1)}, {5, 6, prm0(0x19, 1)}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        int tables = 0, rows = 0;
+        QStringList cells;
+        for (const Block &b : d.body) {
+            if (b.isRaw && b.tag == QLatin1String("tbl") && b.role == Inline::Open) ++tables;
+            if (b.isRaw && b.tag == QLatin1String("tr") && b.role == Inline::Open) ++rows;
+            if (!b.isRaw) cells << paragraphText(b);
+        }
+        QCOMPARE(tables, 1);
+        QCOMPARE(rows, 1);
+        QCOMPARE(cells, (QStringList{"cell", "a"}));
+    }
+
+    void shortModifiersOfCharactersAreKept()
+    {
+        struct Case {
+            int isprm, val;
+            const char *expect;
+        };
+        const Case cases[] = {
+            {0x5E, 1, "<w:u w:val=\"single\"/>"},       // underline
+            {0x4D, 7, "<w:highlight w:val=\"yellow\"/>"},
+            {0x62, 6, "<w:color w:val=\"FF0000\"/>"},    // red
+            {0x73, 1, "<w:dstrike/>"},
+            {0x68, 1, "<w:vertAlign w:val=\"superscript\"/>"},
+            {0x55, 1, "<w:b/>"},
+            {0x5A, 1, "<w:smallCaps/>"},
+        };
+        for (const Case &c : cases) {
+            DocWriter w = simple(QStringLiteral("word\r"));
+            w.pieceMods = {{0, 4, prm0(c.isprm, c.val)}};
+            const QByteArray x = bodyXml(w);
+            QVERIFY2(x.contains(c.expect), QByteArray(c.expect) + " in " + x);
+        }
+    }
+
+    void aShortModifierOfATrackedInsertionOrDeletionIsKept()
+    {
+        DocWriter w = simple(QStringLiteral("new old\r"));
+        w.revisionAuthors = {QStringLiteral("Ann")};
+        w.pieceMods = {{0, 4, prm0(0x42, 1)}, {4, 7, prm0(0x41, 1)}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(x.contains("<w:ins "), x.constData());
+        QVERIFY2(x.contains("<w:del "), x.constData());
+        QVERIFY2(x.contains("<w:delText"), x.constData());
+    }
+
+    void aShortModifierOfAListLevelAndOfParagraphSettingsIsKept()
+    {
+        DocWriter w = simple(QStringLiteral("level\rhyph\rwidow\r"));
+        ListLevelSpec dec, sub;
+        dec.format = 0;
+        dec.text = QString(QChar(0)) + QLatin1Char('.');
+        sub.format = 0;
+        sub.text = QString(QChar(1)) + QLatin1Char('.');
+        w.lists = {{dec, sub}};
+        w.paras = {{0, 6, 0, sprm2(sprm::listInstance, 1)}};
+        w.pieceMods = {{0, 6, prm0(0x0C, 1)}, {6, 11, prm0(0x2C, 1)}, {11, 17, prm0(0x33, 0)}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(d.body[0].para.props.ilvl.value_or(-1), 1);
+        QVERIFY(d.body[1].para.props.suppressAutoHyphens.value_or(false));
+        QVERIFY(!d.body[2].para.props.widowControl.value_or(true));
+    }
+
+    void aShortModifierWithNoEffectOrOutsideTheTableChangesNothing()
+    {
+        // The first entry of the table with a zero operand does nothing; a number that is not in the table is not a property.
+        DocWriter w = simple(QStringLiteral("plain\r"));
+        w.pieceMods = {{0, 6, prm0(0x00, 0)}};
+        QVERIFY(!bodyXml(w).contains("suppressLineNumbers"));
+        w.pieceMods = {{0, 6, prm0(0x01, 1)}};
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(!x.contains("<w:b/>") && !x.contains("<w:ins ") && x.contains("plain"), x.constData());
+    }
+
     void stylesInheritFromTheirBase()
     {
         DocWriter w = simple(QStringLiteral("Title text\r"));
@@ -800,6 +1012,384 @@ private Q_SLOTS:
     }
 
     // ---- bookmarks
+
+    // ---- comments (sections 2.8.7, 2.8.8, 2.9.5 to 2.9.7, 2.9.277)
+
+    void commentsAreReadWithAuthorsInitialsDatesAndRanges()
+    {
+        DocWriter w = simple(QStringLiteral("Hello brave\x05 new world.\r"));
+        w.comments = {{11, QStringLiteral("Ann"), QStringLiteral("AB"), QStringLiteral("Check this word."), dttm(2003, 4, 7, 9, 30), 6, 11}};
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        QVERIFY2(c.contains("<w:comment w:id=\"0\" w:author=\"Ann\" w:date=\"2003-04-07T09:30:00Z\" w:initials=\"AB\">"), c.constData());
+        QVERIFY2(c.contains("Check this word."), c.constData());
+        const QByteArray x = bodyXml(w);
+        const int from = int(x.indexOf("<w:commentRangeStart w:id=\"0\"/>")), word = int(x.indexOf("brave")), to = int(x.indexOf("<w:commentRangeEnd w:id=\"0\"/>"));
+        const int ref = int(x.indexOf("<w:commentReference w:id=\"0\"/>"));
+        QVERIFY2(from > 0 && from < word && word < to && to < ref, x.constData());
+        for (const QString &n : notes) QVERIFY2(!n.contains(QLatin1String("omment")), qPrintable(n));
+    }
+
+    void commentsOfSeveralAuthorsAndOnAPointAndWithNoDates()
+    {
+        DocWriter w = simple(QStringLiteral("One\x05 two\x05 three.\r"));
+        w.comments = {{3, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("First."), 0, 0, 3}, {8, QStringLiteral("Bob"), QStringLiteral("B"), QStringLiteral("Second.\rIn two paragraphs."), 0, -1, -1}};
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"));
+        QVERIFY2(c.contains("<w:comment w:id=\"0\" w:author=\"Ann\" w:initials=\"A\">"), c.constData());
+        QVERIFY2(c.contains("<w:comment w:id=\"1\" w:author=\"Bob\" w:initials=\"B\">"), c.constData());
+        QVERIFY2(c.indexOf("Second.") < c.indexOf("In two paragraphs.") && c.count("<w:p>") + c.count("<w:p/>") == 3, c.constData());
+        const QByteArray x = bodyXml(w);
+        QCOMPARE(x.count("<w:commentRangeStart"), 1);   // (the comment on a point has no range)
+        QCOMPARE(x.count("<w:commentReference"), 2);
+    }
+
+    void aCommentWhoseReferenceIsNotWhereTheFileSaysIsLeftOut()
+    {
+        DocWriter w = simple(QStringLiteral("One\x05 two three.\r"));
+        w.comments = {{3, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("Fine."), 0, -1, -1}, {6, QStringLiteral("Bob"), QStringLiteral("B"), QStringLiteral("No mark there."), 0, -1, -1}};
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"));
+        QVERIFY2(c.contains("Fine.") && !c.contains("No mark there."), c.constData());
+    }
+
+    void aCommentLongerThanTheLimitIsCutAndSaid()
+    {
+        DocWriter w = simple(QStringLiteral("One\x05 two.\r"));
+        w.comments = {{3, QStringLiteral("Ann"), QStringLiteral("A"), QString(doc::kMaxCommentChars + 500, QLatin1Char('x')), 0, -1, -1}};
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        const int begin = int(c.indexOf("xxxx"));
+        int end = begin;
+        while (begin >= 0 && end < c.size() && c[end] == 'x') ++end;
+        QCOMPARE(end - begin, int(doc::kMaxCommentChars) - 1);   // (the mark that cites the comment is the first of the characters kept)
+        QCOMPARE(notes.size(), 1);
+    }
+
+    void moreCommentsThanTheLimitAreCutAndSaid()
+    {
+        QString text(1, QLatin1Char('a'));
+        for (int i = 0; i < doc::kMaxComments + 1; ++i) text += QLatin1Char('\x05');
+        text += QLatin1Char('\r');
+        DocWriter w = simple(text);
+        for (int i = 0; i < doc::kMaxComments + 1; ++i) w.comments.push_back({1 + i, QStringLiteral("Ann"), QStringLiteral("A"), QString(), 0, -1, -1});
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        QCOMPARE(c.count("<w:comment "), int(doc::kMaxComments));
+        QCOMPARE(notes.size(), 1);
+    }
+
+    // ---- the document's properties (the property set format, sections 2.5, 2.8, 2.20, 2.21, 2.25.1)
+
+    void thePropertiesOfTheDocumentAreRead()
+    {
+        DocWriter w = simple(QStringLiteral("body\r"));
+        const QByteArray accented = QByteArray("Quarterly r\xE9sum\xE9");
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252,
+            {{2, 0x1E, QString(), accented, 0}, {3, 0x1F, QStringLiteral("Wide Ж subject"), QByteArray(), 0}, {4, 0x1E, QString(), "Ann Author", 0}, {5, 0x1E, QString(), "one, two", 0},
+             {6, 0x1E, QString(), "A remark", 0}, {8, 0x1E, QString(), "Bob Editor", 0}, {12, 0x40, QString(), QByteArray(), fileTime(2003, 4, 7, 9, 30)},
+             {13, 0x40, QString(), QByteArray(), fileTime(2004, 11, 23, 16, 5)}, {14, 3, QString(), QByteArray(), 12}});
+        w.documentSummaryInformation = propertySetStream(documentSummaryFormat(), 1252,
+            {{2, 0x1E, QString(), "Reports", 0}, {14, 0x1E, QString(), "Carol Chief", 0}, {15, 0x1F, QStringLiteral("Example Works"), QByteArray(), 0}}, true);
+        const PackageProps p = propertiesOf(w);
+        QCOMPARE(p.title, QString::fromLatin1(accented));
+        QCOMPARE(p.subject, QStringLiteral("Wide Ж subject"));
+        QCOMPARE(p.creator, QStringLiteral("Ann Author"));
+        QCOMPARE(p.keywords, QStringLiteral("one, two"));
+        QCOMPARE(p.comments, QStringLiteral("A remark"));
+        QCOMPARE(p.lastModifiedBy, QStringLiteral("Bob Editor"));
+        QCOMPARE(p.created, QDateTime(QDate(2003, 4, 7), QTime(9, 30), QTimeZone::UTC));
+        QCOMPARE(p.modified, QDateTime(QDate(2004, 11, 23), QTime(16, 5), QTimeZone::UTC));
+        QCOMPARE(p.category, QStringLiteral("Reports"));
+        QCOMPARE(p.manager, QStringLiteral("Carol Chief"));
+        QCOMPARE(p.company, QStringLiteral("Example Works"));
+    }
+
+    void textsInTheSetsCodePageAreRead()
+    {
+        // The Cyrillic page: bytes 0xCF 0xF0 0xE8; the Unicode page: the characters are two bytes each (and the size says bytes).
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = propertySetStream(summaryFormat(), 1251, {{2, 0x1E, QString(), QByteArray("\xCF\xF0\xE8"), 0}});
+        QCOMPARE(propertiesOf(w).title, QString(QChar(0x041F)) + QChar(0x0440) + QChar(0x0438));
+        const QByteArray sixteen("\x3A\x04\x3E\x04", 4);
+        w.summaryInformation = propertySetStream(summaryFormat(), 1200, {{2, 0x1E, QString(), sixteen, 0}});
+        QCOMPARE(propertiesOf(w).title, QString(QChar(0x043A)) + QChar(0x043E));
+        w.summaryInformation = propertySetStream(summaryFormat(), 65001, {{2, 0x1E, QString(), QByteArray("\xD0\x96"), 0}});
+        QCOMPARE(propertiesOf(w).title, QString(QChar(0x0416)));
+    }
+
+    void propertiesWithNoValueOrControlCharactersAreCleaned()
+    {
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252,
+            {{2, 0x1E, QString(), QByteArray("T\x01itle\x1F"), 0}, {4, 0x1E, QString(), QByteArray(), 0}, {12, 0x40, QString(), QByteArray(), 0}});
+        const PackageProps p = propertiesOf(w);
+        QCOMPARE(p.title, QStringLiteral("Title"));
+        QVERIFY(p.creator.isEmpty());
+        QVERIFY(!p.created.isValid());
+        // A document with neither stream has no properties part.
+        QVERIFY(partXml(simple(QStringLiteral("body\r")), QStringLiteral("/docProps/core.xml")).isEmpty());
+    }
+
+    void damagedPropertyStreamsGiveWhatIsThereAndNeverCrash()
+    {
+        const QByteArray good = propertySetStream(summaryFormat(), 1252, {{2, 0x1E, QString(), "Title", 0}, {4, 0x1E, QString(), "Author", 0}});
+        QCOMPARE(readOlePropertySets(good).size(), 1);
+        QCOMPARE(readOlePropertySets(good)[0].values.value(2).text, QStringLiteral("Title"));
+        // A string whose size runs past the stream, a count of properties far past it, a set that begins past its end, a size of zero, and a stream too large to take.
+        QByteArray cut = good;
+        cut.resize(good.size() - 8);
+        for (const QByteArray &b : {cut, good.left(47), good.left(60), QByteArray(good).replace(4, 4, QByteArray("\xFF\xFF\xFF\xFF", 4)), QByteArray(2000000, '\xFF')}) {
+            const QVector<OlePropertySet> sets = readOlePropertySets(b);
+            for (const OlePropertySet &set : sets) QVERIFY(set.values.size() <= kMaxOleProperties);
+        }
+        QByteArray many = good;
+        many.replace(28 + 16 + 4 + 4, 4, QByteArray("\xFF\xFF\xFF\x7F", 4));   // (a set that says it has 2 billion properties)
+        QVERIFY(readOlePropertySets(many).value(0).values.size() <= 2);
+        // A stream larger than the limit is not taken, though it is made as a sound one is.
+        QByteArray large = good;
+        large.append(QByteArray(kMaxOlePropertyStream, '\0'));
+        QVERIFY(readOlePropertySets(large).isEmpty());
+        // A set of more properties than are taken: the first kMaxOleProperties (the code page is one of them, and is no value).
+        QVector<PropSpec> thousands;
+        for (int i = 0; i < kMaxOleProperties + 900; ++i) thousands.push_back({quint32(100 + i), 3, QString(), QByteArray(), i});
+        QCOMPARE(readOlePropertySets(propertySetStream(summaryFormat(), 1252, thousands)).value(0).values.size(), kMaxOleProperties - 1);
+        // No set holds a count that makes more work than the stream has bytes.
+        QByteArray huge = good;
+        huge.replace(52 + 4, 4, QByteArray("\xFF\xFF\xFF\xFF", 4));
+        QVERIFY(readOlePropertySets(huge).value(0).values.size() <= 4);
+        // And a document with such a stream still opens.
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = cut;
+        QVERIFY(!doc::toDocxPackage(w.build()).isEmpty());
+    }
+
+    // ---- legacy form fields (sections 2.9.78, 2.9.79, 2.9.158)
+
+    void aTextFieldKeepsItsDefaultAndItsLimit()
+    {
+        FormFieldSpec f;
+        f.name = QStringLiteral("Name1");
+        f.text = QStringLiteral("Default <text>");
+        f.longest = 20;
+        f.textType = 1;
+        const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMTEXT"), formFieldData(f), QStringLiteral("Hello")));
+        QVERIFY2(x.contains("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Name1\"/><w:enabled/><w:textInput><w:type w:val=\"number\"/>"
+                            "<w:default w:val=\"Default &lt;text&gt;\"/><w:maxLength w:val=\"20\"/></w:textInput></w:ffData></w:fldChar>"),
+                 x.constData());
+        QVERIFY2(x.contains(">Hello<"), x.constData());
+    }
+
+    void aCheckBoxKeepsItsStateAndItsDefault()
+    {
+        FormFieldSpec f;
+        f.type = 1;
+        f.name = QStringLiteral("Box");
+        f.wDef = 1;
+        f.state = 1;
+        f.autoSize = false;
+        f.boxSize = 30;
+        const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMCHECKBOX"), formFieldData(f), QString()));
+        QVERIFY2(x.contains("<w:checkBox><w:size w:val=\"30\"/><w:default w:val=\"1\"/><w:checked w:val=\"1\"/></w:checkBox>"), x.constData());
+        f.state = 0;
+        f.autoSize = true;
+        f.locked = true;
+        const QByteArray y = bodyXml(withFormField(QStringLiteral("FORMCHECKBOX"), formFieldData(f), QString()));
+        QVERIFY2(y.contains("<w:enabled w:val=\"0\"/><w:checkBox><w:sizeAuto/><w:default w:val=\"1\"/><w:checked w:val=\"0\"/></w:checkBox>"), y.constData());
+        f.state = 25;   // (the state is not said)
+        const QByteArray z = bodyXml(withFormField(QStringLiteral("FORMCHECKBOX"), formFieldData(f), QString()));
+        QVERIFY2(z.contains("<w:default w:val=\"1\"/></w:checkBox>"), z.constData());
+    }
+
+    void aDropDownKeepsItsEntriesAndItsChoice()
+    {
+        FormFieldSpec f;
+        f.type = 2;
+        f.name = QStringLiteral("Pick");
+        f.entries = {QStringLiteral("red"), QStringLiteral("green"), QStringLiteral("blue")};
+        f.state = 1;
+        f.wDef = 2;
+        const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMDROPDOWN"), formFieldData(f), QStringLiteral("green")));
+        QVERIFY2(x.contains("<w:ddList><w:result w:val=\"1\"/><w:default w:val=\"2\"/><w:listEntry w:val=\"red\"/><w:listEntry w:val=\"green\"/><w:listEntry w:val=\"blue\"/></w:ddList>"),
+                 x.constData());
+    }
+
+    void aDropDownWithTooManyEntriesKeepsTheFirstOnes()
+    {
+        FormFieldSpec f;
+        f.type = 2;
+        f.name = QStringLiteral("Pick");
+        for (int i = 0; i < 200; ++i) f.entries << QString::number(i);
+        const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMDROPDOWN"), formFieldData(f), QString()));
+        QCOMPARE(x.count("<w:listEntry "), doc::kMaxFormFieldEntries);
+    }
+
+    void formFieldDataThatIsDamagedIsLeftOutAndTheFieldStays()
+    {
+        FormFieldSpec f;
+        f.name = QStringLiteral("N");
+        const QByteArray good = formFieldData(f);
+        QVERIFY(bodyXml(withFormField(QStringLiteral("FORMTEXT"), good, QStringLiteral("R"))).contains("<w:ffData>"));
+        QByteArray version = good;
+        version[0] = 0;   // (the version must be all ones)
+        QByteArray cut = good.left(14);   // (the name runs out)
+        QByteArray longName = good;
+        longName[10] = char(0xFF);   // (a name of 65,000 characters)
+        longName[11] = char(0xFF);
+        for (const QByteArray &bad : {version, cut, longName}) {
+            const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMTEXT"), bad, QStringLiteral("R")));
+            QVERIFY2(!x.contains("<w:ffData>") && x.contains("<w:fldChar w:fldCharType=\"begin\"/>") && x.contains(">R<"), x.constData());
+        }
+        // A place in the data stream that is not there.
+        DocWriter w = withFormField(QStringLiteral("FORMTEXT"), good, QStringLiteral("R"));
+        const int at = int(w.text.indexOf(QChar(1)));
+        w.chars = {{at, at + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, 5000000)}};
+        QVERIFY(!bodyXml(w).contains("<w:ffData>"));
+    }
+
+    void formFieldsAreReadUpToTheLimit()
+    {
+        const int fields = doc::kMaxFormFields + 5;
+        FormFieldSpec f;
+        f.name = QStringLiteral("N");
+        const QByteArray ff = formFieldData(f);
+        QString text(QStringLiteral("x"));
+        for (int i = 0; i < fields; ++i) text += QStringLiteral("\x13 T \x01\x14r\x15");
+        text += QLatin1Char('\r');
+        DocWriter w = simple(text);
+        for (int i = 0; i < fields; ++i) {
+            const int place = w.addFormFieldData(ff);
+            const int at = 1 + i * 8 + 4;
+            w.chars.push_back({at, at + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(place))});
+        }
+        QCOMPARE(w.text.at(1 + 4), QChar(1));
+        const QByteArray x = bodyXml(w);
+        QCOMPARE(x.count("<w:ffData>"), doc::kMaxFormFields);
+    }
+
+    // ---- embedded objects (sections 2.6.1: sprmCFOle2, sprmCFObj, sprmCPicLocation; 2.9.158)
+
+    void anEmbeddedObjectOfTheFieldKindShowsItsPreviewAndIsSaid()
+    {
+        DocWriter w = simple(QStringLiteral("A\x13 EMBED X \x14\x01\x15 B\r"));
+        const int pic = w.addPicture(tinyPng(), 1440, 720);
+        const int sep = int(w.text.indexOf(QChar(0x14)));
+        w.chars = {{sep, sep + 1, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 7)}, {sep + 1, sep + 2, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(pic))}};
+        QStringList notes;
+        const QByteArray x = partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QCOMPARE(x.count("<w:drawing>"), 1);
+        QVERIFY2(x.contains("<wp:extent cx=\"914400\" cy=\"457200\"/>"), x.constData());   // (its own size: the preview's)
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QLatin1Char('1')), qPrintable(notes[0]));
+    }
+
+    void anEmbeddedObjectWithNoPreviewIsAPlainPictureOfAnInch()
+    {
+        DocWriter w = simple(QStringLiteral("A\x13 EMBED X \x14\x15 B\r"));
+        const int sep = int(w.text.indexOf(QChar(0x14)));
+        w.chars = {{sep, sep + 1, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 7)}};
+        QStringList notes;
+        const QByteArray x = partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QCOMPARE(x.count("<w:drawing>"), 1);
+        QVERIFY2(x.contains("<wp:extent cx=\"914400\" cy=\"914400\"/>"), x.constData());
+        QVERIFY(!partXml(w, QStringLiteral("/word/media/image1.png")).isEmpty());
+        QCOMPARE(notes.size(), 1);
+    }
+
+    void anEmbeddedObjectOfTheOlderKindIsItsOwnPicture()
+    {
+        // The mark itself is the object's place and holds its picture; with the picture not there, a plain one of the object's size or an inch.
+        DocWriter w = simple(QStringLiteral("A\x01 B\x01 C\r"));
+        const int pic = w.addPicture(tinyPng(), 2880, 1440);
+        w.chars = {{1, 2, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, quint32(pic))},
+                   {4, 5, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 5000000)}};
+        QStringList notes;
+        const QByteArray x = partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QVERIFY2(x.count("<w:drawing>") == 2, x.constData());
+        QVERIFY2(x.contains("<wp:extent cx=\"1828800\" cy=\"914400\"/>") && x.contains("<wp:extent cx=\"914400\" cy=\"914400\"/>"), x.constData());
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QLatin1Char('2')), qPrintable(notes[0]));
+    }
+
+    void aDocumentWithNoObjectsSaysNothingOfThem()
+    {
+        DocWriter w = simple(QStringLiteral("A\x13 PAGE \x14" "1\x15 B\r"));
+        QStringList notes;
+        partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QVERIFY(notes.isEmpty());
+    }
+
+    // ---- hostile input (the bounds of what a file declares)
+
+    void theNumberingCountsAgainstWhatTheOutputMayHold()
+    {
+        DocWriter w = simple(QStringLiteral("body\r"));
+        ListLevelSpec level;
+        level.text = QString(QChar(0)) + QLatin1Char('.');
+        level.paragraph = sprm2(sprm::left, 720) + sprm2(sprm::firstLine, 0xFE98) + sprm2(sprm::before, 120) + sprm2(sprm::after, 240) + sprm1(sprm::align, 1) + sprm1(sprm::keepNext, 1);
+        level.character = sprm1(sprm::bold, 1) + sprm1(sprm::italic, 1) + sprm2(sprm::size, 28) + sprm2(sprm::fontAscii, 0) + sprm1(sprm::color, 6) + sprm1(sprm::underline, 1);
+        QVector<ListLevelSpec> nine(9, level);
+        w.lists = QVector<QVector<ListLevelSpec>>(doc::kMaxLists, nine);
+        QStringList notes;
+        const QByteArray numbering = partXml(w, QStringLiteral("/word/numbering.xml"), &notes);
+        QVERIFY2(numbering.size() <= doc::kMaxOutputBytes, qPrintable(QString::number(numbering.size())));
+        QVERIFY(!notes.isEmpty());   // (the document is said to be longer than can be opened)
+        QVERIFY(doc::readWorkForTest().outputBytes > doc::kMaxOutputBytes);
+    }
+
+    void theDefinitionsOfListsAreReadOnlyAsFarAsTheHeaderSaysTheyGo()
+    {
+        DocWriter w = simple(QStringLiteral("a\rb\rc\r"));
+        ListLevelSpec dec;
+        dec.text = QString(QChar(0)) + QLatin1Char('.');
+        w.lists = {{dec}, {dec}, {dec}};
+        w.paras = {{0, 2, 0, sprm2(sprm::listInstance, 1)}, {2, 4, 0, sprm2(sprm::listInstance, 2)}, {4, 6, 0, sprm2(sprm::listInstance, 3)}};
+        const QByteArray whole = w.build();
+        auto count = [&](const QByteArray &file, const char *tag) {
+            QString why;
+            Package pkg;
+            const QByteArray zip = doc::toDocxPackage(file, &why);
+            return pkg.read(zip) ? pkg.part(QStringLiteral("/word/numbering.xml")).count(tag) : -1;
+        };
+        QCOMPARE(count(whole, "<w:abstractNum "), 3);
+        QCOMPARE(count(whole, "<w:num "), 3);
+        // The header says room for two definitions, and for two instances: no more are read, though the stream holds three.
+        QCOMPARE(count(withSlotSize(whole, 73, 2 + 28 * 2), "<w:abstractNum "), 2);
+        QCOMPARE(count(withSlotSize(whole, 74, 4 + 16 * 2), "<w:num "), 2);
+    }
+
+    void aBinTableThatNamesOnePageManyTimesReadsItOnce()
+    {
+        // A page of 100 runs of characters' properties; the table of bins names it 5,000 times, and a stream of three pages cannot have more than three pages named.
+        QByteArray wd(3 * 512, '\0');
+        const int page = 512;
+        wd[page + 511] = 100;
+        for (int r = 0; r <= 100; ++r) qToLittleEndian<quint32>(quint32(r * 10), reinterpret_cast<uchar *>(wd.data()) + page + 4 * r);
+        QByteArray plc;
+        const int entries = 5000;
+        for (int i = 0; i <= entries; ++i) plc.append(QByteArray(4, '\0'));
+        for (int i = 0; i < entries; ++i) {
+            QByteArray pn(4, '\0');
+            qToLittleEndian<quint32>(1, reinterpret_cast<uchar *>(pn.data()));
+            plc.append(pn);
+        }
+        doc::BinTable bins;
+        qint64 budget = doc::kMaxBinRuns;
+        QVERIFY(bins.read(doc::Span(plc), doc::Span(wd), false, &budget));
+        QCOMPARE(bins.count(), 100);
+        QCOMPARE(doc::kMaxBinRuns - budget, qint64(100));   // (the work done: each run of the page once)
+        // More entries than pages in the stream: only as many as there are pages are looked at.
+        QByteArray many;
+        const int pages = int(wd.size() / 512);
+        for (int i = 0; i <= 50; ++i) many.append(QByteArray(4, '\0'));
+        for (int i = 0; i < 50; ++i) {
+            QByteArray pn(4, '\0');
+            qToLittleEndian<quint32>(quint32(i < 2 ? 1 + i : 1), reinterpret_cast<uchar *>(pn.data()));
+            many.append(pn);
+        }
+        doc::BinTable few;
+        qint64 spent = doc::kMaxBinRuns;
+        few.read(doc::Span(many), doc::Span(wd), false, &spent);
+        QVERIFY(doc::kMaxBinRuns - spent <= qint64(pages) * 101);
+    }
 
     void bookmarksAreWhereTheFileSays()
     {
@@ -1294,6 +1884,38 @@ private Q_SLOTS:
         QCOMPARE(f.stream(QStringLiteral("Data")), pattern(700));
     }
 
+    // ---- the simple password obfuscation, from the steps of the protection format's sections 2.3.7.1 to 2.3.7.6 (a reference of the test's own, made from the steps)
+
+    void theObfuscationKeyCheckValueAndArrayAreThoseOfTheSteps()
+    {
+        // The parts of the program that the steps fix the same way: the key from the password, the check value, and the 16-byte array made from the key.
+        for (const char *word : {"a", "ab", "Secret", "Pa\xDF" "w\xF6rd1", "fifteen chars!!", "\x80uro \x92s"}) {
+            const QByteArray pw(word);
+            QCOMPARE(bincrypt::xorKey(pw), XorReference::key(pw));
+            QCOMPARE(bincrypt::xorVerifier(pw), XorReference::check(pw));
+            QCOMPARE(bincrypt::xorArray(pw, XorReference::key(pw)), XorReference::array(pw));
+        }
+    }
+
+    void theReferenceTransformOfTheStepsLeavesZeroBytesAsTheyAre()
+    {
+        const QByteArray pw("Secret");
+        const std::array<quint8, 16> a = XorReference::array(pw);
+        QByteArray plain(40, '\0');
+        for (int i = 0; i < plain.size(); ++i) plain[i] = char(i * 7);
+        plain[3] = char(a[3]);   // (a byte the array turns to zero stays as it is)
+        const QByteArray once = XorReference::transform(plain, a, 0);
+        QCOMPARE(once[0], plain[0]);   // (a zero byte)
+        QCOMPARE(once[3], plain[3]);
+        QCOMPARE(once[1], char(quint8(plain[1]) ^ a[1]));
+        QCOMPARE(once.size(), plain.size());
+        // (And, where no byte is zero or turned to zero, doing it twice gives the bytes back.)
+        QByteArray plainer = plain;
+        for (int i = 0; i < plainer.size(); ++i)
+            if (plainer[i] == 0 || quint8(plainer[i]) == a[size_t(i % 16)]) plainer[i] = char(0x55 ^ (i & 1));
+        QCOMPARE(XorReference::transform(XorReference::transform(plainer, a, 0), a, 0), plainer);
+    }
+
     void aCryptoApiHeaderThatIsNotTheRc4KindIsNotRead()
     {
         const QString password = QString::fromUtf8("Pa\xc3\x9fw\xc3\xb6rd1");
@@ -1735,7 +2357,8 @@ private Q_SLOTS:
     void changedBytesNeverCrashOrHang()
     {
         // A document with most of what the reader reads, with bytes of it changed at random (the same changes each run), and cut short.
-        DocWriter w = simple(QStringLiteral("Hello \x13 PAGE \x14""1\x15 world\a\a\rcell\a\a\r\x01 end\rnote\x02\r"));
+        DocWriter w = simple(QStringLiteral("Hello \x13 PAGE \x14""1\x15 world\a\a\rcell\a\a\r\x01 end\rnote\x02\x05\r"));
+        w.comments = {{int(w.text.indexOf(QChar(5))), QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("remark\r"), dttm(2003, 4, 7, 9, 30), 1, 4}};
         w.fonts = {QStringLiteral("Times New Roman"), QStringLiteral("Arial")};
         StyleSpec normal;
         normal.name = QStringLiteral("Normal");

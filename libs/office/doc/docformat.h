@@ -19,7 +19,8 @@ struct Fib {
     enum Slot {
         Stshf = 1, PlcffndRef = 2, PlcffndTxt = 3, PlcfandRef = 4, PlcfandTxt = 5, PlcfSed = 6, PlcfHdd = 11, PlcfBteChpx = 12, PlcfBtePapx = 13,
         SttbfFfn = 15, SttbfBkmk = 21, PlcfBkf = 22, PlcfBkl = 23, Dop = 31, Clx = 33, PlcSpaMom = 40, PlcSpaHdr = 41, PlcfendRef = 46, PlcfendTxt = 47,
-        DggInfo = 50, SttbfRMark = 51, PlcftxbxTxt = 56, PlcfHdrtxbxTxt = 58, PlfLst = 73, PlfLfo = 74
+        DggInfo = 50, SttbfRMark = 51, PlcftxbxTxt = 56, PlcfHdrtxbxTxt = 58, PlfLst = 73, PlfLfo = 74,
+        GrpXstAtnOwners = 36, SttbfAtnBkmk = 37, PlcfAtnBkf = 42, PlcfAtnBkl = 43, AtrdExtra = 112
     };
     bool valid = false;
     int nFib = 0;

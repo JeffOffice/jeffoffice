@@ -6,6 +6,8 @@
 #include "io/crypto.h"
 
 #include <QBuffer>
+#include <QDateTime>
+#include <QTimeZone>
 #include <QCryptographicHash>
 #include <QHash>
 #include <QPair>
@@ -160,6 +162,11 @@ QByteArray sprmVar(quint16 op, const QByteArray &operand)
     return b;
 }
 
+quint16 prm0(int isprm, int val)
+{
+    return quint16((isprm << 1) | (val << 8));
+}
+
 quint32 dttm(int year, int month, int day, int hour, int minute)
 {
     // Minutes in the low six bits, then hours (5), day (5), month (4), years since 1900 (9), and the weekday (3, left as 0).
@@ -265,6 +272,52 @@ int DocWriter::addMetafile(int inflatedBytes, int widthTwips, int heightTwips)
     return addPictureRecord(data, 0xF01A, 0x3D4, body, widthTwips, heightTwips);
 }
 
+QByteArray formFieldData(const FormFieldSpec &f)
+{
+    QByteArray b;
+    add32(b, 0xFFFFFFFFu);
+    const int bits = (f.type & 3) | ((f.state & 0x1F) << 2) | (f.ownHelp ? 0x80 : 0) | (f.ownStatus ? 0x100 : 0) | (f.locked ? 0x200 : 0) | (f.autoSize ? 0x400 : 0) |
+                     ((f.textType & 7) << 11) | (f.type == 2 ? 0x8000 : 0);
+    add16(b, bits);
+    add16(b, f.longest);
+    add16(b, f.boxSize);
+    auto xstz = [&](const QString &s) {
+        add16(b, int(s.size()));
+        b.append(utf16(s));
+        add16(b, 0);
+    };
+    xstz(f.name);
+    if (f.type == 0) xstz(f.text);
+    else add16(b, f.wDef);
+    xstz(f.format);
+    xstz(f.help);
+    xstz(f.status);
+    xstz(QString());
+    xstz(QString());
+    if (f.type == 2) {
+        add16(b, 0xFFFF);
+        add16(b, int(f.entries.size()));
+        add16(b, 0);
+        for (const QString &e : f.entries) {
+            add16(b, int(e.size()));
+            b.append(utf16(e));
+        }
+    }
+    return b;
+}
+
+int DocWriter::addFormFieldData(const QByteArray &ffData)
+{
+    const int at = int(data.size());
+    QByteArray r;
+    add32(r, quint32(68 + ffData.size()));
+    add16(r, 0x44);
+    r.append(QByteArray(62, '\0'));
+    r.append(ffData);
+    data.append(r);
+    return at;
+}
+
 int DocWriter::addRule(int heightTwips)
 {
     const int at = int(data.size());
@@ -340,6 +393,12 @@ QByteArray DocWriter::build() const
         if (!s.isEmpty()) headerText += s + QLatin1Char('\r');
     }
     storyStart.push_back(int(headerText.size()));
+    QString commentText;
+    QVector<int> commentStart;
+    for (const CommentSpec &cm : comments) {
+        commentStart.push_back(int(commentText.size()));
+        commentText += QString(QChar(5)) + cm.text + (cm.text.endsWith(QLatin1Char('\r')) ? QString() : QStringLiteral("\r"));
+    }
     // The text of the boxes of the shapes: a story each (with the mark that ends it), in the order of the shapes.
     QString boxText, headerBoxText;
     QVector<int> boxStart, headerBoxStart;
@@ -351,17 +410,19 @@ QByteArray DocWriter::build() const
         (shapes[i].header ? headerBoxShape : boxShape).push_back(i);
         dst += shapes[i].text + QLatin1Char('\r');
     }
-    const QString all = text + footnoteText + headerText + boxText + headerBoxText;
+    const QString all = text + footnoteText + headerText + commentText + boxText + headerBoxText;
     const int copies = std::max(1, repeatText);
     const int ccpText = int(text.size()) * copies, ccpFtn = int(footnoteText.size()), ccpHdd = int(headerText.size());
+    const int ccpAtn = int(commentText.size());
     const int ccpTxbx = int(boxText.size()), ccpHdrTxbx = int(headerBoxText.size());
 
-    QByteArray wd(1024, '\0');
+    QByteArray wd(1280, '\0');
     // The text, in one or two pieces.
     struct Piece {
         int cp0, cp1;
         quint32 fc;
         bool unicode;
+        quint16 prm = 0;
     };
     QVector<Piece> pieces;
     if (splitAt > 0 && splitAt < all.size()) {
@@ -374,6 +435,25 @@ QByteArray DocWriter::build() const
     } else {
         pieces.push_back({0, int(all.size()), quint32(wd.size()), unicode});
         wd.append(unicode ? utf16(all) : westernBytes(all));
+    }
+    if (!pieceMods.isEmpty()) {
+        QVector<Piece> split;
+        for (const Piece &p : pieces) {
+            QVector<int> cuts = {p.cp0, p.cp1};
+            for (const PieceMod &m : pieceMods) {
+                if (m.from > p.cp0 && m.from < p.cp1) cuts.push_back(m.from);
+                if (m.to > p.cp0 && m.to < p.cp1) cuts.push_back(m.to);
+            }
+            std::sort(cuts.begin(), cuts.end());
+            cuts.erase(std::unique(cuts.begin(), cuts.end()), cuts.end());
+            for (int k = 0; k + 1 < cuts.size(); ++k) {
+                Piece q = {cuts[k], cuts[k + 1], p.fc + quint32(cuts[k] - p.cp0) * (p.unicode ? 2 : 1), p.unicode, 0};
+                for (const PieceMod &m : pieceMods)
+                    if (q.cp0 >= m.from && q.cp1 <= m.to) q.prm = m.prm;
+                split.push_back(q);
+            }
+        }
+        pieces = split;
     }
     auto fcOf = [&](int cp) -> quint32 {
         for (const Piece &p : pieces)
@@ -403,6 +483,10 @@ QByteArray DocWriter::build() const
     };
     QVector<Entry> charEntries, paraEntries;
     for (const CharRun &r : chars) cut(r.from, r.to, r.sprms, 0, &charEntries);
+    for (int i = 0; i < comments.size(); ++i) {   // (the characters that cite a comment, and begin its text, are special)
+        cut(comments[i].ref, comments[i].ref + 1, sprm1(sprm::special, 1), 0, &charEntries);
+        cut(ccpText + ccpFtn + ccpHdd + commentStart[i], ccpText + ccpFtn + ccpHdd + commentStart[i] + 1, sprm1(sprm::special, 1), 0, &charEntries);
+    }
     // Every paragraph has a stretch of its own, as in a file a program wrote: the ones the test gives, and the rest (cut after each mark) with no changes.
     {
         QVector<ParaRun> given = paras;
@@ -468,7 +552,7 @@ QByteArray DocWriter::build() const
     struct Slot {
         quint32 fc = 0, lcb = 0;
     };
-    QVector<Slot> slots(93);
+    QVector<Slot> slots(113);
     auto put = [&](int slot, const QByteArray &bytes) {
         padEven(tbl);
         slots[slot] = {quint32(tbl.size()), quint32(bytes.size())};
@@ -565,7 +649,7 @@ QByteArray DocWriter::build() const
             for (const Piece &p : pieces) {
                 add16(plc, 0);
                 add32(plc, p.unicode ? p.fc : (p.fc * 2) | 0x40000000u);
-                add16(plc, 0);
+                add16(plc, p.prm);
             }
         QByteArray clx;
         add8(clx, 2);
@@ -604,6 +688,72 @@ QByteArray DocWriter::build() const
         add32(txt, quint32(ccpFtn + 1));
         put(2, refs);
         put(3, txt);
+    }
+    // The comments.
+    if (!comments.isEmpty()) {
+        QByteArray refs, txt, owners, extra;
+        QStringList names;
+        for (const CommentSpec &cm : comments) add32(refs, quint32(cm.ref));
+        add32(refs, quint32(ccpText));
+        for (int i = 0; i < comments.size(); ++i) {
+            const CommentSpec &cm = comments[i];
+            if (!names.contains(cm.author)) names << cm.author;
+            QByteArray r;
+            add16(r, int(std::min<qsizetype>(cm.initials.size(), 9)));
+            r.append(utf16(cm.initials.left(9)));
+            r.append(QByteArray(20 - r.size(), '\0'));
+            add16(r, int(names.indexOf(cm.author)));
+            add16(r, 0);
+            add16(r, 0);
+            add32(r, cm.from >= 0 ? quint32(i + 1) : 0xFFFFFFFFu);
+            refs.append(r);
+            add32(txt, quint32(commentStart[i]));
+            quint32 d = cm.date;
+            add32(extra, d);
+            add16(extra, 0);
+            add32(extra, 0);
+            add32(extra, 0);
+            add32(extra, 0);
+        }
+        add32(txt, quint32(ccpAtn));
+        add32(txt, quint32(ccpAtn + 1));
+        for (const QString &n : names) {
+            add16(owners, int(n.size()));
+            owners.append(utf16(n));
+        }
+        put(4, refs);
+        put(5, txt);
+        put(36, owners);
+        bool anyDate = false;
+        for (const CommentSpec &cm : comments) anyDate = anyDate || cm.date;
+        if (anyDate) put(112, extra);
+        // The ranges: a bookmark of the class for comments, with the tag the comment names.
+        QByteArray tags, starts, ends;
+        QVector<int> covering;
+        for (int i = 0; i < comments.size(); ++i)
+            if (comments[i].from >= 0) covering.push_back(i);
+        if (!covering.isEmpty()) {
+            add16(tags, 0xFFFF);
+            add16(tags, int(covering.size()));
+            add16(tags, 10);
+            for (int i : covering) {
+                add16(tags, 0);
+                add16(tags, 0x0100);
+                add32(tags, quint32(i + 1));
+                add32(tags, 0xFFFFFFFFu);
+            }
+            for (int i : covering) add32(starts, quint32(comments[i].from));
+            add32(starts, quint32(ccpText));
+            for (int k = 0; k < covering.size(); ++k) {
+                add16(starts, k);
+                add16(starts, 0);
+            }
+            for (int i : covering) add32(ends, quint32(comments[i].to));
+            add32(ends, quint32(ccpText));
+            put(37, tags);
+            put(42, starts);
+            put(43, ends);
+        }
     }
     // The lists.
     if (!lists.isEmpty()) {
@@ -648,6 +798,7 @@ QByteArray DocWriter::build() const
         }
         for (int i = 0; i < lists.size(); ++i) add32(lfo, 0xFFFFFFFFu);
         put(73, lst);
+        slots[73].lcb = quint32(2 + 28 * lists.size());   // (the levels are appended to the table of lists: its size does not hold them)
         put(74, lfo);
     }
     // The shapes: the places (a table for the main text, and one for the headers'), the text boxes, and the drawing itself.
@@ -851,10 +1002,11 @@ QByteArray DocWriter::build() const
     put32(wd, 76, quint32(ccpText));
     put32(wd, 80, quint32(ccpFtn));
     put32(wd, 84, quint32(ccpHdd));
+    put32(wd, 92, quint32(ccpAtn));
     put32(wd, 100, quint32(ccpTxbx));
     put32(wd, 104, quint32(ccpHdrTxbx));
-    put16(wd, 152, 93);
-    for (int i = 0; i < 93; ++i) {
+    put16(wd, 152, 113);
+    for (int i = 0; i < 113; ++i) {
         put32(wd, 154 + 8 * i, slots[i].fc);
         put32(wd, 158 + 8 * i, slots[i].lcb);
     }
@@ -875,7 +1027,69 @@ QByteArray DocWriter::build() const
     stream(QStringLiteral("WordDocument"), wd);
     stream(QStringLiteral("1Table"), tbl);
     if (!data.isEmpty()) stream(QStringLiteral("Data"), data);
+    if (!summaryInformation.isEmpty()) stream(QStringLiteral("\u0005SummaryInformation"), summaryInformation);
+    if (!documentSummaryInformation.isEmpty()) stream(QStringLiteral("\u0005DocumentSummaryInformation"), documentSummaryInformation);
     return jp::cfb::write(f);
+}
+
+QByteArray summaryFormat() { return QByteArray::fromHex("E0859FF2F94F6810AB9108002B27B3D9"); }
+QByteArray documentSummaryFormat() { return QByteArray::fromHex("02D5CDD59C2E1B10939708002B2CF9AE"); }
+
+qint64 fileTime(int year, int month, int day, int hour, int minute)
+{
+    const QDateTime t(QDate(year, month, day), QTime(hour, minute), QTimeZone::UTC);
+    return (t.toMSecsSinceEpoch() + 11644473600000LL) * 10000;
+}
+
+QByteArray propertySetStream(const QByteArray &format, int codePage, const QVector<PropSpec> &props, bool twoSets)
+{
+    auto le = [](quint64 v, int bytes) {
+        QByteArray b(bytes, 0);
+        for (int i = 0; i < bytes; ++i) b[i] = char((v >> (8 * i)) & 0xFF);
+        return b;
+    };
+    auto padded = [](QByteArray b) {
+        while (b.size() % 4) b.append('\0');
+        return b;
+    };
+    // Each property's value: its type, two bytes of padding, and the value.
+    QVector<PropSpec> all = props;
+    PropSpec cp;
+    cp.id = 1;
+    cp.type = 2;
+    cp.number = codePage;
+    all.prepend(cp);
+    QVector<QByteArray> values;
+    for (const PropSpec &p : std::as_const(all)) {
+        QByteArray v = le(p.type, 2) + le(0, 2);
+        switch (p.type) {
+        case 2: v += padded(le(quint16(p.number), 2)); break;
+        case 3: v += le(quint32(p.number), 4); break;
+        case 0x1E: v += le(quint32(p.raw.size() + 1), 4) + padded(p.raw + QByteArray(1, '\0')); break;
+        case 0x1F: v += le(quint32(p.text.size() + 1), 4) + padded(utf16(p.text) + QByteArray(2, '\0')); break;
+        case 0x40: v += le(quint64(p.number), 8); break;
+        default: break;
+        }
+        values.push_back(v);
+    }
+    QByteArray head, body;
+    const int table = 8 + 8 * int(all.size());
+    for (int i = 0; i < all.size(); ++i) {
+        head += le(all[i].id, 4) + le(quint32(table + body.size()), 4);
+        body += values[i];
+    }
+    const QByteArray set = le(quint32(table + body.size()), 4) + le(quint32(all.size()), 4) + head + body;
+    const int sets = twoSets ? 2 : 1;
+    QByteArray out = le(0xFFFE, 2) + le(0, 2) + le(0x00020006, 4) + QByteArray(16, '\0') + le(quint32(sets), 4);
+    const int first = 28 + 20 * sets;
+    out += format + le(quint32(first), 4);
+    QByteArray second;
+    if (twoSets) {
+        const QByteArray user = QByteArray::fromHex("05D5CDD59C2E1B10939708002B2CF9AE");
+        out += user + le(quint32(first + set.size()), 4);
+        second = le(24, 4) + le(1, 4) + le(1, 4) + le(16, 4) + le(2, 2) + le(0, 2) + le(quint16(codePage), 2) + le(0, 2);
+    }
+    return out + set + second;
 }
 
 namespace {

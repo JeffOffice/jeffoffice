@@ -23,7 +23,7 @@ struct Picture {
 class Converter {
 public:
     // What kind of text a story is.
-    enum class Kind { Main, Footnote, Endnote, HeaderFooter, TextBox };
+    enum class Kind { Main, Footnote, Endnote, HeaderFooter, TextBox, Comment };
     struct Section {
         qint64 end = 0;                   // the character position after the section's last character
         int index = 0;                    // its place in the file's table of sections (where its headers and footers are found)
@@ -39,10 +39,18 @@ public:
 
     // The text of a story as the XML of a body: paragraphs and tables. `part` is the part it goes in (for its relationships).
     QByteArray story(qint64 cp0, qint64 cp1, Kind kind, const QString &part);
+    // The data of a legacy form field kept at `position` of the data stream (section 2.9.158, 2.9.78, 2.9.79) as the w:ffData element, empty if there is none there.
+    QByteArray formFieldXml(qint32 position);
+    int runBuilders = 0;                 // (the number of paragraphs' runs begun, for telling them apart)
     // The VML shapes anchored at character `cp` of a story (a drawing the text holds a place for), empty if there are none.
     QByteArray shapeXml(qint64 cp, Kind kind, const QString &part);
     // A picture at `position` in the data stream as the XML of an inline drawing, empty if it can't be shown.
-    QByteArray pictureXml(qint32 position, const QString &part);
+    // (`quiet`: a picture that can't be shown is not said to have been left out: the caller has something else to show.)
+    QByteArray pictureXml(qint32 position, const QString &part, bool quiet = false);
+    // What stands for an embedded object that has no picture of its own: a plain picture the size the object's header at `position` of the data stream says (when it holds one; else
+    // an inch square). The objects themselves are not carried; the number met is `embeddedObjects`.
+    QByteArray objectPlaceholderXml(qint32 position, const QString &part);
+    int embeddedObjects = 0;
     // Remember that something of the file was left out (once for each `key`).
     void left(const QString &key, const QString &text);
     // Whether `key` has been said already (to skip making the words of a note that would not be added).
@@ -53,6 +61,7 @@ public:
 
     wml::ReadNotes *notes = nullptr;
     QByteArray fileWd, fileTable, fileData;
+    QByteArray summaryStream, documentSummaryStream;   // the streams of the document's properties (section 2.25.1 of the property set format, and its document summary)
     Span wd, tbl, data;
     Fib fib;
     PieceTable pieces;
@@ -70,6 +79,17 @@ public:
         QByteArray xml;
     };
     QVector<BookmarkEvent> bookmarkEvents;           // where the bookmarks of the main text begin and end, in order
+    // The comments of the main text, in the order of the characters that refer to them (section 2.8.7, 2.8.8): where the reference is, who made it, and where its text is
+    // in the comment story.
+    struct CommentInfo {
+        qint64 reference = 0;
+        QString author, initials;
+        quint32 date = 0;
+        qint64 textFrom = 0, textTo = 0;
+    };
+    QVector<CommentInfo> comments;
+    // The number of the comment whose reference is at character `cp` (-1 if none).
+    int commentAt(qint64 cp) const;
     PackageWriter pkg;
     int paragraphs = 0;                  // made so far, in all the stories
     int tableCells = 0;                  // the cells of all the tables so far
@@ -96,6 +116,9 @@ private:
     void readSections();
     void readNotePlcs();
     void readBookmarks();
+    void readComments();
+    void addDocumentProperties();
+    QByteArray commentsXml();
     QByteArray fontTableXml() const;
     Sep withNoteFormats(Sep sep) const;
     QByteArray settingsXml() const;
@@ -106,6 +129,8 @@ private:
     int m_pictures = 0;
     qint64 m_pictureBytes = 0;
     QHash<QString, QString> m_mediaOfKey;           // where a picture came from -> the media part holding it
+    QByteArray m_placeholderPng;                     // the picture that stands for an embedded object that has none (made once)
+    QHash<qint32, QByteArray> m_formFieldAt;        // the form fields' data read so far, by place in the data stream
     QHash<qint32, Picture> m_pictureAt;             // the pictures of the data stream read so far (a place with none: empty bytes)
     qint64 m_pictureWork = 4000000;              // what is left of the work the pictures of the file may do (see odraw.h)
     QHash<QString, QString> m_relOfMedia;         // "part|media" -> relationship id

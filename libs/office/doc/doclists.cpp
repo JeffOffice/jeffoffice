@@ -60,11 +60,12 @@ QByteArray readLevel(const Span &s, qint64 *o, int ilvl, const FontNames &fonts,
 
 } // namespace
 
-Lists readLists(const Span &plfLst, const Span &plfLfo, const FontNames &fonts, const StyleSheet &styles)
+Lists readLists(const Span &plfLst, qint64 lcbLst, const Span &plfLfo, qint64 lcbLfo, const FontNames &fonts, const StyleSheet &styles)
 {
     Lists out;
-    if (plfLst.size() < 2 || plfLfo.size() < 4) return out;
-    const int cLst = std::min<int>(plfLst.u16(0), kMaxLists);
+    if (plfLst.size() < 2 || plfLfo.size() < 4 || lcbLst < 2 || lcbLfo < 4) return out;
+    // (The count of definitions is held to the room the header gives them.)
+    const int cLst = int(std::min<qint64>({qint64(plfLst.u16(0)), qint64(kMaxLists), (lcbLst - 2) / 28}));
     QHash<quint32, int> byId;
     QByteArray abstracts;
     qint64 o = 2;
@@ -89,7 +90,7 @@ Lists readLists(const Span &plfLst, const Span &plfLfo, const FontNames &fonts, 
         ++made;
     }
     // The instances.
-    const int lfoMac = int(std::min<quint32>(plfLfo.u32(0), kMaxListInstances));
+    const int lfoMac = int(std::min<qint64>({qint64(plfLfo.u32(0)), qint64(kMaxListInstances), (lcbLfo - 4) / 16}));
     QByteArray nums;
     qint64 d = 4 + 16 * qint64(lfoMac);
     for (int i = 0; i < lfoMac && plfLfo.fits(4 + 16 * qint64(i), 16) && nums.size() < kMaxListBytes; ++i) {

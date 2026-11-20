@@ -3,6 +3,7 @@
 #include "doc/docformat.h"
 
 #include <QCoreApplication>
+#include <QSet>
 #include <algorithm>
 
 namespace jp::office::doc {
@@ -148,25 +149,22 @@ QByteArray PieceTable::modifier(const Piece &piece) const
     // One sprm with a one-byte operand: the number of it in the old numbering, and the operand.
     const int isprm = (piece.prm >> 1) & 0x7F;
     const quint8 val = quint8(piece.prm >> 8);
+    // The whole table of section 2.9.215: the number in the old numbering, and the sprm it stands for.
+    static const struct { quint8 isprm; quint16 op; } kTable[] = {
+        {0x00, 0x2879}, {0x04, 0x2602}, {0x05, 0x2461}, {0x07, 0x2405}, {0x08, 0x2406}, {0x09, 0x2407},
+        {0x0C, 0x260A}, {0x0D, 0x2470}, {0x0E, 0x240C}, {0x0F, 0x2471}, {0x18, 0x2416}, {0x19, 0x2417},
+        {0x1D, 0x261B}, {0x25, 0x2423}, {0x2C, 0x242A}, {0x32, 0x2430}, {0x33, 0x2431}, {0x35, 0x2433},
+        {0x36, 0x2434}, {0x37, 0x2435}, {0x38, 0x2436}, {0x39, 0x2437}, {0x3A, 0x2438}, {0x41, 0x0800},
+        {0x42, 0x0801}, {0x43, 0x0802}, {0x47, 0x0806}, {0x4B, 0x080A}, {0x4D, 0x2A0C}, {0x4E, 0x0858},
+        {0x4F, 0x2859}, {0x50, 0x0811}, {0x51, 0x0818}, {0x53, 0x2A33}, {0x55, 0x0835}, {0x56, 0x0836},
+        {0x57, 0x0837}, {0x58, 0x0838}, {0x59, 0x0839}, {0x5A, 0x083A}, {0x5B, 0x083B}, {0x5C, 0x083C},
+        {0x5E, 0x2A3E}, {0x62, 0x2A42}, {0x68, 0x2A48}, {0x73, 0x2A53}, {0x74, 0x0854}, {0x75, 0x0855},
+        {0x76, 0x0856}, {0x78, 0x2640}, {0x7B, 0x2A90}, {0x7C, 0x2A86}, {0x7E, 0x2443}};
     quint16 op = 0;
-    switch (isprm) {
-    case 5: op = 0x2403; break;     // alignment
-    case 7: op = 0x2405; break;     // keep lines together
-    case 8: op = 0x2406; break;     // keep with next
-    case 9: op = 0x2407; break;     // page break before
-    case 13: op = 0x240C; break;    // no line numbers
-    case 23: op = 0x2416; break;    // in a table
-    case 24: op = 0x2417; break;    // ends a table row
-    case 85: op = 0x0835; break;    // bold
-    case 86: op = 0x0836; break;    // italic
-    case 87: op = 0x0837; break;    // strike
-    case 88: op = 0x0838; break;    // outline
-    case 89: op = 0x0839; break;    // shadow
-    case 90: op = 0x083A; break;    // small capitals
-    case 91: op = 0x083B; break;    // capitals
-    case 92: op = 0x083C; break;    // hidden
-    default: return QByteArray();
-    }
+    for (const auto &e : kTable)
+        if (e.isprm == isprm) op = e.op;
+    if (!op) return QByteArray();
+    if (isprm == 0 && val == 0) return QByteArray();   // (no effect)
     QByteArray g(3, 0);
     g[0] = char(op & 0xFF);
     g[1] = char(op >> 8);
@@ -181,9 +179,14 @@ bool BinTable::read(const Span &plc, const Span &wd, bool paragraphs, qint64 *bu
     m_runs.clear();
     Plc bte(plc, 4);
     bool sorted = true;
-    for (int i = 0; i < bte.n; ++i) {
+    // The pages are distinct stretches of the stream (sections 2.8.5 and 2.8.6 allow no stream offset twice): no more entries than whole pages the stream has, and a page counts once,
+    // whatever the number of entries that name it.
+    QSet<qint64> seen;
+    const int most = int(std::min<qint64>(bte.n, wd.size() / 512));
+    for (int i = 0; i < most; ++i) {
         const qint64 page = qint64(bte.record(i).u32(0) & 0x3FFFFF) * 512;
-        if (!wd.fits(page, 512)) continue;
+        if (!wd.fits(page, 512) || seen.contains(page)) continue;
+        seen.insert(page);
         const int crun = wd.u8(page + 511);
         const int per = paragraphs ? 13 : 1;
         if (crun == 0 || 4 * (crun + 1) + per * crun > 511) continue;

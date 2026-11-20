@@ -37,8 +37,16 @@ constexpr int kMaxShapes = 20000;
 // are in a file that holds them once.
 constexpr qint64 kMaxShapeVisits = 1000000;
 constexpr int kMaxTextBoxes = 100000;
+// Legacy form fields (a text field, a check box, a drop-down) read from the file, and the bytes of the data one holds (a field's data is a few hundred bytes).
+constexpr int kMaxFormFields = 20000;
+constexpr qint64 kMaxFormFieldBytes = 65536;
+constexpr int kMaxFormFieldEntries = 64;
 // Bookmarks.
 constexpr int kMaxBookmarks = 20000;
+// Comments: how many are read (as many as JeffWrite keeps), the characters of one comment's text (as many as its comment pane keeps), and the authors' names.
+constexpr int kMaxComments = 100000;
+constexpr qint64 kMaxCommentChars = 32768;
+constexpr int kMaxCommentAuthors = 0x7FFF;
 // The XML of the lists (their definitions and instances).
 constexpr qint64 kMaxListBytes = qint64(64) << 20;
 // Fields that nest in one another (an unclosed field is closed at the end of its paragraph).

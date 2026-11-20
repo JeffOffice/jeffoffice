@@ -15,8 +15,17 @@ namespace {
 // One paragraph's worth of runs, built up as the text is walked.
 class RunBuilder {
 public:
-    explicit RunBuilder(Converter &c) : c(c) {}
+    explicit RunBuilder(Converter &c) : id(++c.runBuilders), c(c) {}
+    const int id;                    // which paragraph's (see Field::builder)
     QByteArray paragraph;            // the runs so far
+    // Puts the data of a form field into the begin mark of the field that was made at or after `at` of the paragraph.
+    void formFieldData(qint64 at, const QByteArray &ffData)
+    {
+        static const QByteArray mark = "<w:fldChar w:fldCharType=\"begin\"/>";
+        const qsizetype i = at >= 0 && at <= paragraph.size() ? paragraph.indexOf(mark, qsizetype(at)) : -1;
+        if (i < 0 || !c.spend(ffData)) return;
+        paragraph.replace(i, mark.size(), "<w:fldChar w:fldCharType=\"begin\">" + ffData + "</w:fldChar>");
+    }
 
     // The properties of the characters that follow; a run ends where they change.
     void setRun(const QByteArray &rpr, const Revision &insertion, const Revision &deletion)
@@ -110,6 +119,10 @@ private:
     struct Field {
         bool real = true;
         bool result = false;         // past the separator
+        bool object = false;         // an embedded object's field (its separator says so), and whether a picture of it has been shown
+        bool objectShown = false;
+        int builder = 0;             // the paragraph whose runs hold its begin mark, and where in them
+        qint64 beginAt = 0;
     };
     bool isEnd(qint64 cp) const;
     void paragraph(qint64 first, qint64 last, bool terminated);
@@ -422,6 +435,8 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
             }
             Field f;
             f.real = fields.size() < kMaxFieldDepth && (fields.isEmpty() || fields.last().real);
+            f.builder = rb.id;
+            f.beginAt = rb.paragraph.size();
             fields.push_back(f);
             if (f.real) rb.alone("<w:fldChar w:fldCharType=\"begin\"/>");
             break;
@@ -430,6 +445,10 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
             flushPlain();
             if (fieldsNotKept == 0 && !fields.isEmpty() && !fields.last().result) {
                 fields.last().result = true;
+                if (chp.ole2 && fields.last().real && !fields.last().object) {   // (section 2.6.1: the object's place is the separator of its field)
+                    fields.last().object = true;
+                    ++c.embeddedObjects;
+                }
                 if (fields.last().real) rb.alone("<w:fldChar w:fldCharType=\"separate\"/>");
             }
             break;
@@ -438,15 +457,35 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
             if (fieldsNotKept > 0) {
                 --fieldsNotKept;
             } else if (!fields.isEmpty()) {
+                if (fields.last().object && !fields.last().objectShown && !instruction) {   // (an object with no picture of its own: a plain one stands for it)
+                    const QByteArray plain = c.objectPlaceholderXml(-1, part);
+                    if (!plain.isEmpty()) {
+                        rb.flushRun();
+                        rb.setRun(rpr, chp.insertion, chp.deletion);
+                        rb.element(plain);
+                    }
+                }
                 if (fields.last().real) rb.alone("<w:fldChar w:fldCharType=\"end\"/>");
                 fields.pop_back();
             }
             break;
         case 0x01:
             flushPlain();
-            if (chp.special && chp.picture >= 0 && !chp.data && !chp.ole2 && !instruction) {
+            // (In the instruction of a field, a mark with data is the data of a form field: its begin mark is made again with it.)
+            if (chp.special && chp.data && chp.picture >= 0 && instruction && fields.last().real && fields.last().builder == rb.id) {
+                const QByteArray form = c.formFieldXml(chp.picture);
+                if (!form.isEmpty()) rb.formFieldData(fields.last().beginAt, form);
+            }
+            if (chp.special && chp.picture >= 0 && !chp.data && !instruction) {
                 rb.flushRun();
-                const QByteArray drawing = c.pictureXml(chp.picture, part);
+                // (The mark of an embedded object of the older kind holds the object's own picture, which shows in its place; with none, a plain one does.)
+                QByteArray drawing = c.pictureXml(chp.picture, part, chp.ole2);
+                if (chp.ole2) {
+                    ++c.embeddedObjects;
+                    if (drawing.isEmpty()) drawing = c.objectPlaceholderXml(chp.picture, part);
+                } else if (!drawing.isEmpty() && !fields.isEmpty() && fields.last().object) {
+                    fields.last().objectShown = true;
+                }
                 if (!drawing.isEmpty()) {
                     rb.setRun(rpr, chp.insertion, chp.deletion);
                     rb.element(drawing);
@@ -466,6 +505,15 @@ void StoryWriter::characters(qint64 from, qint64 to, const Chp &chp, const QByte
                         it = std::lower_bound(c.endnoteRefs.begin(), c.endnoteRefs.end(), q);
                         if (it != c.endnoteRefs.end() && *it == q) rb.element("<w:endnoteReference w:id=\"" + QByteArray::number(int(it - c.endnoteRefs.begin()) + 1) + "\"/>");
                     }
+                }
+            }
+            break;
+        case 0x05:
+            flushPlain();
+            if (chp.special && !instruction) {
+                if (kind == Converter::Kind::Main) {
+                    const int i = c.commentAt(q);
+                    if (i >= 0) rb.alone("<w:commentReference w:id=\"" + QByteArray::number(i) + "\"/>");
                 }
             }
             break;

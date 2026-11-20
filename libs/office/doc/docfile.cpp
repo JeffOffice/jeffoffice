@@ -4,6 +4,8 @@
 #include "doc/docconvert.h"
 
 #include "io/cfb.h"
+#include "office/oleprops.h"
+#include "office/packageprops.h"
 #include "office/theme.h"
 
 #include <QCoreApplication>
@@ -124,6 +126,8 @@ bool Converter::open(const QByteArray &file, QString *error)
     fileData = cf.stream(QStringLiteral("Data"));
     data = Span(fileData);
     if (notes && cf.find(QStringLiteral("Macros")) >= 0) notes->hadMacros = true;
+    summaryStream = cf.stream(QStringLiteral("\u0005SummaryInformation"));
+    documentSummaryStream = cf.stream(QStringLiteral("\u0005DocumentSummaryInformation"));
 
     bool cut = false;
     if (!pieces.read(tableRange(Fib::Clx), wd, fib.total() + 2, &cut)) return fail(QCoreApplication::translate("jp::office::doc", "The document's text can't be found in the file."));
@@ -145,13 +149,63 @@ bool Converter::open(const QByteArray &file, QString *error)
     readFontTable();
     styles.read(tableRange(Fib::Stshf));
     // (The levels of the lists follow the list definitions in the stream, past the range the header gives for them.)
-    lists = readLists(fib.at(Fib::PlfLst).lcb ? tbl.from(fib.at(Fib::PlfLst).fc) : Span(), fib.at(Fib::PlfLfo).lcb ? tbl.from(fib.at(Fib::PlfLfo).fc) : Span(), fonts, styles);
+    lists = readLists(fib.at(Fib::PlfLst).lcb ? tbl.from(fib.at(Fib::PlfLst).fc) : Span(), fib.at(Fib::PlfLst).lcb, fib.at(Fib::PlfLfo).lcb ? tbl.from(fib.at(Fib::PlfLfo).fc) : Span(), fib.at(Fib::PlfLfo).lcb, fonts, styles);
     authors = readStringTable(tableRange(Fib::SttbfRMark), 1000);
     readSections();
     readNotePlcs();
     readBookmarks();
-    if (fib.ccpAtn > 0) left(QStringLiteral("comments"), QCoreApplication::translate("jp::office::doc", "Comments in the document were not brought in."));
+    readComments();
     return true;
+}
+
+// The properties of the document (title, author, dates...) as the package's core and extended parts, from the two property set streams.
+void Converter::addDocumentProperties()
+{
+    // (A text kept to what a property of a package holds: no control characters, and no more than a few thousand characters.)
+    auto clean = [](const OleProperty &p) {
+        QString t;
+        for (const QChar c : p.text.left(4096))
+            if (c.unicode() >= 0x20 || c == QLatin1Char('\t')) t += c;
+        return t.trimmed();
+    };
+    PackageProps props;
+    bool any = false;
+    auto text = [&](const OlePropertySet &set, quint32 id, QString *to) {
+        const auto it = set.values.constFind(id);
+        if (it == set.values.constEnd() || it->type == 0x40 || it->type == 2 || it->type == 3) return;
+        *to = clean(*it);
+        any = any || !to->isEmpty();
+    };
+    auto time = [&](const OlePropertySet &set, quint32 id, QDateTime *to) {
+        const auto it = set.values.constFind(id);
+        if (it == set.values.constEnd() || it->type != 0x40 || !it->time.isValid()) return;
+        *to = it->time;
+        any = true;
+    };
+    for (const OlePropertySet &set : readOlePropertySets(summaryStream)) {
+        if (set.format != summaryInformationFormat()) continue;
+        text(set, 2, &props.title);
+        text(set, 3, &props.subject);
+        text(set, 4, &props.creator);
+        text(set, 5, &props.keywords);
+        text(set, 6, &props.comments);
+        text(set, 8, &props.lastModifiedBy);
+        time(set, 12, &props.created);
+        time(set, 13, &props.modified);
+        break;
+    }
+    for (const OlePropertySet &set : readOlePropertySets(documentSummaryStream)) {
+        if (set.format != documentSummaryInformationFormat()) continue;
+        text(set, 2, &props.category);
+        text(set, 14, &props.manager);
+        text(set, 15, &props.company);
+        break;
+    }
+    if (!any) return;
+    pkg.addPart(QStringLiteral("/docProps/core.xml"), writeCoreProps(QByteArray(), props), QString::fromLatin1(kCorePartType));
+    pkg.addRelationship(QStringLiteral("/"), QString::fromLatin1(kCoreRelationship), QStringLiteral("/docProps/core.xml"));
+    pkg.addPart(QStringLiteral("/docProps/app.xml"), writeAppProps(QByteArray(), props), QString::fromLatin1(kAppPartType));
+    pkg.addRelationship(QStringLiteral("/"), QString::fromLatin1(kAppRelationship), QStringLiteral("/docProps/app.xml"));
 }
 
 void Converter::readFontTable()
@@ -407,7 +461,8 @@ QByteArray Converter::build()
     // The parts the document reads from.
     pkg.addPart(QStringLiteral("/word/styles.xml"), styles.xml(fonts, lists.instances), wml + QStringLiteral("styles+xml"));
     pkg.addRelationship(mainName, rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
-    if (!lists.xml.isEmpty()) {
+    // (The numbering counts against what the output may hold, as the rest of the XML does; past it, it is left out and the document is cut short.)
+    if (!lists.xml.isEmpty() && spend(lists.xml)) {
         pkg.addPart(QStringLiteral("/word/numbering.xml"), lists.xml, wml + QStringLiteral("numbering+xml"));
         pkg.addRelationship(mainName, rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
     }
@@ -488,6 +543,17 @@ QByteArray Converter::build()
     if (sections.last().xml.isEmpty()) sections.last().xml = "<w:sectPr>" + sectionPropertiesXml(withNoteFormats(sections.last().sep), QByteArray()) + "</w:sectPr>";
     pkg.addPart(mainName, QByteArray(kXmlHeader) + "<w:document " + kNamespaces + "><w:body>" + (body.isEmpty() ? QByteArray("<w:p/>") : body) + sections.last().xml + "</w:body></w:document>",
                 wml + QStringLiteral("document.main+xml"));
+    addDocumentProperties();
+    // The comments (after the main text, which has first call on what the output may hold).
+    if (!comments.isEmpty() && !truncated) {
+        const QByteArray x = commentsXml();
+        if (!x.isEmpty()) {
+            pkg.addPart(QStringLiteral("/word/comments.xml"), x, wml + QStringLiteral("comments+xml"));
+            pkg.addRelationship(mainName, rel + QStringLiteral("comments"), QStringLiteral("/word/comments.xml"));
+        }
+    }
+    if (embeddedObjects > 0)
+        left(QStringLiteral("objects"), QCoreApplication::translate("jp::office::doc", "%n embedded object(s) are shown as pictures.", nullptr, embeddedObjects));
     return pkg.finish();
 }
 
