@@ -1446,29 +1446,51 @@ private Q_SLOTS:
         QCOMPARE(largest(exactBefore), 20.0);
         // (the table's paragraph is one of the body's: its size is in the list, and is 12)
         QCOMPARE(smallest(bodyBefore), 12.0);
+        // (the size of the words in the table's cell)
+        auto cellSize = [&] {
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+                if (b.text().contains(QStringLiteral("Cell words"))) {
+                    QTextCharFormat f;
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) f = it.fragment().charFormat();   // (the last run: the words, after the text box's character)
+                    return f.fontPointSize() > 0 ? f.fontPointSize() : doc.styleCharFormat(b.blockFormat().stringProperty(tp::StyleName), f.stringProperty(tp::CharStyle)).fontPointSize();
+                }
+            return 0.0;
+        };
+        const double cellBefore = cellSize();
         doc.setModified(false);
         QVERIFY(w.shrinkByOnePage());
         QVERIFY(pagesOf(w) < pages);
+        // (each part is looked at on its own: what is wrong is all said at the end)
+        QStringList problems;
+        auto expect = [&](bool ok, const char *what) {
+            if (!ok) problems << QLatin1String(what);
+        };
         const QVector<double> bodyAfter = effectiveSizes(doc, doc.story());
         QCOMPARE(bodyAfter.size(), bodyBefore.size());
-        for (int i = 0; i < bodyAfter.size(); ++i) QVERIFY2(bodyAfter[i] < bodyBefore[i], qPrintable(QString::number(i)));   // (every run, the table's cell among them)
-        QVERIFY(largest(boxSizes()) < 12.0);
-        QVERIFY(smallest(effectiveSizes(doc, noteStories(doc).value(0))) < smallest(noteBefore));   // (the note's words; the one character that is its number is the document's own to keep)
-        QCOMPARE(effectiveSizes(doc, headerStories(doc).value(0)), headerBefore);
+        bool everyRun = true;
+        for (int i = 0; i < bodyAfter.size(); ++i) everyRun = everyRun && bodyAfter[i] < bodyBefore[i];
+        expect(everyRun, "a run of the body was not made smaller");
+        // the table's cell: the first paragraph, which is in the table
+        expect(cellBefore > 0 && cellSize() < cellBefore, "the table's cell was not made smaller");
+        expect(largest(boxSizes()) < 12.0, "the text box was not made smaller");
+        expect(smallest(effectiveSizes(doc, noteStories(doc).value(0))) < smallest(noteBefore), "the footnote was not made smaller");   // (the one character that is the note's number is the document's own to keep)
+        expect(effectiveSizes(doc, headerStories(doc).value(0)) == headerBefore, "the header was changed");
         // the exact spacing is the text's share: 20 points scaled as the sizes were
         const QVector<double> exactAfter = exactHeights(doc.story());
-        QCOMPARE(exactAfter.size(), exactBefore.size());
         const double share = largest(bodyAfter) / 12.0;
-        for (int i = 0; i < exactAfter.size(); ++i)
-            if (exactBefore[i] > 0) QVERIFY2(std::abs(exactAfter[i] / exactBefore[i] - share) < 0.02, qPrintable(QString::number(exactAfter[i])));
+        bool exactRight = exactAfter.size() == exactBefore.size();
+        for (int i = 0; exactRight && i < exactAfter.size(); ++i)
+            if (exactBefore[i] > 0) exactRight = std::abs(exactAfter[i] / exactBefore[i] - share) < 0.02;
+        expect(exactRight, "the exact line spacing was not scaled by the same share");
         // one Undo gives every part back
         w.view()->undo();
-        QCOMPARE(effectiveSizes(doc, doc.story()), bodyBefore);
-        QCOMPARE(boxSizes(), boxBefore);
-        QCOMPARE(effectiveSizes(doc, noteStories(doc).value(0)), noteBefore);
-        QCOMPARE(effectiveSizes(doc, headerStories(doc).value(0)), headerBefore);
-        QCOMPARE(exactHeights(doc.story()), exactBefore);
-        QVERIFY(!doc.isModified());
+        expect(effectiveSizes(doc, doc.story()) == bodyBefore, "undo: the body");
+        expect(boxSizes() == boxBefore, "undo: the text box");
+        expect(effectiveSizes(doc, noteStories(doc).value(0)) == noteBefore, "undo: the footnote");
+        expect(effectiveSizes(doc, headerStories(doc).value(0)) == headerBefore, "undo: the header");
+        expect(exactHeights(doc.story()) == exactBefore, "undo: the exact spacing");
+        expect(!doc.isModified(), "undo: still marked changed");
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
     }
 
     // It is a layout tweak, not an edit: it is not recorded as tracked changes, even when the document tracks them.
@@ -1520,6 +1542,7 @@ private Q_SLOTS:
         const QList<Case> cases = {{"one page", one, "one page long already", 1}, {"page break", apart, "page break", 2}, {"section break", sections, "section break", 2},
                                    {"too small", tiny, "smaller than", -2}, {"locked", locked, "locked", 0}, {"formatting limited", limitedDocx, "locked", 0, true},
                                    {"too long", tooLong, "longer than", -300}};
+        QStringList problems;
         for (const Case &c : cases) {
             ShrinkDocx docx = c.docx;
             if (c.pages == -2) {
@@ -1554,22 +1577,27 @@ private Q_SLOTS:
             for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
                 for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) own << it.fragment().charFormat().fontPointSize();
             w.document()->setModified(false);
-            QVERIFY2(!w.document()->canUndo(), c.name);
-            QVERIFY2(!w.shrinkByOnePage(), c.name);
-            QVERIFY2(said.size() == 1 && said[0].contains(QLatin1String(c.words)), qPrintable(QStringLiteral("%1: %2").arg(QLatin1String(c.name), said.join(QLatin1Char('|')))));
-            QCOMPARE(cursorWhileTold, 0);   // (the wait cursor is over when the person is told)
-            QCOMPARE(pagesOf(w), pages);
-            QCOMPARE(effectiveSizes(*w.document(), story), sizes);
+            const bool did = w.shrinkByOnePage();
+            auto expect = [&](bool ok, const char *what) {
+                if (!ok) problems << QStringLiteral("%1: %2").arg(QLatin1String(c.name), QLatin1String(what));
+            };
+            expect(!did, "it went ahead");
+            expect(said.size() == 1 && said[0].contains(QLatin1String(c.words)), "it did not say why in its own words");
+            expect(cursorWhileTold == 0, "the wait cursor was still on when the person was told");
+            expect(pagesOf(w) == pages, "the pages changed");
+            expect(effectiveSizes(*w.document(), story) == sizes, "the sizes changed");
             QVector<double> ownAfter;
             for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
                 for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) ownAfter << it.fragment().charFormat().fontPointSize();
-            QCOMPARE(ownAfter, own);
-            QVERIFY2(!w.document()->canUndo(), c.name);
-            QVERIFY2(!w.document()->canRedo(), c.name);
-            QVERIFY2(!w.document()->isModified(), c.name);
-            QVERIFY2(!story->isUndoAvailable() && !story->isRedoAvailable(), c.name);
-            QVERIFY(w.act(QStringLiteral("edit.redo")) && !w.act(QStringLiteral("edit.redo"))->isEnabled());
+            expect(ownAfter == own, "the runs' own sizes changed");
+            expect(!w.document()->canUndo(), "there is a step to undo");
+            expect(!w.document()->canRedo(), "there is a step to redo");
+            expect(!w.document()->isModified(), "the document is marked changed");
+            expect(!story->isUndoAvailable() && !story->isRedoAvailable(), "the story has steps");
+            expect(w.act(QStringLiteral("edit.redo")) && !w.act(QStringLiteral("edit.redo"))->isEnabled(), "Redo is on");
+            expect(!QApplication::overrideCursor(), "the wait cursor is left on");
         }
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
     }
 
     // The Print page's button does the same, and the page shows the new count.
