@@ -228,8 +228,18 @@ namespace {
 constexpr int kKeyStep = 10, kKeyFineStep = 1, kBoxLeastWidth = 24, kBoxLeastHeight = 16;
 }
 
+Qt::KeyboardModifier GridView::noteFineModifier()
+{
+#ifdef Q_OS_MACOS
+    return Qt::AltModifier;
+#else
+    return Qt::ControlModifier;
+#endif
+}
+
 bool GridView::beginNoteKeys(qint64 row, qint64 col)
 {
+    if (m_noteKeys) return row == m_pickRow && col == m_pickCol;   // (the box is taken already: what was moved stays)
     if (m_drag != Drag::None) return false;
     const int i = shownIndexAt(row, col);
     QRect box;
@@ -243,8 +253,9 @@ bool GridView::beginNoteKeys(qint64 row, qint64 col)
                                       std::max(1, int(std::lround(box.height() / z)))));
     m_noteKeyRel = m_noteKeyRel0;
     m_noteKeys = true;
+    m_noteKeysSaid = true;
     viewport()->update();
-    Q_EMIT noteKeysChanged();
+    Q_EMIT noteKeysChanged(NoteKeys::Began);
     return true;
 }
 
@@ -254,18 +265,23 @@ void GridView::endNoteKeys(bool keep)
     const QRect now = m_noteKeyRel;
     const bool changed = now != m_noteKeyRel0;
     m_noteKeys = false;
+    m_noteKeysSaid = true;
     viewport()->update();
-    Q_EMIT noteKeysChanged();
+    Q_EMIT noteKeysChanged(keep ? NoteKeys::Kept : NoteKeys::GivenUp);
     if (keep && changed && m_pickRow >= 0) Q_EMIT noteBoxRequested(m_pickRow, m_pickCol, now);
 }
 
-// A key while a box is being moved: an arrow moves it (sizes it with Shift; a fine step with Ctrl), Enter keeps it, Escape gives it up; no other key reaches the sheet meanwhile.
+// A key while a box is being moved: an arrow moves it (sizes it with Shift; a fine step with the fine key), Enter keeps it, Escape gives it up; no other key reaches the sheet meanwhile, and no
+// chord with Alt, Meta, or (on a Mac) Command does either, except the window's own (Quit and Close).
 bool GridView::noteKeyPress(QKeyEvent *e)
 {
     if (!m_noteKeys) return false;
     const int key = e->key();
     if (key == Qt::Key_Shift || key == Qt::Key_Control || key == Qt::Key_Alt || key == Qt::Key_Meta) return false;
-    if (e->modifiers() & (Qt::AltModifier | Qt::MetaModifier)) return false;
+    if (e->matches(QKeySequence::Quit) || e->matches(QKeySequence::Close)) return false;
+    const Qt::KeyboardModifier fine = noteFineModifier();
+    const Qt::KeyboardModifiers others = (Qt::AltModifier | Qt::MetaModifier | Qt::ControlModifier) & ~Qt::KeyboardModifiers(fine);
+    if (e->modifiers() & others) return true;
     if (key == Qt::Key_Return || key == Qt::Key_Enter) {
         endNoteKeys(true);
         return true;
@@ -282,7 +298,7 @@ bool GridView::noteKeyPress(QKeyEvent *e)
     case Qt::Key_Down: dy = 1; break;
     default: return true;   // (no other key does anything to the sheet while the box is being moved)
     }
-    const int step = (e->modifiers() & Qt::ControlModifier) ? kKeyFineStep : kKeyStep;
+    const int step = (e->modifiers() & fine) ? kKeyFineStep : kKeyStep;
     QRect r = m_noteKeyRel;
     if (e->modifiers() & Qt::ShiftModifier) {
         // (the right and bottom edges move)
@@ -297,8 +313,22 @@ bool GridView::noteKeyPress(QKeyEvent *e)
         m_noteKeyRel = r;
         viewport()->update();
     }
-    Q_EMIT noteKeysChanged();   // (said at each key, so that the place is told again even at the end of the way)
+    // (said at each key press, so that the place is told again even at the end of the way; a key held down says it once, when it is let go)
+    if (e->isAutoRepeat()) m_noteKeysSaid = false;
+    else {
+        m_noteKeysSaid = true;
+        Q_EMIT noteKeysChanged(NoteKeys::Moved);
+    }
     return true;
+}
+
+void GridView::keyReleaseEvent(QKeyEvent *e)
+{
+    if (m_noteKeys && !m_noteKeysSaid && !e->isAutoRepeat()) {
+        m_noteKeysSaid = true;
+        Q_EMIT noteKeysChanged(NoteKeys::Moved);
+    }
+    QAbstractScrollArea::keyReleaseEvent(e);
 }
 
 void GridView::paintNotes(QPainter *painter, const QRect &clip)

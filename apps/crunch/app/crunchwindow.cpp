@@ -325,6 +325,8 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
         }
         if (!worksOnSeveralRanges(id) && refuseSeveralRanges(QString(text).remove(QLatin1Char('&')).remove(QStringLiteral("…")))) return;
         telemetry::count(id);
+        // (a note's box taken by the keys is given up by any other command)
+        if (m_view && m_view->inNoteKeys() && id != QLatin1String("notes.moveSize")) m_view->endNoteKeys(false);
         // (a box being drawn is put down by any other command: one tool at a time)
         if (m_objects && id != QLatin1String("insert.textBox.draw")) m_objects->layer()->armBox(false);
         if (fn) fn();
@@ -332,6 +334,13 @@ QAction *CrunchWindow::mk(const QString &id, const QString &text, const QString 
     m_actions.insert(id, a);
     KeyMap::applyLater(this, a);
     return a;
+}
+
+// The name and description the sheet has when its keys are the usual ones (a note's box taken by the keys gives it other words for a while).
+void CrunchWindow::setSheetAccessibleText()
+{
+    m_view->setAccessibleName(tr("Sheet"));
+    m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
 }
 
 QAction *CrunchWindow::act(const QString &id) const { return m_actions.value(id); }
@@ -385,9 +394,8 @@ void CrunchWindow::buildCentral()
     row->addWidget(m_formulaBar, 1);
     v->addWidget(m_formulaRow);
     m_view = new grid::GridView(central);
-    m_view->setAccessibleName(tr("Sheet"));
+    setSheetAccessibleText();
     m_view->setDragEditing(Settings::get().value(QStringLiteral("crunch/dragEditing"), true).toBool());
-    m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
     v->addWidget(buildOutlineGutters(central), 1);
     buildPageLayoutView(central, v);
     m_cellEditor = new CellEditor(m_view->viewport());

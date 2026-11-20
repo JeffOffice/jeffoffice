@@ -93,6 +93,7 @@ void CrunchWindow::dropWorkbook()
     m_calculating = false;
     m_views.clear();
     m_sheet = -1;
+    m_view->endNoteKeys(false);   // (a note's box taken by the keys belongs to the workbook that was open)
     if (m_objects) m_objects->open(nullptr);   // (nothing opened: no object is left over the blank grid)
     m_view->setCellsEnabled(true);
     showBlank();
@@ -456,6 +457,7 @@ void CrunchWindow::fillTabs()
 void CrunchWindow::showSheet(int sheetIndex, bool keepView)
 {
     ++m_sheetShows;
+    if (!keepView && m_view) m_view->endNoteKeys(false);   // (another sheet is shown: a note's box taken by the keys is let go of, whatever notes the sheets have)
     if (!m_loaded || !m_loaded->book) return;
     if (!keepView) m_copy.reset();   // (a copy being made is of the sheet that was shown)
     if (m_layoutSheet != sheetIndex) dropLayoutJob();   // (the pages held are another sheet's)
