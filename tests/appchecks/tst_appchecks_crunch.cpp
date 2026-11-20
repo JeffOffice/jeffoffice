@@ -170,6 +170,7 @@ private Q_SLOTS:
                 QString why;
                 s += w->snapshotBytesForTest(&bytes, &why) ? QLatin1Char('|') + zipDigest(bytes) : QLatin1Char('|') + why;
             }
+            s += w->view()->inNoteKeys() ? QStringLiteral("|notekeys%1,%2").arg(w->view()->noteKeysBox().x()).arg(w->view()->noteKeysBox().y()) : QStringLiteral("|notekeys-");   // (a note's box taken by the keys)
             const grid::GridView::ViewState v = w->view()->viewState();
             s += QStringLiteral("|arrows%1|formulas%2|breaks%3,%4|painter%5").arg(w->arrowCount()).arg(w->view()->sheet().showFormulas()).arg(w->view()->pageBreakRows().size()).arg(w->view()->pageBreakCols().size()).arg(w->formatPainterActive());
             return s + QStringLiteral("|%1|%2,%3|%4,%5|%6,%7|%8").arg(w->view()->zoom()).arg(v.frozenRows).arg(v.frozenCols).arg(v.scrollX).arg(v.scrollY).arg(v.gridlines).arg(v.headings).arg(w->view()->rangeName());
