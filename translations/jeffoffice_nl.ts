@@ -77189,17 +77189,23 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+121"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">meer spaties dan worden behouden</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
+        <location line="+7"/>
         <source>pictures that the file only links to</source>
         <translation type="unfinished">afbeeldingen waarnaar het bestand alleen een koppeling bevat</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+12"/>
+        <source>links to pictures past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>pictures of a kind that isn&apos;t read</source>
         <translation type="unfinished">afbeeldingen van een type dat niet wordt gelezen</translation>
     </message>
@@ -77220,7 +77226,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">grafieken die het maximum van %1 overschrijden dat een document mag hebben</translation>
     </message>
@@ -77228,7 +77234,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+578"/>
+        <location line="+580"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">grafieken die niet konden worden gelezen</translation>
     </message>
@@ -77238,50 +77244,55 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">grafieken die het aantal punten overschrijden dat alle grafieken van een document samen mogen hebben</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+333"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">vergelijkingen die het maximum van %1 voor een document overschrijden, of de grootte die ze samen kunnen krijgen (bewaard als hun afbeeldingen)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">ingesloten objecten boven de %1 die een document mag hebben, of de grootte die ze samen mogen hebben (als afbeeldingen bewaard)</translation>
     </message>
     <message>
+        <location line="+40"/>
+        <source>drawing shapes past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <location line="+72"/>
-        <location line="+69"/>
         <location line="+7"/>
-        <location line="+339"/>
-        <location line="+210"/>
-        <location line="+10"/>
+        <location line="+368"/>
+        <location line="+216"/>
+        <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">tekenvormen</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-495"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objecten zoals formules en grafieken</translation>
     </message>
     <message>
-        <location line="+404"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
+        <location line="+433"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">te diep geneste inhoud</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
+        <location line="+342"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">te diep geneste tabellen</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+225"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">een tabel met meer herhaalde cellen dan worden behouden</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">een tabel met meer herhaalde rijen dan worden behouden</translation>
     </message>
@@ -77332,12 +77343,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">styles.xml kan niet worden gelezen: %1</translation>
     </message>
     <message>
-        <location line="+654"/>
+        <location line="+668"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Het bestand bevat geen tekst.</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+201"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
         <translation type="unfinished">ingesloten objecten die in een ander soort bestand zijn gemaakt (als afbeeldingen bewaard)</translation>
     </message>
@@ -77352,7 +77363,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De tekst van het document kan niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="+756"/>
+        <location line="+760"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">kolommen met verschillende breedten (opgeslagen als gelijke kolommen)</translation>
     </message>
@@ -77367,7 +77378,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">regelnummers</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+319"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">bijgehouden wijzigingen in tabellen, kolommen en pagina-instelling (opgeslagen zoals ze nu zijn)</translation>
     </message>
@@ -77375,11 +77386,6 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+6"/>
         <source>the page color</source>
         <translation type="unfinished">de paginakleur</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>mirrored margins</source>
-        <translation type="unfinished">spiegelmarges</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77407,31 +77413,42 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">markeringen &quot;spelling niet controleren&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">formuliervelden (behouden als de tekst die ze weergeven)</translation>
     </message>
     <message>
-        <location line="+415"/>
+        <location line="+414"/>
         <location line="+4"/>
-        <location line="+163"/>
-        <location line="+339"/>
+        <location line="+166"/>
+        <location line="+191"/>
+        <location line="+12"/>
+        <location line="+5"/>
+        <location line="+20"/>
+        <location line="+390"/>
+        <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">tekeningen, vormen en grafieken</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-608"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">bewerkte tekstomlooppunten op vormen</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+26"/>
+        <location line="+256"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">afbeeldingen die niet kunnen worden gelezen</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="-105"/>
+        <source>pictures that fill text boxes (the boxes are kept without them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+417"/>
         <source>embedded objects</source>
         <translation type="unfinished">ingesloten objecten</translation>
     </message>
@@ -77447,7 +77464,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">vergelijkingen die niet als formules kunnen worden bewaard (bewaard als gewone tekst)</translation>
     </message>
     <message>
-        <location line="+404"/>
+        <location line="+405"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">een tabel met meer cellen dan worden behouden</translation>
     </message>

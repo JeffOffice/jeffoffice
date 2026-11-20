@@ -77189,17 +77189,23 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+121"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">más espacios de los que se conservan</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
+        <location line="+7"/>
         <source>pictures that the file only links to</source>
         <translation type="unfinished">imágenes a las que el archivo solo está vinculado</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+12"/>
+        <source>links to pictures past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>pictures of a kind that isn&apos;t read</source>
         <translation type="unfinished">imágenes de un tipo que no se puede leer</translation>
     </message>
@@ -77220,7 +77226,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">gráficos que superan el %1 que puede tener un documento</translation>
     </message>
@@ -77228,7 +77234,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+578"/>
+        <location line="+580"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">gráficos que no se pudieron leer</translation>
     </message>
@@ -77238,50 +77244,55 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">gráficos que superan el número de puntos que pueden tener todos los gráficos de un documento</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+333"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">ecuaciones por encima del %1 que puede tener un documento, o del tamaño que pueden alcanzar en conjunto (se conservan como sus imágenes)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">objetos incrustados que superan los %1 que puede tener un documento, o el tamaño que alcanzarían en conjunto (se conservan como sus imágenes)</translation>
     </message>
     <message>
+        <location line="+40"/>
+        <source>drawing shapes past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <location line="+72"/>
-        <location line="+69"/>
         <location line="+7"/>
-        <location line="+339"/>
-        <location line="+210"/>
-        <location line="+10"/>
+        <location line="+368"/>
+        <location line="+216"/>
+        <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">formas de dibujo</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-495"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objetos como fórmulas y gráficos</translation>
     </message>
     <message>
-        <location line="+404"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
+        <location line="+433"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">contenido anidado a demasiada profundidad</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
+        <location line="+342"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tablas anidadas a demasiada profundidad</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+225"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">una tabla con más celdas repetidas de las que se conservan</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">una tabla con más filas repetidas de las que se conservan</translation>
     </message>
@@ -77332,12 +77343,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se puede leer styles.xml: %1</translation>
     </message>
     <message>
-        <location line="+654"/>
+        <location line="+668"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">El archivo no contiene texto.</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+201"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
         <translation type="unfinished">objetos incrustados creados en otro tipo de archivo (se conservan como imágenes)</translation>
     </message>
@@ -77352,7 +77363,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se puede leer el texto del documento.</translation>
     </message>
     <message>
-        <location line="+756"/>
+        <location line="+760"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">columnas de distinto ancho (se guardan con el mismo ancho)</translation>
     </message>
@@ -77367,7 +77378,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">números de línea</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+319"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">cambios con seguimiento en tablas, columnas y configuración de página (se guardan en su estado actual)</translation>
     </message>
@@ -77375,11 +77386,6 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+6"/>
         <source>the page color</source>
         <translation type="unfinished">el color de página</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>mirrored margins</source>
-        <translation type="unfinished">márgenes simétricos</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77407,31 +77413,42 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">marcas de «no comprobar ortografía»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campos de formulario (se conservan como el texto que muestran)</translation>
     </message>
     <message>
-        <location line="+415"/>
+        <location line="+414"/>
         <location line="+4"/>
-        <location line="+163"/>
-        <location line="+339"/>
+        <location line="+166"/>
+        <location line="+191"/>
+        <location line="+12"/>
+        <location line="+5"/>
+        <location line="+20"/>
+        <location line="+390"/>
+        <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">dibujos, formas y gráficos</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-608"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">puntos de ajuste de texto editados en formas</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+26"/>
+        <location line="+256"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">imágenes que no se pueden leer</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="-105"/>
+        <source>pictures that fill text boxes (the boxes are kept without them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+417"/>
         <source>embedded objects</source>
         <translation type="unfinished">objetos incrustados</translation>
     </message>
@@ -77447,7 +77464,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">ecuaciones que no se pueden conservar como fórmulas (se conservan como texto sin formato)</translation>
     </message>
     <message>
-        <location line="+404"/>
+        <location line="+405"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">una tabla con más celdas de las que se conservan</translation>
     </message>

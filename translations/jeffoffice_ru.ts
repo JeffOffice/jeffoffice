@@ -77248,17 +77248,23 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+121"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">больше пробелов, чем сохраняется</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
+        <location line="+7"/>
         <source>pictures that the file only links to</source>
         <translation type="unfinished">рисунки, на которые файл только ссылается</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+12"/>
+        <source>links to pictures past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>pictures of a kind that isn&apos;t read</source>
         <translation type="unfinished">рисунки неподдерживаемого типа</translation>
     </message>
@@ -77279,7 +77285,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">диаграммы сверх допустимого в документе количества: %1</translation>
     </message>
@@ -77287,7 +77293,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+578"/>
+        <location line="+580"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">диаграммы, которые не удалось прочитать</translation>
     </message>
@@ -77297,50 +77303,55 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">диаграммы, количество точек которых превышает допустимое для всех диаграмм документа</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+333"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">формулы, превышающие %1, которые может содержать документ, или их суммарный размер (сохранены в виде рисунков)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">встроенные объекты сверх %1, допустимых для документа, или их общий размер превышает допустимый (сохранены как рисунки)</translation>
     </message>
     <message>
+        <location line="+40"/>
+        <source>drawing shapes past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <location line="+72"/>
-        <location line="+69"/>
         <location line="+7"/>
-        <location line="+339"/>
-        <location line="+210"/>
-        <location line="+10"/>
+        <location line="+368"/>
+        <location line="+216"/>
+        <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">графические фигуры</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-495"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">объекты, например формулы и диаграммы</translation>
     </message>
     <message>
-        <location line="+404"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
+        <location line="+433"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">содержимое слишком глубоко вложено</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
+        <location line="+342"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблицы слишком глубоко вложены</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+225"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">таблица с большим количеством повторяющихся ячеек, чем сохраняется</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">таблица с большим количеством повторяющихся строк, чем сохраняется</translation>
     </message>
@@ -77391,12 +77402,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удаётся прочитать styles.xml: %1</translation>
     </message>
     <message>
-        <location line="+654"/>
+        <location line="+668"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">В файле нет текста.</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+201"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
         <translation type="unfinished">встроенные объекты созданы в другом типе файла (сохранены как рисунки)</translation>
     </message>
@@ -77411,7 +77422,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удаётся прочитать текст документа.</translation>
     </message>
     <message>
-        <location line="+756"/>
+        <location line="+760"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">колонки разной ширины (сохранены как равные)</translation>
     </message>
@@ -77426,7 +77437,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">нумерация строк</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+319"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">отслеживаемые изменения таблиц, колонок и параметров страницы (сохранены в текущем виде)</translation>
     </message>
@@ -77434,11 +77445,6 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+6"/>
         <source>the page color</source>
         <translation type="unfinished">цвет страницы</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>mirrored margins</source>
-        <translation type="unfinished">зеркальные поля</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77466,31 +77472,42 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">метки «не проверять орфографию»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">поля форм (сохраняются как показываемый в них текст)</translation>
     </message>
     <message>
-        <location line="+415"/>
+        <location line="+414"/>
         <location line="+4"/>
-        <location line="+163"/>
-        <location line="+339"/>
+        <location line="+166"/>
+        <location line="+191"/>
+        <location line="+12"/>
+        <location line="+5"/>
+        <location line="+20"/>
+        <location line="+390"/>
+        <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">рисунки, фигуры и диаграммы</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-608"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">изменённые точки обтекания фигур</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+26"/>
+        <location line="+256"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">рисунки, которые не удаётся прочитать</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="-105"/>
+        <source>pictures that fill text boxes (the boxes are kept without them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+417"/>
         <source>embedded objects</source>
         <translation type="unfinished">внедрённые объекты</translation>
     </message>
@@ -77506,7 +77523,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">формулы, которые нельзя сохранить как формулы (сохранены как обычный текст)</translation>
     </message>
     <message>
-        <location line="+404"/>
+        <location line="+405"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">таблица с большим количеством ячеек, чем сохраняется</translation>
     </message>

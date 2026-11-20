@@ -77189,17 +77189,23 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+121"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">mais espaços do que os mantidos</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
+        <location line="+7"/>
         <source>pictures that the file only links to</source>
         <translation type="unfinished">imagens às quais o arquivo apenas se vincula</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+12"/>
+        <source>links to pictures past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>pictures of a kind that isn&apos;t read</source>
         <translation type="unfinished">imagens de um tipo que não é lido</translation>
     </message>
@@ -77220,7 +77226,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">gráficos além do %1 que um documento pode ter</translation>
     </message>
@@ -77228,7 +77234,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+578"/>
+        <location line="+580"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">gráficos que não puderam ser lidos</translation>
     </message>
@@ -77238,50 +77244,55 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">gráficos além do número de pontos que todos os gráficos de um documento podem ter</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+333"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">equações além do %1 que um documento pode ter, ou do tamanho que podem atingir juntas (mantidas como suas imagens)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">objetos incorporados além dos %1 que um documento pode ter, ou do tamanho que podem somar juntos (mantidos como suas imagens)</translation>
     </message>
     <message>
+        <location line="+40"/>
+        <source>drawing shapes past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <location line="+72"/>
-        <location line="+69"/>
         <location line="+7"/>
-        <location line="+339"/>
-        <location line="+210"/>
-        <location line="+10"/>
+        <location line="+368"/>
+        <location line="+216"/>
+        <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">formas de desenho</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-495"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objetos como fórmulas e gráficos</translation>
     </message>
     <message>
-        <location line="+404"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
+        <location line="+433"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">conteúdo aninhado em excesso</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
+        <location line="+342"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabelas aninhadas em excesso</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+225"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">uma tabela com mais células repetidas do que as mantidas</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">uma tabela com mais linhas repetidas do que as mantidas</translation>
     </message>
@@ -77332,12 +77343,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não é possível ler styles.xml: %1</translation>
     </message>
     <message>
-        <location line="+654"/>
+        <location line="+668"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">O arquivo não contém texto.</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+201"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
         <translation type="unfinished">objetos incorporados feitos em outro tipo de arquivo (mantidos como imagens)</translation>
     </message>
@@ -77352,7 +77363,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não é possível ler o texto do documento.</translation>
     </message>
     <message>
-        <location line="+756"/>
+        <location line="+760"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">colunas de larguras diferentes (salvas como iguais)</translation>
     </message>
@@ -77367,7 +77378,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">numeração de linhas</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+319"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">alterações controladas em tabelas, colunas e configuração da página (salvas no estado atual)</translation>
     </message>
@@ -77375,11 +77386,6 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+6"/>
         <source>the page color</source>
         <translation type="unfinished">a cor da página</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>mirrored margins</source>
-        <translation type="unfinished">margens espelhadas</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77407,31 +77413,42 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">marcas de &quot;não verificar ortografia&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campos de formulário (mantidos como o texto que exibem)</translation>
     </message>
     <message>
-        <location line="+415"/>
+        <location line="+414"/>
         <location line="+4"/>
-        <location line="+163"/>
-        <location line="+339"/>
+        <location line="+166"/>
+        <location line="+191"/>
+        <location line="+12"/>
+        <location line="+5"/>
+        <location line="+20"/>
+        <location line="+390"/>
+        <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">desenhos, formas e gráficos</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-608"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">pontos de quebra de texto editados em formas</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+26"/>
+        <location line="+256"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">imagens que não podem ser lidas</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="-105"/>
+        <source>pictures that fill text boxes (the boxes are kept without them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+417"/>
         <source>embedded objects</source>
         <translation type="unfinished">objetos inseridos</translation>
     </message>
@@ -77447,7 +77464,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">equações que não podem ser mantidas como fórmulas (mantidas como texto simples)</translation>
     </message>
     <message>
-        <location line="+404"/>
+        <location line="+405"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">uma tabela com mais células do que as mantidas</translation>
     </message>

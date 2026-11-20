@@ -77130,17 +77130,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+121"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">lebih banyak spasi daripada yang dapat dipertahankan</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+41"/>
+        <location line="+7"/>
         <source>pictures that the file only links to</source>
         <translation type="unfinished">gambar yang hanya ditautkan oleh berkas</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+12"/>
+        <source>links to pictures past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>pictures of a kind that isn&apos;t read</source>
         <translation type="unfinished">gambar dengan jenis yang tidak dapat dibaca</translation>
     </message>
@@ -77161,7 +77167,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">bagan melampaui %1 yang dapat dimiliki dokumen</translation>
     </message>
@@ -77169,7 +77175,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+578"/>
+        <location line="+580"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">bagan yang tidak dapat dibaca</translation>
     </message>
@@ -77179,50 +77185,55 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">bagan melampaui jumlah titik yang dapat dimiliki semua bagan dalam dokumen</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+333"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">persamaan melebihi %1 yang dapat dimiliki dokumen, atau ukuran gabungannya (dipertahankan sebagai gambarnya)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-469"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">objek tersemat melebihi %1 yang boleh dimiliki dokumen, atau ukuran gabungannya (disimpan sebagai gambarnya)</translation>
     </message>
     <message>
+        <location line="+40"/>
+        <source>drawing shapes past the %1 a document may have</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+52"/>
         <location line="+72"/>
-        <location line="+69"/>
         <location line="+7"/>
-        <location line="+339"/>
-        <location line="+210"/>
-        <location line="+10"/>
+        <location line="+368"/>
+        <location line="+216"/>
+        <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">bentuk gambar</translation>
     </message>
     <message>
-        <location line="-456"/>
+        <location line="-495"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objek seperti rumus dan bagan</translation>
     </message>
     <message>
-        <location line="+404"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
+        <location line="+433"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">konten bersarang terlalu dalam</translation>
     </message>
     <message>
-        <location line="+332"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
+        <location line="+342"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabel bersarang terlalu dalam</translation>
     </message>
     <message>
-        <location line="+205"/>
+        <location line="+225"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">tabel dengan lebih banyak sel berulang daripada yang dapat dipertahankan</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">tabel dengan lebih banyak baris berulang daripada yang dapat dipertahankan</translation>
     </message>
@@ -77273,12 +77284,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">styles.xml tidak dapat dibaca: %1</translation>
     </message>
     <message>
-        <location line="+654"/>
+        <location line="+668"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Berkas ini tidak memiliki teks.</translation>
     </message>
     <message>
-        <location line="+199"/>
+        <location line="+201"/>
         <source>embedded objects made in another kind of file (kept as pictures)</source>
         <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
@@ -77293,7 +77304,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Teks dokumen tidak dapat dibaca.</translation>
     </message>
     <message>
-        <location line="+756"/>
+        <location line="+760"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">kolom dengan lebar berbeda (disimpan sebagai kolom sama lebar)</translation>
     </message>
@@ -77308,7 +77319,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">nomor baris</translation>
     </message>
     <message>
-        <location line="+307"/>
+        <location line="+319"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">perubahan terlacak pada tabel, kolom, dan pengaturan halaman (disimpan sebagaimana adanya saat ini)</translation>
     </message>
@@ -77316,11 +77327,6 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+6"/>
         <source>the page color</source>
         <translation type="unfinished">warna halaman</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>mirrored margins</source>
-        <translation type="unfinished">margin cermin</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77348,31 +77354,42 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">tanda &quot;jangan periksa ejaan&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">bidang formulir (disimpan sebagai teks yang ditampilkan)</translation>
     </message>
     <message>
-        <location line="+415"/>
+        <location line="+414"/>
         <location line="+4"/>
-        <location line="+163"/>
-        <location line="+339"/>
+        <location line="+166"/>
+        <location line="+191"/>
+        <location line="+12"/>
+        <location line="+5"/>
+        <location line="+20"/>
+        <location line="+390"/>
+        <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">gambar, bentuk, dan bagan</translation>
     </message>
     <message>
-        <location line="-301"/>
+        <location line="-608"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">titik tata letak teks yang diedit pada bentuk</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+26"/>
+        <location line="+256"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca</translation>
     </message>
     <message>
-        <location line="+263"/>
+        <location line="-105"/>
+        <source>pictures that fill text boxes (the boxes are kept without them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+417"/>
         <source>embedded objects</source>
         <translation type="unfinished">objek tersemat</translation>
     </message>
@@ -77388,7 +77405,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">persamaan yang tidak dapat dipertahankan sebagai rumus (dipertahankan sebagai teks biasa)</translation>
     </message>
     <message>
-        <location line="+404"/>
+        <location line="+405"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">tabel dengan lebih banyak sel daripada yang disimpan</translation>
     </message>
