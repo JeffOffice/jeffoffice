@@ -21,7 +21,9 @@ inline qint64 mostMergeCells() { return kMostMergeCells; }
 QVector<QStringList> parseDelimited(const QString &text, QChar sep, bool *truncated = nullptr);
 // The first sheet of a spreadsheet file as rows of text, the cells as they show (a number in its format). False, with the reason, where the file can't be read.
 bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QString *error, bool *truncated = nullptr);
-bool loadMergeSource(const QString &path, MergeSource *out, QString *error);
+// The most a file of recipients may be; a larger one is refused before it is read (`most` is for tests).
+constexpr qint64 kMostMergeFileBytes = qint64(64) << 20;
+bool loadMergeSource(const QString &path, MergeSource *out, QString *error, qint64 most = kMostMergeFileBytes);
 bool saveMergeCsv(const MergeSource &m, const QString &path);
 
 } // namespace jp

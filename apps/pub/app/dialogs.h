@@ -55,7 +55,9 @@ void pageNumberFormatDialog(QWidget *p, Editor *ed);
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab = 0);   // 1 = Commercial Print
 void measurementWindow(QWidget *p, Editor *ed);
 void hyphenationDialog(QWidget *p, Editor *ed);
-void insertFileDialog(QWidget *p, Editor *ed);
+QString askTextFile(QWidget *p);   // Insert File's chooser; empty when cancelled
+// Insert File of one file: the text where the cursor is, or in a new text box the size of the page's margins. Empty when done, else the sentence that says why nothing was inserted.
+QString insertTextFile(QWidget *p, Editor *ed, const QString &path);
 int autoflowText(Editor *ed, const QString &boxId);   // new pages and linked boxes until the story fits; returns pages added
 void recipientsDialog(QWidget *p, Editor *ed, bool typeNew);
 void mergeFieldDialog(QWidget *p, Editor *ed, int kind);   // 0 address block, 1 greeting line

@@ -3,6 +3,7 @@
 
 #include "core/document.h"
 #include "office/embeddedfonts.h"
+#include "office/package.h"
 
 #include <QStringList>
 
@@ -28,7 +29,7 @@ bool takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::R
 
 bool isPublisherFile(const QByteArray &head);
 std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error, PubImportReport *report = nullptr);
-std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report = nullptr);
+std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report = nullptr, qint64 most = office::kMaxOpenFileBytes);
 // A Publisher date and time format (Windows' letters) as Qt's QDateTime
 // writes it, for a "datetime:" field.
 QString pubDateFormat(QString f);

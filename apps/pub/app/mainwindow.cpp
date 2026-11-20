@@ -2060,7 +2060,7 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
     const QSizeF ps = d->pageSize();
     QPointF at = atIn;
     m_ed->beginChange(tr("Insert Picture"));
-    QStringList made;
+    QStringList made, problems;
     // Several pictures at once go to the picture tray on the scratch area.
     int pictures = 0;
     for (const QString &path : paths) {
@@ -2072,7 +2072,12 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
         const QString suffix = QFileInfo(path).suffix().toLower();
         if (suffix == "txt" || suffix == "html" || suffix == "htm" || suffix == "rtf" || suffix == "md" || suffix == "docx") {
             auto t = std::static_pointer_cast<TextItem>(m_ed->newTextBox(QRectF(at.x() < 0 ? ps.width() * 0.15 : at.x(), at.y() < 0 ? ps.height() * 0.2 : at.y(), ps.width() * 0.7, ps.height() * 0.5)));
-            loadTextFileInto(d->storyDoc(t->storyId), path);
+            QString problem;
+            if (!loadTextFileInto(d->storyDoc(t->storyId), path, &problem)) {
+                d->removeStory(t->storyId);
+                problems << problem;
+                continue;
+            }
             m_ed->surfaceItems().push_back(t);
             made << t->id;
             continue;
@@ -2110,6 +2115,13 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
         Q_EMIT m_ed->status(tr("%1 pictures are on the scratch area beside the page. Drag them onto the page, or onto a picture to swap.").arg(pictures));
     }
     m_ed->select(made);
+    if (!problems.isEmpty()) notice(tr("Insert File"), problems.join(QStringLiteral("\n\n")), true);
+}
+
+void MainWindow::insertTextFile(const QString &path)
+{
+    const QString problem = jp::insertTextFile(this, m_ed, path);
+    if (!problem.isEmpty()) notice(tr("Insert File"), problem, true);
 }
 
 void MainWindow::editTextArt(const QString &id) { textArtTextDialog(this, m_ed, id); }

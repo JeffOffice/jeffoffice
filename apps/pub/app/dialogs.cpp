@@ -1952,16 +1952,21 @@ static void offerAutoflow(QWidget *p, Editor *ed, const QString &boxId)
     Q_EMIT ed->status(QCoreApplication::translate("Dialogs", "Added %n page(s) for the rest of the text.", "", n));
 }
 
-void insertFileDialog(QWidget *p, Editor *ed)
+QString askTextFile(QWidget *p)
 {
-    const QString f = QFileDialog::getOpenFileName(p, QCoreApplication::translate("Dialogs", "Insert Text"), QString(),
-                                                   QCoreApplication::translate("Dialogs", "Text Files (*.txt *.rtf *.html *.htm *.docx *.md)") + QStringLiteral(";;")
-                                                       + QCoreApplication::translate("Dialogs", "All Files (*)"));
-    if (f.isEmpty()) return;
+    return QFileDialog::getOpenFileName(p, QCoreApplication::translate("Dialogs", "Insert Text"), QString(),
+                                        QCoreApplication::translate("Dialogs", "Text Files (*.txt *.rtf *.html *.htm *.docx *.md)") + QStringLiteral(";;")
+                                            + QCoreApplication::translate("Dialogs", "All Files (*)"));
+}
+
+QString insertTextFile(QWidget *p, Editor *ed, const QString &f)
+{
+    // (read before anything changes: a file that can't be read leaves no empty box and no step to undo)
+    QString problem;
     if (ed->isEditingText()) {
-        ed->beginChange(QCoreApplication::translate("Dialogs", "Insert File"));
         QTextDocument tmp;
-        loadTextFileInto(&tmp, f);
+        if (!loadTextFileInto(&tmp, f, &problem)) return problem;
+        ed->beginChange(QCoreApplication::translate("Dialogs", "Insert File"));
         ed->cursor().insertFragment(QTextDocumentFragment(&tmp));
         ed->endChange();
         ed->textEdited();
@@ -1970,14 +1975,18 @@ void insertFileDialog(QWidget *p, Editor *ed)
             ed->endTextEdit();
             offerAutoflow(p, ed, box);
         }
-        return;
+        return {};
     }
     const QSizeF ps = ed->doc()->pageSize();
     const QRectF content = QRectF(QPointF(0, 0), ps).marginsRemoved(ed->doc()->setup.margins);
     auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(content));
-    loadTextFileInto(ed->doc()->storyDoc(t->storyId), f);
+    if (!loadTextFileInto(ed->doc()->storyDoc(t->storyId), f, &problem)) {
+        ed->doc()->removeStory(t->storyId);
+        return problem;
+    }
     ed->addItem(t);
     offerAutoflow(p, ed, t->id);
+    return {};
 }
 
 // ---------------- Mail merge recipients ----------------

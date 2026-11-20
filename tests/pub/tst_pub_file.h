@@ -87,6 +87,12 @@ private Q_SLOTS:
     void hostilePublicationTextIsShownAsText();
     void everyCardOfTheBackstageIsWholeAtEveryWidth();
     void textFileImportNeverReadsThePicturesItNames();
+    void insertFilePutsTheTextInAsOneStep();
+    void insertFileRefusesAFileOverTheLimitAndChangesNothing();
+    void insertFileRefusesAFileThatIsNotWhatItsNameSays();
+    void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
+    void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();
+    void aRecipientListOverTheLimitIsRefusedBeforeItIsRead();
     void changeTemplateGallery();
     void templatesFitTheirText();
     void pubTextIndexChains();

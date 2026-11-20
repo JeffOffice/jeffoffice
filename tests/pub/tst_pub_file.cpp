@@ -771,6 +771,147 @@ void PubFileTests::textFileImportNeverReadsThePicturesItNames()
     QVERIFY2(probe.seen.isEmpty(), qPrintable(probe.seen.join(QLatin1Char('\n'))));
 }
 
+// Insert File and a dropped text file: what the window does with one file, as the window does it (the chooser itself is the system's).
+namespace {
+struct InsertFileRig {
+    jp::MainWindow w;
+    QStringList told;
+    QTemporaryDir dir;
+    InsertFileRig()
+    {
+        w.resize(1200, 800);
+        w.setNotifier([this](const QString &, const QString &text) { told << text; });
+        w.show();
+        w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1));
+    }
+    QString write(const QString &name, const QByteArray &bytes)
+    {
+        const QString path = dir.filePath(name);
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly)) return {};
+        f.write(bytes);
+        return path;
+    }
+    int items() { return int(w.editor()->doc()->pages[0]->items.size()); }
+    int steps() { return w.editor()->undoStack()->count(); }
+    int stories() { return int(w.editor()->doc()->storyDocs().size()); }
+};
+}
+
+void PubFileTests::insertFilePutsTheTextInAsOneStep()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString path = r.write(QStringLiteral("note.txt"), "Tulips bloom along the river walk.");
+    const int items = r.items(), steps = r.steps();
+    r.w.insertTextFile(path);
+    QVERIFY(r.told.isEmpty());
+    QCOMPARE(r.items(), items + 1);
+    QCOMPARE(r.steps(), steps + 1);
+    QVERIFY(r.w.editor()->doc()->storyDocs().last()->toPlainText().contains(QStringLiteral("Tulips bloom")));
+    r.w.editor()->undoStack()->undo();
+    QCOMPARE(r.items(), items);
+}
+
+void PubFileTests::insertFileRefusesAFileOverTheLimitAndChangesNothing()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString path = r.dir.filePath(QStringLiteral("huge.txt"));
+    {
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        QVERIFY(f.resize(jp::kMaxTextFileBytes + 1));
+    }
+    const int items = r.items(), steps = r.steps(), stories = r.stories();
+    r.w.insertTextFile(path);
+    QCOMPARE(r.told.size(), 1);
+    QVERIFY2(r.told.first().contains(QStringLiteral("larger than")), qPrintable(r.told.first()));
+    QCOMPARE(r.items(), items);
+    QCOMPARE(r.steps(), steps);
+    QCOMPARE(r.stories(), stories);
+}
+
+void PubFileTests::insertFileRefusesAFileThatIsNotWhatItsNameSays()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString docx = r.write(QStringLiteral("broken.docx"), QByteArray("PK\x03\x04 not really a package"));
+    const QString rtf = r.write(QStringLiteral("plain.rtf"), "just words, no rich text header");
+    const QString none = r.dir.filePath(QStringLiteral("missing.txt"));
+    const int items = r.items(), steps = r.steps(), stories = r.stories();
+    for (const QString &path : {docx, rtf, none}) {
+        r.told.clear();
+        r.w.insertTextFile(path);
+        QCOMPARE(r.told.size(), 1);
+        QVERIFY2(r.told.first().contains(QStringLiteral("nothing was inserted")), qPrintable(r.told.first()));
+        QVERIFY2(r.told.first().contains(QFileInfo(path).fileName()), qPrintable(r.told.first()));
+        QCOMPARE(r.items(), items);
+        QCOMPARE(r.steps(), steps);
+        QCOMPARE(r.stories(), stories);
+    }
+}
+
+void PubFileTests::aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString bad = r.write(QStringLiteral("broken.docx"), QByteArray("PK\x03\x04 not really a package"));
+    const QString good = r.write(QStringLiteral("good.md"), "Grand opening on **Saturday**.");
+    const int items = r.items(), steps = r.steps();
+    r.w.insertFiles({bad, good}, QPointF(-1, -1));
+    QCOMPARE(r.told.size(), 1);
+    QVERIFY2(r.told.first().contains(QStringLiteral("broken.docx")), qPrintable(r.told.first()));
+    QCOMPARE(r.items(), items + 1);
+    QCOMPARE(r.steps(), steps + 1);
+    QVERIFY(r.w.editor()->doc()->storyDocs().last()->toPlainText().contains(QStringLiteral("Grand opening")));
+    // only the one that can't be read: no box, no step
+    r.told.clear();
+    r.w.insertFiles({bad}, QPointF(-1, -1));
+    QCOMPARE(r.told.size(), 1);
+    QCOMPARE(r.items(), items + 1);
+    QCOMPARE(r.steps(), steps + 1);
+}
+
+void PubFileTests::aPublicationFileOverTheLimitIsRefusedBeforeItIsRead()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("a.jpub"));
+    QString err;
+    QVERIFY2(jp::savePublication(*jp::Document::blank(QSizeF(612, 792), QStringLiteral("Letter"), 1), path, QImage(), &err), qPrintable(err));
+    const qint64 size = QFileInfo(path).size();
+    QVERIFY(size > 100);
+    QVERIFY(!jp::loadPublication(path, &err, size - 1));
+    QVERIFY2(err.contains(QStringLiteral("larger")), qPrintable(err));
+    QVERIFY2(jp::loadPublication(path, &err, size), qPrintable(err));
+    err.clear();
+    QVERIFY(!jp::loadAnyPublication(path, &err, size - 1));
+    QVERIFY2(err.contains(QStringLiteral("larger")), qPrintable(err));
+    QVERIFY2(jp::loadAnyPublication(path, &err, size), qPrintable(err));
+    // (a .pub is refused by its size too, before anything of it is looked at)
+    QString why;
+    QVERIFY(!jp::importPublisherFile(path, &why, nullptr, size - 1));
+    QVERIFY2(why.contains(QStringLiteral("larger")), qPrintable(why));
+}
+
+void PubFileTests::aRecipientListOverTheLimitIsRefusedBeforeItIsRead()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString path = dir.filePath(QStringLiteral("list.csv"));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::WriteOnly));
+    f.write("Name,City\nAda,Oslo\nBo,Rome\n");
+    f.close();
+    jp::MergeSource m;
+    QString err;
+    QVERIFY(!jp::loadMergeSource(path, &m, &err, QFileInfo(path).size() - 1));
+    QVERIFY2(err.contains(QStringLiteral("too large")), qPrintable(err));
+    QVERIFY2(jp::loadMergeSource(path, &m, &err, QFileInfo(path).size()), qPrintable(err));
+    QCOMPARE(m.rows.size(), 2);
+}
+
 
 // The gallery Change Template opens is the New page's, in a mode of its
 // own: its title and button say so, it offers designs and no blank

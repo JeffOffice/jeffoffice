@@ -5,6 +5,7 @@
 #include "core/booklet.h"
 #include "core/document.h"
 #include "core/mergesource.h"
+#include "office/package.h"
 #include "render/renderer.h"
 
 #include <QJsonObject>
@@ -25,13 +26,17 @@ struct PaintContext;
 
 class Editor;
 
-bool loadTextFileInto(QTextDocument *doc, const QString &path);
+// The most a text file may be for Insert File and a dropped file (a .txt, .rtf, .html, .md, or .docx); a larger one is refused before it is read.
+constexpr qint64 kMaxTextFileBytes = qint64(64) << 20;
+// Puts the file's text at the end of `doc`. False, with `problem` set to a sentence for the person (when given), and `doc` unchanged,
+// when the file can't be opened, is over kMaxTextFileBytes, or isn't a document of its kind.
+bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem = nullptr);
 QString docxToHtml(const QByteArray &docx);
 
 std::unique_ptr<Document> mergeToNewPublication(const Document &src);
 void mergeToEmailFiles(QWidget *parent, Editor *ed);
 
-std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error);
+std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error, qint64 most = office::kMaxOpenFileBytes);
 
 // Printing. opts keys: layout ("one", "booklet", "bookletTop", "multiple", "tiled"),
 // copiesPerSheet, grayscale, merged, separations (with plates: "CMYK" subset),

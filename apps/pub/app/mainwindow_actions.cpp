@@ -339,7 +339,10 @@ void MainWindow::createActions()
     });
     mk("ins.textart", tr("Text Art"), "type", QKeySequence(), [ed] { ed->setTool(Tool::TextArt); });
     mk("ins.bizInfo", tr("Edit Business Information…"), "contact", QKeySequence(), [this] { businessInfoDialog(this, m_ed); });
-    mk("ins.file", tr("Insert File"), "file-input", QKeySequence(), [this] { insertFileDialog(this, m_ed); });
+    mk("ins.file", tr("Insert File"), "file-input", QKeySequence(), [this] {
+        const QString f = askTextFile(this);
+        if (!f.isEmpty()) insertTextFile(f);
+    });
     mk("ins.symbol", tr("Symbol"), "omega", QKeySequence(), [this] { symbolDialog(this, m_ed); });
     // Characters a line breaks around: a nonbreaking space and hyphen, and an optional hyphen (shown only where the line breaks at it).
     mk("ins.nbsp", tr("Nonbreaking Space"), "omega", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Space),

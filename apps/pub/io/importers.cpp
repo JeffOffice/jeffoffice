@@ -7,6 +7,7 @@
 #include "io/jpubfile.h"
 #include "io/pubimport.h"
 #include "io/zip.h"
+#include "office/package.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
 
@@ -305,16 +306,35 @@ static QString rtfToText(const QByteArray &rtf)
     return out.trimmed();
 }
 
-bool loadTextFileInto(QTextDocument *doc, const QString &path)
+bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) return false;
-    const QByteArray data = f.readAll();
+    const QString name = QFileInfo(path).fileName();
+    QByteArray data;
+    QString why;
+    if (!office::readWholeFile(path, &data, &why, kMaxTextFileBytes)) {
+        if (problem)
+            *problem = QFileInfo(path).size() > kMaxTextFileBytes
+                ? QCoreApplication::translate("Importers", "\"%1\" is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.").arg(name).arg(kMaxTextFileBytes >> 20)
+                : QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, why);
+        return false;
+    }
     const QString suffix = QFileInfo(path).suffix().toLower();
+    QString docxHtml;
+    bool unreadable = false;
+    if (suffix == "docx") {
+        docxHtml = docxToHtml(data);
+        unreadable = docxHtml.isEmpty();
+    } else if (suffix == "rtf") {
+        unreadable = !data.trimmed().startsWith("{\\rtf");
+    }
+    if (unreadable) {
+        if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" isn't a document JeffPub can read, so nothing was inserted.").arg(name);
+        return false;
+    }
     QTextCursor c(doc);
     c.movePosition(QTextCursor::End);
     if (suffix == "docx") {
-        c.insertFragment(QTextDocumentFragment::fromHtml(docxToHtml(data)));
+        c.insertFragment(QTextDocumentFragment::fromHtml(docxHtml));
     } else if (suffix == "html" || suffix == "htm") {
         c.insertFragment(QTextDocumentFragment::fromHtml(QString::fromUtf8(data)));
     } else if (suffix == "md") {
@@ -514,14 +534,10 @@ void mergeToEmailFiles(QWidget *parent, Editor *ed)
     jp::plainInformation(parent, QCoreApplication::translate("Import", "Merge to Email"), QCoreApplication::translate("Import", "Created %n email file(s) in %1.", nullptr, n).arg(dir));
 }
 
-std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error)
+std::unique_ptr<Document> loadAnyPublication(const QString &path, QString *error, qint64 most)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-        if (error) *error = f.errorString();
-        return nullptr;
-    }
-    const QByteArray bytes = f.readAll();
+    QByteArray bytes;
+    if (!office::readWholeFile(path, &bytes, error, most)) return nullptr;
     if (isPublisherFile(bytes)) return importPublisher(bytes, error);
     return publicationFromBytes(bytes, error, QFileInfo(path).absolutePath());
 }

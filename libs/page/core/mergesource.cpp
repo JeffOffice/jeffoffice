@@ -132,7 +132,7 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
     if (!book.openFile(path, &why)) {
         if (path.endsWith(QLatin1String(".xlsx"), Qt::CaseInsensitive) || path.endsWith(QLatin1String(".xlsm"), Qt::CaseInsensitive)) {
             QFile f(path);
-            if (f.open(QIODevice::ReadOnly)) *rows = readXlsx(f.readAll(), truncated);
+            if (f.open(QIODevice::ReadOnly) && f.size() <= kMostMergeFileBytes) *rows = readXlsx(f.readAll(), truncated);
             if (!rows->isEmpty()) return true;
         }
         if (error) *error = why;
@@ -215,14 +215,19 @@ static QVector<QStringList> readVcf(const QString &text, QStringList *fields)
     return rows;
 }
 
-bool loadMergeSource(const QString &path, MergeSource *out, QString *error)
+bool loadMergeSource(const QString &path, MergeSource *out, QString *error, qint64 most)
 {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
         if (error) *error = f.errorString();
         return false;
     }
-    const QByteArray data = f.readAll();
+    // (read one byte past the most, so a file that grew since its size was looked at is refused too)
+    const QByteArray data = f.size() > most ? QByteArray() : f.read(most + 1);
+    if (f.size() > most || data.size() > most) {
+        if (error) *error = QCoreApplication::translate("Import", "The file is too large to read as a list of recipients.");
+        return false;
+    }
     const QString suffix = QFileInfo(path).suffix().toLower();
     QVector<QStringList> rows;
     MergeSource m;

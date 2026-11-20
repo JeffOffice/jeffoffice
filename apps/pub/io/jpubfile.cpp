@@ -1,4 +1,5 @@
 #include "io/jpubfile.h"
+#include "office/package.h"
 #include "core/items.h"
 
 #include "app/recovery.h"
@@ -168,14 +169,11 @@ std::unique_ptr<Document> publicationFromBytes(const QByteArray &bytes, QString 
     return doc;
 }
 
-std::unique_ptr<Document> loadPublication(const QString &path, QString *error)
+std::unique_ptr<Document> loadPublication(const QString &path, QString *error, qint64 most)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-        if (error) *error = f.errorString();
-        return nullptr;
-    }
-    return publicationFromBytes(f.readAll(), error, QFileInfo(path).absolutePath());
+    QByteArray bytes;
+    if (!office::readWholeFile(path, &bytes, error, most)) return nullptr;
+    return publicationFromBytes(bytes, error, QFileInfo(path).absolutePath());
 }
 
 // The preview picture a .pub file keeps in its summary information

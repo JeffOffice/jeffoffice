@@ -4,6 +4,7 @@
 // (and kept nowhere else) under previews/, and a thumbnail of page 1.
 
 #include "core/document.h"
+#include "office/package.h"
 
 #include <QImage>
 
@@ -19,7 +20,7 @@ bool savePublication(const Document &doc, const QString &path, const QImage &thu
 // kept relative to the original's folder, where the copy is read as being
 // when it is recovered.
 bool saveRecoveryCopy(const Document &doc, const QString &copy, const QString &docPath, const QString &title, QString *error = nullptr);
-std::unique_ptr<Document> loadPublication(const QString &path, QString *error);
+std::unique_ptr<Document> loadPublication(const QString &path, QString *error, qint64 most = office::kMaxOpenFileBytes);   // a file over `most` is refused before it is read
 
 // `folder` is where the bytes will be saved: linked pictures keep their paths
 // relative to it (empty: the publication's own folder).

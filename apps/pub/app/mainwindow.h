@@ -219,6 +219,8 @@ public:
     QString currentTaskPane() const;
     QImage pageThumbnail(int page, int maxSide);
     void insertPictureFromFile(const QString &replaceItemId = QString(), const QPointF &at = QPointF(-1, -1));
+    // Insert File of one text file (what its command does once the file is chosen); a file that can't be put in is told about, and nothing changes.
+    void insertTextFile(const QString &path);
     void insertFiles(const QStringList &paths, const QPointF &at, PictureInsert how = PictureInsert::Embed);
     void changePictureLink(const QString &pictureId);
     void editTextArt(const QString &id);

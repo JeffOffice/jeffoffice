@@ -1659,14 +1659,11 @@ bool takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::R
     return true;
 }
 
-std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report)
+std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report, qint64 most)
 {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) {
-        if (error) *error = f.errorString();
-        return nullptr;
-    }
-    return importPublisher(f.readAll(), error, report);
+    QByteArray bytes;
+    if (!office::readWholeFile(path, &bytes, error, most)) return nullptr;
+    return importPublisher(bytes, error, report);
 }
 
 } // namespace jp
