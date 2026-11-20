@@ -2562,17 +2562,17 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
         <source>Comments on slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen bij dia %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comments on slide %1, continued</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen bij dia %1, vervolg</translation>
     </message>
     <message>
         <location line="+201"/>
         <source>Comments not shown: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen niet getoond: %1.</translation>
     </message>
     <message>
         <location line="+234"/>
@@ -5211,7 +5211,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+37"/>
         <source>Custom Dictionary...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepast woordenboek...</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5828,12 +5828,12 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
         <source>Save fonts in the file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lettertypen in het bestand opslaan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn&apos;t have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zet de lettertypen die bij het programma horen en die de tekst gebruikt in een opgeslagen .docx-bestand, zodat de tekst er ook op een computer zonder die lettertypen hetzelfde uitziet. Het bestand wordt daardoor groter. Een lettertype waarvan de licentie dit niet toestaat, wordt weggelaten, en lettertypen die op elke computer aanwezig zijn, worden nooit meegenomen.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -7951,7 +7951,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+81"/>
         <source>The file is too large to read as a list of recipients.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is te groot om als lijst met ontvangers te lezen.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -8116,18 +8116,19 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
     <message>
         <location filename="../apps/pub/io/importers.cpp" line="-614"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; is groter dan de %2 MB aan tekst die JeffPub in één keer invoegt, dus er is niets ingevoegd.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; kon niet worden gelezen, dus er is niets ingevoegd.
+%2</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; is geen document dat JeffPub kan lezen, dus er is niets ingevoegd.</translation>
     </message>
 </context>
 <context>
@@ -10844,22 +10845,22 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Printer Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Printereigenschappen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Opens the printer&apos;s own settings window.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opent het eigen instellingenvenster van de printer.</translation>
     </message>
     <message>
         <location line="+74"/>
         <source>Open the PDF after saving</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF openen na opslaan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Opens the file in the program your computer uses for PDF files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opent het bestand in het programma dat uw computer gebruikt voor pdf-bestanden.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -11088,35 +11089,35 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is alleen-lezen.</translation>
     </message>
     <message numerus="yes">
         <location line="-10"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Een woord mag niet leeg zijn, geen spatie of besturingsteken bevatten en niet langer zijn dan %n letter.</numerusform>
+            <numerusform>Een woord mag niet leeg zijn, geen spatie of besturingsteken bevatten en niet langer zijn dan %n letters.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Another program is saving words just now. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een ander programma slaat op dit moment woorden op. Probeer het zo dadelijk opnieuw.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The folder of the dictionary can&apos;t be written to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In de map van het woordenboek kan niet worden geschreven.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The list of words is too long to change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De woordenlijst is te lang om te wijzigen.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The list of words is too long to add to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De woordenlijst is te lang om aan toe te voegen.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -15274,7 +15275,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+5"/>
         <source>the dates of notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de datums van notities</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -15325,12 +15326,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="-18"/>
         <source>conversations of comments (each is kept as a plain note)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gesprekken van opmerkingen (elk wordt bewaard als gewone notitie)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>formatting inside the words of a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">opmaak binnen de woorden van een notitie</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -15375,7 +15376,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="-9"/>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koppelingen naar andere werkboeken (de formules en de adressen blijven behouden, maar de kopie bewaart niet de waarden die ze het laatst uit de gekoppelde bestanden hadden)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15442,8 +15443,8 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+152"/>
         <source>%n note(s) in the file could not be read, and were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie in het bestand kon niet worden gelezen en is weggelaten.</numerusform>
+            <numerusform>%n notities in het bestand konden niet worden gelezen en zijn weggelaten.</numerusform>
         </translation>
     </message>
     <message>
@@ -15557,12 +15558,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="-68"/>
         <source>The formula has more than 8 functions inside one another, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule bevat meer dan 8 functies die in elkaar zijn genest, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula holds more than 40 values at once, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule bevat tegelijk meer dan 40 waarden, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+103"/>
@@ -15644,7 +15645,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+15"/>
         <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule roept een functie aan waarvan de naam langer is dan 255 tekens, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -15654,7 +15655,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+25"/>
         <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule roept een functie aan met meer dan 29 argumenten, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15670,7 +15671,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+71"/>
         <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het werkboek roept meer dan 255 verschillende functies op bij naam, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
@@ -15705,27 +15706,27 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+36"/>
         <source>The formula reads another workbook that has no link with an address in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule verwijst naar een ander werkboek zonder koppeling met een adres in het werkboek.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het werkboek heeft meer dan 250 koppelingen naar andere werkboeken, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A link&apos;s address is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het adres van een koppeling is langer dan 255 tekens, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formule noemt een blad van een ander werkboek zonder naam of met een naam van meer dan 31 tekens, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De formules noemen meer dan 255 bladen van één ander werkboek, wat het oude formaat niet kan opslaan.</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -15741,40 +15742,40 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+84"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie buiten het bladformaat van het oude formaat (voorbij rij 65.536 of kolom IV) is weggelaten</numerusform>
+            <numerusform>%n notities buiten het bladformaat van het oude formaat (voorbij rij 65.536 of kolom IV) zijn weggelaten</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) with no words, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie zonder woorden is weggelaten</numerusform>
+            <numerusform>%n notities zonder woorden zijn weggelaten</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) past the first %1 of a sheet, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie na de eerste %1 van een blad is weggelaten</numerusform>
+            <numerusform>%n notities na de eerste %1 van een blad zijn weggelaten</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie ingekort tot %1 tekens</numerusform>
+            <numerusform>%n notities ingekort tot %1 tekens</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n author name(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n auteursnaam ingekort tot %1 tekens</numerusform>
+            <numerusform>%n auteursnamen ingekort tot %1 tekens</numerusform>
         </translation>
     </message>
     <message>
@@ -18917,27 +18918,27 @@ Desktop publishing</translation>
     <message>
         <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
         <source>Added Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toegevoegde woorden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Excluded Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitgesloten woorden</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Result</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Resultaat</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woorden die altijd als fout worden gemarkeerd, ook als een woordenboek ze accepteert, en die nooit worden voorgesteld. Een woord wordt precies uitgesloten zoals het is geschreven, niet met de andere vormen ervan (&quot;huis&quot; sluit &quot;huizen&quot; niet uit). Een woord aan het woordenboek toevoegen haalt het van deze lijst.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Words you added: the spelling check accepts them in every language.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woorden die u hebt toegevoegd: de spellingcontrole accepteert ze in elke taal.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -18947,22 +18948,22 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Find a word in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zoek een woord in de lijst</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Excluded words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitgesloten woorden</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Added words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toegevoegde woorden</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Word to add</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toe te voegen woord</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18977,90 +18978,91 @@ Desktop publishing</translation>
     <message>
         <location line="+8"/>
         <source>Import...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importeren...</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Export...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporteren...</translation>
     </message>
     <message numerus="yes">
         <location line="+56"/>
         <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Een woord mag geen spatie of besturingsteken bevatten en niet langer zijn dan %n letter.</numerusform>
+            <numerusform>Een woord mag geen spatie of besturingsteken bevatten en niet langer zijn dan %n letters.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>It is not a regular file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het is geen gewoon bestand.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file can&apos;t be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand kan niet worden gelezen: %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Words read from the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woorden gelezen uit het bestand: %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Regels overgeslagen: %1. Een woord mag geen spatie of besturingsteken bevatten en niet langer zijn dan %n letter.</numerusform>
+            <numerusform>Regels overgeslagen: %1. Een woord mag geen spatie of besturingsteken bevatten en niet langer zijn dan %n letters.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file is longer than a word list can be, so the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is langer dan een woordenlijst kan zijn, dus de rest is weggelaten.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Import a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een woordenlijst importeren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Word lists (*.txt *.dic);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woordenlijsten (*.txt *.dic);;Alle bestanden (*)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Export a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een woordenlijst exporteren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Word lists (*.txt);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woordenlijsten (*.txt);;Alle bestanden (*)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Words written to the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Woorden naar het bestand geschreven: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file can&apos;t be written: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand kan niet worden geschreven: %1</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+12"/>
         <source>Custom Dictionary</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepast woordenboek</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The words can&apos;t be saved.
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De woorden kunnen niet worden opgeslagen.
+%1</translation>
     </message>
 </context>
 <context>
@@ -22756,32 +22758,32 @@ Bron: %3</translation>
     <message>
         <location line="+123"/>
         <source>Left margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Linkermarge, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechtermarge, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenmarge, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ondermarge, %1</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Width of column %1, %2 of %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Breedte van kolom %1, %2 van %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column %1 is %2 wide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolom %1 is %2 breed</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -22978,7 +22980,7 @@ Bron: %3</translation>
     <message>
         <location line="-278"/>
         <source>End</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Einde</translation>
     </message>
     <message>
         <location line="+315"/>
@@ -24999,12 +25001,12 @@ Bron: %3</translation>
     <message>
         <location line="+31"/>
         <source>That names more than 64 ranges. Name fewer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat betreft meer dan 64 bereiken. Geef er minder op.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The ranges are on different sheets. Name ranges on one sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De bereiken staan op verschillende bladen. Geef bereiken op één blad op.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -25951,7 +25953,7 @@ Bron: %3</translation>
         <location line="+2"/>
         <location line="+132"/>
         <source>Reset Note Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notitiegrootte herstellen</translation>
     </message>
     <message>
         <location line="-131"/>
@@ -26012,7 +26014,7 @@ Bron: %3</translation>
         <location line="-9"/>
         <location line="+64"/>
         <source>Move or Size Note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notitie verplaatsen of formaat wijzigen</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -26052,57 +26054,57 @@ Bron: %3</translation>
     <message>
         <location line="-193"/>
         <source>The note&apos;s box is kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het vak van de notitie blijft behouden.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The note&apos;s box is given up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het vak van de notitie wordt geannuleerd.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 across, %2 down, %3 wide, %4 high, in pixels at 100% zoom</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 van links, %2 van boven, %3 breed, %4 hoog, in pixels bij zoomniveau 100%</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Option</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Optie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet, moving the box of the note on %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blad, het vak van de notitie op %1 verplaatsen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The arrow keys move the box of the note, Shift with an arrow sizes it, %1 makes finer steps, Enter keeps it, and Escape gives it up. Its place is said at each step.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De pijltjestoetsen verplaatsen het vak van de notitie, Shift met een pijltje past het formaat aan, %1 maakt kleinere stappen, Enter behoudt het en Esc annuleert het. De positie wordt bij elke stap aangegeven.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moving a note&apos;s box. Enter keeps it, and Escape gives it up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het vak van een notitie verplaatsen. Enter behoudt het en Esc annuleert het.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Moving the box of the note on %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het vak van de notitie op %1 verplaatsen: %2</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Show the note first. Only a note that is shown has a box to move.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Toon eerst de notitie. Alleen een getoonde notitie heeft een vak dat verplaatst kan worden.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The note&apos;s box can&apos;t be reached from here. Scroll to its cell, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het vak van de notitie is vanaf hier niet bereikbaar. Scrol naar de cel en probeer het opnieuw.</translation>
     </message>
     <message>
         <location line="+127"/>
@@ -26408,22 +26410,22 @@ Bron: %3</translation>
     <message>
         <location line="+122"/>
         <source>Insert Cut Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geknipte cellen invoegen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Insert Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gekopieerde cellen invoegen</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>Cut or copy some cells first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Knip of kopieer eerst een aantal cellen.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Cut cells can be put between others only on the sheet they came from. To move them to another sheet, use Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geknipte cellen kunnen alleen tussen andere cellen worden geplaatst op het blad waar ze vandaan komen. Gebruik Plakken om ze naar een ander blad te verplaatsen.</translation>
     </message>
     <message>
         <location line="-332"/>
@@ -26435,7 +26437,7 @@ Bron: %3</translation>
         <location line="-324"/>
         <location line="+621"/>
         <source>Insert Cut or Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geknipte of gekopieerde cellen invoegen</translation>
     </message>
     <message>
         <location line="-297"/>
@@ -26533,13 +26535,13 @@ Bron: %3</translation>
     <message>
         <location line="+11"/>
         <source>Array Formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Matrixformule</translation>
     </message>
     <message>
         <location line="+229"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+41"/>
         <source>That can&apos;t be done on several ranges at once. Select one range, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat kan niet op meerdere bereiken tegelijk. Selecteer één bereik en probeer het opnieuw.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="-262"/>
@@ -26894,7 +26896,7 @@ Het bestand bestaat niet.</translation>
     <message>
         <location line="+10"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is opgeslagen, maar uw computer kan het niet openen.</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -32680,22 +32682,22 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+96"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen afdrukken</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De pagina&apos;s met beoordelingsopmerkingen van de dia na elke dia die er een heeft (dia- en notitiepagina&apos;s).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>High quality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoge kwaliteit</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grijstinten en zuiver zwart-witte pagina&apos;s worden gemaakt met 600 dpi in plaats van 300 (300 voor een zeer grote pagina). Dit duurt langer en kost meer geheugen.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -32815,7 +32817,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+67"/>
         <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze pagina&apos;s zijn te groot voor Hoge kwaliteit, dus worden ze gemaakt met 300 dpi.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -34419,12 +34421,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+5"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen afdrukken</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De pagina&apos;s met beoordelingsopmerkingen van de dia na elke dia die er een heeft (dia- en notitiepagina&apos;s).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -34477,7 +34479,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+45"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is opgeslagen, maar uw computer kan het niet openen.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -51166,7 +51168,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
         <source>Drag, or press the arrow keys, to move it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sleep of druk op de pijltjestoetsen om het te verplaatsen.</translation>
     </message>
 </context>
 <context>
@@ -51940,42 +51942,42 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ingevoegde rij</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verwijderde rij</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ingevoegde cel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verwijderde cel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samengevoegde cellen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgemaakte tabel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgemaakte rij</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgemaakte cel</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -52073,8 +52075,8 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+31"/>
         <source>%n more change(s) are inside text boxes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n extra wijziging staat in tekstvakken.</numerusform>
+            <numerusform>%n extra wijzigingen staan in tekstvakken.</numerusform>
         </translation>
     </message>
     <message>
@@ -55683,7 +55685,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="-85"/>
         <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De marges van de pagina&apos;s van het document, zoals ingesteld in Pagina-instelling. Een keuze wijzigt het document.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -55694,12 +55696,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="-10"/>
         <source>Different in parts of the document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verschillend in delen van het document</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Custom (top %1, bottom %2, left %3, right %4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepast (boven %1, onder %2, links %3, rechts %4)</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -55724,12 +55726,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Met één pagina inkrimpen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes the text a little smaller so that the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Maakt de tekst iets kleiner, zodat het document één pagina korter wordt.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -58578,7 +58580,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Met één pagina inkrimpen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59136,7 +59138,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+33"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 is opgeslagen, maar uw computer kan het niet openen.</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -59328,42 +59330,42 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+52"/>
         <source>The document is one page long already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document is al één pagina lang.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document is langer dan %1 pagina&apos;s, wat te lang is om met één pagina te inkrimpen zonder dat het venster vastloopt. Verklein de tekst van een deel ervan handmatig.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Delen van dit document zijn vergrendeld, dus de tekst kan niet kleiner worden gemaakt.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een pagina-einde of sectie-einde houdt de pagina&apos;s uit elkaar, dus kleinere tekst kan ze niet samenbrengen. Verwijder eerst het einde.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tekst kan niet kleiner worden dan %1 punten om een pagina te verwijderen, dus er is niets gewijzigd.</translation>
     </message>
     <message>
         <location line="+44"/>
         <source>The document could not be measured, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het document kon niet worden gemeten, dus er is niets gewijzigd.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tekst is iets kleiner gemaakt, zodat het document %1 pagina&apos;s korter is.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Made the text a little smaller, so the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tekst is iets kleiner gemaakt, zodat het document één pagina korter is.</translation>
     </message>
     <message>
         <location line="+86"/>
@@ -60049,7 +60051,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-169"/>
         <source>AutoCorrect Options Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menu met opties voor automatische correctie</translation>
     </message>
     <message>
         <location line="+187"/>
@@ -60081,14 +60083,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+14"/>
         <source>%n change(s) kept because the table would break.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n wijziging behouden omdat de tabel anders zou breken.</numerusform>
+            <numerusform>%n wijzigingen behouden omdat de tabel anders zou breken.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+15"/>
         <source>This change is in a part of the document that no page shows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze wijziging staat in een deel van het document dat op geen enkele pagina zichtbaar is.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -60888,7 +60890,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invoegen als nieuwe kolommen</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -63078,7 +63080,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+2"/>
         <location line="+45"/>
         <source>That would put cells outside the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dat zou cellen buiten het blad plaatsen.</translation>
     </message>
     <message>
         <location line="-34"/>
@@ -63086,7 +63088,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+5"/>
         <location line="+4"/>
         <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen kunnen niet in zichzelf worden ingevoegd. Sleep ze ergens anders naartoe.</translation>
     </message>
     <message>
         <location line="+166"/>
@@ -63245,7 +63247,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-133"/>
         <source>Notes can&apos;t be added to a workbook opened from this kind of file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notities kunnen niet worden toegevoegd aan een werkmap die uit dit type bestand is geopend.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -63279,12 +63281,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+93"/>
         <source>There is no note on that cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen notitie bij die cel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Drag the note&apos;s box to where you want it on the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sleep het vak van de notitie naar de gewenste plek op het blad.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -63411,32 +63413,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+84"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een matrixformule begint met een gelijkteken. Typ een formule en druk opnieuw op Ctrl+Shift+Enter.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An array formula can&apos;t be entered over merged cells. Unmerge them, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een matrixformule kan niet worden ingevoerd in samengevoegde cellen. Hef het samenvoegen op of selecteer andere cellen.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A data table can&apos;t be changed this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een gegevenstabel kan op deze manier niet worden gewijzigd.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 is part of a block that a formula fills. Clear that formula first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 maakt deel uit van een blok dat door een formule wordt gevuld. Wis eerst die formule.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>An array formula can&apos;t be entered in a table. Select cells outside the table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een matrixformule kan niet in een tabel worden ingevoerd. Selecteer cellen buiten de tabel.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Array formula in %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Matrixformule in %1</translation>
     </message>
     <message>
         <location line="+90"/>
@@ -65286,7 +65288,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een werkmap die is geopend uit een tekst- of webpaginabestand heeft geen notities om in te zoeken.</translation>
     </message>
 </context>
 <context>
@@ -69665,19 +69667,19 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="-128"/>
         <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n koppeling heeft een adres dat langer is dan %1 tekens, dus die kan niet worden aangeklikt in de PDF.</numerusform>
+            <numerusform>%n koppelingen hebben een adres dat langer is dan %1 tekens, dus die kunnen niet worden aangeklikt in de PDF.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een PDF bevat maximaal %1 klikbare koppelingen, dus de rest kan niet worden aangeklikt.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De PDF is opgeslagen, maar de eigenschappen (titel, auteur en de rest) konden er niet in worden opgenomen.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -70841,14 +70843,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
         <source>its record is not where a font belongs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de gegevens ervan staan niet op de plek waar een lettertype hoort.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n record(s) of the font list are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Alleen het eerste %n record van de lettertypelijst wordt gelezen.</numerusform>
+            <numerusform>Alleen de eerste %n records van de lettertypelijst worden gelezen.</numerusform>
         </translation>
     </message>
 </context>
@@ -71660,14 +71662,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+64"/>
         <source>Only the first %1 notes on a sheet are kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alleen de eerste %1 notities op een blad worden bewaard.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie ingekort tot %1 tekens</numerusform>
+            <numerusform>%n notities ingekort tot %1 tekens</numerusform>
         </translation>
     </message>
     <message>
@@ -72311,14 +72313,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
         <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n notitie weggelaten, omdat de werkmap meer notitietekst bevat dan dit programma bewaart.</numerusform>
+            <numerusform>%n notities weggelaten, omdat de werkmap meer notitietekst bevat dan dit programma bewaart.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+41"/>
         <source>The workbook has more note text than this program keeps; the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De werkmap bevat meer notitietekst dan dit programma bewaart; de rest is weggelaten.</translation>
     </message>
 </context>
 <context>
@@ -72540,12 +72542,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
         <source>the part that holds it is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">het deel dat die bevat, is leeg.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>the key that unscrambles it is not valid.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de sleutel om die te ontgrendelen is niet geldig.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -72567,29 +72569,29 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
         <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ingesloten lettertype in het bestand kan niet worden gebruikt: %1</numerusform>
+            <numerusform>%n ingesloten lettertypen in het bestand kunnen niet worden gebruikt: %1</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige ingesloten lettertypen in het bestand zijn niet gebruikt, omdat hun licenties dat niet toestaan.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Alleen het eerste %n ingesloten lettertype wordt gelezen.</numerusform>
+            <numerusform>Alleen de eerste %n ingesloten lettertypen worden gelezen.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) in the file were looked at.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Alleen het eerste %n ingesloten lettertype in het bestand is bekeken.</numerusform>
+            <numerusform>Alleen de eerste %n ingesloten lettertypen in het bestand zijn bekeken.</numerusform>
         </translation>
     </message>
     <message>
@@ -72601,22 +72603,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../libs/office/wml/wmlfontswrite.cpp" line="+271"/>
         <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze lettertypen zijn niet in het bestand opgeslagen, omdat hun licenties dat niet toestaan: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: it may carry at most %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige lettertypen zijn niet in het bestand opgeslagen: het mag er maximaal %1 bevatten.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: they are too large.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige lettertypen zijn niet in het bestand opgeslagen: ze zijn te groot.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The fonts were not saved in the file: its font table can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De lettertypen zijn niet in het bestand opgeslagen: de lettertypetabel kan niet worden gewijzigd.</translation>
     </message>
 </context>
 <context>
@@ -76911,7 +76913,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+5"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invoegen als nieuwe kolommen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -76926,22 +76928,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+12"/>
         <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoe de geplakte inhoud wordt bewaard. Druk na het plakken op de toets %1 om het te openen.</translation>
     </message>
     <message>
         <location line="+202"/>
         <source>Control</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plakopties. Gebruik de pijltjestoetsen en Enter om te kiezen, of Esc om ze te verlaten.</translation>
     </message>
     <message>
         <location line="+111"/>
@@ -77043,52 +77045,52 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+25"/>
         <source>Choices for the change AutoCorrect just made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Keuzes voor de wijziging die AutoCorrectie zojuist heeft gemaakt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Keuzes voor de wijziging die AutoCorrectie zojuist heeft gemaakt. Druk op %1 om ze te openen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AutoCorrectie heeft een woord gewijzigd. De knop AutoCorrectie-opties biedt keuzes.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>AutoCorrect changed a word. Press %1 for choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AutoCorrectie heeft een woord gewijzigd. Druk op %1 voor keuzes.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Undo Automatic Correction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Automatische correctie ongedaan maken</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Stop Replacing &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen met vervangen van &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Keep &quot;%1&quot; As Typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; behouden zoals getypt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing Names of Days Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen met dagnamen overal met hoofdletter schrijven</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen met eerste letter van zinnen overal met hoofdletter schrijven</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen met eerste letter van tabelcellen overal met hoofdletter schrijven</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77423,27 +77425,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/commentops.cpp" line="+1133"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rij ingevoegd</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cel ingevoegd</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rij verwijderd</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cel verwijderd</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen samengevoegd</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77644,7 +77646,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+39"/>
         <source>Not in dictionary, in a text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet in woordenboek, in een tekstvak</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77654,17 +77656,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a footer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet in woordenboek, in een voettekst</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Not in dictionary, in a header</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet in woordenboek, in een koptekst</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet in woordenboek, in een notitie</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -77680,16 +77682,16 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+95"/>
         <source>%n word changed.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n woord gewijzigd.</numerusform>
+            <numerusform>%n woorden gewijzigd.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Found in %n place.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Gevonden op %n plaats.</numerusform>
+            <numerusform>Gevonden op %n plaatsen.</numerusform>
         </translation>
     </message>
 </context>
@@ -78011,13 +78013,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+5"/>
         <source>New columns cannot go there: a row has no cell where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwe kolommen kunnen hier niet komen: een rij heeft er geen cel waar ze zouden staan.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+46"/>
         <source>New columns cannot go there: joined cells run across the place where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwe kolommen kunnen hier niet komen: samengevoegde cellen lopen over de plek waar ze zouden staan.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
@@ -78130,14 +78132,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Klik in een tabel met ruimte ervoor om cellen als nieuwe kolommen te plakken.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/write/core/homeops.cpp" line="-10"/>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn geen cellen om te plakken.</translation>
     </message>
 </context>
 <context>
@@ -78156,7 +78158,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+12"/>
         <source>links to pictures past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">koppelingen naar afbeeldingen voorbij de %1 die een document mag hebben</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -78200,7 +78202,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+47"/>
         <source>shapes that are slanted or stretched (kept without that)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">vormen die schuin of uitgerekt zijn (behouden zonder dat)</translation>
     </message>
     <message>
         <location line="+301"/>
@@ -78216,7 +78218,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+40"/>
         <source>drawing shapes past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tekenvormen voorbij de %1 die een document mag hebben</translation>
     </message>
     <message>
         <location line="+52"/>
@@ -78404,7 +78406,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-114"/>
         <source>pictures that fill text boxes (the boxes are kept without them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">afbeeldingen die tekstvakken vullen (de vakken blijven behouden zonder die)</translation>
     </message>
     <message>
         <location line="+428"/>

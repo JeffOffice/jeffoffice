@@ -2561,17 +2561,17 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
         <source>Comments on slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar pada slaid %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comments on slide %1, continued</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar pada slaid %1, lanjutan</translation>
     </message>
     <message>
         <location line="+201"/>
         <source>Comments not shown: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar tidak ditampilkan: %1.</translation>
     </message>
     <message>
         <location line="+234"/>
@@ -5210,7 +5210,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+37"/>
         <source>Custom Dictionary...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kamus Kustom...</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5826,12 +5826,12 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
         <source>Save fonts in the file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Simpan font dalam berkas</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn&apos;t have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menyimpan font yang disertakan dengan program dan digunakan oleh teks ke dalam berkas .docx yang disimpan, sehingga teks tampak sama di komputer yang tidak memiliki font tersebut. Ukuran berkas menjadi lebih besar. Font yang lisensinya tidak mengizinkan penyertaan akan dikecualikan, dan font yang sudah dimiliki setiap komputer tidak pernah disertakan.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -7945,7 +7945,7 @@ Simpan tanpa cadangan?</translation>
     <message>
         <location line="+81"/>
         <source>The file is too large to read as a list of recipients.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas terlalu besar untuk dibaca sebagai daftar penerima.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -8109,18 +8109,19 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
     <message>
         <location filename="../apps/pub/io/importers.cpp" line="-614"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; lebih besar daripada %2 MB teks yang dimasukkan JeffPub sekaligus, sehingga tidak ada yang dimasukkan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; tidak dapat dibaca, sehingga tidak ada yang dimasukkan.
+%2</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; bukan dokumen yang dapat dibaca JeffPub, sehingga tidak ada yang dimasukkan.</translation>
     </message>
 </context>
 <context>
@@ -10831,27 +10832,27 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+14"/>
         <source>Printer Properties…</source>
-        <translation type="unfinished">Properti Printer…</translation>
+        <translation type="unfinished">Properti Printer...</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Printer Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Properti Printer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Opens the printer&apos;s own settings window.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Membuka jendela pengaturan milik printer.</translation>
     </message>
     <message>
         <location line="+74"/>
         <source>Open the PDF after saving</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka PDF setelah disimpan</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Opens the file in the program your computer uses for PDF files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Membuka berkas dengan program yang digunakan komputer Anda untuk berkas PDF.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -11080,34 +11081,34 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas hanya dapat dibaca.</translation>
     </message>
     <message numerus="yes">
         <location line="-10"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Kata tidak boleh kosong, tidak boleh memuat spasi atau karakter kontrol, dan tidak boleh lebih panjang dari %n huruf.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Another program is saving words just now. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Program lain sedang menyimpan kata. Coba lagi sebentar lagi.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The folder of the dictionary can&apos;t be written to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Folder kamus tidak dapat ditulis.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The list of words is too long to change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Daftar kata terlalu panjang untuk diubah.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The list of words is too long to add to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Daftar kata terlalu panjang untuk ditambahkan.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -14880,7 +14881,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+11"/>
         <source>the dates of notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tanggal catatan</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -14931,12 +14932,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="-18"/>
         <source>conversations of comments (each is kept as a plain note)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">percakapan komentar (masing-masing disimpan sebagai catatan biasa)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>formatting inside the words of a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">pemformatan di dalam kata pada catatan</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -14992,7 +14993,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+1"/>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan ke buku kerja lain (rumus dan alamatnya tetap ada, tetapi salinan tidak menyimpan nilai terakhir yang dibaca dari berkas tertaut)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15519,7 +15520,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+152"/>
         <source>%n note(s) in the file could not be read, and were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan dalam berkas tidak dapat dibaca dan dikecualikan.</numerusform>
         </translation>
     </message>
     <message>
@@ -15562,12 +15563,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="-68"/>
         <source>The formula has more than 8 functions inside one another, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus memiliki lebih dari 8 fungsi yang bersarang satu di dalam yang lain, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula holds more than 40 values at once, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus memuat lebih dari 40 nilai sekaligus, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+103"/>
@@ -15649,7 +15650,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+15"/>
         <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus memanggil fungsi yang namanya lebih panjang dari 255 karakter, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -15659,7 +15660,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+25"/>
         <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus memanggil fungsi dengan namanya dan lebih dari 29 argumen, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15675,7 +15676,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+71"/>
         <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja memanggil lebih dari 255 fungsi berbeda berdasarkan namanya, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/xlsformula.cpp" line="-123"/>
@@ -15723,27 +15724,27 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+36"/>
         <source>The formula reads another workbook that has no link with an address in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus membaca buku kerja lain yang tidak memiliki tautan dengan alamat di dalam buku kerja.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja memiliki lebih dari 250 tautan ke buku kerja lain, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A link&apos;s address is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alamat tautan lebih panjang dari 255 karakter, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus menyebut lembar dari buku kerja lain yang tanpa nama atau namanya lebih panjang dari 31 karakter, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus menyebut lebih dari 255 lembar dari satu buku kerja lain, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -15759,35 +15760,35 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+84"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan di luar ukuran lembar format lama (melewati baris 65.536 atau kolom IV), yang dikecualikan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) with no words, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan tanpa kata, yang dikecualikan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) past the first %1 of a sheet, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan melewati %1 pertama sebuah lembar, yang dikecualikan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan dipotong menjadi %1 karakter</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n author name(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n nama penulis dipotong menjadi %1 karakter</numerusform>
         </translation>
     </message>
     <message>
@@ -18900,27 +18901,27 @@ Penerbitan desktop</translation>
     <message>
         <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
         <source>Added Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang Ditambahkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Excluded Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang Dikecualikan</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Result</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hasil</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang selalu ditandai salah eja, meskipun kamus menerimanya, dan tidak pernah disarankan. Kata dikecualikan persis seperti yang ditulis, bukan bentuk lainnya (&quot;house&quot; tidak mengecualikan &quot;houses&quot;). Menambahkan kata ke kamus akan menghapusnya dari daftar ini.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Words you added: the spelling check accepts them in every language.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang Anda tambahkan: pemeriksaan ejaan menerimanya di semua bahasa.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -18930,22 +18931,22 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Find a word in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cari kata dalam daftar</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Excluded words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang dikecualikan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Added words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang ditambahkan</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Word to add</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang akan ditambahkan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18960,88 +18961,89 @@ Penerbitan desktop</translation>
     <message>
         <location line="+8"/>
         <source>Import...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impor...</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Export...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ekspor...</translation>
     </message>
     <message numerus="yes">
         <location line="+56"/>
         <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Kata tidak boleh memuat spasi atau karakter kontrol, dan tidak boleh lebih panjang dari %n huruf.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>It is not a regular file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini bukan berkas biasa.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file can&apos;t be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas tidak dapat dibaca: %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Words read from the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang dibaca dari berkas: %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Baris yang dikecualikan: %1. Kata tidak boleh memuat spasi atau karakter kontrol, dan tidak boleh lebih panjang dari %n huruf.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file is longer than a word list can be, so the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas lebih panjang dari yang dapat dimuat daftar kata, sehingga sisanya dikecualikan.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Import a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impor Daftar Kata</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Word lists (*.txt *.dic);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Daftar kata (*.txt *.dic);;Semua Berkas (*)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Export a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ekspor Daftar Kata</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Word lists (*.txt);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Daftar kata (*.txt);;Semua Berkas (*)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Words written to the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata yang ditulis ke berkas: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file can&apos;t be written: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berkas tidak dapat ditulis: %1</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+12"/>
         <source>Custom Dictionary</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kamus Kustom</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The words can&apos;t be saved.
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata tidak dapat disimpan.
+%1</translation>
     </message>
 </context>
 <context>
@@ -22737,32 +22739,32 @@ Sumber: %3</translation>
     <message>
         <location line="+123"/>
         <source>Left margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Margin kiri, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Margin kanan, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Margin atas, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Margin bawah, %1</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Width of column %1, %2 of %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lebar kolom %1, %2 dari %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column %1 is %2 wide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolom %1 lebarnya %2</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -23188,7 +23190,7 @@ Sumber: %3</translation>
     <message>
         <location line="-473"/>
         <source>End</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Akhir</translation>
     </message>
     <message>
         <location line="+397"/>
@@ -24666,7 +24668,7 @@ Sumber: %3</translation>
         <location line="+2"/>
         <location line="+621"/>
         <source>Insert Cut or Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Sel yang Dipotong atau Disalin</translation>
     </message>
     <message>
         <location line="-612"/>
@@ -24922,22 +24924,22 @@ Sumber: %3</translation>
     <message>
         <location line="+122"/>
         <source>Insert Cut Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Sel yang Dipotong</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Insert Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Sel yang Disalin</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>Cut or copy some cells first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Potong atau salin beberapa sel terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Cut cells can be put between others only on the sheet they came from. To move them to another sheet, use Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang dipotong hanya bisa disisipkan di antara sel lain pada lembar asalnya. Untuk memindahkannya ke lembar lain, gunakan Tempel.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-100"/>
@@ -25420,7 +25422,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="+11"/>
         <source>Array Formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus Array</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -25453,7 +25455,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <location line="+31"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-15"/>
         <source>That can&apos;t be done on several ranges at once. Select one range, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itu tidak bisa dilakukan pada beberapa rentang sekaligus. Pilih satu rentang, lalu coba lagi.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-112"/>
@@ -25781,12 +25783,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+31"/>
         <source>That names more than 64 ranges. Name fewer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itu memberi nama lebih dari 64 rentang. Beri nama lebih sedikit.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The ranges are on different sheets. Name ranges on one sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rentang berada di lembar yang berbeda. Beri nama rentang pada satu lembar.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -27328,7 +27330,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+2"/>
         <location line="+132"/>
         <source>Reset Note Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang Ukuran Catatan</translation>
     </message>
     <message>
         <location line="-131"/>
@@ -27389,7 +27391,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="-9"/>
         <location line="+64"/>
         <source>Move or Size Note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pindahkan atau Ubah Ukuran Catatan</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -27429,57 +27431,57 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="-193"/>
         <source>The note&apos;s box is kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kotak catatan dipertahankan.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The note&apos;s box is given up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kotak catatan dibatalkan.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 across, %2 down, %3 wide, %4 high, in pixels at 100% zoom</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 ke samping, %2 ke bawah, %3 lebar, %4 tinggi, dalam piksel pada zoom 100%</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Option</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Option</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet, moving the box of the note on %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar, memindahkan kotak catatan pada %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The arrow keys move the box of the note, Shift with an arrow sizes it, %1 makes finer steps, Enter keeps it, and Escape gives it up. Its place is said at each step.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tombol panah memindahkan kotak catatan, Shift dengan panah mengubah ukurannya, %1 membuat langkah lebih halus, Enter mempertahankannya, dan Esc membatalkannya. Posisinya diumumkan pada setiap langkah.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moving a note&apos;s box. Enter keeps it, and Escape gives it up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memindahkan kotak catatan. Enter mempertahankannya, dan Esc membatalkannya.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Moving the box of the note on %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memindahkan kotak catatan pada %1: %2</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Show the note first. Only a note that is shown has a box to move.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan catatan terlebih dahulu. Hanya catatan yang ditampilkan yang memiliki kotak untuk dipindahkan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The note&apos;s box can&apos;t be reached from here. Scroll to its cell, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kotak catatan tidak dapat dijangkau dari sini. Gulir ke selnya, lalu coba lagi.</translation>
     </message>
     <message>
         <location line="+127"/>
@@ -29067,7 +29069,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+10"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 sudah disimpan, tetapi komputer Anda tidak dapat membukanya.</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -32648,22 +32650,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+96"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cetak komentar</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman komentar tinjauan slaid ditampilkan setelah setiap slaid yang memilikinya (halaman slaid dan catatan).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>High quality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kualitas Tinggi</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman skala abu-abu dan hitam-putih murni dibuat pada 600 per inci, bukan 300 (300 untuk halaman yang sangat besar). Prosesnya lebih lama dan membutuhkan lebih banyak memori.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -32793,7 +32795,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+67"/>
         <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman ini terlalu besar untuk Kualitas Tinggi, sehingga dibuat pada 300 per inci.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -34387,12 +34389,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+5"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cetak komentar</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman komentar tinjauan slaid ditampilkan setelah setiap slaid yang memilikinya (halaman slaid dan catatan).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -34444,7 +34446,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+45"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 sudah disimpan, tetapi komputer Anda tidak dapat membukanya.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -51124,7 +51126,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
         <source>Drag, or press the arrow keys, to move it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seret, atau tekan tombol panah, untuk memindahkannya.</translation>
     </message>
 </context>
 <context>
@@ -51898,42 +51900,42 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baris yang disisipkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baris yang dihapus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang disisipkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang dihapus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang digabungkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel yang diformat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baris yang diformat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang diformat</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -52031,7 +52033,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+31"/>
         <source>%n more change(s) are inside text boxes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n perubahan lainnya ada di dalam kotak teks.</numerusform>
         </translation>
     </message>
     <message>
@@ -55640,7 +55642,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-85"/>
         <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Margin halaman dokumen, sebagaimana diatur di Pengaturan Halaman. Pilihan mengubah dokumen.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -55651,12 +55653,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-10"/>
         <source>Different in parts of the document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berbeda di sebagian bagian dokumen</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Custom (top %1, bottom %2, left %3, right %4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kustom (atas %1, bawah %2, kiri %3, kanan %4)</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -55681,12 +55683,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perkecil Satu Halaman</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes the text a little smaller so that the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Membuat teks sedikit lebih kecil sehingga dokumen menjadi satu halaman lebih pendek.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -57338,7 +57340,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perkecil Satu Halaman</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58014,7 +58016,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan sebagai Kolom Baru</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -59028,7 +59030,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+33"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 sudah disimpan, tetapi komputer Anda tidak dapat membukanya.</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -59220,42 +59222,42 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+52"/>
         <source>The document is one page long already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen sudah satu halaman.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen lebih panjang dari %1 halaman, yang terlalu panjang untuk diperkecil satu halaman tanpa jendela berhenti. Perkecil teks pada sebagian dokumen secara manual.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebagian dokumen ini dikunci, sehingga teksnya tidak dapat diperkecil.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pemisah halaman atau pemisah bagian memisahkan halaman, sehingga teks yang lebih kecil tidak dapat menyatukannya. Hapus pemisah tersebut terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks tidak dapat diperkecil di bawah %1 poin untuk mengurangi satu halaman, sehingga tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+44"/>
         <source>The document could not be measured, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen tidak dapat diukur, sehingga tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks dibuat sedikit lebih kecil, sehingga dokumen menjadi %1 halaman lebih pendek.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Made the text a little smaller, so the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks dibuat sedikit lebih kecil, sehingga dokumen menjadi satu halaman lebih pendek.</translation>
     </message>
     <message>
         <location line="+86"/>
@@ -60003,7 +60005,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-169"/>
         <source>AutoCorrect Options Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menu Opsi Koreksi Otomatis</translation>
     </message>
     <message>
         <location line="+187"/>
@@ -60035,13 +60037,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+14"/>
         <source>%n change(s) kept because the table would break.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n perubahan dipertahankan karena tabel akan terpotong.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+15"/>
         <source>This change is in a part of the document that no page shows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini ada di bagian dokumen yang tidak ditampilkan di halaman mana pun.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -62724,32 +62726,32 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+84"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus array diawali dengan tanda sama dengan. Ketik rumus, lalu tekan Ctrl+Shift+Enter lagi.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An array formula can&apos;t be entered over merged cells. Unmerge them, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus array tidak dapat dimasukkan di atas sel yang digabungkan. Batalkan penggabungannya, atau pilih sel lain.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A data table can&apos;t be changed this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel data tidak dapat diubah dengan cara ini.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 is part of a block that a formula fills. Clear that formula first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 adalah bagian dari blok yang diisi rumus. Hapus rumus itu terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>An array formula can&apos;t be entered in a table. Select cells outside the table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus array tidak dapat dimasukkan ke dalam tabel. Pilih sel di luar tabel.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Array formula in %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rumus array di %1</translation>
     </message>
     <message>
         <location line="+90"/>
@@ -63322,7 +63324,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-133"/>
         <source>Notes can&apos;t be added to a workbook opened from this kind of file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Catatan tidak dapat ditambahkan ke buku kerja yang dibuka dari jenis berkas ini.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -63356,12 +63358,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+93"/>
         <source>There is no note on that cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada catatan pada sel itu.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Drag the note&apos;s box to where you want it on the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seret kotak catatan ke posisi yang Anda inginkan pada lembar.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -63598,7 +63600,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+2"/>
         <location line="+45"/>
         <source>That would put cells outside the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tindakan itu akan menempatkan sel di luar lembar.</translation>
     </message>
     <message>
         <location line="-34"/>
@@ -63606,7 +63608,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+5"/>
         <location line="+4"/>
         <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel tidak dapat disisipkan ke dalam dirinya sendiri. Seret ke tempat lain.</translation>
     </message>
     <message>
         <location line="+166"/>
@@ -65234,7 +65236,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja yang dibuka dari berkas teks atau halaman web tidak memiliki catatan untuk dicari.</translation>
     </message>
 </context>
 <context>
@@ -69613,18 +69615,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="-128"/>
         <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n tautan memiliki alamat yang lebih panjang dari %1 karakter, sehingga tidak dapat diklik dalam PDF.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF paling banyak memuat %1 tautan yang dapat diklik, sehingga sisanya tidak dapat diklik.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">PDF telah disimpan, tetapi propertinya (judul, penulis, dan lainnya) tidak dapat dimasukkan ke dalamnya.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -70785,13 +70787,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
         <source>its record is not where a font belongs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">catatannya tidak berada di tempat yang seharusnya untuk font.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n record(s) of the font list are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Hanya %n rekaman pertama dari daftar font yang dibaca.</numerusform>
         </translation>
     </message>
 </context>
@@ -71603,13 +71605,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+64"/>
         <source>Only the first %1 notes on a sheet are kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hanya %1 catatan pertama pada lembar yang disimpan.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan dipotong menjadi %1 karakter</numerusform>
         </translation>
     </message>
     <message>
@@ -72247,13 +72249,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
         <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan tidak disertakan, karena buku kerja memiliki teks catatan lebih banyak daripada yang disimpan program ini.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+41"/>
         <source>The workbook has more note text than this program keeps; the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja memiliki teks catatan lebih banyak daripada yang disimpan program ini; sisanya tidak disertakan.</translation>
     </message>
 </context>
 <context>
@@ -72472,12 +72474,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
         <source>the part that holds it is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bagian yang memuatnya kosong.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>the key that unscrambles it is not valid.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">kunci untuk membukanya tidak valid.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -72499,53 +72501,53 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
         <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n font tersemat dalam berkas tidak dapat digunakan: %1</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa font tersemat dalam berkas tidak digunakan, karena lisensinya tidak mengizinkannya.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Hanya %n font tersemat pertama yang dibaca.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) in the file were looked at.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Hanya %n font tersemat pertama dalam berkas yang diperiksa.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+1"/>
         <source>Some embedded fonts are left out: they are too large.</source>
-        <translation type="unfinished">Beberapa font tersemat dilewati: ukurannya terlalu besar.</translation>
+        <translation type="unfinished">Beberapa font tersemat tidak disertakan: ukurannya terlalu besar.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfontswrite.cpp" line="+271"/>
         <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Font berikut tidak disimpan dalam berkas, karena lisensinya tidak mengizinkannya: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: it may carry at most %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa font tidak disimpan dalam berkas: berkas hanya dapat memuat paling banyak %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: they are too large.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa font tidak disimpan dalam berkas: ukurannya terlalu besar.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The fonts were not saved in the file: its font table can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Font tidak disimpan dalam berkas: tabel font-nya tidak dapat diubah.</translation>
     </message>
 </context>
 <context>
@@ -76839,7 +76841,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+5"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan sebagai Kolom Baru</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -76854,22 +76856,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+12"/>
         <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cara konten yang ditempel disimpan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
     </message>
     <message>
         <location line="+202"/>
         <source>Control</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk keluar.</translation>
     </message>
     <message>
         <location line="+111"/>
@@ -76971,52 +76973,52 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+25"/>
         <source>Choices for the change AutoCorrect just made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan untuk perubahan yang baru saja dibuat oleh Koreksi Otomatis.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan untuk perubahan yang baru saja dibuat oleh Koreksi Otomatis. Tekan %1 untuk membukanya.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Koreksi Otomatis mengubah sebuah kata. Tombol Opsi Koreksi Otomatis memiliki pilihan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>AutoCorrect changed a word. Press %1 for choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Koreksi Otomatis mengubah sebuah kata. Tekan %1 untuk pilihan.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Undo Automatic Correction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Batalkan Koreksi Otomatis</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Stop Replacing &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berhenti Mengganti &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Keep &quot;%1&quot; As Typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pertahankan &quot;%1&quot; seperti yang Anda ketik</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing Names of Days Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berhenti Mengapitalkan Nama Hari di Mana Pun</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berhenti Mengapitalkan Huruf Pertama Kalimat di Mana Pun</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berhenti Mengapitalkan Huruf Pertama Sel Tabel di Mana Pun</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77351,27 +77353,27 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/core/commentops.cpp" line="+1133"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baris disisipkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel disisipkan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Baris dihapus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel dihapus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel digabungkan</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77572,7 +77574,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+39"/>
         <source>Not in dictionary, in a text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada dalam kamus, di kotak teks</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77582,17 +77584,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a footer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada dalam kamus, di footer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Not in dictionary, in a header</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada dalam kamus, di header</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada dalam kamus, di catatan</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -77608,14 +77610,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+95"/>
         <source>%n word changed.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n kata diubah.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Found in %n place.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Ditemukan di %n tempat.</numerusform>
         </translation>
     </message>
 </context>
@@ -77937,13 +77939,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+5"/>
         <source>New columns cannot go there: a row has no cell where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolom baru tidak dapat ditempatkan di sana: sebuah baris tidak memiliki sel tempat kolom itu berada.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+46"/>
         <source>New columns cannot go there: joined cells run across the place where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kolom baru tidak dapat ditempatkan di sana: sel gabungan melintang di tempat kolom itu seharusnya berada.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
@@ -78056,14 +78058,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Untuk menempel sel sebagai kolom baru, klik di dalam tabel yang memiliki ruang untuknya.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/write/core/homeops.cpp" line="-10"/>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada sel untuk ditempel.</translation>
     </message>
 </context>
 <context>
@@ -78082,7 +78084,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+12"/>
         <source>links to pictures past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan ke gambar melebihi %1 yang boleh dimiliki sebuah dokumen</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -78126,7 +78128,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+47"/>
         <source>shapes that are slanted or stretched (kept without that)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bentuk yang miring atau direntangkan (dipertahankan tanpa hal itu)</translation>
     </message>
     <message>
         <location line="+301"/>
@@ -78142,7 +78144,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+40"/>
         <source>drawing shapes past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">bentuk gambar melebihi %1 yang boleh dimiliki sebuah dokumen</translation>
     </message>
     <message>
         <location line="+52"/>
@@ -78330,7 +78332,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-114"/>
         <source>pictures that fill text boxes (the boxes are kept without them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gambar yang mengisi kotak teks (kotak tetap dipertahankan tanpanya)</translation>
     </message>
     <message>
         <location line="+428"/>

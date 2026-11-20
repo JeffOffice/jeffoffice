@@ -65,6 +65,14 @@
         <source>Default file location</source>
         <translation>Ubicación predeterminada de fichero</translation>
     </message>
+    <message>
+        <source>Save fonts in the file</source>
+        <translation type="unfinished">Guardar fuentes en el fichero</translation>
+    </message>
+    <message>
+        <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
+        <translation type="unfinished">Incluye en el fichero .docx guardado las fuentes que vienen con el programa y que usa el texto, para que el texto se vea igual en un equipo que no las tenga. Aumenta el tamaño del fichero. No se incluye una fuente cuya licencia no lo permita, ni las fuentes que tiene todo equipo.</translation>
+    </message>
 </context>
 <context>
     <name>Export</name>
@@ -133,6 +141,10 @@
     <message>
         <source>The file has no sheets.</source>
         <translation type="unfinished">El fichero no tiene hojas.</translation>
+    </message>
+    <message>
+        <source>The file is too large to read as a list of recipients.</source>
+        <translation type="unfinished">El fichero es demasiado grande para leerlo como lista de destinatarios.</translation>
     </message>
     <message>
         <source>The file has no rows.</source>
@@ -697,10 +709,24 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>Print</name>
+    <message>
+        <source>Opens the file in the program your computer uses for PDF files.</source>
+        <translation type="unfinished">Abre el fichero con el programa que usa su equipo para los ficheros PDF.</translation>
+    </message>
+</context>
+<context>
     <name>PrintSides</name>
     <message>
         <source>A PDF file has no sides.</source>
         <translation type="unfinished">Un fichero PDF no tiene caras.</translation>
+    </message>
+</context>
+<context>
+    <name>Proofing</name>
+    <message>
+        <source>The file is read-only.</source>
+        <translation type="unfinished">El fichero es de solo lectura.</translation>
     </message>
 </context>
 <context>
@@ -976,8 +1002,19 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dos hojas del libro comparten datos, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
+        <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
+        <translation type="unfinished">vínculos a otros libros (las fórmulas y las direcciones se conservan, pero la copia no guarda los valores que leyeron por última vez de los ficheros vinculados)</translation>
+    </message>
+    <message>
         <source>The sheet is nested more deeply than any real file's.</source>
         <translation type="unfinished">La hoja está anidada a más profundidad que en cualquier fichero real.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n note(s) in the file could not be read, and were left out.</source>
+        <translation type="unfinished">
+            <numerusform>%n nota del fichero no se pudo leer y se omitió.</numerusform>
+            <numerusform>%n notas del fichero no se pudieron leer y se omitieron.</numerusform>
+        </translation>
     </message>
     <message>
         <source>The formulas of the sheet are more work to read than any real file's.</source>
@@ -1082,6 +1119,41 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
         <translation type="unfinished">Una película o sonido que una diapositiva vincula a un fichero en lugar de contenerlo. Solo se reproduce un fichero de película o sonido cuyo nombre esté en este equipo; nunca una dirección web, un fichero de otro equipo ni un programa. Una unidad de red que parece local se lee como un fichero local.</translation>
+    </message>
+</context>
+<context>
+    <name>UserDictionary</name>
+    <message>
+        <source>It is not a regular file.</source>
+        <translation type="unfinished">No es un fichero normal.</translation>
+    </message>
+    <message>
+        <source>The file can't be read: %1</source>
+        <translation type="unfinished">No se puede leer el fichero: %1</translation>
+    </message>
+    <message>
+        <source>Words read from the file: %1.</source>
+        <translation type="unfinished">Palabras leídas del fichero: %1.</translation>
+    </message>
+    <message>
+        <source>The file is longer than a word list can be, so the rest was left out.</source>
+        <translation type="unfinished">El fichero es más largo de lo que admite una lista de palabras, así que se omitió el resto.</translation>
+    </message>
+    <message>
+        <source>Word lists (*.txt *.dic);;All Files (*)</source>
+        <translation type="unfinished">Listas de palabras (*.txt *.dic);;Todos los ficheros (*)</translation>
+    </message>
+    <message>
+        <source>Word lists (*.txt);;All Files (*)</source>
+        <translation type="unfinished">Listas de palabras (*.txt);;Todos los ficheros (*)</translation>
+    </message>
+    <message>
+        <source>Words written to the file: %1.</source>
+        <translation type="unfinished">Palabras escritas en el fichero: %1.</translation>
+    </message>
+    <message>
+        <source>The file can't be written: %1</source>
+        <translation type="unfinished">No se puede escribir el fichero: %1</translation>
     </message>
 </context>
 <context>
@@ -2290,6 +2362,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">El formato condicional de un libro abierto desde este tipo de fichero se conserva al guardarlo como libro .xlsx. Guárdelo así y después cambie las reglas.</translation>
     </message>
     <message>
+        <source>Notes can't be added to a workbook opened from this kind of file.</source>
+        <translation type="unfinished">No se pueden añadir notas a un libro abierto desde este tipo de fichero.</translation>
+    </message>
+    <message>
         <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
         <translation type="unfinished">Esa dirección es más larga de lo que admite un vínculo en ficheros que abren otros programas (%1 caracteres).</translation>
     </message>
@@ -2323,6 +2399,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The workbook "%1" is not a file that can be read.</source>
         <translation type="unfinished">El libro "%1" no es un fichero que se pueda leer.</translation>
+    </message>
+    <message>
+        <source>A workbook opened from a text or web page file has no notes to search.</source>
+        <translation type="unfinished">Un libro abierto desde un fichero de texto o de página web no tiene comentarios en los que buscar.</translation>
     </message>
 </context>
 <context>
@@ -2897,11 +2977,45 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
     <message>
         <source>An embedded font in the file can't be used: %1</source>
-        <translation type="unfinished">No se puede usar una fuente incrustada del fichero: %1</translation>
+        <translation type="unfinished">No se puede usar una fuente incrustada en el fichero: %1</translation>
     </message>
     <message>
         <source>%1 embedded fonts in the file can't be used: %2</source>
-        <translation type="unfinished">No se pueden usar %1 fuentes incrustadas del fichero: %2</translation>
+        <translation type="unfinished">No se pueden usar %1 fuentes incrustadas en el fichero: %2</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n embedded font(s) in the file can't be used: %1</source>
+        <translation type="unfinished">
+            <numerusform>No se puede usar %n fuente incrustada en el fichero: %1</numerusform>
+            <numerusform>No se pueden usar %n fuentes incrustadas en el fichero: %1</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
+        <translation type="unfinished">No se usaron algunas fuentes incrustadas en el fichero, porque sus licencias no lo permiten.</translation>
+    </message>
+    <message numerus="yes">
+        <source>Only the first %n embedded font(s) in the file were looked at.</source>
+        <translation type="unfinished">
+            <numerusform>Solo se revisó la primera %n fuente incrustada del fichero.</numerusform>
+            <numerusform>Solo se revisaron las primeras %n fuentes incrustadas del fichero.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
+        <translation type="unfinished">Estas fuentes no se guardaron en el fichero, porque sus licencias no lo permiten: %1.</translation>
+    </message>
+    <message>
+        <source>Some fonts were not saved in the file: it may carry at most %1.</source>
+        <translation type="unfinished">No se guardaron algunas fuentes en el fichero: puede contener como máximo %1.</translation>
+    </message>
+    <message>
+        <source>Some fonts were not saved in the file: they are too large.</source>
+        <translation type="unfinished">No se guardaron algunas fuentes en el fichero: son demasiado grandes.</translation>
+    </message>
+    <message>
+        <source>The fonts were not saved in the file: its font table can't be changed.</source>
+        <translation type="unfinished">No se guardaron las fuentes en el fichero: su tabla de fuentes no se puede cambiar.</translation>
     </message>
 </context>
 <context>

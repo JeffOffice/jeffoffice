@@ -2562,17 +2562,17 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
         <source>Comments on slide %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Commentaires sur la diapositive %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Comments on slide %1, continued</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Commentaires sur la diapositive %1, suite</translation>
     </message>
     <message>
         <location line="+201"/>
         <source>Comments not shown: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Commentaires non affichés : %1.</translation>
     </message>
     <message>
         <location line="+234"/>
@@ -5211,7 +5211,7 @@ Article de dernière page	4</translation>
     <message>
         <location line="+37"/>
         <source>Custom Dictionary...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dictionnaire personnalisé...</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5828,12 +5828,12 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
         <source>Save fonts in the file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer les polices dans le fichier</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn&apos;t have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Place les polices fournies avec le programme et utilisées par le texte dans un fichier .docx enregistré, afin que le texte s&apos;affiche de la même façon sur un ordinateur qui ne les possède pas. Le fichier devient plus volumineux. Une police dont la licence ne l&apos;autorise pas est exclue, et les polices présentes sur tous les ordinateurs ne sont jamais ajoutées.</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -7951,7 +7951,7 @@ Enregistrer sans sauvegarde ?</translation>
     <message>
         <location line="+81"/>
         <source>The file is too large to read as a list of recipients.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier est trop volumineux pour être lu comme une liste de destinataires.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -8116,18 +8116,19 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
     <message>
         <location filename="../apps/pub/io/importers.cpp" line="-614"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » dépasse les %2 Mo de texte que JeffPub insère en une fois, donc rien n&apos;a été inséré.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » n&apos;a pas pu être lu, donc rien n&apos;a été inséré.
+%2</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » n&apos;est pas un document que JeffPub peut lire, donc rien n&apos;a été inséré.</translation>
     </message>
 </context>
 <context>
@@ -10839,27 +10840,27 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+14"/>
         <source>Printer Properties…</source>
-        <translation type="unfinished">Propriétés de l&apos;imprimante…</translation>
+        <translation type="unfinished">Propriétés de l&apos;imprimante...</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Printer Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Propriétés de l&apos;imprimante</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Opens the printer&apos;s own settings window.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvre la fenêtre des paramètres propres à l&apos;imprimante.</translation>
     </message>
     <message>
         <location line="+74"/>
         <source>Open the PDF after saving</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvrir le PDF après l&apos;enregistrement</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Opens the file in the program your computer uses for PDF files.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ouvre le fichier dans le programme que votre ordinateur utilise pour les fichiers PDF.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -11088,35 +11089,35 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier est en lecture seule.</translation>
     </message>
     <message numerus="yes">
         <location line="-10"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Un mot ne peut pas être vide, contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettre.</numerusform>
+            <numerusform>Un mot ne peut pas être vide, contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettres.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Another program is saving words just now. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un autre programme enregistre actuellement des mots. Réessayez dans un instant.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The folder of the dictionary can&apos;t be written to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossible d&apos;écrire dans le dossier du dictionnaire.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>The list of words is too long to change.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La liste de mots est trop longue pour être modifiée.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>The list of words is too long to add to.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La liste de mots est trop longue pour y ajouter des mots.</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -15274,7 +15275,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+5"/>
         <source>the dates of notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">les dates des notes</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -15325,12 +15326,12 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="-18"/>
         <source>conversations of comments (each is kept as a plain note)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">les conversations des commentaires (chacune est conservée sous forme de note simple)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>formatting inside the words of a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">la mise en forme à l&apos;intérieur des mots d&apos;une note</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -15375,7 +15376,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="-9"/>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">liens vers d&apos;autres classeurs (les formules et les adresses sont conservées, mais la copie ne conserve pas les valeurs qu&apos;elles ont lues en dernier dans les fichiers liés)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15442,8 +15443,8 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <location line="+152"/>
         <source>%n note(s) in the file could not be read, and were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note du fichier n&apos;a pas pu être lue et a été omise.</numerusform>
+            <numerusform>%n notes du fichier n&apos;ont pas pu être lues et ont été omises.</numerusform>
         </translation>
     </message>
     <message>
@@ -15557,12 +15558,12 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="-68"/>
         <source>The formula has more than 8 functions inside one another, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule contient plus de 8 fonctions imbriquées les unes dans les autres, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula holds more than 40 values at once, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule contient plus de 40 valeurs à la fois, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+103"/>
@@ -15644,7 +15645,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+15"/>
         <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule appelle une fonction dont le nom dépasse 255 caractères, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -15654,7 +15655,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+25"/>
         <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule appelle une fonction par son nom avec plus de 29 arguments, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15670,7 +15671,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+71"/>
         <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le classeur appelle plus de 255 fonctions différentes par leur nom, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
@@ -15705,27 +15706,27 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
     <message>
         <location line="+36"/>
         <source>The formula reads another workbook that has no link with an address in the workbook.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule fait référence à un autre classeur qui n&apos;a aucun lien avec une adresse dans le classeur.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le classeur contient plus de 250 liens vers d&apos;autres classeurs, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A link&apos;s address is longer than 255 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">L&apos;adresse d&apos;un lien dépasse 255 caractères, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La formule désigne une feuille d&apos;un autre classeur sans nom ou dont le nom dépasse 31 caractères, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les formules désignent plus de 255 feuilles d&apos;un même autre classeur, ce que l&apos;ancien format ne peut pas gérer.</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -15741,40 +15742,40 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <location line="+84"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note en dehors de la taille de feuille de l&apos;ancien format (au-delà de la ligne 65 536 ou de la colonne IV), omise</numerusform>
+            <numerusform>%n notes en dehors de la taille de feuille de l&apos;ancien format (au-delà de la ligne 65 536 ou de la colonne IV), omises</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) with no words, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note sans texte, omise</numerusform>
+            <numerusform>%n notes sans texte, omises</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) past the first %1 of a sheet, which were left out</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note au-delà des %1 premières d&apos;une feuille, omise</numerusform>
+            <numerusform>%n notes au-delà des %1 premières d&apos;une feuille, omises</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note tronquée à %1 caractères</numerusform>
+            <numerusform>%n notes tronquées à %1 caractères</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n author name(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n nom d&apos;auteur tronqué à %1 caractères</numerusform>
+            <numerusform>%n noms d&apos;auteur tronqués à %1 caractères</numerusform>
         </translation>
     </message>
     <message>
@@ -18917,27 +18918,27 @@ Publication assistée par ordinateur</translation>
     <message>
         <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
         <source>Added Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots ajoutés</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Excluded Words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots exclus</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Result</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Résultat</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots toujours marqués comme incorrects, même lorsqu&apos;un dictionnaire les accepte, et jamais proposés. Un mot est exclu tel qu&apos;il est écrit, pas sous ses autres formes (« maison » n&apos;exclut pas « maisons »). Ajouter un mot au dictionnaire le retire de cette liste.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Words you added: the spelling check accepts them in every language.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots que vous avez ajoutés : la vérification orthographique les accepte dans toutes les langues.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -18947,22 +18948,22 @@ Publication assistée par ordinateur</translation>
     <message>
         <location line="+1"/>
         <source>Find a word in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechercher un mot dans la liste</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Excluded words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots exclus</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Added words</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots ajoutés</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Word to add</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mot à ajouter</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -18977,90 +18978,91 @@ Publication assistée par ordinateur</translation>
     <message>
         <location line="+8"/>
         <source>Import...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importer...</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Export...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter...</translation>
     </message>
     <message numerus="yes">
         <location line="+56"/>
         <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Un mot ne peut pas contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettre.</numerusform>
+            <numerusform>Un mot ne peut pas contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettres.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>It is not a regular file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce n&apos;est pas un fichier ordinaire.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file can&apos;t be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne peut pas être lu : %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Words read from the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots lus dans le fichier : %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Lignes omises : %1. Un mot ne peut pas contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettre.</numerusform>
+            <numerusform>Lignes omises : %1. Un mot ne peut pas contenir d&apos;espace ni de caractère de contrôle, ni dépasser %n lettres.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file is longer than a word list can be, so the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier est plus long que ne peut l&apos;être une liste de mots, donc le reste a été omis.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Import a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importer une liste de mots</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Word lists (*.txt *.dic);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Listes de mots (*.txt *.dic);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Export a Word List</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter une liste de mots</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Word lists (*.txt);;All Files (*)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Listes de mots (*.txt);;Tous les fichiers (*)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Words written to the file: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mots écrits dans le fichier : %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file can&apos;t be written: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne peut pas être écrit : %1</translation>
     </message>
     <message>
         <location line="+22"/>
         <location line="+12"/>
         <source>Custom Dictionary</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dictionnaire personnalisé</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The words can&apos;t be saved.
 %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les mots ne peuvent pas être enregistrés.
+%1</translation>
     </message>
 </context>
 <context>
@@ -22756,32 +22758,32 @@ Source : %3</translation>
     <message>
         <location line="+123"/>
         <source>Left margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marge gauche, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marge droite, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marge supérieure, %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom margin, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marge inférieure, %1</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Width of column %1, %2 of %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Largeur de la colonne %1, %2 sur %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Column %1 is %2 wide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La colonne %1 a une largeur de %2</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -22978,7 +22980,7 @@ Source : %3</translation>
     <message>
         <location line="-278"/>
         <source>End</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fin</translation>
     </message>
     <message>
         <location line="+315"/>
@@ -24999,12 +25001,12 @@ Source : %3</translation>
     <message>
         <location line="+31"/>
         <source>That names more than 64 ranges. Name fewer.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cela désigne plus de 64 plages. Désignez-en moins.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The ranges are on different sheets. Name ranges on one sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les plages se trouvent sur des feuilles différentes. Désignez des plages sur une seule feuille.</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -25951,7 +25953,7 @@ Source : %3</translation>
         <location line="+2"/>
         <location line="+132"/>
         <source>Reset Note Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réinitialiser la taille de la note</translation>
     </message>
     <message>
         <location line="-131"/>
@@ -26012,7 +26014,7 @@ Source : %3</translation>
         <location line="-9"/>
         <location line="+64"/>
         <source>Move or Size Note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacer ou redimensionner la note</translation>
     </message>
     <message>
         <location line="+82"/>
@@ -26052,57 +26054,57 @@ Source : %3</translation>
     <message>
         <location line="-193"/>
         <source>The note&apos;s box is kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La zone de la note est conservée.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The note&apos;s box is given up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La zone de la note est abandonnée.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>%1 across, %2 down, %3 wide, %4 high, in pixels at 100% zoom</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 à droite, %2 vers le bas, %3 de large, %4 de haut, en pixels à 100 % de zoom</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Option</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Option</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet, moving the box of the note on %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Feuille, déplacement de la zone de la note sur %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The arrow keys move the box of the note, Shift with an arrow sizes it, %1 makes finer steps, Enter keeps it, and Escape gives it up. Its place is said at each step.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les touches fléchées déplacent la zone de la note, Maj avec une flèche la redimensionne, %1 permet des déplacements plus fins, Entrée la conserve et Échap l&apos;abandonne. Sa position est annoncée à chaque étape.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Moving a note&apos;s box. Enter keeps it, and Escape gives it up.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacement de la zone d&apos;une note. Entrée la conserve et Échap l&apos;abandonne.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Moving the box of the note on %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Déplacement de la zone de la note sur %1 : %2</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Show the note first. Only a note that is shown has a box to move.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Affichez d&apos;abord la note. Seule une note affichée a une zone à déplacer.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The note&apos;s box can&apos;t be reached from here. Scroll to its cell, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La zone de la note est inaccessible d&apos;ici. Faites défiler jusqu&apos;à sa cellule, puis réessayez.</translation>
     </message>
     <message>
         <location line="+127"/>
@@ -26408,22 +26410,22 @@ Source : %3</translation>
     <message>
         <location line="+122"/>
         <source>Insert Cut Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer les cellules coupées</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Insert Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer les cellules copiées</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>Cut or copy some cells first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Coupez ou copiez d&apos;abord des cellules.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Cut cells can be put between others only on the sheet they came from. To move them to another sheet, use Paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les cellules coupées ne peuvent être insérées qu&apos;entre d&apos;autres sur la feuille d&apos;origine. Pour les déplacer vers une autre feuille, utilisez Coller.</translation>
     </message>
     <message>
         <location line="-332"/>
@@ -26435,7 +26437,7 @@ Source : %3</translation>
         <location line="-324"/>
         <location line="+621"/>
         <source>Insert Cut or Copied Cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer les cellules coupées ou copiées</translation>
     </message>
     <message>
         <location line="-297"/>
@@ -26533,13 +26535,13 @@ Source : %3</translation>
     <message>
         <location line="+11"/>
         <source>Array Formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formule matricielle</translation>
     </message>
     <message>
         <location line="+229"/>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+41"/>
         <source>That can&apos;t be done on several ranges at once. Select one range, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette opération est impossible sur plusieurs plages à la fois. Sélectionnez une seule plage, puis réessayez.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="-262"/>
@@ -26894,7 +26896,7 @@ Le fichier est introuvable.</translation>
     <message>
         <location line="+10"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 est enregistré, mais votre ordinateur ne pourrait pas l&apos;ouvrir.</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -32680,22 +32682,22 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+96"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer les commentaires</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les pages des commentaires de relecture de la diapositive, après chaque diapositive qui en a (diapositives et pages de commentaires).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>High quality</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Haute qualité</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les pages en niveaux de gris et en noir et blanc pur sont générées à 600 ppp au lieu de 300 (300 pour une page très grande). Cela prend plus de temps et de mémoire.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -32815,7 +32817,7 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+67"/>
         <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ces pages sont trop grandes pour la haute qualité ; elles sont donc générées à 300 ppp.</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -34419,12 +34421,12 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+5"/>
         <source>Print comments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imprimer les commentaires</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les pages des commentaires de relecture de la diapositive, après chaque diapositive qui en a (diapositives et pages de commentaires).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -34477,7 +34479,7 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+45"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 est enregistré, mais votre ordinateur ne pourrait pas l&apos;ouvrir.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -51166,7 +51168,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
         <source>Drag, or press the arrow keys, to move it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Faites glisser ou appuyez sur les touches fléchées pour le déplacer.</translation>
     </message>
 </context>
 <context>
@@ -51940,42 +51942,42 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+1"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligne insérée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligne supprimée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellule insérée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellule supprimée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellules fusionnées</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tableau mis en forme</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligne mise en forme</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellule mise en forme</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -52073,8 +52075,8 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location line="+31"/>
         <source>%n more change(s) are inside text boxes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n autre modification se trouve dans des zones de texte.</numerusform>
+            <numerusform>%n autres modifications se trouvent dans des zones de texte.</numerusform>
         </translation>
     </message>
     <message>
@@ -55683,23 +55685,23 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="-85"/>
         <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les marges des pages du document, telles que définies dans la mise en page. Un choix modifie le document.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+11"/>
         <source>Custom…</source>
-        <translation type="unfinished">Personnalisé…</translation>
+        <translation type="unfinished">Personnalisées…</translation>
     </message>
     <message>
         <location line="-10"/>
         <source>Different in parts of the document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Différentes selon les parties du document</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Custom (top %1, bottom %2, left %3, right %4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Personnalisées (haut %1, bas %2, gauche %3, droite %4)</translation>
     </message>
     <message>
         <location line="+62"/>
@@ -55724,12 +55726,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+1"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire d&apos;une page</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Makes the text a little smaller so that the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduit un peu la taille du texte pour que le document soit d&apos;une page plus court.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -58578,7 +58580,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <location line="+1"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
         <source>Shrink by One Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Réduire d&apos;une page</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59136,7 +59138,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+33"/>
         <source>%1 is saved, but your computer would not open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 est enregistré, mais votre ordinateur ne pourrait pas l&apos;ouvrir.</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -59328,42 +59330,42 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+52"/>
         <source>The document is one page long already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le document fait déjà une page.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le document est plus long que %1 pages, ce qui est trop long pour le réduire d&apos;une page sans que la fenêtre s&apos;arrête. Réduisez manuellement la taille du texte d&apos;une partie du document.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Certaines parties de ce document sont verrouillées, donc leur texte ne peut pas être réduit.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un saut de page ou un saut de section sépare les pages, donc un texte plus petit ne peut pas les rapprocher. Supprimez d&apos;abord le saut.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le texte ne peut pas être réduit en dessous de %1 points pour retirer une page, donc rien n&apos;a été modifié.</translation>
     </message>
     <message>
         <location line="+44"/>
         <source>The document could not be measured, so nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le document n&apos;a pas pu être mesuré, donc rien n&apos;a été modifié.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texte légèrement réduit, le document fait maintenant %1 pages de moins.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Made the text a little smaller, so the document is one page shorter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texte légèrement réduit, le document fait maintenant une page de moins.</translation>
     </message>
     <message>
         <location line="+86"/>
@@ -60049,7 +60051,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="-169"/>
         <source>AutoCorrect Options Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menu des options de correction automatique</translation>
     </message>
     <message>
         <location line="+187"/>
@@ -60081,14 +60083,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+14"/>
         <source>%n change(s) kept because the table would break.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n modification conservée car le tableau serait coupé.</numerusform>
+            <numerusform>%n modifications conservées car le tableau serait coupé.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+15"/>
         <source>This change is in a part of the document that no page shows.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette modification se trouve dans une partie du document qu&apos;aucune page n&apos;affiche.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -60888,7 +60890,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+1"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer en tant que nouvelles colonnes</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -63078,7 +63080,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+2"/>
         <location line="+45"/>
         <source>That would put cells outside the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cela placerait des cellules en dehors de la feuille.</translation>
     </message>
     <message>
         <location line="-34"/>
@@ -63086,7 +63088,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+5"/>
         <location line="+4"/>
         <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Des cellules ne peuvent pas être insérées dans elles-mêmes. Faites-les glisser ailleurs.</translation>
     </message>
     <message>
         <location line="+166"/>
@@ -63245,7 +63247,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-133"/>
         <source>Notes can&apos;t be added to a workbook opened from this kind of file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Des notes ne peuvent pas être ajoutées à un classeur ouvert à partir de ce type de fichier.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -63279,12 +63281,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+93"/>
         <source>There is no note on that cell.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a aucune note dans cette cellule.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Drag the note&apos;s box to where you want it on the sheet.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Faites glisser la zone de la note jusqu&apos;à l&apos;emplacement souhaité sur la feuille.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -63411,32 +63413,32 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+84"/>
         <source>An array formula starts with an equal sign. Type a formula, and press Ctrl+Shift+Enter again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une formule matricielle commence par un signe égal. Saisissez une formule, puis appuyez de nouveau sur Ctrl+Maj+Entrée.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>An array formula can&apos;t be entered over merged cells. Unmerge them, or select other cells.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une formule matricielle ne peut pas être saisie sur des cellules fusionnées. Annulez la fusion ou sélectionnez d&apos;autres cellules.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A data table can&apos;t be changed this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un tableau de données ne peut pas être modifié de cette manière.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 is part of a block that a formula fills. Clear that formula first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 fait partie d&apos;un bloc rempli par une formule. Effacez d&apos;abord cette formule.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>An array formula can&apos;t be entered in a table. Select cells outside the table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une formule matricielle ne peut pas être saisie dans un tableau. Sélectionnez des cellules en dehors du tableau.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Array formula in %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formule matricielle dans %1</translation>
     </message>
     <message>
         <location line="+90"/>
@@ -65286,7 +65288,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un classeur ouvert à partir d&apos;un fichier texte ou d&apos;une page web ne contient aucune note à rechercher.</translation>
     </message>
 </context>
 <context>
@@ -69665,19 +69667,19 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="-128"/>
         <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n lien a une adresse de plus de %1 caractères, il ne peut donc pas être activé dans le PDF.</numerusform>
+            <numerusform>%n liens ont une adresse de plus de %1 caractères, ils ne peuvent donc pas être activés dans le PDF.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un PDF peut contenir au maximum %1 liens cliquables, donc les autres ne peuvent pas être activés.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le PDF a été enregistré, mais ses propriétés (titre, auteur et le reste) n&apos;ont pas pu y être ajoutées.</translation>
     </message>
     <message>
         <location line="+77"/>
@@ -70841,14 +70843,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
         <source>its record is not where a font belongs.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">son enregistrement ne se trouve pas à l&apos;emplacement d&apos;une police.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n record(s) of the font list are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Seul %n enregistrement de la liste des polices est lu.</numerusform>
+            <numerusform>Seuls les %n premiers enregistrements de la liste des polices sont lus.</numerusform>
         </translation>
     </message>
 </context>
@@ -71660,14 +71662,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+64"/>
         <source>Only the first %1 notes on a sheet are kept.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seules les %1 premières notes d&apos;une feuille sont conservées.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note tronquée à %1 caractères</numerusform>
+            <numerusform>%n notes tronquées à %1 caractères</numerusform>
         </translation>
     </message>
     <message>
@@ -72311,14 +72313,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
         <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n note omise, car le classeur contient plus de texte de note que ce programme n&apos;en conserve.</numerusform>
+            <numerusform>%n notes omises, car le classeur contient plus de texte de note que ce programme n&apos;en conserve.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+41"/>
         <source>The workbook has more note text than this program keeps; the rest was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le classeur contient plus de texte de note que ce programme n&apos;en conserve ; le reste a été omis.</translation>
     </message>
 </context>
 <context>
@@ -72540,22 +72542,22 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+107"/>
         <source>the part that holds it is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">la partie qui le contient est vide.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>the key that unscrambles it is not valid.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">la clé de déchiffrement n&apos;est pas valide.</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>An embedded font in the file can&apos;t be used: %1</source>
-        <translation type="unfinished">Une police incorporée au fichier est inutilisable : %1</translation>
+        <translation type="unfinished">Une police incorporée dans le fichier ne peut pas être utilisée : %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 embedded fonts in the file can&apos;t be used: %2</source>
-        <translation type="unfinished">%1 polices incorporées au fichier sont inutilisables : %2</translation>
+        <translation type="unfinished">%1 polices incorporées dans le fichier ne peuvent pas être utilisées : %2</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -72567,56 +72569,56 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
         <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n police incorporée dans le fichier ne peut pas être utilisée : %1</numerusform>
+            <numerusform>%n polices incorporées dans le fichier ne peuvent pas être utilisées : %1</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Certaines polices incorporées dans le fichier n&apos;ont pas été utilisées, car leurs licences ne le permettent pas.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) are read.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Seule la première %n police incorporée est lue.</numerusform>
+            <numerusform>Seules les %n premières polices incorporées sont lues.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Only the first %n embedded font(s) in the file were looked at.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Seule la première %n police incorporée du fichier a été examinée.</numerusform>
+            <numerusform>Seules les %n premières polices incorporées du fichier ont été examinées.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../libs/office/wml/wmlfonts.cpp" line="+1"/>
         <source>Some embedded fonts are left out: they are too large.</source>
-        <translation type="unfinished">Certaines polices incorporées ont été omises : elles sont trop volumineuses.</translation>
+        <translation type="unfinished">Certaines polices incorporées sont omises : elles sont trop volumineuses.</translation>
     </message>
     <message>
         <location filename="../libs/office/wml/wmlfontswrite.cpp" line="+271"/>
         <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ces polices n&apos;ont pas été enregistrées dans le fichier, car leurs licences ne le permettent pas : %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: it may carry at most %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Certaines polices n&apos;ont pas été enregistrées dans le fichier : il peut en contenir au maximum %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some fonts were not saved in the file: they are too large.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Certaines polices n&apos;ont pas été enregistrées dans le fichier : elles sont trop volumineuses.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>The fonts were not saved in the file: its font table can&apos;t be changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les polices n&apos;ont pas été enregistrées dans le fichier : sa table des polices ne peut pas être modifiée.</translation>
     </message>
 </context>
 <context>
@@ -76911,7 +76913,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+5"/>
         <source>Insert as New Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer comme nouvelles colonnes</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -76926,22 +76928,22 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+12"/>
         <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mode de conservation du contenu collé. Appuyez sur la touche %1 après un collage pour l&apos;ouvrir.</translation>
     </message>
     <message>
         <location line="+202"/>
         <source>Control</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contrôle</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Ctrl</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Options de collage. Utilisez les touches fléchées et Entrée pour choisir, ou Échap pour les quitter.</translation>
     </message>
     <message>
         <location line="+111"/>
@@ -77043,52 +77045,52 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+25"/>
         <source>Choices for the change AutoCorrect just made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Options pour la modification que la correction automatique vient d&apos;effectuer.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Options pour la modification que la correction automatique vient d&apos;effectuer. Appuyez sur %1 pour les ouvrir.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La correction automatique a modifié un mot. Le bouton Options de correction automatique propose des choix.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>AutoCorrect changed a word. Press %1 for choices.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La correction automatique a modifié un mot. Appuyez sur %1 pour voir les choix.</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>Undo Automatic Correction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Annuler la correction automatique</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Stop Replacing &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrêter de remplacer « %1 »</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Keep &quot;%1&quot; As Typed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conserver « %1 » tel que saisi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing Names of Days Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrêter la majuscule des noms de jours partout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrêter la majuscule de la première lettre des phrases partout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrêter la majuscule de la première lettre des cellules de tableau partout</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77423,27 +77425,27 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/write/core/commentops.cpp" line="+1133"/>
         <source>Inserted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligne insérée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Inserted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellule insérée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted row</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ligne supprimée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Deleted cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellule supprimée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merged cells</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellules fusionnées</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -77644,7 +77646,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+39"/>
         <source>Not in dictionary, in a text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Absent du dictionnaire, dans une zone de texte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -77654,17 +77656,17 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a footer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Absent du dictionnaire, dans un pied de page</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Not in dictionary, in a header</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Absent du dictionnaire, dans un en-tête</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Not in dictionary, in a note</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Absent du dictionnaire, dans une note</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -77680,16 +77682,16 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+95"/>
         <source>%n word changed.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n mot modifié.</numerusform>
+            <numerusform>%n mots modifiés.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Found in %n place.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Trouvé à %n endroit.</numerusform>
+            <numerusform>Trouvé à %n endroits.</numerusform>
         </translation>
     </message>
 </context>
@@ -78011,13 +78013,13 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+5"/>
         <source>New columns cannot go there: a row has no cell where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les nouvelles colonnes ne peuvent pas être insérées ici : une ligne n&apos;a pas de cellule à cet emplacement.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+46"/>
         <source>New columns cannot go there: joined cells run across the place where they would be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les nouvelles colonnes ne peuvent pas être insérées ici : des cellules fusionnées s&apos;étendent à l&apos;emplacement où elles devraient être.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
@@ -78130,14 +78132,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pour coller des cellules comme nouvelles colonnes, cliquez dans un tableau qui a la place pour elles.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location filename="../apps/write/core/homeops.cpp" line="-10"/>
         <location line="+9"/>
         <source>There are no cells to paste.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a aucune cellule à coller.</translation>
     </message>
 </context>
 <context>
@@ -78156,7 +78158,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+12"/>
         <source>links to pictures past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">liens vers des images au-delà du %1 qu&apos;un document peut contenir</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -78200,7 +78202,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+47"/>
         <source>shapes that are slanted or stretched (kept without that)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">formes inclinées ou étirées (conservées sans cela)</translation>
     </message>
     <message>
         <location line="+301"/>
@@ -78216,7 +78218,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+40"/>
         <source>drawing shapes past the %1 a document may have</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">dessins de formes au-delà du %1 qu&apos;un document peut contenir</translation>
     </message>
     <message>
         <location line="+52"/>
@@ -78404,7 +78406,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="-114"/>
         <source>pictures that fill text boxes (the boxes are kept without them)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">images qui remplissent des zones de texte (les zones sont conservées sans elles)</translation>
     </message>
     <message>
         <location line="+428"/>
