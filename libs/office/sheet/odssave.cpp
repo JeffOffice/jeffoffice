@@ -1368,9 +1368,7 @@ private:
         QString tail;
         const QString localNames = m_localNames.value(index);
         if (!localNames.isEmpty()) tail += QStringLiteral("<table:named-expressions>") + localNames + QStringLiteral("</table:named-expressions>");
-        // (the count is made before the message: the tool that gathers the messages for translation does not read a template argument inside the call)
-        const int coveredCount = int(std::min<qint64>(notesCovered, 1000000000));
-        if (notesCovered > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%n note(s) on cells covered by merged cells", nullptr, coveredCount)));
+        if (notesCovered > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 notes on cells covered by merged cells").arg(notesCovered)));
         spool->add(tail.toUtf8() + "</table:table>");
         return true;
     }
