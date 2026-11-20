@@ -183,8 +183,8 @@ QString UserDictionaryPage::importFile(bool excluded, const QString &path)
     }
     fill(0);
     fill(1);
-    QString text = QCoreApplication::translate("UserDictionary", "%n word(s) read from the file.", nullptr, int(list.words.size()));
-    if (list.skipped > 0) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "%n line(s) were left out: a word can't have a space or a control character in it, or be longer than 100 letters.", nullptr, list.skipped);
+    QString text = QCoreApplication::translate("UserDictionary", "Words read from the file: %1.").arg(list.words.size());
+    if (list.skipped > 0) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "Lines left out: %1. A word can't have a space or a control character in it, or be longer than 100 letters.").arg(list.skipped);
     if (list.truncated) text += QLatin1Char(' ') + QCoreApplication::translate("UserDictionary", "The file is longer than a word list can be, so the rest was left out.");
     m_status->setText(text);
     return text;
@@ -207,7 +207,7 @@ void UserDictionaryPage::chooseExport(int which)
                                                       QCoreApplication::translate("UserDictionary", "Word lists (*.txt);;All Files (*)"));
     if (path.isEmpty()) return;
     QString error;
-    if (exportFile(which == 1, path, &error)) m_status->setText(QCoreApplication::translate("UserDictionary", "%n word(s) written to the file.", nullptr, int((which == 1 ? m_words[1] : m_words[0]).size())));
+    if (exportFile(which == 1, path, &error)) m_status->setText(QCoreApplication::translate("UserDictionary", "Words written to the file: %1.").arg((which == 1 ? m_words[1] : m_words[0]).size()));
     else m_status->setText(QCoreApplication::translate("UserDictionary", "The file can't be written: %1").arg(error));
 }
 
