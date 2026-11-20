@@ -22575,7 +22575,7 @@ Source: %3</source>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-2"/>
         <location line="+1"/>
-        <location line="+41"/>
+        <location line="+42"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+1"/>
         <source>Sum</source>
         <translation type="unfinished">Сумма</translation>
@@ -22768,7 +22768,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-35"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-36"/>
         <source>Down</source>
         <translation type="unfinished">Вниз</translation>
     </message>
@@ -23697,7 +23697,7 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-929"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+337"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+366"/>
         <source>Columns</source>
         <translation>Столбцы</translation>
     </message>
@@ -24181,7 +24181,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-320"/>
         <location line="+225"/>
         <location line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-197"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-225"/>
         <location line="+8"/>
         <source>Copy</source>
         <translation>Копировать</translation>
@@ -24988,7 +24988,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="+4"/>
         <location line="+456"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+137"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+165"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Выполняется большое изменение. Изменять книгу можно будет снова после его завершения.</translation>
     </message>
@@ -26874,32 +26874,32 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Проверить книгу</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+67"/>
-        <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+68"/>
+        <location line="+80"/>
         <location line="+88"/>
         <source>New Note</source>
         <translation type="unfinished">Создать примечание</translation>
     </message>
     <message>
-        <location line="-148"/>
-        <location line="+163"/>
+        <location line="-167"/>
+        <location line="+182"/>
         <source>Delete Note</source>
         <translation type="unfinished">Удалить примечание</translation>
     </message>
     <message>
-        <location line="-162"/>
+        <location line="-181"/>
         <source>Show or Hide Note</source>
         <translation type="unfinished">Показать или скрыть примечание</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+88"/>
+        <location line="+107"/>
         <location line="+103"/>
         <source>Show Every Note</source>
         <translation type="unfinished">Показать все примечания</translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-209"/>
         <source>Previous Note</source>
         <translation type="unfinished">Предыдущее примечание</translation>
     </message>
@@ -26910,7 +26910,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+92"/>
+        <location line="+111"/>
         <location line="+203"/>
         <location line="+33"/>
         <location line="+14"/>
@@ -26926,18 +26926,18 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Ссылка</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-464"/>
         <source>Open Link</source>
         <translation type="unfinished">Открыть ссылку</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+347"/>
+        <location line="+366"/>
         <source>Remove Link</source>
         <translation type="unfinished">Удалить ссылку</translation>
     </message>
     <message>
-        <location line="-346"/>
+        <location line="-365"/>
         <source>Clear Comments and Notes</source>
         <translation type="unfinished">Очистить примечания</translation>
     </message>
@@ -26947,7 +26947,12 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Очистить гиперссылки</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+54"/>
+        <source>Move or Size Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <location line="+88"/>
         <source>Edit Note</source>
         <translation type="unfinished">Изменить примечание</translation>
@@ -26969,7 +26974,8 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Примечания к %1</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-80"/>
+        <location line="+85"/>
         <location line="+18"/>
         <location line="+15"/>
         <location line="+17"/>
@@ -27058,7 +27064,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Книги (*.xlsx)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-296"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-325"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+442"/>
         <source>How Many Numbers</source>
         <translation type="unfinished">Количество чисел</translation>
@@ -27080,19 +27086,19 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+421"/>
+        <location line="+450"/>
         <location line="+4"/>
         <source>Justify</source>
         <translation type="unfinished">Выровнять</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-453"/>
         <source>Across Worksheets…</source>
         <translation type="unfinished">По листам…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+439"/>
+        <location line="+468"/>
         <source>Flash Fill</source>
         <translation type="unfinished">Мгновенное заполнение</translation>
     </message>
@@ -27100,9 +27106,9 @@ This file is protected with a password. Password:</source>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-53"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-593"/>
         <location line="+543"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-437"/>
-        <location line="+86"/>
-        <location line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-466"/>
+        <location line="+87"/>
+        <location line="+133"/>
         <location line="+114"/>
         <location line="+73"/>
         <location line="+6"/>
@@ -27114,17 +27120,18 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Заполнить</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-334"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-362"/>
         <source>There are too many cells to copy.</source>
         <translation type="unfinished">Слишком много ячеек для копирования.</translation>
     </message>
     <message>
         <location line="+8"/>
+        <location line="+23"/>
         <source>Move</source>
         <translation type="unfinished">Переместить</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+85"/>
         <location line="+1"/>
         <source>Fill Options</source>
         <translation type="unfinished">Параметры автозаполнения</translation>
@@ -62061,6 +62068,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+38"/>
         <location line="+46"/>
         <location line="+309"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+566"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-740"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
@@ -62370,7 +62378,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+225"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-341"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-483"/>
         <location line="+580"/>
         <location line="+27"/>
@@ -62462,7 +62470,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
-        <location line="+85"/>
+        <location line="+113"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-746"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+378"/>
         <source>That cell is outside the sheet.</source>
@@ -62535,13 +62543,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Книга может содержать не более %1 примечаний в ветках.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-83"/>
-        <location line="+30"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-111"/>
+        <location line="+31"/>
+        <location line="+54"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
         <translation type="unfinished">Этот лист защищён, поэтому его примечания нельзя изменить. Сначала снимите защиту.</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-84"/>
         <source>A note needs some words. To take a note away, delete it.</source>
         <translation type="unfinished">Примечанию нужен текст. Чтобы удалить примечание, удалите его.</translation>
     </message>
@@ -62552,17 +62561,28 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+43"/>
+        <location line="+44"/>
+        <location line="+41"/>
         <source>This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.</source>
         <translation type="unfinished">Это примечание представляет собой цепочку комментариев. Измените его командами группы «Примечания» на вкладке «Рецензирование».</translation>
     </message>
     <message>
-        <location line="-42"/>
+        <location line="-84"/>
         <source>A sheet can have up to %1 notes.</source>
         <translation type="unfinished">Лист может содержать не более %1 примечаний.</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+82"/>
+        <source>There is no note on that cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Drag the note&apos;s box to where you want it on the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>A link needs an address or a place to go to.</source>
         <translation type="unfinished">Для ссылки нужен адрес или место перехода.</translation>
     </message>
@@ -62786,13 +62806,31 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Нечего вставлять.</translation>
     </message>
     <message>
-        <location line="+311"/>
+        <location line="+257"/>
+        <source>There is nothing to move.</source>
+        <translation type="unfinished">Нечего перемещать.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That would put cells outside the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+4"/>
+        <location line="+5"/>
+        <location line="+4"/>
+        <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+109"/>
         <source>%1 The threads that are left were not pasted.</source>
         <translation type="unfinished">%1 Оставшиеся ветки не были вставлены.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editlinks.cpp" line="+325"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-306"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-387"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-14"/>
@@ -62807,17 +62845,19 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+8"/>
         <location line="+7"/>
         <location line="+72"/>
-        <location line="+69"/>
+        <location line="+150"/>
         <source>Pasting</source>
         <translation type="unfinished">Вставка</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location line="-244"/>
         <source>That is more than JeffCrunch pastes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Это больше, чем JeffCrunch вставляет за раз. Вставьте меньше ячеек.</translation>
     </message>
     <message>
         <location line="+99"/>
+        <location line="+63"/>
+        <location line="+3"/>
         <source>Moving cells</source>
         <translation type="unfinished">Перемещение ячеек</translation>
     </message>
@@ -63970,12 +64010,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Это переместит или изменит сводную таблицу, что JeffCrunch пока не умеет. Измените ячейки, которые не входят в её состав.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-9"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+44"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Это действие нельзя отменить, как и действия, выполненные до него. Продолжить?</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+32"/>
         <source>Inserting a row</source>
         <translation type="unfinished">Вставка строки</translation>
     </message>
@@ -64015,12 +64056,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Удаление столбцов</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+7"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Inserting cells</source>
         <translation type="unfinished">Вставка ячеек</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Deleting cells</source>
         <translation type="unfinished">Удаление ячеек</translation>
     </message>
@@ -68706,7 +68748,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+198"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Ячейка %1: </translation>
     </message>
@@ -68722,12 +68764,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+138"/>
+        <location line="+142"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Нечего печатать.</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-53"/>
         <source>%1 has nothing to print.</source>
         <translation type="unfinished">%1: нечего печатать.</translation>
     </message>
@@ -68742,7 +68784,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 не помещается на запрошенное количество страниц даже при 10 %. Он напечатан при 10 % на большем количестве страниц.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>The job is cut short at %1 pages.</source>
         <translation type="unfinished">Задание прервано после создания %1 страниц.</translation>
     </message>
@@ -68752,7 +68794,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не хватило места, чтобы сделать страницы черно-белыми, поэтому некоторые из них цветные.</translation>
     </message>
     <message>
-        <location line="+498"/>
+        <location line="+505"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">В файл нечего поместить: страниц нет.</translation>
     </message>
@@ -70985,13 +71027,13 @@ The password couldn&apos;t be put on the file.</source>
     <name>jp::office::sheet::Save</name>
     <message>
         <location filename="../libs/office/sheet/notesave.cpp" line="+68"/>
-        <location line="+193"/>
+        <location line="+205"/>
         <location filename="../libs/office/sheet/threadsave.cpp" line="+112"/>
         <source>There are more changes to notes than a sheet&apos;s notes are saved with.</source>
         <translation type="unfinished">Изменений примечаний больше, чем могут сохраниться с примечаниями листа.</translation>
     </message>
     <message>
-        <location line="-171"/>
+        <location line="-183"/>
         <location line="+19"/>
         <location line="+7"/>
         <source>The notes part of the file is cut off.</source>
@@ -71014,7 +71056,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Часть файла с примечаниями имеет формат, который эта программа не изменяет.</translation>
     </message>
     <message>
-        <location line="+133"/>
+        <location line="+158"/>
         <location line="+11"/>
         <source>The drawing of the notes in the file is not in the form this program changes.</source>
         <translation type="unfinished">Рисунок примечаний в файле имеет формат, который эта программа не изменяет.</translation>

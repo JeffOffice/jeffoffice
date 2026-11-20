@@ -22555,7 +22555,7 @@ Sumber: %3</translation>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-2"/>
         <location line="+1"/>
-        <location line="+41"/>
+        <location line="+42"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+1"/>
         <source>Sum</source>
         <translation type="unfinished">Jumlah</translation>
@@ -22748,7 +22748,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-35"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-36"/>
         <source>Down</source>
         <translation type="unfinished">Bawah</translation>
     </message>
@@ -23665,7 +23665,7 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-929"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+337"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+366"/>
         <source>Columns</source>
         <translation>Kolom</translation>
     </message>
@@ -24149,7 +24149,7 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-320"/>
         <location line="+225"/>
         <location line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-197"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-225"/>
         <location line="+8"/>
         <source>Copy</source>
         <translation>Salin</translation>
@@ -24956,7 +24956,7 @@ File yang ada sebelumnya tidak berubah.</translation>
     <message>
         <location line="+4"/>
         <location line="+456"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+137"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+165"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Perubahan besar masih dilakukan. Perubahan dapat dilakukan lagi setelah selesai.</translation>
     </message>
@@ -26830,32 +26830,32 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Periksa Buku Kerja</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+67"/>
-        <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+68"/>
+        <location line="+80"/>
         <location line="+88"/>
         <source>New Note</source>
         <translation type="unfinished">Catatan Baru</translation>
     </message>
     <message>
-        <location line="-148"/>
-        <location line="+163"/>
+        <location line="-167"/>
+        <location line="+182"/>
         <source>Delete Note</source>
         <translation type="unfinished">Hapus Catatan</translation>
     </message>
     <message>
-        <location line="-162"/>
+        <location line="-181"/>
         <source>Show or Hide Note</source>
         <translation type="unfinished">Tampilkan atau Sembunyikan Catatan</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+88"/>
+        <location line="+107"/>
         <location line="+103"/>
         <source>Show Every Note</source>
         <translation type="unfinished">Tampilkan Setiap Catatan</translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-209"/>
         <source>Previous Note</source>
         <translation type="unfinished">Catatan Sebelumnya</translation>
     </message>
@@ -26866,7 +26866,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+92"/>
+        <location line="+111"/>
         <location line="+203"/>
         <location line="+33"/>
         <location line="+14"/>
@@ -26882,18 +26882,18 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tautan</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-464"/>
         <source>Open Link</source>
         <translation type="unfinished">Buka Tautan</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+347"/>
+        <location line="+366"/>
         <source>Remove Link</source>
         <translation type="unfinished">Hapus Tautan</translation>
     </message>
     <message>
-        <location line="-346"/>
+        <location line="-365"/>
         <source>Clear Comments and Notes</source>
         <translation type="unfinished">Hapus Komentar dan Catatan</translation>
     </message>
@@ -26903,7 +26903,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Hapus Hiperlink</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+54"/>
+        <source>Move or Size Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <location line="+88"/>
         <source>Edit Note</source>
         <translation type="unfinished">Edit Catatan</translation>
@@ -26925,7 +26930,8 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Komentar pada %1</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-80"/>
+        <location line="+85"/>
         <location line="+18"/>
         <location line="+15"/>
         <location line="+17"/>
@@ -27014,7 +27020,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Buku Kerja (*.xlsx)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-296"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-325"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+442"/>
         <source>How Many Numbers</source>
         <translation type="unfinished">Berapa Banyak Angka</translation>
@@ -27036,19 +27042,19 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+421"/>
+        <location line="+450"/>
         <location line="+4"/>
         <source>Justify</source>
         <translation type="unfinished">Ratakan</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-453"/>
         <source>Across Worksheets…</source>
         <translation type="unfinished">Di Seluruh Lembar Kerja…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+439"/>
+        <location line="+468"/>
         <source>Flash Fill</source>
         <translation type="unfinished">Isi Kilat</translation>
     </message>
@@ -27056,9 +27062,9 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-53"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-593"/>
         <location line="+543"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-437"/>
-        <location line="+86"/>
-        <location line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-466"/>
+        <location line="+87"/>
+        <location line="+133"/>
         <location line="+114"/>
         <location line="+73"/>
         <location line="+6"/>
@@ -27070,17 +27076,18 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Isi</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-334"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-362"/>
         <source>There are too many cells to copy.</source>
         <translation type="unfinished">Terlalu banyak sel untuk disalin.</translation>
     </message>
     <message>
         <location line="+8"/>
+        <location line="+23"/>
         <source>Move</source>
         <translation type="unfinished">Pindahkan</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+85"/>
         <location line="+1"/>
         <source>Fill Options</source>
         <translation type="unfinished">Opsi Isian</translation>
@@ -61981,6 +61988,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+38"/>
         <location line="+46"/>
         <location line="+309"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+566"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-740"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
@@ -62290,7 +62298,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+225"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-341"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-483"/>
         <location line="+580"/>
         <location line="+27"/>
@@ -62382,7 +62390,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
-        <location line="+85"/>
+        <location line="+113"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-746"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+378"/>
         <source>That cell is outside the sheet.</source>
@@ -62455,13 +62463,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja dapat memiliki hingga %1 komentar dalam utas.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-83"/>
-        <location line="+30"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-111"/>
+        <location line="+31"/>
+        <location line="+54"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
         <translation type="unfinished">Lembar ini dilindungi, jadi catatannya tidak bisa diubah. Hapus perlindungannya terlebih dahulu.</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-84"/>
         <source>A note needs some words. To take a note away, delete it.</source>
         <translation type="unfinished">Catatan perlu berisi beberapa kata. Untuk menghapus catatan, hapus saja.</translation>
     </message>
@@ -62472,17 +62481,28 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+43"/>
+        <location line="+44"/>
+        <location line="+41"/>
         <source>This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.</source>
         <translation type="unfinished">Catatan ini berupa rangkaian komentar. Ubah dengan perintah di Komentar, pada tab Tinjau.</translation>
     </message>
     <message>
-        <location line="-42"/>
+        <location line="-84"/>
         <source>A sheet can have up to %1 notes.</source>
         <translation type="unfinished">Lembar dapat berisi hingga %1 catatan.</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+82"/>
+        <source>There is no note on that cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Drag the note&apos;s box to where you want it on the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>A link needs an address or a place to go to.</source>
         <translation type="unfinished">Tautan memerlukan alamat atau tujuan.</translation>
     </message>
@@ -62706,13 +62726,31 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada yang dapat ditempel.</translation>
     </message>
     <message>
-        <location line="+311"/>
+        <location line="+257"/>
+        <source>There is nothing to move.</source>
+        <translation type="unfinished">Tidak ada yang dapat dipindahkan.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That would put cells outside the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+4"/>
+        <location line="+5"/>
+        <location line="+4"/>
+        <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+109"/>
         <source>%1 The threads that are left were not pasted.</source>
         <translation type="unfinished">%1 Utas yang tersisa tidak ditempel.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editlinks.cpp" line="+325"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-306"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-387"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-14"/>
@@ -62727,17 +62765,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+8"/>
         <location line="+7"/>
         <location line="+72"/>
-        <location line="+69"/>
+        <location line="+150"/>
         <source>Pasting</source>
         <translation type="unfinished">Menempel</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location line="-244"/>
         <source>That is more than JeffCrunch pastes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Jumlahnya lebih banyak daripada yang dapat ditempel JeffCrunch sekaligus. Tempel ke lebih sedikit sel.</translation>
     </message>
     <message>
         <location line="+99"/>
+        <location line="+63"/>
+        <location line="+3"/>
         <source>Moving cells</source>
         <translation type="unfinished">Memindahkan sel</translation>
     </message>
@@ -63888,12 +63928,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tindakan itu akan memindahkan atau mengubah tabel pivot, yang belum dapat dilakukan JeffCrunch. Ubah sel yang bukan bagiannya.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-9"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+44"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Ini tidak dapat dibatalkan, begitu pula apa yang Anda lakukan sebelumnya. Apakah Anda ingin melanjutkan?</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+32"/>
         <source>Inserting a row</source>
         <translation type="unfinished">Menyisipkan baris</translation>
     </message>
@@ -63933,12 +63974,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Menghapus kolom-kolom</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+7"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Inserting cells</source>
         <translation type="unfinished">Menyisipkan sel</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Deleting cells</source>
         <translation type="unfinished">Menghapus sel</translation>
     </message>
@@ -68624,7 +68666,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+198"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Sel %1: </translation>
     </message>
@@ -68640,12 +68682,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+138"/>
+        <location line="+142"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Tidak ada yang dapat dicetak.</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-53"/>
         <source>%1 has nothing to print.</source>
         <translation type="unfinished">%1 tidak memiliki apa pun untuk dicetak.</translation>
     </message>
@@ -68660,7 +68702,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 tidak muat dalam jumlah halaman yang diminta bahkan pada 10%. Dicetak pada 10% di lebih banyak halaman.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>The job is cut short at %1 pages.</source>
         <translation type="unfinished">Pekerjaan dihentikan pada %1 halaman.</translation>
     </message>
@@ -68670,7 +68712,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak cukup ruang untuk membuat halaman abu-abu, sehingga sebagian berwarna.</translation>
     </message>
     <message>
-        <location line="+498"/>
+        <location line="+505"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Tidak ada halaman untuk dimasukkan ke berkas.</translation>
     </message>
@@ -70883,13 +70925,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <name>jp::office::sheet::Save</name>
     <message>
         <location filename="../libs/office/sheet/notesave.cpp" line="+68"/>
-        <location line="+193"/>
+        <location line="+205"/>
         <location filename="../libs/office/sheet/threadsave.cpp" line="+112"/>
         <source>There are more changes to notes than a sheet&apos;s notes are saved with.</source>
         <translation type="unfinished">Ada lebih banyak perubahan pada catatan daripada yang dapat disimpan bersama catatan lembar.</translation>
     </message>
     <message>
-        <location line="-171"/>
+        <location line="-183"/>
         <location line="+19"/>
         <location line="+7"/>
         <source>The notes part of the file is cut off.</source>
@@ -70912,7 +70954,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagian catatan pada file tidak dalam bentuk yang diubah program ini.</translation>
     </message>
     <message>
-        <location line="+133"/>
+        <location line="+158"/>
         <location line="+11"/>
         <source>The drawing of the notes in the file is not in the form this program changes.</source>
         <translation type="unfinished">Gambar catatan pada file tidak dalam bentuk yang diubah program ini.</translation>

@@ -23264,7 +23264,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-271"/>
         <location line="+225"/>
         <location line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+189"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+190"/>
         <location line="+8"/>
         <source>Copy</source>
         <translation>Kopieren</translation>
@@ -23450,16 +23450,16 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="-724"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-162"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-163"/>
         <location line="+1"/>
-        <location line="+41"/>
+        <location line="+42"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+544"/>
         <source>Sum</source>
         <translation type="unfinished">Summe</translation>
     </message>
     <message>
         <location line="-1"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-40"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-41"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-1"/>
         <source>Average</source>
         <translation type="unfinished">Mittelwert</translation>
@@ -23513,19 +23513,19 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+421"/>
+        <location line="+450"/>
         <location line="+4"/>
         <source>Justify</source>
         <translation type="unfinished">Blocksatz</translation>
     </message>
     <message>
-        <location line="-424"/>
+        <location line="-453"/>
         <source>Across Worksheets…</source>
         <translation type="unfinished">Über Arbeitsblätter…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+439"/>
+        <location line="+468"/>
         <source>Flash Fill</source>
         <translation type="unfinished">Blitzvorschau</translation>
     </message>
@@ -23533,9 +23533,9 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+320"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-395"/>
         <location line="+543"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-437"/>
-        <location line="+86"/>
-        <location line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-466"/>
+        <location line="+87"/>
+        <location line="+133"/>
         <location line="+114"/>
         <location line="+73"/>
         <location line="+6"/>
@@ -23547,17 +23547,18 @@ Quelle: %3</translation>
         <translation type="unfinished">Füllbereich</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-334"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-362"/>
         <source>There are too many cells to copy.</source>
         <translation type="unfinished">Es sind zu viele Zellen zum Kopieren vorhanden.</translation>
     </message>
     <message>
         <location line="+8"/>
+        <location line="+23"/>
         <source>Move</source>
         <translation type="unfinished">Verschieben</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+85"/>
         <location line="+1"/>
         <source>Fill Options</source>
         <translation type="unfinished">Ausfülloptionen</translation>
@@ -25459,32 +25460,32 @@ Quelle: %3</translation>
         <translation type="unfinished">Diagramm</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+67"/>
-        <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="+68"/>
+        <location line="+80"/>
         <location line="+88"/>
         <source>New Note</source>
         <translation type="unfinished">Neue Notiz</translation>
     </message>
     <message>
-        <location line="-148"/>
-        <location line="+163"/>
+        <location line="-167"/>
+        <location line="+182"/>
         <source>Delete Note</source>
         <translation type="unfinished">Notiz löschen</translation>
     </message>
     <message>
-        <location line="-162"/>
+        <location line="-181"/>
         <source>Show or Hide Note</source>
         <translation type="unfinished">Notiz ein-/ausblenden</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+88"/>
+        <location line="+107"/>
         <location line="+103"/>
         <source>Show Every Note</source>
         <translation type="unfinished">Alle Notizen anzeigen</translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-209"/>
         <source>Previous Note</source>
         <translation type="unfinished">Vorherige Notiz</translation>
     </message>
@@ -25495,7 +25496,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+92"/>
+        <location line="+111"/>
         <location line="+203"/>
         <location line="+33"/>
         <location line="+14"/>
@@ -25511,18 +25512,18 @@ Quelle: %3</translation>
         <translation type="unfinished">Link</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-464"/>
         <source>Open Link</source>
         <translation type="unfinished">Link öffnen</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+347"/>
+        <location line="+366"/>
         <source>Remove Link</source>
         <translation type="unfinished">Link entfernen</translation>
     </message>
     <message>
-        <location line="-346"/>
+        <location line="-365"/>
         <source>Clear Comments and Notes</source>
         <translation type="unfinished">Kommentare und Notizen löschen</translation>
     </message>
@@ -25532,7 +25533,12 @@ Quelle: %3</translation>
         <translation type="unfinished">Hyperlinks löschen</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+54"/>
+        <source>Move or Size Note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
         <location line="+88"/>
         <source>Edit Note</source>
         <translation type="unfinished">Notiz bearbeiten</translation>
@@ -25554,7 +25560,8 @@ Quelle: %3</translation>
         <translation type="unfinished">Kommentare zu %1</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-80"/>
+        <location line="+85"/>
         <location line="+18"/>
         <location line="+15"/>
         <location line="+17"/>
@@ -61801,6 +61808,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+38"/>
         <location line="+46"/>
         <location line="+309"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+566"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-266"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
@@ -61954,7 +61962,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+83"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="+225"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-341"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-483"/>
         <location line="+580"/>
         <location line="+27"/>
@@ -62187,13 +62195,31 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Es gibt nichts zum Einfügen.</translation>
     </message>
     <message>
-        <location line="+311"/>
+        <location line="+257"/>
+        <source>There is nothing to move.</source>
+        <translation type="unfinished">Es gibt nichts zu verschieben.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That would put cells outside the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+4"/>
+        <location line="+5"/>
+        <location line="+4"/>
+        <source>Cells can&apos;t be inserted into themselves. Drag them somewhere else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+109"/>
         <source>%1 The threads that are left were not pasted.</source>
         <translation type="unfinished">%1 Die verbleibenden Threads wurden nicht eingefügt.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editlinks.cpp" line="+325"/>
-        <location filename="../apps/crunch/core/editpaste.cpp" line="-306"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-387"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-603"/>
@@ -62208,17 +62234,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+8"/>
         <location line="+7"/>
         <location line="+72"/>
-        <location line="+69"/>
+        <location line="+150"/>
         <source>Pasting</source>
         <translation type="unfinished">Einfügen</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location line="-244"/>
         <source>That is more than JeffCrunch pastes at once. Paste into fewer cells.</source>
         <translation type="unfinished">Das ist mehr, als JeffCrunch auf einmal einfügt. Fügen Sie in weniger Zellen ein.</translation>
     </message>
     <message>
         <location line="+99"/>
+        <location line="+63"/>
+        <location line="+3"/>
         <source>Moving cells</source>
         <translation type="unfinished">Zellen verschieben</translation>
     </message>
@@ -62271,7 +62299,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
-        <location line="+85"/>
+        <location line="+113"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+243"/>
         <source>That cell is outside the sheet.</source>
@@ -62344,13 +62372,14 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Arbeitsmappe kann bis zu %1 Kommentare in Threads haben.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-83"/>
-        <location line="+30"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-111"/>
+        <location line="+31"/>
+        <location line="+54"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
         <translation type="unfinished">Dieses Blatt ist geschützt, daher können seine Notizen nicht geändert werden. Heben Sie zuerst den Schutz auf.</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="-84"/>
         <source>A note needs some words. To take a note away, delete it.</source>
         <translation type="unfinished">Eine Notiz muss Text enthalten. Um eine Notiz zu entfernen, löschen Sie sie.</translation>
     </message>
@@ -62361,17 +62390,28 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+43"/>
+        <location line="+44"/>
+        <location line="+41"/>
         <source>This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.</source>
         <translation type="unfinished">Diese Notiz ist ein Kommentarverlauf. Ändern Sie sie mit den Befehlen unter Kommentare auf der Registerkarte Überprüfen.</translation>
     </message>
     <message>
-        <location line="-42"/>
+        <location line="-84"/>
         <source>A sheet can have up to %1 notes.</source>
         <translation type="unfinished">Ein Blatt kann höchstens %1 Notizen enthalten.</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+82"/>
+        <source>There is no note on that cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Drag the note&apos;s box to where you want it on the sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>A link needs an address or a place to go to.</source>
         <translation type="unfinished">Ein Link benötigt eine Adresse oder ein Ziel.</translation>
     </message>
@@ -62825,12 +62865,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Dadurch würde eine Pivot-Tabelle verschoben oder geändert, was JeffCrunch noch nicht kann. Ändern Sie Zellen, die nicht dazu gehören.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="-9"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+44"/>
         <source>This can&apos;t be undone, and neither can what you did before it. Do you want to go on?</source>
         <translation type="unfinished">Dieser Vorgang kann nicht rückgängig gemacht werden, ebenso wenig wie Ihre vorherigen Aktionen. Möchten Sie fortfahren?</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+32"/>
         <source>Inserting a row</source>
         <translation type="unfinished">Zeile einfügen</translation>
     </message>
@@ -62870,12 +62911,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Spalten löschen</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editpaste.cpp" line="+7"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Inserting cells</source>
         <translation type="unfinished">Zellen einfügen</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editstruct.cpp" line="+5"/>
         <source>Deleting cells</source>
         <translation type="unfinished">Zellen löschen</translation>
     </message>
@@ -68665,7 +68707,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+198"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Zelle %1: </translation>
     </message>
@@ -68681,12 +68723,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+138"/>
+        <location line="+142"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Es gibt nichts zu drucken.</translation>
     </message>
     <message>
-        <location line="-49"/>
+        <location line="-53"/>
         <source>%1 has nothing to print.</source>
         <translation type="unfinished">%1 enthält nichts zum Drucken.</translation>
     </message>
@@ -68701,7 +68743,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 passt selbst bei 10 % nicht auf die angegebenen Seiten. Es wird mit 10 % auf mehr Seiten gedruckt.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+36"/>
         <source>The job is cut short at %1 pages.</source>
         <translation type="unfinished">Der Auftrag wird nach %1 Seiten abgebrochen.</translation>
     </message>
@@ -68711,7 +68753,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Es war nicht genug Platz, um die Seiten grau zu machen, daher sind einige in Farbe.</translation>
     </message>
     <message>
-        <location line="+498"/>
+        <location line="+505"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Es gibt keine Seiten für die Datei.</translation>
     </message>
@@ -71286,13 +71328,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/notesave.cpp" line="+68"/>
-        <location line="+193"/>
+        <location line="+205"/>
         <location filename="../libs/office/sheet/threadsave.cpp" line="+112"/>
         <source>There are more changes to notes than a sheet&apos;s notes are saved with.</source>
         <translation type="unfinished">Es gibt mehr Änderungen an Notizen, als mit den Notizen eines Tabellenblatts gespeichert werden.</translation>
     </message>
     <message>
-        <location line="-171"/>
+        <location line="-183"/>
         <location line="+19"/>
         <location line="+7"/>
         <source>The notes part of the file is cut off.</source>
@@ -71315,7 +71357,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Notizenteil der Datei liegt nicht in der Form vor, die dieses Programm ändern kann.</translation>
     </message>
     <message>
-        <location line="+133"/>
+        <location line="+158"/>
         <location line="+11"/>
         <source>The drawing of the notes in the file is not in the form this program changes.</source>
         <translation type="unfinished">Die Zeichnung der Notizen in der Datei liegt nicht in der Form vor, die dieses Programm ändern kann.</translation>
