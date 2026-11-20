@@ -873,30 +873,34 @@ private Q_SLOTS:
         QVERIFY(s->setNote(0, 1, 0, QStringLiteral("Look here"), QStringLiteral("Ann"), true, QStringLiteral("Add Note")).ok);
         QVERIFY(s->setNote(0, 2, 2, QStringLiteral("Hidden one"), QStringLiteral("Ann"), false, QStringLiteral("Add Note")).ok);
         QString why;
-        auto yellow = [&](jp::office::sheet::PrintComments how, QRect *where) {
+        // (the first page as an image, for how comments are set to print: judged by what differs from the page with none, whatever colors the job paints in)
+        auto pageWith = [&](jp::office::sheet::PrintComments how) {
             jp::office::sheet::PageSetup p = s->pages().sheet(0);
             p.comments = how;
-            if (!s->setPageSetup(0, p, QStringLiteral("Comments")).ok) return -1;
+            if (!s->setPageSetup(0, p, QStringLiteral("Comments")).ok) return QImage();
             const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
-            if (!job) return -1;
-            const QImage page = job->preview(0, 900);
+            return job ? job->preview(0, 900) : QImage();
+        };
+        const QImage none = pageWith(jp::office::sheet::PrintComments::None);
+        QVERIFY2(!none.isNull(), qPrintable(why));
+        auto differing = [&](const QImage &other, QRect *where) {
             int count = 0;
             QRect box;
-            for (int y = 0; y < page.height(); ++y)
-                for (int x = 0; x < page.width(); ++x)
-                    if (QColor(page.pixel(x, y)).red() > 250 && QColor(page.pixel(x, y)).green() > 250 && QColor(page.pixel(x, y)).blue() > 215 && QColor(page.pixel(x, y)).blue() < 235) {
+            if (other.size() != none.size()) return -1;
+            for (int y = 0; y < none.height(); ++y)
+                for (int x = 0; x < none.width(); ++x)
+                    if (other.pixel(x, y) != none.pixel(x, y)) {
                         ++count;
                         box = box.isNull() ? QRect(x, y, 1, 1) : box.united(QRect(x, y, 1, 1));
                     }
             if (where) *where = box;
             return count;
         };
+        QCOMPARE(differing(pageWith(jp::office::sheet::PrintComments::AtEnd), nullptr), 0);
         QRect where;
-        QVERIFY(yellow(jp::office::sheet::PrintComments::None, nullptr) == 0);
-        QVERIFY(yellow(jp::office::sheet::PrintComments::AtEnd, nullptr) == 0);
-        const int shown = yellow(jp::office::sheet::PrintComments::AsDisplayed, &where);
+        const int shown = differing(pageWith(jp::office::sheet::PrintComments::AsDisplayed), &where);
         QVERIFY2(shown > 400, qPrintable(why + QString::number(shown)));
-        // (one box: the note that is hidden has none; it is to the right of the note's cell, A2)
+        // (one box: the note that is hidden has none; it is to the right of the note's cell, A2, and no larger than the usual box)
         QVERIFY(where.width() < 450 && where.height() < 250);
         QVERIFY(where.left() > 0);
     }

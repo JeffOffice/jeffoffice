@@ -1063,7 +1063,14 @@ private Q_SLOTS:
     void aShownNoteIsLaidOutOnceAndNotAtEveryPaint()
     {
         EditWindow e;
-        QVERIFY(e.open(bookWithNotes()));   // (C3's note is shown)
+        QVERIFY(e.open(bookWithNotes()));   // (C3's note is shown, in the place the file gives its box: there is nothing to lay out)
+        e.win.w.grab();
+        QCOMPARE(e.view()->shownNoteLayouts(), qint64(0));
+        // a note made here is shown beside its cell, and laid out once
+        e.select(QStringLiteral("B1"));
+        answerNotesWith(e, QStringLiteral("made here"));
+        e.win.w.act(QStringLiteral("notes.edit"))->trigger();
+        e.win.w.act(QStringLiteral("notes.showHide"))->trigger();
         e.win.w.grab();
         const qint64 first = e.view()->shownNoteLayouts();
         QCOMPARE(first, qint64(1));
@@ -1080,16 +1087,16 @@ private Q_SLOTS:
         // and a note of a very long text is cut where the one beside the cell is (what is laid out is bounded)
         EditWindow longOne;
         QVERIFY(longOne.open(bookWithNotes()));
-        longOne.select(QStringLiteral("A1"));
+        longOne.select(QStringLiteral("B1"));
         answerNotesWith(longOne, QString(500000, QLatin1Char('x')));
         longOne.win.w.act(QStringLiteral("notes.edit"))->trigger();
         longOne.win.w.act(QStringLiteral("notes.showHide"))->trigger();
-        QVERIFY(longOne.win.w.session()->anchors().noteAt(0, 0, 0)->shown);
+        QVERIFY(longOne.win.w.session()->anchors().noteAt(0, 0, 1)->shown);
         QElapsedTimer t;
         t.start();
         longOne.win.w.grab();
         const qint64 once = longOne.view()->shownNoteLayouts();
-        QVERIFY(once <= 3);   // (C3's, and the long one's)
+        QVERIFY(once <= 3);   // (the long one's, and the other's)
         longOne.win.w.grab();
         QCOMPARE(longOne.view()->shownNoteLayouts(), once);
         QVERIFY(t.elapsed() < 20000);
