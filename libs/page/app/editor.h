@@ -260,7 +260,10 @@ public:
         QColor lastColor;
     };
     static constexpr int kMaxDuplicateCopies = 200;
-    bool duplicateSteps(const DuplicateSteps &steps);
+    // A copy may be no bigger than 20 times the larger side of the page (and no smaller than a point), nor moved further than that; the copies stop before the first that would be, and at most
+    // kMaxDuplicateObjects new objects are made. A number that is not finite is refused. `why` says what was refused.
+    static constexpr int kMaxDuplicateObjects = 2000;
+    bool duplicateSteps(const DuplicateSteps &steps, QString *why = nullptr);
     void moveSelectionBy(double dx, double dy, const QString &label = QStringLiteral("Move"));
     void forEachSelected(const QString &label, const std::function<void(Item *)> &fn);
     void groupSelection();

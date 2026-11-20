@@ -391,7 +391,7 @@ static void freezeMergeFields(Document &out, const MergeSource &src, const ItemL
                     c.setPosition(fields[k].first + 1, QTextCursor::KeepAnchor);
                     QTextCharFormat cf = c.charFormat();
                     cf.clearProperty(tp::Field);
-                    c.insertText(ctx.resolve(fields[k].second), cf);
+                    c.insertText(ctx.resolve(fields[k].second, cf.stringProperty(tp::Language)), cf);
                 }
             }
         }

@@ -577,6 +577,8 @@ void ShapeItem::fromJson(const QJsonObject &o)
     for (const auto &v : o["adj"].toArray()) adj.push_back(v.toDouble());
     // (A save from before "adjModel" 2 holds the old library's meanings, and a save of 2 the ones of 0.42.)
     if (const int model = o["adjModel"].toInt(); model < 3) adj = model < 2 ? adjFromOldLibrary(shape, rect.size(), adj) : adjFromModel2Library(shape, rect.size(), adj);
+    // A corner radius is a share of the shorter side, from none to half (a file may say anything).
+    if (hasCornerRadius(shape) && !adj.isEmpty()) adj[0] = std::isfinite(adj[0]) ? std::clamp(adj[0], 0.0, 0.5) : 0;
     customPath = pathFrom(o["path"].toArray());
     if (o["winding"].toBool()) customPath.setFillRule(Qt::WindingFill);
     storyId = o["story"].toString();

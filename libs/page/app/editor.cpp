@@ -1066,21 +1066,38 @@ void putObjectEntries(Document &doc, PageBase &page, const QJsonArray &entries, 
 
 void Editor::duplicateSelection() { duplicateSteps(DuplicateSteps()); }
 
-bool Editor::duplicateSteps(const DuplicateSteps &steps)
+bool Editor::duplicateSteps(const DuplicateSteps &steps, QString *why)
 {
     const QStringList ids = topLevelSelection();
+    auto refuse = [&](const QString &reason) {
+        if (why) *why = reason;
+        return false;
+    };
     if (ids.isEmpty() || steps.copies < 1 || steps.copies > kMaxDuplicateCopies) return false;
+    if (!std::isfinite(steps.growPercent) || !std::isfinite(steps.offset.x()) || !std::isfinite(steps.offset.y())) return refuse(tr("The numbers for the copies must be real numbers."));
+    if (qint64(ids.size()) * steps.copies > kMaxDuplicateObjects) return refuse(tr("That would make more than 2,000 new objects. Make fewer copies, or select fewer objects."));
+    // The most a copy may reach: 20 times the larger side of the page for its size and for how far it is moved, and at least a point on each side.
+    const QSizeF page = m_doc->pageSize();
+    const double most = 20 * std::max(page.width(), page.height());
+    const double grow = 1 + std::clamp(steps.growPercent, -90.0, 1000.0) / 100;
     beginChange(steps.copies == 1 ? tr("Duplicate") : tr("Duplicate Several Times"));
     ItemList originals;
     for (const auto &id : ids)
         if (ItemPtr it = m_doc->itemPtr(id)) originals.push_back(it);
     QStringList made;
     for (int k = 1; k <= steps.copies; ++k) {
+        const double factor = std::pow(grow, k);
+        bool inside = std::abs(steps.offset.x() * k) <= most && std::abs(steps.offset.y() * k) <= most;
+        for (const ItemPtr &o : originals) {
+            if (factor == 1) continue;
+            const QSizeF own = o->bounds().size(), size = own * factor;
+            inside = inside && size.width() <= most && size.height() <= most && (own.width() < 1 || size.width() >= 1) && (own.height() < 1 || size.height() >= 1);
+        }
+        if (!inside) break;   // (and no copy after it: each would be further out)
         const ItemList clones = m_doc->cloneItems(originals);
         QHash<QString, QString> copies;
         QSet<QString> copied;
         made.clear();
-        const double factor = std::pow(1 + std::clamp(steps.growPercent, -90.0, 1000.0) / 100, k);
         for (int i = 0; i < clones.size(); ++i) {
             Item *c = clones[i].get();
             const QRectF b = c->bounds();
@@ -1099,6 +1116,10 @@ bool Editor::duplicateSteps(const DuplicateSteps &steps)
             copied.insert(originals[i]->id);
         }
         if (m_master.isEmpty()) putObjectEntries(*m_doc, *surface(), objectEntriesOf(*surface(), copied), copies);
+    }
+    if (made.isEmpty()) {
+        cancelChange();
+        return refuse(tr("The first copy would be bigger or smaller than an object can be, or off the page by too much."));
     }
     m_sel = made;
     endChange();
@@ -1294,14 +1315,18 @@ bool Editor::equalize(bool width, bool height)
     if (ids.size() < 2 || (!width && !height)) return false;
     const Item *first = m_doc->item(ids.first());
     if (!first) return false;
-    const QSizeF want = first->bounds().size();
+    const QSizeF want = first->rect.size();   // (its own size: a turned object's frame, not the outline of it turned)
     beginChange(width && height ? tr("Equalize Size") : width ? tr("Equalize Width") : tr("Equalize Height"));
     for (int i = 1; i < ids.size(); ++i) {
         Item *it = m_doc->item(ids[i]);
         if (!it || it->locked) continue;
-        const QRectF b = it->bounds();
-        const QRectF to(b.topLeft(), QSizeF(width ? want.width() : b.width(), height ? want.height() : b.height()));
-        it->scaleInto(b, to);
+        // (the object's own width and height, the frame it is turned about: scaleInto, with the turn taken off for it, keeps the frame's top left corner)
+        const QRectF frame = it->rect;
+        const QRectF to(frame.topLeft(), QSizeF(width ? want.width() : frame.width(), height ? want.height() : frame.height()));
+        const double turn = it->rotation;
+        it->rotation = 0;
+        it->scaleInto(frame, to);
+        it->rotation = turn;
         if (auto loc = m_doc->find(ids[i]); loc.parent) loc.parent->syncRect();
     }
     endChange();
@@ -1322,6 +1347,7 @@ bool Editor::moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster,
         const ItemPtr it = m_doc->itemPtr(id);
         if (!it) continue;
         if (it->locked) return refuse(tr("An object that is locked stays where it is."));
+        if (const auto at = m_doc->find(id); at.parent) return refuse(tr("An object inside a group stays where it is. Select the whole group."));
         const ItemList one{it};
         walkItems(one, [&](const ItemPtr &c) { moving << c->id; });
     }
@@ -1341,7 +1367,7 @@ bool Editor::moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster,
     beginChange(toMaster ? tr("Send to Master Page") : tr("Send to Page"));
     for (const auto &id : ids) {
         const auto loc = m_doc->find(id);
-        if (!loc.list || loc.parent) continue;
+        if (!loc.list) continue;
         ItemPtr it = (*loc.list)[loc.index];
         loc.list->erase(loc.list->begin() + loc.index);
         it->moveBy(dx(*it), 0);

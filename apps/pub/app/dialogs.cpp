@@ -834,15 +834,26 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
             Q_UNUSED(c0);
             const QRectF before = o->rect;
             const QRectF to(x->value(), y->value(), w->value(), h->value());
-            // The base point stays where it was when the size changes (unless the position fields were changed, which set the corner themselves).
-            QPointF corner = before.topLeft();
+            // The base point stays where it is on the page when the size changes, a turned object's too (unless the position fields were changed, which set the corner themselves).
             const int base = basePoint->currentIndex();
+            const QPointF share((base % 3) / 2.0, (base / 3) / 2.0);
+            const double turnNew = std::fmod(rot->value() + 360, 360.0);
+            auto fromCenter = [&](const QSizeF &size, double deg) {
+                QTransform t;
+                t.rotate(deg);
+                return t.map(QPointF((share.x() - 0.5) * size.width(), (share.y() - 0.5) * size.height()));
+            };
+            const QPointF stays = before.center() + fromCenter(before.size(), o->rotation);
             const bool moved = std::abs(x->value() - before.x()) > 0.005 || std::abs(y->value() - before.y()) > 0.005;
-            if (!moved && base != 0)
-                corner = QPointF(before.left() + before.width() * (base % 3) / 2 - to.width() * (base % 3) / 2, before.top() + before.height() * (base / 3) / 2 - to.height() * (base / 3) / 2);
-            else if (moved) corner = to.topLeft();
-            if (to.size() != before.size()) o->scaleInto(before, QRectF(before.topLeft(), to.size()));
-            o->rect.moveTopLeft(corner);
+            if (to.size() != before.size()) {
+                // (the width and height are the object's own: scaleInto takes a turn of nearly a quarter for a swap of the two, which is not wanted here)
+                const double turn = o->rotation;
+                o->rotation = 0;
+                o->scaleInto(before, QRectF(before.topLeft(), to.size()));
+                o->rotation = turn;
+            }
+            if (moved) o->rect.moveTopLeft(to.topLeft());
+            else if (to.size() != before.size()) o->rect.moveCenter(stays - fromCenter(o->rect.size(), turnNew));
             if (radius && std::abs(radius->value() - radius0) > 0.005)
                 if (auto *shape = dynamic_cast<ShapeItem *>(o)) shape->adj = adjWithCornerRadius(shape->shape, shape->adj, shape->rect.size(), radius->value());
             o->rotation = std::fmod(rot->value() + 360, 360.0);

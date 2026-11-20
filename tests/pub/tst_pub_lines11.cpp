@@ -1,7 +1,6 @@
 // JeffPub's tests of the commands that closed lines of the feature list in slice 11: Equalize on Arrange, Duplicate Several Times, and Send to Master Page.
 #include "pubhelpers.h"
 #include "../withdialog.h"
-#include "../localepin.h"
 #include "text/mergeformat.h"
 #include "app/widgets.h"
 #include "render/renderer.h"
@@ -14,6 +13,8 @@
 #include <QComboBox>
 #include <QLabel>
 #include <QSpinBox>
+#include <QJsonArray>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextBlock>
@@ -480,12 +481,11 @@ private Q_SLOTS:
     // a bar in it is still a name.
     void mergeFormatsShowNumbersCurrencyDatesAndTimes()
     {
-        PinnedLocale pin;
         using jp::formatMergeValue;
         QCOMPARE(formatMergeValue(QStringLiteral("1234.5"), QStringLiteral("currency")), QStringLiteral("$1,234.50"));
         QCOMPARE(formatMergeValue(QStringLiteral("$1,234.5"), QStringLiteral("currency:0")), QStringLiteral("$1,235"));
         QCOMPARE(formatMergeValue(QStringLiteral("1234,5"), QStringLiteral("number:1")), QStringLiteral("1,234.5"));
-        QCOMPARE(formatMergeValue(QStringLiteral("1.234,56"), QStringLiteral("number:0")), QStringLiteral("1,235"));
+        QCOMPARE(formatMergeValue(QStringLiteral("1.234,56"), QStringLiteral("number:0")), QStringLiteral("1.234,56"));   // (in US English that is no number)
         QCOMPARE(formatMergeValue(QStringLiteral("0.256"), QStringLiteral("percent:1")), QStringLiteral("25.6%"));
         QCOMPARE(formatMergeValue(QStringLiteral("2026-11-20"), QStringLiteral("date:long")), QStringLiteral("Friday, November 20, 2026"));
         QCOMPARE(formatMergeValue(QStringLiteral("11/20/2026"), QStringLiteral("date:iso")), QStringLiteral("2026-11-20"));
@@ -507,11 +507,50 @@ private Q_SLOTS:
         QCOMPARE(jp::joinMergeField(QStringLiteral("Price"), QString()), QStringLiteral("Price"));
     }
 
+    // What the formats read and show follows the language of the text at the field, never the machine's: English (US) month first, English (UK) and German day first, German's signs for
+    // numbers on input and output; two-digit years, signs, parentheses, and the values that are no number or no date of the kind asked for.
+    void mergeFormatsFollowTheDocumentsLanguageAndNeverInventData()
+    {
+        using jp::formatMergeValue;
+        auto f = [](const char *value, const char *format, const char *language = "") { return formatMergeValue(QString::fromLatin1(value), QString::fromLatin1(format), QString::fromLatin1(language)); };
+        QCOMPARE(f("03/04/2026", "date:iso"), QStringLiteral("2026-03-04"));
+        QCOMPARE(f("03/04/2026", "date:iso", "en-US"), QStringLiteral("2026-03-04"));
+        QCOMPARE(f("03/04/2026", "date:iso", "en-GB"), QStringLiteral("2026-04-03"));
+        QCOMPARE(f("03.04.2026", "date:iso", "de-DE"), QStringLiteral("2026-04-03"));
+        QCOMPARE(f("1.234,5", "number:1", "de-DE"), QStringLiteral("1.234,5"));
+        QCOMPARE(f("1234,5", "number:2", "de-DE"), QStringLiteral("1.234,50"));
+        QCOMPARE(f("1234.5", "number:2", "de-DE"), QStringLiteral("1.234,50"));   // (a list kept in the plain form)
+        QVERIFY(f("1234.5", "currency", "de-DE").startsWith(QStringLiteral("1.234,50")));
+        QVERIFY(f("1234.5", "currency", "de-DE").endsWith(QStringLiteral("€")));
+        QCOMPARE(f("1234.5", "currency", "en-GB"), QStringLiteral("£1,234.50"));
+        QCOMPARE(f("1234.5", "currency"), QStringLiteral("$1,234.50"));
+        // Two digits for a year: 00 to 29 are the 2000s, 30 to 99 the 1900s.
+        QCOMPARE(f("1/2/00", "date:iso"), QStringLiteral("2000-01-02"));
+        QCOMPARE(f("1/2/29", "date:iso"), QStringLiteral("2029-01-02"));
+        QCOMPARE(f("1/2/30", "date:iso"), QStringLiteral("1930-01-02"));
+        QCOMPARE(f("1/2/99", "date:iso"), QStringLiteral("1999-01-02"));
+        // No data is made up: a time with a date format, and a date with a time format, are left as the list has them.
+        QCOMPARE(f("15:45", "date:long"), QStringLiteral("15:45"));
+        QCOMPARE(f("2026-11-20", "time:24"), QStringLiteral("2026-11-20"));
+        QCOMPARE(f("2026-11-20 15:45", "time:24"), QStringLiteral("15:45"));
+        QCOMPARE(f("2026-11-20 15:45", "date:iso"), QStringLiteral("2026-11-20"));
+        // What is no number: nan and inf in any case (a recipient named Nan), exponents, and what is too big.
+        for (const char *word : {"nan", "NaN", "Nan", "inf", "INF", "-inf", "Infinity", "1e308", "1E5", "0x10"}) QCOMPARE(f(word, "number:1"), QString::fromLatin1(word));
+        const QString huge = QString(40, QLatin1Char('9'));
+        QCOMPARE(formatMergeValue(huge, QStringLiteral("currency")), huge);
+        QCOMPARE(formatMergeValue(QString(30, QLatin1Char('9')), QStringLiteral("number:0")), QString(30, QLatin1Char('9')));
+        // Signs, parentheses, and zero.
+        QCOMPARE(f("(500)", "number:0"), QStringLiteral("-500"));
+        QVERIFY(f("(500)", "currency").contains(QStringLiteral("500.00")) && (f("(500)", "currency").startsWith(QLatin1Char('-')) || f("(500)", "currency").startsWith(QLatin1Char('('))));
+        QCOMPARE(f("-12.5", "number:1"), QStringLiteral("-12.5"));
+        QCOMPARE(f("0", "currency"), QStringLiteral("$0.00"));
+        QCOMPARE(f("$0.00", "number:0"), QStringLiteral("0"));
+    }
+
     // Mailings > Format Merge Field sets how the field at the caret shows its value; the merged page shows it that way ($1,234.50 for 1234.5), the field's name is the same, and the
     // choice is one step of Undo and is kept in a saved file that the app opens again.
     void formatMergeFieldChangesWhatTheMergedPageShows()
     {
-        PinnedLocale pin;
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         jp::initCore();
@@ -566,6 +605,26 @@ private Q_SLOTS:
             second.editor()->doc()->merge = ed->doc()->merge;
             QCOMPARE(shown(second.editor()->doc()), currencyImage);
         }
+        // The language of the text at the field is the one the value is read and shown in: German here shows 1.234,50 with the euro sign, as the same words typed in would.
+        {
+            QTextCursor c(ed->doc()->storyDoc(box->storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat cf;
+            cf.setProperty(jp::tp::Language, QStringLiteral("de-DE"));
+            c.mergeCharFormat(cf);
+            jp::MainWindow second;
+            second.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            auto text = std::static_pointer_cast<jp::TextItem>(second.editor()->newTextBox(QRectF(72, 72, 400, 100), jp::formatMergeValue(QStringLiteral("1234.5"), QStringLiteral("currency"), QStringLiteral("de-DE"))));
+            second.editor()->addItem(text);
+            QTextCursor c2(second.editor()->doc()->storyDoc(text->storyId));
+            c2.select(QTextCursor::Document);
+            c2.mergeCharFormat(cf);
+            second.editor()->doc()->merge = ed->doc()->merge;
+            QCOMPARE(shown(second.editor()->doc()), shown(ed->doc()));
+            QVERIFY(shown(ed->doc()) != currencyImage);
+            cf.setProperty(jp::tp::Language, QString());
+            c.mergeCharFormat(cf);
+        }
         const QString path = dir.filePath(QStringLiteral("merge.jpub"));
         QVERIFY(w.saveTo(path));
         {
@@ -581,6 +640,245 @@ private Q_SLOTS:
         QCOMPARE(shown(ed->doc()), plainImage);
         ed->redo();
         QCOMPARE(shown(ed->doc()), currencyImage);
+    }
+
+    // Duplicate Several Times is bounded: a size that grows by 1000 % for 200 copies stops before a copy is bigger than 20 times the page's larger side, numbers that are not numbers are refused,
+    // and more than 2,000 new objects are refused with a message and no step of Undo.
+    void duplicateSeveralTimesStaysWithinBounds()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString a = addShape(ed, QRectF(50, 50, 100, 60));
+        ed->select(a);
+        jp::Editor::DuplicateSteps steps;
+        steps.copies = 200;
+        steps.growPercent = 1000;
+        QVERIFY(ed->duplicateSteps(steps));
+        const int made = int(ed->surfaceItems().size()) - 1;
+        QVERIFY2(made >= 1 && made < 10, qPrintable(QString::number(made)));
+        for (const jp::ItemPtr &it : ed->surfaceItems()) {
+            QVERIFY(std::isfinite(it->rect.width()) && std::isfinite(it->rect.height()));
+            QVERIFY(it->rect.width() <= 20 * 792 && it->rect.height() <= 20 * 792);
+        }
+        ed->undo();
+        QCOMPARE(int(ed->surfaceItems().size()), 1);
+        // Shrinking stops at a point.
+        ed->select(a);
+        steps.growPercent = -90;
+        QVERIFY(ed->duplicateSteps(steps));
+        for (const jp::ItemPtr &it : ed->surfaceItems()) QVERIFY(it->rect.width() >= 1 && it->rect.height() >= 1);
+        ed->undo();
+        // Offsets that run off the page stop the copies too.
+        ed->select(a);
+        steps.growPercent = 0;
+        steps.offset = QPointF(10000, 0);
+        QVERIFY(ed->duplicateSteps(steps));
+        QVERIFY(int(ed->surfaceItems().size()) <= 3);
+        ed->undo();
+        // Not numbers.
+        const int steps0 = ed->undoStack()->count();
+        ed->select(a);
+        QString why;
+        for (const double bad : {std::numeric_limits<double>::quiet_NaN(), std::numeric_limits<double>::infinity()}) {
+            jp::Editor::DuplicateSteps nan;
+            nan.copies = 2;
+            nan.growPercent = bad;
+            QVERIFY(!ed->duplicateSteps(nan, &why));
+            nan.growPercent = 0;
+            nan.offset = QPointF(bad, 0);
+            QVERIFY(!ed->duplicateSteps(nan, &why));
+            nan.offset = QPointF(0, bad);
+            why.clear();
+            QVERIFY(!ed->duplicateSteps(nan, &why));
+            QVERIFY(!why.isEmpty());
+        }
+        // Eleven objects times 200 copies is more than 2,000.
+        QStringList all{a};
+        for (int i = 0; i < 10; ++i) all << addShape(ed, QRectF(10 * i, 300, 5, 5));
+        ed->select(all);
+        steps = jp::Editor::DuplicateSteps();
+        steps.copies = 200;
+        why.clear();
+        QVERIFY(!ed->duplicateSteps(steps, &why));
+        QVERIFY(why.contains(QStringLiteral("2,000")));
+        QCOMPARE(int(ed->surfaceItems().size()), 11);
+        QCOMPARE(ed->undoStack()->count(), steps0);
+        steps.copies = 181;   // (11 x 181 is 1,991)
+        QVERIFY(ed->duplicateSteps(steps));
+        QCOMPARE(int(ed->surfaceItems().size()), 11 + 11 * 181);
+    }
+
+    // Equalize uses an object's own width and height, the frame it is turned about, not the outline of the turned object.
+    void equalizeUsesTheOwnSizeOfATurnedObject()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString a = addShape(ed, QRectF(50, 50, 100, 60)), b = addShape(ed, QRectF(200, 70, 40, 90)), c = addShape(ed, QRectF(300, 300, 70, 30));
+        ed->doc()->item(b)->rotation = 45;
+        ed->select(QStringList{a, b, c});
+        QVERIFY(ed->equalize(true, false));
+        QCOMPARE(rectOf(ed, b), QRectF(200, 70, 100, 90));
+        QCOMPARE(ed->doc()->item(b)->rotation, 45.0);
+        // A turned first object gives its own size.
+        ed->undo();
+        ed->doc()->item(a)->rotation = 45;
+        ed->select(QStringList{a, b, c});
+        QVERIFY(ed->equalize(true, true));
+        QCOMPARE(rectOf(ed, b), QRectF(200, 70, 100, 60));
+        QCOMPARE(rectOf(ed, c), QRectF(300, 300, 100, 60));
+        QCOMPARE(ed->doc()->item(b)->rotation, 45.0);
+    }
+
+    // Send to Master Page leaves an object inside a group where it is, and no step of Undo is made; the whole group moves; and Undo and Redo go back and forth from another page, and a
+    // left-hand page of a two-page master lands where the object was seen.
+    void sendToMasterPageGroupsPagesAndLeftHandPages()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString p = addShape(ed, QRectF(10, 10, 20, 20)), q = addShape(ed, QRectF(60, 10, 20, 20));
+        ed->select(QStringList{p, q});
+        ed->groupSelection();
+        const QString group = ed->selection().first();
+        ed->insertPages(0, 1, false, false);
+        ed->setCurrentPage(0);
+        ed->select(group);
+        const int steps0 = ed->undoStack()->count();
+        ed->select(p);   // (a member of the group)
+        QString why;
+        QVERIFY(!ed->sendToMaster(&why));
+        QVERIFY(!why.isEmpty());
+        QCOMPARE(ed->undoStack()->count(), steps0);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), 1);
+        ed->select(group);
+        QVERIFY(ed->sendToMaster());
+        QCOMPARE(int(ed->doc()->masterFor(*ed->doc()->pages[0])->items.size()), 1);
+        QVERIFY(ed->doc()->pages[0]->items.empty());
+        // From another page, Undo brings it back to the first page, and Redo sends it again.
+        ed->setCurrentPage(1);
+        ed->undo();
+        QCOMPARE(ed->currentPage(), 0);
+        QCOMPARE(int(ed->doc()->pages[0]->items.size()), 1);
+        QVERIFY(ed->doc()->masterFor(*ed->doc()->pages[0])->items.empty());
+        ed->redo();
+        QVERIFY(ed->doc()->pages[0]->items.empty());
+        QCOMPARE(int(ed->doc()->masterFor(*ed->doc()->pages[0])->items.size()), 1);
+        ed->undo();
+        // A left-hand page (the second) of a two-page master: the left half is as the page is, and an object in the right half lands one page width back.
+        jp::MasterPage *master = ed->doc()->masterFor(*ed->doc()->pages[0]);
+        master->twoPage = true;
+        ed->setCurrentPage(1);
+        ed->doc()->pages[0]->items.clear();
+        auto s = std::make_shared<jp::ShapeItem>();
+        s->rect = QRectF(250, 100, 50, 50);
+        ed->doc()->pages[1]->items.push_back(s);
+        ed->select(s->id);
+        QVERIFY(ed->sendToMaster());
+        QCOMPARE(master->items.back()->rect, QRectF(250, 100, 50, 50));   // (a left-hand page shows the left half as it is)
+        ed->setMasterView(master->id);
+        ed->select(master->items.back()->id);
+        QVERIFY(ed->sendToPage());
+        QCOMPARE(ed->doc()->pages[1]->items.back()->rect, QRectF(250, 100, 50, 50));
+        auto t = std::make_shared<jp::ShapeItem>();
+        t->rect = QRectF(612 + 250, 100, 50, 50);
+        master->items.push_back(t);
+        ed->select(t->id);
+        QVERIFY(ed->sendToPage());
+        QCOMPARE(ed->doc()->pages[1]->items.back()->rect, QRectF(250, 100, 50, 50));
+    }
+
+    // The merge field at the caret is found in a long story: with everything selected, and as the caret moves beside a field; and a format reaches every field of a selection.
+    void aMergeFieldIsFoundInALongStoryAndFormatReachesEachOne()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 400), QString(60000, QLatin1Char('x'))));
+        {
+            QTextCursor c(ed->doc()->storyDoc(box->storyId));
+            c.movePosition(QTextCursor::End);
+            QTextCharFormat cf;
+            cf.setProperty(jp::tp::Field, QStringLiteral("merge:Price"));
+            for (int i = 0; i < 3; ++i) c.insertText(QString(QChar::ObjectReplacementCharacter), cf);
+            QTextCharFormat plain;
+            c.insertText(QStringLiteral("y"), plain);
+        }
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QVERIFY(!ed->mergeFieldAtCaret());
+        QTextCursor all(ed->doc()->storyDoc(box->storyId));
+        all.select(QTextCursor::Document);
+        ed->setCursor(all);
+        QVERIFY(ed->mergeFieldAtCaret());
+        QVERIFY(ed->setMergeFieldFormat(QStringLiteral("currency")));
+        QCOMPARE(ed->mergeFieldFormat(), QStringLiteral("currency"));
+        int fields = 0;
+        for (QTextBlock b = ed->doc()->storyDoc(box->storyId)->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it)
+                if (it.fragment().charFormat().stringProperty(jp::tp::Field) == QLatin1String("merge:Price|currency")) fields += it.fragment().length();
+        QCOMPARE(fields, 3);
+        QTextCursor none(ed->doc()->storyDoc(box->storyId));
+        none.setPosition(100);
+        ed->setCursor(none);
+        QVERIFY(!ed->mergeFieldAtCaret());
+        QTextCursor beside(ed->doc()->storyDoc(box->storyId));
+        beside.setPosition(60001);
+        ed->setCursor(beside);
+        QVERIFY(ed->mergeFieldAtCaret());
+    }
+
+    // A corner radius a file gives is held to none through half of the shorter side when it is read, and a number that is not a number is none.
+    void aCornerRadiusFromAFileIsHeld()
+    {
+        auto s = std::make_shared<jp::ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(0, 0, 100, 60);
+        QJsonObject o = s->toJson();
+        for (const auto &pair : {std::pair<double, double>{9.0, 0.5}, {-3.0, 0.0}, {0.25, 0.25}}) {
+            o["adj"] = QJsonArray{pair.first};
+            jp::ShapeItem read;
+            read.fromJson(o);
+            QCOMPARE(read.adj.value(0), pair.second);
+        }
+        QCOMPARE(jp::cornerRadius(QStringLiteral("roundRect"), {std::numeric_limits<double>::quiet_NaN()}, QSizeF(100, 60)), 0.0);
+        QCOMPARE(jp::cornerRadius(QStringLiteral("roundRect"), {7.0}, QSizeF(100, 60)), 30.0);
+    }
+
+    // Resize from, for a shape turned 30 degrees: the chosen point stays where it is on the page after a new width and height.
+    void theBasePointOfATurnedShapeStaysWhereItIsOnThePage()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto s = std::make_shared<jp::ShapeItem>();
+        s->shape = QStringLiteral("roundRect");
+        s->rect = QRectF(200, 200, 100, 100);
+        s->rotation = 30;
+        ed->doc()->pages[0]->items.push_back(s);
+        const QString id = s->id;
+        ed->select(id);
+        QTRY_VERIFY(w.act(QStringLiteral("obj.format"))->isEnabled());
+        const QPointF corner = ed->doc()->item(id)->transform().map(QPointF(100, 100));   // (bottom right)
+        withDialog([&] { w.act(QStringLiteral("obj.format"))->trigger(); }, QStringLiteral("formatObjectDialog"), [&](QDialog *d) {
+            auto *radius = d->findChild<jp::MeasureSpin *>(QStringLiteral("cornerRadius"));
+            d->findChild<QComboBox *>(QStringLiteral("basePoint"))->setCurrentIndex(8);
+            int set = 0;
+            for (jp::MeasureSpin *m : d->findChildren<jp::MeasureSpin *>())
+                if (m != radius && qAbs(m->value() - 100) < 0.01 && m->parentWidget() == radius->parentWidget()) {
+                    m->setValue(60);
+                    ++set;
+                }
+            QCOMPARE(set, 2);
+        });
+        const jp::Item *now = ed->doc()->item(id);
+        QVERIFY(qAbs(now->rect.width() - 60) < 0.01 && qAbs(now->rect.height() - 60) < 0.01);
+        QCOMPARE(now->rotation, 30.0);
+        const QPointF after = now->transform().map(QPointF(60, 60));
+        QVERIFY2(QLineF(corner, after).length() < 0.01, qPrintable(QStringLiteral("%1,%2 to %3,%4").arg(corner.x()).arg(corner.y()).arg(after.x()).arg(after.y())));
     }
 };
 

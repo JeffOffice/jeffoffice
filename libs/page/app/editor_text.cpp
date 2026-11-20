@@ -1056,23 +1056,23 @@ void Editor::insertField(const QString &code)
 
 namespace {
 
-// The places of the merge fields' marks in the part of the story from `from` to `to` (or, with nothing there, the character just before and just after `at`).
-QVector<int> mergeFieldPlaces(QTextDocument *doc, int from, int to, int at)
+// The places of the merge fields' marks in the part of the story from `from` to `to` (or, with nothing there, the character just before and just after `at`). It walks the text's
+// fragments, not its characters; `first` stops at the first mark found, and at most 1,000 places are given.
+QVector<int> mergeFieldPlaces(QTextDocument *doc, int from, int to, int at, bool first = false)
 {
     QVector<int> places;
-    auto look = [&](int p) {
-        if (p < 0 || p >= doc->characterCount() - 1 || places.contains(p)) return;
-        QTextCursor c(doc);
-        c.setPosition(p);
-        c.setPosition(p + 1, QTextCursor::KeepAnchor);
-        if (c.charFormat().stringProperty(tp::Field).startsWith(QLatin1String("merge:"))) places << p;
-    };
-    if (from < to) {
-        for (int p = from; p < to && places.size() < 1000; ++p) look(p);
-    } else {
-        look(at - 1);
-        look(at);
+    if (from >= to) {
+        from = std::max(0, at - 1);
+        to = std::min(at + 1, doc->characterCount() - 1);
     }
+    for (QTextBlock b = doc->findBlock(from); b.isValid() && b.position() < to; b = b.next())
+        for (auto it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment fr = it.fragment();
+            const int s = std::max(from, fr.position()), e = std::min(to, fr.position() + fr.length());
+            if (s >= e || !fr.charFormat().stringProperty(tp::Field).startsWith(QLatin1String("merge:"))) continue;
+            for (int p = s; p < e && places.size() < 1000; ++p) places << p;
+            if (first || places.size() >= 1000) return places;
+        }
     return places;
 }
 
@@ -1080,7 +1080,7 @@ QVector<int> mergeFieldPlaces(QTextDocument *doc, int from, int to, int at)
 
 bool Editor::mergeFieldAtCaret() const
 {
-    return isEditingText() && !mergeFieldPlaces(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd(), m_cursor.position()).isEmpty();
+    return isEditingText() && !mergeFieldPlaces(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd(), m_cursor.position(), true).isEmpty();
 }
 
 QString Editor::mergeFieldFormat(bool *mixed) const

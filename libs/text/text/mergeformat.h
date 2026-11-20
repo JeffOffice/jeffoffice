@@ -20,7 +20,10 @@ JO_COMMON_EXPORT QString joinMergeField(const QString &name, const QString &form
 
 JO_COMMON_EXPORT bool isMergeFormat(const QString &format);
 
-// The value as the format shows it, in the person's language and region. An empty format, a value that is empty, and a value the format can't read give the value as it is.
-JO_COMMON_EXPORT QString formatMergeValue(const QString &value, const QString &format);
+// The value as the format shows it. Reading the value and showing the result both follow `language` (a tag such as "de-DE": the language of the text at the field; empty is US English,
+// as in the rest of the layout), never the machine's: 03/04/2026 is the 3rd of April in a day-first language, and "1.234,5" is 1234.5 in German. A year of two digits is 2000 to 2029 for
+// 00 to 29, and 1930 to 1999 for 30 to 99. An empty format, an empty value, a value the format can't read (nan, inf, words, a date for a time format or a time for a date format) give
+// the value exactly as it is. "(500)" is -500.
+JO_COMMON_EXPORT QString formatMergeValue(const QString &value, const QString &format, const QString &language = QString());
 
 } // namespace jp

@@ -7,6 +7,7 @@
 #include "app/filedialogs.h"
 #include "app/uistyle.h"
 #include "text/mergeformat.h"
+#include "text/textprops.h"
 #include "app/plaintext.h"
 #include "core/mergesource.h"
 
@@ -227,12 +228,13 @@ bool mergeFieldFormatDialog(QWidget *p, Editor *ed)
         else if (kind->currentIndex() == Time)
             style->addItems({QCoreApplication::translate("MergeDialogs", "Short"), QCoreApplication::translate("MergeDialogs", "12-hour"), QCoreApplication::translate("MergeDialogs", "24-hour")});
     };
+    const QString language = ed->currentCharFormat().stringProperty(tp::Language);   // (the sample reads and shows by the language of the text at the field)
     auto refresh = [&] {
         const int k = kind->currentIndex();
         places->setEnabled(k == Number || k == Currency || k == Percent);
         style->setEnabled(k == Date || k == Time);
         const QString value = k == Date ? QStringLiteral("2026-11-20") : k == Time ? QStringLiteral("15:45") : QStringLiteral("1234.5");
-        sample->setText(k == AsIs ? QCoreApplication::translate("MergeDialogs", "The value is shown as the list holds it.") : formatMergeValue(value, format()));
+        sample->setText(k == AsIs ? QCoreApplication::translate("MergeDialogs", "The value is shown as the list holds it.") : formatMergeValue(value, format(), language));
     };
     QObject::connect(kind, &QComboBox::currentIndexChanged, &d, [=](int) { fillStyles(); refresh(); });
     QObject::connect(places, &QSpinBox::valueChanged, &d, [=](int) { refresh(); });

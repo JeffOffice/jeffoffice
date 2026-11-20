@@ -103,7 +103,8 @@ struct FieldContext {
     int nextPage = 0, prevPage = 0;   // pages of the next and previous boxes of a linked chain (0: none)
     QString noteMark;             // a note's number, for the mark that begins its text ("notemark") in a word processor's note
     QDateTime now = fieldNow();
-    QString resolve(const QString &code) const;
+    // `language` is the language of the text at the field (empty: US English): a merge field reads and shows its value by it.
+    QString resolve(const QString &code, const QString &language = QString()) const;
     // What makes a layout differ, for the cache of layouts. The minute (`now`) is part of it only if `withClock`: a layout is laid out
     // again when the date or time it shows changes, which fieldValuesKey says (not every minute).
     QString key(bool withClock = true) const;

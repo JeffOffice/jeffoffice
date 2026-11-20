@@ -116,7 +116,7 @@ QString pageNumberText(int n, const QString &style)
     return QString::number(n);
 }
 
-QString FieldContext::resolve(const QString &code) const
+QString FieldContext::resolve(const QString &code, const QString &language) const
 {
     const QString kind = code.section(':', 0, 0);
     const QString arg = code.section(':', 1);
@@ -162,7 +162,7 @@ QString FieldContext::resolve(const QString &code) const
     if (kind == "merge") {
         const MergeFieldCode field = splitMergeField(arg);
         if (!doc || mergeRecord < 0) return QStringLiteral("«%1»").arg(field.name);
-        return formatMergeValue(doc->mergeValue(mergeRecord, field.name), field.format);
+        return formatMergeValue(doc->mergeValue(mergeRecord, field.name), field.format, language);
     }
     if (kind == "mergeblock") {
         if (!doc || mergeRecord < 0) return arg == "greeting" ? QCoreApplication::translate("Text", "«Greeting Line»") : QCoreApplication::translate("Text", "«Address Block»");
@@ -3742,7 +3742,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         continue;
                     }
                     // Multi-line values (an address) break lines inside the paragraph.
-                    QString v = ctx.resolve(field);
+                    QString v = ctx.resolve(field, cf.stringProperty(tp::Language));
                     v.replace(QLatin1String("\r\n"), QString(QChar::LineSeparator)).replace(QLatin1Char('\n'), QChar::LineSeparator);
                     // (A word processor's line does not break after a slash in what a link's field shows, its address, as in its text (not in a date's, whose slashes the word processor breaks at): a word joiner after it keeps Qt's rules from breaking there.)
                     if (env.wordLines && cf.boolProperty(tp::LinkResult) && v.contains(QLatin1Char('/'))) {

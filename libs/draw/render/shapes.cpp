@@ -490,7 +490,7 @@ bool hasCornerRadius(const QString &id)
 double cornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size)
 {
     const QVector<double> a = shapeAdj(id, adj);
-    return hasCornerRadius(id) && !a.isEmpty() ? a[0] * std::min(size.width(), size.height()) : 0;
+    return hasCornerRadius(id) && !a.isEmpty() && std::isfinite(a[0]) ? std::clamp(a[0], 0.0, 0.5) * std::min(size.width(), size.height()) : 0;
 }
 
 QVector<double> adjWithCornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size, double radius)

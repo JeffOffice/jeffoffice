@@ -1,6 +1,7 @@
 #include "app/duplicatedialog.h"
 #include "app/editor.h"
 #include "app/uistyle.h"
+#include "app/plaintext.h"
 #include "app/widgets.h"
 #include <QCheckBox>
 #include <QCoreApplication>
@@ -66,7 +67,10 @@ bool duplicateStepsDialog(QWidget *p, Editor *ed)
     s.growPercent = grow->value();
     s.stepColor = step->isChecked();
     s.lastColor = last->current().resolve(ed->doc()->colors);
-    return ed->duplicateSteps(s);
+    QString why;
+    if (ed->duplicateSteps(s, &why)) return true;
+    if (!why.isEmpty()) jp::plainWarning(p, QCoreApplication::translate("Dialogs", "Duplicate Several Times"), why);
+    return false;
 }
 
 } // namespace jp
