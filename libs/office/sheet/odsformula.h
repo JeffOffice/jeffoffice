@@ -37,6 +37,8 @@ public:
     static constexpr int kMost = 4000;
     // The number of the workbook at `address` (the next number if it is new, with `target` as its file); 0 if there are already the most.
     int add(const QString &target, const QString &address);
+    // The workbook the file itself numbers `number` (1 to the most): the numbers it leaves out are kept as workbooks of no address, so that the others keep theirs.
+    void addNumbered(int number, const QString &target, const QString &address);
     int numberOf(const QString &address) const;   // 0 if none
     QStringList targets() const { return m_targets; }
     // The entries looked at by all the asks of numberOf: one for each (a test counts it: it must not grow with the number of workbooks).

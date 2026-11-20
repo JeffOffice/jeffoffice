@@ -1058,7 +1058,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     // names
     // (the workbooks the formulas read are numbered here, before any sheet is read: the numbers the file gave them, then the others in the order the sheets are, and the names after them)
     {
-        for (auto it = m.found.externalLinks.cbegin(); it != m.found.externalLinks.cend(); ++it) m.links.add(it.value(), odfLinkAddress(it.value()));
+        for (auto it = m.found.externalLinks.cbegin(); it != m.found.externalLinks.cend(); ++it) m.links.addNumbered(it.key(), it.value(), odfLinkAddress(it.value()));
         const std::function<int(const QString &)> make = [&m](const QString &address) { return m.links.add(address, address); };
         for (const Range &r : std::as_const(m.slices)) scanLinks(QByteArrayView(m.content).mid(r.from, r.to - r.from), make, &m.renames);
         for (const NamedItem &n : std::as_const(m.found.names)) {

@@ -1457,7 +1457,7 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
         }
     }
     // Page breaks that were runs of a paragraph of ours (break-start, break-end), and the one a paragraph took from the paragraph before it (break-carried), are put back where they were.
-    // (only ours: the attributes of our own namespace, on a plain paragraph: not a heading, a list item, or one with a bookmark or a tracked change, which keep what they are)
+    // (only ours: the attributes of our own namespace; one that joins its paragraph to the one before is not a heading, a list item, or one with a bookmark or a tracked change, which keep what they are)
     const QString breakStart = pp.value(QStringLiteral("para:jo:break-start")), breakEnd = pp.value(QStringLiteral("para:jo:break-end")), breakCarried = pp.value(QStringLiteral("para:jo:break-carried"));
     m_pendingPageBreak = pp.value(QStringLiteral("para:fo:break-after")) == QLatin1String("page");
     QByteArray markProps;
@@ -1500,18 +1500,22 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
     static const QByteArray kPageBreakRun = "<w:r><w:br w:type=\"page\"/></w:r>";
     const bool plain = !heading && listLevel < 0 && numPr.isEmpty() && !insertionRunsIn && m_openInsertion.isEmpty() && !pc.runs.contains("<w:bookmark") && !pc.runs.contains("w:ins")
                        && !pc.runs.contains("w:del") && !pc.runs.contains("w:move");
-    const bool carriedBreak = plain && m_trailingBreakMade && !breakCarried.isEmpty();
-    const bool aloneBreak = plain && breakCarried == QLatin1String("alone");
-    const bool startsRun = plain && (breakStart == QLatin1String("run") || (breakStart == QLatin1String("join") && !out->isEmpty() && out->last().para));
-    const bool endsRun = plain && breakEnd == QLatin1String("run");
+    // (what the paragraph before ended with is in that paragraph, whatever this one is; a paragraph that was only a break is put back before this one whatever it is, which changes nothing else)
+    const bool carriedBreak = m_trailingBreakMade && breakCarried == QLatin1String("true");
+    const bool aloneBreak = breakCarried == QLatin1String("alone");
+    const bool startsRun = breakStart == QLatin1String("run") || (breakStart == QLatin1String("join") && plain && !out->isEmpty() && out->last().para);
+    const bool endsRun = breakEnd == QLatin1String("run");
     m_trailingBreakMade = endsRun;
     if (startsRun || carriedBreak || aloneBreak) ppr.replace("<w:pageBreakBefore/>", "");
     if (aloneBreak) {
         // (the paragraph before this one was only a page break: the file has it as the break this one begins with)
-        Block alone;
-        alone.para = true;
-        alone.content = kPageBreakRun;
-        out->push_back(alone);
+        const int count = std::max(1, std::min(pp.value(QStringLiteral("para:jo:break-alone")).toInt(), 16));
+        for (int i = 0; i < count; ++i) {
+            Block alone;
+            alone.para = true;
+            alone.content = kPageBreakRun;
+            out->push_back(alone);
+        }
     }
     if (breakStart == QLatin1String("join") && startsRun) {
         // (what follows a page break in a paragraph of the document that made this file)

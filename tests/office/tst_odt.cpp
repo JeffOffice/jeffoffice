@@ -867,6 +867,19 @@ private Q_SLOTS:
         QCOMPARE(c.count(QLatin1String("fo:break-before=\"page\"")), 1);
     }
 
+    // A page break that ended a paragraph, or was a paragraph of its own, comes back as it was when the paragraph after it is a heading or a list item too: the break is not read twice, and not lost.
+    void aPageBreakBeforeAHeadingOrAListItemComesBackAsItWas()
+    {
+        const QByteArray br = "<w:r><w:br w:type=\"page\"/></w:r>";
+        const auto run = [](const char *text) { return QByteArray("<w:r><w:t>") + text + "</w:t></w:r>"; };
+        const QByteArray heading = "<w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr>";
+        const QByteArray body = "<w:p>" + run("end") + br + "</w:p><w:p>" + heading + run("head") + "</w:p>"
+                                "<w:p>" + br + "</w:p><w:p>" + heading + run("again") + "</w:p><w:p>" + heading + br + run("lead") + "</w:p>"
+                                "<w:p>" + br + "</w:p><w:p>" + br + "</w:p><w:p>" + run("two breaks") + "</w:p>";
+        QCOMPARE(paragraphsOf(roundTripBody(body)), (QStringList{QStringLiteral("end\f"), QStringLiteral("head"), QStringLiteral("\f"), QStringLiteral("again"), QStringLiteral("\flead"), QStringLiteral("\f"), QStringLiteral("\f"),
+                                                                  QStringLiteral("two breaks")}));
+    }
+
     // With every attribute of ours taken out, the file shows the paragraphs and page breaks it always did: a paragraph that is only a page break is not a paragraph of its own (nothing is an empty line at the top
     // of the new page), the break is the one the next paragraph begins with, and a break at the end of a paragraph is the next one's once.
     void aPageBreakIsTheStandardsAlsoWithOurAttributesIgnored()

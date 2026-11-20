@@ -197,6 +197,7 @@ private:
     // What the break that is pending came from (it is told on the paragraph that takes it, so that it reads back as it was): nothing the file may say, a paragraph of the body that ended with it, or one that was only it.
     enum { kBreakNone, kBreakEnded, kBreakAlone };
     int m_breakSource = kBreakNone;
+    int m_breakAlone = 0;   // how many paragraphs that were only a page break are waiting to be told (one break is all the standard has for them)
     QHash<QString, QString> m_masterByKey;
     QVector<SectionInfo> m_masters;
     QHash<QString, QByteArray> m_headerCache;

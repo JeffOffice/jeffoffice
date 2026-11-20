@@ -579,6 +579,14 @@ int OdsLinkTable::add(const QString &target, const QString &address)
     return int(m_targets.size());
 }
 
+void OdsLinkTable::addNumbered(int number, const QString &target, const QString &address)
+{
+    if (number < 1 || number > kMost) return;
+    while (m_targets.size() < number) m_targets.append(QString());
+    m_targets[number - 1] = target;
+    if (!m_byAddress.contains(address)) m_byAddress.insert(address, number);
+}
+
 int OdsLinkTable::numberOf(const QString &address) const
 {
     m_examined.fetch_add(1, std::memory_order_relaxed);

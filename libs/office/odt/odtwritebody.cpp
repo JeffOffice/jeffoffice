@@ -343,6 +343,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
     const bool carriesSection = atBody && m_sectionOfPara.contains(p);
     // A paragraph that was only a page break gives its break to the next one (which says so, so that it reads back as the paragraph it was).
     if (!anyContent && pc.fragments.size() == 1 && pc.fragments[0].second && !carriesSection) {
+        m_breakAlone = m_pendingBreak && m_breakSource == kBreakAlone && atBody ? m_breakAlone + 1 : 1;
         m_pendingBreak = true;
         m_breakSource = atBody ? kBreakAlone : kBreakNone;
         // (Closed lists and the table of contents are still as they were.)
@@ -391,7 +392,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         if (pageBreak && master.isEmpty()) pa += " fo:break-before=\"page\"";
         // (page breaks that were runs of the paragraph, and the page break of the paragraph before: ours, so the paragraphs read back as they were)
         if (frag.second) pa += fragmentNumber == 0 ? " jo:break-start=\"run\"" : " jo:break-start=\"join\"";
-        if (carried != kBreakNone) pa += carried == kBreakAlone ? " jo:break-carried=\"alone\"" : " jo:break-carried=\"true\"";
+        if (carried != kBreakNone) pa += carried == kBreakAlone ? " jo:break-carried=\"alone\"" + (m_breakAlone > 1 ? " jo:break-alone=\"" + num(m_breakAlone) + "\"" : QByteArray()) : " jo:break-carried=\"true\"";
         if (pc.trailingBreak && fragmentNumber == pc.fragments.size() - 1) pa += " jo:break-end=\"run\"";
         if (first && !master.isEmpty()) attrs += " style:master-page-name=\"" + master.toUtf8() + "\"";
         if (!pa.isEmpty() || !tabs.isEmpty()) inner = "<style:paragraph-properties" + pa + (tabs.isEmpty() ? "/>" : ">" + tabs + "</style:paragraph-properties>");

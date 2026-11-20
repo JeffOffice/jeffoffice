@@ -612,6 +612,23 @@ private Q_SLOTS:
         QCOMPARE(lastFirst.foreignBook()->externalTargets(), (QStringList{QStringLiteral("file:///x/b.ods"), QStringLiteral("file:///x/a.ods"), QStringLiteral("file:///x/c.ods")}));
     }
 
+    // A file that numbers its links with gaps (a workbook that has links no formula reads, or one whose address is lost) keeps the numbers it gave: the formulas read back with them, and one the file did not number
+    // comes after them.
+    void linksTheFileNumbersWithGapsKeepTheirNumbers()
+    {
+        const auto link = [](const char *file) { return QStringLiteral("table:formula=\"of:=['file:///x/%1'#$S.A1]\" office:value-type=\"float\" office:value=\"1\"").arg(QLatin1String(file)); };
+        const QString one = QStringLiteral("<text:p>1</text:p>");
+        QByteArray settings = settingsXml({}, QStringLiteral("S"));
+        settings.replace("</office:settings>", "<config:config-item-set config:name=\"jo:external-links\"><config:config-item config:name=\"1\" config:type=\"string\">file:///x/a.ods</config:config-item>"
+                                               "<config:config-item config:name=\"3\" config:type=\"string\">file:///x/c.ods</config:config-item></config:config-item-set></office:settings>");
+        Workbook wb = open(buildOds(contentXml(table(QStringLiteral("S"), row(cell(link("c.ods"), one) + cell(link("a.ods"), one) + cell(link("d.ods"), one)))), QString(), settings));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(formulaOf(s, QStringLiteral("A1")), QStringLiteral("[3]S!A1"));
+        QCOMPARE(formulaOf(s, QStringLiteral("B1")), QStringLiteral("[1]S!A1"));
+        QCOMPARE(formulaOf(s, QStringLiteral("C1")), QStringLiteral("[4]S!A1"));
+        QCOMPARE(wb.foreignBook()->externalTargets(), (QStringList{QStringLiteral("file:///x/a.ods"), QString(), QStringLiteral("file:///x/c.ods"), QStringLiteral("file:///x/d.ods")}));
+    }
+
     // Asking for a workbook's number is one look in a table, however many workbooks there are (not a search through them): the entries looked at are the asks, and no more.
     void aLinkNumberIsLookedUpNotSearchedFor()
     {
