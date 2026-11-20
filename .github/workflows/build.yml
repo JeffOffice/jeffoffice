@@ -672,6 +672,12 @@ jobs:
           # (only the job that packages: the others build their own programs)
           FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh) && matrix.part == 'checks' && matrix.shard == 1 && 'true' || 'false' }}
         run: |
+          # (our two runners on our Windows machine build in folders of their own, and Qt is copied beside each one: the compiler cache, which hashes every
+          # path outside its base folder as written, kept a runner's entries to itself, so the one that had stood idle while the other built, a few
+          # landings, rebuilt 563 steps with 1 cache hit, 13.4 minutes: November 20, 2026. The base is the folder above both runners' work folders, the
+          # folder of the tree, the build, and Qt all sit under it, so the paths are hashed relative to the build and are the same on both.)
+          if [ "$RUNNER_OS" = Windows ] && [ "${{ runner.environment }}" = self-hosted ]; then export CCACHE_BASEDIR="$(cygpath -m "$(dirname "$(dirname "$(dirname "$PWD")")")")"; fi
+          echo "compiler cache base folder: ${CCACHE_BASEDIR:-none}"
           if command -v ccache >/dev/null 2>&1; then ccache --zero-stats; fi
           # (our own machine caps the parallel compiles through its runner settings: a compile of every core at once runs out of memory there)
           # A release (started by hand with mac_both on) builds everything in the job that packages; every other job builds only what its half of its part
