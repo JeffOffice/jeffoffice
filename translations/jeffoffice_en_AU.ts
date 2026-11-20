@@ -703,6 +703,10 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::DeckFileScreen</name>
     <message>
+        <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
+        <translation>Greyscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</translation>
+    </message>
+    <message>
         <source>Color</source>
         <translation>Colour</translation>
     </message>

@@ -79,7 +79,7 @@ An .odt file can't hold everything a .docx file can. When you save as .odt, Jeff
 
 ## Make a PDF
 
-Click **File > Export > Export to PDF**. Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose how it is made:
+Click **File > Export > Export to PDF**. The PDF carries the document's title, author, subject, and keywords from **File > Info** (with **Include document properties** on), the date it was made, and JeffWrite as the program that made it; the author, and a title made from the file's name, stay out when personal information is removed. Each of these is kept whole up to 4,000 characters. Tick **Open the PDF after saving** to have the file opened in your computer's PDF program when it is saved. It is off until you tick it. If your computer will not open the file, the status bar says so (the file is saved all the same). Choose which pages to include: all, the current page, or a range such as 1-3, 5 (p2s3 and s3 work here too). Then choose how it is made:
 
 - **Optimise for** has **Standard**, which keeps your pictures as they are, and **Minimum size**, which makes each picture no finer than 150 pixels to the inch, so that the file is smaller. Use Minimum size for a PDF you will put on a web page or send by email.
 - **Include document properties** puts the document's title, author, subject, and keywords into the PDF.

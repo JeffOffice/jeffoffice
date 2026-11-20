@@ -2560,13 +2560,28 @@ Artikel achterpagina	4</translation>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+584"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
+        <source>Comments on slide %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Comments on slide %1, continued</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+201"/>
+        <source>Comments not shown: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+234"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Er zijn geen dia&apos;s om af te drukken.</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <location line="+21"/>
+        <location line="+54"/>
+        <location line="+35"/>
         <source>The PDF can&apos;t be started.</source>
         <translation type="unfinished">De PDF kan niet worden gestart.</translation>
     </message>
@@ -2576,7 +2591,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">dia %1</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Slide %1</source>
         <translation type="unfinished">Dia %1</translation>
     </message>
@@ -5297,7 +5312,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+805"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+808"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -10673,24 +10688,24 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../libs/shell/app/printpage.cpp" line="+74"/>
+        <location filename="../libs/shell/app/printpage.cpp" line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
         <location line="+20"/>
-        <location line="+140"/>
+        <location line="+231"/>
         <source>Printer</source>
         <translation>Printer</translation>
     </message>
     <message>
-        <location line="-129"/>
-        <location line="+144"/>
+        <location line="-220"/>
+        <location line="+235"/>
         <source>Copies</source>
         <translation>Exemplaren</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-229"/>
         <source>Collated</source>
         <translation type="unfinished">Gesorteerd</translation>
     </message>
@@ -10733,12 +10748,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+86"/>
+        <location line="+177"/>
         <source>What prints</source>
         <translation type="unfinished">Wat wordt afgedrukt</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-176"/>
         <source>Print Markup</source>
         <translation type="unfinished">Markeringen afdrukken</translation>
     </message>
@@ -10793,7 +10808,32 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation>Papierformaat</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+14"/>
+        <source>Printer Properties…</source>
+        <translation>Printereigenschappen…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Printer Properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Opens the printer&apos;s own settings window.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>Open the PDF after saving</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Opens the file in the program your computer uses for PDF files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Zoom</source>
         <translation>Zoomen</translation>
     </message>
@@ -20211,7 +20251,7 @@ Desktop publishing</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+687"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+755"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Vertalen (wordt geopend in uw browser)</translation>
     </message>
@@ -32067,12 +32107,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="-166"/>
-        <location line="+481"/>
+        <location line="+493"/>
         <source>Export</source>
         <translation type="unfinished">Exporteren</translation>
     </message>
     <message>
-        <location line="-480"/>
+        <location line="-492"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -32147,17 +32187,32 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Recente presentaties</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+96"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location line="-116"/>
-        <source>Printer Properties…</source>
-        <translation type="unfinished">Printereigenschappen…</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="-125"/>
         <source>Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Druk elk exemplaar van alle dia&apos;s achtereenvolgens af (1, 2, 3, 1, 2, 3), niet de exemplaren van elke dia afzonderlijk bij elkaar (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -32207,7 +32262,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">De datum, koptekst, voettekst en paginanummer van notitiepagina&apos;s en hand-outs.</translation>
     </message>
     <message>
-        <location line="+253"/>
+        <location line="+266"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Dia&apos;s opslaan als afbeeldingen</translation>
     </message>
@@ -32222,12 +32277,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Opgeslagen als de auteur van een presentatie die er geen heeft, als wie hem het laatst heeft gewijzigd, en als de naam bij uw opmerkingen.</translation>
     </message>
     <message>
-        <location line="-251"/>
+        <location line="-248"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Voorbeeld van de afgedrukte pagina</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-23"/>
         <source>Print what</source>
         <translation>Afdrukken</translation>
     </message>
@@ -32257,7 +32312,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation>Kleur</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Previous page</source>
         <translation type="unfinished">Vorige pagina</translation>
     </message>
@@ -32267,12 +32322,17 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Volgende pagina</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+67"/>
+        <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Pagina %1 van %2</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+128"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
@@ -32542,8 +32602,8 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::DeckWindow</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-337"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+70"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-350"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+71"/>
         <source>Print what</source>
         <translation>Afdrukken</translation>
     </message>
@@ -32656,8 +32716,8 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Dianummers en -bereiken, gescheiden door komma&apos;s.</translation>
     </message>
     <message>
-        <location line="+137"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+112"/>
+        <location line="+162"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+123"/>
         <source>Enter slide numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Voer dianummers in, zoals 1-3, 5.</translation>
     </message>
@@ -33829,14 +33889,14 @@ Het bestand kan niet worden gelezen.</translation>
 %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-145"/>
-        <location line="+204"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-156"/>
+        <location line="+222"/>
         <location line="+9"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
     <message>
-        <location line="-199"/>
+        <location line="-217"/>
         <source>Print &amp;what</source>
         <translation>&amp;Afdrukken</translation>
     </message>
@@ -33867,6 +33927,16 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Document structure tags for accessibility</source>
         <translation type="unfinished">Documentstructuurtags voor toegankelijkheid</translation>
     </message>
@@ -33886,7 +33956,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Maakt een PDF/A-1b-bestand: elk lettertype zit in het bestand, zodat het er over jaren hetzelfde uitziet.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A is uitgeschakeld, omdat een pdf met wachtwoord geen PDF/A-bestand kan zijn.</translation>
     </message>
@@ -33896,7 +33966,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Exporteren…</translation>
     </message>
     <message numerus="yes">
-        <location line="+69"/>
+        <location line="+74"/>
         <source>%n page(s)</source>
         <translation type="unfinished">
             <numerusform>%n pagina</numerusform>
@@ -33914,14 +33984,19 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Een omtrek heeft geen dia&apos;s om bladwijzers voor te maken.</translation>
     </message>
     <message>
-        <location line="+49"/>
-        <location line="+214"/>
+        <location line="+45"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+219"/>
         <location line="+0"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-207"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet exporteren.
@@ -33929,18 +34004,18 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>Exported %1</source>
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-62"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(niet getagd voor schermlezers: %1)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_format.cpp" line="-124"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+15"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+16"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished">PNG-afbeelding (*.png)</translation>
     </message>
@@ -33994,12 +34069,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+14"/>
         <location line="+22"/>
-        <location line="+187"/>
+        <location line="+200"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Dia&apos;s opslaan als afbeeldingen</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-218"/>
         <source>PNG</source>
         <translation type="unfinished">PNG</translation>
     </message>
@@ -34100,7 +34175,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
-        <location line="+203"/>
+        <location line="+215"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-204"/>
         <location line="+79"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -34139,32 +34214,32 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">De presentatie, als pdf</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
-        <location line="+35"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-83"/>
+        <location line="+39"/>
         <source>Print</source>
         <translation>Afdrukken</translation>
     </message>
     <message>
-        <location line="-35"/>
+        <location line="-39"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">De printer &quot;%1&quot; is niet meer aanwezig. Kies een andere printer.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <location line="+5"/>
-        <location line="+58"/>
+        <location line="+66"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kon &quot;%2&quot; niet maken.
 %3</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>%1 couldn&apos;t make the PDF file &quot;%2&quot;.</source>
         <translation type="unfinished">%1 kon het PDF-bestand &quot;%2&quot; niet maken.</translation>
     </message>
@@ -34175,7 +34250,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+22"/>
+        <location line="+29"/>
         <source>Sent %1 to the printer</source>
         <translation type="unfinished">%1 naar de printer verzonden</translation>
     </message>
@@ -34997,7 +35072,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Kopie opgeslagen als %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-74"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+15"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
@@ -36219,7 +36294,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+29"/>
         <source>Replace</source>
         <translation>Vervangen</translation>
     </message>
@@ -54906,7 +54981,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-578"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-644"/>
         <source>Back to document</source>
         <translation type="unfinished">Terug naar document</translation>
     </message>
@@ -54971,12 +55046,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="-208"/>
-        <location line="+512"/>
+        <location line="+578"/>
         <source>Export</source>
         <translation type="unfinished">Exporteren</translation>
     </message>
     <message>
-        <location line="-511"/>
+        <location line="-577"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -55051,7 +55126,34 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Recente documenten</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+42"/>
+        <location line="+86"/>
+        <source>Margins</source>
+        <translation type="unfinished">Marges</translation>
+    </message>
+    <message>
+        <location line="-85"/>
+        <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+11"/>
+        <source>Custom…</source>
+        <translation type="unfinished">Aangepast…</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>Different in parts of the document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Custom (top %1, bottom %2, left %3, right %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Which pages</source>
         <translation>Welke pagina&apos;s</translation>
     </message>
@@ -55072,6 +55174,16 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Makes the text a little smaller so that the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>(as each section says unless changed)</source>
         <translation type="unfinished">(zoals elke sectie aangeeft, tenzij gewijzigd)</translation>
     </message>
@@ -55086,7 +55198,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation>Papier</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Markup</source>
         <translation type="unfinished">Opmaaktaal</translation>
     </message>
@@ -55101,7 +55213,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation>Zoomen</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+241"/>
         <source>Save as E-book (EPUB)</source>
         <translation type="unfinished">Opslaan als e-book (EPUB)</translation>
     </message>
@@ -55116,7 +55228,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Wordt opgeslagen als de naam bij uw opmerkingen en bijgehouden wijzigingen, en als wie een document het laatst heeft gewijzigd.</translation>
     </message>
     <message>
-        <location line="-348"/>
+        <location line="-407"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Elk exemplaar van het hele document na elkaar afdrukken (1, 2, 3, 1, 2, 3), niet de exemplaren van elke pagina samen (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -55126,7 +55238,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Zoals elke sectie aangeeft</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+33"/>
         <source>All pages</source>
         <translation type="unfinished">Alle pagina&apos;s</translation>
     </message>
@@ -55227,12 +55339,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Elke pagina laten passen op het papier in de printer, ongeacht het formaat van de pagina.</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+281"/>
         <source>The pages, or the ones you choose, as a PDF that looks the same everywhere.</source>
         <translation type="unfinished">De pagina&apos;s, of de pagina&apos;s die je kiest, als PDF die overal hetzelfde eruitziet.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-300"/>
         <source>All pages in the range</source>
         <translation type="unfinished">Alle pagina&apos;s in het bereik</translation>
     </message>
@@ -55247,7 +55359,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Alleen even pagina&apos;s</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+49"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Voorbeeld van de afgedrukte pagina</translation>
     </message>
@@ -55282,7 +55394,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Vier pagina&apos;s</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+63"/>
         <source>Enter page numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Voer paginanummers in, zoals 1-3, 5.</translation>
     </message>
@@ -55302,12 +55414,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Pagina&apos;s %1-%2 van %3</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source> (the document&apos;s sections set other paper for some pages)</source>
         <translation type="unfinished"> (de secties van het document stellen voor sommige pagina&apos;s ander papier in)</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+136"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
@@ -56125,7 +56237,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-715"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-717"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -56313,17 +56425,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+3"/>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>Normal</source>
         <translation type="unfinished">Standaard</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-24"/>
         <source>Heading %1</source>
         <translation type="unfinished">Kop %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Narrow</source>
         <translation type="unfinished">Smal</translation>
     </message>
@@ -56338,7 +56450,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Breed</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Portrait</source>
         <translation type="unfinished">Staand</translation>
     </message>
@@ -57838,7 +57950,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+5"/>
-        <location line="+124"/>
+        <location line="+125"/>
         <location line="+52"/>
         <location line="+445"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -57869,7 +57981,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">OpenDocument-tekst (*.odt *.fodt *.ott)</translation>
     </message>
     <message>
-        <location line="-26"/>
+        <location line="-27"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -57880,7 +57992,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+183"/>
+        <location line="+184"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -57903,15 +58015,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-432"/>
-        <location line="+221"/>
+        <location line="-433"/>
+        <location line="+222"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-221"/>
         <source>Print…</source>
         <translation type="unfinished">Afdrukken…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58086,8 +58204,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-197"/>
         <location line="+122"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+545"/>
-        <location line="+415"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
+        <location line="+501"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet opslaan.
@@ -58260,27 +58378,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-695"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-798"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="+107"/>
-        <location line="+61"/>
+        <location line="+120"/>
+        <location line="+64"/>
         <location line="+13"/>
         <location line="+21"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exporteren naar PDF</translation>
     </message>
     <message>
-        <location line="-185"/>
-        <location line="+36"/>
-        <location line="+206"/>
+        <location line="-201"/>
+        <location line="+32"/>
+        <location line="+227"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">De pagina&apos;s kunnen niet worden gemaakt.</translation>
     </message>
     <message>
-        <location line="-148"/>
+        <location line="-152"/>
         <source>All pages</source>
         <translation type="unfinished">Alle pagina&apos;s</translation>
     </message>
@@ -58310,13 +58428,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Maakt een PDF/A-1b-bestand: alle lettertypen zitten in het bestand, zodat het over jaren er hetzelfde uitziet.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+24"/>
         <source>None of those numbers is a page of the document. Type page numbers such as 1-3, 5.</source>
         <translation type="unfinished">Geen van die nummers is een pagina van het document. Typ paginanummers zoals 1-3, 5.</translation>
     </message>
     <message>
         <location line="+34"/>
-        <location line="+92"/>
+        <location line="+93"/>
         <location line="+19"/>
         <location line="+54"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
@@ -58325,8 +58443,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 %3%4</translation>
     </message>
     <message>
-        <location line="-162"/>
-        <location line="+93"/>
+        <location line="-163"/>
+        <location line="+94"/>
         <location line="+18"/>
         <location line="+54"/>
         <source>Exported %1</source>
@@ -58383,33 +58501,33 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Tekst (*.txt)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+151"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">De printer &quot;%1&quot; is er niet meer. Kies een andere printer.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <location line="+4"/>
-        <location line="+73"/>
+        <location line="+76"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
-        <location line="-73"/>
+        <location line="-76"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 kan &quot;%2&quot; niet maken.
 %3</translation>
     </message>
     <message>
-        <location line="-16"/>
-        <location line="+42"/>
+        <location line="-18"/>
+        <location line="+47"/>
         <location line="+48"/>
         <source>Print</source>
         <translation>Afdrukken</translation>
     </message>
     <message>
-        <location line="-572"/>
+        <location line="-662"/>
         <source>Pages to include</source>
         <translation>Pagina&apos;s om op te nemen</translation>
     </message>
@@ -58424,12 +58542,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">PDF/A, voor langdurige bewaring</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A is uitgeschakeld, omdat een pdf met wachtwoord geen PDF/A-bestand kan zijn.</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+71"/>
         <source>The document &quot;%1&quot; is attached.</source>
         <translation type="unfinished">Het document &quot;%1&quot; is bijgevoegd.</translation>
     </message>
@@ -58457,7 +58575,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">E-mail</translation>
     </message>
     <message>
-        <location line="-212"/>
+        <location line="-233"/>
         <source>page %1</source>
         <translation type="unfinished">pagina %1</translation>
     </message>
@@ -58467,7 +58585,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">pagina&apos;s %1</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+33"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
         <source>Standard (for publishing online and printing)</source>
         <translation type="unfinished">Standaard (voor online publiceren en afdrukken)</translation>
     </message>
@@ -58502,12 +58625,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Labelt de koppen, alinea&apos;s, lijsten, tabellen en afbeeldingen (met hun alternatieve tekst), zodat een schermlezer de PDF in de juiste volgorde voorleest.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+65"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(niet getagd voor schermlezers: %1)</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+59"/>
         <source>%1 couldn&apos;t make the message.
 %2</source>
         <translation type="unfinished">%1 kon het bericht niet maken.
@@ -58654,7 +58777,47 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand bevat alleen de woorden van het document: geen lettertypen, afbeeldingen of randen van tabellen. Kies hoe de tekens en regeleindes worden geschreven. Aan het eind van elke alinea komt een regeleinde. Een teken dat de codering niet kan weergeven, wordt opgeslagen als vraagteken.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+52"/>
+        <source>The document is one page long already.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>The document could not be measured, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Made the text a little smaller, so the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+86"/>
         <source>That is more pages than one job can send. Print fewer pages or fewer copies.</source>
         <translation type="unfinished">Dat zijn meer pagina&apos;s dan één taak kan verzenden. Druk minder pagina&apos;s af of minder exemplaren.</translation>
     </message>
@@ -58674,7 +58837,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Tekstkleur</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_layout.cpp" line="+25"/>
+        <location filename="../apps/write/app/writewindow_layout.cpp" line="+57"/>
         <source>Mirrored</source>
         <translation type="unfinished">Spiegelbeeldig</translation>
     </message>
@@ -59509,7 +59672,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-303"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
         <source>Author</source>
         <translation>Auteur</translation>
     </message>
@@ -69930,7 +70093,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::deck::Output</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+49"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+50"/>
         <location line="+38"/>
         <source>Slide %1</source>
         <translation type="unfinished">Dia %1</translation>

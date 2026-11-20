@@ -2560,13 +2560,28 @@ Matéria da última página	4</translation>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+584"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
+        <source>Comments on slide %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Comments on slide %1, continued</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+201"/>
+        <source>Comments not shown: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+234"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Não há slides para imprimir.</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <location line="+21"/>
+        <location line="+54"/>
+        <location line="+35"/>
         <source>The PDF can&apos;t be started.</source>
         <translation type="unfinished">Não é possível iniciar o PDF.</translation>
     </message>
@@ -2576,7 +2591,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">slide %1</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Slide %1</source>
         <translation type="unfinished">Slide %1</translation>
     </message>
@@ -5297,7 +5312,7 @@ Matéria da última página	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+805"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+808"/>
         <source>Save</source>
         <translation type="unfinished">Salvar</translation>
     </message>
@@ -10673,24 +10688,24 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../libs/shell/app/printpage.cpp" line="+74"/>
+        <location filename="../libs/shell/app/printpage.cpp" line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Salvar como PDF</translation>
     </message>
     <message>
         <location line="+20"/>
-        <location line="+140"/>
+        <location line="+231"/>
         <source>Printer</source>
         <translation>Impressora</translation>
     </message>
     <message>
-        <location line="-129"/>
-        <location line="+144"/>
+        <location line="-220"/>
+        <location line="+235"/>
         <source>Copies</source>
         <translation>Cópias</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-229"/>
         <source>Collated</source>
         <translation type="unfinished">Agrupadas</translation>
     </message>
@@ -10733,12 +10748,12 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+86"/>
+        <location line="+177"/>
         <source>What prints</source>
         <translation type="unfinished">O que imprimir</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-176"/>
         <source>Print Markup</source>
         <translation type="unfinished">Imprimir Marcações</translation>
     </message>
@@ -10793,7 +10808,32 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation>Tamanho do papel</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+14"/>
+        <source>Printer Properties…</source>
+        <translation type="unfinished">Propriedades da Impressora…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Printer Properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Opens the printer&apos;s own settings window.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>Open the PDF after saving</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Opens the file in the program your computer uses for PDF files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -20211,7 +20251,7 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+687"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+755"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Traduzir (abre no navegador)</translation>
     </message>
@@ -32067,12 +32107,12 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="-166"/>
-        <location line="+481"/>
+        <location line="+493"/>
         <source>Export</source>
         <translation type="unfinished">Exportar</translation>
     </message>
     <message>
-        <location line="-480"/>
+        <location line="-492"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
@@ -32147,17 +32187,32 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Apresentações Recentes</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+96"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location line="-116"/>
-        <source>Printer Properties…</source>
-        <translation type="unfinished">Propriedades da Impressora…</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="-125"/>
         <source>Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Imprimir cada cópia de todas as páginas em sequência (1, 2, 3, 1, 2, 3), e não as cópias de cada página juntas (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -32207,7 +32262,7 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">A data, o cabeçalho, o rodapé e o número de página das páginas de anotações e dos folhetos.</translation>
     </message>
     <message>
-        <location line="+253"/>
+        <location line="+266"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Salvar Slides como Imagens</translation>
     </message>
@@ -32222,12 +32277,12 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Salvo como o autor de uma apresentação que não tem um, como quem a alterou por último e como o nome em seus comentários.</translation>
     </message>
     <message>
-        <location line="-251"/>
+        <location line="-248"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Visualização da página impressa</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-23"/>
         <source>Print what</source>
         <translation>Imprimir</translation>
     </message>
@@ -32257,7 +32312,7 @@ Não é possível ler o arquivo.</translation>
         <translation>Cor</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Previous page</source>
         <translation type="unfinished">Página anterior</translation>
     </message>
@@ -32267,12 +32322,17 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Próxima página</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+67"/>
+        <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Página %1 de %2</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+128"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exportar para PDF</translation>
     </message>
@@ -32542,8 +32602,8 @@ Não é possível ler o arquivo.</translation>
 <context>
     <name>jp::DeckWindow</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-337"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+70"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-350"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+71"/>
         <source>Print what</source>
         <translation>Imprimir</translation>
     </message>
@@ -32656,8 +32716,8 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Números e intervalos de slides, separados por vírgulas.</translation>
     </message>
     <message>
-        <location line="+137"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+112"/>
+        <location line="+162"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+123"/>
         <source>Enter slide numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Insira os números dos slides, como 1-3, 5.</translation>
     </message>
@@ -33829,14 +33889,14 @@ Não é possível ler o arquivo.</translation>
 %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-145"/>
-        <location line="+204"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-156"/>
+        <location line="+222"/>
         <location line="+9"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exportar para PDF</translation>
     </message>
     <message>
-        <location line="-199"/>
+        <location line="-217"/>
         <source>Print &amp;what</source>
         <translation>&amp;Imprimir</translation>
     </message>
@@ -33867,6 +33927,16 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Document structure tags for accessibility</source>
         <translation type="unfinished">Tags de estrutura do documento para acessibilidade</translation>
     </message>
@@ -33886,7 +33956,7 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Cria um arquivo PDF/A-1b: todas as fontes ficam no arquivo, para que ele continue igual com o passar dos anos.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">O PDF/A está desativado, porque um PDF com senha não pode ser um arquivo PDF/A.</translation>
     </message>
@@ -33896,7 +33966,7 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Exportar…</translation>
     </message>
     <message numerus="yes">
-        <location line="+69"/>
+        <location line="+74"/>
         <source>%n page(s)</source>
         <translation type="unfinished">
             <numerusform>%n página</numerusform>
@@ -33914,14 +33984,19 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Um contorno não tem slides para adicionar indicadores.</translation>
     </message>
     <message>
-        <location line="+49"/>
-        <location line="+214"/>
+        <location line="+45"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+219"/>
         <location line="+0"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-207"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 não pôde exportar &quot;%2&quot;.
@@ -33929,18 +34004,18 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>Exported %1</source>
         <translation type="unfinished">%1 exportado</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-62"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(não marcado para leitores de tela: %1)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_format.cpp" line="-124"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+15"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+16"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished">Imagem PNG (*.png)</translation>
     </message>
@@ -33994,12 +34069,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+14"/>
         <location line="+22"/>
-        <location line="+187"/>
+        <location line="+200"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Salvar Slides como Imagens</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-218"/>
         <source>PNG</source>
         <translation type="unfinished">PNG</translation>
     </message>
@@ -34100,7 +34175,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
-        <location line="+203"/>
+        <location line="+215"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-204"/>
         <location line="+79"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -34139,32 +34214,32 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">A apresentação, como PDF</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
-        <location line="+35"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-83"/>
+        <location line="+39"/>
         <source>Print</source>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-35"/>
+        <location line="-39"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">A impressora &quot;%1&quot; não está mais disponível. Escolha outra impressora.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <location line="+5"/>
-        <location line="+58"/>
+        <location line="+66"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Salvar como PDF</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 não conseguiu criar &quot;%2&quot;.
 %3</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>%1 couldn&apos;t make the PDF file &quot;%2&quot;.</source>
         <translation type="unfinished">%1 não conseguiu criar o arquivo PDF &quot;%2&quot;.</translation>
     </message>
@@ -34175,7 +34250,7 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+22"/>
+        <location line="+29"/>
         <source>Sent %1 to the printer</source>
         <translation type="unfinished">%1 enviado para a impressora</translation>
     </message>
@@ -34997,7 +35072,7 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Cópia salva como %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-74"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+15"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 salvo</translation>
@@ -36219,7 +36294,7 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+29"/>
         <source>Replace</source>
         <translation>Substituir</translation>
     </message>
@@ -54906,7 +54981,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-578"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-644"/>
         <source>Back to document</source>
         <translation type="unfinished">Voltar ao documento</translation>
     </message>
@@ -54971,12 +55046,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="-208"/>
-        <location line="+512"/>
+        <location line="+578"/>
         <source>Export</source>
         <translation type="unfinished">Exportar</translation>
     </message>
     <message>
-        <location line="-511"/>
+        <location line="-577"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
@@ -55051,7 +55126,34 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Documentos Recentes</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+42"/>
+        <location line="+86"/>
+        <source>Margins</source>
+        <translation type="unfinished">Margens</translation>
+    </message>
+    <message>
+        <location line="-85"/>
+        <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+11"/>
+        <source>Custom…</source>
+        <translation type="unfinished">Personalizado…</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>Different in parts of the document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Custom (top %1, bottom %2, left %3, right %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Which pages</source>
         <translation>Quais páginas</translation>
     </message>
@@ -55072,6 +55174,16 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Makes the text a little smaller so that the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>(as each section says unless changed)</source>
         <translation type="unfinished">(conforme indicado em cada seção, salvo alteração)</translation>
     </message>
@@ -55086,7 +55198,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation>Papel</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Markup</source>
         <translation type="unfinished">Marcação</translation>
     </message>
@@ -55101,7 +55213,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation>Zoom</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+241"/>
         <source>Save as E-book (EPUB)</source>
         <translation type="unfinished">Salvar como E-book (EPUB)</translation>
     </message>
@@ -55116,7 +55228,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Salvo com o nome nos seus comentários e alterações controladas, e como quem alterou o documento por último.</translation>
     </message>
     <message>
-        <location line="-348"/>
+        <location line="-407"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Imprimir cada cópia do documento inteiro por vez (1, 2, 3, 1, 2, 3), e não as cópias de cada página juntas (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -55126,7 +55238,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Conforme indicado em cada seção</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+33"/>
         <source>All pages</source>
         <translation type="unfinished">Todas as páginas</translation>
     </message>
@@ -55227,12 +55339,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Faça cada página caber no papel da impressora, qualquer que seja o tamanho da página.</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+281"/>
         <source>The pages, or the ones you choose, as a PDF that looks the same everywhere.</source>
         <translation type="unfinished">As páginas, ou as que você escolher, como um PDF que tem a mesma aparência em qualquer lugar.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-300"/>
         <source>All pages in the range</source>
         <translation type="unfinished">Todas as páginas do intervalo</translation>
     </message>
@@ -55247,7 +55359,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Somente páginas pares</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+49"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Visualização da página impressa</translation>
     </message>
@@ -55282,7 +55394,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Quatro páginas</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+63"/>
         <source>Enter page numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Digite os números das páginas, como 1-3, 5.</translation>
     </message>
@@ -55302,12 +55414,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Páginas %1-%2 de %3</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source> (the document&apos;s sections set other paper for some pages)</source>
         <translation type="unfinished"> (as seções do documento definem outro papel para algumas páginas)</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+136"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exportar para PDF</translation>
     </message>
@@ -56125,7 +56237,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-715"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-717"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -56313,17 +56425,17 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+3"/>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-24"/>
         <source>Heading %1</source>
         <translation type="unfinished">Título %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Narrow</source>
         <translation type="unfinished">Estreita</translation>
     </message>
@@ -56338,7 +56450,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Larga</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Portrait</source>
         <translation type="unfinished">Retrato</translation>
     </message>
@@ -57838,7 +57950,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+5"/>
-        <location line="+124"/>
+        <location line="+125"/>
         <location line="+52"/>
         <location line="+445"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -57869,7 +57981,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Texto OpenDocument (*.odt *.fodt *.ott)</translation>
     </message>
     <message>
-        <location line="-26"/>
+        <location line="-27"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
@@ -57880,7 +57992,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+183"/>
+        <location line="+184"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -57903,15 +58015,21 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Salvar</translation>
     </message>
     <message>
-        <location line="-432"/>
-        <location line="+221"/>
+        <location line="-433"/>
+        <location line="+222"/>
         <source>Save As</source>
         <translation type="unfinished">Salvar Como</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-221"/>
         <source>Print…</source>
         <translation type="unfinished">Imprimir…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58086,8 +58204,8 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="-197"/>
         <location line="+122"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+545"/>
-        <location line="+415"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
+        <location line="+501"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">O %1 não pôde salvar &quot;%2&quot;.
@@ -58260,27 +58378,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-695"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-798"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="+107"/>
-        <location line="+61"/>
+        <location line="+120"/>
+        <location line="+64"/>
         <location line="+13"/>
         <location line="+21"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Exportar para PDF</translation>
     </message>
     <message>
-        <location line="-185"/>
-        <location line="+36"/>
-        <location line="+206"/>
+        <location line="-201"/>
+        <location line="+32"/>
+        <location line="+227"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">Não é possível gerar as páginas.</translation>
     </message>
     <message>
-        <location line="-148"/>
+        <location line="-152"/>
         <source>All pages</source>
         <translation type="unfinished">Todas as páginas</translation>
     </message>
@@ -58310,13 +58428,13 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Cria um arquivo PDF/A-1b: todas as fontes ficam no arquivo, então ele terá a mesma aparência daqui a anos.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+24"/>
         <source>None of those numbers is a page of the document. Type page numbers such as 1-3, 5.</source>
         <translation type="unfinished">Nenhum desses números é uma página do documento. Digite números de página, como 1-3, 5.</translation>
     </message>
     <message>
         <location line="+34"/>
-        <location line="+92"/>
+        <location line="+93"/>
         <location line="+19"/>
         <location line="+54"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
@@ -58325,8 +58443,8 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 %3%4</translation>
     </message>
     <message>
-        <location line="-162"/>
-        <location line="+93"/>
+        <location line="-163"/>
+        <location line="+94"/>
         <location line="+18"/>
         <location line="+54"/>
         <source>Exported %1</source>
@@ -58383,33 +58501,33 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Texto (*.txt)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+151"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">A impressora &quot;%1&quot; não está mais disponível. Escolha outra impressora.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <location line="+4"/>
-        <location line="+73"/>
+        <location line="+76"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Salvar como PDF</translation>
     </message>
     <message>
-        <location line="-73"/>
+        <location line="-76"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">O %1 não conseguiu criar &quot;%2&quot;.
 %3</translation>
     </message>
     <message>
-        <location line="-16"/>
-        <location line="+42"/>
+        <location line="-18"/>
+        <location line="+47"/>
         <location line="+48"/>
         <source>Print</source>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-572"/>
+        <location line="-662"/>
         <source>Pages to include</source>
         <translation>Páginas a incluir</translation>
     </message>
@@ -58424,12 +58542,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">PDF/A, para guardar por muito tempo</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A está desativado, porque um PDF com senha não pode ser um arquivo PDF/A.</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+71"/>
         <source>The document &quot;%1&quot; is attached.</source>
         <translation type="unfinished">O documento &quot;%1&quot; está anexado.</translation>
     </message>
@@ -58457,7 +58575,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">E-mail</translation>
     </message>
     <message>
-        <location line="-212"/>
+        <location line="-233"/>
         <source>page %1</source>
         <translation type="unfinished">página %1</translation>
     </message>
@@ -58467,7 +58585,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">páginas %1</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+33"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
         <source>Standard (for publishing online and printing)</source>
         <translation type="unfinished">Padrão (para publicação online e impressão)</translation>
     </message>
@@ -58502,12 +58625,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Marca os títulos, parágrafos, listas, tabelas e imagens (com seus textos alternativos), para que um leitor de tela leia o PDF na ordem correta.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+65"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(sem marcação para leitores de tela: %1)</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+59"/>
         <source>%1 couldn&apos;t make the message.
 %2</source>
         <translation type="unfinished">%1 não conseguiu criar a mensagem.
@@ -58654,7 +58777,47 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O arquivo conterá apenas as palavras do documento: sem fontes, imagens ou bordas de tabelas. Escolha como os caracteres e os finais de linha serão gravados. Uma quebra de linha ocorre no fim de cada parágrafo. Um caractere que a codificação não comporta será salvo como ponto de interrogação.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+52"/>
+        <source>The document is one page long already.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>The document could not be measured, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Made the text a little smaller, so the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+86"/>
         <source>That is more pages than one job can send. Print fewer pages or fewer copies.</source>
         <translation type="unfinished">Este trabalho tem mais páginas do que pode enviar. Imprima menos páginas ou menos cópias.</translation>
     </message>
@@ -58674,7 +58837,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Cor da Fonte</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_layout.cpp" line="+25"/>
+        <location filename="../apps/write/app/writewindow_layout.cpp" line="+57"/>
         <source>Mirrored</source>
         <translation type="unfinished">Espelhadas</translation>
     </message>
@@ -59509,7 +59672,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-303"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
         <source>Author</source>
         <translation>Autor</translation>
     </message>
@@ -69930,7 +70093,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::deck::Output</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+49"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+50"/>
         <location line="+38"/>
         <source>Slide %1</source>
         <translation type="unfinished">Slide %1</translation>

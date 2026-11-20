@@ -2561,13 +2561,28 @@ Back page story	4</source>
 <context>
     <name>DeckOutput</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+584"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+394"/>
+        <source>Comments on slide %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Comments on slide %1, continued</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+201"/>
+        <source>Comments not shown: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+234"/>
         <source>There are no slides to print.</source>
         <translation type="unfinished">Нет слайдов для печати.</translation>
     </message>
     <message>
-        <location line="+47"/>
-        <location line="+21"/>
+        <location line="+54"/>
+        <location line="+35"/>
         <source>The PDF can&apos;t be started.</source>
         <translation type="unfinished">Не удалось запустить PDF.</translation>
     </message>
@@ -2577,7 +2592,7 @@ Back page story	4</source>
         <translation type="unfinished">слайд %1</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Slide %1</source>
         <translation type="unfinished">Слайд %1</translation>
     </message>
@@ -5298,7 +5313,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+805"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+808"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
@@ -10681,24 +10696,24 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Print</name>
     <message>
-        <location filename="../libs/shell/app/printpage.cpp" line="+74"/>
+        <location filename="../libs/shell/app/printpage.cpp" line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Сохранить как PDF</translation>
     </message>
     <message>
         <location line="+20"/>
-        <location line="+140"/>
+        <location line="+231"/>
         <source>Printer</source>
         <translation>Принтер</translation>
     </message>
     <message>
-        <location line="-129"/>
-        <location line="+144"/>
+        <location line="-220"/>
+        <location line="+235"/>
         <source>Copies</source>
         <translation>Копии</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-229"/>
         <source>Collated</source>
         <translation type="unfinished">Разобрать по копиям</translation>
     </message>
@@ -10741,12 +10756,12 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+8"/>
-        <location line="+86"/>
+        <location line="+177"/>
         <source>What prints</source>
         <translation type="unfinished">Что печатать</translation>
     </message>
     <message>
-        <location line="-85"/>
+        <location line="-176"/>
         <source>Print Markup</source>
         <translation type="unfinished">Печатать с исправлениями</translation>
     </message>
@@ -10801,7 +10816,32 @@ Download it from %2 now? (%3, once.)</source>
         <translation>Размер бумаги</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+14"/>
+        <source>Printer Properties…</source>
+        <translation type="unfinished">Свойства принтера…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Printer Properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Opens the printer&apos;s own settings window.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
+        <source>Open the PDF after saving</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Opens the file in the program your computer uses for PDF files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
     </message>
@@ -20221,7 +20261,7 @@ Desktop publishing</source>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+687"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+755"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Перевести (откроется в браузере)</translation>
     </message>
@@ -32090,12 +32130,12 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-166"/>
-        <location line="+481"/>
+        <location line="+493"/>
         <source>Export</source>
         <translation type="unfinished">Экспорт</translation>
     </message>
     <message>
-        <location line="-480"/>
+        <location line="-492"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -32170,17 +32210,32 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Недавние презентации</translation>
     </message>
     <message>
-        <location line="+144"/>
+        <location line="+96"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>High quality</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+58"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
     </message>
     <message>
-        <location line="-116"/>
-        <source>Printer Properties…</source>
-        <translation type="unfinished">Свойства принтера…</translation>
-    </message>
-    <message>
-        <location line="+7"/>
+        <location line="-125"/>
         <source>Print each copy of all the pages in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Печатать каждую копию всех страниц по очереди (1, 2, 3, 1, 2, 3), а не копии каждой страницы вместе (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -32230,7 +32285,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Дата, верхний и нижний колонтитулы и номер страницы для страниц заметок и раздаточных материалов.</translation>
     </message>
     <message>
-        <location line="+253"/>
+        <location line="+266"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Сохранить слайды как рисунки</translation>
     </message>
@@ -32255,12 +32310,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Сохраняется как автор презентации, если он не указан, как последний пользователь, изменивший её, и как имя в ваших примечаниях.</translation>
     </message>
     <message>
-        <location line="-251"/>
+        <location line="-248"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Предварительный просмотр печатной страницы</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-23"/>
         <source>Print what</source>
         <translation>Печатать</translation>
     </message>
@@ -32290,7 +32345,7 @@ The file can&apos;t be read.</source>
         <translation>Цвет</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+19"/>
         <source>Previous page</source>
         <translation type="unfinished">Предыдущая страница</translation>
     </message>
@@ -32300,12 +32355,17 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Следующая страница</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+67"/>
+        <source>These pages are too large for High quality, so they are made at 300 to the inch.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Страница %1 из %2</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+128"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Экспорт в PDF</translation>
     </message>
@@ -32565,8 +32625,8 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::DeckWindow</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-337"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+70"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="-350"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+71"/>
         <source>Print what</source>
         <translation>Печатать</translation>
     </message>
@@ -32679,8 +32739,8 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Номера слайдов и диапазоны, разделённые запятыми.</translation>
     </message>
     <message>
-        <location line="+137"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+112"/>
+        <location line="+162"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+123"/>
         <source>Enter slide numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Введите номера слайдов, например 1-3, 5.</translation>
     </message>
@@ -33852,14 +33912,14 @@ The file can&apos;t be read.</source>
 %2</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-145"/>
-        <location line="+204"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-156"/>
+        <location line="+222"/>
         <location line="+9"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Экспорт в PDF</translation>
     </message>
     <message>
-        <location line="-199"/>
+        <location line="-217"/>
         <source>Print &amp;what</source>
         <translation>&amp;Что печатать</translation>
     </message>
@@ -33890,6 +33950,16 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+5"/>
+        <source>Print comments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The pages of the slide&apos;s review comments after each slide that has any (slides and notes pages).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Document structure tags for accessibility</source>
         <translation type="unfinished">Теги структуры документа для специальных возможностей</translation>
     </message>
@@ -33909,7 +33979,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Создаёт файл PDF/A-1b: все шрифты внедрены в файл, поэтому через годы он будет выглядеть так же.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A отключён, так как PDF с паролем не может быть файлом PDF/A.</translation>
     </message>
@@ -33919,7 +33989,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Экспорт…</translation>
     </message>
     <message numerus="yes">
-        <location line="+69"/>
+        <location line="+74"/>
         <source>%n page(s)</source>
         <translation type="unfinished">
             <numerusform>%n страница</numerusform>
@@ -33938,14 +34008,19 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">В структуре нет слайдов, для которых можно создать закладки.</translation>
     </message>
     <message>
-        <location line="+49"/>
-        <location line="+214"/>
+        <location line="+45"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+219"/>
         <location line="+0"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-202"/>
+        <location line="-207"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не удалось экспортировать «%2».
@@ -33953,18 +34028,18 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+62"/>
+        <location line="+63"/>
         <source>Exported %1</source>
         <translation type="unfinished">Экспортировано: %1</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-62"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(не помечено для программ чтения с экрана: %1)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_format.cpp" line="-124"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+15"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+16"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished">Рисунок PNG (*.png)</translation>
     </message>
@@ -34018,12 +34093,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+14"/>
         <location line="+22"/>
-        <location line="+187"/>
+        <location line="+200"/>
         <source>Save Slides as Pictures</source>
         <translation type="unfinished">Сохранить слайды как рисунки</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-218"/>
         <source>PNG</source>
         <translation type="unfinished">PNG</translation>
     </message>
@@ -34124,7 +34199,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
-        <location line="+203"/>
+        <location line="+215"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-204"/>
         <location line="+79"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -34163,32 +34238,32 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Презентация в виде PDF</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
-        <location line="+35"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-83"/>
+        <location line="+39"/>
         <source>Print</source>
         <translation>Печать</translation>
     </message>
     <message>
-        <location line="-35"/>
+        <location line="-39"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">Принтер «%1» больше недоступен. Выберите другой принтер.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <location line="+5"/>
-        <location line="+58"/>
+        <location line="+66"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Сохранить как PDF</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 не удалось создать «%2».
 %3</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+22"/>
         <source>%1 couldn&apos;t make the PDF file &quot;%2&quot;.</source>
         <translation type="unfinished">%1 не удалось создать файл PDF «%2».</translation>
     </message>
@@ -34199,7 +34274,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+22"/>
+        <location line="+29"/>
         <source>Sent %1 to the printer</source>
         <translation type="unfinished">%1 отправлено на принтер</translation>
     </message>
@@ -35028,7 +35103,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Копия сохранена как %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-73"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="-74"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+15"/>
         <source>Saved %1</source>
         <translation type="unfinished">Сохранено: %1</translation>
@@ -35918,7 +35993,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+28"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+29"/>
         <source>Replace</source>
         <translation>Заменить</translation>
     </message>
@@ -54939,7 +55014,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-578"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-644"/>
         <source>Back to document</source>
         <translation type="unfinished">Вернуться к документу</translation>
     </message>
@@ -55004,12 +55079,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="-208"/>
-        <location line="+512"/>
+        <location line="+578"/>
         <source>Export</source>
         <translation type="unfinished">Экспорт</translation>
     </message>
     <message>
-        <location line="-511"/>
+        <location line="-577"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -55084,7 +55159,34 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Недавние документы</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+42"/>
+        <location line="+86"/>
+        <source>Margins</source>
+        <translation type="unfinished">Поля</translation>
+    </message>
+    <message>
+        <location line="-85"/>
+        <source>The margins of the document&apos;s pages, as Page Setup has them. A choice changes the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+11"/>
+        <source>Custom…</source>
+        <translation type="unfinished">Пользовательская…</translation>
+    </message>
+    <message>
+        <location line="-10"/>
+        <source>Different in parts of the document</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Custom (top %1, bottom %2, left %3, right %4)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+62"/>
         <source>Which pages</source>
         <translation>Какие страницы</translation>
     </message>
@@ -55105,6 +55207,16 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Makes the text a little smaller so that the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>(as each section says unless changed)</source>
         <translation type="unfinished">(как указано в каждом разделе, если не изменено)</translation>
     </message>
@@ -55119,7 +55231,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Бумага</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+4"/>
         <source>Markup</source>
         <translation type="unfinished">Разметка</translation>
     </message>
@@ -55134,7 +55246,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Масштаб</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+241"/>
         <source>Save as E-book (EPUB)</source>
         <translation type="unfinished">Сохранить как электронную книгу (EPUB)</translation>
     </message>
@@ -55149,7 +55261,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сохраняется как имя, которое отображается в ваших примечаниях и исправлениях, а также как имя последнего изменившего документ.</translation>
     </message>
     <message>
-        <location line="-348"/>
+        <location line="-407"/>
         <source>Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page&apos;s copies together (1, 1, 2, 2, 3, 3).</source>
         <translation type="unfinished">Печатать каждую копию всего документа по очереди (1, 2, 3, 1, 2, 3), а не копии каждой страницы вместе (1, 1, 2, 2, 3, 3).</translation>
     </message>
@@ -55159,7 +55271,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Как указано в каждом разделе</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+33"/>
         <source>All pages</source>
         <translation type="unfinished">Все страницы</translation>
     </message>
@@ -55260,12 +55372,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Уменьшать или увеличивать каждую страницу, чтобы она помещалась на бумаге в принтере, каков бы ни был её размер.</translation>
     </message>
     <message>
-        <location line="+243"/>
+        <location line="+281"/>
         <source>The pages, or the ones you choose, as a PDF that looks the same everywhere.</source>
         <translation type="unfinished">Страницы или выбранные вами страницы в виде PDF, который одинаково выглядит на любом устройстве.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-300"/>
         <source>All pages in the range</source>
         <translation type="unfinished">Все страницы в диапазоне</translation>
     </message>
@@ -55280,7 +55392,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Только чётные страницы</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+49"/>
         <source>Preview of the printed page</source>
         <translation type="unfinished">Предварительный просмотр напечатанной страницы</translation>
     </message>
@@ -55315,7 +55427,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Четыре страницы</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+63"/>
         <source>Enter page numbers, such as 1-3, 5.</source>
         <translation type="unfinished">Введите номера страниц, например 1-3, 5.</translation>
     </message>
@@ -55335,12 +55447,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Страницы %1-%2 из %3</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+24"/>
         <source> (the document&apos;s sections set other paper for some pages)</source>
         <translation type="unfinished"> (в разделах документа для некоторых страниц задана другая бумага)</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+136"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Экспорт в PDF</translation>
     </message>
@@ -56158,7 +56270,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-715"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-717"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -56346,17 +56458,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+3"/>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>Normal</source>
         <translation type="unfinished">Обычный</translation>
     </message>
     <message>
-        <location line="-23"/>
+        <location line="-24"/>
         <source>Heading %1</source>
         <translation type="unfinished">Заголовок %1</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Narrow</source>
         <translation type="unfinished">Узкие</translation>
     </message>
@@ -56371,7 +56483,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Широкие</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Portrait</source>
         <translation type="unfinished">Книжная</translation>
     </message>
@@ -56706,7 +56818,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+5"/>
-        <location line="+124"/>
+        <location line="+125"/>
         <location line="+52"/>
         <location line="+445"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -56714,13 +56826,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Открыть</translation>
     </message>
     <message>
-        <location line="-620"/>
+        <location line="-621"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+183"/>
+        <location line="+184"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -56743,15 +56855,21 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сохранить</translation>
     </message>
     <message>
-        <location line="-432"/>
-        <location line="+221"/>
+        <location line="-433"/>
+        <location line="+222"/>
         <source>Save As</source>
         <translation type="unfinished">Сохранить как</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-221"/>
         <source>Print…</source>
         <translation type="unfinished">Печать…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <source>Shrink by One Page</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -56944,8 +57062,8 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="-3"/>
         <location line="+122"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+545"/>
-        <location line="+415"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
+        <location line="+501"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не может сохранить «%2».
@@ -57262,7 +57380,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-303"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
         <source>Author</source>
         <translation>Автор</translation>
     </message>
@@ -57915,7 +58033,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_layout.cpp" line="+81"/>
+        <location filename="../apps/write/app/writewindow_layout.cpp" line="+113"/>
         <source>Continuous</source>
         <translation type="unfinished">Непрерывный</translation>
     </message>
@@ -58233,27 +58351,27 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставить концевую сноску</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-406"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="+107"/>
-        <location line="+61"/>
+        <location line="+120"/>
+        <location line="+64"/>
         <location line="+13"/>
         <location line="+21"/>
         <source>Export to PDF</source>
         <translation type="unfinished">Экспорт в PDF</translation>
     </message>
     <message>
-        <location line="-185"/>
-        <location line="+36"/>
-        <location line="+206"/>
+        <location line="-201"/>
+        <location line="+32"/>
+        <location line="+227"/>
         <source>The pages can&apos;t be made.</source>
         <translation type="unfinished">Не удалось создать страницы.</translation>
     </message>
     <message>
-        <location line="-148"/>
+        <location line="-152"/>
         <source>All pages</source>
         <translation type="unfinished">Все страницы</translation>
     </message>
@@ -58283,13 +58401,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Создаёт файл PDF/A-1b: все шрифты внедряются в файл, поэтому он будет выглядеть одинаково и через годы.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+24"/>
         <source>None of those numbers is a page of the document. Type page numbers such as 1-3, 5.</source>
         <translation type="unfinished">Ни один из этих номеров не соответствует странице документа. Введите номера страниц, например 1-3, 5.</translation>
     </message>
     <message>
         <location line="+34"/>
-        <location line="+92"/>
+        <location line="+93"/>
         <location line="+19"/>
         <location line="+54"/>
         <source>%1 couldn&apos;t export &quot;%2&quot;.
@@ -58298,8 +58416,8 @@ The password couldn&apos;t be put on the file.</source>
 %3%4</translation>
     </message>
     <message>
-        <location line="-162"/>
-        <location line="+93"/>
+        <location line="-163"/>
+        <location line="+94"/>
         <location line="+18"/>
         <location line="+54"/>
         <source>Exported %1</source>
@@ -58356,33 +58474,33 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Текст (*.txt)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+151"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">Принтер «%1» больше недоступен. Выберите другой принтер.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <location line="+4"/>
-        <location line="+73"/>
+        <location line="+76"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Сохранить как PDF</translation>
     </message>
     <message>
-        <location line="-73"/>
+        <location line="-76"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 не удалось создать «%2».
 %3</translation>
     </message>
     <message>
-        <location line="-16"/>
-        <location line="+42"/>
+        <location line="-18"/>
+        <location line="+47"/>
         <location line="+48"/>
         <source>Print</source>
         <translation>Печать</translation>
     </message>
     <message>
-        <location line="-572"/>
+        <location line="-662"/>
         <source>Pages to include</source>
         <translation>Страницы для включения</translation>
     </message>
@@ -58397,12 +58515,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">PDF/A, для долгого хранения</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>PDF/A is turned off, because a PDF with a password can&apos;t be a PDF/A file.</source>
         <translation type="unfinished">PDF/A отключён, так как PDF с паролем не может быть файлом PDF/A.</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+71"/>
         <source>The document &quot;%1&quot; is attached.</source>
         <translation type="unfinished">Документ «%1» прикреплён.</translation>
     </message>
@@ -58430,7 +58548,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Эл. почта</translation>
     </message>
     <message>
-        <location line="-212"/>
+        <location line="-233"/>
         <source>page %1</source>
         <translation type="unfinished">страница %1</translation>
     </message>
@@ -58440,7 +58558,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">страницы %1</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+33"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
         <source>Standard (for publishing online and printing)</source>
         <translation type="unfinished">Стандартный (для публикации в Интернете и печати)</translation>
     </message>
@@ -58475,12 +58598,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Добавляет теги заголовкам, абзацам, спискам, таблицам и рисункам (с их альтернативным текстом), чтобы программа чтения с экрана читала PDF по порядку.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+65"/>
         <source>(not tagged for screen readers: %1)</source>
         <translation type="unfinished">(без тегов для программ чтения с экрана: %1)</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+59"/>
         <source>%1 couldn&apos;t make the message.
 %2</source>
         <translation type="unfinished">%1 не удалось создать сообщение.
@@ -58627,7 +58750,47 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл будет содержать только текст документа, без шрифтов, рисунков и границ таблиц. Выберите, как записывать символы и окончания строк. Разрыв строки ставится в конце каждого абзаца. Символ, которого нет в кодировке, сохраняется как вопросительный знак.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+52"/>
+        <source>The document is one page long already.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Parts of this document are locked, so its text can&apos;t be made smaller.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A page break or a section break keeps the pages apart, so smaller text can&apos;t bring them together. Take the break out first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The text can&apos;t be made smaller than %1 points to take a page off, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+44"/>
+        <source>The document could not be measured, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Made the text a little smaller, so the document is %1 pages shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Made the text a little smaller, so the document is one page shorter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+86"/>
         <source>That is more pages than one job can send. Print fewer pages or fewer copies.</source>
         <translation type="unfinished">Это больше страниц, чем может отправить одно задание. Напечатайте меньше страниц или меньше копий.</translation>
     </message>
@@ -58935,7 +59098,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"> пт</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-351"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-437"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
         <location line="+56"/>
         <source>Cancel</source>
@@ -69974,7 +70137,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::deck::Output</name>
     <message>
-        <location filename="../apps/deck/io/deckoutput.cpp" line="+49"/>
+        <location filename="../apps/deck/io/deckoutput.cpp" line="+50"/>
         <location line="+38"/>
         <source>Slide %1</source>
         <translation type="unfinished">Слайд %1</translation>

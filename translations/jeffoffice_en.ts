@@ -212,7 +212,7 @@
 <context>
     <name>jp::DeckWindow</name>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+211"/>
+        <location filename="../apps/deck/app/deckwindow_output.cpp" line="+223"/>
         <source>%n page(s)</source>
         <translation>
             <numerusform>%n page</numerusform>
@@ -316,7 +316,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+781"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+784"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
