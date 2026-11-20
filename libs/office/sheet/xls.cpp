@@ -1583,7 +1583,8 @@ private:
             box.x2 = NoteGrid::pixelsOf(a.dx2, grid.columnPixels(a.col2), 1024);
         }
         m_noteAnchors.clear();
-        if (m_notesDropped > 0) m_s.notKept << QCoreApplication::translate("Sheet", "%n note(s) in the file could not be read, and were left out.", nullptr, int(std::min<qint64>(m_notesDropped, 0x7fffffff)));
+        const int dropped = int(std::min<qint64>(m_notesDropped, 0x7fffffff));
+        if (dropped > 0) m_s.notKept << QCoreApplication::translate("Sheet", "%n note(s) in the file could not be read, and were left out.", nullptr, dropped);
     }
 
     bool fail(const QString &why)

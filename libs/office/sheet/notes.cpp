@@ -513,7 +513,11 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
     return out;
 }
 
-QString noteBookLimitMessage(qint64 count) { return QCoreApplication::translate("jp::office::sheet::Save", "%n note(s) left out, because the workbook has more note text than this program keeps.", nullptr, int(std::min<qint64>(count, 0x7fffffff))); }
+QString noteBookLimitMessage(qint64 count)
+{
+    const int n = int(std::min<qint64>(count, 0x7fffffff));
+    return QCoreApplication::translate("jp::office::sheet::Save", "%n note(s) left out, because the workbook has more note text than this program keeps.", nullptr, n);
+}
 
 NoteGrid::NoteGrid(const Sheet &sheet) : m_defaultWidth(sheet.format.defaultColWidth > 0 ? sheet.format.defaultColWidth : 9.140625), m_defaultHeight(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15)
 {

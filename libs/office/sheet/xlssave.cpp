@@ -757,7 +757,8 @@ private:
         }
         auto said = [&](qint64 count, const char *what, bool withNumber, qint64 number) {
             if (count <= 0) return;
-            const QString text = QCoreApplication::translate("Sheet", what, nullptr, int(std::min<qint64>(count, 0x7fffffff)));
+            const int n = int(std::min<qint64>(count, 0x7fffffff));
+            const QString text = QCoreApplication::translate("Sheet", what, nullptr, n);
             trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(QLocale().toString(number)) : text));
         };
         said(outside, QT_TRANSLATE_NOOP("Sheet", "%n note(s) outside the old format's sheet size (past row 65,536 or column IV), which were left out"), false, 0);
