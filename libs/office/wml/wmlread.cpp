@@ -1377,6 +1377,15 @@ ParaProps readParaPropsXml(const QByteArray &xml)
     return Reader(t).pPr(element);
 }
 
+SectionProps readSectionPropsXml(const QByteArray &xml)
+{
+    XmlTree t;
+    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return SectionProps();
+    const int element = t.firstChild(t.root());
+    if (element < 0 || !t.is(element, "sectPr")) return SectionProps();
+    return Reader(t).sectPr(element);
+}
+
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes, int *highestId)
 {
     XmlTree tree;

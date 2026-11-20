@@ -893,6 +893,8 @@ void overlayTableMark(TableMark *dst, const TableMark &src);
 // change of properties, which keeps the old ones as an element of its own.)
 RunProps readRunPropsXml(const QByteArray &xml);
 ParaProps readParaPropsXml(const QByteArray &xml);
+// The properties of a section from a w:sectPr element given as bytes (the old properties a tracked change of a section keeps, section 17.13.5.32); the defaults for what it does not state.
+SectionProps readSectionPropsXml(const QByteArray &xml);
 
 // The place the schema gives each child of pPr, rPr, and sectPr (children are written in this order; unknown ones sort last).
 int paraChildRank(const QByteArray &name);

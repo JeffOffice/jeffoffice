@@ -1147,6 +1147,7 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
         case Revision::Format:
         case Revision::NumberingInserted:
         case Revision::NumberingChanged:
+        case Revision::SectionFormat:
         case Revision::ParagraphFormat: c.kind = jp::review::Kind::Reformatted; c.summary = QCoreApplication::translate("jp::write::Review", "Formatted"); break;
         }
         out.changes.push_back(c);

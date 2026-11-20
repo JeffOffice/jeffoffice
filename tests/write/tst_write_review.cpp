@@ -3895,6 +3895,85 @@ private Q_SLOTS:
         QVERIFY2(said.startsWith(QStringLiteral("2 changes rejected.")) && said.contains(QStringLiteral("kept as written")), qPrintable(said));
     }
 
+    void aChangeOfASectionsPropertiesIsListedAndSettledAndThePageLayoutFollows()
+    {
+        // Two sections: the first is portrait with two columns now and was landscape in one, the last is A4 now and was Letter; each also has its grid changed.
+        const QByteArray first = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1800\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>"
+                                 "<w:cols w:num=\"2\" w:space=\"360\"/><w:docGrid w:linePitch=\"360\"/><w:sectPrChange" + rev(1) + "><w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>"
+                                 "<w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/><w:docGrid w:linePitch=\"300\"/></w:sectPr></w:sectPrChange>"
+                                 "</w:sectPr></w:pPr>" + run("one") + "</w:p>";
+        const QByteArray last = para(run("two")) + "<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>"
+                                "<w:sectPrChange" + rev(2) + "><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:sectPrChange></w:sectPr>";
+        auto doc = open(makeDocx(first + last));
+        QVERIFY(doc);
+        QCOMPARE(doc->sectionCount(), 2);
+        const QVector<Revision> list = revisionsIn(doc->story());
+        QCOMPARE(list.size(), 2);
+        QCOMPARE(list[0].kind, Revision::SectionFormat);
+        QCOMPARE(list[1].kind, Revision::SectionFormat);
+        QCOMPARE(list[0].id, QStringLiteral("1"));
+        QCOMPARE(list[1].id, QStringLiteral("2"));
+        QCOMPARE(list[0].author, QStringLiteral("Ann"));
+        QVERIFY(list[0].isFormatting());
+        QVERIFY(list[0].from < list[1].from);
+        // Rejecting the first: its old page, margins, columns, and grid are the section's again, and the layout has them.
+        const std::optional<StoryRevision> one = findRevision(*doc, QStringLiteral("body"), int(Revision::SectionFormat), QStringLiteral("1"), list[0].from);
+        QVERIFY(one);
+        QCOMPARE(resolveDocumentRevisions(*doc, {*one}, false), 1);
+        QCOMPARE(doc->sectionProps(0).pageW, 15840);
+        QCOMPARE(doc->sectionProps(0).left, 720);
+        QCOMPARE(doc->sectionProps(0).cols, 1);
+        QCOMPARE(doc->sectionProps(0).orient, QStringLiteral("landscape"));
+        QCOMPARE(doc->sectionProps(1).pageW, 11906);   // (the other section is as it was)
+        QCOMPARE(doc->flow().sections[0].pageSize().width(), 15840 / 20.0);
+        QCOMPARE(documentRevisionCount(*doc), 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->sectionProps(0).pageW, 12240);
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        // Reject All: both, in one step, and nothing is left behind.
+        QCOMPARE(rejectAll(*doc), 2);
+        QByteArray x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("sectPrChange"), x.constData());
+        QCOMPARE(x.count("<w:sectPr"), 2);
+        QVERIFY2(x.contains("w:w=\"15840\" w:h=\"12240\"") && x.contains("w:orient=\"landscape\"") && x.contains("w:linePitch=\"300\"") && !x.contains("w:linePitch=\"360\"") && !x.contains("w:num=\"2\""), x.constData());
+        QVERIFY2(x.contains("w:w=\"12240\" w:h=\"15840\"") && !x.contains("11906"), x.constData());
+        QCOMPARE(doc->sectionCount(), 2);
+        QVERIFY(doc->undo());
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        // Accept All keeps the new ones, and drops the records.
+        QCOMPARE(acceptAll(*doc), 2);
+        x = documentXml(doc->toDocx());
+        QVERIFY2(!x.contains("sectPrChange") && x.contains("11906") && x.contains("w:num=\"2\"") && x.contains("w:linePitch=\"360\"") && !x.contains("w:linePitch=\"300\""), x.constData());
+        QCOMPARE(doc->sectionProps(1).pageW, 11906);
+    }
+
+    void aSectionChangeIsReachedByNextAndDoneFromThePane()
+    {
+        const QByteArray body = para(run("one")) + "<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:sectPrChange" + rev(2) + "><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:sectPrChange></w:sectPr>";
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 1);
+        QVERIFY2(pane->changeList()->topLevelItem(0)->text(0).startsWith(QStringLiteral("Formatted section")), qPrintable(pane->changeList()->topLevelItem(0)->text(0)));
+        pane->changeList()->topLevelItem(0)->setSelected(true);
+        pane->findChild<QPushButton *>(QStringLiteral("rejectButton"))->click();
+        QCOMPARE(doc->sectionProps(0).pageW, 12240);
+        QCOMPARE(documentRevisionCount(*doc), 0);
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->sectionProps(0).pageW, 11906);
+        QCOMPARE(documentRevisionCount(*doc), 1);
+    }
+
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()
     {
         // The reader follows 24 levels of containers (kMaxContainerDepth in wmlread.cpp); what is nested deeper is kept as the XML it is.

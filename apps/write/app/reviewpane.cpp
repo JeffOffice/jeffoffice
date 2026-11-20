@@ -40,6 +40,7 @@ QString kindName(const write::Revision &r)
     case write::Revision::ParagraphFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted paragraph");
     case write::Revision::NumberingInserted: return QCoreApplication::translate("jp::ReviewPane", "Numbered");
     case write::Revision::NumberingChanged: return QCoreApplication::translate("jp::ReviewPane", "Numbering changed");
+    case write::Revision::SectionFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted section");
     case write::Revision::MarkInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted paragraph");
     case write::Revision::MarkDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted paragraph");
     case write::Revision::RowInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted row");

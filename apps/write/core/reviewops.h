@@ -18,6 +18,8 @@ struct Revision {
     enum Kind { Insertion, Deletion, MovedFrom, MovedTo, Format, ParagraphFormat, MarkInserted, MarkDeleted,
                 // a paragraph's numbering that was added while changes were tracked (w:ins in w:numPr), or that was changed (w:numberingChange in w:numPr, with the old numbering as a label)
                 NumberingInserted, NumberingChanged,
+                // a change of a section's properties (w:sectPrChange): the page size, the margins, the columns, and the rest of what the section sets
+                SectionFormat,
                 // what a table records: a row or a cell inserted or deleted, cells merged, and a change of the properties of a table, a row, or a cell
                 RowInserted, RowDeleted, CellInserted, CellDeleted, CellMerged, TableFormat, RowFormat, CellFormat };
     Kind kind = Insertion;
@@ -31,7 +33,7 @@ struct Revision {
     bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted || kind == RowDeleted || kind == CellDeleted; }
     bool inTable() const { return kind >= RowInserted; }
     // A change of how something looks (the marks beside the text call it formatting, not an insertion or a deletion).
-    bool isFormatting() const { return kind == Format || kind == ParagraphFormat || kind == NumberingInserted || kind == NumberingChanged || kind == TableFormat || kind == RowFormat || kind == CellFormat; }
+    bool isFormatting() const { return kind == Format || kind == ParagraphFormat || kind == NumberingInserted || kind == NumberingChanged || kind == SectionFormat || kind == TableFormat || kind == RowFormat || kind == CellFormat; }
     bool operator==(const Revision &o) const { return kind == o.kind && id == o.id && from == o.from && to == o.to; }
 };
 

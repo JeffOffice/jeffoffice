@@ -280,6 +280,29 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
             out->push_back(r);
         }
     }
+    // A change of a section's properties (section 17.13.5.32): the record is among the kept properties of the section, which a paragraph that ends a section holds, and the last section's the
+    // first paragraph holds; it is listed at the paragraph that ends the section, and at the last paragraph of the text for the last section.
+    {
+        auto listSection = [&](const QByteArray &packed) {
+            if (!packed.contains("sectPrChange")) return;
+            const SectionProps props = unpackSection(packed);
+            const RawChild *rec = recordOf(props.extra, "sectPrChange");
+            if (!rec) return;
+            Revision r;
+            r.kind = Revision::SectionFormat;
+            r.id = attributeOf(rec->xml, "id");
+            r.author = attributeOf(rec->xml, "author");
+            r.date = parseDate(attributeOf(rec->xml, "date"));
+            r.from = b.position();
+            r.to = b.position() + b.length() - 1;
+            r.block = blockNo;
+            out->push_back(r);
+        };
+        if (bf.boolProperty(flow::fp::SectionBreakAfter) && bf.hasProperty(prop::SectionData)) listSection(storedBytes(bf, prop::SectionData));
+        const QTextBlock first = b.document()->begin();
+        if (first.blockFormat().hasProperty(prop::LastSection) && !bf.hasProperty(prop::EndnoteBlock) && (!b.next().isValid() || b.next().blockFormat().hasProperty(prop::EndnoteBlock)))
+            listSection(storedBytes(first.blockFormat(), prop::LastSection));
+    }
     // The paragraph's mark, inserted or deleted.
     const QTextCharFormat mark = markFormat(b);
     if (mark.hasProperty(prop::RawRPr)) {
@@ -458,7 +481,7 @@ std::optional<Revision> revisionAt(const QTextDocument *story, int position)
         const bool inside = r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted ? position == r.from : position >= r.from && position <= r.to;
         if (!inside) continue;
         // (A change of the whole paragraph's properties is the one at a place only where nothing narrower is.)
-        const auto wide = [](Revision::Kind k) { return k == Revision::ParagraphFormat || k == Revision::NumberingInserted || k == Revision::NumberingChanged; };
+        const auto wide = [](Revision::Kind k) { return k == Revision::ParagraphFormat || k == Revision::NumberingInserted || k == Revision::NumberingChanged || k == Revision::SectionFormat; };
         if (wide(r.kind) && best) continue;
         if (!best || (r.to - r.from) < (best->to - best->from) || wide(best->kind)) best = r;
     }
@@ -522,7 +545,7 @@ std::optional<Revision> previousRevision(const QTextDocument *story, const Revis
 
 QString revisionText(const QTextDocument *story, const Revision &r, int most)
 {
-    if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::NumberingInserted || r.kind == Revision::NumberingChanged || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
+    if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::NumberingInserted || r.kind == Revision::NumberingChanged || r.kind == Revision::SectionFormat || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
     // Read from the place it begins, a character at a time (each found in the document's tree, not by going along the runs before it), and no further than the words need (`most`).
     const int end = std::max(0, std::min({r.to, r.from + most * 2 + 64, story->characterCount() - 1}));
     QString out;
@@ -817,6 +840,93 @@ bool resolveNumbering(WriteDoc &doc, const QTextBlock &b, const Revision &r, boo
         if (!accept && b.blockFormat().hasProperty(prop::NumId)) takeBlockOutOfList(doc, b);
         return true;
     }
+    return true;
+}
+
+// Where the sections that tracked changes of properties are in the document's list of sections, for the changes `which` names (a block, and the Id of the record): a paragraph that ends a section
+// is that section's, and the last paragraph of the text can be the last section's. The ones the document has no such record in are not in the list (the caller counts them as kept).
+QVector<int> sectionsOfChanges(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which)
+{
+    QVector<int> out;
+    int most = 0;
+    for (const Revision &r : which)
+        if (r.kind == Revision::SectionFormat) most = std::max(most, r.block);
+    if (story != doc.story() || doc.sectionCount() == 0) return out;
+    bool any = false;
+    for (const Revision &r : which) any = any || r.kind == Revision::SectionFormat;
+    if (!any) return out;
+    QVector<int> breaksBefore(most + 2, 0);
+    int n = 0, blockNo = 0;
+    for (QTextBlock b = story->begin(); b.isValid() && blockNo <= most; b = b.next(), ++blockNo) {
+        breaksBefore[blockNo] = n;
+        if (b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) ++n;
+    }
+    for (const Revision &r : which) {
+        if (r.kind != Revision::SectionFormat) continue;
+        const QTextBlock b = story->findBlockByNumber(r.block);
+        QVector<int> candidates;
+        if (b.isValid() && b.blockFormat().boolProperty(flow::fp::SectionBreakAfter)) candidates.push_back(breaksBefore[r.block]);
+        candidates.push_back(doc.sectionCount() - 1);
+        for (const int c : std::as_const(candidates)) {
+            const RawChild *rec = recordOf(doc.sectionProps(c).extra, "sectPrChange");
+            if (rec && attributeOf(rec->xml, "id") == r.id && !out.contains(c)) {
+                out.push_back(c);
+                break;
+            }
+        }
+    }
+    return out;
+}
+
+// Accepts or rejects the change of a section's properties (section 17.13.5.32): the record goes, and, when it is rejected, the properties it kept are the section's again (the page size, margins,
+// columns, numbering of pages, type, and the rest it states; the headers and footers the section names stay, and what belongs to the document and not to a section stays).
+bool resolveSectionProps(SectionProps &p, bool accept)
+{
+    const RawChild *rec = recordOf(p.extra, "sectPrChange");
+    if (!rec) return false;
+    if (!accept) {
+        const QByteArray element = recordedElement(*rec, "sectPr");
+        SectionProps old = readSectionPropsXml(element);
+        QVector<RawChild> extra;
+        for (const RawChild &c : std::as_const(p.extra)) {
+            const QByteArray name = elementName(c.xml);
+            if (name == "headerReference" || name == "footerReference") extra.push_back(c);
+        }
+        for (const RawChild &c : std::as_const(old.extra)) {
+            const QByteArray name = elementName(c.xml);
+            if (name != "headerReference" && name != "footerReference" && name != "sectPrChange") extra.push_back(c);
+        }
+        std::stable_sort(extra.begin(), extra.end(), [](const RawChild &a, const RawChild &b) { return a.rank < b.rank; });
+        p.type = old.type;
+        p.pageW = old.pageW;
+        p.pageH = old.pageH;
+        p.orient = old.orient;
+        p.top = old.top;
+        p.right = old.right;
+        p.bottom = old.bottom;
+        p.left = old.left;
+        p.header = old.header;
+        p.footer = old.footer;
+        p.gutter = old.gutter;
+        p.cols = old.cols;
+        p.colSpace = old.colSpace;
+        p.colSep = old.colSep;
+        p.colEqual = old.colEqual;
+        p.colDefs = old.colDefs;
+        p.pageStart = old.pageStart;
+        p.pageFormat = old.pageFormat;
+        p.titlePg = old.titlePg;
+        p.hasPgSz = old.hasPgSz;
+        p.hasPgMar = old.hasPgMar;
+        p.hasCols = old.hasCols;
+        p.pgSzAttrs = old.pgSzAttrs;
+        p.pgMarAttrs = old.pgMarAttrs;
+        p.pgNumAttrs = old.pgNumAttrs;
+        p.colsAttrs = old.colsAttrs;
+        p.extra = extra;
+    }
+    for (int i = int(p.extra.size()) - 1; i >= 0; --i)
+        if (elementName(p.extra[i].xml) == "sectPrChange") p.extra.removeAt(i);
     return true;
 }
 
@@ -1132,6 +1242,10 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     for (const Revision &r : which)
         if (r.inTable()) inTables.push_back(r);
     const QVector<std::pair<int, int>> tablePlaces = inTables.isEmpty() ? QVector<std::pair<int, int>>() : tablePlacesOf(story, inTables);
+    const QVector<int> sectionIndexes = sectionsOfChanges(doc, story, which);
+    int sectionsListed = 0;
+    for (const Revision &r : which) sectionsListed += r.kind == Revision::SectionFormat;
+    if (kept && sectionsListed > sectionIndexes.size()) *kept += sectionsListed - int(sectionIndexes.size());
     EditScope scope(doc, story);
     const UntrackedEdit untracked;   // (accepting and rejecting are not themselves tracked)
     QTextCursor edit(story);
@@ -1222,6 +1336,8 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
                 if (!resolveNumbering(doc, story->findBlockByNumber(blockNumber), r, accept) && kept) ++*kept;
                 else ++done;
                 break;
+            case Revision::SectionFormat:
+                break;   // (done below)
             case Revision::Format:
                 break;   // (done above)
             case Revision::ParagraphFormat:
@@ -1243,6 +1359,12 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         }
     }
     edit.endEditBlock();
+    if (!sectionIndexes.isEmpty()) {
+        // (The sections are the document's own: the page layout is made again once, for all of them.)
+        const QSet<int> wanted(sectionIndexes.cbegin(), sectionIndexes.cend());
+        int index = 0;
+        done += doc.changeSections(0, doc.sectionCount() - 1, [&](SectionProps &p) { return wanted.contains(index++) && resolveSectionProps(p, accept); });
+    }
     if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
     return done;
 }
