@@ -33,6 +33,19 @@ const MarginPreset *marginPresets(int *count);
 // The preset with this id ("normal", "narrow", "moderate", "wide", "mirrored"), or null.
 const MarginPreset *marginPreset(const QString &id);
 
+// The margins of the whole document as one setting (the Print page's Margins): the preset every section has, or the same other margins in every section, or margins that differ from
+// section to section. A preset counts when all four margins of every section are the preset's (a section's gutter is its own and is not looked at) and the document's mirror margins are
+// what the preset says (the Mirrored preset has them on, every other has them off).
+struct DocumentMargins {
+    enum class Kind { Preset, Custom, Different };
+    Kind kind = Kind::Custom;
+    QString preset;   // the id of the preset (Kind::Preset)
+};
+DocumentMargins documentMargins(WriteDoc &doc);
+// Gives all four margins of every section the preset's, and the document's mirror margins what the preset says (on for Mirrored, off for the others), as one step. Each section keeps its
+// gutter, its paper, and the way it is turned. Returns how many things changed (sections, and the mirror setting).
+int applyMarginPreset(WriteDoc &doc, const MarginPreset &preset);
+
 enum class PageSetupScope { ThisSection, WholeDocument, ThisPointForward };
 
 // The page setup a section has now (`oddEven` is the document's different odd and even pages).

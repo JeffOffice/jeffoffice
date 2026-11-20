@@ -22,6 +22,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QSignalBlocker>
+#include <QStandardItemModel>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QGuiApplication>
@@ -354,15 +355,19 @@ QWidget *WriteFileScreen::buildPrint()
     margins->setToolTip(tr("The margins of the document's pages, as Page Setup has them. A choice changes the document."));
     for (const char *id : {"normal", "narrow", "moderate", "wide", "mirrored"}) margins->addItem(m_win->act(QStringLiteral("layout.margins.") + QLatin1String(id))->text(), QString::fromLatin1(id));
     margins->addItem(tr("Custom…"), QStringLiteral("custom"));
-    // (shows the margins the document has now: the preset they are, or the numbers in the user's units)
+    margins->addItem(tr("Different in parts of the document"), QStringLiteral("different"));
+    // (shows the margins the document has now: the preset they are in every section, the numbers they share in the user's units, or that the sections differ; the last is shown, not chosen)
     auto showMargins = [=] {
         const QString now = m_win->marginsPreset();
         const QSignalBlocker block(margins);
-        const int custom = margins->count() - 1;
+        const int different = margins->count() - 1, custom = different - 1;
         const QMarginsF m = m_win->pageMargins();
         auto in = [](double points) { return Settings::get().format(points, 2); };
-        margins->setItemText(custom, now.isEmpty() ? tr("Custom (top %1, bottom %2, left %3, right %4)").arg(in(m.top()), in(m.bottom()), in(m.left()), in(m.right())) : tr("Custom…"));
-        margins->setCurrentIndex(now.isEmpty() ? custom : std::max(0, int(margins->findData(now))));
+        const bool differ = now == QLatin1String("different");
+        const bool isCustom = now.isEmpty();
+        margins->setItemText(custom, isCustom ? tr("Custom (top %1, bottom %2, left %3, right %4)").arg(in(m.top()), in(m.bottom()), in(m.left()), in(m.right())) : tr("Custom…"));
+        if (auto *model = qobject_cast<QStandardItemModel *>(margins->model())) model->item(different)->setEnabled(differ);
+        margins->setCurrentIndex(differ ? different : isCustom ? custom : std::max(0, int(margins->findData(now))));
     };
     auto *paper = new QLabel(w);
     paper->setObjectName(QStringLiteral("printPaper"));
@@ -646,6 +651,10 @@ QWidget *WriteFileScreen::buildPrint()
     connect(margins, &QComboBox::activated, w, [=](int at) {
         const QString what = margins->itemData(at).toString();
         if (what.isEmpty()) return;
+        if (what == QLatin1String("different")) {   // (the state the sections are in, not a choice)
+            showMargins();
+            return;
+        }
         m_win->setMargins(what);
         showMargins();
         restart();

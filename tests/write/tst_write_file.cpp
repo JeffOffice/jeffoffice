@@ -19,6 +19,7 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/pagesetup.h"
+#include "core/writeprops.h"
 #include "core/pictureops.h"
 #include "core/reviewops.h"
 #include "core/shrinkops.h"
@@ -46,6 +47,7 @@
 #include "io/zip.h"
 
 #include <QAction>
+#include <QStandardItemModel>
 #include <QPrintDialog>
 #include <QTimeZone>
 #include <QLabel>
@@ -272,15 +274,18 @@ QString xmpField(const QByteArray &pdf, const QByteArray &tag)
 struct ShrinkDocx {
     int paragraphs = 30, styleHalfPoints = 24, runHalfPoints = 0;
     bool exact = false, pageBreak = false, sectionBreak = false, footnote = false, table = false, header = false, lockedControl = false;
+    bool breakBefore = false, endnote = false;   // (the last paragraph starts a page itself; a note at the end of the text)
+    int tableStyleHalfPoints = 0;                // (the table's style gives its text this size)
     QByteArray build() const
     {
         const QByteArray run = runHalfPoints ? "<w:rPr><w:sz w:val=\"" + QByteArray::number(runHalfPoints) + "\"/></w:rPr>" : QByteArray();
         const QByteArray pPr = exact ? QByteArray("<w:pPr><w:spacing w:line=\"400\" w:lineRule=\"exact\"/></w:pPr>") : QByteArray();
         QByteArray body;
-        if (table) body += "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p>" + pPr + "<w:r>" + run + "<w:t>Cell words</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        if (table) body += "<w:tbl><w:tblPr>" + (tableStyleHalfPoints ? QByteArray("<w:tblStyle w:val=\"Small\"/>") : QByteArray()) + "<w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p>" + pPr + "<w:r>" + (tableStyleHalfPoints ? QByteArray() : run) + "<w:t>Cell words</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
         for (int i = 0; i < paragraphs; ++i) {
             body += "<w:p>" + pPr + "<w:r>" + run + "<w:t>Paragraph " + QByteArray::number(i) + " of the shrinking test.</w:t></w:r>";
             if (i == 0 && footnote) body += "<w:r><w:footnoteReference w:id=\"1\"/></w:r>";
+            if (i == 0 && endnote) body += "<w:r><w:endnoteReference w:id=\"1\"/></w:r>";
             if (i == 0 && lockedControl) body += "<w:sdt><w:sdtPr><w:lock w:val=\"contentLocked\"/><w:text/></w:sdtPr><w:sdtContent><w:r><w:t>Locked words</w:t></w:r></w:sdtContent></w:sdt>";
             body += "</w:p>";
         }
@@ -288,7 +293,7 @@ struct ShrinkDocx {
         const QByteArray sect = QByteArray("<w:sectPr>") + (header ? "<w:headerReference w:type=\"default\" r:id=\"rId20\"/>" : "") +
                                 "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
         if (sectionBreak) body += "<w:p><w:pPr>" + sect + "</w:pPr></w:p>";
-        if (pageBreak || sectionBreak) body += "<w:p><w:r>" + run + "<w:t>The last page.</w:t></w:r></w:p>";
+        if (pageBreak || sectionBreak) body += QByteArray("<w:p>") + (breakBefore ? "<w:pPr><w:pageBreakBefore/></w:pPr>" : "") + "<w:r>" + run + "<w:t>The last page.</w:t></w:r></w:p>";
         body += sect;
         office::PackageWriter w;
         w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
@@ -296,7 +301,8 @@ struct ShrinkDocx {
         w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
         w.addPart(QStringLiteral("/word/styles.xml"),
                   QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs + "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/>" +
-                      (styleHalfPoints ? "<w:rPr><w:sz w:val=\"" + QByteArray::number(styleHalfPoints) + "\"/></w:rPr>" : QByteArray()) + "</w:style></w:styles>",
+                      (styleHalfPoints ? "<w:rPr><w:sz w:val=\"" + QByteArray::number(styleHalfPoints) + "\"/></w:rPr>" : QByteArray()) + "</w:style>" +
+                      (tableStyleHalfPoints ? "<w:style w:type=\"table\" w:styleId=\"Small\"><w:name w:val=\"Small\"/><w:rPr><w:sz w:val=\"" + QByteArray::number(tableStyleHalfPoints) + "\"/></w:rPr></w:style>" : QByteArray()) + "</w:styles>",
                   kWord + QStringLiteral("styles+xml"));
         w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
         if (footnote) {
@@ -306,6 +312,14 @@ struct ShrinkDocx {
                           "<w:footnote w:id=\"1\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:rPr><w:sz w:val=\"20\"/></w:rPr><w:t xml:space=\"preserve\"> Note words.</w:t></w:r></w:p></w:footnote></w:footnotes>",
                       kWord + QStringLiteral("footnotes+xml"));
             w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        }
+        if (endnote) {
+            w.addPart(QStringLiteral("/word/endnotes.xml"),
+                      QByteArray("<?xml version=\"1.0\"?><w:endnotes ") + kNs +
+                          "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:endnote>"
+                          "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:rPr><w:sz w:val=\"20\"/></w:rPr><w:t xml:space=\"preserve\"> Endnote words.</w:t></w:r></w:p></w:endnote></w:endnotes>",
+                      kWord + QStringLiteral("endnotes+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
         }
         if (header) {
             w.addPart(QStringLiteral("/word/header1.xml"),
@@ -342,6 +356,24 @@ QByteArray twoPageDocx(int *count, ShrinkDocx docx = ShrinkDocx())
     docx.paragraphs = paragraphsForPages(docx, 2);
     if (count) *count = docx.paragraphs;
     return docx.build();
+}
+
+// A .docx of two sections (the first ends at the paragraph that says so), each with the margins and the turn it is given: `first` and `last` are the bytes of the w:sectPr children.
+QByteArray twoSectionDocx(const QByteArray &first, const QByteArray &last)
+{
+    const QByteArray body = "<w:p><w:r><w:t>First section.</w:t></w:r></w:p><w:p><w:pPr><w:sectPr>" + first + "</w:sectPr></w:pPr></w:p><w:p><w:r><w:t>Second section.</w:t></w:r></w:p><w:sectPr>" + last + "</w:sectPr>";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
+// The children of a w:sectPr: paper (turned when `landscape`), and the margins in twips.
+QByteArray sectionKids(int top, int right, int bottom, int left, int gutter, bool landscape)
+{
+    return QByteArray(landscape ? "<w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/>" : "<w:pgSz w:w=\"12240\" w:h=\"15840\"/>") + "<w:pgMar w:top=\"" + QByteArray::number(top) + "\" w:right=\"" +
+           QByteArray::number(right) + "\" w:bottom=\"" + QByteArray::number(bottom) + "\" w:left=\"" + QByteArray::number(left) + "\" w:header=\"720\" w:footer=\"720\" w:gutter=\"" + QByteArray::number(gutter) + "\"/>";
 }
 
 // A window on a document, made from bytes (each is a window of its own: a window that has a document opens the next in another).
@@ -1195,10 +1227,11 @@ private Q_SLOTS:
         QTRY_VERIFY2(label->text().endsWith(QStringLiteral(" of 2")), qPrintable(label->text()));
         // the presets are Page Setup's own: the same names, in the same order
         QStringList names;
-        for (int i = 0; i + 1 < margins->count(); ++i) names << margins->itemText(i);
+        for (int i = 0; i + 2 < margins->count(); ++i) names << margins->itemText(i);   // (then Custom, and the state that the sections differ)
         QCOMPARE(names, (QStringList{w.act(QStringLiteral("layout.margins.normal"))->text(), w.act(QStringLiteral("layout.margins.narrow"))->text(), w.act(QStringLiteral("layout.margins.moderate"))->text(),
                                      w.act(QStringLiteral("layout.margins.wide"))->text(), w.act(QStringLiteral("layout.margins.mirrored"))->text()}));
-        QCOMPARE(margins->itemData(margins->count() - 1).toString(), QStringLiteral("custom"));
+        QCOMPARE(margins->itemData(margins->count() - 2).toString(), QStringLiteral("custom"));
+        QCOMPARE(margins->itemData(margins->count() - 1).toString(), QStringLiteral("different"));
         const int narrow = int(margins->findData(QStringLiteral("narrow")));
         QVERIFY(narrow >= 0);
         Q_EMIT margins->activated(narrow);
@@ -1258,6 +1291,156 @@ private Q_SLOTS:
         look(250);
         QVERIFY(w.setMargins(QStringLiteral("custom")));
         QVERIFY(opened);
+    }
+
+    // The Print page's Margins are the whole document's: a preset gives all four margins of every section its numbers (not only the fields that changed for the section the cursor is in),
+    // each section keeps its gutter, its paper, and the way it is turned, and it is one step of the history. The box shows the preset only when every section has it, and says when the
+    // sections differ (a state that is shown and not chosen).
+    void thePrintMarginsAreTheWholeDocumentsAndSaySoWhenTheSectionsDiffer()
+    {
+        QTemporaryDir dir;
+        auto window = windowOn(dir, twoSectionDocx(sectionKids(1440, 1440, 1440, 1440, 0, false), sectionKids(720, 1080, 720, 1440, 360, true)));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        QCOMPARE(doc.sectionCount(), 2);
+        QCOMPARE(w.marginsPreset(), QStringLiteral("different"));
+        w.resize(1300, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *margins = w.findChild<FileScreen *>()->findChild<QComboBox *>(QStringLiteral("printMargins"));
+        QVERIFY(margins);
+        QCOMPARE(margins->currentData().toString(), QStringLiteral("different"));
+        QVERIFY(margins->currentText().contains(QStringLiteral("Different")));
+        doc.setModified(false);
+        // choosing what is shown does nothing
+        Q_EMIT margins->activated(margins->currentIndex());
+        QVERIFY(!doc.isModified() && !doc.canUndo());
+        QCOMPARE(margins->currentData().toString(), QStringLiteral("different"));
+        const int narrow = int(margins->findData(QStringLiteral("narrow")));
+        QVERIFY(narrow >= 0);
+        Q_EMIT margins->activated(narrow);
+        for (int i = 0; i < 2; ++i) {
+            const office::wml::SectionProps p = doc.sectionProps(i);
+            QVERIFY2(p.top == 720 && p.right == 720 && p.bottom == 720 && p.left == 720, qPrintable(QStringLiteral("section %1: %2 %3 %4 %5").arg(i).arg(p.top).arg(p.right).arg(p.bottom).arg(p.left)));
+        }
+        QCOMPARE(doc.sectionProps(0).gutter, 0);
+        QCOMPARE(doc.sectionProps(1).gutter, 360);   // (the binding margin of the section is its own)
+        QCOMPARE(doc.sectionProps(1).pageW, 15840);   // (and so is the way it is turned)
+        QCOMPARE(doc.sectionProps(1).pageH, 12240);
+        QCOMPARE(doc.sectionProps(0).pageW, 12240);
+        QCOMPARE(w.marginsPreset(), QStringLiteral("narrow"));
+        QCOMPARE(margins->currentData().toString(), QStringLiteral("narrow"));
+        auto *model = qobject_cast<QStandardItemModel *>(margins->model());
+        QVERIFY(model);
+        QVERIFY(!model->item(margins->count() - 1)->isEnabled());   // ("Different in parts of the document" is shown, not chosen, so it is off while it is not what the document is)
+        QVERIFY(doc.isModified());
+        // one Undo gives each section its own margins back
+        w.view()->undo();
+        QCOMPARE(doc.sectionProps(0).top, 1440);
+        QCOMPARE(doc.sectionProps(1).top, 720);
+        QCOMPARE(doc.sectionProps(1).right, 1080);
+        QCOMPARE(w.marginsPreset(), QStringLiteral("different"));
+        QVERIFY(!doc.canUndo());
+        // the same margins that are none of the presets, in every section: said in numbers
+        for (int i = 0; i < 2; ++i) {
+            office::wml::SectionProps p = doc.sectionProps(i);
+            p.top = 1000;
+            p.bottom = 1000;
+            p.left = 900;
+            p.right = 900;
+            doc.setSectionProps(i, p);
+        }
+        QVERIFY(w.marginsPreset().isEmpty());
+    }
+
+    // Mirrored turns the document's mirror margins on and every other preset turns them off; the Print page's box is the whole document's, and the ribbon's Mirrored is as it was (the margins
+    // of the section the cursor is in, and the mirror setting).
+    void theMirroredPresetTurnsMirrorMarginsOnAndTheOthersOff()
+    {
+        QTemporaryDir dir;
+        auto window = windowOn(dir, twoSectionDocx(sectionKids(1440, 1440, 1440, 1440, 0, false), sectionKids(720, 1080, 720, 1440, 360, false)));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        QVERIFY(!doc.mirrorMargins());
+        QVERIFY(w.setMargins(QStringLiteral("mirrored")));
+        QVERIFY(doc.mirrorMargins());
+        QCOMPARE(w.marginsPreset(), QStringLiteral("mirrored"));
+        for (int i = 0; i < 2; ++i) {
+            const office::wml::SectionProps p = doc.sectionProps(i);
+            QVERIFY2(p.top == 1440 && p.right == 1440 && p.bottom == 1440 && p.left == 1800, qPrintable(QStringLiteral("section %1: %2 %3 %4 %5").arg(i).arg(p.top).arg(p.right).arg(p.bottom).arg(p.left)));
+        }
+        QCOMPARE(doc.sectionProps(1).gutter, 360);
+        QVERIFY(w.setMargins(QStringLiteral("normal")));
+        QVERIFY(!doc.mirrorMargins());
+        QCOMPARE(w.marginsPreset(), QStringLiteral("normal"));
+        QCOMPARE(doc.sectionProps(1).gutter, 360);
+        // each one is a step that undoes, the mirror setting with it
+        w.view()->undo();
+        QVERIFY(doc.mirrorMargins());
+        QCOMPARE(w.marginsPreset(), QStringLiteral("mirrored"));
+        // (the margins of Mirrored without the mirror setting are not the preset Mirrored)
+        doc.setMirrorMargins(false);
+        QVERIFY(w.marginsPreset().isEmpty());
+        // the ribbon's Mirrored: the margins of the cursor's section (the first) and the mirror setting; the other section is left as it was
+        auto other = windowOn(dir, twoSectionDocx(sectionKids(1440, 1440, 1440, 1440, 0, false), sectionKids(720, 1080, 720, 1440, 360, false)));
+        QVERIFY(other);
+        WriteDoc &odoc = *other->document();
+        Quiet oquiet(*other);
+        QVERIFY(other->act(QStringLiteral("layout.margins.mirrored")));
+        other->act(QStringLiteral("layout.margins.mirrored"))->trigger();
+        QVERIFY(odoc.mirrorMargins());
+        QCOMPARE(odoc.sectionProps(0).left, 1800);
+        QCOMPARE(odoc.sectionProps(1).left, 1440);
+        QCOMPARE(odoc.sectionProps(1).top, 720);
+    }
+
+    // Cancel in Page Setup, reached from Custom, changes nothing: not the document, not its history, and not the box.
+    void cancelInPageSetupFromCustomLeavesTheDocumentAndTheBoxAlone()
+    {
+        QTemporaryDir dir;
+        auto window = windowOn(dir, twoSectionDocx(sectionKids(1440, 1440, 1440, 1440, 0, false), sectionKids(720, 1080, 720, 1440, 360, true)));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        w.resize(1300, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *margins = w.findChild<FileScreen *>()->findChild<QComboBox *>(QStringLiteral("printMargins"));
+        QVERIFY(margins);
+        doc.setModified(false);
+        const office::wml::SectionProps first = doc.sectionProps(0), last = doc.sectionProps(1);
+        const int chosen = margins->currentIndex();
+        bool opened = false;
+        std::function<void(int)> look = [&](int tries) {
+            QTimer::singleShot(20, [&, tries] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (!d || d->objectName() != QLatin1String("pageSetupDialog")) {
+                    if (tries > 0) look(tries - 1);
+                    return;
+                }
+                opened = true;
+                d->reject();
+            });
+        };
+        look(250);
+        Q_EMIT margins->activated(int(margins->findData(QStringLiteral("custom"))));
+        QVERIFY(opened);
+        auto same = [](const office::wml::SectionProps &a, const office::wml::SectionProps &b) {
+            return a.top == b.top && a.right == b.right && a.bottom == b.bottom && a.left == b.left && a.gutter == b.gutter && a.pageW == b.pageW && a.pageH == b.pageH && a.orient == b.orient;
+        };
+        QVERIFY(same(doc.sectionProps(0), first));
+        QVERIFY(same(doc.sectionProps(1), last));
+        QVERIFY(!doc.canUndo());
+        QVERIFY(!doc.isModified());
+        QCOMPARE(margins->currentIndex(), chosen);
+        QCOMPARE(margins->currentData().toString(), QStringLiteral("different"));
     }
 
     // The Print page has Printer Properties, which is hidden (not disabled) where the platform has no window of its own and for a PDF file; it is there for a printer when the platform has
@@ -1597,6 +1780,264 @@ private Q_SLOTS:
             expect(!QApplication::overrideCursor(), "the wait cursor is left on");
         }
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join(QStringLiteral("; "))));
+    }
+
+    // Sizes are kept in half-points, as a file keeps them: the sizes the trial measured are the ones that come back from a saved file, and the page count with them.
+    void shrinkByOnePageSizesAreHalfPointsThatSurviveSaveAndReload()
+    {
+        // every size above the least goes down by a step that changes it, to a half-point, never below the least
+        for (double size = 6.5; size <= 60; size += 0.5) {
+            const double next = shrunkSize(size);
+            QVERIFY2(next < size && next >= kShrinkLeastSize && std::abs(next * 2 - std::round(next * 2)) < 1e-9, qPrintable(QString::number(size) + " " + QString::number(next)));
+        }
+        QCOMPARE(shrunkSize(6.0), 6.0);
+        QCOMPARE(shrunkSize(5.0), 5.0);
+        QTemporaryDir dir;
+        for (const int runHalfPoints : {0, 21}) {
+            ShrinkDocx docx;
+            docx.styleHalfPoints = 21;   // (10.5 points: a tenth-point step would give 10.1)
+            docx.runHalfPoints = runHalfPoints;
+            auto window = windowOn(dir, twoPageDocx(nullptr, docx));
+            QVERIFY(window);
+            WriteWindow &w = *window;
+            Quiet quiet(w);
+            QCOMPARE(pagesOf(w), 2);
+            QVERIFY(w.shrinkByOnePage());
+            QCOMPARE(pagesOf(w), 1);
+            const QVector<double> sizes = effectiveSizes(*w.document(), w.document()->story());
+            for (const double size : sizes) QVERIFY2(std::abs(size * 2 - std::round(size * 2)) < 1e-9, qPrintable(QString::number(size)));
+            QCOMPARE(smallest(sizes), largest(sizes));   // (text that was of one size is still of one size)
+            QString error;
+            auto again = WriteDoc::fromDocx(w.document()->toDocx(&error), &error, nullptr);
+            QVERIFY2(again, qPrintable(error));
+            QCOMPARE(effectiveSizes(*again, again->story()), sizes);
+            QCOMPARE(again->pager().pageCount(), 1);
+        }
+    }
+
+    // The trial costs the history nothing: a document that can't be shrunk keeps what Redo had, and the steps that were done and the document's changed mark; a shrink that works is one
+    // step of the history for the text, its boxes, and its notes, which one Undo takes back and one Redo does again.
+    void shrinkByOnePageLeavesTheHistoryAloneWhenItRefusesAndIsOneStepWhenItWorks()
+    {
+        QTemporaryDir dir;
+        {
+            ShrinkDocx tiny;
+            tiny.styleHalfPoints = 14;
+            tiny.paragraphs = paragraphsForPages(tiny, 3) - 1;   // (two pages, full at 7 points: the trial changes the text and finds no page to take off)
+            auto window = windowOn(dir, tiny.build());
+            QVERIFY(window);
+            WriteWindow &w = *window;
+            Quiet quiet(w);
+            QCOMPARE(pagesOf(w), 2);
+            WriteDoc &doc = *w.document();
+            QTextCursor c(doc.story());
+            c.setPosition(0);
+            insertText(doc, c, QStringLiteral("Typed "));
+            w.view()->undo();
+            QVERIFY(doc.canRedo());
+            const QString text = doc.story()->toPlainText();
+            w.view()->redo();
+            w.view()->undo();
+            doc.setModified(false);
+            const int steps = doc.story()->availableUndoSteps();
+            QVERIFY(doc.canRedo());
+            QVERIFY(!w.shrinkByOnePage());
+            QVERIFY2(quiet.said.size() == 1 && quiet.said[0].contains(QStringLiteral("smaller than")), qPrintable(quiet.said.join(QLatin1Char('|'))));
+            QVERIFY(doc.canRedo());
+            QCOMPARE(doc.story()->availableUndoSteps(), steps);
+            QVERIFY(!doc.isModified());
+            QCOMPARE(doc.story()->toPlainText(), text);
+            w.view()->redo();
+            QVERIFY(doc.story()->toPlainText().startsWith(QStringLiteral("Typed ")));
+        }
+        ShrinkDocx docx;
+        docx.runHalfPoints = 24;
+        docx.footnote = true;
+        auto window = windowOn(dir, twoPageDocx(nullptr, docx));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        {
+            QTextCursor c(doc.story());
+            c.setPosition(0);
+            QCOMPARE(insertTextBox(doc, c, textBoxDesigns().first()), PictureResult::Ok);
+        }
+        const int boxAt = floatingObjects(doc).first().position;
+        {
+            std::unique_ptr<QTextDocument> story = textBoxStory(doc, boxAt);
+            QVERIFY(story);
+            QTextCursor t(story.get());
+            t.insertText(QStringLiteral("Box words"));
+            t.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontPointSize(12);
+            t.mergeCharFormat(f);
+            QVERIFY(setTextBoxStory(doc, boxAt, story.get()));
+        }
+        auto boxSizes = [&] {
+            std::unique_ptr<QTextDocument> story = textBoxStory(doc, boxAt);
+            QVector<double> sizes;
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) sizes << it.fragment().charFormat().fontPointSize();
+            return sizes;
+        };
+        QTextDocument *note = noteStories(doc).value(0);
+        QVERIFY(note);
+        QVERIFY(pagesOf(w) >= 2);
+        const QVector<double> bodyBefore = effectiveSizes(doc, doc.story()), boxBefore = boxSizes(), noteBefore = effectiveSizes(doc, note);
+        // (nothing to undo but the box: take it away from the count by starting from a clean history of the body and the note)
+        doc.setModified(false);
+        int entries = 0;
+        connect(&doc, &WriteDoc::historyChanged, &w, [&] { ++entries; });
+        QVERIFY(w.shrinkByOnePage());
+        QCOMPARE(entries, 2);   // (one entry for the body with its box, one for the note, whatever the number of paragraphs: and they are done and undone together)
+        const QVector<double> bodyAfter = effectiveSizes(doc, doc.story()), boxAfter = boxSizes(), noteAfter = effectiveSizes(doc, note);
+        QVERIFY(bodyAfter != bodyBefore && boxAfter != boxBefore && noteAfter != noteBefore);
+        w.view()->undo();
+        QCOMPARE(effectiveSizes(doc, doc.story()), bodyBefore);
+        QCOMPARE(boxSizes(), boxBefore);
+        QCOMPARE(effectiveSizes(doc, note), noteBefore);
+        QVERIFY(!doc.isModified());
+        QVERIFY(doc.canRedo());
+        w.view()->redo();
+        QCOMPARE(effectiveSizes(doc, doc.story()), bodyAfter);
+        QCOMPARE(boxSizes(), boxAfter);
+        QCOMPARE(effectiveSizes(doc, note), noteAfter);
+        QVERIFY(doc.isModified());
+    }
+
+    // A tracked change of a run's look keeps the old look, and Reject All brings it back: the old size is scaled as the text was, so that it does not bring back unshrunk text.
+    void shrinkByOnePageScalesTheOldSizeOfTrackedFormatChanges()
+    {
+        QTemporaryDir dir;
+        for (const int runHalfPoints : {0, 24}) {
+            ShrinkDocx docx;
+            docx.runHalfPoints = runHalfPoints;
+            auto window = windowOn(dir, twoPageDocx(nullptr, docx));
+            QVERIFY(window);
+            WriteWindow &w = *window;
+            Quiet quiet(w);
+            WriteDoc &doc = *w.document();
+            doc.setTrackChanges(true);
+            QTextCursor c(doc.story());
+            c.setPosition(0);
+            c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+            toggleBold(doc, c);
+            QVERIFY2(revisionCount(doc.story()) > 0, "no tracked format change");
+            QCOMPARE(pagesOf(w), 2);
+            QVERIFY(w.shrinkByOnePage());
+            QVERIFY(largest(effectiveSizes(doc, doc.story())) < 12.0);
+            QVERIFY(rejectAll(doc) > 0);
+            const QVector<double> sizes = effectiveSizes(doc, doc.story());
+            QVERIFY2(largest(sizes) < 12.0 && smallest(sizes) == largest(sizes), qPrintable(QString::number(smallest(sizes)) + " " + QString::number(largest(sizes))));
+        }
+    }
+
+    // A section break that starts a page and a paragraph that starts a page on its first paragraph are one break: a page that smaller text can take off is not refused for them.
+    void shrinkByOnePageCountsASectionBreakAndABreakBeforeItOnce()
+    {
+        QTemporaryDir dir;
+        ShrinkDocx docx;
+        docx.sectionBreak = true;
+        docx.breakBefore = true;
+        docx.paragraphs = paragraphsForPages(docx, 3);
+        QVERIFY(docx.paragraphs > 0);
+        auto window = windowOn(dir, docx.build());
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        QCOMPARE(pagesOf(w), 3);
+        QVERIFY2(w.shrinkByOnePage(), qPrintable(quiet.said.join(QLatin1Char('|'))));
+        QCOMPARE(pagesOf(w), 2);
+        const ShrinkLook look = shrinkLook(*w.document());
+        QCOMPARE(look.forcedBreaks, 1);
+    }
+
+    // The size a table's style gives its text counts: text sized by its table's style is measured as it is, and no run is made larger by the explicit size the shrink writes.
+    void shrinkByOnePageMeasuresTextThatItsTableStyleSizes()
+    {
+        QTemporaryDir dir;
+        ShrinkDocx docx;
+        docx.table = true;
+        docx.tableStyleHalfPoints = 18;   // (the table's style says 9 points; the paragraph style says none, so the style of the table is what sizes its cell, and the runs of the text say 12)
+        docx.styleHalfPoints = 0;
+        docx.runHalfPoints = 24;
+        auto window = windowOn(dir, twoPageDocx(nullptr, docx));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        auto cellSize = [&] {
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+                if (b.text().contains(QStringLiteral("Cell words"))) {
+                    const QTextCharFormat f = b.begin().fragment().charFormat();
+                    if (f.fontPointSize() > 0) return f.fontPointSize();
+                    return doc.styleCharFormat(b.blockFormat().stringProperty(tp::StyleName), f.stringProperty(tp::CharStyle), doc.tableLayerOf(b.blockFormat().intProperty(flow::fp::Cell))).fontPointSize();
+                }
+            return 0.0;
+        };
+        // (a file's reading gives such a run the table style's size as its own: here the run is one that says none, as the text of a cell does when its look was cleared)
+        for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+            if (b.text().contains(QStringLiteral("Cell words"))) {
+                QTextCursor c(b);
+                c.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                QTextCharFormat f = c.charFormat();
+                f.clearProperty(QTextFormat::FontPointSize);
+                c.setCharFormat(f);
+            }
+        QCOMPARE(cellSize(), 9.0);
+        QVERIFY(w.shrinkByOnePage());
+        QVERIFY2(cellSize() <= 9.0, qPrintable(QString::number(cellSize())));
+    }
+
+    // A shrink that takes off more than one page says how many; one that takes off one says so. The notes' numbers and the endnotes are made smaller with the text.
+    void shrinkByOnePageSaysHowManyPagesCameOffAndScalesEndnotesAndNoteNumbers()
+    {
+        QTemporaryDir dir;
+        {
+            ShrinkDocx docx;
+            docx.paragraphs = paragraphsForPages(docx, 30);
+            QVERIFY(docx.paragraphs > 0);
+            auto window = windowOn(dir, docx.build());
+            QVERIFY(window);
+            WriteWindow &w = *window;
+            Quiet quiet(w);
+            const int before = pagesOf(w);
+            QVERIFY(w.shrinkByOnePage());
+            const int dropped = before - pagesOf(w);
+            QVERIFY2(dropped > 1, qPrintable(QString::number(dropped)));
+            QVERIFY2(w.statusBar()->currentMessage().contains(QString::number(dropped)), qPrintable(w.statusBar()->currentMessage()));
+        }
+        ShrinkDocx docx;
+        docx.runHalfPoints = 24;
+        docx.footnote = true;
+        docx.endnote = true;
+        auto window = windowOn(dir, twoPageDocx(nullptr, docx));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        WriteDoc &doc = *w.document();
+        QTextDocument *note = noteStories(doc).value(0);
+        QVERIFY(note);
+        auto endnoteSizes = [&] {
+            QVector<double> out;
+            for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+                if (b.blockFormat().hasProperty(prop::EndnoteBlock))
+                    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                        const QTextCharFormat f = it.fragment().charFormat();
+                        out << (f.fontPointSize() > 0 ? f.fontPointSize() : doc.styleCharFormat(b.blockFormat().stringProperty(tp::StyleName), f.stringProperty(tp::CharStyle)).fontPointSize());
+                    }
+            return out;
+        };
+        const QVector<double> endBefore = endnoteSizes(), noteBefore = effectiveSizes(doc, note);
+        QVERIFY(!endBefore.isEmpty());
+        QVERIFY(w.shrinkByOnePage());
+        const QVector<double> endAfter = endnoteSizes(), noteAfter = effectiveSizes(doc, note);
+        QCOMPARE(endAfter.size(), endBefore.size());
+        QCOMPARE(noteAfter.size(), noteBefore.size());
+        for (int i = 0; i < endAfter.size(); ++i) QVERIFY2(endAfter[i] < endBefore[i], qPrintable(QStringLiteral("endnote run %1: %2 -> %3").arg(i).arg(endBefore[i]).arg(endAfter[i])));
+        for (int i = 0; i < noteAfter.size(); ++i) QVERIFY2(noteAfter[i] < noteBefore[i], qPrintable(QStringLiteral("note run %1: %2 -> %3").arg(i).arg(noteBefore[i]).arg(noteAfter[i])));
     }
 
     // The Print page's button does the same, and the page shows the new count.

@@ -22,16 +22,9 @@ namespace jp {
 QString WriteWindow::marginsPreset() const
 {
     if (!m_doc) return {};
-    const write::SectionSetup now = write::pageSetupOf(m_doc->sectionProps(std::clamp(m_view->cursorSection(), 0, m_doc->sectionCount() - 1)), m_doc->differentOddEven());
-    if (std::abs(now.gutter) > 0.5) return {};
-    int n = 0;
-    const write::MarginPreset *all = write::marginPresets(&n);
-    for (int i = 0; i < n; ++i) {
-        const write::MarginPreset &m = all[i];
-        if (m.mirrored && !m_doc->mirrorMargins()) continue;
-        if (std::abs(now.top - m.top) < 0.5 && std::abs(now.right - m.right) < 0.5 && std::abs(now.bottom - m.bottom) < 0.5 && std::abs(now.left - m.left) < 0.5) return QString::fromLatin1(m.id);
-    }
-    return {};
+    const write::DocumentMargins margins = write::documentMargins(*m_doc);
+    if (margins.kind == write::DocumentMargins::Kind::Different) return QStringLiteral("different");
+    return margins.kind == write::DocumentMargins::Kind::Preset ? margins.preset : QString();
 }
 
 QMarginsF WriteWindow::pageMargins() const
@@ -48,23 +41,11 @@ bool WriteWindow::setMargins(const QString &preset)
         showPageSetupDialog();
         return true;
     }
+    if (preset == QLatin1String("different")) return false;   // (what the Print page shows when the sections differ: it is not a choice)
     const write::MarginPreset *m = write::marginPreset(preset);
     if (!m || refuseIfReadOnly()) return false;
-    const int section = std::clamp(m_view->cursorSection(), 0, m_doc->sectionCount() - 1);
-    const write::SectionSetup before = write::pageSetupOf(m_doc->sectionProps(section), m_doc->differentOddEven());
-    write::SectionSetup after = before;
-    after.top = m->top;
-    after.right = m->right;
-    after.bottom = m->bottom;
-    after.left = m->left;
-    after.gutter = 0;
-    // (one step of the history, the whole document: what the margins say is the document's, not one section's)
-    const write::WriteDoc::StepGroup group(*m_doc);
-    int changed = write::applyPageSetup(*m_doc, section, write::PageSetupScope::WholeDocument, before, after);
-    if (m->mirrored && !m_doc->mirrorMargins()) {
-        m_doc->setMirrorMargins(true);
-        ++changed;
-    }
+    // (one step of the history, the whole document: these are the document's margins, so every section gets all four, and the mirror margins follow the preset)
+    const int changed = write::applyMarginPreset(*m_doc, *m);
     if (changed) refreshUi();
     return changed > 0;
 }

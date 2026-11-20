@@ -886,35 +886,50 @@ bool WriteWindow::shrinkByOnePage()
         notice(title, tooSmall, true);
         return false;
     }
-    // The steps are tried on the document itself, one history step, each followed by a count of the pages; a try that takes no page off is taken back, leaving nothing to redo.
-    int steps = 0;
-    bool changed = false;
+    // The steps are tried on a copy of the document made in memory, each followed by a count of its pages: the document's own history is not touched by the trial. When a page comes off,
+    // the steps are made on the document as one step of the history; when none does, nothing was done to it.
+    int steps = 0, droppedPages = 0;
+    bool measured = true;
     {
         QApplication::setOverrideCursor(Qt::WaitCursor);
         const auto waitOver = qScopeGuard([] { QApplication::restoreOverrideCursor(); });
-        const write::WriteDoc::StepGroup group(*m_doc);
-        for (int i = 1; i <= look.steps && !steps; ++i) {
-            if (!write::shrinkStep(*m_doc)) break;
-            changed = true;
-            m_view->paginateAll();
-            if (m_doc->pager().pageCount() < pages) steps = i;
+        QString error;
+        const QByteArray bytes = m_doc->toDocx(&error);
+        std::unique_ptr<write::WriteDoc> trial = bytes.isEmpty() ? nullptr : write::WriteDoc::fromDocx(bytes, &error, nullptr);
+        if (trial) trial->pager().paginate(-1);
+        measured = trial && trial->pager().pageCount() == pages;   // (a copy that sets the pages differently is no measure of the document)
+        for (int i = 1; measured && i <= look.steps && !steps; ++i) {
+            if (!write::shrinkBy(*trial, 1)) break;
+            trial->pager().paginate(-1);
+            if (trial->pager().pageCount() < pages) {
+                steps = i;
+                droppedPages = pages - trial->pager().pageCount();
+            }
         }
-        if (steps) write::shrinkTextBoxes(*m_doc, steps);
-    }
-    if (!steps) {
-        if (changed) {
-            m_view->undo();
-            m_doc->discardRedo();
-            write::forgetShrinkRedo(*m_doc);
+        trial.reset();
+        if (steps) {
+            const write::WriteDoc::StepGroup group(*m_doc);
+            QTextCursor joined(m_doc->story());   // (the text and the boxes in it are one edit of the story: one entry of the history, whatever the number of paragraphs)
+            joined.beginEditBlock();
+            write::shrinkBy(*m_doc, steps);
+            write::shrinkTextBoxes(*m_doc, steps);
+            joined.endEditBlock();
             m_view->paginateAll();
+            if (m_doc->pager().pageCount() >= pages) {
+                // (the document came out otherwise than its copy: what was done is taken back)
+                m_view->undo();
+                steps = 0;
+                m_view->paginateAll();
+            }
             refreshUi();
         }
-        notice(title, tooSmall, true);
+    }
+    if (!steps) {
+        notice(title, measured ? tooSmall : tr("The document could not be measured, so nothing was changed."), true);
         return false;
     }
     m_view->viewport()->update();
-    refreshUi();
-    statusBar()->showMessage(tr("Made the text a little smaller, so the document is one page shorter."), 6000);
+    statusBar()->showMessage(droppedPages > 1 ? tr("Made the text a little smaller, so the document is %n page(s) shorter.", nullptr, droppedPages) : tr("Made the text a little smaller, so the document is one page shorter."), 6000);
     return true;
 }
 

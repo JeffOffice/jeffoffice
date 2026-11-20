@@ -110,6 +110,53 @@ const MarginPreset *marginPreset(const QString &id)
     return nullptr;
 }
 
+DocumentMargins documentMargins(WriteDoc &doc)
+{
+    DocumentMargins out;
+    const SectionSetup first = pageSetupOf(doc.sectionProps(0), doc.differentOddEven());
+    for (int i = 1; i < doc.sectionCount(); ++i) {
+        const SectionSetup now = pageSetupOf(doc.sectionProps(i), doc.differentOddEven());
+        if (differs(now.top, first.top) || differs(now.right, first.right) || differs(now.bottom, first.bottom) || differs(now.left, first.left)) {
+            out.kind = DocumentMargins::Kind::Different;
+            return out;
+        }
+    }
+    int n = 0;
+    const MarginPreset *all = marginPresets(&n);
+    for (int i = 0; i < n; ++i) {
+        const MarginPreset &m = all[i];
+        if (m.mirrored != doc.mirrorMargins()) continue;
+        if (!differs(first.top, m.top) && !differs(first.right, m.right) && !differs(first.bottom, m.bottom) && !differs(first.left, m.left)) {
+            out.kind = DocumentMargins::Kind::Preset;
+            out.preset = QString::fromLatin1(m.id);
+            return out;
+        }
+    }
+    return out;
+}
+
+int applyMarginPreset(WriteDoc &doc, const MarginPreset &preset)
+{
+    int changed = 0;
+    const WriteDoc::StepGroup group(doc);
+    changed += doc.changeSections(0, doc.sectionCount() - 1, [&](SectionProps &p) {
+        const SectionProps was = p;
+        p.top = twips(preset.top);
+        p.right = twips(preset.right);
+        p.bottom = twips(preset.bottom);
+        p.left = twips(preset.left);
+        p.hasPgMar = true;
+        fitMargins(&p);
+        return p.top != was.top || p.bottom != was.bottom || p.left != was.left || p.right != was.right || p.gutter != was.gutter || p.hasPgMar != was.hasPgMar || p.header != was.header ||
+               p.footer != was.footer;
+    });
+    if (doc.mirrorMargins() != preset.mirrored) {
+        doc.setMirrorMargins(preset.mirrored);
+        ++changed;
+    }
+    return changed;
+}
+
 int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const SectionSetup &before, const SectionSetup &afterAsGiven)
 {
     const SectionSetup after = normalized(afterAsGiven);
