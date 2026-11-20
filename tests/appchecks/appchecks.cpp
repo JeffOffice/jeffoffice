@@ -905,9 +905,12 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
                     return;
                 }
                 // (the keys of a window go to it when it is the active one)
+                // (asked again at every look, for as long as a busy machine needs: a key sent to a window that is not yet the active one reaches no shortcut, and the command then seems to do nothing)
                 w->raise();
-                w->activateWindow();
-                waitFor([&] { return QApplication::activeWindow() == w.get(); }, 5000);
+                waitFor([&] {
+                    if (QApplication::activeWindow() != w.get()) w->activateWindow();
+                    return QApplication::activeWindow() == w.get();
+                }, 20000);
                 drain();
                 QTest::keySequence(w.get(), key);
             }, quiet || !waits);
