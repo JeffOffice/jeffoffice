@@ -23,6 +23,7 @@
 #include <QTextListFormat>
 #include <functional>
 #include <optional>
+#include <map>
 #include <memory>
 
 namespace jp::office { class Package; }
@@ -283,7 +284,8 @@ public:
     bool headerFooterAsRead(const QTextDocument *story, QByteArray *source) const;
     // The words of a text box (its w:txbxContent, with the prefixes it uses declared) as a story to be typed in, in the form the headers are edited in, and the story written back as the
     // box's content (w:txbxContent with no prefixes declared). The story is the caller's: the document keeps no history of it, and what is typed in it is not a step until it is written back.
-    std::unique_ptr<QTextDocument> boxEditStory(const QByteArray &txbxContent);
+    // `whole`: every paragraph is in the story, the deleted ones too (what a review of the box's changes goes through, to settle them all).
+    std::unique_ptr<QTextDocument> boxEditStory(const QByteArray &txbxContent, bool whole = false);
     // Called first when the document is written to bytes (a save, a recovery copy, an export): the words being typed in a shape are put in the document before it is.
     void setFlushHook(std::function<void()> hook) { m_flushHook = std::move(hook); }
     QByteArray boxContentOfStory(QTextDocument *story);
@@ -377,6 +379,15 @@ public:
     std::shared_ptr<void> commentCache;
     // The mail merge of the document (core/mergeops.h): null for a document that is not merged.
     std::shared_ptr<mail::State> mailMerge;
+
+    // What core/reviewops.cpp keeps of the text boxes that hold changes: where they are in the text (found again when the text changes), and the words of each as a story that the changes are
+    // listed and settled in, with the drawing as it was when the story was made (a box that is written or goes is made again).
+    struct BoxReviewCache {
+        qint64 stamp = -1;
+        QVector<std::pair<int, QByteArray>> hits;
+        std::map<int, std::pair<QByteArray, std::unique_ptr<QTextDocument>>> stories;
+    };
+    BoxReviewCache boxReview;
 
     // The edits made while one of these lives, in any of the document's stories, are one step of the history: an Undo takes all of them back, and a Redo does all again.
     class StepGroup {

@@ -469,6 +469,8 @@ private:
     int resolveShown(bool accept);
     QVector<write::StoryRevision> shownRevisions() const;
     void resolveHere(bool accept);
+    void showBoxRevision(const write::StoryRevision &r);
+    void resolveInBox(bool accept);
     void addReviewContextMenu(QMenu &menu);
     void addLinkFieldNoteContextMenu(QMenu &menu);
     void createEditingActions();
@@ -635,6 +637,7 @@ private:
     const QTextDocument *m_lastCursorStory = nullptr;
     int m_lastCursorAnchor = -1, m_lastCursorPosition = -1;
     bool m_lastChangeShown = true;
+    qint64 m_lastChangeStamp = 0;   // (what reviewStamp was when it was visited: an edit since, and Undo, make it no longer "the last one")
     const write::StoryRevision *lastVisitedChange() const;
     void rememberChange(const write::StoryRevision &r, bool shown);
     const void *m_reviewStateDoc = nullptr;

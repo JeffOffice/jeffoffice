@@ -16,6 +16,8 @@ namespace jp::write {
 
 struct Revision {
     enum Kind { Insertion, Deletion, MovedFrom, MovedTo, Format, ParagraphFormat, MarkInserted, MarkDeleted,
+                // a paragraph's numbering that was added while changes were tracked (w:ins in w:numPr), or that was changed (w:numberingChange in w:numPr, with the old numbering as a label)
+                NumberingInserted, NumberingChanged,
                 // what a table records: a row or a cell inserted or deleted, cells merged, and a change of the properties of a table, a row, or a cell
                 RowInserted, RowDeleted, CellInserted, CellDeleted, CellMerged, TableFormat, RowFormat, CellFormat };
     Kind kind = Insertion;
@@ -29,7 +31,7 @@ struct Revision {
     bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted || kind == RowDeleted || kind == CellDeleted; }
     bool inTable() const { return kind >= RowInserted; }
     // A change of how something looks (the marks beside the text call it formatting, not an insertion or a deletion).
-    bool isFormatting() const { return kind == Format || kind == ParagraphFormat || kind == TableFormat || kind == RowFormat || kind == CellFormat; }
+    bool isFormatting() const { return kind == Format || kind == ParagraphFormat || kind == NumberingInserted || kind == NumberingChanged || kind == TableFormat || kind == RowFormat || kind == CellFormat; }
     bool operator==(const Revision &o) const { return kind == o.kind && id == o.id && from == o.from && to == o.to; }
 };
 
@@ -80,7 +82,9 @@ QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most = kMostRevision
 int documentRevisionCount(WriteDoc &doc);
 // A number that is not the same after an edit of any story (the text, a header, a footer, or a note), for what keeps a list of the changes up to date.
 qint64 reviewStamp(const WriteDoc &doc);
-// How many changes are inside text boxes of the document's stories: they are kept as the XML they are written in, so they are not listed, but Accept All and Reject All do them.
+// How many changes are inside text boxes of the document's stories that are not listed: the words of a box in the text are a story of their own, with container "box:" and the place of its
+// drawing, which the lists, Next and Previous, and Accept and Reject reach; the changes in a box that can't be read as words (a group, a chain of linked boxes, a box in a header or a note) are
+// kept as the XML they are written in, so they are only counted, but Accept All and Reject All do them.
 int textBoxChangeCount(WriteDoc &doc);
 // Whether there is a change anywhere in the document (the text is looked through first, the other stories only when it has none).
 bool documentHasRevisions(WriteDoc &doc);
@@ -91,6 +95,12 @@ std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &containe
 // The next change after `position` of `story` (or the one before it), going on into the stories after it (before it); none where there is none. Next and Previous Change use it. With `after`
 // (the change last visited), the one after (before) that one in the story's order, whatever place it was at.
 std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward, const StoryRevision *after = nullptr);
+// The same from a place in the story that a container names, which may be gone now (a text box whose changes were all settled): the change after (before) the place, or, for a box that is
+// gone, after (before) where it stood.
+std::optional<StoryRevision> nextDocumentRevisionIn(WriteDoc &doc, const QString &container, int position, bool forward);
+// The words of a text box that a person types in (a story made from the box when it is opened, with its paragraphs of deleted marks left out) have changes at places that the box's
+// listed story has too, under other numbers: the change of the listed story that `r`, a change of the typed story, stands for (found by its kind and Id, and which of those it is). None where there is none.
+std::optional<StoryRevision> boxRevisionLike(WriteDoc &doc, int boxPosition, const QTextDocument *typedIn, const Revision &r);
 // Accepts or rejects changes of any stories, as one step of the history (the same one step as one story's). Returns how many were done.
 int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept = nullptr, int *partners = nullptr);
 

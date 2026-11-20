@@ -339,7 +339,8 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
 // that takes no words (a picture, a line, a group, text art). A shape with no text box yet has an empty story, its words centered as a shape's are. Written back with setTextBoxStory: one step
 // that undoes (false when the words are as they were, or are past the limits).
 // (`tooBig`, if given, says a box refused for holding more paragraphs than the editor takes; `refused`, a story that is not put in for want of room or for a reason the document gave: the person is told.)
-std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig = nullptr);
+// `whole`: every paragraph is in the story, the deleted ones too (for settling the box's tracked changes).
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig = nullptr, bool whole = false);
 bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused = nullptr);
 // How the object sets its words: where they sit up and down ("t", "ctr", or "b"), whether the lines break at its width, whether they shrink to fit, and the room kept round them, in points.
 struct TextBoxLook {

@@ -2710,7 +2710,7 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs)
     });
 }
 
-std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig)
+std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig, bool whole)
 {
     if (tooBig) *tooBig = false;
     const QTextDocument *story = doc.story();
@@ -2732,7 +2732,7 @@ std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *t
     } else {
         xml = "<w:txbxContent " + declarations() + ">" + box.inner + "</w:txbxContent>";
     }
-    return doc.boxEditStory(xml);
+    return doc.boxEditStory(xml, whole);
 }
 
 bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused)

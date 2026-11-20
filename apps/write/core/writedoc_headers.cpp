@@ -135,11 +135,11 @@ bool WriteDoc::makeEditable(HeaderPart &part, bool announce)
     return true;
 }
 
-std::unique_ptr<QTextDocument> WriteDoc::boxEditStory(const QByteArray &txbxContent)
+std::unique_ptr<QTextDocument> WriteDoc::boxEditStory(const QByteArray &txbxContent, bool whole)
 {
     QVector<Block> blocks;
     if (!readBlocks(txbxContent, &blocks, false)) return nullptr;
-    leaveOutDeletedParagraphs(&blocks, true);
+    if (!whole) leaveOutDeletedParagraphs(&blocks, true);
     auto s = std::make_unique<QTextDocument>();
     s->setDocumentMargin(0);
     s->setDefaultFont(story()->defaultFont());

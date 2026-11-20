@@ -4,6 +4,7 @@
 
 #include "core/commentops.h"
 #include "core/editops.h"
+#include "core/pictureops.h"
 #include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -170,6 +171,38 @@ const RawChild *recordOf(const QVector<RawChild> &extra, const char *name)
     return nullptr;
 }
 
+// The tracked marks among the rest of a paragraph's numbering (the elements of w:numPr after the level and the list, kept as written): w:ins, which says the numbering was added while changes
+// were tracked (section 17.13.5.19), and w:numberingChange, which says it was changed and keeps what it was as a label in `original` (Part 4, section 14.7.1.2; it names no list to go back to).
+struct NumberingMark {
+    qsizetype at = 0, end = 0;
+    Revision::Kind kind = Revision::NumberingInserted;
+    QByteArray xml;
+};
+
+QVector<NumberingMark> numberingMarksOf(const QByteArray &extra)
+{
+    QVector<NumberingMark> out;
+    for (const char *name : {"<w:ins", "<w:numberingChange"}) {
+        const qsizetype len = qstrlen(name);
+        for (qsizetype at = extra.indexOf(name); at >= 0 && out.size() < 64; at = extra.indexOf(name, at + len)) {
+            const char next = at + len < extra.size() ? extra.at(at + len) : '\0';
+            if (next != ' ' && next != '/' && next != '>' && next != '\t' && next != '\n' && next != '\r') continue;
+            const qsizetype gt = extra.indexOf('>', at);
+            if (gt < 0) continue;
+            qsizetype end = gt + 1;
+            if (extra.at(gt - 1) != '/') {
+                const QByteArray close = QByteArray("</") + (name + 1) + ">";
+                const qsizetype c = extra.indexOf(close, gt);
+                if (c < 0) continue;
+                end = c + close.size();
+            }
+            out.push_back({at, end, name[3] == 'i' ? Revision::NumberingInserted : Revision::NumberingChanged, extra.mid(at, end - at)});
+        }
+    }
+    std::sort(out.begin(), out.end(), [](const NumberingMark &a, const NumberingMark &b) { return a.at < b.at; });
+    return out;
+}
+
 void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
 {
     ++s_blocksScanned;
@@ -220,6 +253,19 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
     }
     *out += formats;
     const QTextBlockFormat bf = b.blockFormat();
+    if (bf.hasProperty(prop::NumExtra)) {
+        for (const NumberingMark &m : numberingMarksOf(storedBytes(bf, prop::NumExtra))) {
+            Revision r;
+            r.kind = m.kind;
+            r.id = attributeOf(m.xml, "id");
+            r.author = attributeOf(m.xml, "author");
+            r.date = parseDate(attributeOf(m.xml, "date"));
+            r.from = b.position();
+            r.to = b.position() + b.length() - 1;
+            r.block = blockNo;
+            out->push_back(r);
+        }
+    }
     if (bf.hasProperty(prop::RawPPr)) {
         const QVector<RawChild> extra = extraOf(bf, prop::RawPPr);
         if (const RawChild *rec = recordOf(extra, "pPrChange")) {
@@ -411,8 +457,10 @@ std::optional<Revision> revisionAt(const QTextDocument *story, int position)
     for (const Revision &r : std::as_const(inBlock)) {
         const bool inside = r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted ? position == r.from : position >= r.from && position <= r.to;
         if (!inside) continue;
-        if (r.kind == Revision::ParagraphFormat && best) continue;
-        if (!best || (r.to - r.from) < (best->to - best->from) || best->kind == Revision::ParagraphFormat) best = r;
+        // (A change of the whole paragraph's properties is the one at a place only where nothing narrower is.)
+        const auto wide = [](Revision::Kind k) { return k == Revision::ParagraphFormat || k == Revision::NumberingInserted || k == Revision::NumberingChanged; };
+        if (wide(r.kind) && best) continue;
+        if (!best || (r.to - r.from) < (best->to - best->from) || wide(best->kind)) best = r;
     }
     return best;
 }
@@ -474,7 +522,7 @@ std::optional<Revision> previousRevision(const QTextDocument *story, const Revis
 
 QString revisionText(const QTextDocument *story, const Revision &r, int most)
 {
-    if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
+    if (r.kind == Revision::Format || r.kind == Revision::ParagraphFormat || r.kind == Revision::NumberingInserted || r.kind == Revision::NumberingChanged || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted) return QString();
     // Read from the place it begins, a character at a time (each found in the document's tree, not by going along the runs before it), and no further than the words need (`most`).
     const int end = std::max(0, std::min({r.to, r.from + most * 2 + 64, story->characterCount() - 1}));
     QString out;
@@ -682,13 +730,18 @@ void resolveFormatChanges(WriteDoc &doc, QTextDocument *d, int blockNumber, cons
     }
 }
 
-void resolveParagraphChange(WriteDoc &doc, const QTextBlock &b, bool accept)
+// Accepts or rejects a change of a paragraph's properties (section 17.13.5.29): the record goes, and, when it is rejected, the old properties come back, the list the paragraph was in too. False where
+// the old list is not one the document has any more: the paragraph stays in the list it is in (no list is named that is not defined), and the change is told as kept.
+bool resolveParagraphChange(WriteDoc &doc, const QTextBlock &b, bool accept)
 {
     QTextBlockFormat bf = b.blockFormat();
     QVector<RawChild> extra = extraOf(bf, prop::RawPPr);
     const RawChild *rec = recordOf(extra, "pPrChange");
-    if (!rec) return;
+    if (!rec) return true;
     QTextBlockFormat nf = bf;
+    bool restoreList = false;
+    int oldNumId = 0, oldLevel = 0;
+    std::optional<qreal> oldLeft, oldFirst;
     if (!accept) {
         const ParaProps old = recordedParaProps(*rec);
         const StyleSheet &sheet = doc.styleSheet();
@@ -703,12 +756,17 @@ void resolveParagraphChange(WriteDoc &doc, const QTextBlock &b, bool accept)
         const QTextBlockFormat before = blockFormatOf(cur);
         const QTextBlockFormat after = blockFormatOf(target);
         const QMap<int, QVariant> was = before.properties(), will = after.properties();
-        // (A paragraph's list is its own to change with the list commands: the record's numbering is not put back.)
+        // (The list is put back below, with the list commands' own steps: the numbers of the list are not properties to set.)
         auto listKey = [](int key) { return key == prop::NumId || key == prop::NumLevel || key == QTextFormat::ObjectIndex || key == tp::BulletChar || key == tp::ListLevel; };
         for (auto it = was.cbegin(); it != was.cend(); ++it)
             if (!will.contains(it.key()) && !listKey(it.key())) nf.clearProperty(it.key());
         for (auto it = will.cbegin(); it != will.cend(); ++it)
             if (!listKey(it.key())) nf.setProperty(it.key(), it.value());
+        restoreList = true;
+        oldNumId = std::max(0, target.numId.value_or(0));
+        oldLevel = std::clamp(target.ilvl.value_or(0), 0, 8);
+        if (target.indLeft) oldLeft = after.leftMargin();
+        if (target.indFirst) oldFirst = after.textIndent();
     }
     QVector<RawChild> kept = extraOf(nf, prop::RawPPr);
     for (int i = int(kept.size()) - 1; i >= 0; --i)
@@ -717,6 +775,49 @@ void resolveParagraphChange(WriteDoc &doc, const QTextBlock &b, bool accept)
     else setStored(nf, prop::RawPPr, packRaw(kept));
     QTextCursor t(b);
     t.setBlockFormat(nf);
+    if (!restoreList) return true;
+    const QTextBlockFormat now = b.blockFormat();
+    const bool inList = now.hasProperty(prop::NumId);
+    bool changed = false, ok = true;
+    if (oldNumId > 0) {
+        if (!inList || now.intProperty(prop::NumId) != oldNumId || now.intProperty(prop::NumLevel) != oldLevel) {
+            ok = putBlockInList(doc, b, oldNumId, oldLevel);
+            changed = ok;
+        }
+    } else if (inList) {
+        takeBlockOutOfList(doc, b);
+        changed = true;
+    }
+    if (changed && (oldLeft || oldFirst)) {
+        // (An indent the old properties stated is theirs, not the list's.)
+        QTextBlockFormat f = b.blockFormat();
+        if (oldLeft) f.setLeftMargin(*oldLeft);
+        if (oldFirst) f.setTextIndent(*oldFirst);
+        QTextCursor(b).setBlockFormat(f);
+    }
+    return ok;
+}
+
+// Accepts or rejects a tracked numbering of a paragraph (the mark of it among the rest of its numbering is taken out): rejected, the paragraph is taken out of its list when the mark says the
+// numbering was added (w:ins), or when the label of the old numbering is empty (a paragraph that had none). A label that names an old numbering gives no list to go back to, so the change is
+// kept as written. False where it is kept.
+bool resolveNumbering(WriteDoc &doc, const QTextBlock &b, const Revision &r, bool accept)
+{
+    QTextBlockFormat bf = b.blockFormat();
+    const QByteArray extra = bf.hasProperty(prop::NumExtra) ? storedBytes(bf, prop::NumExtra) : QByteArray();
+    for (const NumberingMark &m : numberingMarksOf(extra)) {
+        if (m.kind != r.kind || attributeOf(m.xml, "id") != r.id) continue;
+        const bool noOld = r.kind == Revision::NumberingInserted || attributeOf(m.xml, "original").isEmpty();
+        if (!accept && !noOld) return false;
+        QByteArray rest = extra;
+        rest.remove(int(m.at), int(m.end - m.at));
+        if (rest.isEmpty()) bf.clearProperty(prop::NumExtra);
+        else setStored(bf, prop::NumExtra, rest);
+        QTextCursor(b).setBlockFormat(bf);
+        if (!accept && b.blockFormat().hasProperty(prop::NumId)) takeBlockOutOfList(doc, b);
+        return true;
+    }
+    return true;
 }
 
 // The paragraph's mark without the record that it was inserted or deleted (and, if it was deleted, no longer hidden).
@@ -1065,7 +1166,9 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         const int blockNumber = bi.key();
         QVector<Revision> inBlock = bi.value();
         // Inner changes before outer ones, later before earlier, so that the places of the rest stay: a change's end is moved by what the changes inside it did.
-        std::stable_sort(inBlock.begin(), inBlock.end(), [](const Revision &a, const Revision &b) { return a.from != b.from ? a.from > b.from : a.to < b.to; });
+        // (A paragraph's numbering marks before a change of its properties, which may give the list it was in back.)
+        auto numbering = [](const Revision &r) { return r.kind == Revision::NumberingInserted || r.kind == Revision::NumberingChanged; };
+        std::stable_sort(inBlock.begin(), inBlock.end(), [&](const Revision &a, const Revision &b) { return a.from != b.from ? a.from > b.from : a.to != b.to ? a.to < b.to : numbering(a) && !numbering(b); });
         // The changes of properties first, all in one pass (they change no length, so the places of the rest stay).
         {
             QVector<std::pair<int, int>> formats;
@@ -1113,10 +1216,16 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
                 if (partners && second(r)) ++*partners;
                 break;
             }
+            case Revision::NumberingInserted:
+            case Revision::NumberingChanged:
+                // (Before a change of the paragraph's properties: that one's old numbering is the one a paragraph goes back to.)
+                if (!resolveNumbering(doc, story->findBlockByNumber(blockNumber), r, accept) && kept) ++*kept;
+                else ++done;
+                break;
             case Revision::Format:
                 break;   // (done above)
             case Revision::ParagraphFormat:
-                resolveParagraphChange(doc, story->findBlockByNumber(blockNumber), accept);
+                if (!resolveParagraphChange(doc, story->findBlockByNumber(blockNumber), accept) && kept) ++*kept;
                 ++done;
                 break;
             default:
@@ -1230,7 +1339,51 @@ namespace {
 struct Site {
     QTextDocument *story = nullptr;
     QString container;
+    int box = -1;   // for the words of a text box of the text: the place of its drawing in the text
 };
+
+// The text boxes of the text whose drawings hold changes (the paragraphs of an endnote the pages set are out), by the place of the drawing, with the drawing as it is written; made again
+// only when the text has been edited.
+const QVector<std::pair<int, QByteArray>> &boxesWithChanges(WriteDoc &doc)
+{
+    WriteDoc::BoxReviewCache &cache = doc.boxReview;
+    const QTextDocument *story = doc.story();
+    const qint64 stamp = qint64(story->revision()) * 1000003 + story->characterCount();
+    if (cache.stamp == stamp) return cache.hits;
+    cache.hits.clear();
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("txbxContent") || !(xmlHasChanges(bytes) || xmlHasTableChanges(bytes))) continue;
+            const Inline a = unpackAtom(bytes);
+            if (a.kind != Inline::RunAtom || !a.raw.contains("txbxContent")) continue;
+            for (int k = 0; k < int(f.length()); ++k)
+                if (f.text().at(k) == QChar::ObjectReplacementCharacter) cache.hits.push_back({f.position() + k, bytes});
+        }
+    }
+    cache.stamp = stamp;
+    // (A story of a box that has no changes now, or whose drawing was written, goes.)
+    for (auto it = cache.stories.begin(); it != cache.stories.end();) {
+        const auto found = std::find_if(cache.hits.cbegin(), cache.hits.cend(), [&](const auto &h) { return h.first == it->first && h.second == it->second.first; });
+        it = found == cache.hits.cend() ? cache.stories.erase(it) : std::next(it);
+    }
+    return cache.hits;
+}
+
+// The words of a text box as a story the changes are listed and settled in: none where the box can't be read as one (a group, words linked on in other boxes, too many paragraphs).
+QTextDocument *boxStoryAt(WriteDoc &doc, int position, const QByteArray &key)
+{
+    auto &stories = doc.boxReview.stories;
+    auto it = stories.find(position);
+    if (it != stories.end() && it->second.first == key) return it->second.second.get();
+    std::unique_ptr<QTextDocument> made = textBoxStory(doc, position, nullptr, true);
+    stories.erase(position);
+    return stories.emplace(position, std::pair<QByteArray, std::unique_ptr<QTextDocument>>(key, std::move(made))).first->second.second.get();
+}
 
 // The stories that can hold changes, in the order of the document: the text (with the endnotes the pages set, which are in it), the footnotes by their numbers, then the headers
 // and footers by section (a header, then a footer), then any other part. A story is once in the list, however many sections share it.
@@ -1241,6 +1394,9 @@ QVector<Site> sitesOf(WriteDoc &doc)
     ++s_siteLists;
     QVector<Site> out;
     out.push_back({doc.story(), QStringLiteral("body")});
+    // (After the text, the words of its text boxes, in the order of the text: the way the spelling pane goes through them.)
+    for (const auto &hit : boxesWithChanges(doc))
+        if (QTextDocument *box = boxStoryAt(doc, hit.first, hit.second)) out.push_back({box, QStringLiteral("box:%1").arg(hit.first), hit.first});
     const QVector<QTextDocument *> others = doc.storiesWithChanges();
     QSet<const QTextDocument *> used;
     QVector<std::pair<int, QTextDocument *>> notes;
@@ -1320,8 +1476,13 @@ int documentRevisionCount(WriteDoc &doc)
 
 int textBoxChangeCount(WriteDoc &doc)
 {
+    // (A box whose words are listed has its changes in the lists; the rest are kept as the XML they are written in.)
+    const QVector<Site> sites = sitesOf(doc);
+    QSet<int> listed;
+    for (const Site &site : sites)
+        if (site.box >= 0) listed.insert(site.box);
     int n = 0;
-    for (const Site &site : sitesOf(doc)) {
+    for (const Site &site : sites) {
         for (QTextBlock b = site.story->begin(); b.isValid(); b = b.next()) {
             if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
             for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
@@ -1329,6 +1490,7 @@ int textBoxChangeCount(WriteDoc &doc)
                 if (!cf.hasProperty(prop::Atom)) continue;
                 const QByteArray bytes = storedBytes(cf, prop::Atom);
                 if (!bytes.contains("txbxContent") || !xmlHasChanges(bytes)) continue;
+                if (site.story == doc.story() && listed.contains(it.fragment().position())) continue;
                 const Inline a = unpackAtom(bytes);
                 if (a.kind == Inline::RunAtom && a.raw.contains("txbxContent")) n += xmlChangeCount(a.raw);
             }
@@ -1387,6 +1549,51 @@ std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocu
     return std::nullopt;
 }
 
+std::optional<StoryRevision> nextDocumentRevisionIn(WriteDoc &doc, const QString &container, int position, bool forward)
+{
+    const EndnoteScope scope;
+    const QVector<Site> sites = sitesOf(doc);
+    int at = -1;
+    for (int i = 0; i < sites.size(); ++i)
+        if (sites[i].container == container) at = i;
+    bool gone = false;
+    if (at < 0 && container.startsWith(QLatin1String("box:"))) {
+        // (A box that is gone stood among the boxes by the place of its drawing.)
+        const int place = container.mid(4).toInt();
+        gone = true;
+        at = 0;
+        for (int i = 0; i < sites.size(); ++i)
+            if (sites[i].box >= 0 && sites[i].box < place) at = i;
+            else if (sites[i].box >= place) break;
+    }
+    if (at < 0) at = 0;
+    if (forward) {
+        for (int i = gone ? at + 1 : at; i < sites.size(); ++i) {
+            const std::optional<Revision> r = nextRevision(sites[i].story, i == at && !gone ? position : -1);
+            if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
+        }
+    } else {
+        for (int i = at; i >= 0; --i) {
+            const std::optional<Revision> r = previousRevision(sites[i].story, i == at && !gone ? position : sites[i].story->characterCount());
+            if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<StoryRevision> boxRevisionLike(WriteDoc &doc, int boxPosition, const QTextDocument *typedIn, const Revision &r)
+{
+    int which = 0;
+    for (const Revision &t : revisionsIn(typedIn))
+        if (t.kind == r.kind && t.id == r.id && t.from < r.from) ++which;
+    const QString container = QStringLiteral("box:%1").arg(boxPosition);
+    QTextDocument *story = storyOfContainer(doc, container);
+    if (!story) return std::nullopt;
+    for (const Revision &c : revisionsIn(story))
+        if (c.kind == r.kind && c.id == r.id && which-- == 0) return StoryRevision{story, c, container};
+    return std::nullopt;
+}
+
 int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept, int *partners)
 {
     if (which.isEmpty()) return 0;
@@ -1401,6 +1608,13 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
         if (!by.contains(w.story)) order.push_back(w.story);
         by[w.story].push_back(w.revision);
     }
+    // (The words of text boxes first: writing a box back changes no place of the text, but settling the text moves the places of the boxes in it.)
+    QHash<const QTextDocument *, int> boxPlace;
+    QVector<Site> sites = sitesOf(doc);
+    bool sitesFresh = true;
+    for (const Site &site : std::as_const(sites))
+        if (site.box >= 0) boxPlace.insert(site.story, site.box);
+    std::stable_partition(order.begin(), order.end(), [&](const QTextDocument *d) { return boxPlace.contains(d); });
     // Where each change of the stories after the first is, by its kind and which of that kind it is in its story, told now before anything is done (the Ids a file gives may repeat).
     QHash<const QTextDocument *, QVector<std::pair<int, int>>> places;
     for (int i = 1; i < order.size(); ++i) {
@@ -1428,7 +1642,9 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
         // (The stories there are, made once: only taking out text can end one, a note whose reference was in the text.)
         if (!aliveKnown) {
             alive.clear();
-            for (const Site &site : sitesOf(doc)) alive.insert(site.story);
+            if (!sitesFresh) sites = sitesOf(doc);
+            sitesFresh = false;
+            for (const Site &site : std::as_const(sites)) alive.insert(site.story);
             aliveKnown = true;
         }
         if (!alive.contains(story)) continue;
@@ -1459,8 +1675,20 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
             const NoteScopeGuard guard(doc, c);
             done += resolveRevisions(doc, story, it.value(), accept, kept, partners);
         }
+        const int before = done;
         done += resolveRevisions(doc, story, inText, accept, kept, partners);
         if (story == doc.story()) aliveKnown = false;
+        if (boxPlace.contains(story)) {
+            // The box is written back with its changes settled, in the same step; a box that can't be written (it would be too big) keeps what it had, and the changes are told as kept.
+            const int at = boxPlace.value(story);
+            bool refused = false;
+            if (!setTextBoxStory(doc, at, story, &refused) && refused) {
+                if (kept) *kept += done - before;
+                done = before;
+            }
+            doc.boxReview.stories.erase(at);
+            aliveKnown = false;
+        }
     }
     return done;
 }

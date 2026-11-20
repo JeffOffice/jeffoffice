@@ -2786,6 +2786,15 @@ static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, 
     else t.createList(lf);
 }
 
+bool putBlockInList(WriteDoc &doc, QTextBlock block, int numId, int level)
+{
+    if (numId <= 0 || doc.deepestLevel(numId) < 0) return false;
+    setBlockList(doc, block, numId, level, nullptr);
+    return true;
+}
+
+void takeBlockOutOfList(WriteDoc &doc, QTextBlock block) { removeFromList(doc, block); }
+
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered)
 {
     const NoteScopeGuard scopeGuard(doc, c);

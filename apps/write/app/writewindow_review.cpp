@@ -5,6 +5,7 @@
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/settings.h"
+#include "app/shapetextedit.h"
 #include "app/spellpane.h"
 #include "app/writefilescreen.h"
 #include "core/commentops.h"
@@ -24,6 +25,17 @@
 #include <QTreeWidget>
 
 namespace jp {
+
+namespace {
+// Back to the text before a command that changes stories: the header, footer, or note being edited, and the words being typed in a text box (put in the document first, so that what the command
+// does to the box is not written over).
+void leaveSideStories(write::PageView *view)
+{
+    view->leaveHeaderFooter();
+    view->leaveNote();
+    if (view->editingShapeText()) view->endShapeTextEdit(true);
+}
+}
 
 void WriteWindow::createReviewActions()
 {
@@ -72,8 +84,7 @@ void WriteWindow::createReviewActions()
     mk("review.rejectShown", tr("Reject All Changes Shown"), "circle-x", QKeySequence(), [this] { resolveShown(false); });
     mk("review.acceptAll", tr("Accept All Changes"), "check-check", QKeySequence(), [this] {
         if (!m_doc) return;
-        m_view->leaveHeaderFooter();
-        m_view->leaveNote();
+        leaveSideStories(m_view);
         int kept = 0, partners = 0;
         const int n = write::acceptAll(*m_doc, &kept, &partners) - partners;
         statusBar()->showMessage(resolvedMessage(true, n, kept, false), 5000);
@@ -83,8 +94,7 @@ void WriteWindow::createReviewActions()
     });
     mk("review.acceptAllStop", tr("Accept All Changes and Stop Tracking"), "check-check", QKeySequence(), [this] {
         if (!m_doc) return;
-        m_view->leaveHeaderFooter();
-        m_view->leaveNote();
+        leaveSideStories(m_view);
         int kept = 0, partners = 0;
         const int n = write::acceptAll(*m_doc, &kept, &partners) - partners;
         m_doc->setTrackChanges(false);
@@ -94,8 +104,7 @@ void WriteWindow::createReviewActions()
     });
     mk("review.rejectAll", tr("Reject All Changes"), "circle-x", QKeySequence(), [this] {
         if (!m_doc) return;
-        m_view->leaveHeaderFooter();
-        m_view->leaveNote();
+        leaveSideStories(m_view);
         int kept = 0, partners = 0;
         const int n = write::rejectAll(*m_doc, &kept, &partners) - partners;
         statusBar()->showMessage(resolvedMessage(false, n, kept, false), 5000);
@@ -403,7 +412,7 @@ QString WriteWindow::resolvedMessage(bool accept, int n, int kept, bool stopTrac
 {
     QString text = accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n));
     if (stopTracking) text = n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n);
-    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) kept because the table would break.", "", kept);
+    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) kept as written because they can't be settled without breaking a table, a list, or a section.", "", kept);
     return text;
 }
 
@@ -411,7 +420,12 @@ QString WriteWindow::resolvedMessage(bool accept, int n, int kept, bool stopTrac
 void WriteWindow::showRevision(const write::StoryRevision &r)
 {
     if (!m_doc || !r.story) return;
+    if (r.container.startsWith(QLatin1String("box:"))) {
+        showBoxRevision(r);
+        return;
+    }
     QTextDocument *s = r.story;
+    if (m_view->editingShapeText()) m_view->endShapeTextEdit(true);
     if (s == m_doc->story()) {
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
@@ -428,10 +442,47 @@ void WriteWindow::showRevision(const write::StoryRevision &r)
     rememberChange(r, true);
 }
 
+// Shows a change of the words of a text box: the box is opened for typing, with the caret on the change where the words typed in have it (the paragraphs of deleted marks are not in them).
+void WriteWindow::showBoxRevision(const write::StoryRevision &r)
+{
+    const int at = r.container.mid(4).toInt();
+    m_view->leaveHeaderFooter();
+    m_view->leaveNote();
+    if (!(m_view->editingShapeText() && m_view->shapeEditorAt() == at)) {
+        if (m_view->editingShapeText() && !m_view->endShapeTextEdit(true)) {
+            rememberChange(r, false);
+            return;
+        }
+        m_view->selectPicture(at);
+        if (!m_view->beginShapeTextEdit()) {
+            // (It is the last change visited all the same: Next goes on from it, and Accept and Reject act on it.)
+            rememberChange(r, false);
+            statusBar()->showMessage(tr("This change is in a text box that can't be opened here."), 4000);
+            return;
+        }
+    }
+    if (QTextDocument *typed = m_view->shapeEditor() ? m_view->shapeEditor()->document() : nullptr) {
+        // (The same kind and Id, and the same one of them: a file may repeat an Id.)
+        int which = 0;
+        for (const write::Revision &x : write::revisionsIn(r.story))
+            if (x.kind == r.revision.kind && x.id == r.revision.id && x.from < r.revision.from) ++which;
+        for (const write::Revision &x : write::revisionsIn(typed))
+            if (x.kind == r.revision.kind && x.id == r.revision.id && which-- == 0) {
+                QTextCursor c(typed);
+                c.setPosition(std::min(x.from, typed->characterCount() - 1));
+                c.setPosition(std::min(std::max(x.from, x.to), typed->characterCount() - 1), QTextCursor::KeepAnchor);
+                m_view->shapeEditor()->setTextCursor(c);
+                break;
+            }
+    }
+    rememberChange(r, true);
+}
+
 void WriteWindow::rememberChange(const write::StoryRevision &r, bool shown)
 {
     m_lastChange = r;
     m_lastChangeShown = shown;
+    m_lastChangeStamp = write::reviewStamp(*m_doc);
     const QTextCursor &c = m_view->cursor();
     m_lastCursorStory = c.document();
     m_lastCursorAnchor = c.anchor();
@@ -441,7 +492,7 @@ void WriteWindow::rememberChange(const write::StoryRevision &r, bool shown)
 // The change last visited, while the caret is still where that left it (else none: the caret was moved on, and the next change is the one after the caret).
 const write::StoryRevision *WriteWindow::lastVisitedChange() const
 {
-    if (!m_lastChange || !m_doc) return nullptr;
+    if (!m_lastChange || !m_doc || m_lastChangeStamp != write::reviewStamp(*m_doc)) return nullptr;
     const QTextCursor &c = m_view->cursor();
     if (c.document() != m_lastCursorStory || c.anchor() != m_lastCursorAnchor || c.position() != m_lastCursorPosition) return nullptr;
     return &*m_lastChange;
@@ -451,6 +502,10 @@ const write::StoryRevision *WriteWindow::lastVisitedChange() const
 void WriteWindow::resolveHere(bool accept)
 {
     if (!m_doc) return;
+    if (m_view->editingShapeText() || (m_lastChange && m_lastChange->container.startsWith(QLatin1String("box:")) && lastVisitedChange())) {
+        resolveInBox(accept);
+        return;
+    }
     if (const write::StoryRevision *last = lastVisitedChange(); last && !m_lastChangeShown) {
         // The change last visited could not be shown, so the caret is elsewhere: it is that one that is done.
         const write::StoryRevision was = *last;
@@ -483,6 +538,37 @@ void WriteWindow::resolveHere(bool accept)
     if (const std::optional<write::Revision> here = write::revisionAt(m_view->cursor().document(), m_view->cursor().position())) rememberChange({m_view->cursor().document(), *here, QString()}, true);
     updateReviewState();
     refreshReviewUi();
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// Accept or Reject for a change in the words of a text box: the one last visited while the caret has not been moved from it, else the one at the caret in the words being typed (which are put
+// in the document first), and on to the next change.
+void WriteWindow::resolveInBox(bool accept)
+{
+    std::optional<write::StoryRevision> target;
+    QString container;
+    const write::StoryRevision *last = lastVisitedChange();
+    if (last && last->container.startsWith(QLatin1String("box:"))) {
+        target = *last;
+        container = last->container;
+    } else if (m_view->editingShapeText() && m_view->shapeEditor()) {
+        const int at = m_view->shapeEditorAt();
+        QTextDocument *typed = m_view->shapeEditor()->document();
+        container = QStringLiteral("box:%1").arg(at);
+        if (const std::optional<write::Revision> here = write::revisionAt(typed, m_view->shapeEditor()->textCursor().position())) target = write::boxRevisionLike(*m_doc, at, typed, *here);
+        m_view->endShapeTextEdit(true);   // (the words typed go in the document; the box's story is made again from it when it is looked at)
+    }
+    m_lastChange.reset();
+    if (container.isEmpty()) return;
+    if (target) {
+        if (m_view->editingShapeText()) m_view->endShapeTextEdit(true);
+        // (By what it is, never by a place that is near it.)
+        const std::optional<write::StoryRevision> now = write::findRevision(*m_doc, target->container, int(target->revision.kind), target->revision.id, target->revision.from);
+        if (now) write::resolveDocumentRevisions(*m_doc, {*now}, accept);
+    }
+    updateReviewState();
+    refreshReviewUi();
+    if (const std::optional<write::StoryRevision> next = write::nextDocumentRevisionIn(*m_doc, container, target ? target->revision.from - 1 : -1, true)) showRevision(*next);
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
@@ -541,8 +627,7 @@ QVector<write::StoryRevision> WriteWindow::shownRevisions() const
 int WriteWindow::resolveShown(bool accept)
 {
     if (!m_doc) return 0;
-    m_view->leaveHeaderFooter();
-    m_view->leaveNote();
+    leaveSideStories(m_view);
     int kept = 0, partners = 0;
     const int n = write::resolveDocumentRevisions(*m_doc, shownRevisions(), accept, &kept, &partners) - partners;
     statusBar()->showMessage(resolvedMessage(accept, n, kept, false), 5000);

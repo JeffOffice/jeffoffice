@@ -213,6 +213,10 @@ void setLineSpacing(WriteDoc &doc, QTextCursor &c, QTextBlockFormat::LineHeightT
 enum class ListKind { None, Bullets, Numbers };
 ListKind listKindOf(const WriteDoc &doc, const QTextBlock &block);
 void toggleList(WriteDoc &doc, QTextCursor &c, bool numbered);
+// Puts a paragraph in the list of the numbering `numId` at `level` (the list before it that is the same, else a new one), or takes it out of its list, as the list commands do. The caller
+// holds an EditScope, which numbers the items again. False where the document has no such numbering.
+bool putBlockInList(WriteDoc &doc, QTextBlock block, int numId, int level);
+void takeBlockOutOfList(WriteDoc &doc, QTextBlock block);
 // ---- setting up lists: each is one step of the history, and writes into the document's numbering model (definitions, ids, restarts), which the file keeps
 // The definition of the list the paragraph is in (a copy, all nine levels), or the plain bullets (or numbers) when it is in none.
 office::wml::AbstractNum listDefinitionAt(const WriteDoc &doc, const QTextBlock &block, bool numbers);

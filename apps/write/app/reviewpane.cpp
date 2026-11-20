@@ -38,6 +38,8 @@ QString kindName(const write::Revision &r)
     case write::Revision::MovedTo: return QCoreApplication::translate("jp::ReviewPane", "Moved to");
     case write::Revision::Format: return QCoreApplication::translate("jp::ReviewPane", "Formatted");
     case write::Revision::ParagraphFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted paragraph");
+    case write::Revision::NumberingInserted: return QCoreApplication::translate("jp::ReviewPane", "Numbered");
+    case write::Revision::NumberingChanged: return QCoreApplication::translate("jp::ReviewPane", "Numbering changed");
     case write::Revision::MarkInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted paragraph");
     case write::Revision::MarkDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted paragraph");
     case write::Revision::RowInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted row");
@@ -247,8 +249,10 @@ void ReviewPane::rebuild()
         item->setData(0, Qt::UserRole + 2, int(r.kind));
         item->setData(0, Qt::UserRole + 3, r.id);
         item->setData(0, Qt::UserRole + 4, sr.container);
+        if (sr.container.startsWith(QLatin1String("box:"))) item->setToolTip(0, jp::plainToolTip(tr("In a text box")));
     }
-    // The changes inside text boxes are not listed (they are kept as the XML they are written in), but Accept All and Reject All do them: the line says how many there are.
+    // The changes inside a text box that can't be read as words (a group, linked boxes, a box in a header or a note) are not listed (they are kept as the XML they are written in), but Accept All and
+    // Reject All do them: the line says how many there are.
     {
         const int inBoxes = write::textBoxChangeCount(*doc);
         m_boxLine->setText(tr("%n more change(s) are inside text boxes.", "", inBoxes));
