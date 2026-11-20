@@ -18447,7 +18447,7 @@ Desktop publishing</translation>
 <context>
     <name>Text</name>
     <message>
-        <location filename="../libs/base/text/dictionaries.cpp" line="+52"/>
+        <location filename="../libs/base/text/dictionaries.cpp" line="+54"/>
         <source>English (United States)</source>
         <translation type="unfinished">Engels (Verenigde Staten)</translation>
     </message>
