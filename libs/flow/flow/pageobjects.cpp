@@ -202,7 +202,13 @@ QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w)
     // (A callout's pointer sticks out of its frame: the text keeps off that too.)
     QRectF frame = w.rect;
     if (o.item && o.item->rotation == 0) frame = frame.united(localReach(*o.item).translated(w.rect.topLeft()));
-    QRectF room = frame.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
+    // (A tight wrap that has no outline is the rectangle, with the room round it that an outline has: its widest distance on all four sides.)
+    QMarginsF gap = o.gap;
+    if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() < 3) {
+        const double widest = std::max({gap.left(), gap.right(), gap.top(), gap.bottom()});
+        gap = QMarginsF(widest, widest, widest, widest);
+    }
+    QRectF room = frame.adjusted(-gap.left(), -gap.top(), gap.right(), gap.bottom() + w.below);
     if (w.rect.top() >= w.anchorTop - 0.01 && room.top() < w.anchorTop) room.setTop(w.anchorTop);
     return room;
 }

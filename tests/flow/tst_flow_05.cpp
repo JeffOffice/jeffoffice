@@ -551,6 +551,29 @@ void FlowTests::aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff()
 }
 
 
+// A tight wrap that has no outline of its own (a picture's rectangle): the room round it is its widest distance on all four sides, as round an outline.
+void FlowTests::aTightWrapWithNoOutlineKeepsItsWidestDistanceOnEverySide()
+{
+    FlowDocument fd;
+    fd.env.wordLines = true;
+    fillStory(fd.story(), 24, 23, {}, 25, 45);
+    addWrapped(&fd, 100, 120, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 150, 30, QMarginsF(9, 0, 9, 0), FloatingObject::Side::Both);
+    Paginator pg(&fd);
+    const auto page = pg.materialize(0);
+    QVERIFY(page);
+    const Item *obj = objectOfSize(*page, 100, 120);
+    QVERIFY(obj);
+    const QRectF wall = obj->rect.adjusted(-9, -9, 9, 9);
+    int beside = 0;
+    for (const PageLine &l : pageLines(pg, fd, 0)) {
+        if (!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05)) continue;
+        QVERIFY2(l.rect.right() <= wall.left() + 0.05 || l.rect.left() >= wall.right() - 0.05, qPrintable(QStringLiteral("a line at %1 is over the room %2").arg(audit::rectText(l.rect), audit::rectText(wall))));
+        ++beside;
+    }
+    QVERIFY(beside > 3);
+}
+
+
 // An object behind the text or over it, and one with no wrap, move no line: the pages' lines are those of a document without them.
 void FlowTests::objectsBehindAndOverTheTextMoveNoLine()
 {
