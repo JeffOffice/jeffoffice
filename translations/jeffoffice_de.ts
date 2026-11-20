@@ -15367,7 +15367,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Eine Formel wird von anderen Zellen gemeinsam genutzt und wird dort gelesen, wo diese sich befinden.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+231"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 Formeln, die das Format nicht aufnehmen kann (sie behalten ihren berechneten Wert)</translation>
@@ -15378,9 +15378,9 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Datentabellen für Was-wäre-wenn-Analysen (ihre Zellen behalten ihre Zahlen)</translation>
     </message>
     <message>
-        <location line="+767"/>
-        <location line="+224"/>
-        <location line="+42"/>
+        <location line="+768"/>
+        <location line="+240"/>
+        <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
         <location line="+670"/>
         <location line="+14"/>
@@ -15388,7 +15388,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Das Speichern wurde abgebrochen.</translation>
     </message>
     <message>
-        <location line="-261"/>
+        <location line="-279"/>
         <source>the sheets after %1 (the document would be larger than any program reads)</source>
         <translation type="unfinished">die Blätter nach %1 (das Dokument wäre größer, als irgendein Programm lesen kann)</translation>
     </message>
@@ -15404,7 +15404,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">%1 Zellen über die Zellenobergrenze einer Kopie hinaus</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+78"/>
         <source>%1 merged ranges too large to write</source>
         <translation type="unfinished">%1 verbundene Bereiche, die zum Schreiben zu groß sind</translation>
     </message>
@@ -15414,12 +15414,12 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">eine Matrixformel mit mehr Zellen, als eine Kopie schreibt</translation>
     </message>
     <message>
-        <location line="+82"/>
+        <location line="+90"/>
         <source>the rows from %1 on (the document would be larger than any program reads)</source>
         <translation type="unfinished">die Zeilen ab %1 (das Dokument wäre größer, als irgendein Programm lesen kann)</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+314"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+1"/>
         <source>%1 texts cut to 32,767 characters</source>
         <translation type="unfinished">%1 Texte auf 32.767 Zeichen gekürzt</translation>
@@ -62426,12 +62426,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Dieses Blatt enthält keine Zellen, die geändert werden können.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
-        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
-        <translation type="unfinished">Notizen und Links einer Arbeitsmappe, die aus diesem Dateityp geöffnet wurde, bleiben beim Speichern als .xlsx-Arbeitsmappe erhalten. Speichern Sie sie in diesem Format, und fügen Sie sie dann hinzu.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+36"/>
         <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
         <translation type="unfinished">Dieses Blatt enthält mehr Notizen, als JeffCrunch ändern kann (%1). Sie werden angezeigt und beibehalten, aber es können keine Notizen hinzugefügt oder entfernt werden.</translation>
     </message>
@@ -62516,7 +62511,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Arbeitsmappe kann bis zu %1 Kommentare in Threads haben.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-121"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-132"/>
+        <source>Notes can&apos;t be added or changed yet in a workbook opened from this kind of file. The notes it has are shown, and are kept when it is saved as an .xlsx or an .ods file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <location line="+31"/>
         <location line="+64"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
@@ -70684,7 +70684,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <location filename="../libs/office/sheet/ods.cpp" line="+58"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+74"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Ein Teil der Datei hat bei einem Element mehr Einstellungen als jede echte Datei und kann daher nicht gelesen werden.</translation>
     </message>
@@ -70701,50 +70701,52 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+1"/>
         <location line="+63"/>
-        <location line="+1083"/>
+        <location line="+1084"/>
         <location line="+43"/>
-        <location line="+271"/>
+        <location line="+105"/>
+        <location line="+264"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Die Datei beginnt mit Anweisungen, die dieses Programm nicht zulässt, daher kann sie nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="-1459"/>
+        <location line="-1558"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Die Datei ist beschädigt: Sie ist nicht so aufgebaut, wie eine Tabellenkalkulationsdatei aufgebaut sein muss.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+855"/>
+        <location line="+856"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Die Datei ist beschädigt, oder ihre Teile sind umfangreicher, als dieses Programm lesen kann.</translation>
     </message>
     <message>
-        <location line="-830"/>
-        <location line="+1501"/>
+        <location line="-831"/>
+        <location line="+1600"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Das Lesen wurde abgebrochen.</translation>
     </message>
     <message>
-        <location line="-1498"/>
-        <location line="+1074"/>
+        <location line="-1597"/>
+        <location line="+1075"/>
         <location line="+22"/>
         <location line="+43"/>
-        <location line="+88"/>
-        <location line="+133"/>
+        <location line="+67"/>
+        <location line="+114"/>
+        <location line="+135"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Die Datei enthält tiefer verschachtelte Elemente als jede echte Datei.</translation>
     </message>
     <message>
-        <location line="-1344"/>
-        <location line="+1035"/>
+        <location line="-1440"/>
+        <location line="+1036"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Die Datei ist beschädigt.</translation>
     </message>
     <message>
-        <location line="-1023"/>
+        <location line="-1024"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70771,7 +70773,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Datei nennt mehr Schriftarten als jede echte Datei.</translation>
     </message>
     <message>
-        <location line="+626"/>
+        <location line="+627"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">Die Tabellenkalkulation ist größer, als dieses Programm lesen kann.</translation>
     </message>
@@ -70823,7 +70825,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Datei ist beschädigt: Ihre Tabellenblätter können nicht unterschieden werden.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+116"/>
         <source>charts</source>
         <translation type="unfinished">Diagramme</translation>
     </message>
@@ -70836,11 +70838,6 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">Pivot-Tabellen</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>comments</source>
-        <translation type="unfinished">Kommentare</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70863,12 +70860,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Datenüberprüfung</translation>
     </message>
     <message>
-        <location line="+198"/>
+        <location line="+291"/>
         <source>The sheet has more columns defined than any real file has.</source>
         <translation type="unfinished">Das Tabellenblatt enthält mehr definierte Spalten als jede echte Datei.</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+230"/>
         <location line="+49"/>
         <location line="+6"/>
         <source>A text in this file is longer than any real file&apos;s.</source>
@@ -70890,18 +70887,31 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das Tabellenblatt enthält mehr gesondert formatierte Zeilen als jede echte Datei.</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+64"/>
+        <source>Only the first %1 notes on a sheet are kept.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+79"/>
         <location filename="../libs/office/sheet/odsdraw_read.cpp" line="+133"/>
         <source>drawing objects past the %1 a sheet may have</source>
         <translation type="unfinished">Zeichnungsobjekte über die zulässigen %1 pro Blatt hinaus</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location line="+132"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dieses Tabellenblatt gibt es nicht.</translation>
     </message>
     <message numerus="yes">
-        <location line="+39"/>
+        <location line="+52"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation type="unfinished">
             <numerusform>%n Blattname, für eine .xlsx-Datei gültig gemacht</numerusform>
@@ -71144,9 +71154,9 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1030"/>
-        <location line="+79"/>
-        <location line="+14"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1036"/>
+        <location line="+99"/>
+        <location line="+16"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
         <location line="+1653"/>
         <location line="+61"/>
@@ -71452,7 +71462,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Datei konnte nicht geschrieben werden: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-129"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-154"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei eines anderen Formats gelesen.</translation>
     </message>
@@ -71462,12 +71472,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eingebettete Objekte aus einer anderen Dateiart (als Bilder beibehalten)</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+116"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Ein Tabellenblatt der Arbeitsmappe konnte zum Speichern nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">Die Diagramme einer Tabelle wurden geändert, während die Arbeitsmappe gespeichert wurde.</translation>
     </message>
@@ -71525,6 +71535,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+10"/>
         <source>The drawing of a sheet&apos;s controls could not be changed.</source>
         <translation type="unfinished">Die Zeichnung der Steuerelemente eines Blatts konnte nicht geändert werden.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/sheet/notes.cpp" line="+513"/>
+        <source>The workbook has more note text than this program keeps; the rest was left out.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

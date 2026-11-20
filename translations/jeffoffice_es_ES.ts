@@ -2290,10 +2290,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">El formato condicional de un libro abierto desde este tipo de fichero se conserva al guardarlo como libro .xlsx. Guárdelo así y después cambie las reglas.</translation>
     </message>
     <message>
-        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
-        <translation type="unfinished">Las notas y vínculos de un libro abierto desde este tipo de fichero se conservan al guardarlo como libro .xlsx. Guárdelo en ese formato y después agréguelos.</translation>
-    </message>
-    <message>
         <source>That address is longer than a link can hold in files other programs open (%1 characters).</source>
         <translation type="unfinished">Esa dirección es más larga de lo que admite un vínculo en ficheros que abren otros programas (%1 caracteres).</translation>
     </message>

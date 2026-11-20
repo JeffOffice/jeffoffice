@@ -15367,7 +15367,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Une formule est partagée par d&apos;autres cellules et se lit à leur emplacement.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+231"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formules que le format ne peut pas contenir (elles conservent leur valeur calculée)</translation>
@@ -15378,9 +15378,9 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">tables de données de simulation (leurs cellules conservent leurs nombres)</translation>
     </message>
     <message>
-        <location line="+767"/>
-        <location line="+224"/>
-        <location line="+42"/>
+        <location line="+768"/>
+        <location line="+240"/>
+        <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
         <location line="+670"/>
         <location line="+14"/>
@@ -15388,7 +15388,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">L&apos;enregistrement a été interrompu.</translation>
     </message>
     <message>
-        <location line="-261"/>
+        <location line="-279"/>
         <source>the sheets after %1 (the document would be larger than any program reads)</source>
         <translation type="unfinished">les feuilles après %1 (le document dépasserait la taille lisible par tout programme)</translation>
     </message>
@@ -15404,7 +15404,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">%1 cellules au-delà de la limite de cellules d&apos;une copie</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+78"/>
         <source>%1 merged ranges too large to write</source>
         <translation type="unfinished">%1 plages fusionnées trop grandes pour être écrites</translation>
     </message>
@@ -15414,12 +15414,12 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">une formule matricielle comportant plus de cellules qu&apos;une copie n&apos;en écrit</translation>
     </message>
     <message>
-        <location line="+82"/>
+        <location line="+90"/>
         <source>the rows from %1 on (the document would be larger than any program reads)</source>
         <translation type="unfinished">les lignes à partir de %1 (le document dépasserait la taille lisible par tout programme)</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+314"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+1"/>
         <source>%1 texts cut to 32,767 characters</source>
         <translation type="unfinished">%1 textes tronqués à 32 767 caractères</translation>
@@ -62426,12 +62426,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Cette feuille ne contient aucune cellule à modifier.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+35"/>
-        <source>Notes and links of a workbook opened from this kind of file are kept when it is saved as an .xlsx workbook. Save it as one, and then add them.</source>
-        <translation type="unfinished">Les notes et les liens d&apos;un classeur ouvert à partir de ce type de fichier sont conservés lorsqu&apos;il est enregistré au format .xlsx. Enregistrez-le dans ce format, puis ajoutez-les.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+36"/>
         <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
         <translation type="unfinished">Cette feuille contient plus de notes que JeffCrunch ne peut en modifier (%1). Il les affiche et les conserve, mais n&apos;en ajoute ni n&apos;en supprime.</translation>
     </message>
@@ -62516,7 +62511,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Un classeur peut contenir jusqu&apos;à %1 commentaires dans des fils.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-121"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-132"/>
+        <source>Notes can&apos;t be added or changed yet in a workbook opened from this kind of file. The notes it has are shown, and are kept when it is saved as an .xlsx or an .ods file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <location line="+31"/>
         <location line="+64"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
@@ -70684,7 +70684,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <location filename="../libs/office/sheet/ods.cpp" line="+58"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+74"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Une partie du fichier comporte plus de paramètres sur un même élément que tout fichier réel : elle ne peut donc pas être lue.</translation>
     </message>
@@ -70701,50 +70701,52 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+1"/>
         <location line="+63"/>
-        <location line="+1083"/>
+        <location line="+1084"/>
         <location line="+43"/>
-        <location line="+271"/>
+        <location line="+105"/>
+        <location line="+264"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Le fichier commence par des instructions que ce programme n&apos;autorise pas ; il ne peut donc pas être lu.</translation>
     </message>
     <message>
-        <location line="-1459"/>
+        <location line="-1558"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Le fichier est endommagé : il n&apos;est pas écrit comme un fichier de feuille de calcul devrait l&apos;être.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+855"/>
+        <location line="+856"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Le fichier est endommagé, ou ses parties dépassent ce que ce programme peut lire.</translation>
     </message>
     <message>
-        <location line="-830"/>
-        <location line="+1501"/>
+        <location line="-831"/>
+        <location line="+1600"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="-1498"/>
-        <location line="+1074"/>
+        <location line="-1597"/>
+        <location line="+1075"/>
         <location line="+22"/>
         <location line="+43"/>
-        <location line="+88"/>
-        <location line="+133"/>
+        <location line="+67"/>
+        <location line="+114"/>
+        <location line="+135"/>
         <source>The file has items inside items more deeply than any real file has.</source>
         <translation type="unfinished">Le fichier contient des éléments imbriqués plus profondément que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="-1344"/>
-        <location line="+1035"/>
+        <location line="-1440"/>
+        <location line="+1036"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Le fichier est endommagé.</translation>
     </message>
     <message>
-        <location line="-1023"/>
+        <location line="-1024"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70771,7 +70773,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le fichier cite plus de polices que tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+626"/>
+        <location line="+627"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">La feuille de calcul dépasse la taille que ce programme peut lire.</translation>
     </message>
@@ -70823,7 +70825,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le fichier est endommagé : ses feuilles ne peuvent pas être distinguées.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+116"/>
         <source>charts</source>
         <translation type="unfinished">graphiques</translation>
     </message>
@@ -70836,11 +70838,6 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">tableaux croisés dynamiques</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>comments</source>
-        <translation type="unfinished">commentaires</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -70863,12 +70860,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">validation des données</translation>
     </message>
     <message>
-        <location line="+198"/>
+        <location line="+291"/>
         <source>The sheet has more columns defined than any real file has.</source>
         <translation type="unfinished">La feuille définit plus de colonnes que tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+230"/>
         <location line="+49"/>
         <location line="+6"/>
         <source>A text in this file is longer than any real file&apos;s.</source>
@@ -70890,18 +70887,31 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">La feuille contient plus de lignes distinctes que tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+121"/>
+        <location line="+64"/>
+        <source>Only the first %1 notes on a sheet are kept.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+79"/>
         <location filename="../libs/office/sheet/odsdraw_read.cpp" line="+133"/>
         <source>drawing objects past the %1 a sheet may have</source>
         <translation type="unfinished">objets de dessin au-delà des %1 qu&apos;une feuille peut contenir</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location line="+132"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Cette feuille n&apos;existe pas.</translation>
     </message>
     <message numerus="yes">
-        <location line="+39"/>
+        <location line="+52"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation type="unfinished">
             <numerusform>%n nom de feuille rendu valide pour un fichier .xlsx</numerusform>
@@ -71144,9 +71154,9 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1030"/>
-        <location line="+79"/>
-        <location line="+14"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1036"/>
+        <location line="+99"/>
+        <location line="+16"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
         <location line="+1653"/>
         <location line="+61"/>
@@ -71452,7 +71462,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Impossible d&apos;écrire le fichier : %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-129"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-154"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Le classeur n&apos;a pas été lu à partir d&apos;un fichier d&apos;un autre format.</translation>
     </message>
@@ -71462,12 +71472,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">objets incorporés créés dans un autre type de fichier (conservés sous forme d&apos;images)</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+116"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Une feuille du classeur n&apos;a pas pu être lue pour être enregistrée.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+14"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">Les graphiques d&apos;une feuille ont été modifiés pendant l&apos;enregistrement du classeur.</translation>
     </message>
@@ -71525,6 +71535,11 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+10"/>
         <source>The drawing of a sheet&apos;s controls could not be changed.</source>
         <translation type="unfinished">Le dessin des contrôles d&apos;une feuille n&apos;a pas pu être modifié.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/sheet/notes.cpp" line="+513"/>
+        <source>The workbook has more note text than this program keeps; the rest was left out.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

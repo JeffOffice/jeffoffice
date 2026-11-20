@@ -424,7 +424,15 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+2082"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+1979"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation>
+            <numerusform>%n note cut to %1 characters</numerusform>
+            <numerusform>%n notes cut to %1 characters</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+263"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>
