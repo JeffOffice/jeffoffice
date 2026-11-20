@@ -1865,7 +1865,9 @@ private Q_SLOTS:
         QVERIFY(e.view()->inNoteKeys());
         const QRect rel0 = e.view()->noteKeysBox();
         const Qt::KeyboardModifier fine = grid::GridView::noteFineModifier();
-        for (const Qt::Key key : {Qt::Key_Right, Qt::Key_Down, Qt::Key_Left, Qt::Key_Up, Qt::Key_Home, Qt::Key_PageDown}) {
+        QSignalSpy lists(e.view(), &grid::GridView::dropDownRequested);
+        const int steps = w.undoStack()->count();
+        for (const Qt::Key key : {Qt::Key_Right, Qt::Key_Down, Qt::Key_Left, Qt::Key_Up, Qt::Key_Home, Qt::Key_PageDown, Qt::Key_Return, Qt::Key_Tab, Qt::Key_F2, Qt::Key_Delete, Qt::Key_A}) {
             QTest::keyClick(e.view(), key, Qt::MetaModifier);
             QTest::keyClick(e.view(), key, Qt::AltModifier | Qt::ShiftModifier);
             if (fine != Qt::AltModifier) QTest::keyClick(e.view(), key, Qt::AltModifier);
@@ -1874,7 +1876,10 @@ private Q_SLOTS:
             QCOMPARE(e.selected(), QStringLiteral("C3"));
             QCOMPARE(e.view()->noteKeysBox(), rel0);
             QVERIFY(e.view()->inNoteKeys());
+            QVERIFY(!w.isEditing());
         }
+        QCOMPARE(lists.size(), 0);
+        QCOMPARE(w.undoStack()->count(), steps);
         QTest::keyClick(e.view(), Qt::Key_Right, fine);
         QCOMPARE(e.view()->noteKeysBox().x(), rel0.x() + 1);
         QCOMPARE(e.selected(), QStringLiteral("C3"));
