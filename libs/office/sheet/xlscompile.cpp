@@ -17,6 +17,7 @@ namespace {
 constexpr int kMaxNodes = 4000;
 constexpr int kMaxDepth = 80;
 constexpr int kMaxArgs = 30;
+constexpr int kMaxFunctionNesting = 8, kMaxOperands = 40;   // what the format sets (section 2.2.2): functions inside functions, and values held at once
 
 // The classes of operand a token can be written in: a reference, a value, or an array.
 constexpr int kClsRef = 0x20, kClsVal = 0x40, kClsArr = 0x60;
@@ -270,6 +271,14 @@ public:
             *why = m_why;
             return false;
         }
+        int nesting = 0;
+        const int operands = operandsOf(root, 0, &nesting);
+        if (nesting > kMaxFunctionNesting || operands > kMaxOperands) {
+            fail(nesting > kMaxFunctionNesting ? QCoreApplication::translate("Sheet", "The formula has more than 8 functions inside one another, which the old format can't hold.")
+                                               : QCoreApplication::translate("Sheet", "The formula holds more than 40 values at once, which the old format can't hold."));
+            *why = m_why;
+            return false;
+        }
         m_out.clear();
         m_extra.clear();
         const int top = m_cx.isName ? kClsRef : m_cx.array ? kClsArr : kClsVal;
@@ -288,6 +297,30 @@ public:
     }
 
 private:
+    // The number of operands a node needs held at once, as the format counts them (the largest, over its operands in order, of the ones before it plus its own), and in `nesting` the
+    // most functions on a path to a leaf (section 2.2.2).
+    int operandsOf(int idx, int functions, int *nesting) const
+    {
+        const Node &n = m_nodes[size_t(idx)];
+        switch (n.kind) {
+        case Kind::Func: ++functions; break;
+        case Kind::Num: case Kind::Str: case Kind::Bool: case Kind::Error: case Kind::Missing: case Kind::Ref: case Kind::Name: case Kind::Array:
+            *nesting = std::max(*nesting, functions);
+            return 1;
+        default: break;
+        }
+        *nesting = std::max(*nesting, functions);
+        int before = n.kind == Kind::Func && n.code == 1 ? 1 : 0, most = before;   // (the name of an add-in function is an operand that comes first)
+        for (const int k : n.kids) {
+            const int c = operandsOf(k, functions, nesting);
+            if (c > 0) {
+                most = std::max(most, before + c);
+                ++before;
+            }
+        }
+        return most;
+    }
+
     const QString &m_t;
     const XlsCompileContext &m_cx;
     int m_pos = 0;
@@ -888,6 +921,11 @@ private:
                 m_nodes[size_t(e)].ref.is3d = true;
                 m_nodes[size_t(e)].ref.sheet1 = s1;
                 m_nodes[size_t(e)].ref.sheet2 = s2;
+                // ("Sheet2!#REF!:#REF!" is a range that is gone, which has a token of its own)
+                if (m_t.mid(m_pos, 6).compare(QLatin1String(":#REF!"), Qt::CaseInsensitive) == 0) {
+                    m_pos += 6;
+                    m_nodes[size_t(e)].ref.area = true;
+                }
             }
             return e;
         }
@@ -1163,9 +1201,9 @@ private:
                     const int first = n.ref.sheet1, last = n.ref.sheet2 < 0 ? n.ref.sheet1 : n.ref.sheet2;
                     const int x = m_cx.xti(std::min(first, last), std::max(first, last));
                     if (x < 0) return fail(QCoreApplication::translate("Sheet", "The formula names more sheets than the old format can."));
-                    u8(0x1C + cls);
+                    u8((n.ref.area ? 0x1D : 0x1C) + cls);
                     u16(x);
-                    m_out.append(QByteArray(4, '\0'));
+                    m_out.append(QByteArray(n.ref.area ? 8 : 4, '\0'));   // (the token of a range that is gone has 8 bytes after the sheets' place, that of a cell 4: sections 2.5.198.30 and 2.5.198.87)
                 } else if (m_cx.isName) {
                     u8(0x1C + cls);
                     u16(m_cx.xti ? std::max(0, m_cx.xti(-1, -1)) : 0);

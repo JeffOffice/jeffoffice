@@ -27,7 +27,7 @@ struct XlsXti {
 
 // A supporting book: this workbook, another one, or the add-in functions.
 struct XlsSupBook {
-    enum class Kind : quint8 { Internal, External, AddIn };
+    enum class Kind : quint8 { Internal, External, AddIn, Unused };
     Kind kind = Kind::Internal;
     QString url;
     QStringList sheets;

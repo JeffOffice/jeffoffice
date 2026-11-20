@@ -1,7 +1,7 @@
 #pragma once
 // The address of another workbook as the old binary format keeps it in the book record of a link: one character that says it is a file's address (1), then the path with the
 // format's own codes in place of its marks: 1 and a drive letter (or "@" for a network path, the server's name following) for "C:\" and "\\", 2 for the root of the drive the file is on,
-// 3 between folders, 4 for each parent folder ("..\"), and 5 with the length of the address and the address for a web address. No brackets are written round the file's name.
+// 3 between folders, 4 for each parent folder ("..\"), and 5 with the length of the address (one character, so at most 255) and the address for a web address. No brackets are written round the file's name.
 // The codes are those of the format's published description as its record layout gives them, checked against the addresses in real files and in what the other open-source suite writes.
 
 #include <QString>
@@ -18,7 +18,7 @@ inline QString xlsEncodeLinkAddress(const QString &target)
     QString t = target;
     const QChar code1(1), code2(2), code3(3), code4(4), code5(5);
     if (t.startsWith(QLatin1String("http://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("https://"), Qt::CaseInsensitive) || t.startsWith(QLatin1String("ftp://"), Qt::CaseInsensitive))
-        return QString(code1) + code5 + QChar(ushort(std::min<qsizetype>(t.size(), 0xFFFF))) + t.left(0xFFFF);
+        return QString(code1) + code5 + QChar(ushort(std::min<qsizetype>(t.size(), 0xFF))) + t.left(0xFF);   // (the count is one byte: a caller keeps the whole address to 255 characters)
     bool network = false;
     if (t.startsWith(QLatin1String("file:"), Qt::CaseInsensitive)) {
         QString rest = t.mid(5);
@@ -39,7 +39,7 @@ inline QString xlsEncodeLinkAddress(const QString &target)
     if (t.startsWith(QLatin1String("//"))) {
         lead = QString(code1) + QLatin1Char('@');
         t.remove(0, 2);
-    } else if (t.size() >= 2 && t[1] == QLatin1Char(':') && t[0].isLetter()) {
+    } else if (t.size() >= 2 && t[1] == QLatin1Char(':') && t[0].unicode() < 0x80 && t[0].isLetter()) {
         lead = QString(code1) + t[0];
         t.remove(0, 2);
     } else if (t.startsWith(QLatin1Char('/'))) {
@@ -60,38 +60,54 @@ inline QString xlsEncodeLinkAddress(const QString &target)
 }
 
 // The address an encoded one stands for, written as a Windows path ("C:\data\a.xlsx", "\\host\share\a.xlsx", "..\a.xlsx", "a.xlsx") or as the web address it is; empty if it is no file's
-// address (the text of a link of another kind), or is one this program cannot name (a folder of the program that made the file).
+// address (the text of a link of another kind). The first code, the brackets round a book's name, and the folders of the program that made the file (kept as a relative path) are read as the format allows (sections 2.5.277).
 inline QString xlsDecodeLinkAddress(const QString &encoded)
 {
-    if (encoded.isEmpty() || encoded[0].unicode() != 1) return QString();
+    if (encoded.isEmpty()) return QString();
     QString out;
-    qsizetype i = 1;
-    if (i < encoded.size()) {
-        const ushort c = encoded[i].unicode();
-        if (c == 1) {
-            if (i + 1 >= encoded.size()) return QString();
-            if (encoded[i + 1] == QLatin1Char('@')) out = QStringLiteral("\\\\");
-            else out = QString(encoded[i + 1]) + QStringLiteral(":\\");
-            i += 2;
-        } else if (c == 2) {
-            out = QStringLiteral("\\");
-            ++i;
-        } else if (c == 5) {
-            if (i + 1 >= encoded.size()) return QString();
-            const qsizetype n = encoded[i + 1].unicode();
-            if (i + 2 + n > encoded.size()) return QString();
-            out = encoded.mid(i + 2, n);
-            i += 2 + n;
-        } else if (c >= 6 && c <= 8) {
-            return QString();
+    qsizetype i = 0;
+    if (encoded[0].unicode() == 1) {
+        i = 1;   // (the first code is optional)
+        if (i < encoded.size()) {
+            const ushort c = encoded[i].unicode();
+            if (c == 1) {
+                if (i + 1 >= encoded.size()) return QString();
+                if (encoded[i + 1] == QLatin1Char('@')) out = QStringLiteral("\\\\");
+                else out = QString(encoded[i + 1]) + QStringLiteral(":\\");
+                i += 2;
+            } else if (c == 2) {
+                out = QStringLiteral("\\");
+                ++i;
+            } else if (c == 5) {
+                if (i + 1 >= encoded.size()) return QString();
+                const qsizetype n = encoded[i + 1].unicode();
+                if (i + 2 + n > encoded.size()) return QString();
+                out = encoded.mid(i + 2, n);
+                if (out.startsWith(QLatin1Char('['))) {   // ("[address]sheet": the name of the sheet is not part of the address)
+                    const qsizetype close = out.indexOf(QLatin1Char(']'));
+                    if (close > 0) out = out.mid(1, close - 1);
+                }
+                return out;
+            } else if (c >= 6 && c <= 8) {
+                ++i;   // (relative to a folder of the program that made the file: the model keeps the path from there, as a relative one)
+            }
         }
     }
-    for (; i < encoded.size(); ++i) {
-        const ushort c = encoded[i].unicode();
+    QString rest = encoded.mid(i);
+    // "[folder\book]sheet": the brackets and the sheet's name come off, the name of the book is what is kept
+    for (qsizetype p = rest.indexOf(QLatin1Char('[')); p >= 0; p = rest.indexOf(QLatin1Char('['), p + 1)) {
+        if (p != 0 && rest[p - 1].unicode() != 3) continue;
+        const qsizetype close = rest.indexOf(QLatin1Char(']'), p);
+        if (close < 0) break;
+        rest = rest.left(p) + rest.mid(p + 1, close - p - 1);
+        break;
+    }
+    for (const QChar ch : rest) {
+        const ushort c = ch.unicode();
         if (c == 3) out += QLatin1Char('\\');
         else if (c == 4) out += QStringLiteral("..\\");
         else if (c < 0x20) return QString();
-        else out += encoded[i];
+        else out += ch;
     }
     return out;
 }

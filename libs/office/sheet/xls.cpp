@@ -908,7 +908,9 @@ private:
             // (the address and the names of the sheets are strings that may go on in the next record: the format puts the byte of flags at the start of the rest)
             const quint8 flags = b.u8();
             const QString address = b.chars(cch, flags & 1);
-            if (b.ok()) sb.url = xlsDecodeLinkAddress(address);
+            // (a single space marks a book that is not used, a single NUL one of the same sheet: neither is another workbook, so neither is counted as one: section 2.4.271)
+            if (cch == 1 && b.ok() && (address[0] == QLatin1Char(' ') || address[0].unicode() == 0)) sb.kind = address[0].unicode() == 0 ? XlsSupBook::Kind::Internal : XlsSupBook::Kind::Unused;
+            else if (b.ok()) sb.url = xlsDecodeLinkAddress(address);
             for (int i = 0; i < sheets && b.ok(); ++i) {
                 const int n = b.u16();
                 const quint8 f = b.u8();
@@ -916,7 +918,7 @@ private:
                 if (!b.ok()) break;
                 sb.sheets << name;
             }
-            sb.ordinal = ++m_externals;
+            if (sb.kind == XlsSupBook::Kind::External) sb.ordinal = ++m_externals;
         }
         m_cx.supbooks.append(sb);
     }
@@ -1731,6 +1733,7 @@ private:
             note.row = row;
             note.col = col;
             note.author = (wide & 1) ? QString::fromUtf16(reinterpret_cast<const char16_t *>(p), n) : text(p, n);
+            if (note.author == QLatin1String(" ")) note.author.clear();   // (the one space a note with no author is written with)
             note.text = at->words;
             note.shown = flags & 2;
             if (at->hasAnchor) {

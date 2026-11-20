@@ -39,7 +39,7 @@ std::atomic<bool> g_writeNotes{true};
 
 constexpr int kFormulaHead = 22;   // the bytes of a formula record before its tokens
 constexpr int kMaxXlsNotes = 30000;   // the most notes a sheet of a copy has
-constexpr int kMaxXlsNoteChars = 32767, kMaxXlsAuthorChars = 255;   // the most characters of a note's words and of its author
+constexpr int kMaxXlsNoteChars = 32767, kMaxXlsAuthorChars = 54;   // the most characters of a note's words and of its author (an author has 1 to 54: section 2.5.186)
 constexpr int kMaxRecord = 8224;   // the bytes a record may hold; more go in CONTINUE records where the format allows
 
 class W {
@@ -107,6 +107,8 @@ bool isWide(const QString &s)
 class Continued {
 public:
     Continued(QByteArray *out, quint16 id) : m_out(out), m_id(id) {}
+    // Where each string begins, if asked for: its place in the bytes put out (the record's start and the string's offset in the record, the record's four-byte head counted).
+    void markStarts(QVector<std::pair<qsizetype, qsizetype>> *marks) { m_marks = marks; }
     void bytes(const QByteArray &b)
     {
         if (m_cur.size() + b.size() > kMaxRecord) flush();
@@ -121,6 +123,7 @@ public:
     {
         const bool wide = isWide(s);
         begin(3 + (wide ? 2 : 1));
+        if (m_marks) m_marks->push_back({m_out->size(), 4 + m_cur.size()});
         W h;
         h.u16(int(s.size())).u8(wide ? 1 : 0);
         m_cur.append(h.bytes());
@@ -163,6 +166,7 @@ private:
     quint16 m_id;
     QByteArray m_cur;
     bool m_first = true;
+    QVector<std::pair<qsizetype, qsizetype>> *m_marks = nullptr;
 };
 
 struct Rgb {
@@ -511,8 +515,10 @@ private:
         return int(m_sst.size()) - 1;
     }
 
-    // The most a link's address may be (the book record tells an internal or an add-in book by the length of its address) and sheets it may list; the most links.
-    static constexpr int kMaxLinkTarget = 1000;
+    // The most characters a link's address may have once written (the record's count of them is 1 to 255: sections 2.4.271 and 2.5.277), and the characters of the name of a sheet of
+    // another workbook (1 to 31: section 2.4.28); the most links.
+    static constexpr int kMaxLinkTarget = 255;
+    static constexpr int kMaxLinkSheetName = 31;
     static constexpr int kMaxLinks = 250;
     int linkSheetFor(int book, const QString &sheet)
     {
@@ -523,11 +529,15 @@ private:
         if (!m_links || book < 1 || book > m_links->count() || m_links->target(book).isEmpty())
             return refuse(QCoreApplication::translate("Sheet", "The formula reads another workbook that has no link with an address in the workbook."));
         if (book > kMaxLinks) return refuse(QCoreApplication::translate("Sheet", "The workbook has more than 250 links to other workbooks, which the old format can't hold."));
-        if (m_links->target(book).size() > kMaxLinkTarget) return refuse(QCoreApplication::translate("Sheet", "A link's address is longer than 1,000 characters, which the old format can't hold."));
-        if (sheet.size() > 255) return refuse(QCoreApplication::translate("Sheet", "The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can't hold."));
+        if (xlsEncodeLinkAddress(m_links->target(book)).size() > kMaxLinkTarget) return refuse(QCoreApplication::translate("Sheet", "A link's address is longer than 255 characters, which the old format can't hold."));
+        if (sheet.isEmpty() || sheet.size() > kMaxLinkSheetName) return refuse(QCoreApplication::translate("Sheet", "The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can't hold."));
         if (m_linkSheets.size() < book) m_linkSheets.resize(book);
         QStringList &list = m_linkSheets[book - 1];
-        if (list.isEmpty()) list = m_links->sheetNames(book).mid(0, 255);
+        if (list.isEmpty()) {
+            list = m_links->sheetNames(book).mid(0, 255);
+            for (QString &name : list)   // (the names the workbook already lists are written as the format allows too)
+                if (name.isEmpty() || name.size() > kMaxLinkSheetName) name = name.isEmpty() ? QStringLiteral("Sheet") : name.left(kMaxLinkSheetName);
+        }
         for (int i = 0; i < list.size(); ++i)
             if (list[i].compare(sheet, Qt::CaseInsensitive) == 0) return i;
         if (list.size() >= 255) return refuse(QCoreApplication::translate("Sheet", "The formulas name more than 255 sheets of one other workbook, which the old format can't hold."));
@@ -842,7 +852,7 @@ private:
             }
             putRecord(out, 0x003C, W().u16(0).u16(0).u32(0).u16(int(words.size())).u16(0).u32(0).bytes());
             W who;
-            who.u16(int(row)).u16(int(col)).u16(note.shown ? 2 : 0).u16(id).str8(note.author.left(kMaxXlsAuthorChars), 2);
+            who.u16(int(row)).u16(int(col)).u16(note.shown ? 2 : 0).u16(id).str8(note.author.isEmpty() ? QStringLiteral(" ") : note.author.left(kMaxXlsAuthorChars), 2);   // (the format has no note with no author: one space stands for none)
             who.u8(0);   // (the byte the record ends with)
             noteRecords.push_back(who.bytes());
         }
@@ -1538,11 +1548,13 @@ private:
         }
         // the strings
         QByteArray sst;
+        QVector<std::pair<qsizetype, qsizetype>> sstStarts;
         {
             Continued c(&sst, 0x00FC);
             W head;
             head.u32(quint32(m_sstRefs)).u32(quint32(m_sst.size()));
             c.bytes(head.bytes());
+            c.markStarts(&sstStarts);
             for (const QString &s : std::as_const(m_sst)) c.string(s);
             c.finish();
         }
@@ -1572,7 +1584,11 @@ private:
             // (a record holds 8,224 bytes; the rest of a longer drawing group goes on in the records that follow)
             for (qsizetype at = 0; at < whole.size(); at += kMaxRecord) putRecord(&drawingGroup, at == 0 ? 0x00EB : 0x003C, whole.mid(at, kMaxRecord));
         }
-        const qsizetype globalsSize = g.size() + boundSize + 4 + country.size() + extern_.size() + names.size() + drawingGroup.size() + sst.size() + 4;
+        // the table that says where every dsst-th string of the table of strings begins, for a program that looks a string up without reading the table from its start (section 2.4.107)
+        const qsizetype stringCount = qsizetype(sstStarts.size()), perSet = std::max<qsizetype>(stringCount / 128 + 1, 8);
+        const qsizetype setCount = (stringCount + perSet - 1) / perSet;
+        const qsizetype extSstSize = 4 + 2 + 8 * setCount;
+        const qsizetype globalsSize = g.size() + boundSize + 4 + country.size() + extern_.size() + names.size() + drawingGroup.size() + sst.size() + extSstSize + 4;
         qsizetype offset = globalsSize;
         for (size_t i = 0; i < m_written.size(); ++i) {
             const SheetEntry &e = m_book.info().sheets.value(m_written[i].place);
@@ -1591,7 +1607,16 @@ private:
         g += extern_;
         g += names;
         g += drawingGroup;
-        g += sst;
+        {
+            W ext;
+            ext.u16(int(perSet));
+            for (qsizetype k = 0; k < setCount; ++k) {
+                const auto &at = sstStarts[k * perSet];
+                ext.u32(quint32(g.size() + at.first + at.second)).u16(int(at.second)).u16(0);
+            }
+            g += sst;
+            put(&g, 0x00FF, ext);
+        }
         put(&g, 0x000A, W());
         return g;
     }

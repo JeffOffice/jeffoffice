@@ -12,6 +12,7 @@
 #include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xls.h"
+#include "sheet/xlslinkaddress.h"
 #include "sheet/notes.h"
 
 #include <QFile>
@@ -1163,6 +1164,43 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(wb.readSheet(0, &s));
         QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QString(QStringLiteral("\"")) + QString::fromUtf16(u"\u041F\u0440\u0438\u0432\u0435\u0442") + QStringLiteral("\""));
+    }
+
+    // A supporting book whose address is one space (not used) or one NUL (the same sheet) is not another workbook: the books after it are numbered as if it were not there.
+    void aBookMarkedUnusedOrSameSheetIsNotCountedAsAnExternalWorkbook()
+    {
+        W unused, sameSheet;
+        unused.u16(1).u16(1).u8(0).raw(" ").str8(QStringLiteral(" "), 2);
+        sameSheet.u16(0).u16(1).u8(0).u8(0);
+        Book b;
+        b.after(supbookInternal(1) + rec(0x01AE, unused) + rec(0x01AE, sameSheet) + supbookExternal(QString(QChar(1)) + QStringLiteral("\x01C") + QStringLiteral("Costs.xlsx"), {QStringLiteral("Q1")})
+                + externSheet({{3, 0, 0}}));
+        b.sheet(QStringLiteral("S"), formulaNumber(0, 0, tRef3d(0, 0, 0), 0));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.formulaText(*sheettest::at(s, QStringLiteral("A1"))), QStringLiteral("'[1]Q1'!A1"));
+    }
+
+    // The address of a link is read as the format allows: the first code is optional, a book's name may be in brackets (with a sheet after it, which is not part of the address), and an address
+    // relative to a folder of the program that made the file is kept as a relative path.
+    void aLinksAddressIsReadInEveryFormTheFormatAllows()
+    {
+        const QChar c1(1), c3(3), c5(5), c6(6), c7(7), c8(8);
+        QCOMPARE(xlsDecodeLinkAddress(QString(c1) + c1 + QLatin1Char('C') + QStringLiteral("[data") + c3 + QStringLiteral("Costs.xlsx]Sheet1")), QStringLiteral("C:\\data\\Costs.xlsx"));
+        QCOMPARE(xlsDecodeLinkAddress(QString(c1) + c1 + QLatin1Char('C') + QStringLiteral("data") + c3 + QStringLiteral("[Costs.xlsx]Sheet1")), QStringLiteral("C:\\data\\Costs.xlsx"));
+        QCOMPARE(xlsDecodeLinkAddress(QStringLiteral("Costs.xlsx")), QStringLiteral("Costs.xlsx"));
+        QCOMPARE(xlsDecodeLinkAddress(QStringLiteral("[Costs.xlsx]Sheet1")), QStringLiteral("Costs.xlsx"));
+        QCOMPARE(xlsDecodeLinkAddress(QStringLiteral("data") + c3 + QStringLiteral("Costs.xlsx")), QStringLiteral("data\\Costs.xlsx"));
+        for (const QChar folder : {c6, c7, c8}) QCOMPARE(xlsDecodeLinkAddress(QString(c1) + folder + QStringLiteral("data") + c3 + QStringLiteral("Costs.xlsx")), QStringLiteral("data\\Costs.xlsx"));
+        const QString web = QStringLiteral("http://h.example/Costs.xlsx");
+        QCOMPARE(xlsDecodeLinkAddress(QString(c1) + c5 + QChar(int(web.size())) + web), web);
+        const QString bracketed = QLatin1Char('[') + web + QLatin1Char(']') + QStringLiteral("Sheet1");
+        QCOMPARE(xlsDecodeLinkAddress(QString(c1) + c5 + QChar(int(bracketed.size())) + bracketed), web);
+        QVERIFY(xlsDecodeLinkAddress(QString()).isEmpty());
+        QVERIFY(xlsDecodeLinkAddress(QString(QChar(2)) + QStringLiteral("x") + QChar(0x10)).isEmpty());
     }
 
     // The lists of external sheets, supporting books, and external names are records that go on in the records after them when they are long, as the string table does.

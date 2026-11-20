@@ -767,7 +767,7 @@ private Q_SLOTS:
     void recordsOverTheSizeAreContinuedAsTheFormatRequires()
     {
         QStringList names;
-        for (int i = 0; i < 150; ++i) names << QStringLiteral("Name %1 ").arg(i).leftJustified(100, QLatin1Char('x')) + (i % 7 == 0 ? QString(QChar(0x754C)) : QString());
+        for (int i = 0; i < 255; ++i) names << QStringLiteral("Name %1 ").arg(i).leftJustified(30, QLatin1Char('x')) + QString(QChar(0x754C));   // (255 names of 31 wide characters: three pieces)
         Copies c;
         const QString rows = num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("'[1]%1'!A1+1").arg(names.first()), 33) + fnum(QStringLiteral("C1"), QStringLiteral("'[1]%1'!A1*2").arg(names.last()), 44);
         QVERIFY2(c.make(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), names), false), qPrintable(c.why));
@@ -927,18 +927,49 @@ private Q_SLOTS:
             QCOMPARE(links->count(), 250);
             QCOMPARE(links->target(250), QStringLiteral("C:\\data\\Book250.xlsx"));
         }
-        {   // an address of 1,000 characters, not 1,001
-            const QString shorter = QStringLiteral("C:\\") + QString(1000 - 3 - 5, QLatin1Char('d')) + QStringLiteral(".xlsx"), longer = shorter + QLatin1Char('d');
-            QCOMPARE(shorter.size(), 1000);
+        {   // an address of 255 characters once written, not 256 (the book record's count of them is 1 to 255)
+            const QString shorter = QStringLiteral("C:\\") + QString(255 - 3 - 5, QLatin1Char('d')) + QStringLiteral(".xlsx"), longer = shorter + QLatin1Char('d');
+            QCOMPARE(shorter.size(), 255);
             Copies c;
             QVERIFY2(c.make(withLinks(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[1]Sheet1!A1"), 9) + fnum(QStringLiteral("B1"), QStringLiteral("[2]Sheet1!A1"), 9)), {shorter, longer},
                                       {QStringList{QStringLiteral("Sheet1")}, QStringList{QStringLiteral("Sheet1")}}), false), qPrintable(c.why));
             QCOMPARE(c.xlsReport.formulas, qint64(1));
             QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
-            QVERIFY2(joined(c).contains(QLatin1String("1,000 characters")), qPrintable(joined(c)));
+            QVERIFY2(joined(c).contains(QLatin1String("255 characters")), qPrintable(joined(c)));
             const auto links = ExternalBooks::read(c.xls, QString());
             QVERIFY(links && links->count() >= 1);
             QCOMPARE(links->target(1), shorter);
+            for (const RawRecord &r : rawRecords(c.xlsBytes))   // (no book record has a count the format does not have: 1 to 255, or the two marks)
+                if (r.id == 0x01AE) {
+                    const int cch = quint8(r.data[2]) | (quint8(r.data[3]) << 8);
+                    QVERIFY2(cch == 0x0401 || cch == 0x3A01 || (cch >= 1 && cch <= 255), qPrintable(QString::number(cch)));
+                }
+        }
+        {   // a web address: its count is one byte, and the two codes and the count come first in the 255 characters the record may have, so an address of 252 is written and one of 253 is not
+            const QString shorter = QStringLiteral("http://h.example/") + QString(252 - 17 - 5, QLatin1Char('d')) + QStringLiteral(".xlsx"), longer = shorter + QLatin1Char('d');
+            QCOMPARE(shorter.size(), 252);
+            Copies c;
+            QVERIFY2(c.make(withLinks(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[1]Sheet1!A1"), 9) + fnum(QStringLiteral("B1"), QStringLiteral("[2]Sheet1!A1"), 9)), {shorter, longer},
+                                      {QStringList{QStringLiteral("Sheet1")}, QStringList{QStringLiteral("Sheet1")}}), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(1));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            const auto links = ExternalBooks::read(c.xls, QString());
+            QVERIFY(links && links->count() >= 1);
+            QCOMPARE(links->target(1), shorter);
+        }
+        {   // the names of another workbook's sheets: 31 characters are written, 32 are not; the names the workbook lists are cut to 31 and never written empty
+            const QString ok = QString(31, QLatin1Char('n')), tooLong = QString(32, QLatin1Char('n'));
+            Copies c;
+            QVERIFY2(c.make(withOneLink(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[1]%1!A1").arg(ok), 9) + fnum(QStringLiteral("B1"), QStringLiteral("[1]%1!A1").arg(tooLong), 9)),
+                                        QStringLiteral("C:\\data\\Costs.xlsx"), {QString(40, QLatin1Char('L')), QString()}), false), qPrintable(c.why));
+            QCOMPARE(c.xlsReport.formulas, qint64(1));
+            QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+            QVERIFY2(joined(c).contains(QLatin1String("31 characters")), qPrintable(joined(c)));
+            const auto links = ExternalBooks::read(c.xls, QString());
+            QVERIFY(links && links->count() == 1);
+            const QStringList names = links->sheetNames(1);
+            QVERIFY2(names.contains(ok), qPrintable(names.join(QLatin1Char('|'))));
+            for (const QString &n : names) QVERIFY2(n.size() >= 1 && n.size() <= 31, qPrintable(n));
         }
         {   // 255 sheets of one other workbook, not 256
             QString rows;
@@ -1568,7 +1599,129 @@ private Q_SLOTS:
         }
     }
 
-    // A note of more than 32,767 characters and an author of more than 255 are cut to what the format holds, and the copy says how many of each.
+    // The format sets how many functions may sit inside one another (8) and how many values a formula holds at once (40): a formula past either is written as its value, with the reason said.
+    void aFormulaPastTheFormatsNestingOrOperandLimitIsWrittenAsItsValue()
+    {
+        auto nested = [](int levels) { return QString(QStringLiteral("ABS(")).repeated(levels) + QStringLiteral("1") + QString(levels, QLatin1Char(')')); };
+        auto args = [](int n) {
+            QStringList l;
+            for (int i = 1; i <= n; ++i) l << QString::number(i);
+            return l.join(QLatin1Char(','));
+        };
+        auto joined = [](const Copies &c) { return c.xlsReport.formulaReasons.join(QLatin1Char('\n')); };
+        Copies c;
+        QVERIFY2(c.make(simple(row(1, fnum(QStringLiteral("A1"), nested(8), 1) + fnum(QStringLiteral("B1"), nested(9), 1)
+                                          + fnum(QStringLiteral("C1"), QStringLiteral("SUM(%1,SUM(%2))").arg(args(29), args(11)), 1)      // (29 + 11 = 40)
+                                          + fnum(QStringLiteral("D1"), QStringLiteral("SUM(%1,SUM(%2))").arg(args(29), args(12)), 1))), false), qPrintable(c.why));   // (29 + 12 = 41)
+        QCOMPARE(c.xlsReport.formulas, qint64(2));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(2));
+        QVERIFY2(joined(c).contains(QLatin1String("8 functions")), qPrintable(joined(c)));
+        QVERIFY2(joined(c).contains(QLatin1String("40 values")), qPrintable(joined(c)));
+        const Sheet back = c.sheet(c.xls, 0);
+        QCOMPARE(formula(back, QStringLiteral("A1")), nested(8));
+        QVERIFY(formula(back, QStringLiteral("B1")).isEmpty());
+        QCOMPARE(formula(back, QStringLiteral("C1")), QStringLiteral("SUM(%1,SUM(%2))").arg(args(29), args(11)));
+        QVERIFY(formula(back, QStringLiteral("D1")).isEmpty());
+    }
+
+    // A range that is gone ("Sheet1!#REF!:#REF!") has the token of its own, a single cell that is gone another: the area form has 8 bytes after the sheets' place, the cell form 4.
+    void aDeletedRangeOnASheetHasTheAreaErrorToken()
+    {
+        XlsCompileContext cx;
+        cx.sheetNames = {QStringLiteral("Sheet1")};
+        cx.xti = [](int, int) { return 0; };
+        QByteArray rgce, extra;
+        QString why;
+        QVERIFY2(xlsCompileFormula(QStringLiteral("Sheet1!#REF!:#REF!"), cx, &rgce, &extra, &why), qPrintable(why));
+        QCOMPARE(rgce.size(), qsizetype(1 + 2 + 8));
+        QCOMPARE(int(quint8(rgce[0])) & 0x1F, 0x1D);
+        QVERIFY2(xlsCompileFormula(QStringLiteral("Sheet1!#REF!"), cx, &rgce, &extra, &why), qPrintable(why));
+        QCOMPARE(rgce.size(), qsizetype(1 + 2 + 4));
+        QCOMPARE(int(quint8(rgce[0])) & 0x1F, 0x1C);
+    }
+
+    // The format holds an author of 1 to 54 characters: 54 are written as they are, 55 are cut (and counted), and a note with no author gets the one character the format needs, which reads back as none.
+    void aNotesAuthorIsOneToFiftyFourCharacters()
+    {
+        const QString a54(54, QLatin1Char('a')), a55(55, QLatin1Char('b'));
+        const QString rows = row(annotated(QStringLiteral("<dc:creator>%1</dc:creator><text:p>x</text:p>").arg(a54)) + annotated(QStringLiteral("<dc:creator>%1</dc:creator><text:p>y</text:p>").arg(a55))
+                                 + annotated(QStringLiteral("<text:p>z</text:p>")));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        QList<int> lengths;
+        for (const RawRecord &r : rawRecords(xls))
+            if (r.id == 0x001C) lengths << (quint8(r.data[8]) | (quint8(r.data[9]) << 8));
+        QCOMPARE(lengths, (QList<int>{54, 54, 1}));
+        QStringList authorMsg;
+        for (const QString &m : std::as_const(report.trimmed))
+            if (m.contains(QLatin1String("author"))) authorMsg << m;
+        QCOMPARE(authorMsg.size(), qsizetype(1));
+        QVERIFY2(authorMsg[0].contains(QStringLiteral("1 author")) && authorMsg[0].contains(QStringLiteral("54")), qPrintable(authorMsg[0]));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        const auto now = readSheetNoteInfos(back, 0);
+        QCOMPARE(now.at(noteKey(0, 0)).author, a54);
+        QCOMPARE(now.at(noteKey(0, 1)).author, a55.left(54));
+        QVERIFY(now.at(noteKey(0, 2)).author.isEmpty());
+    }
+
+    // The table of strings is followed by the record that says where each set of strings in it begins (the stream's place of the first string of each set, and its offset in its record), so a reader can find a string
+    // without reading from the start. Checked against the bytes: each place holds the string it should, with strings long enough that the table goes on in several records.
+    void theStringTableIsFollowedByTheTableOfWhereItsSetsBegin()
+    {
+        QStringList texts;
+        for (int i = 0; i < 300; ++i) {
+            texts << QStringLiteral("S%1_").arg(i, 4, 10, QLatin1Char('0')) + QString(90, QLatin1Char('a' + i % 20));
+        }
+        QString rows;
+        for (int i = 0; i < 300; ++i) rows += row(i + 1, str(QStringLiteral("A%1").arg(i + 1), texts[i]));
+        Copies c;
+        QVERIFY2(c.make(simple(rows), false), qPrintable(c.why));
+        jp::cfb::File file;
+        QVERIFY(jp::cfb::read(c.xlsBytes, &file, &c.why));
+        const QByteArray stream = file.stream(QStringLiteral("Workbook"));
+        qsizetype at = 0;
+        int sstAt = -1, extAt = -1, pieces = 0;
+        QList<qsizetype> starts;
+        QList<quint16> ids;
+        for (; at + 4 <= stream.size();) {
+            const quint16 id = quint8(stream[at]) | (quint8(stream[at + 1]) << 8), len = quint8(stream[at + 2]) | (quint8(stream[at + 3]) << 8);
+            starts << at;
+            ids << id;
+            if (id == 0x00FC) sstAt = int(ids.size()) - 1;
+            if (id == 0x00FF && extAt < 0) extAt = int(ids.size()) - 1;
+            if (id == 0x000A) break;
+            at += 4 + len;
+        }
+        QVERIFY(sstAt >= 0 && extAt > sstAt);
+        for (int i = sstAt + 1; i < extAt; ++i) {
+            QCOMPARE(int(ids[i]), 0x003C);   // (the table's own continuation, nothing between it and the table of sets)
+            ++pieces;
+        }
+        QVERIFY2(pieces >= 3, qPrintable(QString::number(pieces)));
+        const qsizetype e = starts[extAt] + 4;
+        const int dsst = quint8(stream[e]) | (quint8(stream[e + 1]) << 8), len = quint8(stream[e - 2]) | (quint8(stream[e - 1]) << 8);
+        QCOMPARE(dsst, 8);   // (the larger of 8 and the count of strings over 128, plus 1)
+        QCOMPARE(len, 2 + 8 * ((300 + 7) / 8));
+        for (int k = 0; k < (300 + 7) / 8; ++k) {
+            const qsizetype ib = qint64(quint32(quint8(stream[e + 2 + 8 * k]) | (quint8(stream[e + 3 + 8 * k]) << 8) | (quint8(stream[e + 4 + 8 * k]) << 16) | (quint32(quint8(stream[e + 5 + 8 * k])) << 24)));
+            const int cb = quint8(stream[e + 6 + 8 * k]) | (quint8(stream[e + 7 + 8 * k]) << 8);
+            QVERIFY2(starts.contains(ib - cb), qPrintable(QStringLiteral("set %1: no record begins at %2").arg(k).arg(ib - cb)));   // (the record the string is in begins there)
+            const int id = quint8(stream[ib - cb]) | (quint8(stream[ib - cb + 1]) << 8);
+            QVERIFY(id == 0x00FC || id == 0x003C);
+            const int count = quint8(stream[ib]) | (quint8(stream[ib + 1]) << 8);   // (the string: its count, its flags, then its first characters)
+            const QString want = texts[k * 8];
+            QCOMPARE(count, int(want.size()));
+            QCOMPARE(int(quint8(stream[ib + 2])) & 1, 0);
+            QCOMPARE(QString::fromLatin1(stream.mid(ib + 3, 8)), want.left(8));
+        }
+    }
+
+    // A note of more than 32,767 characters and an author of more than 54 are cut to what the format holds, and the copy says how many of each.
     void textAndAuthorsPastTheOldFormsLimitsAreCutAndCounted()
     {
         const QString rows = row(annotated(QStringLiteral("<dc:creator>%1</dc:creator><text:p>%2</text:p>").arg(QString(300, QLatin1Char('a')), QString(40000, QLatin1Char('t'))))
@@ -1594,8 +1747,8 @@ private Q_SLOTS:
         const auto now = readSheetNoteInfos(back, 0);
         QCOMPARE(now.size(), size_t(3));
         QCOMPARE(now.at(noteKey(0, 0)).text.size(), 32767);
-        QCOMPARE(now.at(noteKey(0, 0)).author.size(), 255);
-        QCOMPARE(now.at(noteKey(0, 1)).author.size(), 255);
+        QCOMPARE(now.at(noteKey(0, 0)).author.size(), 54);
+        QCOMPARE(now.at(noteKey(0, 1)).author.size(), 54);
         QCOMPARE(now.at(noteKey(0, 2)).text, QStringLiteral("fine"));
     }
 
