@@ -597,7 +597,6 @@ private Q_SLOTS:
             {QStringLiteral("win.new@blank"), QStringLiteral("a new workbook has no file yet, so it says to save first (a status line is only what it said); the window tests open the second window from a file")},
             {QStringLiteral("object.snapGrid"), QStringLiteral("it turns a preference on or off for the next drag of an object by the mouse; the grid object tests drag with it on and off")},
             {QStringLiteral("object.snapShape"), QStringLiteral("it turns a preference on or off for the next drag of an object by the mouse; the grid object tests drag with it on and off")},
-            {QStringLiteral("win.hide"), QStringLiteral("with one window in view it refuses in a message, since a program with every window hidden has nothing to bring them back; the window tests hide one of two")},
             {QStringLiteral("win.unhide"), QStringLiteral("with no window hidden it says so in the status bar; the window tests unhide one and pick among several")},
             {QStringLiteral("outline.auto"), QStringLiteral("it tells in a message that no formula calls for a group (the workbooks here have no sum of lines), and groups only when one does; the outline tests run it")},
             {QStringLiteral("outline.clear"), QStringLiteral("it tells in a message that there is no outline to clear (the workbooks here have none); the outline tests run it with one")},
