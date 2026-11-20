@@ -197,18 +197,20 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
     return QRectF(QPointF(x, y), size);
 }
 
-QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w)
+QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w, const QVector<QRectF> &columns)
 {
     // (A callout's pointer sticks out of its frame: the text keeps off that too.)
     QRectF frame = w.rect;
     if (o.item && o.item->rotation == 0) frame = frame.united(localReach(*o.item).translated(w.rect.topLeft()));
-    // (A tight wrap that has no outline is the rectangle, with the room round it that an outline has: its widest distance on all four sides.)
-    QMarginsF gap = o.gap;
+    QRectF room = frame.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
+    // (A tight wrap that has no outline, as wide as a column with its distances, leaves no room beside it: the text goes below it, and keeps off by the widest distance there too.)
     if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() < 3) {
-        const double widest = std::max({gap.left(), gap.right(), gap.top(), gap.bottom()});
-        gap = QMarginsF(widest, widest, widest, widest);
+        for (const QRectF &col : columns)
+            if (room.intersects(col) && room.left() <= col.left() + 0.5 && room.right() >= col.right() - 0.5) {
+                room.setBottom(room.bottom() + std::max({o.gap.left(), o.gap.right(), o.gap.bottom()}) - o.gap.bottom());
+                break;
+            }
     }
-    QRectF room = frame.adjusted(-gap.left(), -gap.top(), gap.right(), gap.bottom() + w.below);
     if (w.rect.top() >= w.anchorTop - 0.01 && room.top() < w.anchorTop) room.setTop(w.anchorTop);
     return room;
 }
@@ -242,7 +244,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
-        QRectF b = roomOf(o, w);
+        QRectF b = roomOf(o, w, {column});
         const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3 && shapesLeft > 0;
         if (!outlined && !b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
@@ -470,7 +472,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             item->wrap.mode = Wrap::None;
             if (wall) {
                 const Wrap::Side side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
-                QRectF room = roomOf(o, *wall);
+                QRectF room = roomOf(o, *wall, columns);
                 if (o.wrap == FloatingObject::Wrap::TopBottom) {
                     // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page),
                     // to the columns' edges and no further (a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its

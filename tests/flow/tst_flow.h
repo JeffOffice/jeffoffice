@@ -1618,7 +1618,8 @@ private Q_SLOTS:
     void topAndBottomWrapLeavesNoTextBesideTheObject();
     void wrapSidesPutTheTextOnTheSidesAsked();
     void aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff();
-    void aTightWrapWithNoOutlineKeepsItsWidestDistanceOnEverySide();
+    void aTightWrapWithNoOutlineAsWideAsTheColumnKeepsItsWidestDistanceBelow();
+    void aTightWrapWithNoOutlineWithRoomBesideItLetsTheTextOnBelowIt();
     void objectsBehindAndOverTheTextMoveNoLine();
     void tightWrapIsSquareWrapForNow();
     void aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits();

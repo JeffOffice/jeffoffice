@@ -333,7 +333,7 @@ private:
     QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const;
     // The room a wrapped object takes: its rectangle and the distances round it (and what is kept clear under it). The distance above an object that is set from its paragraph or its
     // line does not reach up into the lines before them: they are laid out first, and the object is set from where the paragraph begins.
-    static QRectF roomOf(const FloatingObject &o, const Wrapped &w);
+    static QRectF roomOf(const FloatingObject &o, const Wrapped &w, const QVector<QRectF> &columns = {});
     static QPainterPath wrapOutlinePath(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;

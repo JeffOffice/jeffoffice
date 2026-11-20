@@ -551,8 +551,29 @@ void FlowTests::aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff()
 }
 
 
-// A tight wrap that has no outline of its own (a picture's rectangle): the room round it is its widest distance on all four sides, as round an outline.
-void FlowTests::aTightWrapWithNoOutlineKeepsItsWidestDistanceOnEverySide()
+// A tight wrap that has no outline of its own (a picture's rectangle) and is as wide as the column: nothing fits beside it, and the text below it keeps off by its widest distance.
+void FlowTests::aTightWrapWithNoOutlineAsWideAsTheColumnKeepsItsWidestDistanceBelow()
+{
+    FlowDocument fd;
+    fd.env.wordLines = true;
+    fillStory(fd.story(), 24, 23, {}, 25, 45);
+    addWrapped(&fd, 468, 120, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 0, 30, QMarginsF(9, 0, 9, 0), FloatingObject::Side::Both);
+    Paginator pg(&fd);
+    const auto page = pg.materialize(0);
+    QVERIFY(page);
+    const Item *obj = objectOfSize(*page, 468, 120);
+    QVERIFY(obj);
+    double firstBelow = 1e9;
+    for (const PageLine &l : pageLines(pg, fd, 0)) {
+        QVERIFY2(l.rect.bottom() <= obj->rect.top() + 0.05 || l.rect.top() >= obj->rect.bottom() - 0.05, qPrintable(QStringLiteral("a line at %1 is over the object %2").arg(audit::rectText(l.rect), audit::rectText(obj->rect))));
+        if (l.rect.top() >= obj->rect.bottom() - 0.05) firstBelow = std::min(firstBelow, l.rect.top());
+    }
+    QVERIFY(firstBelow < 1e8);
+    QVERIFY2(firstBelow >= obj->rect.bottom() + 9 - 0.05, qPrintable(QStringLiteral("the first line below begins at %1, the object ends at %2").arg(firstBelow).arg(obj->rect.bottom())));
+}
+
+// The same with room beside it: the text goes on below it where it ends.
+void FlowTests::aTightWrapWithNoOutlineWithRoomBesideItLetsTheTextOnBelowIt()
 {
     FlowDocument fd;
     fd.env.wordLines = true;
@@ -563,14 +584,11 @@ void FlowTests::aTightWrapWithNoOutlineKeepsItsWidestDistanceOnEverySide()
     QVERIFY(page);
     const Item *obj = objectOfSize(*page, 100, 120);
     QVERIFY(obj);
-    const QRectF wall = obj->rect.adjusted(-9, -9, 9, 9);
-    int beside = 0;
-    for (const PageLine &l : pageLines(pg, fd, 0)) {
-        if (!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05)) continue;
-        QVERIFY2(l.rect.right() <= wall.left() + 0.05 || l.rect.left() >= wall.right() - 0.05, qPrintable(QStringLiteral("a line at %1 is over the room %2").arg(audit::rectText(l.rect), audit::rectText(wall))));
-        ++beside;
-    }
-    QVERIFY(beside > 3);
+    double firstBelow = 1e9;
+    for (const PageLine &l : pageLines(pg, fd, 0))
+        if (l.rect.top() >= obj->rect.bottom() - 0.05 && l.rect.left() < obj->rect.left() && l.rect.right() > obj->rect.right()) firstBelow = std::min(firstBelow, l.rect.top());
+    QVERIFY(firstBelow < 1e8);
+    QVERIFY2(firstBelow < obj->rect.bottom() + 8, qPrintable(QStringLiteral("the first line below begins at %1, the object ends at %2").arg(firstBelow).arg(obj->rect.bottom())));
 }
 
 
