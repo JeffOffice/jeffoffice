@@ -273,14 +273,14 @@ private Q_SLOTS:
         QCOMPARE(text, QStringLiteral("real"));
     }
 
-    // The notes of an .ods are shown and kept when it is saved as either form; asking to change them says so (and not that they are kept only as .xlsx).
-    void theRefusalToChangeNotesOfAnOdsSaysWhatIsTrue()
+    // The notes of an .ods are shown, and can be changed as an .xlsx workbook's can (tst_crunch_notesconv has the rest).
+    void theNotesOfAnOdsCanBeChanged()
     {
         Win o;
         QVERIFY(o.open(odsBook(QStringLiteral("<office:annotation><text:p>note</text:p></office:annotation>")), QStringLiteral("shown.ods")));
         QString why;
-        QVERIFY(!o.w.session()->canEditNotes(0, &why));
-        QVERIFY2(why.contains(QStringLiteral(".ods")) && why.contains(QStringLiteral("shown")) && !why.contains(QStringLiteral("Save it as one")), qPrintable(why));
+        QVERIFY2(o.w.session()->canEditNotes(0, &why), qPrintable(why));
+        QVERIFY(why.isEmpty());
     }
 
     // A text file of values opens: numbers in the person's locale, the percent shown as typed, the first screen on at once.

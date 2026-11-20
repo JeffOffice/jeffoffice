@@ -260,7 +260,7 @@ QString validateXls(const QByteArray &file)
         if (r.id == 0x003C) {
             int j = k - 1;
             while (j >= 0 && recs[j].id == 0x003C) --j;
-            if (j < 0 || (recs[j].id != 0x00FC && recs[j].id != 0x0207 && recs[j].id != 0x0017 && recs[j].id != 0x01AE)) return at(r, QStringLiteral("follows a record that may not be continued"));
+            if (j < 0 || (recs[j].id != 0x00FC && recs[j].id != 0x0207 && recs[j].id != 0x0017 && recs[j].id != 0x01AE && recs[j].id != 0x00EB && recs[j].id != 0x00EC && recs[j].id != 0x01B6)) return at(r, QStringLiteral("follows a record that may not be continued"));
             // (the list of external sheets goes on only between its entries of 6 bytes: the first record has the count and whole entries, and so has each that continues it)
             if (recs[j].id == 0x0017 && (r.data.size() % 6 != 0 || (k == j + 1 && (recs[j].data.size() - 2) % 6 != 0))) return at(r, QStringLiteral("cuts an entry of the list of external sheets"));
         }

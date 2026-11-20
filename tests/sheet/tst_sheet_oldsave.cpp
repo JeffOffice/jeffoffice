@@ -6,6 +6,7 @@
 #include "io/cfb.h"
 #include "xlsvalidate.h"
 #include "sheet/oldsave.h"
+#include "sheet/notes.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 #include "sheet/xlsrecord.h"
@@ -60,6 +61,41 @@ QString formula(const Sheet &sheet, const QString &ref)
 {
     const Cell *c = at(sheet, ref);
     return c && c->hasFormula() ? sheet.formulaText(*c) : QString();
+}
+
+// A sheet of the OpenDocument form with the cells given (rows of cells), as the notes tests make them.
+QString annotated(const QString &inside, const QString &attrs = QString())
+{
+    return cell(QString(), QStringLiteral("<office:annotation %1>%2</office:annotation>").arg(attrs, inside));
+}
+
+QByteArray notedOds(const QString &rows, int cols = 12) { return buildOds(contentXml(table(QStringLiteral("S"), columns(cols) + rows))); }
+
+// The atoms of the drawing format in the bytes: (kind, instance, bytes it holds); a container is an atom of its own whose contents follow it.
+struct Atom {
+    int kind = 0, instance = 0;
+    QByteArray data;
+    quint32 length = 0;
+};
+QList<Atom> atomsOf(const QByteArray &bytes)
+{
+    QList<Atom> out;
+    qsizetype at = 0;
+    while (at + 8 <= bytes.size()) {
+        const quint16 verInst = quint8(bytes[at]) | (quint8(bytes[at + 1]) << 8), kind = quint8(bytes[at + 2]) | (quint8(bytes[at + 3]) << 8);
+        const quint32 length = quint8(bytes[at + 4]) | (quint8(bytes[at + 5]) << 8) | (quint8(bytes[at + 6]) << 16) | (quint32(quint8(bytes[at + 7])) << 24);
+        Atom a;
+        a.kind = kind;
+        a.instance = verInst >> 4;
+        a.length = length;
+        at += 8;
+        if ((verInst & 0xF) != 0xF) {
+            a.data = bytes.mid(at, int(length));
+            at += qsizetype(length);
+        }
+        out.append(a);
+    }
+    return out;
 }
 
 struct Copies {
@@ -1248,6 +1284,184 @@ private Q_SLOTS:
         QVERIFY2(c.make(simple(rows), false), qPrintable(c.why));
         const Sheet b = c.sheet(c.xls, 0);
         for (int i = 0; i < texts.size(); ++i) QCOMPARE(val(c.xls, b, QStringLiteral("A%1").arg(i + 1)), QStringLiteral("s:") + texts[i]);
+    }
+
+    // The notes of a sheet are written to an .xls copy in the records the format has for them (a shape, an object, the words, and a note record each, with a drawing group in the globals
+    // that counts the shapes), whichever form the workbook was read from, and read back the same. Checked from the layout of the format, and not by this program's reader alone.
+    void notesAreWrittenToAnXlsCopyAndReadBack()
+    {
+        const QString wide = QString::fromUtf8("w\xC3\xA9\xE2\x98\x83\xE4\xB8\xAD ") + QString(6000, QChar(0x4E2D));
+        const QString rows = row(annotated(QStringLiteral("<dc:creator>Ann</dc:creator><text:p>first</text:p>"), QStringLiteral("office:display=\"true\" svg:x=\"2.5cm\" svg:y=\"1.25cm\" svg:width=\"3cm\" svg:height=\"1.5cm\""))
+                                 + stringCell(QStringLiteral("x")))
+                             + row(emptyCell() + emptyCell() + annotated(QStringLiteral("<dc:creator>Zo\xC3\xAB</dc:creator><text:p>%1</text:p>").arg(wide.toHtmlEscaped())))
+                             + row(emptyCell(QStringLiteral("table:number-columns-repeated=\"4\"")) + annotated(QStringLiteral("<text:p>%1</text:p>").arg(QString(9000, QLatin1Char('k')))));
+        for (const bool viaXlsx : {false, true}) {
+            Workbook ods;
+            QString why;
+            QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &ods, &why));
+            Workbook source;
+            if (viaXlsx) {
+                // (the package form: the notes are read from its parts, not from the model of the sheet)
+                QByteArray xlsx;
+                QVERIFY2(saveXlsx(ods, SaveChanges(), &xlsx, &why, nullptr), qPrintable(why));
+                QVERIFY2(openXlsx(xlsx, &source, &why), qPrintable(why));
+            } else {
+                QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &source, &why));
+            }
+            QByteArray xls;
+            CopyReport report;
+            QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+            QVERIFY2(!report.notKept.contains(QStringLiteral("notes")), qPrintable(report.notKept.join(QLatin1Char('|'))));
+            const QString broken = xlstest::validateXls(xls);
+            QVERIFY2(broken.isEmpty(), qPrintable(broken));
+            Workbook back;
+            QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+            const auto was = readSheetNoteInfos(source, 0), now = readSheetNoteInfos(back, 0);
+            QCOMPARE(now.size(), size_t(3));
+            QCOMPARE(was.size(), size_t(3));
+            for (const auto &n : was) {
+                const auto at = now.find(n.first);
+                QVERIFY(at != now.end());
+                QCOMPARE(at->second.text, n.second.text);
+                QCOMPARE(at->second.author, n.second.author);
+                QCOMPARE(at->second.shown, n.second.shown);
+                QVERIFY(at->second.box.set);
+            }
+            QCOMPARE(now.at(noteKey(2, 4)).text.size(), 9000);
+            QCOMPARE(now.at(noteKey(1, 2)).text, wide);
+            QVERIFY(now.at(noteKey(0, 0)).shown && !now.at(noteKey(1, 2)).shown);
+            // the box the first note had (in the first row, two columns on, a distance down and across): the same cells and offsets
+            QVERIFY(was.at(noteKey(0, 0)).box.set);
+            QCOMPARE(now.at(noteKey(0, 0)).box.col1, was.at(noteKey(0, 0)).box.col1);
+            QCOMPARE(now.at(noteKey(0, 0)).box.row1, was.at(noteKey(0, 0)).box.row1);
+            QCOMPARE(now.at(noteKey(0, 0)).box.col2, was.at(noteKey(0, 0)).box.col2);
+            QCOMPARE(now.at(noteKey(0, 0)).box.row2, was.at(noteKey(0, 0)).box.row2);
+            // the records: in each sheet's stream a shape, an object (of the kind a note is), a text box, the words, the runs, and after all of them a note record for each
+            bool wellFormed = false;
+            const QList<RawRecord> records = rawRecords(xls, &wellFormed);
+            QVERIFY(wellFormed);
+            QList<quint16> kinds;
+            int groups = -1, firstText = -1, sst = -1;
+            for (int i = 0; i < records.size(); ++i) {
+                const quint16 id = records[i].id;
+                if (id == 0x00EB) groups = i;
+                if (id == 0x00FC) sst = i;
+                if (id == 0x01B6 && firstText < 0) firstText = i;
+                if (id == 0x00EC || id == 0x005D || id == 0x01B6 || id == 0x001C) kinds << id;
+            }
+            QVERIFY2(groups >= 0 && sst > groups, "the drawing group is in the globals, before the strings");
+            QList<quint16> shape{0x00EC, 0x005D, 0x00EC, 0x01B6};
+            QList<quint16> expected;
+            for (int i = 0; i < 3; ++i) expected << shape;
+            expected << 0x001C << 0x001C << 0x001C;
+            QCOMPARE(kinds, expected);
+            // the objects are notes, numbered 1 to 3; the note records name them, and carry the cell, whether it is shown, and the author
+            QList<int> ids, shownFlags;
+            QList<QPair<int, int>> cells;
+            for (const RawRecord &r : records) {
+                if (r.id == 0x005D) {
+                    QCOMPARE(int(quint8(r.data[0]) | (quint8(r.data[1]) << 8)), 0x15);       // (the common data)
+                    QCOMPARE(int(quint8(r.data[4]) | (quint8(r.data[5]) << 8)), 0x19);       // (of the kind a note is)
+                    ids << (quint8(r.data[6]) | (quint8(r.data[7]) << 8));
+                    QCOMPARE(int(quint8(r.data[22]) | (quint8(r.data[23]) << 8)), 0x0D);     // (the note's own data)
+                }
+                if (r.id == 0x001C) {
+                    QCOMPARE(int(quint8(r.data[r.data.size() - 1])), 0);   // (the byte the record ends with)
+                    cells.append({quint8(r.data[0]) | (quint8(r.data[1]) << 8), quint8(r.data[2]) | (quint8(r.data[3]) << 8)});
+                    shownFlags << ((quint8(r.data[4]) | (quint8(r.data[5]) << 8)) & 2);
+                    QVERIFY(ids.contains(quint8(r.data[6]) | (quint8(r.data[7]) << 8)));
+                }
+            }
+            QCOMPARE(ids, (QList<int>{1, 2, 3}));
+            QCOMPARE(cells, (QList<QPair<int, int>>{{0, 0}, {1, 2}, {2, 4}}));
+            QCOMPARE(shownFlags, (QList<int>{2, 0, 0}));
+            // the drawing of the sheet: one container that the records (the text boxes' too) are inside of, as long as all of them, one shape of the group and three text boxes with numbers that differ
+            QByteArray drawing;
+            for (const RawRecord &r : records)
+                if (r.id == 0x00EC) drawing += r.data;
+            const QList<Atom> atoms = atomsOf(drawing);
+            QVERIFY(!atoms.isEmpty() && atoms.first().kind == 0xF002);
+            QCOMPARE(qint64(atoms.first().length) + 8, qint64(drawing.size()));
+            QSet<quint32> spids;
+            int boxes = 0;
+            for (const Atom &a : atoms) {
+                if (a.kind != 0xF00A) continue;
+                spids.insert(quint32(quint8(a.data[0]) | (quint8(a.data[1]) << 8) | (quint8(a.data[2]) << 16) | (quint32(quint8(a.data[3])) << 24)));
+                if (a.instance == 0xCA) ++boxes;
+            }
+            QCOMPARE(spids.size(), 4);
+            QCOMPARE(boxes, 3);
+            // the group of drawings in the globals: four shapes saved in one drawing, whose numbers are all below the highest it says
+            const QList<Atom> group = atomsOf(records[groups].data);
+            QVERIFY(group.size() >= 2 && group[1].kind == 0xF006);
+            auto word = [&](int at) { return quint32(quint8(group[1].data[at]) | (quint8(group[1].data[at + 1]) << 8) | (quint8(group[1].data[at + 2]) << 16) | (quint32(quint8(group[1].data[at + 3])) << 24)); };
+            QCOMPARE(word(8), 4u);   // (shapes saved)
+            QCOMPARE(word(12), 1u);  // (drawings saved)
+            for (const quint32 id : spids) QVERIFY(id < word(0));
+        }
+    }
+
+    // More notes than a block of shape numbers holds (1,024) are written in more than one block, each shape with a number of its own, and all of them are read back.
+    void manyNotesAreWrittenWithShapeNumbersThatDoNotRepeat()
+    {
+        QString rows;
+        for (int r = 0; r < 30; ++r) {
+            QString cells;
+            for (int c = 0; c < 50; ++c) cells += annotated(QStringLiteral("<text:p>note %1</text:p>").arg(r * 50 + c));
+            rows += row(cells);
+        }
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows, 50), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        const auto now = readSheetNoteInfos(back, 0);
+        QCOMPARE(now.size(), size_t(1500));
+        QCOMPARE(now.at(noteKey(29, 49)).text, QStringLiteral("note 1499"));
+        QCOMPARE(now.at(noteKey(0, 0)).text, QStringLiteral("note 0"));
+        QByteArray drawing;
+        QByteArray groupBytes;
+        for (const RawRecord &r : rawRecords(xls)) {
+            if (r.id == 0x00EC) drawing += r.data;
+            if (r.id == 0x00EB) groupBytes = r.data;
+        }
+        QSet<quint32> spids;
+        for (const Atom &a : atomsOf(drawing))
+            if (a.kind == 0xF00A) spids.insert(quint32(quint8(a.data[0]) | (quint8(a.data[1]) << 8) | (quint8(a.data[2]) << 16) | (quint32(quint8(a.data[3])) << 24)));
+        QCOMPARE(spids.size(), 1501);   // (1,500 notes and the group's own: no number twice)
+        const QList<Atom> group = atomsOf(groupBytes);
+        QVERIFY(group.size() >= 2 && group[1].kind == 0xF006);
+        const QByteArray &d = group[1].data;
+        auto word = [&](int at) { return quint32(quint8(d[at]) | (quint8(d[at + 1]) << 8) | (quint8(d[at + 2]) << 16) | (quint32(quint8(d[at + 3])) << 24)); };
+        QCOMPARE(word(4), 3u);        // (two blocks, and the one the format keeps for itself)
+        QCOMPARE(word(8), 1501u);
+        QCOMPARE(word(16), 1u);       // (the first block: drawing 1, 1,024 numbers in use)
+        QCOMPARE(word(20), 1024u);
+        QCOMPARE(word(28), 477u);
+        for (const quint32 id : spids) QVERIFY(id < word(0));
+    }
+
+    // A note on a cell past the old form's grid is left out of the copy, and the copy says how many.
+    void aNoteOnACellPastTheOldFormsGridIsCutAndNamed()
+    {
+        const QString rows = row(annotated(QStringLiteral("<text:p>kept</text:p>")) + emptyCell(QStringLiteral("table:number-columns-repeated=\"299\"")) + annotated(QStringLiteral("<text:p>far right</text:p>")))
+                             + row(emptyCell(), QStringLiteral("table:number-rows-repeated=\"70000\"")) + row(annotated(QStringLiteral("<text:p>far down</text:p>")));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows, 301), QStringLiteral("n.ods"), &source, &why));
+        QCOMPARE(readSheetNoteInfos(source, 0).size(), size_t(3));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        const auto now = readSheetNoteInfos(back, 0);
+        QCOMPARE(now.size(), size_t(1));
+        QCOMPARE(now.begin()->second.text, QStringLiteral("kept"));
+        QVERIFY2(report.trimmed.join(QLatin1Char('|')).contains(QLatin1String("2 notes past row 65,536 or column IV")), qPrintable(report.trimmed.join(QLatin1Char('|'))));
     }
 
     // ---- hostile models

@@ -10,6 +10,7 @@
 #include "io/cfb.h"
 #include "sheet/entry.h"
 #include "sheet/externalbooks.h"
+#include "sheet/notes.h"
 #include "sheet/oldsavecommon.h"
 #include "sheet/xlscompile.h"
 #include "sheet/xlslinkaddress.h"
@@ -33,6 +34,7 @@ namespace {
 using oldsave::Written;
 
 constexpr int kFormulaHead = 22;   // the bytes of a formula record before its tokens
+constexpr int kMaxXlsNotes = 30000;   // the most notes a sheet of a copy has
 constexpr int kMaxRecord = 8224;   // the bytes a record may hold; more go in CONTINUE records where the format allows
 
 class W {
@@ -251,6 +253,16 @@ private:
     QHash<int, int> m_placeToWritten;
     XlsCompileContext m_cx;
     QStringList m_trimmed;
+    // the notes: the drawing each sheet that has some is given, as the globals must list them
+    struct Cluster {
+        int drawing = 0;
+        int shapes = 0;
+    };
+    std::vector<Cluster> m_clusters;       // each block of 1,024 shape numbers in use (the first is number 1)
+    int m_drawings = 0;
+    qint64 m_shapesSaved = 0;
+    quint32 m_spidMax = 1024;
+    NoteReadContext m_noteContext;
     QMap<QString, qint64> m_reasons;
     qint64 m_cellsWritten = 0, m_formulas = 0, m_formulasAsValues = 0, m_textTotal = 0;
     // the strings
@@ -704,6 +716,112 @@ private:
 
     void put(QByteArray *out, quint16 id, const W &w) { putRecord(out, id, w.bytes()); }
 
+
+    // An Escher record's header: version and instance, kind, and the length that follows.
+    static QByteArray escher(int version, int instance, int kind, const QByteArray &body) { return escherHead(version, instance, kind, quint32(body.size())) + body; }
+    static QByteArray escherHead(int version, int instance, int kind, quint32 length) { return W().u16(version | (instance << 4)).u16(kind).u32(length).bytes(); }
+    // A number and what is in it, for the property table of a shape.
+    static QByteArray property(int id, quint32 value) { return W().u16(id).u32(value).bytes(); }
+
+    // The notes of a sheet: each note is a shape (a text box) with its own object and words, and a record for the note itself after them all. The drawing's first record holds the drawing's and
+    // the group's heads, whose lengths cover the shapes that follow in records of their own. Those the format cannot place (past row 65,536 or column IV) are left out, and said.
+    void writeNotes(QByteArray *out, const std::map<quint64, NoteInfo> &all, const QString &sheetName)
+    {
+        std::vector<std::pair<quint64, const NoteInfo *>> notes;
+        qint64 cut = 0;
+        for (const auto &n : all) {
+            if (quint32(n.first >> 32) >= quint32(kXlsMaxRows) || quint32(n.first & 0xFFFFFFFFu) >= quint32(kXlsMaxCols) || n.second.text.isEmpty() || int(notes.size()) >= kMaxXlsNotes) {
+                ++cut;
+                continue;
+            }
+            notes.push_back({n.first, &n.second});
+        }
+        if (cut > 0) trim(oldsave::sheetNote(sheetName, QCoreApplication::translate("Sheet", "%1 notes past row 65,536 or column IV (the format's last)").arg(cut)));
+        if (notes.empty()) return;
+        const int drawing = ++m_drawings;
+        const qint64 shapes = qint64(notes.size()) + 1;   // (the group's own is the first)
+        const int firstCluster = int(m_clusters.size()) + 1;
+        auto spid = [&](qint64 k) { return quint32((firstCluster + k / 1024) * 1024 + k % 1024); };
+        const int clusters = int((shapes + 1023) / 1024);
+        for (int c = 0; c < clusters; ++c) m_clusters.push_back({drawing, int(std::min<qint64>(1024, shapes - qint64(c) * 1024))});
+        m_shapesSaved += shapes;
+        m_spidMax = std::max(m_spidMax, spid(shapes - 1) + 1);
+        // the shapes, one record's worth each
+        std::vector<QByteArray> shapeBytes;
+        for (size_t k = 0; k < notes.size(); ++k) {
+            const quint32 row = quint32(notes[k].first >> 32), col = quint32(notes[k].first & 0xFFFFFFFFu);
+            const NoteInfo &note = *notes[k].second;
+            NoteBox b = note.box;
+            if (!b.set) {
+                b.set = true;   // (beside the cell, as large as the usual)
+                b.col1 = 1;
+                b.x1 = 15;
+                b.row1 = row > 0 ? -1 : 0;
+                b.y1 = 10;
+                b.col2 = 3;
+                b.x2 = 15;
+                b.row2 = b.row1 + 3;
+                b.y2 = 4;
+            }
+            b = noteBoxInsideSheet(b, row, col);
+            auto cell = [](qint64 v, qint64 most) { return quint32(std::max<qint64>(0, std::min<qint64>(v, most))); };
+            auto across = [](int px) { return quint32(std::max(0, std::min(px * 16, 1023))); };
+            auto down = [](int px) { return quint32(std::max(0, std::min((px * 256 + 10) / 20, 255))); };
+            QByteArray anchor = W().u16(3).u16(int(cell(qint64(col) + b.col1, kXlsMaxCols - 1))).u16(int(across(b.x1))).u16(int(cell(qint64(row) + b.row1, kXlsMaxRows - 1))).u16(int(down(b.y1)))
+                                    .u16(int(cell(qint64(col) + b.col2, kXlsMaxCols - 1))).u16(int(across(b.x2))).u16(int(cell(qint64(row) + b.row2, kXlsMaxRows - 1))).u16(int(down(b.y2))).bytes();
+            // (the look of a note: no text of its own to hold, a pale yellow box with a thin line, and hidden unless the note is shown)
+            const std::pair<int, quint32> look[] = {{0x0080, 0}, {0x0085, 2}, {0x0087, 1}, {0x00BF, 0x00080008}, {0x0158, 0}, {0x0181, 0x00C0FFFF}, {0x0183, 0x003F0000}, {0x01BF, 0x00100010},
+                                                    {0x01C0, 0x00A46534}, {0x01C1, 0x00010000}, {0x01C2, 0x005B9ACB}, {0x01D0, 1}, {0x01D2, 1}, {0x01D3, 1}, {0x01D6, 2}, {0x01D7, 2},
+                                                    {0x01FF, 0x00180018}, {0x0201, 0}, {0x023F, 0x00030003}, {0x03BF, note.shown ? 0x000A0000u : 0x000A0002u}};
+            QByteArray props;
+            for (const auto &p : look) props += property(p.first, p.second);
+            const QByteArray inner = escher(2, 0x0CA, 0xF00A, W().u32(spid(qint64(k) + 1)).u32(0x0A00).bytes()) + escher(3, int(sizeof(look) / sizeof(look[0])), 0xF00B, props) + escher(0, 0, 0xF010, anchor) + escher(0, 0, 0xF011, QByteArray());
+            // (the shape's container counts its text box, which the record after the object has)
+            shapeBytes.push_back(escherHead(0xF, 0, 0xF004, quint32(inner.size() + 8)) + inner);
+        }
+        const QByteArray group = escher(0xF, 0, 0xF004, escher(1, 0, 0xF009, QByteArray(16, '\0')) + escher(2, 0, 0xF00A, W().u32(spid(0)).u32(5).bytes()));
+        qint64 shapesLength = 0;
+        for (const QByteArray &sb : shapeBytes) shapesLength += sb.size() + 8;
+        const qint64 groupLength = group.size() + shapesLength;
+        const QByteArray dgHead = escher(0, drawing, 0xF008, W().u32(quint32(shapes)).u32(spid(shapes - 1)).bytes());
+        const QByteArray dgContainer = escherHead(0xF, 0, 0xF002, quint32(dgHead.size() + 8 + groupLength)) + dgHead + escherHead(0xF, 0, 0xF003, quint32(groupLength)) + group;
+        for (size_t k = 0; k < notes.size(); ++k) {
+            const NoteInfo &note = *notes[k].second;
+            const quint32 row = quint32(notes[k].first >> 32), col = quint32(notes[k].first & 0xFFFFFFFFu);
+            const int id = int(k) + 1;
+            putRecord(out, 0x00EC, k == 0 ? dgContainer + shapeBytes[k] : shapeBytes[k]);
+            // the object: its common data, the note's own, and the end
+            W obj;
+            obj.u16(0x15).u16(0x12).u16(0x19).u16(id).u16(0x4011).u32(0).u32(0).u32(0);
+            obj.u16(0x0D).u16(0x16).raw(QByteArray(16, '\0')).u16(0).u32(0);
+            obj.u16(0).u16(0);
+            putRecord(out, 0x005D, obj.bytes());
+            putRecord(out, 0x00EC, escherHead(0, 0, 0xF00D, 0));
+            // the words: a record that gives their count, then the characters (in records of their own, each beginning with the byte that says one or two bytes for each), then the runs of formatting
+            const QString words = note.text.left(32767);
+            putRecord(out, 0x01B6, W().u16(0x0212).u16(0).u32(0).u16(0).u16(int(words.size())).u16(16).u32(0).bytes());
+            const bool wide = isWide(words);
+            const qsizetype per = wide ? 4111 : 8223;
+            for (qsizetype at = 0; at < words.size(); at += per) {
+                W piece;
+                piece.u8(wide ? 1 : 0);
+                for (qsizetype i = at; i < std::min<qsizetype>(words.size(), at + per); ++i) {
+                    if (wide) piece.u16(words[i].unicode());
+                    else piece.u8(words[i].unicode());
+                }
+                putRecord(out, 0x003C, piece.bytes());
+            }
+            putRecord(out, 0x003C, W().u16(0).u16(0).u32(0).u16(int(words.size())).u16(0).u32(0).bytes());
+            W who;
+            who.u16(int(row)).u16(int(col)).u16(note.shown ? 2 : 0).u16(id).str8(note.author.left(255), 2);
+            who.u8(0);   // (the byte the record ends with)
+            noteRecords.push_back(who.bytes());
+        }
+        for (const QByteArray &r : noteRecords) putRecord(out, 0x001C, r);
+        noteRecords.clear();
+    }
+    std::vector<QByteArray> noteRecords;
+
     bool buildSheet(int index, QByteArray *dst, QString *error)
     {
         const Written &w = m_written[size_t(index)];
@@ -900,6 +1018,13 @@ private:
             W d;
             d.u32(firstRow >= 0 ? quint32(firstRow) : 0).u32(lastRow >= 0 ? quint32(lastRow + 1) : 0).u16(lastCol >= 0 ? int(firstCol) : 0).u16(lastCol >= 0 ? int(lastCol + 1) : 0).u16(0);
             out.replace(dimensionsAt + 4, int(d.size()), d.bytes());
+        }
+        // the notes
+        if (w.place >= 0) {
+            bool leftOut = false;
+            const std::map<quint64, NoteInfo> notes = m_book.isConverted() ? noteInfosOf(sheet, kMaxNotes, &leftOut, &m_noteContext) : readSheetNoteInfos(m_book, w.place, &leftOut, kMaxNotes, &m_noteContext);
+            if (leftOut && m_noteContext.exhausted) trim(noteBookLimitMessage());
+            writeNotes(&out, notes, w.name);
         }
         // the view
         {
@@ -1405,7 +1530,20 @@ private:
             }
             boundSize += 4 + b.size();
         }
-        const qsizetype globalsSize = g.size() + boundSize + 4 + country.size() + extern_.size() + names.size() + sst.size() + 4;
+        // the drawing group: what the sheets' drawings (of their notes) number, and the blocks of shape numbers they use
+        QByteArray drawingGroup;
+        if (m_drawings > 0) {
+            W dgg;
+            dgg.u32(m_spidMax).u32(quint32(m_clusters.size() + 1)).u32(quint32(m_shapesSaved)).u32(quint32(m_drawings));
+            for (const Cluster &c : m_clusters) dgg.u32(quint32(c.drawing)).u32(quint32(c.shapes));
+            const QByteArray options = escher(3, 3, 0xF00B, property(0x00BF, 0x00080008) + property(0x0181, 0x08000009) + property(0x01C0, 0x08000040));
+            const QByteArray colors = escher(0, 4, 0xF11E, W().u32(0x0800000D).u32(0x0800000C).u32(0x08000017).u32(0x100000F7).bytes());
+            const QByteArray inner = escher(0, 0, 0xF006, dgg.bytes()) + options + colors;
+            const QByteArray whole = escher(0xF, 0, 0xF000, inner);
+            // (a record holds 8,224 bytes; the rest of a longer drawing group goes on in the records that follow)
+            for (qsizetype at = 0; at < whole.size(); at += kMaxRecord) putRecord(&drawingGroup, at == 0 ? 0x00EB : 0x003C, whole.mid(at, kMaxRecord));
+        }
+        const qsizetype globalsSize = g.size() + boundSize + 4 + country.size() + extern_.size() + names.size() + drawingGroup.size() + sst.size() + 4;
         qsizetype offset = globalsSize;
         for (size_t i = 0; i < m_written.size(); ++i) {
             const SheetEntry &e = m_book.info().sheets.value(m_written[i].place);
@@ -1423,6 +1561,7 @@ private:
         putRecord(&g, 0x008C, country);
         g += extern_;
         g += names;
+        g += drawingGroup;
         g += sst;
         put(&g, 0x000A, W());
         return g;

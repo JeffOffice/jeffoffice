@@ -1028,7 +1028,7 @@ private:
         std::map<quint64, NoteInfo> noteMap;
         if (w.place >= 0) {
             bool leftOut = false;
-            noteMap = m_book.foreignBook() ? noteInfosOf(sheet, kMaxNotes, &leftOut, &m_noteContext) : readSheetNoteInfos(m_book, w.place, &leftOut, kMaxNotes, &m_noteContext);
+            noteMap = m_book.isConverted() ? noteInfosOf(sheet, kMaxNotes, &leftOut, &m_noteContext) : readSheetNoteInfos(m_book, w.place, &leftOut, kMaxNotes, &m_noteContext);
             if (leftOut && m_noteContext.exhausted) m_drawingNotes << noteBookLimitMessage();   // (the notes of all the sheets together are bounded as those of one workbook are)
         }
         std::optional<odsdraw::Grid> noteGrid;

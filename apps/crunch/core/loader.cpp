@@ -357,7 +357,7 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
             bool truncated = false;
             // (a workbook from an OpenDocument file has its notes in the sheets just read: they are taken from them, and the sheets are not read again)
             const jp::office::sheet::Sheet &model = calc->sheet(i);
-            if (out->book->foreignBook() && !model.partial) out->notes[size_t(i)] = jp::office::sheet::noteInfosOf(model, jp::office::sheet::kMaxModelNotes, &truncated, &notesContext);
+            if (out->book->isConverted() && !model.partial) out->notes[size_t(i)] = jp::office::sheet::noteInfosOf(model, jp::office::sheet::kMaxModelNotes, &truncated, &notesContext);
             else out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes, &notesContext);
             out->notesTruncated[size_t(i)] = truncated;
         }

@@ -1140,6 +1140,17 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         } else if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
         if (!sheet.error.isEmpty()) return fail(sheet.error);
         sheet.importedDrawing = importedOf[size_t(i)];
+        if (!book.foreignBook() && !sheet.importedNotes.isEmpty()) {
+            // (a workbook of the older binary form has its notes with its sheets, bounded as the others' are)
+            qint64 chars = 0;
+            for (const ImportedNote &n : std::as_const(sheet.importedNotes)) chars += n.text.size() + n.author.size();
+            if (noteChars + chars <= kMaxNoteCharsPerBook) {
+                noteChars += chars;
+                hasNotes[size_t(i)] = true;
+            } else if (notes && !notes->contains(notesLeftOut)) {
+                notes->append(notesLeftOut);
+            }
+        }
         if (!hasNotes[size_t(i)]) sheet.importedNotes.clear();
         QByteArray sheetRels;   // (the relationships of the sheet: its drawing, and its notes)
         zip.beginStream(baseSheetPart(i).mid(1), true);

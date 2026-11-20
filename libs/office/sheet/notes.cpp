@@ -550,8 +550,8 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
     std::map<quint64, NoteInfo> out;
     if (truncated) *truncated = false;
     const WorkbookInfo &info = book.info();
-    if (sheet >= 0 && sheet < info.sheets.size() && !info.sheets[sheet].deleted && !info.sheets[sheet].isNew && book.foreignBook() && book.foreignBook()->mayHaveNotes(sheet)) {
-        // (a workbook read from an OpenDocument file has its notes in the sheet's model, and is read again to have them)
+    if (sheet >= 0 && sheet < info.sheets.size() && !info.sheets[sheet].deleted && !info.sheets[sheet].isNew && book.isConverted() && (!book.foreignBook() || book.foreignBook()->mayHaveNotes(sheet))) {
+        // (a workbook read from an OpenDocument file or the older binary form has its notes in the sheet's model, and is read again to have them)
         Sheet read;
         if (book.readSheet(sheet, &read)) out = noteInfosOf(read, std::min(most, kMaxNotes), truncated, &c);
         return out;

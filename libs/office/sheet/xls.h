@@ -6,7 +6,7 @@
 // against the bytes there are and against the limits, nothing recurses, and nothing is made in the size a file claims before the bytes for it are seen.
 //
 // The charts of a BIFF8 workbook are read into the chart model (sheet/xlschart.h), and written as charts when the workbook is saved as the XML form. Not read (kept out of the way, and
-// said so by skipped()): the parts of a chart the model does not hold, drawing objects and pictures, pivot tables, comments, and the macros of a workbook. A workbook that is encrypted
+// said so by skipped()): the parts of a chart the model does not hold, drawing objects and pictures, pivot tables, the notes of a workbook of the earlier forms (the later form's are read), and the macros of a workbook. A workbook that is encrypted
 // is refused.
 
 #include "sheet/sheetreader.h"

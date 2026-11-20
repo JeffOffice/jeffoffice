@@ -1393,7 +1393,7 @@ private Q_SLOTS:
         const QStringList skipped = wb.skippedFeatures();
         QVERIFY(skipped.contains(QStringLiteral("charts")));
         QVERIFY(skipped.contains(QStringLiteral("pictures and other drawing objects")));
-        QVERIFY(skipped.contains(QStringLiteral("comments")));
+        QVERIFY(!skipped.contains(QStringLiteral("comments")));   // (the notes of a workbook of this form are read: a note record that names no shape has none to show)
         QVERIFY(skipped.contains(QStringLiteral("pivot tables")));
         QVERIFY(skipped.contains(QStringLiteral("macros")));
         Sheet s;
@@ -1408,6 +1408,74 @@ private Q_SLOTS:
         Workbook pw;
         QVERIFY(openBook(plain, &pw));
         QVERIFY(pw.skippedFeatures().isEmpty());
+    }
+
+    // The notes of a workbook of the later form are read from the records the format has for them: a shape (its place), an object (its number), the words in the records that continue the
+    // text record, and a note record near the end that names the object by its number. Built here from the format's layout, and not by this program's writer.
+    void notesAreReadWithTheirWordsAuthorsStateAndBoxes()
+    {
+        auto shape = [](int col1, int dx1, int row1, int dy1, int col2, int dx2, int row2, int dy2) {
+            const QByteArray anchor = W().u16(3).u16(col1).u16(dx1).u16(row1).u16(dy1).u16(col2).u16(dx2).u16(row2).u16(dy2);
+            const QByteArray client = W().u16(0).u16(0xF010).u32(quint32(anchor.size())) + anchor;
+            return rec(0x00EC, W().u16(0x000F).u16(0xF004).u32(quint32(client.size())) + client);
+        };
+        auto object = [](int id) {
+            return rec(0x005D, W().u16(0x15).u16(0x12).u16(0x19).u16(id).u16(0x4011).u32(0).u32(0).u32(0).u16(0x0D).u16(0x16).raw(QByteArray(22, '\0')).u16(0).u16(0));
+        };
+        auto textbox = [] { return rec(0x00EC, W().u16(0).u16(0xF00D).u32(0)); };
+        // the words: the count, then the characters in records of their own (each begins with the byte that says one or two bytes each), then the runs
+        auto words = [](const QStringList &pieces, int count) {
+            QByteArray out = rec(0x01B6, W().u16(0x0212).u16(0).u32(0).u16(0).u16(count).u16(16).u32(0));
+            for (const QString &piece : pieces) {
+                bool wide = false;
+                for (const QChar c : piece) wide = wide || c.unicode() > 0xFF;
+                W w;
+                w.u8(wide ? 1 : 0);
+                for (const QChar c : piece) {
+                    if (wide) w.u16(c.unicode());
+                    else w.u8(c.unicode());
+                }
+                out += rec(0x003C, w);
+            }
+            return out + rec(0x003C, W().u16(0).u16(0).u32(0).u16(count).u16(0).u32(0));
+        };
+        auto note = [](int row, int col, bool shown, int id, const QString &author, bool compressed) { return rec(0x001C, W().u16(row).u16(col).u16(shown ? 2 : 0).u16(id).str8(author, 2, compressed)); };
+        const QString wide = QString::fromUtf8("h\xC3\xA9llo \xE2\x98\x83 \xE4\xB8\xAD");
+        QByteArray cells = number(0, 0, 1);
+        cells += shape(3, 512, 1, 128, 5, 256, 5, 0) + object(1) + textbox() + words({QStringLiteral("hello")}, 5);
+        cells += object(2) + textbox() + words({wide}, int(wide.size()));   // (no shape before it: no box)
+        cells += shape(6, 0, 4, 0, 8, 0, 8, 0) + object(3) + textbox() + words({QString(8000, QLatin1Char('x')), QString(1000, QLatin1Char('y'))}, 9000);
+        cells += note(1, 1, true, 1, QStringLiteral("Ann"), true) + note(3, 2, false, 2, QString::fromUtf8("Zo\xC3\xAB"), false) + note(4, 4, false, 3, QString(), true);
+        cells += note(7, 7, true, 9, QStringLiteral("nobody"), true);   // (names an object that is not there)
+        cells += note(1, 1, false, 2, QStringLiteral("again"), true);    // (a second note on a cell: the first is kept)
+        cells += number(1, 0, 2);
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QVERIFY(s.error.isEmpty());
+        QCOMPARE(shown(wb, s, QStringLiteral("A2")), QStringLiteral("n:2"));   // (the cells after the objects are read)
+        QCOMPARE(s.importedNotes.size(), qsizetype(3));
+        const ImportedNote &one = s.importedNotes[0], &two = s.importedNotes[1], &three = s.importedNotes[2];
+        QCOMPARE(one.row, 1u);
+        QCOMPARE(one.col, 1u);
+        QCOMPARE(one.text, QStringLiteral("hello"));
+        QCOMPARE(one.author, QStringLiteral("Ann"));
+        QVERIFY(one.shown);
+        // (the box: cells counted from the note's own, and pixels into them: 1/1024 of a column of 64 pixels, 1/256 of a row of 20)
+        QVERIFY(one.box.set);
+        QCOMPARE(QList<int>({one.box.row1, one.box.col1, one.box.y1, one.box.x1, one.box.row2, one.box.col2, one.box.y2, one.box.x2}), (QList<int>{0, 2, 10, 32, 4, 4, 0, 16}));
+        QCOMPARE(two.text, wide);
+        QCOMPARE(two.author, QString::fromUtf8("Zo\xC3\xAB"));
+        QVERIFY(!two.shown);
+        QVERIFY(!two.box.set);
+        QCOMPARE(three.text.size(), 9000);
+        QVERIFY(three.text.startsWith(QString(8000, QLatin1Char('x')) + QLatin1Char('y')) && three.text.endsWith(QLatin1Char('y')));
+        QVERIFY(three.author.isEmpty());
+        QCOMPARE(three.row, 4u);
+        QVERIFY(wb.skippedFeatures().isEmpty());
     }
 
     // The calculation works an old workbook's formulas out as it does a new one's: from the constants, shared formulas and 3-D references included.

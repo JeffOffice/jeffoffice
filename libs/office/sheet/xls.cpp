@@ -1,6 +1,7 @@
 #include "sheet/xls.h"
 
 #include "sheet/cellref.h"
+#include "sheet/notes.h"
 #include "sheet/xlsbytes.h"
 #include "sheet/xlslinkaddress.h"
 #include "sheet/xlscodepage.h"
@@ -60,6 +61,7 @@ enum : quint16 {
     kMsoDrawing = 0x00EC,
     kObj = 0x005D,
     kNote = 0x001C,
+    kTxo = 0x01B6,
     kSxView = 0x00B0,
     kDimensions = 0x0200,
     kNumber = 0x0203,
@@ -94,6 +96,22 @@ bool isBof(quint16 id) { return id == 0x0809 || id == 0x0409 || id == 0x0209 || 
 
 // The most nested substreams (charts inside a sheet) a sheet may hold: real files have one deep.
 constexpr int kMaxSubstreamDepth = 64;
+
+// Whether the drawing group's bytes have the container that stores pictures (kind 0xF001), looking into containers and past the other atoms.
+bool holdsPictureStore(const QByteArray &data, qsizetype from, qsizetype to)
+{
+    Bytes b(data, from, to);
+    qint64 steps = (to - from) / 8 + 1;
+    while (b.left() >= 8 && steps-- > 0) {
+        const quint16 verInst = b.u16(), type = b.u16();
+        const quint32 len = b.u32();
+        if (type == 0xF001) return true;
+        if ((verInst & 0xF) == 0xF) continue;
+        if (len > quint32(b.left())) break;
+        b.skip(len);
+    }
+    return false;
+}
 
 struct Rec {
     quint16 id = 0;
@@ -494,7 +512,10 @@ public:
                 m_firstTab = b.u16();
                 break;
             }
-            case kMsoDrawingGroup: m_drawings = true; break;
+            case kMsoDrawingGroup:
+                // (a group that stores no pictures is only the numbering of the shapes of notes)
+                if (holdsPictureStore(m_d, r.pos, r.pos + r.len)) m_drawings = true;
+                break;
             default: break;
             }
         }
@@ -1000,7 +1021,7 @@ private:
             qsizetype last = sc.offset();
             // the drawing record before an object gives its place; the substream of a chart follows the record of the chart object
             XlsAnchor lastAnchor, chartAnchor;
-            bool haveAnchor = false, pendingDrawing = false;
+            bool haveAnchor = false, pendingDrawing = false, afterNote = false;
             qsizetype chartFrom = -1;
             while (sc.next(&r)) {
                 budget -= 4 + r.len;
@@ -1043,6 +1064,10 @@ private:
                         m_drawingsInSheets = true;
                         break;
                     }
+                    if (afterNote) {
+                        afterNote = false;   // (the text box of a note: not a drawing of its own)
+                        break;
+                    }
                     if (pendingDrawing) m_drawingsInSheets = true;
                     pendingDrawing = true;
                     {
@@ -1062,14 +1087,25 @@ private:
                         const quint16 ot = ob.u16();
                         chartObject = !ob.bad() && ft == 0x15 && ot == 5;
                     }
-                    if (!chartObject) {
+                    bool noteObject = false;
+                    if (depth == 0 && m_biff >= 8) {
+                        Bytes ob(m_d, r.pos, r.pos + r.len);
+                        const quint16 ft = ob.u16();
+                        ob.u16();
+                        const quint16 ot = ob.u16();
+                        noteObject = !ob.bad() && ft == 0x15 && ot == 0x19;
+                    }
+                    afterNote = noteObject;
+                    if (!chartObject && !noteObject) {
                         m_drawingsInSheets = true;
                         haveAnchor = false;
                     }
                     pendingDrawing = false;
                     break;
                 }
-                case kNote: m_comments = true; break;
+                case kNote:
+                    if (m_biff < 8) m_comments = true;   // (the notes of the later form of the format are read)
+                    break;
                 case kSxView: m_pivots = true; break;
                 case kUncalced: if (depth == 0) m_uncalced = true; break;   // (a sheet's own record, near its start)
                 case kCalcMode:
@@ -1407,6 +1443,7 @@ public:
         }
         if (ok && m_holding) ok = flushHeld();
         m_s.cells.finish();
+        if (m_notesOver) m_s.notKept << QCoreApplication::translate("Sheet", "Only the first %1 notes on a sheet are kept.").arg(QLocale().toString(kMaxNotes));
         if (ok) ok = resolveExpressions();
         if (m_haveWidth) m_format.defaultColWidth = m_standardWidth;
         m_s.format = m_format;
@@ -1495,6 +1532,20 @@ private:
     bool m_haveLastFormula = false;
     double m_standardWidth = 0;
     int m_wScale = 0, m_scl = 0;
+    // The notes: each is an object (its place and its words are found as the records go by) that a note record, near the end of the sheet, names by its number.
+    struct NoteShape {
+        XlsAnchor anchor;
+        bool hasAnchor = false;
+        QString words;
+        bool hasWords = false;
+    };
+    QHash<quint16, NoteShape> m_noteShapes;
+    XlsAnchor m_shapeAnchor;
+    bool m_haveShape = false;
+    bool m_objIsNote = false;
+    quint16 m_objId = 0;
+    qint64 m_noteChars = 0;
+    bool m_notesOver = false;
 
     bool fail(const QString &why)
     {
@@ -1558,6 +1609,93 @@ private:
     {
         Bytes b(m_d, r.pos, r.pos + r.len);
         switch (r.id) {
+        case kMsoDrawing: {
+            // (the record before an object has its shape: where it sits)
+            XlsAnchor a;
+            m_haveShape = m_b8 && readXlsAnchor(m_d, r.pos, r.pos + r.len, &a);
+            if (m_haveShape) m_shapeAnchor = a;
+            return true;
+        }
+        case kObj: {
+            m_objIsNote = false;
+            if (m_b8) {
+                const quint16 ft = b.u16(), cb = b.u16(), ot = b.u16(), id = b.u16();
+                (void)cb;
+                if (!b.bad() && ft == 0x15 && ot == 0x19 && m_noteShapes.size() < kMaxNotes) {
+                    m_objIsNote = true;
+                    m_objId = id;
+                    NoteShape &n = m_noteShapes[id];
+                    n.anchor = m_shapeAnchor;
+                    n.hasAnchor = m_haveShape;
+                }
+            }
+            m_haveShape = false;
+            return true;
+        }
+        case kTxo: {
+            // the words of the object just before it (a note's): in the records that continue this one, the first holding the characters (and the byte that says one or two bytes each)
+            if (!m_b8 || !m_objIsNote) return true;
+            b.skip(10);
+            const quint32 count = b.u16();
+            if (b.bad()) return true;
+            Logical lg;
+            Rec c;
+            while (sc.peek(&c) && c.id == kContinue) {
+                sc.next(&c);
+                lg.data += m_d.mid(c.pos, c.len);
+                lg.ends << lg.data.size();
+            }
+            if (lg.ends.isEmpty() || count == 0) return true;
+            Chars ch(lg, 0);
+            const quint8 flags = ch.u8();
+            const QString words = ch.chars(std::min<quint32>(count, 32767), flags & 1, [this](const char *p, int n) { return text(p, n); });
+            NoteShape &n = m_noteShapes[m_objId];
+            n.words = words;
+            n.hasWords = ch.ok() || !words.isEmpty();
+            m_objIsNote = false;
+            return true;
+        }
+        case kNote: {
+            if (!m_b8) return true;
+            const quint32 row = b.u16(), col = b.u16();
+            const quint16 flags = b.u16(), id = b.u16();
+            const int n = b.u16();
+            const quint8 wide = b.u8();
+            const char *p = b.take(qint64(n) * ((wide & 1) ? 2 : 1));
+            if (b.bad() || !p) return true;
+            const auto at = m_noteShapes.constFind(id);
+            if (at == m_noteShapes.cend() || !at->hasWords || at->words.isEmpty()) return true;
+            for (const ImportedNote &have : std::as_const(m_s.importedNotes))
+                if (have.row == row && have.col == col) return true;   // (the first note of a cell is the one kept)
+            if (qint64(m_s.importedNotes.size()) >= kMaxNotes || m_noteChars >= kMaxNoteChars) {
+                m_notesOver = true;
+                return true;
+            }
+            ImportedNote note;
+            note.row = row;
+            note.col = col;
+            note.author = (wide & 1) ? QString::fromUtf16(reinterpret_cast<const char16_t *>(p), n) : text(p, n);
+            note.text = at->words;
+            note.shown = flags & 2;
+            if (at->hasAnchor) {
+                // (the box in the units the XML form has: whole cells from the note's own, and pixels into them, at the size of a cell that has no size of its own)
+                const XlsAnchor &a = at->anchor;
+                NoteBox box;
+                box.set = true;
+                box.row1 = int(a.row1) - int(row);
+                box.col1 = int(a.col1) - int(col);
+                box.y1 = int((a.dy1 * 20 + 128) / 256);
+                box.x1 = int((a.dx1 * 64 + 512) / 1024);
+                box.row2 = int(a.row2) - int(row);
+                box.col2 = int(a.col2) - int(col);
+                box.y2 = int((a.dy2 * 20 + 128) / 256);
+                box.x2 = int((a.dx2 * 64 + 512) / 1024);
+                note.box = box;
+            }
+            m_noteChars += note.text.size() + note.author.size();
+            m_s.importedNotes.append(note);
+            return true;
+        }
         case kDimensions: {
             if (m_b8) {
                 const quint32 r1 = b.u32(), r2 = b.u32();

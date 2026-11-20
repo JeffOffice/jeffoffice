@@ -180,7 +180,7 @@ QStringList Features::result() const
         if (charts && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (an .ods copy writes them: odschart.h)
         if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
-        if (notes && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "notes"));
+        (void)notes;   // (an .xls copy writes them: see xlssave.cpp)
         if (macros) add(QT_TRANSLATE_NOOP("Sheet", "macros"));
         if (links && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)"));
         else if (links) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas keep the values they had)"));

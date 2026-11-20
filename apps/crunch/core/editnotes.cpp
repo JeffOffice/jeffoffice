@@ -31,8 +31,9 @@ bool EditSession::canEditNotes(int sheet, QString *why) const
         return false;
     };
     if (!canEdit(why) || !canEditSheet(sheet, why)) return false;
-    if (m_book->book->isConverted())
-        return refuse(tr("Notes can't be added or changed yet in a workbook opened from this kind of file. The notes it has are shown, and are kept when it is saved as an .xlsx or an .ods file."));
+    // (a workbook read from a text or web page file has no notes in it to keep, and nothing to carry them to)
+    if (const QString kind = m_book->book->convertedKind(); m_book->book->isConverted() && kind != QLatin1String(".xls") && kind != QLatin1String(".ods") && kind != QLatin1String(".fods"))
+        return refuse(tr("Notes can't be added to a workbook opened from this kind of file."));
     if (m_anchors.truncated(sheet)) return refuse(tr("This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn't put notes on it or take them off.").arg(jp::office::sheet::kMaxModelNotes));
     return true;
 }
