@@ -1569,6 +1569,7 @@ private Q_SLOTS:
         alt->click();
         QVERIFY(section->isExpanded());
         QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
+        w.showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
     }
 
     // The three menus of the tab reach the same settings as the pane, each choice one step: a color, none, a gradient, or a picture for the fill; a

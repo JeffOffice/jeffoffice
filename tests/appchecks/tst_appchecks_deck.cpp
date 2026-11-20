@@ -255,6 +255,14 @@ private Q_SLOTS:
                  asDeck(aw)->refreshNow();
                  aw->act(QStringLiteral("arr.group"))->trigger();
              }, false},
+            {QStringLiteral("objects just ungrouped"), [addShape](AppWindow *aw, bool) {
+                 const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
+                 asDeck(aw)->editor()->select(QStringList{a, b});
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("arr.group"))->trigger();
+                 asDeck(aw)->refreshNow();
+                 aw->act(QStringLiteral("arr.ungroup"))->trigger();
+             }, false},
             {QStringLiteral("the first of two effects selected"), [addShape, effectOn](AppWindow *aw, bool) {
                  const QString a = addShape(aw, QRectF(60, 300, 120, 80)), b = addShape(aw, QRectF(260, 340, 120, 80));
                  effectOn(aw, a);
@@ -382,6 +390,7 @@ private Q_SLOTS:
             {QStringLiteral("tbl.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
+            {QStringLiteral("win.cascade"), QStringLiteral("it sets the open windows in a stack, and with one window the window keeps its place on the screen the checks run on; the window tests cascade two windows")},
         };
         m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
         // The commands of Compare act on the change chosen in the Reviewing Pane, which has one only when another presentation has been chosen; DeckReviewTests::compare* run each of them on a comparison.

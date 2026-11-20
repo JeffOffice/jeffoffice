@@ -1595,7 +1595,8 @@ private Q_SLOTS:
             if (a != &w && a != second && a->isVisible()) others << a;
         for (const QPointer<AppWindow> &a : others) a->hide();
         w.act(QStringLiteral("win.arrange"))->trigger();
-        QVERIFY(w.geometry().right() < second->geometry().left() || second->geometry().right() < w.geometry().left());
+        // Each window has a column of its own: they start half the screen's width apart (a window may be wider than its column when its least width says so).
+        QCOMPARE(qAbs(w.pos().x() - second->pos().x()), w.screen()->availableGeometry().width() / 2);
         w.act(QStringLiteral("win.cascade"))->trigger();
         QCOMPARE(qAbs(w.pos().x() - second->pos().x()), 30);
         QCOMPARE(qAbs(w.pos().y() - second->pos().y()), 30);
