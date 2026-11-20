@@ -11,10 +11,12 @@
       {"small": "arr.selectionPane", "keytip": "OS"},
       {"small": {"id": "ribbon.align", "text": "Align", "icon": "align-horizontal-justify-center"}, "keytip": "AA", "menu": [
         "arr.alignLeft", "arr.alignCenter", "arr.alignRight", "-", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom", "-",
-        "arr.distH", "arr.distV", "-", "arr.relMargins"]},
+        "arr.distH", "arr.distV", "-", "arr.eqW", "arr.eqH", "arr.eqBoth", "-", "arr.relMargins"]},
       {"small": "arr.ungroup", "keytip": "GU", "split": true, "menu": ["arr.ungroup", "arr.regroup"]},
       {"small": {"id": "ribbon.rotate", "text": "Rotate", "icon": "rotate-cw"}, "keytip": "AY", "menu": [
-        "arr.rotR", "arr.rotL", "arr.flipV", "arr.flipH", "-", "arr.freeRotate"]}
+        "arr.rotR", "arr.rotL", "arr.flipV", "arr.flipH", "-", "arr.freeRotate"]},
+      {"small": "edit.duplicateMany", "keytip": "DD"},
+      {"small": "arr.sendMaster", "keytip": "SM"}
     ]},
     "Size": {"name": "Size", "keytip": "ZS", "launcher": "sizePosition", "launcherTip": "Size and Position", "launcherKeytip": "SZ", "items": [
       {"row": [{"label": "Height"}, {"widget": "heightSpin", "keytip": "HT"}]},
@@ -118,6 +120,7 @@
       ]},
       {"name": "Text", "keytip": "ZX", "items": [
         {"large": "ins.textbox", "keytip": "X"},
+        {"small": "ins.vtextbox", "keytip": "VX"},
         {"large": {"id": "ribbon.businessInfo", "text": "Business Information", "icon": "contact"}, "keytip": "BI", "menu": "@businessInfoMenu"},
         {"widget": "textArtButton", "keytip": "WA"},
         {"small": "ins.file", "keytip": "IF"},
@@ -344,7 +347,8 @@
         {"row": [
           {"widget": "textFill", "keytip": "TX"},
           {"widget": "textOutline", "keytip": "TO"},
-          {"widget": "textGlow", "keytip": "TG"}]}
+          {"widget": "textGlow", "keytip": "TG"}]},
+        {"small": {"id": "ribbon.textReflection", "text": "Reflection", "icon": "flip-vertical-2"}, "keytip": "RF", "menu": ["tb.refl.none", "tb.refl.0", "tb.refl.1", "tb.refl.2"]}
       ]},
       {"name": "Typography", "keytip": "ZY", "items": [
         {"large": {"id": "ribbon.dropCap", "text": "Drop Cap", "icon": "a-large-small"}, "keytip": "DC", "menu": [

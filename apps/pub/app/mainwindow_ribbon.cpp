@@ -1137,9 +1137,12 @@ void MainWindow::refreshUi()
     act("edit.undo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()), QStringLiteral("Ctrl+Z"), act("edit.undo"))));
     act("edit.redo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()), QStringLiteral("Ctrl+Y"), act("edit.redo"))));
     act("pd.extraContent")->setEnabled(!d->extra.empty());
-    for (const char *id : {"edit.cut", "edit.copy", "edit.duplicate", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
+    for (const char *id : {"edit.cut", "edit.copy", "edit.duplicate", "edit.duplicateMany", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
     for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV", "obj.format", "obj.lock"})
         act(id)->setEnabled(sel);
+    for (const char *id : {"arr.eqW", "arr.eqH", "arr.eqBoth"}) act(id)->setEnabled(kind == "multi");
+    act("arr.sendMaster")->setEnabled(sel);
+    act("arr.sendMaster")->setText(m_ed->masterView().isEmpty() ? tr("Send to Master Page") : tr("Send to Page"));
     act("arr.group")->setEnabled(kind == "multi" || kind == "group");
     act("arr.group")->setText(kind == "group" ? tr("Ungroup") : tr("Group"));
     act("arr.ungroup")->setEnabled(kind == "group" || m_ed->canRegroup());

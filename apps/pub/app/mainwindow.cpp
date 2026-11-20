@@ -2191,6 +2191,7 @@ void MainWindow::contextMenu(const QPoint &global)
         menu.addAction(act("edit.copy"));
         menu.addAction(act("edit.paste"));
         menu.addAction(act("edit.duplicate"));
+        menu.addAction(act("edit.duplicateMany"));
         menu.addAction(act("edit.delete"));
         menu.addSeparator();
         if (kind == "multi") menu.addAction(act("arr.group"));

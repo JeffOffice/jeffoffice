@@ -8,6 +8,7 @@
 #include "app/spelling.h"
 
 #include <algorithm>
+#include <cmath>
 
 #include "core/chartobject.h"
 #include "core/presets.h"
@@ -1063,29 +1064,46 @@ void putObjectEntries(Document &doc, PageBase &page, const QJsonArray &entries, 
 
 } // namespace
 
-void Editor::duplicateSelection()
+void Editor::duplicateSelection() { duplicateSteps(DuplicateSteps()); }
+
+bool Editor::duplicateSteps(const DuplicateSteps &steps)
 {
     const QStringList ids = topLevelSelection();
-    if (ids.isEmpty()) return;
-    beginChange(tr("Duplicate"));
-    QStringList made;
+    if (ids.isEmpty() || steps.copies < 1 || steps.copies > kMaxDuplicateCopies) return false;
+    beginChange(steps.copies == 1 ? tr("Duplicate") : tr("Duplicate Several Times"));
     ItemList originals;
     for (const auto &id : ids)
         if (ItemPtr it = m_doc->itemPtr(id)) originals.push_back(it);
-    const ItemList clones = m_doc->cloneItems(originals);
-    QHash<QString, QString> copies;
-    QSet<QString> copied;
-    for (int i = 0; i < clones.size(); ++i) {
-        clones[i]->moveBy(12, 12);
-        surfaceItems().push_back(clones[i]);
-        made << clones[i]->id;
-        copies.insert(originals[i]->id, clones[i]->id);
-        copied.insert(originals[i]->id);
+    QStringList made;
+    for (int k = 1; k <= steps.copies; ++k) {
+        const ItemList clones = m_doc->cloneItems(originals);
+        QHash<QString, QString> copies;
+        QSet<QString> copied;
+        made.clear();
+        const double factor = std::pow(1 + std::clamp(steps.growPercent, -90.0, 1000.0) / 100, k);
+        for (int i = 0; i < clones.size(); ++i) {
+            Item *c = clones[i].get();
+            const QRectF b = c->bounds();
+            c->moveBy(steps.offset.x() * k, steps.offset.y() * k);
+            if (factor != 1) {
+                const QRectF at = b.translated(steps.offset * k);
+                c->scaleInto(at, QRectF(at.topLeft(), at.size() * factor));
+            }
+            if (steps.stepColor && steps.lastColor.isValid() && c->fill.type == Fill::Solid && !c->fill.color.isNone()) {
+                const double t = double(k) / steps.copies;
+                c->fill = Fill::solid(ColorRef::rgb(mix(c->fill.color.resolve(m_doc->colors), steps.lastColor, t)), c->fill.transparency);
+            }
+            surfaceItems().push_back(clones[i]);
+            made << clones[i]->id;
+            copies.insert(originals[i]->id, clones[i]->id);
+            copied.insert(originals[i]->id);
+        }
+        if (m_master.isEmpty()) putObjectEntries(*m_doc, *surface(), objectEntriesOf(*surface(), copied), copies);
     }
-    if (m_master.isEmpty()) putObjectEntries(*m_doc, *surface(), objectEntriesOf(*surface(), copied), copies);
     m_sel = made;
     endChange();
     Q_EMIT selectionChanged();
+    return true;
 }
 
 void Editor::moveSelectionBy(double dx, double dy, const QString &label)
@@ -1268,6 +1286,95 @@ void Editor::distribute(bool horizontal, bool toMargins)
         pos += (horizontal ? b.width() : b.height()) + gap;
     }
     endChange();
+}
+
+bool Editor::equalize(bool width, bool height)
+{
+    const QStringList ids = topLevelSelection();
+    if (ids.size() < 2 || (!width && !height)) return false;
+    const Item *first = m_doc->item(ids.first());
+    if (!first) return false;
+    const QSizeF want = first->bounds().size();
+    beginChange(width && height ? tr("Equalize Size") : width ? tr("Equalize Width") : tr("Equalize Height"));
+    for (int i = 1; i < ids.size(); ++i) {
+        Item *it = m_doc->item(ids[i]);
+        if (!it || it->locked) continue;
+        const QRectF b = it->bounds();
+        const QRectF to(b.topLeft(), QSizeF(width ? want.width() : b.width(), height ? want.height() : b.height()));
+        it->scaleInto(b, to);
+        if (auto loc = m_doc->find(ids[i]); loc.parent) loc.parent->syncRect();
+    }
+    endChange();
+    return true;
+}
+
+// Moves the top-level selected objects from one surface to another, `dx` over where it differs per object (a two-page master's right half is one page wide further on).
+bool Editor::moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster, const std::function<double(const Item &)> &dx, QString *why)
+{
+    const QStringList ids = topLevelSelection();
+    auto refuse = [&](const QString &reason) {
+        if (why) *why = reason;
+        return false;
+    };
+    if (ids.isEmpty()) return refuse(tr("Select an object first."));
+    QSet<QString> moving;
+    for (const auto &id : ids) {
+        const ItemPtr it = m_doc->itemPtr(id);
+        if (!it) continue;
+        if (it->locked) return refuse(tr("An object that is locked stays where it is."));
+        const ItemList one{it};
+        walkItems(one, [&](const ItemPtr &c) { moving << c->id; });
+    }
+    QSet<QString> held;
+    for (const QJsonValue &v : from.props.value(QStringLiteral("charts")).toArray()) held << v.toObject().value(QStringLiteral("item")).toString();
+    bool chained = false, kept = false;
+    walkItems(from.items, [&](const ItemPtr &it) {
+        const bool in = moving.contains(it->id);
+        if (in && held.contains(it->id)) kept = true;
+        if (const auto *t = dynamic_cast<const TextItem *>(it.get())) {
+            if (in && !t->nextId.isEmpty() && !moving.contains(t->nextId)) chained = true;
+            if (!in && !t->nextId.isEmpty() && moving.contains(t->nextId)) chained = true;
+        }
+    });
+    if (chained) return refuse(tr("A text box linked to another one stays on its page."));
+    if (kept) return refuse(tr("An embedded object stays on its page."));
+    beginChange(toMaster ? tr("Send to Master Page") : tr("Send to Page"));
+    for (const auto &id : ids) {
+        const auto loc = m_doc->find(id);
+        if (!loc.list || loc.parent) continue;
+        ItemPtr it = (*loc.list)[loc.index];
+        loc.list->erase(loc.list->begin() + loc.index);
+        it->moveBy(dx(*it), 0);
+        to.items.push_back(it);
+    }
+    m_sel.clear();
+    endChange();
+    Q_EMIT selectionChanged();
+    return true;
+}
+
+bool Editor::sendToMaster(QString *why)
+{
+    if (!m_master.isEmpty()) return false;
+    Page &page = *m_doc->pages[std::clamp(m_page, 0, int(m_doc->pages.size()) - 1)];
+    MasterPage *mp = m_doc->masterFor(page);
+    if (!mp) {
+        if (why) *why = tr("This page has no master page.");
+        return false;
+    }
+    // (a two-page master's right half shows on a page that is a right-hand page, the first, third, and so on)
+    const double over = mp->twoPage && m_page % 2 == 0 ? m_doc->pageSize().width() : 0;
+    return moveSelectionToSurface(page, *mp, true, [over](const Item &) { return over; }, why);
+}
+
+bool Editor::sendToPage(QString *why)
+{
+    MasterPage *mp = m_master.isEmpty() ? nullptr : m_doc->master(m_master);
+    if (!mp || m_doc->pages.isEmpty()) return false;
+    Page &page = *m_doc->pages[std::clamp(m_page, 0, int(m_doc->pages.size()) - 1)];
+    const double w = m_doc->pageSize().width();
+    const bool two = mp->twoPage;
+    return moveSelectionToSurface(*mp, page, false, [two, w](const Item &it) { return two && it.bounds().center().x() >= w ? -w : 0.0; }, why);
 }
 
 void Editor::rotateSelection(double deg)

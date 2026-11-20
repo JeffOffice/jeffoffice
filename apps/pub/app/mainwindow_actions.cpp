@@ -25,6 +25,9 @@
 #include "app/toc.h"
 
 #include "app/dialogs.h"
+#include "app/duplicatedialog.h"
+#include "app/formatops.h"
+#include "app/formatpresets.h"
 #include "app/guidesdialog.h"
 #include "app/help.h"
 #include "app/ribbon.h"
@@ -143,6 +146,7 @@ void MainWindow::createActions()
     mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecialDialog(this, m_ed); });
     mk("edit.duplicate", tr("Duplicate"), "copy-plus", QKeySequence(Qt::CTRL | Qt::Key_D), [ed] { ed->duplicateSelection(); });
+    mk("edit.duplicateMany", tr("Duplicate Several Times…"), "copy-plus", QKeySequence(), [this, ed] { duplicateStepsDialog(this, ed); });
     mk("edit.delete", tr("Delete Object"), "trash-2", QKeySequence(), [ed] { ed->deleteSelection(); });
     mk("edit.formatPainter", tr("Copy Formatting"), "paintbrush", QKeySequence(), [ed] {
         if (ed->tool() == Tool::FormatPainter) { ed->setTool(Tool::Select); return; }
@@ -337,6 +341,7 @@ void MainWindow::createActions()
         pic->imgRect = QRectF(0, 0, 216, 144);
         ed->addItem(pic);
     });
+    mk("ins.vtextbox", tr("Draw Vertical Text Box"), "text-cursor-input", QKeySequence(), [ed] { ed->setTool(Tool::Text, QString::fromLatin1(kTurnedTextTool)); });
     mk("ins.textart", tr("Text Art"), "type", QKeySequence(), [ed] { ed->setTool(Tool::TextArt); });
     mk("ins.bizInfo", tr("Edit Business Information…"), "contact", QKeySequence(), [this] { businessInfoDialog(this, m_ed); });
     mk("ins.file", tr("Insert File"), "file-input", QKeySequence(), [this] {
@@ -507,6 +512,14 @@ void MainWindow::createActions()
     mk("arr.alignBottom", tr("Align Bottom"), "align-end-horizontal", QKeySequence(), [ed, toMargins] { ed->align(Editor::Align::Bottom, toMargins()); });
     mk("arr.distH", tr("Distribute Horizontally"), "align-horizontal-distribute-center", QKeySequence(), [ed, toMargins] { ed->distribute(true, toMargins()); });
     mk("arr.distV", tr("Distribute Vertically"), "align-vertical-distribute-center", QKeySequence(), [ed, toMargins] { ed->distribute(false, toMargins()); });
+    mk("arr.eqW", tr("Equalize Width"), "move-horizontal", QKeySequence(), [ed] { ed->equalize(true, false); });
+    mk("arr.eqH", tr("Equalize Height"), "move-vertical", QKeySequence(), [ed] { ed->equalize(false, true); });
+    mk("arr.eqBoth", tr("Equalize Width and Height"), "scaling", QKeySequence(), [ed] { ed->equalize(true, true); });
+    mk("arr.sendMaster", tr("Send to Master Page"), "layout-panel-top", QKeySequence(), [this, ed] {
+        QString why;
+        const bool back = !ed->masterView().isEmpty();
+        if (!(back ? ed->sendToPage(&why) : ed->sendToMaster(&why)) && !why.isEmpty()) statusBar()->showMessage(why, 6000);
+    });
     mk("arr.rotR", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [ed] { ed->rotateSelection(90); });
     mk("arr.rotL", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [ed] { ed->rotateSelection(-90); });
     mk("arr.flipH", tr("Flip Horizontal"), "flip-horizontal-2", QKeySequence(), [ed] { ed->flipSelection(true); });
@@ -1147,6 +1160,14 @@ void MainWindow::createActions()
     }, true);
     mk("tb.emboss", tr("Emboss"), "", QKeySequence(), [boolProp] { boolProp(tp::Emboss, tr("Emboss")); }, true);
     mk("tb.engrave", tr("Engrave"), "", QKeySequence(), [boolProp] { boolProp(tp::Engrave, tr("Engrave")); }, true);
+    // Reflection on the letters, from the shared presets (Tight, Half, and Full): the effect the text engine already draws under a run.
+    mk("tb.refl.none", tr("No Reflection"), "", QKeySequence(), [ed] {
+        ed->editCharFormats([](QTextCharFormat &cf) { formatops::changeTextEffects(cf, [](TextEffects &fx) { fx.reflection.on = false; }); }, tr("Text Reflection"));
+    });
+    for (int i = 0; i < formatpresets::reflectionCount(); ++i)
+        mk(QStringLiteral("tb.refl.%1").arg(i), formatpresets::reflectionName(i), "", QKeySequence(), [ed, i] {
+            ed->editCharFormats([i](QTextCharFormat &cf) { formatops::changeTextEffects(cf, [i](TextEffects &fx) { formatpresets::applyTextReflection(fx, i); }); }, tr("Text Reflection"));
+        });
     mk("tb.trueSmallCaps", tr("True Small Caps"), "", QKeySequence(), [boolProp] { boolProp(tp::TrueSmallCaps, tr("Small Caps")); }, true);
     mk("tb.swash", tr("Swash"), "", QKeySequence(), [boolProp] { boolProp(tp::Swash, tr("Swash")); }, true);
     mk("tb.alternates", tr("Stylistic Alternates"), "", QKeySequence(), [boolProp] { boolProp(tp::Alternates, tr("Stylistic Alternates")); }, true);

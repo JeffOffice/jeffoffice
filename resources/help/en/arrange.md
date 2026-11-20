@@ -35,6 +35,36 @@ With several objects selected, they line up with each other. With one object sel
 
 **Distribute Horizontally** and **Distribute Vertically** space three or more objects evenly between the outer two.
 
+## Make objects the same size
+
+1. Select two or more objects. Select first the one whose size the others should take.
+2. Click **Home > Arrange > Align**.
+3. Choose **Equalize Width**, **Equalize Height**, or **Equalize Width and Height**.
+
+Every other object takes that size and keeps its top left corner where it was. An object that is locked keeps its own size. Each choice is one step of Undo.
+
+## Corner radius and the point to resize from
+
+**Format Object… > Size** has **Resize from**. It names the point of the object that stays where it is when you change the height or the width: a corner, the middle of a side, or the center. The usual choice is **Top left**. If you also type a new position, the position you typed wins. For a rounded rectangle (and the shapes with one or two rounded corners), **Corner radius** sets how round the corners are, in the unit you use. The most it can be is half of the shorter side, where the corners meet.
+
+## Duplicate several times
+
+Ctrl+D makes one copy, moved 12 points down and to the right. To make more, select the objects and click **Home > Arrange > Duplicate Several Times…** (or right-click the object and choose it). In the window, set:
+
+- **Number of copies**, from 1 to 200.
+- **Horizontal offset** and **Vertical offset**: how far each copy is moved from the one before it. A negative number moves it left or up.
+- **Size change for each copy**, in percent. For example, 10 % makes each copy 10 % bigger than the one before it, and -10 % makes each smaller. The top left corner of each copy is where its offset puts it.
+- **Step the fill color to**: pick a color, and the copies change step by step from the object's own solid fill to that color, so the last copy has exactly that color. An object with no solid fill keeps its fill.
+
+All the copies are one step of Undo, and the last copies are left selected.
+
+## Send objects to the master page
+
+1. Select the objects on a page.
+2. Click **Home > Arrange > Send to Master Page**.
+
+The objects move onto the master page that the page uses, in front of what is already there, and they look the same: they stay in the same place on the page. After that they show on every page that uses the master, and you change them on the master page. To bring them back, open the master page (**View > Views > Master Page**), select them, and click **Send to Page** (the same button), and they land on the page you were on. Each is one step of Undo. A page with no master page, a locked object, a text box linked to another one, and an object kept with its page (a chart or an embedded object) stay where they are, and the status bar says why.
+
 ## Group objects
 
 A group moves, resizes, and turns as one object.

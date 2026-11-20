@@ -5,6 +5,7 @@
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QHash>
+#include <QSet>
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
@@ -476,6 +477,28 @@ QVector<double> shapeAdj(const QString &id, const QVector<double> &adj)
     QVector<double> out = d ? d->defaults : QVector<double>();
     for (int i = 0; i < adj.size() && i < out.size(); ++i) out[i] = adj[i];
     return out;
+}
+
+bool hasCornerRadius(const QString &id)
+{
+    const ShapeDef *d = shapeDef(id);
+    if (!d) return false;
+    static const QSet<QString> rounded{QStringLiteral("roundRect"), QStringLiteral("round1Rect"), QStringLiteral("round2SameRect"), QStringLiteral("round2DiagRect")};
+    return rounded.contains(d->preset);
+}
+
+double cornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size)
+{
+    const QVector<double> a = shapeAdj(id, adj);
+    return hasCornerRadius(id) && !a.isEmpty() ? a[0] * std::min(size.width(), size.height()) : 0;
+}
+
+QVector<double> adjWithCornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size, double radius)
+{
+    QVector<double> a = shapeAdj(id, adj);
+    const double shorter = std::min(size.width(), size.height());
+    if (hasCornerRadius(id) && !a.isEmpty() && shorter > 0) a[0] = std::clamp(radius / shorter, 0.0, 0.5);
+    return a;
 }
 
 static QVector<double> adjBeforeModel2(const QString &id, const QSizeF &size, const QVector<double> &adj)

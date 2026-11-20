@@ -2190,7 +2190,7 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
         }
         // (A text box is drawn by the rule every app shares: the preview is the box that is made.)
         if (m_drag == Drag::Draw && t == Tool::Text) {
-            const auto ends = textBoxDragEnds(a, b, false, kUsualTextBox);
+            const auto ends = textBoxDragEnds(a, b, false, m_ed->toolShape() == QLatin1String(kTurnedTextTool) ? QSizeF(kUsualTextBox.height(), kUsualTextBox.width()) : kUsualTextBox);
             a = ends.first;
             b = ends.second;
         }
@@ -2511,8 +2511,11 @@ void Canvas::finishDraw(const QRectF &rIn, bool clicked)
     Document *d = m_ed->doc();
     switch (tool) {
     case Tool::Text: {
-        const auto ends = textBoxDragEnds(r.topLeft(), r.bottomRight(), false, kUsualTextBox);
+        // (Draw Vertical Text Box draws the same box with the words turned a quarter from the start; a click puts in the usual box on its side)
+        const bool turned = m_ed->toolShape() == QLatin1String(kTurnedTextTool);
+        const auto ends = textBoxDragEnds(r.topLeft(), r.bottomRight(), false, turned ? QSizeF(kUsualTextBox.height(), kUsualTextBox.width()) : kUsualTextBox);
         auto t = m_ed->newTextBox(QRectF(ends.first, ends.second).normalized());
+        if (turned) static_cast<TextItem *>(t.get())->setDirection(TextDirection::Rotate90);
         m_ed->addItem(t);
         m_ed->setTool(Tool::Select);
         m_ed->beginTextEdit(t->id, 0);

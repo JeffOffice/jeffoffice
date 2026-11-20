@@ -330,6 +330,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_info.cpp
   tests/pub/tst_pub_formatpane.cpp
   tests/pub/tst_pub_fonts.cpp
+  tests/pub/tst_pub_lines11.cpp
   tests/pub/tst_pub_objects.cpp
   tests/pub/tst_pub_pages.cpp
   tests/pub/tst_pub_pagenum.cpp

@@ -1,3 +1,4 @@
+#include "render/shapes.h"
 #include "app/dialogs.h"
 #include "app/uistyle.h"
 #include "office/themelib.h"
@@ -596,6 +597,7 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
         it = ed->selectedItems().first();
     }
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Format %1").arg(itemTypeName(it->type())));
+    dlg.d.setObjectName(QStringLiteral("formatObjectDialog"));
     auto *tabs = new QTabWidget(&dlg.d);
     // Colors and Lines.
     auto *cl = new QWidget();
@@ -652,6 +654,22 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
     szf->addRow(QCoreApplication::translate("Dialogs", "Height"), h);
     szf->addRow(QCoreApplication::translate("Dialogs", "Width"), w);
     szf->addRow(QCoreApplication::translate("Dialogs", "Rotation"), rot);
+    // The point of the object that stays where it is when the height or width changes (the top left corner, unless another is chosen).
+    auto *basePoint = new QComboBox(sz);
+    basePoint->setObjectName(QStringLiteral("basePoint"));
+    basePoint->addItems({QCoreApplication::translate("Dialogs", "Top left"), QCoreApplication::translate("Dialogs", "Top center"), QCoreApplication::translate("Dialogs", "Top right"),
+                         QCoreApplication::translate("Dialogs", "Middle left"), QCoreApplication::translate("Dialogs", "Center"), QCoreApplication::translate("Dialogs", "Middle right"),
+                         QCoreApplication::translate("Dialogs", "Bottom left"), QCoreApplication::translate("Dialogs", "Bottom center"), QCoreApplication::translate("Dialogs", "Bottom right")});
+    szf->addRow(QCoreApplication::translate("Dialogs", "Resize from"), basePoint);
+    // A shape with rounded corners: the radius of the corners.
+    MeasureSpin *radius = nullptr;
+    double radius0 = 0;
+    if (auto *shape = dynamic_cast<ShapeItem *>(it); shape && hasCornerRadius(shape->shape)) {
+        radius0 = cornerRadius(shape->shape, shape->adj, shape->rect.size());
+        radius = measure(radius0, sz, 0);
+        radius->setObjectName(QStringLiteral("cornerRadius"));
+        szf->addRow(QCoreApplication::translate("Dialogs", "Corner radius"), radius);
+    }
     szf->addRow(lockAspect);
     tabs->addTab(sz, QCoreApplication::translate("Dialogs", "Size"));
     // Layout.
@@ -816,8 +834,17 @@ void formatObjectDialog(QWidget *p, Editor *ed, int tab)
             Q_UNUSED(c0);
             const QRectF before = o->rect;
             const QRectF to(x->value(), y->value(), w->value(), h->value());
+            // The base point stays where it was when the size changes (unless the position fields were changed, which set the corner themselves).
+            QPointF corner = before.topLeft();
+            const int base = basePoint->currentIndex();
+            const bool moved = std::abs(x->value() - before.x()) > 0.005 || std::abs(y->value() - before.y()) > 0.005;
+            if (!moved && base != 0)
+                corner = QPointF(before.left() + before.width() * (base % 3) / 2 - to.width() * (base % 3) / 2, before.top() + before.height() * (base / 3) / 2 - to.height() * (base / 3) / 2);
+            else if (moved) corner = to.topLeft();
             if (to.size() != before.size()) o->scaleInto(before, QRectF(before.topLeft(), to.size()));
-            o->rect.moveTopLeft(to.topLeft());
+            o->rect.moveTopLeft(corner);
+            if (radius && std::abs(radius->value() - radius0) > 0.005)
+                if (auto *shape = dynamic_cast<ShapeItem *>(o)) shape->adj = adjWithCornerRadius(shape->shape, shape->adj, shape->rect.size(), radius->value());
             o->rotation = std::fmod(rot->value() + 360, 360.0);
         }
         if (auto *t = dynamic_cast<TextItem *>(o)) {

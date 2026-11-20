@@ -59,6 +59,11 @@ QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<doub
 QVector<GeometryPath> shapeParts(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 QRectF shapeTextRect(const QString &id, const QSizeF &size, const QVector<double> &adj = {});
 QVector<double> shapeAdj(const QString &id, const QVector<double> &adj);   // fills in defaults
+// The corner radius of a shape with rounded corners (the rounded rectangle, and the ones with one or two rounded corners): in points, for a frame of `size`, from its adjustments;
+// and the adjustments that give a radius (held to half of the frame's shorter side, where the corners meet). hasCornerRadius says whether the shape is one of those.
+bool hasCornerRadius(const QString &id);
+double cornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size);
+QVector<double> adjWithCornerRadius(const QString &id, const QVector<double> &adj, const QSizeF &size, double radius);
 // A save from before the library drew the standard's shapes (no "adjModel" in it) holds adjustments in the old meanings: a slant as a fraction of the width, a callout's tip
 // from the top left, and the old defaults for what it left out. This gives the values that draw the same shape now. `size` is the shape's frame.
 QVector<double> adjFromOldLibrary(const QString &id, const QSizeF &size, const QVector<double> &adj);

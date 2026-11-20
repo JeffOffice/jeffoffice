@@ -55,6 +55,9 @@ struct ViewOptions {
 constexpr const char *kExtraContentMime = "application/x-jeffpub-extra";
 
 enum class PastedTableResult;
+// The tool shape of Tool::Text that draws a text box whose words are turned a quarter from the start (Draw Vertical Text Box).
+constexpr const char *kTurnedTextTool = "turned";
+
 enum class Tool { Select, Text, Table, Picture, Shape, Line, Arrow, DoubleArrow, Freeform, TextArt, Link, FormatPainter, TablePen, TableEraser };
 
 class JO_COMMON_EXPORT Editor : public QObject {
@@ -246,6 +249,18 @@ public:
     void deleteSelection();
     void deleteItems(const QStringList &ids);
     void duplicateSelection();
+    // Several copies of the selection at once, each a step further on from the one before: `offset` points over, a size that grows (or shrinks, when negative)
+    // by `growPercent` of the previous copy, and, with `stepColor`, a solid fill that goes from the object's own color to `lastColor` at the last copy. One step of Undo;
+    // the last copies are selected afterward. False, and nothing done, when nothing is selected or `copies` is not 1 to kMaxDuplicateCopies.
+    struct DuplicateSteps {
+        int copies = 1;
+        QPointF offset{12, 12};
+        double growPercent = 0;
+        bool stepColor = false;
+        QColor lastColor;
+    };
+    static constexpr int kMaxDuplicateCopies = 200;
+    bool duplicateSteps(const DuplicateSteps &steps);
     void moveSelectionBy(double dx, double dy, const QString &label = QStringLiteral("Move"));
     void forEachSelected(const QString &label, const std::function<void(Item *)> &fn);
     void groupSelection();
@@ -266,6 +281,13 @@ public:
     enum class Align { Left, Center, Right, Top, Middle, Bottom };
     void align(Align a, bool toMargins);
     void distribute(bool horizontal, bool toMargins);
+    // Equalize: every other selected object takes the width, the height, or both of the first one selected, keeping its own top left corner. False (and no change) for fewer than two.
+    bool equalize(bool width, bool height);
+    // Send to Master Page: the selected objects of a page go onto the master page the page uses (in front of the objects it has), and from a master page's
+    // view they go onto the page being shown. Where they sit on the sheet stays the same. One step of Undo; the selection is let go. False, with the reason in
+    // `why`, when nothing is selected, the page has no master page, or an object is part of a chain of linked text boxes or has an embedded object kept with its page.
+    bool sendToMaster(QString *why = nullptr);
+    bool sendToPage(QString *why = nullptr);
     void rotateSelection(double deg);
     void flipSelection(bool horizontal);
     void settleScratch(const QStringList &ids);   // move items between page and scratch area
@@ -415,6 +437,7 @@ Q_SIGNALS:
     void modifiedChanged(bool);
 
 private:
+    bool moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster, const std::function<double(const Item &)> &dx, QString *why);
     TextItem *textBoxUnder(const Item &obj) const;
     void applyCopiedFormatting(Item *it);
     friend class SnapshotCommand;
