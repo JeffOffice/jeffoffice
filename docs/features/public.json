@@ -6730,11 +6730,11 @@
        "items": [
         {
          "status": "partly",
-         "text": "4f27022a43b9eb76d26425b397ad1de77c638083d7a309eaf8741f357b5884b7"
+         "text": "3f27d05a0d8412029f7871d0c65e33bf122a38bc8ec57ce89c58f5b98c19bc5e"
         },
         {
          "status": "partly",
-         "text": "f4aa2f37993bc44c382c3f25b85ef5df0768e52c3f2480952a66d243ee31a35f"
+         "text": "6709273a6da660f91bca9610d32c46125a45d77df3c2c46abce4fde337062f8c"
         },
         {
          "status": "partly",
@@ -7133,7 +7133,7 @@
       },
       {
        "status": "partly",
-       "text": "c93c4aec83e845851ab90fb9f54b3125e0072a463c6a4c9cafb5175988c69542"
+       "text": "b43cf38b48910352fdec110736c88bf96d15ff600362ae37ff6d0676e4a899af"
       },
       {
        "hide_soon": true,
@@ -12591,6 +12591,18 @@
     "fr": ""
    }
   },
+  "3f27d05a0d8412029f7871d0c65e33bf122a38bc8ec57ce89c58f5b98c19bc5e": {
+   "drop": false,
+   "en": "Red wavy underlines mark misspelled words as you type, with suggestions, `Ignore All`, and `Add to Dictionary` on right-click. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and goes through tables, footnotes, headers, and footers. Words in capitals or with numbers are skipped, AutoCorrect works, and the custom dictionary lets you edit added and excluded words, find, add, and remove them, and import and export a word list.",
+   "es": "Las líneas onduladas rojas marcan las palabras con errores mientras escribe, con sugerencias, `Ignore All` y `Add to Dictionary` al hacer clic con el botón derecho. El panel de ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y recorre tablas, notas al pie, encabezados y pies de página. Se omiten las palabras en mayúsculas o con números, la corrección automática funciona y el diccionario personalizado permite editar las palabras agregadas y excluidas, buscarlas, agregarlas y quitarlas, e importar y exportar una lista de palabras.",
+   "fr": "Des lignes ondulées rouges signalent les mots mal orthographiés pendant la saisie, avec des suggestions, `Ignore All` et `Add to Dictionary` dans le menu contextuel. Le volet d’orthographe (`F7`) propose Modifier, Tout modifier, Ignorer, Tout ignorer et Ajouter, et parcourt les tableaux, les notes de bas de page, les en-têtes et les pieds de page. Les mots en majuscules ou contenant des chiffres sont ignorés, la correction automatique fonctionne, et le dictionnaire personnalisé permet de modifier les mots ajoutés et exclus, de les rechercher, de les ajouter et de les supprimer, et d’importer et d’exporter une liste de mots.",
+   "soon": {
+    "drop": false,
+    "en": "Spelling pane starting at the caret in headers and notes, and changing words in endnotes",
+    "es": "Panel de ortografía que comienza en el cursor en encabezados y notas, y cambio de palabras en notas finales",
+    "fr": "Volet d’orthographe démarrant au curseur dans les en-têtes et les notes, et modification des mots dans les notes de fin"
+   }
+  },
   "3f6d9d63250352303c99a64176da8e37490600a643b4d4b0eed82f6bc066629c": {
    "drop": false,
    "en": "Transitions tab",
@@ -13741,18 +13753,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4f27022a43b9eb76d26425b397ad1de77c638083d7a309eaf8741f357b5884b7": {
-   "drop": false,
-   "en": "Spelling as you type with red wavy underlines, suggestions on right-click, Ignore All, and Add to Dictionary. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and skips words in capitals or with numbers.",
-   "es": "Revisión ortográfica al escribir con subrayados ondulados rojos, sugerencias con el clic derecho, Omitir todo y Agregar al diccionario. El panel Ortografía (`F7`) ofrece Cambiar, Cambiar todo, Omitir, Omitir todo y Agregar, y omite las palabras en mayúsculas o con números.",
-   "fr": "Vérification orthographique à la frappe avec soulignement ondulé rouge, suggestions au clic droit, Ignorer tout et Ajouter au dictionnaire. Le volet Orthographe (`F7`) propose Modifier, Tout modifier, Ignorer, Tout ignorer et Ajouter, et ignore les mots en majuscules ou contenant des chiffres.",
-   "soon": {
-    "drop": false,
-    "en": "Exclusion dictionaries, custom dictionary editing, and the Spelling pane in tables, headers, footers, and notes",
-    "es": "Diccionarios de exclusión, edición del diccionario personalizado y panel Ortografía en tablas, encabezados, pies de página y notas",
-    "fr": "Dictionnaires d’exclusion, modification du dictionnaire personnalisé et volet Orthographe dans les tableaux, en-têtes, pieds de page et notes"
    }
   },
   "4f66729450f120558774bc5cda4767a260b6760c242cec2c7b1a120707d67fda": {
@@ -15709,6 +15709,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6709273a6da660f91bca9610d32c46125a45d77df3c2c46abce4fde337062f8c": {
+   "drop": false,
+   "en": "Set the proofing language of selected text, mark text as `Do Not Check Spelling`, and see the language at the caret in the status bar. Spelling follows the language and the no-check setting stored in the file.",
+   "es": "Establezca el idioma de revisión del texto seleccionado, marque el texto como `Do Not Check Spelling` y vea el idioma en el cursor en la barra de estado. La revisión ortográfica sigue el idioma y el ajuste de no revisar guardados en el documento.",
+   "fr": "Définissez la langue de vérification du texte sélectionné, marquez le texte avec `Do Not Check Spelling` et voyez la langue au curseur dans la barre d’état. La vérification orthographique suit la langue et le réglage de non-vérification enregistrés dans le fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Language detection as you type",
+    "es": "Detección del idioma mientras escribe",
+    "fr": "Détection de la langue pendant la saisie"
    }
   },
   "6717cea7aba852fa14684c07cbf024acc2b2bb020ba359f7ad5492625c30ef33": {
@@ -20871,6 +20883,18 @@
     "fr": ""
    }
   },
+  "b43cf38b48910352fdec110736c88bf96d15ff600362ae37ff6d0676e4a899af": {
+   "drop": false,
+   "en": "Right-click a word the spelling check flags to see suggestions, `Ignore All`, and `Add to Dictionary`. After a correction, the AutoCorrect Options button lets you undo it, stop it, or open the AutoCorrect settings.",
+   "es": "Haga clic con el botón derecho en una palabra marcada por la revisión ortográfica para ver sugerencias, `Ignore All` y `Add to Dictionary`. Después de una corrección, el botón de opciones de autocorrección permite deshacerla, detenerla o abrir la configuración de autocorrección.",
+   "fr": "Faites un clic droit sur un mot signalé par la vérification orthographique pour voir des suggestions, `Ignore All` et `Add to Dictionary`. Après une correction, le bouton d’options de correction automatique permet de l’annuler, de l’arrêter ou d’ouvrir les paramètres de correction automatique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b48b2d673c032db5b4a2790a9280bf220ce013eabc6298894450eaeca8dbd538": {
    "drop": false,
    "en": "Turn slide numbers on or off for every slide, choose where they go (top or bottom, left, center, or right), and leave them off the title slide. The setting is saved in `.pptx` and `.odp` files.",
@@ -22189,18 +22213,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c93c4aec83e845851ab90fb9f54b3125e0072a463c6a4c9cafb5175988c69542": {
-   "drop": false,
-   "en": "Right-click a word the spelling check flags to see suggestions, Ignore All, and Add to Dictionary.",
-   "es": "Haga clic derecho en una palabra marcada por el corrector ortográfico para ver sugerencias, Omitir todo y Agregar al diccionario.",
-   "fr": "Faites un clic droit sur un mot signalé par le correcteur orthographique pour voir des suggestions, Ignorer tout et Ajouter au dictionnaire.",
-   "soon": {
-    "drop": false,
-    "en": "AutoCorrect options on the spelling menu",
-    "es": "Opciones de autocorrección en el menú de ortografía",
-    "fr": "Options de correction automatique dans le menu d’orthographe"
    }
   },
   "c94816baa4fb5e204fa98870a15e4a6b2449428b8bda3dc7c726a0c7d3bc03ff": {
@@ -25561,18 +25573,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f4aa2f37993bc44c382c3f25b85ef5df0768e52c3f2480952a66d243ee31a35f": {
-   "drop": false,
-   "en": "Set the proofing language of selected text, or mark it \"do not check spelling.\" Spelling follows both settings, and the status bar shows the language at the caret.",
-   "es": "Defina el idioma de revisión del texto seleccionado o márquelo como \"no revisar la ortografía\". La ortografía sigue ambos ajustes y la barra de estado muestra el idioma donde está el cursor.",
-   "fr": "Définissez la langue de vérification du texte sélectionné ou marquez-le « ne pas vérifier l’orthographe ». L’orthographe suit ces deux réglages et la barre d’état affiche la langue au niveau du curseur.",
-   "soon": {
-    "drop": false,
-    "en": "Language detection as you type",
-    "es": "Detección del idioma al escribir",
-    "fr": "Détection de la langue pendant la saisie"
    }
   },
   "f4df4cd8c1c2a6aea9606f094fafc8a7f5f97ad8094a7d379ffd4932b7ac8fc1": {
