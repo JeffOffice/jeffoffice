@@ -5,7 +5,8 @@
 #include "office/embeddedfonts.h"
 
 #include <QStringList>
-#include <librevenge/librevenge.h>
+
+namespace librevenge { class RVNGPropertyList; }
 
 namespace jp {
 
