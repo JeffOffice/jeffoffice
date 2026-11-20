@@ -459,8 +459,15 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
             const char *a = v == QLatin1String("center") ? "center" : v == QLatin1String("both") || v == QLatin1String("distribute") ? "justify" : (v == QLatin1String("right") || v == QLatin1String("end")) ? "end" : "start";
             x += QByteArray(" fo:text-align=\"") + a + "\"";
         } else if (name == "spacing") {
-            if (t.has(c, "before")) x += " fo:margin-top=\"" + inchesFromTwips(t.attr(c, "before").toDouble()).toUtf8() + "\"";
-            if (t.has(c, "after")) x += " fo:margin-bottom=\"" + inchesFromTwips(t.attr(c, "after").toDouble()).toUtf8() + "\"";
+            // (automatic spacing is the 14 points a paragraph from a web page has; it stands in for what the paragraph states, and a paragraph that says it is not automatic states its own)
+            const auto automatic = [&](const char *attribute) {
+                const QString v = t.attr(c, attribute);
+                return v == QLatin1String("1") || v == QLatin1String("true") || v == QLatin1String("on");
+            };
+            if (automatic("beforeAutospacing")) x += " fo:margin-top=\"" + inchesFromTwips(280).toUtf8() + "\"";
+            else if (t.has(c, "before")) x += " fo:margin-top=\"" + inchesFromTwips(t.attr(c, "before").toDouble()).toUtf8() + "\"";
+            if (automatic("afterAutospacing")) x += " fo:margin-bottom=\"" + inchesFromTwips(280).toUtf8() + "\"";
+            else if (t.has(c, "after")) x += " fo:margin-bottom=\"" + inchesFromTwips(t.attr(c, "after").toDouble()).toUtf8() + "\"";
             if (t.has(c, "line")) {
                 const double line = t.attr(c, "line").toDouble();
                 const QString rule = t.attr(c, "lineRule");

@@ -882,6 +882,17 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
             for (auto it = own.constBegin(); it != own.constEnd(); ++it) f.direct.insert(it.key(), it.value());
             if (!named.isEmpty()) f.rStyle = styleId(QStringLiteral("text"), named);
         }
+        // A symbol of ours (jo:sym: its code, jo:sym-font: its font) is that symbol, not the letter it was written as for other programs.
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0 && !t.attr(n, "sym", jo).isEmpty()) {
+            bool ok = false;
+            const uint code = t.attr(n, "sym", jo).toUInt(&ok, 16);
+            if (ok && code < 0xFFFE) {
+                const QString font = t.attr(n, "sym-font", jo);
+                addRun(pc, "<w:sym" + (font.isEmpty() ? QByteArray() : " w:font=\"" + esc(font) + "\"") + " w:char=\"" + QByteArray::number(code, 16).toUpper().rightJustified(4, '0') + "\"/>", f);
+                pc->lastSpace = false;
+                return;
+            }
+        }
         inlineContent(o, n, pc, f, depth + 1);
     } else if (o.is(n, "text:s")) addSpaces(pc, o.at(n, "text:c"), fmt);
     else if (o.is(n, "text:tab")) {
@@ -1445,6 +1456,9 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
             if (m_pPrCache.size() < kMostParagraphLooks) m_pPrCache.insert(key, ppr);
         }
     }
+    // Page breaks that were runs of a paragraph of ours (break-start, break-end), and the one a paragraph took from the paragraph before it (break-carried), are put back where they were.
+    const QString breakStart = pp.value(QStringLiteral("para:break-start")), breakEnd = pp.value(QStringLiteral("para:break-end"));
+    if (!breakStart.isEmpty() || !pp.value(QStringLiteral("para:break-carried")).isEmpty()) ppr.replace("<w:pageBreakBefore/>", "");
     m_pendingPageBreak = pp.value(QStringLiteral("para:fo:break-after")) == QLatin1String("page");
     QByteArray markProps;
     {
@@ -1482,10 +1496,16 @@ void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int list
         closeInsertion(&pc);
         m_openInsertion = id;
     }
+    static const QByteArray kPageBreakRun = "<w:r><w:br w:type=\"page\"/></w:r>";
+    if (breakStart == QLatin1String("join") && !out->isEmpty() && out->last().para) {
+        // (what follows a page break in a paragraph of the document that made this file)
+        out->last().content += kPageBreakRun + pc.runs + (breakEnd.isEmpty() ? QByteArray() : kPageBreakRun);
+        return;
+    }
     Block b;
     b.para = true;
     b.pPr = ppr;
-    b.content = pc.runs;
+    b.content = (breakStart.isEmpty() ? QByteArray() : kPageBreakRun) + pc.runs + (breakEnd.isEmpty() ? QByteArray() : kPageBreakRun);
     out->push_back(b);
 }
 
@@ -1556,7 +1576,8 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
             else endSection(out, next);
         }
         if (main) m_sectionStarted = true;
-        if (tg("fo:break-before") == QLatin1String("page")) m_pendingPageBreak = true;
+        // (a break the paragraph before ended with, which that paragraph's reading has already made)
+        if (tg("fo:break-before") == QLatin1String("page") && tg("break-carried").isEmpty()) m_pendingPageBreak = true;
     }
     // The columns: their widths, from the grid's column styles.
     QVector<qint64> widths;

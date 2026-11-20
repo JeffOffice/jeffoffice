@@ -117,6 +117,53 @@ QString odtContentOf(const QByteArray &bodyXml, QStringList *notes = nullptr, co
     return QString::fromUtf8(files.value(QStringLiteral("content.xml")));
 }
 
+// A .docx made of this body, written as an .odt: content.xml and styles.xml together (where each style the paragraphs use is written is not the test's business).
+QString odtStylesAndContentOf(const QByteArray &bodyXml)
+{
+    PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:body>") + bodyXml +
+                  "</w:body></w:document>",
+              QStringLiteral("application/xml"));
+    w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+    QMap<QString, QByteArray> files;
+    if (!jp::readZip(fromDocxPackage(w.finish()), files)) return QString();
+    return QString::fromUtf8(files.value(QStringLiteral("content.xml")) + files.value(QStringLiteral("styles.xml")));
+}
+
+// A .docx made of this body, written as an .odt and read again: the document part it comes back as.
+QString roundTripBody(const QByteArray &bodyXml)
+{
+    PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><w:body>") + bodyXml +
+                  "</w:body></w:document>",
+              QStringLiteral("application/xml"));
+    w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+    return part(docxOf(fromDocxPackage(w.finish())), QStringLiteral("/word/document.xml"));
+}
+
+// The paragraphs of a document part, each as its runs' text with "\f" for a page break run (and "^" where the paragraph asks to begin a page).
+QStringList paragraphsOf(const QString &documentXml)
+{
+    QStringList out;
+    wml::XmlTree t;
+    if (!t.parse(documentXml.toUtf8(), nullptr)) return out;
+    for (int p = findElement(t, "p"); p >= 0; p = findElement(t, "p", p)) {
+        QString text;
+        if (const int pPr = t.child(p, "pPr"); pPr >= 0 && t.child(pPr, "pageBreakBefore") >= 0) text += QLatin1Char('^');
+        for (int r = t.firstChild(p); r >= 0; r = t.next(r)) {
+            if (!t.is(r, "r")) continue;
+            for (int c = t.firstChild(r); c >= 0; c = t.next(c)) {
+                if (t.is(c, "br") && t.attr(c, "type") == QLatin1String("page")) text += QLatin1Char('\f');
+                else if (t.is(c, "t")) text += t.text(c);
+            }
+        }
+        out << text;
+    }
+    return out;
+}
+
 } // namespace
 
 class OdtTests : public QObject {
@@ -738,6 +785,51 @@ private Q_SLOTS:
         QCOMPARE(c.count(QLatin1String("fo:font-style=")), 1);
         QCOMPARE(c.count(QLatin1String("fo:font-size=")), 1);
         QVERIFY(c.contains(QLatin1String("fo:font-size=\"14pt\"")));   // (the last one stated)
+    }
+
+    // A page break that is a run of a paragraph comes back as one: at the start, in the middle, at the end, and in a paragraph of its own. A paragraph that asks to begin a page is not turned into one with a break.
+    void pageBreakRunsComeBackAsRuns()
+    {
+        const QByteArray br = "<w:r><w:br w:type=\"page\"/></w:r>";
+        const auto run = [](const char *text) { return QByteArray("<w:r><w:t>") + text + "</w:t></w:r>"; };
+        const QByteArray body = "<w:p>" + br + run("lead") + "</w:p>"
+                                "<w:p>" + run("one") + br + run("two") + "</w:p>"
+                                "<w:p>" + run("end") + br + "</w:p>"
+                                "<w:p>" + run("next") + "</w:p>"
+                                "<w:p>" + br + "</w:p>"
+                                "<w:p>" + run("after") + "</w:p>"
+                                "<w:p><w:pPr><w:pageBreakBefore/></w:pPr>" + run("asks") + "</w:p>"
+                                "<w:p>" + run("last") + "</w:p>";
+        const QStringList paragraphs = paragraphsOf(roundTripBody(body));
+        QCOMPARE(paragraphs, (QStringList{QStringLiteral("\flead"), QStringLiteral("one\ftwo"), QStringLiteral("end\f"), QStringLiteral("next"), QStringLiteral("\f"), QStringLiteral("after"), QStringLiteral("^asks"), QStringLiteral("last")}));
+    }
+
+    // A symbol (a code of a symbol font) comes back as a symbol, not as the letter it was written as, so a copy of a document has the same text as the document.
+    void aSymbolComesBackAsASymbol()
+    {
+        const QString back = roundTripBody("<w:p><w:r><w:t>a</w:t></w:r><w:r><w:sym w:font=\"Symbol\" w:char=\"F0B0\"/></w:r><w:r><w:t>b</w:t></w:r><w:r><w:sym w:font=\"Unlisted Font\" w:char=\"F041\"/></w:r><w:r><w:sym w:char=\"00E9\"/></w:r></w:p>");
+        wml::XmlTree t;
+        QVERIFY(t.parse(back.toUtf8(), nullptr));
+        QStringList seen;
+        for (int i = findElement(t, "sym"); i >= 0; i = findElement(t, "sym", i)) seen << t.attr(i, "font") + QLatin1Char('/') + t.attr(i, "char");
+        QCOMPARE(seen, (QStringList{QStringLiteral("Symbol/F0B0"), QStringLiteral("Unlisted Font/F041"), QStringLiteral("/00E9")}));
+        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("ab")}));
+    }
+
+    // Automatic spacing before or after a paragraph (a paragraph from a web page) is the 14 points it is laid out with, not the 5 points the paragraph also states; one that says it is not automatic keeps its own.
+    void automaticSpacingIsWrittenAsFourteenPoints()
+    {
+        const QString c = odtStylesAndContentOf("<w:p><w:pPr><w:spacing w:before=\"100\" w:beforeAutospacing=\"1\" w:after=\"240\" w:afterAutospacing=\"0\"/></w:pPr><w:r><w:t>x</w:t></w:r></w:p>"
+                                                "<w:p><w:pPr><w:spacing w:before=\"100\" w:after=\"100\" w:afterAutospacing=\"true\"/></w:pPr><w:r><w:t>y</w:t></w:r></w:p>");
+        QVERIFY2(c.contains(QLatin1String("fo:margin-top=\"0.1944in\" fo:margin-bottom=\"0.1667in\"")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("fo:margin-top=\"0.0694in\" fo:margin-bottom=\"0.1944in\"")), qPrintable(c));
+    }
+
+    // A page break that ended a paragraph is still one page break when the .odt is read by a program that knows nothing of ours: the paragraph after it begins a page, once.
+    void aPageBreakAtTheEndOfAParagraphBeginsThePageOfTheNext()
+    {
+        const QString c = odtStylesAndContentOf("<w:p><w:r><w:t>end</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>next</w:t></w:r></w:p>");
+        QCOMPARE(c.count(QLatin1String("fo:break-before=\"page\"")), 1);
     }
 
     // A row of an .odt whose cells are all covered by merged cells that are not there still reads as a row (one empty cell as wide as the table), so the table stays a table and its text is not lost.
