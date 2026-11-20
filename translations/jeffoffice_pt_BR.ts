@@ -9995,7 +9995,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Slide de Título</translation>
     </message>
@@ -10060,7 +10060,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Layout personalizado</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível usar o tamanho do slide do arquivo, por isso os slides têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Somente os primeiros %1 slides mestres são lidos.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Um slide mestre foi omitido: ele tem o mesmo conteúdo de um anterior.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Slide Mestre</translation>
     </message>
@@ -10178,7 +10178,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">A apresentação está incompleta ou danificada: não foi possível encontrar o documento.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">A apresentação não tem nenhum slide mestre legível, por isso um slide mestre simples será usado no lugar.</translation>
     </message>
@@ -70866,7 +70866,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">o registro dela não está onde uma fonte deveria estar.</translation>
     </message>

@@ -9995,7 +9995,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositivo de Título</translation>
     </message>
@@ -10060,7 +10060,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Esquema Personalizado</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível utilizar o tamanho do diapositivo indicado no ficheiro, pelo que os diapositivos têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Só são lidos os primeiros %1 modelos globais de diapositivos.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Foi omitido um modelo global de diapositivos: tem o mesmo conteúdo que um anterior.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Modelo Global de Diapositivos</translation>
     </message>
@@ -10178,7 +10178,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">A apresentação está truncada ou danificada: não é possível encontrar o respetivo documento.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">A apresentação não tem nenhum modelo global de diapositivos legível, pelo que é utilizado um simples em substituição.</translation>
     </message>
@@ -70866,7 +70866,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">o respetivo registo não está onde um tipo de letra deveria estar.</translation>
     </message>

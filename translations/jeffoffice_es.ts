@@ -9995,7 +9995,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositiva de título</translation>
     </message>
@@ -10060,7 +10060,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Y %1 más.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del archivo, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Solo se leen los primeros %1 patrones de diapositivas.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió un patrón de diapositivas: tiene el mismo contenido que uno anterior.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Patrón de diapositivas</translation>
     </message>
@@ -10178,7 +10178,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">La presentación está incompleta o dañada: no se encuentra su documento.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">La presentación no tiene ningún patrón de diapositivas legible, por lo que se usa uno sencillo en su lugar.</translation>
     </message>
@@ -70866,7 +70866,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">su registro no está donde debería estar una fuente.</translation>
     </message>

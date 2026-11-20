@@ -524,7 +524,7 @@
 <context>
     <name>jp::office</name>
     <message numerus="yes">
-        <location filename="../libs/office/office/pptfonts.cpp" line="+54"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+71"/>
         <source>Only the first %n record(s) of the font list are read.</source>
         <translation>
             <numerusform>Only the first %n record of the font list is read.</numerusform>

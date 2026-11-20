@@ -10002,7 +10002,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Титульный слайд</translation>
     </message>
@@ -10067,7 +10067,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Пользовательский макет</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">И ещё %1.</translation>
     </message>
@@ -10123,7 +10123,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Размер слайда в файле нельзя использовать, поэтому слайды имеют размер 13,333 × 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Прочитаны только первые образцы слайдов: %1.</translation>
     </message>
@@ -10138,7 +10138,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Образец слайдов пропущен: его содержимое совпадает с содержимым предыдущего образца.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
@@ -10185,7 +10185,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Презентация обрезана или повреждена: не найден её документ.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">В презентации нет читаемого образца слайдов, поэтому вместо него используется простой образец.</translation>
     </message>
@@ -70922,7 +70922,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">его запись находится не на месте, где должен быть шрифт.</translation>
     </message>

@@ -9995,7 +9995,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositive de titre</translation>
     </message>
@@ -10060,7 +10060,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Disposition personnalisée</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Et %1 de plus.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La taille des diapositives indiquée dans le fichier est inutilisable ; les diapositives mesurent donc 13,333 × 7,5 pouces.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Seuls les %1 premiers masques des diapositives sont lus.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Un masque des diapositives a été ignoré : son contenu est identique à celui d&apos;un masque précédent.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Masque des diapositives</translation>
     </message>
@@ -10178,7 +10178,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La présentation est tronquée ou endommagée : son document est introuvable.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">La présentation ne contient aucun masque des diapositives lisible ; un masque simple le remplace.</translation>
     </message>
@@ -70866,7 +70866,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">son enregistrement ne se trouve pas à l&apos;emplacement d&apos;une police.</translation>
     </message>

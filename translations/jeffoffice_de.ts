@@ -9995,7 +9995,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Titelfolie</translation>
     </message>
@@ -10060,7 +10060,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Benutzerdefiniertes Layout</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Und %1 weitere.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Die Foliengröße in der Datei kann nicht verwendet werden, daher sind die Folien 13,333 × 7,5 Zoll groß.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Nur die ersten %1 Folienmaster werden gelesen.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Ein Folienmaster wurde ausgelassen: Er hat denselben Inhalt wie ein vorheriger.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Folienmaster</translation>
     </message>
@@ -10178,7 +10178,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Die Präsentation ist unvollständig oder beschädigt: Ihr Dokument wurde nicht gefunden.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">Die Präsentation hat keinen lesbaren Folienmaster, daher wird ein einfacher verwendet.</translation>
     </message>
@@ -70866,7 +70866,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">Der Eintrag liegt nicht dort, wo eine Schriftart stehen darf.</translation>
     </message>

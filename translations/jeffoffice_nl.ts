@@ -9995,7 +9995,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Titeldia</translation>
     </message>
@@ -10060,7 +10060,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Aangepaste indeling</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">En nog %1.</translation>
     </message>
@@ -10116,7 +10116,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Het diaformaat in het bestand is onbruikbaar; de dia&apos;s zijn daarom 13,333 bij 7,5 inch.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Alleen de eerste %1 diamodellen worden gelezen.</translation>
     </message>
@@ -10131,7 +10131,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Er is een diamodel weggelaten: het heeft dezelfde inhoud als een eerder diamodel.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Diamodel</translation>
     </message>
@@ -10178,7 +10178,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">De presentatie is afgebroken of beschadigd: het document is niet gevonden.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">De presentatie heeft geen leesbaar diamodel; er wordt een eenvoudig diamodel gebruikt.</translation>
     </message>
@@ -70866,7 +70866,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">de gegevens ervan staan niet op de plek waar een lettertype hoort.</translation>
     </message>

@@ -9988,7 +9988,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
         <source>Title Slide</source>
         <translation type="unfinished">Slaid Judul</translation>
     </message>
@@ -10053,7 +10053,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tata Letak Kustom</translation>
     </message>
     <message>
-        <location line="+259"/>
+        <location line="+261"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Dan %1 lainnya.</translation>
     </message>
@@ -10109,7 +10109,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Ukuran slaid dalam berkas tidak dapat digunakan, sehingga slaid berukuran 13,333 x 7,5 inci.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location line="+544"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Hanya %1 master slaid pertama yang dibaca.</translation>
     </message>
@@ -10124,7 +10124,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Sebuah master slaid dilewati: isinya sama dengan master sebelumnya.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+105"/>
         <source>Slide Master</source>
         <translation type="unfinished">Master Slaid</translation>
     </message>
@@ -10171,7 +10171,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Presentasi terpotong atau rusak: dokumennya tidak dapat ditemukan.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+26"/>
         <source>The presentation has no slide master that can be read, so a plain one stands in.</source>
         <translation type="unfinished">Presentasi tidak memiliki master slaid yang dapat dibaca, sehingga master polos digunakan sebagai gantinya.</translation>
     </message>
@@ -70810,7 +70810,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office</name>
     <message>
-        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+70"/>
         <source>its record is not where a font belongs.</source>
         <translation type="unfinished">catatannya tidak berada di tempat yang seharusnya untuk font.</translation>
     </message>
