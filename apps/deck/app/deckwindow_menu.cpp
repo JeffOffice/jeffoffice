@@ -82,6 +82,7 @@ QMenu *DeckWindow::slideContextMenu(QWidget *parent)
         }
         if (kind == "multi") add(nullptr, {"arr.group"});
         if (kind == "group") add(nullptr, {"arr.ungroup"});
+        if (m_ed->canRegroup()) add(nullptr, {"arr.regroup"});
         QMenu *order = menu->addMenu(act("arr.front")->icon(), tr("Order"));
         add(order, {"arr.front", "arr.forward", "arr.backward", "arr.back"});
         if (act("fmt.alignLeft")->isEnabled()) {

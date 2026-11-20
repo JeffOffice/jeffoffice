@@ -737,6 +737,50 @@ private Q_SLOTS:
         }
     }
 
+    // Regroup puts the objects of the group last taken apart together again, as one step that undoes. It is off until a group has been taken apart, and off again when one of its objects
+    // is gone. It is in the Arrange menu and in the menu of an object.
+    void regroupPutsTheLastUngroupedObjectsTogetherAgainInOneStep()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        QAction *regroup = w.act(QStringLiteral("arr.regroup"));
+        QVERIFY(regroup);
+        QCOMPARE(regroup->text(), QStringLiteral("Regroup"));
+        QFile json(QStringLiteral(":/deck/ribbon.json"));
+        QVERIFY(json.open(QIODevice::ReadOnly));
+        QVERIFY(json.readAll().contains("\"arr.regroup\""));
+        QVERIFY(!regroup->isEnabled());
+        const QString first = placeholderOfSlide(*ed->doc(), 0, 0)->id, second = placeholderOfSlide(*ed->doc(), 0, 1)->id;
+        const int objects = ed->surfaceItems().size();
+        ed->select(QStringList{first, second});
+        QTRY_VERIFY(w.act(QStringLiteral("arr.group"))->isEnabled());
+        w.act(QStringLiteral("arr.group"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        QCOMPARE(ed->surfaceItems().size(), objects - 1);
+        QTRY_VERIFY(w.act(QStringLiteral("arr.ungroup"))->isEnabled());
+        w.act(QStringLiteral("arr.ungroup"))->trigger();
+        QCOMPARE(ed->selectionKind(), QStringLiteral("multi"));
+        QCOMPARE(ed->surfaceItems().size(), objects);
+        QTRY_VERIFY(regroup->isEnabled());
+        QVERIFY(slideMenu(w).contains(QStringLiteral("arr.regroup")));
+        const int steps = ed->undoStack()->count();
+        regroup->trigger();
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QCOMPARE(ed->selectionKind(), QStringLiteral("group"));
+        QCOMPARE(ed->surfaceItems().size(), objects - 1);
+        ed->undo();
+        QCOMPARE(ed->surfaceItems().size(), objects);
+        // One of its objects gone: nothing to put together, and the command does nothing.
+        ed->select(first);
+        QTRY_VERIFY(w.act(QStringLiteral("edit.delete"))->isEnabled());
+        w.act(QStringLiteral("edit.delete"))->trigger();
+        QTRY_VERIFY(!regroup->isEnabled());
+        const int after = ed->undoStack()->count();
+        regroup->trigger();
+        QCOMPARE(ed->undoStack()->count(), after);
+    }
+
     // A presentation shows no rulers until asked, and no outline around every
     // object; the View tab's check boxes turn the ruler, gridlines, and guides on.
     void normalViewDefaults()
@@ -1520,6 +1564,46 @@ private Q_SLOTS:
         QCOMPARE(made.size(), 1);
         QVERIFY(made.first()->editor()->filePath().isEmpty());
         made.first()->close();
+    }
+
+    // Arrange All puts the presentation windows side by side, each in a column of its own; Cascade stacks them, each a step lower and to the right of the one before. Both are on the View tab.
+    void arrangeAllAndCascadeSetTheWindowsOut()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        QFile json(QStringLiteral(":/deck/ribbon.json"));
+        QVERIFY(json.open(QIODevice::ReadOnly));
+        const QByteArray ribbon = json.readAll();
+        QVERIFY(ribbon.contains("\"win.arrange\"") && ribbon.contains("\"win.cascade\""));
+        QCOMPARE(w.act(QStringLiteral("win.arrange"))->text(), QStringLiteral("Arrange All"));
+        QCOMPARE(w.act(QStringLiteral("win.cascade"))->text(), QStringLiteral("Cascade"));
+        const QString path = dir.filePath(QStringLiteral("talk.pptx"));
+        w.newSlide();
+        QVERIFY(w.saveTo(path));
+        w.act(QStringLiteral("win.new"))->trigger();
+        QPointer<DeckWindow> second;
+        for (AppWindow *a : AppWindow::windows())
+            if (auto *d = qobject_cast<DeckWindow *>(a); d && d != &w) second = d;
+        QVERIFY(second);
+        QTRY_VERIFY(second->isVisible());
+        // (a window another test left open would take a column too, and windows can't be narrower than their own least width)
+        QList<QPointer<AppWindow>> others;
+        for (AppWindow *a : AppWindow::windows())
+            if (a != &w && a != second && a->isVisible()) others << a;
+        for (const QPointer<AppWindow> &a : others) a->hide();
+        w.act(QStringLiteral("win.arrange"))->trigger();
+        QVERIFY(w.geometry().right() < second->geometry().left() || second->geometry().right() < w.geometry().left());
+        w.act(QStringLiteral("win.cascade"))->trigger();
+        QCOMPARE(qAbs(w.pos().x() - second->pos().x()), 30);
+        QCOMPARE(qAbs(w.pos().y() - second->pos().y()), 30);
+        for (const QPointer<AppWindow> &a : others)
+            if (a) a->show();
+        second->close();
+        QTRY_VERIFY(second.isNull());
+        Settings::get().removeRecentFile(path);
     }
 
     // The Help tab has Help, Keyboard Shortcuts, What's New, and Feedback: the last two open their pages, and Keyboard Shortcuts opens the Help pane on the shortcuts topic.

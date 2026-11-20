@@ -319,6 +319,7 @@
                 "-",
                 "arr.group",
                 "arr.ungroup",
+                "arr.regroup",
                 "-",
                 "arr.rotR",
                 "arr.rotL",
@@ -1096,6 +1097,14 @@
               "keytip": "NW"
             },
             {
+              "small": "win.arrange",
+              "keytip": "AA"
+            },
+            {
+              "small": "win.cascade",
+              "keytip": "CW"
+            },
+            {
               "large": "view.fullScreen",
               "keytip": "FU"
             },
@@ -1599,6 +1608,83 @@
                   "keytip": "R"
                 }
               ]
+            },
+            {
+              "row": [
+                {
+                  "widget": "mediaAcross",
+                  "keytip": "PA"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Accessibility",
+          "keytip": "ZY",
+          "items": [
+            {
+              "large": "shape.altText",
+              "keytip": "AT"
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.align",
+                "text": "Align",
+                "icon": "align-start-vertical"
+              },
+              "keytip": "AL",
+              "menu": [
+                "arr.alignLeft",
+                "arr.alignCenter",
+                "arr.alignRight",
+                "-",
+                "arr.alignTop",
+                "arr.alignMiddle",
+                "arr.alignBottom",
+                "-",
+                "arr.distH",
+                "arr.distV",
+                "-",
+                "arr.alignToSlide"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "launcher": "shapeSize",
+          "launcherTip": "Size and Position",
+          "launcherKeytip": "LZ",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "shapeHeight",
+                  "keytip": "SH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "shapeWidth",
+                  "keytip": "SW"
+                }
+              ]
             }
           ]
         }
@@ -1718,6 +1804,75 @@
             {
               "small": "pic.clearCrop",
               "keytip": "CC"
+            }
+          ]
+        },
+        {
+          "name": "Accessibility",
+          "keytip": "ZY",
+          "items": [
+            {
+              "large": "shape.altText",
+              "keytip": "AT"
+            }
+          ]
+        },
+        {
+          "name": "Arrange",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": {
+                "id": "ribbon.align",
+                "text": "Align",
+                "icon": "align-start-vertical"
+              },
+              "keytip": "AL",
+              "menu": [
+                "arr.alignLeft",
+                "arr.alignCenter",
+                "arr.alignRight",
+                "-",
+                "arr.alignTop",
+                "arr.alignMiddle",
+                "arr.alignBottom",
+                "-",
+                "arr.distH",
+                "arr.distV",
+                "-",
+                "arr.alignToSlide"
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Size",
+          "keytip": "ZZ",
+          "launcher": "shapeSize",
+          "launcherTip": "Size and Position",
+          "launcherKeytip": "LZ",
+          "items": [
+            {
+              "row": [
+                {
+                  "label": "Height:"
+                },
+                {
+                  "widget": "shapeHeight",
+                  "keytip": "SH"
+                }
+              ]
+            },
+            {
+              "row": [
+                {
+                  "label": "Width:"
+                },
+                {
+                  "widget": "shapeWidth",
+                  "keytip": "SW"
+                }
+              ]
             }
           ]
         }

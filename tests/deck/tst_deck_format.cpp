@@ -657,6 +657,71 @@ private Q_SLOTS:
         QVERIFY(img.pixelColor(int(360 * k), int(190 * k)).lightness() > 200);
     }
 
+    // Soft edges, a bevel, and a 3-D turn are drawn (each checked against the same shape with the effect off, and by the lightness of points of the slide's own picture, not by a font).
+    void softEdgesFeatherTheEdgeOfAShape()
+    {
+        Rig r(1);
+        ShapeItem *s = r.shape(0);
+        s->rect = QRectF(300, 200, 120, 80);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        s->stroke = Stroke::none();
+        auto lightnessAt = [&](double x, double y) {
+            const QImage img = slideImage(*r.ed.doc());
+            const double k = img.width() / r.ed.doc()->pageSize().width();
+            return img.pixelColor(int(x * k), int(y * k)).lightness();
+        };
+        QVERIFY(lightnessAt(302, 240) < 60);   // just inside the left edge
+        QVERIFY(lightnessAt(360, 240) < 60);
+        s->fx.softEdge = 15;
+        QVERIFY2(lightnessAt(302, 240) > 150, "the edge is not feathered");
+        QVERIFY2(lightnessAt(360, 240) < 60, "the middle is not left alone");
+        s->fx.softEdge = 0;
+        QVERIFY(lightnessAt(302, 240) < 60);
+    }
+
+    void aBevelLightensTheTopLeftAndDarkensTheBottomRightOfAShape()
+    {
+        Rig r(1);
+        ShapeItem *s = r.shape(0);
+        s->rect = QRectF(300, 200, 120, 80);
+        s->fill = Fill::solid(ColorRef::rgb(QColor(128, 128, 128)));
+        s->stroke = Stroke::none();
+        auto lightnessAt = [&](double x, double y) {
+            const QImage img = slideImage(*r.ed.doc());
+            const double k = img.width() / r.ed.doc()->pageSize().width();
+            return img.pixelColor(int(x * k), int(y * k)).lightness();
+        };
+        const int plainTopLeft = lightnessAt(303, 203), plainBottomRight = lightnessAt(417, 277);
+        QVERIFY(std::abs(plainTopLeft - 128) < 8 && std::abs(plainBottomRight - 128) < 8);
+        s->fx.bevel.type = 1;
+        s->fx.bevel.width = 6;
+        QVERIFY2(lightnessAt(303, 203) > plainTopLeft + 30, "no light edge at the top left");
+        QVERIFY2(lightnessAt(417, 277) < plainBottomRight - 30, "no dark edge at the bottom right");
+        QVERIFY(std::abs(lightnessAt(360, 240) - 128) < 8);   // the middle is as it was
+        s->fx.bevel.type = 0;
+        QVERIFY(std::abs(lightnessAt(303, 203) - 128) < 8);
+    }
+
+    void aThreeDTurnNarrowsAShapeAboutItsMiddle()
+    {
+        Rig r(1);
+        ShapeItem *s = r.shape(0);
+        s->rect = QRectF(300, 200, 120, 80);
+        s->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        s->stroke = Stroke::none();
+        auto lightnessAt = [&](double x, double y) {
+            const QImage img = slideImage(*r.ed.doc());
+            const double k = img.width() / r.ed.doc()->pageSize().width();
+            return img.pixelColor(int(x * k), int(y * k)).lightness();
+        };
+        QVERIFY(lightnessAt(304, 240) < 60 && lightnessAt(416, 240) < 60);
+        s->fx.rot3d.y = 60;
+        QVERIFY2(lightnessAt(304, 240) > 200 && lightnessAt(416, 240) > 200, "the sides are not turned away");
+        QVERIFY2(lightnessAt(360, 240) < 60, "the middle moved");
+        s->fx.rot3d.y = 0;
+        QVERIFY(lightnessAt(304, 240) < 60 && lightnessAt(416, 240) < 60);
+    }
+
     // A glow has a color, a size, and a transparency; soft edges a size.
     void glowAndSoftEdgesHaveTheirProperties()
     {
@@ -1457,6 +1522,53 @@ private Q_SLOTS:
         QCOMPARE(ed->doc()->item(box->id)->rect.height(), 60.0);
         ed->clearSelection();
         QVERIFY(!height->isEnabled());
+    }
+
+    // The Picture Format tab has Alt Text, Align (the Arrange group), and the Size boxes, as the Shape Format tab does: a height typed there is one step that undoes, and Alt Text goes to the
+    // pane's description box.
+    void thePictureFormatTabHasAltTextArrangeAndSize()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        QImage image(40, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        QVERIFY(w.insertPicture(path));
+        QWidget *tab = w.ribbon()->tab(QStringLiteral("Picture Format"));
+        QVERIFY(tab);
+        auto buttonNamed = [&](const char *text) -> QToolButton * {
+            for (QToolButton *b : tab->findChildren<QToolButton *>())
+                if (b->text() == QLatin1String(text)) return b;
+            return nullptr;
+        };
+        QToolButton *alt = buttonNamed("Alt Text"), *align = buttonNamed("Align");
+        QVERIFY(alt && align && align->menu());
+        auto *height = tab->findChild<MeasureSpin *>(QStringLiteral("shapeHeight"));
+        auto *width = tab->findChild<MeasureSpin *>(QStringLiteral("shapeWidth"));
+        QVERIFY(height && width);
+        const QString id = ed->selection().first();
+        QTRY_VERIFY(height->isEnabled());
+        const double was = ed->doc()->item(id)->rect.height();
+        QTRY_COMPARE(height->value(), was);
+        const int base = ed->undoStack()->index();
+        height->setValue(was + 30);
+        QCOMPARE(ed->undoStack()->index(), base + 1);
+        QCOMPARE(ed->doc()->item(id)->rect.height(), was + 30);
+        ed->undo();
+        QCOMPARE(ed->doc()->item(id)->rect.height(), was);
+        w.formatSelection(FormatPane::Tab::SizeProperties);
+        PaneSection *section = w.formatPane()->frame()->page(int(FormatPane::Tab::SizeProperties))->sectionById(QStringLiteral("altText"));
+        QVERIFY(section);
+        section->setExpanded(false);
+        alt->click();
+        QVERIFY(section->isExpanded());
+        QTRY_VERIFY(w.formatPane()->findChild<TextField *>(QStringLiteral("altDescription"))->hasFocus());
     }
 
     // The three menus of the tab reach the same settings as the pane, each choice one step: a color, none, a gradient, or a picture for the fill; a

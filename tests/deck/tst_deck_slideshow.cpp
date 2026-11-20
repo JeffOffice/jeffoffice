@@ -931,6 +931,90 @@ private Q_SLOTS:
         QCOMPARE(show.inkCount(), 0);
     }
 
+    // Arrow Options: Automatic hides the arrow on a full screen and shows it in a window, Visible shows it always, Hidden never (Ctrl+U and Ctrl+H, and the menu under Pointer Options); the
+    // rehearsal bar is clicked with the arrow, so it shows then whatever was chosen.
+    void arrowOptionsChooseWhetherTheArrowShows()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));
+        QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
+        auto checked = [&](const char *id) {
+            std::unique_ptr<QMenu> menu(show.pointerMenu(&show));
+            QMenu *arrow = menu->findChild<QMenu *>(QStringLiteral("arrowOptionsMenu"));
+            QVERIFY2(arrow, "no Arrow Options menu");
+            QAction *a = arrow->findChild<QAction *>(QString::fromLatin1(id));
+            QVERIFY2(a && a->isCheckable(), id);
+            QVERIFY2(a->isChecked(), id);
+            for (QAction *other : arrow->actions()) QVERIFY2(other == a || !other->isChecked(), id);
+        };
+        checked("arrowAutomatic");
+        {
+            std::unique_ptr<QMenu> menu(show.pointerMenu(&show));
+            QAction *visible = menu->findChild<QAction *>(QStringLiteral("arrowVisible"));
+            QVERIFY(visible);
+            visible->trigger();
+        }
+        QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Visible));
+        QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
+        checked("arrowVisible");
+        QTest::keyClick(&show, Qt::Key_H, Qt::ControlModifier);
+        QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Hidden));
+        QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
+        checked("arrowHidden");
+        QCOMPARE(show.currentSlide(), 0);   // (the keys changed nothing else)
+        // In a window Automatic shows the arrow; Hidden still hides it, except while the times are recorded.
+        deck::ShowSettings windowed;
+        windowed.type = deck::ShowSettings::Type::Individual;
+        show.setSettings(windowed);
+        QTest::keyClick(&show, Qt::Key_U, Qt::ControlModifier);
+        QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));
+        QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
+        QTest::keyClick(&show, Qt::Key_H, Qt::ControlModifier);
+        QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
+        show.setRecording(true);
+        QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
+        show.setRecording(false);
+        QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
+    }
+
+    // Last Viewed in the show's menu goes back to the slide that was on the screen before this one (off while there is none); the Menu key and Shift+F10 open the menu without a mouse.
+    void lastViewedAndTheMenuKeyAreInTheShowMenu()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        QPointer<QMenu> menu;
+        auto open = [&](int key, Qt::KeyboardModifiers mods) {
+            menu = nullptr;
+            QTest::keyClick(&show, Qt::Key(key), mods);
+            menu = show.findChild<QMenu *>(QStringLiteral("showMenu"));
+            return !menu.isNull() && menu->isVisible();
+        };
+        QVERIFY(open(Qt::Key_Menu, Qt::NoModifier));
+        QAction *last = menu->findChild<QAction *>(QStringLiteral("menuLastViewed"));
+        QVERIFY(last);
+        QVERIFY(!last->isEnabled());   // nothing before the first slide
+        menu->close();
+        QTRY_VERIFY(menu.isNull());
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(!show.goToLastViewed());
+        show.goToPosition(2);
+        QCOMPARE(show.currentSlide(), 2);
+        QVERIFY(open(Qt::Key_F10, Qt::ShiftModifier));
+        last = menu->findChild<QAction *>(QStringLiteral("menuLastViewed"));
+        QVERIFY(last && last->isEnabled());
+        QCOMPARE(show.currentSlide(), 2);   // (the keys that opened the menu moved nothing)
+        last->trigger();
+        QCOMPARE(show.currentSlide(), 0);
+        // And back again: the slide it left is now the last one viewed.
+        QVERIFY(show.goToLastViewed());
+        QCOMPARE(show.currentSlide(), 2);
+    }
+
     // A right click opens a menu of the show: next and previous, go to a slide, the pointer's tools and ink colors, the screens, and
     // the end; its pointer part is the same in Presenter View.
     void showRightClickOpensTheMenu()

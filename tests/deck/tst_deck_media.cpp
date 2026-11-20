@@ -1743,6 +1743,85 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(saved);
     }
 
+    // Play Across Slides is a box of the Playback tab: one step that undoes, off when no movie or sound is selected, and kept when the presentation is saved and opened again.
+    void playAcrossSlidesIsAPlaybackBoxThatIsSaved()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        const QByteArray avi = testAvi(30, QSize(320, 180), 10, true);
+        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        const QString id = lastMedia(*ed->doc())->id;
+        auto play = [&] { return deck::mediaPlayOf(*ed->doc()->pages[0], *lastMedia(*ed->doc())); };
+        auto *across = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaAcross"));
+        QVERIFY(across);
+        QCOMPARE(across->text(), QStringLiteral("Play Across Slides"));
+        QVERIFY(across->isEnabled() && !across->isChecked());
+        QCOMPARE(play().acrossSlides, 1);
+        const int steps = ed->undoStack()->count();
+        across->setChecked(true);
+        QCOMPARE(play().acrossSlides, 999);
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        const QString saved = dir.filePath(QStringLiteral("across.pptx"));
+        QVERIFY(w.saveTo(saved));
+        {
+            DeckWindow other;
+            QVERIFY(other.openFile(saved));
+            const PictureItem *again = lastMedia(*other.editor()->doc());
+            QVERIFY(again);
+            QCOMPARE(deck::mediaPlayOf(*other.editor()->doc()->pages[0], *again).acrossSlides, 999);
+            Settings::get().removeRecentFile(saved);
+        }
+        across->setChecked(false);
+        QCOMPARE(play().acrossSlides, 1);
+        ed->undo();
+        QCOMPARE(play().acrossSlides, 999);
+        QTRY_VERIFY(across->isChecked());
+        ed->clearSelection();
+        QTRY_VERIFY(!across->isEnabled());
+        ed->select(id);
+        QTRY_VERIFY(across->isEnabled() && across->isChecked());
+    }
+
+    // The Playback tab has Alt Text, Align (the Arrange group), and the Size boxes for a movie or sound too: a height typed there is one step that undoes.
+    void thePlaybackTabHasAltTextArrangeAndSize()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        Editor *ed = w.editor();
+        const QByteArray avi = testAvi(30, QSize(320, 180), 10, true);
+        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        QWidget *tab = w.ribbon()->tab(QStringLiteral("Playback"));
+        QVERIFY(tab);
+        bool alt = false, align = false;
+        for (QToolButton *b : tab->findChildren<QToolButton *>()) {
+            alt = alt || b->text() == QLatin1String("Alt Text");
+            align = align || (b->text() == QLatin1String("Align") && b->menu());
+        }
+        QVERIFY(alt && align);
+        auto *height = tab->findChild<MeasureSpin *>(QStringLiteral("shapeHeight"));
+        QVERIFY(height && tab->findChild<MeasureSpin *>(QStringLiteral("shapeWidth")));
+        const QString id = lastMedia(*ed->doc())->id;
+        QTRY_VERIFY(height->isEnabled());
+        const double was = ed->doc()->item(id)->rect.height();
+        QTRY_COMPARE(height->value(), was);
+        const int base = ed->undoStack()->index();
+        height->setValue(was + 20);
+        QCOMPARE(ed->undoStack()->index(), base + 1);
+        QCOMPARE(ed->doc()->item(id)->rect.height(), was + 20);
+        ed->undo();
+        QCOMPARE(ed->doc()->item(id)->rect.height(), was);
+    }
+
     // The Playback tab changes how the selected one plays: Start, Volume, and the four boxes, each one step that undoes, kept
     // when the file is saved and opened again.
     void playbackTabChangesHowAMoviePlays()

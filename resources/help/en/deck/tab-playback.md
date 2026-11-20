@@ -1,5 +1,5 @@
 # Playback tab
-<!-- keywords: playback tab, ribbon, movie, video, sound, audio, play, pause, preview, trim, captions, insert captions, remove captions, subtitles, webvtt, vtt, volume, mute, start, in click sequence, automatically, when clicked on, play full screen, hide while not playing, loop until stopped, rewind after playing, media tools -->
+<!-- keywords: playback tab, ribbon, movie, video, sound, audio, play, pause, preview, trim, captions, insert captions, remove captions, subtitles, webvtt, vtt, volume, mute, start, in click sequence, automatically, when clicked on, play full screen, hide while not playing, loop until stopped, rewind after playing, play across slides, keep playing, alt text, align, height, width, size, media tools -->
 
 The **Playback** tab sets how a movie or a sound plays, and adds captions to a movie. It shows only while one movie or sound is selected, and it goes away when you select something else.
 
@@ -14,8 +14,11 @@ The **Playback** tab sets how a movie or a sound plays, and adds captions to a m
   - **Hide While Not Playing** hides the picture until the movie or sound plays, and again after it stops. A sound's speaker picture is hidden the whole time.
   - **Loop until Stopped** plays it again each time it ends, until it is stopped or the slide changes.
   - **Rewind after Playing** takes a movie back to its first picture when it ends. Without it, the movie stays on its last picture.
+  - **Play Across Slides** keeps a movie or sound playing in the slide show when the slide changes, until it ends or is stopped. Ctrl+Z takes the change back, and a .pptx file keeps it.
 
 Captions show over the bottom of the movie, in white text on a dark band, while the movie plays in the slide show and in the editor. They are timed to the movie, and their size follows the size of the movie. If a movie has more than one language, the first one shows. Captions are saved with the presentation as part of the `.pptx` file, so they come back when you open it again. A caption file in another format (not WebVTT) is kept as it is and is saved again unchanged, but it doesn't show. Once a movie has captions, **Check Accessibility** no longer lists it.
+
+The **Accessibility**, **Arrange**, and **Size** groups are the ones the Picture Format tab has: **Alt Text**, **Align**, and the **Height** and **Width** boxes, for the selected movie or sound.
 
 Each change is one step. **Ctrl+Z** takes it back.
 

@@ -1389,7 +1389,17 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
         if (k == Qt::Key_Escape) close();
         return;
     }
-    // Ctrl and a letter choose the pointer (the pen is not for a rehearsal).
+    if (k == Qt::Key_Menu || (k == Qt::Key_F10 && (e->modifiers() & Qt::ShiftModifier))) {
+        m_typed.clear();
+        openMenu();
+        return;
+    }
+    // Ctrl and a letter choose the pointer (the pen is not for a rehearsal); Ctrl+H hides the arrow and Ctrl+U leaves it to the show.
+    if ((e->modifiers() & Qt::ControlModifier) && !(e->modifiers() & Qt::AltModifier) && (k == Qt::Key_H || k == Qt::Key_U)) {
+        m_typed.clear();
+        setArrowShown(k == Qt::Key_H ? ArrowShown::Hidden : ArrowShown::Automatic);
+        return;
+    }
     if ((e->modifiers() & Qt::ControlModifier) && !(e->modifiers() & Qt::AltModifier)) {
         std::optional<Pointer> chosen;
         switch (k) {
@@ -1584,10 +1594,7 @@ void SlideShow::followLink(const QString &link)
     case office::LinkKind::Last: goToPosition(count() - 1); return;
     case office::LinkKind::Slide: goTo(t.slide - 1); return;
     case office::LinkKind::EndShow: close(); return;
-    case office::LinkKind::LastViewed:
-        if (m_lastViewed >= 0 && placeOf(m_lastViewed) >= 0) goTo(m_lastViewed);
-        else say(tr("There is no earlier slide to go back to."));
-        return;
+    case office::LinkKind::LastViewed: goToLastViewed(); return;
     case office::LinkKind::CustomShow: playCustomShow(t.slide, t.back); return;
     case office::LinkKind::None: return;
     default: break;
@@ -1795,6 +1802,35 @@ void SlideShow::say(const QString &text)
     update();
 }
 
+bool SlideShow::goToLastViewed()
+{
+    if (m_lastViewed < 0 || placeOf(m_lastViewed) < 0) {
+        say(tr("There is no earlier slide to go back to."));
+        return false;
+    }
+    goTo(m_lastViewed);
+    return true;
+}
+
+void SlideShow::setArrowShown(ArrowShown how)
+{
+    if (how == m_arrowShown) return;
+    m_arrowShown = how;
+    updateCursor();
+}
+
+void SlideShow::openMenu()
+{
+    if (isKiosk()) return;
+    if (m_recording) {
+        previous();
+        return;
+    }
+    QMenu *menu = buildMenu(this);
+    menu->setAttribute(Qt::WA_DeleteOnClose);
+    menu->popup(mapToGlobal(rect().center()));
+}
+
 // A mouse-over action: a question (web, mail, a file, another presentation) is asked once during a visit to a slide, and a jump inside the presentation is followed once and then
 // holds until the pointer has left the actions or the person clicks or presses a key, so that moving the mouse can't run the show on.
 void SlideShow::followHover(const QString &link)
@@ -1871,12 +1907,12 @@ void SlideShow::mouseMoveEvent(QMouseEvent *e)
         m_hoverHold = false;
     }
     if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mouseMove(e->position())) {
-        setCursor(Qt::ArrowCursor);
+        setCursor(arrowHidden() ? Qt::BlankCursor : Qt::ArrowCursor);
         return;
     }
     const QString link = linkAt(e->position());
     if (!link.isEmpty()) {
-        setCursor(Qt::PointingHandCursor);
+        setCursor(arrowHidden() ? Qt::BlankCursor : Qt::PointingHandCursor);
         // A web or file link shows where it goes.
         if (const QString address = office::linkAddress(link); !address.isEmpty()) QToolTip::showText(e->globalPosition().toPoint(), jp::plainToolTip(address), this);
         else QToolTip::hideText();
@@ -2233,6 +2269,24 @@ QMenu *SlideShow::pointerMenu(QWidget *parent)
         connect(a, &QAction::triggered, this, [this, pointer] { setPointer(pointer); });
     }
     menu->addSeparator();
+    QMenu *arrow = menu->addMenu(tr("Arrow Options"));
+    arrow->setObjectName(QStringLiteral("arrowOptionsMenu"));
+    auto *arrowGroup = new QActionGroup(arrow);
+    const struct { ArrowShown how; const char *id; QString text; QKeySequence key; } arrows[] = {
+        {ArrowShown::Automatic, "arrowAutomatic", tr("Automatic"), QKeySequence(Qt::CTRL | Qt::Key_U)},
+        {ArrowShown::Visible, "arrowVisible", tr("Visible"), QKeySequence()},
+        {ArrowShown::Hidden, "arrowHidden", tr("Hidden"), QKeySequence(Qt::CTRL | Qt::Key_H)},
+    };
+    for (const auto &k : arrows) {
+        // As for the pointer's tools, the key is shown beside the name and read by the show itself.
+        QAction *a = arrow->addAction(k.key.isEmpty() ? k.text : k.text + QLatin1Char('\t') + k.key.toString(QKeySequence::NativeText));
+        a->setObjectName(QLatin1String(k.id));
+        a->setCheckable(true);
+        a->setActionGroup(arrowGroup);
+        a->setChecked(m_arrowShown == k.how);
+        const ArrowShown how = k.how;
+        connect(a, &QAction::triggered, this, [this, how] { setArrowShown(how); });
+    }
     QMenu *colors = menu->addMenu(tr("Ink Color"));
     colors->setObjectName(QStringLiteral("inkColorMenu"));
     auto *colorGroup = new QActionGroup(colors);
@@ -2262,6 +2316,10 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
     QAction *previousAction = menu->addAction(tr("Previous"));
     previousAction->setObjectName(QStringLiteral("menuPrevious"));
     connect(previousAction, &QAction::triggered, this, [this] { previous(); });
+    QAction *lastViewed = menu->addAction(tr("Last Viewed"));
+    lastViewed->setObjectName(QStringLiteral("menuLastViewed"));
+    lastViewed->setEnabled(m_lastViewed >= 0 && placeOf(m_lastViewed) >= 0);
+    connect(lastViewed, &QAction::triggered, this, [this] { goToLastViewed(); });
     QMenu *go = menu->addMenu(tr("Go to Slide"));
     go->setObjectName(QStringLiteral("goToSlideMenu"));
     // One for each place the show has (a custom show may list a slide twice), the one it is at checked; an ampersand in a title is not a key.

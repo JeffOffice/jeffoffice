@@ -10,9 +10,11 @@
 #include "app/deckdialogs.h"
 #include "app/linktargetpicker.h"
 #include "app/theme.h"
+#include "text/textengine.h"
 
 #include <QDesktopServices>
 #include <QMessageBox>
+#include <QSpinBox>
 #include <QTemporaryDir>
 #include <QFile>
 
@@ -176,6 +178,62 @@ private Q_SLOTS:
         QCOMPARE(ed->doc()->pageSize(), QSizeF(960, 540));
         ed->undo();
         QVERIFY(deck::notesArePortrait(*ed->doc()));
+    }
+
+    // Number slides from: the number the first slide counts from, set in the Custom Slide Size box. One step that undoes; the slide number fields count from it; a saved .pptx keeps it
+    // (through the window's own save and open); an .odp does not, and Check Compatibility says so.
+    void customSlideSizeBoxNumbersTheSlidesFromANumber()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        auto slideNumberOf = [](const Document *d, int page) {
+            FieldContext ctx;
+            ctx.doc = d;
+            ctx.pageNumber = page;
+            return ctx.resolve(QStringLiteral("page"));
+        };
+        QCOMPARE(slideNumberOf(ed->doc(), 2), QStringLiteral("2"));
+        const int steps = ed->undoStack()->count();
+        withDialog([&] { w.act("design.sizeCustom")->trigger(); }, QStringLiteral("slideSizeDialog"), [&](QDialog *dlg) {
+            auto *first = dlg->findChild<QSpinBox *>(QStringLiteral("slideFirstNumber"));
+            QVERIFY(first);
+            QCOMPARE(first->value(), 1);
+            QCOMPARE(first->minimum(), 0);
+            first->setValue(7);
+        });
+        QCOMPARE(ed->doc()->setup.firstPageNumber, 7);
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QCOMPARE(ed->doc()->pageSize(), QSizeF(960, 540));   // (no question about scaling: the size did not change)
+        QCOMPARE(slideNumberOf(ed->doc(), 2), QStringLiteral("8"));
+        // The same box again with nothing changed makes no step.
+        withDialog([&] { w.act("design.sizeCustom")->trigger(); }, QStringLiteral("slideSizeDialog"), [&](QDialog *dlg) {
+            QCOMPARE(dlg->findChild<QSpinBox *>(QStringLiteral("slideFirstNumber"))->value(), 7);
+        });
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        // Saved as a .pptx and opened again.
+        const QString path = dir.filePath(QStringLiteral("numbered.pptx"));
+        QVERIFY(w.saveTo(path));
+        {
+            DeckWindow other;
+            QVERIFY(other.openFile(path));
+            QCOMPARE(other.editor()->doc()->setup.firstPageNumber, 7);
+            QCOMPARE(slideNumberOf(other.editor()->doc(), 2), QStringLiteral("8"));
+            Settings::get().removeRecentFile(path);
+        }
+        // An .odp has no place for it: Check Compatibility lists it.
+        QStringList told;
+        w.setNotifier([&](const QString &, const QString &text) { told << text; });
+        w.checkCompatibility();
+        QVERIFY2(!told.isEmpty() && told.last().contains(QStringLiteral("counts from")), qPrintable(told.join(QLatin1Char('|'))));
+        ed->undo();
+        QCOMPARE(ed->doc()->setup.firstPageNumber, 1);
+        QCOMPARE(slideNumberOf(ed->doc(), 2), QStringLiteral("2"));
+        told.clear();
+        w.checkCompatibility();
+        QVERIFY(told.isEmpty() || !told.last().contains(QStringLiteral("counts from")));
     }
 
     // Portrait, paper, and banner decks save in .pptx and .odp and open as they were, and their slides print, export, and draw in their own shape.

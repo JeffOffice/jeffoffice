@@ -1,5 +1,5 @@
 # Slide size, background, and footers
-<!-- keywords: design, theme, themes, variants, variant, colors, fonts, create new theme colors, create new theme fonts, custom colors, theme file, thmx, save current theme, reset theme, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, title slide -->
+<!-- keywords: design, theme, themes, variants, variant, colors, fonts, create new theme colors, create new theme fonts, custom colors, theme file, thmx, save current theme, reset theme, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, custom slide size, number slides from, first slide number, start at, background, background color, format background, header, footer, slide number, date, title slide -->
 
 The **Design** tab changes how every slide looks: its theme, its shape, its background, and the footer along its bottom edge.
 
@@ -13,6 +13,8 @@ Click **Design > Customize > Slide Size** and choose a size:
 A check mark shows the size the presentation has now. When you choose the other one, JeffDeck asks **Scale your content to fit the new slide size?** Click **Ensure Fit** to change the size. Text and line weights scale, the layouts and placeholders stretch to the new shape, and other objects are scaled to keep their own shape and stay centered. Click **Cancel** to change nothing. Ctrl+Z takes the change back.
 
 A presentation opened from a file can have a size that is neither of these. It keeps that size, and neither choice is checked.
+
+**Custom Slide Size** has a list of sizes, a width and a height, Landscape or Portrait, and the way the notes pages are turned. **Number slides from** is the number the first slide counts from, so that a slide number on the slides, the printed pages, and the pages of a saved .pptx file start there (zero or higher; a .odp file does not keep it, and Check Compatibility says so). Changing the size, the number, or the notes pages is one step of Ctrl+Z.
 
 ## Background
 

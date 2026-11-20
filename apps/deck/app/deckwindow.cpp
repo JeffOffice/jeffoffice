@@ -376,6 +376,7 @@ void DeckWindow::refreshUi()
     for (const char *id : {"arr.distH", "arr.distV"}) act(id)->setEnabled(ed->selection().size() > 2 || (sel && act("arr.alignToSlide")->isChecked()));
     act("arr.group")->setEnabled(kind == "multi");
     act("arr.ungroup")->setEnabled(kind == "group");
+    act("arr.regroup")->setEnabled(ed->canRegroup());
     for (const char *id : {"fmt.bold", "fmt.italic", "fmt.underline", "fmt.strike", "fmt.shadow", "fmt.grow", "fmt.shrink", "fmt.clear", "para.bullets", "para.numbers",
                            "fmt.alignLeft", "fmt.alignCenter", "fmt.alignRight", "fmt.justify", "para.indentDec", "para.indentInc"})
         act(id)->setEnabled(textish);

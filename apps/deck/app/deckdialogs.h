@@ -106,12 +106,14 @@ private:
 class SlideSizeDialog : public QDialog {
     Q_OBJECT
 public:
-    SlideSizeDialog(const QSizeF &current, bool notesPortrait = true, QWidget *parent = nullptr);
+    SlideSizeDialog(const QSizeF &current, bool notesPortrait = true, int firstNumber = 1, QWidget *parent = nullptr);
     // The size in points.
     QSizeF size() const;
     bool isPortrait() const;
     // The notes pages' orientation.
     bool notesPortrait() const { return m_notesPortrait->isChecked(); }
+    // The number the first slide counts from.
+    int firstNumber() const { return m_first->value(); }
 
 private:
     void showPreset(int index);
@@ -119,6 +121,7 @@ private:
     QComboBox *m_preset;
     QDoubleSpinBox *m_width, *m_height;
     QRadioButton *m_landscape, *m_portrait, *m_notesLandscape, *m_notesPortrait;
+    QSpinBox *m_first;
     bool m_loading = false;
     QSizeF m_was;
 };

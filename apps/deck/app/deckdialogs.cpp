@@ -302,7 +302,7 @@ void LinkDialog::setDisplayShown(const QString &text, bool shown)
 
 constexpr double kLeastInches = 0.5, kMostInches = 56;
 
-SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWidget *parent) : QDialog(parent), m_was(current)
+SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, int firstNumber, QWidget *parent) : QDialog(parent), m_was(current)
 {
     setWindowTitle(tr("Slide Size"));
     setObjectName(QStringLiteral("slideSizeDialog"));
@@ -347,6 +347,11 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, QWid
     notes->addWidget(m_notesPortrait);
     notes->addWidget(m_notesLandscape);
     form->addRow(tr("Notes pages"), notes);
+    m_first = new QSpinBox(this);
+    m_first->setObjectName(QStringLiteral("slideFirstNumber"));
+    m_first->setRange(0, 9999);
+    m_first->setValue(std::clamp(firstNumber, 0, 9999));
+    form->addRow(tr("Number slides from"), m_first);
     // Each pair is a choice of its own.
     auto *slidesGroup = new QButtonGroup(this);
     slidesGroup->addButton(m_landscape);

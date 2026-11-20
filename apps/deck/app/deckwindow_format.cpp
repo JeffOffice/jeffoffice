@@ -381,11 +381,14 @@ void DeckWindow::refreshShapeFormat()
     for (const Item *it : m_formatPane->session()->leaves()) styled = styled || deck::takesShapeStyle(*it);
     for (QWidget *w : m_shapeStyleGalleries) w->setEnabled(styled);
     for (QWidget *w : m_textArtGalleries) w->setEnabled(lettersSelected());
+    // The size boxes are on the Picture Format and Playback tabs too: a picture, a movie, or a sound has a size to type.
+    bool sizes = !items.isEmpty();
+    for (const Item *it : items) sizes = sizes && (takesShapeFormat(*it) || it->type() == ItemType::Picture);
     for (MeasureSpin *s : m_shapeSizeBoxes) {
         const bool height = s->objectName() == QLatin1String("shapeHeight");
         const QSignalBlocker block(s);
-        s->setEnabled(shows);
-        if (shows) s->setPoints(height ? items.first()->rect.height() : items.first()->rect.width());
+        s->setEnabled(sizes);
+        if (sizes) s->setPoints(height ? items.first()->rect.height() : items.first()->rect.width());
     }
 }
 

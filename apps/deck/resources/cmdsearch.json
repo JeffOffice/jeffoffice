@@ -7,6 +7,20 @@
    "4:3",
    "16:9"
   ],
+  "design.sizeCustom": [
+   "slide dimensions",
+   "first slide number",
+   "start numbering",
+   "portrait slides"
+  ],
+  "win.arrange": [
+   "tile windows",
+   "side by side windows"
+  ],
+  "win.cascade": [
+   "stack windows",
+   "overlap windows"
+  ],
   "slide.new": [
    "add slide",
    "new page"
@@ -105,6 +119,11 @@
   ],
   "arr.group": [
    "combine objects"
+  ],
+  "arr.regroup": [
+   "group again",
+   "undo ungroup",
+   "rejoin objects"
   ],
   "ribbon.zoom": [
    "magnify",

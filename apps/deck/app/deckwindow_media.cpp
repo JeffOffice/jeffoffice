@@ -378,6 +378,11 @@ void DeckWindow::addMediaParts(RibbonParts &parts)
         return check("mediaRewind", tr("Rewind after Playing"), tr("Rewind after Playing: when it ends, a movie goes back to its first picture."),
                      [](const deck::MediaPlay &p) { return p.rewind; }, [](deck::MediaPlay &p, bool on) { p.rewind = on; }, false);
     };
+    // The file's own count of slides it plays over: 999 is "until it ends or is stopped".
+    parts.widgets[QStringLiteral("mediaAcross")] = [check, this]() -> QWidget * {
+        return check("mediaAcross", tr("Play Across Slides"), tr("Play Across Slides: in the slide show, it goes on playing when the slide changes."),
+                     [](const deck::MediaPlay &p) { return p.acrossSlides > 1; }, [](deck::MediaPlay &p, bool on) { p.acrossSlides = on ? 999 : 1; }, false);
+    };
     parts.widgets[QStringLiteral("mediaVolume")] = [this, ed, syncs]() -> QWidget * {
         auto *box = new QComboBox();
         box->setObjectName(QStringLiteral("mediaVolume"));

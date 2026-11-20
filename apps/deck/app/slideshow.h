@@ -246,6 +246,14 @@ public:
     enum class Pointer { Arrow, Laser, Pen, Highlighter, Eraser };
     Pointer pointer() const { return m_pointer; }
     void setPointer(Pointer pointer);
+    // Arrow Options: the arrow shows by itself (not on a full screen, in a window), always, or never (Ctrl+U and Ctrl+H). The rehearsal bar is clicked with the arrow, so it always shows then.
+    enum class ArrowShown { Automatic, Visible, Hidden };
+    ArrowShown arrowShown() const { return m_arrowShown; }
+    void setArrowShown(ArrowShown how);
+    // Last Viewed: back to the slide that was on the screen before this one; false, and said, when there is none.
+    bool goToLastViewed();
+    // The show's menu at the middle of the window, for a keyboard (the Menu key and Shift+F10).
+    void openMenu();
     // The color of the pen or the highlighter, whichever is the pointer (the pen's, else).
     QColor inkColor() const;
     void setInkColor(const QColor &color);
@@ -339,7 +347,8 @@ private:
     // The page of a slide (null when there is none), and its id.
     const Page *pageOf(int slide) const;
     QString idOf(int slide) const;
-    bool showsCursor() const { return isWindowed() || m_recording; }
+    bool showsCursor() const { return m_recording || m_arrowShown == ArrowShown::Visible || (m_arrowShown == ArrowShown::Automatic && isWindowed()); }
+    bool arrowHidden() const { return m_arrowShown == ArrowShown::Hidden && !m_recording; }
     const Play &playOf(int slide) const;
     int stepsOf(int slide) const { return int(playOf(slide).timeline.steps.size()); }
     QImage imageOf(int slide);
@@ -383,6 +392,7 @@ private:
     };
     QVector<Return> m_returns;       // the places a custom show followed with "and return" comes back to
     int m_lastViewed = -1;
+    ArrowShown m_arrowShown = ArrowShown::Automatic;
     int m_focusIndex = -1;
     int m_focusSlide = -1;
     const Item *m_hoverItem = nullptr;

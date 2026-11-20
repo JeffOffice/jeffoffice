@@ -1094,6 +1094,7 @@ QByteArray Exporter::run(QString *error)
         return QByteArray();
     }
     plan();
+    if (m_doc.setup.firstPageNumber != 1) say(QCoreApplication::translate("OdpExport", "The number the first slide counts from."));
     // The master pages first: the styles and names the slides use come out of them.
     QString presentationStyles;
     const QString masterBody = writeMasterPages(&presentationStyles);

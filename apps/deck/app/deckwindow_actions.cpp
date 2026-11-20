@@ -196,6 +196,7 @@ void DeckWindow::createFormatActions()
     mk("arr.selectionPane", tr("Selection Pane"), "layers", QKeySequence(), [this] { showPageSelectionPane(this, m_ed, &m_selectionPane); });
     mk("arr.group", tr("Group"), "group", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_G), [ed] { ed->groupSelection(); });
     mk("arr.ungroup", tr("Ungroup"), "ungroup", QKeySequence(), [ed] { ed->ungroupSelection(); });
+    mk("arr.regroup", tr("Regroup"), "group", QKeySequence(), [ed] { ed->regroup(); });
     mk("arr.rotR", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [ed] { ed->rotateSelection(90); });
     mk("arr.rotL", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [ed] { ed->rotateSelection(-90); });
     mk("arr.flipH", tr("Flip Horizontal"), "flip-horizontal-2", QKeySequence(), [ed] { ed->flipSelection(true); });
@@ -274,8 +275,8 @@ void DeckWindow::createDesignActions()
         sizes->addAction(mk(("design.size." + p.key).toLatin1().constData(), text, "", QKeySequence(), [this, size] { askSlideSize(size); }, true));
     }
     mk("design.sizeCustom", tr("Custom Slide Size…"), "", QKeySequence(), [this] {
-        SlideSizeDialog dlg(m_ed->doc()->pageSize(), deck::notesArePortrait(*m_ed->doc()), this);
-        if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size(), dlg.notesPortrait() ? 1 : 0);
+        SlideSizeDialog dlg(m_ed->doc()->pageSize(), deck::notesArePortrait(*m_ed->doc()), m_ed->doc()->setup.firstPageNumber, this);
+        if (dlg.exec() == QDialog::Accepted) askSlideSize(dlg.size(), dlg.notesPortrait() ? 1 : 0, dlg.firstNumber());
     });
     mk("design.slideSize", tr("Slide Size"), "ratio", QKeySequence(), [] {});
     mk("design.setDefaultSlideSize", tr("Set as Default Slide Size"), "", QKeySequence(), [this] {
@@ -303,6 +304,15 @@ void DeckWindow::createViewActions()
         }
         openFile(m_ed->filePath(), OpenHow::NewWindow);
     });
+    // Arrange All puts the presentations' windows side by side in columns; Cascade stacks them, each a little lower and to the right of the one before.
+    auto openWindows = [] {
+        QList<AppWindow *> out;
+        for (AppWindow *w : AppWindow::windows())
+            if (w->isVisible() && qobject_cast<DeckWindow *>(w)) out << w;
+        return out;
+    };
+    mk("win.arrange", tr("Arrange All"), "layout-panel-left", QKeySequence(), [openWindows] { AppWindow::arrangeInColumns(openWindows()); });
+    mk("win.cascade", tr("Cascade"), "layers-2", QKeySequence(), [openWindows] { AppWindow::cascade(openWindows()); });
     mk("view.slideShow", tr("Slide Show"), "presentation", QKeySequence(), [this] { startShow(m_ed->currentPage()); });
     mk("view.rulers", tr("Ruler"), "ruler", QKeySequence(), [this] {
         m_ed->view.rulers = !m_ed->view.rulers;
@@ -339,10 +349,11 @@ void DeckWindow::createViewActions()
 }
 
 // ---------------- what the commands do ----------------
-void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes)
+void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes, int first)
 {
     const bool notesChange = notes >= 0 && deck::notesArePortrait(*m_ed->doc()) != (notes == 1);
-    if (size.isEmpty() || (size == m_ed->doc()->pageSize() && !notesChange)) return;
+    const bool firstChange = first >= 0 && first <= 9999 && m_ed->doc()->setup.firstPageNumber != first;
+    if (size.isEmpty() || (size == m_ed->doc()->pageSize() && !notesChange && !firstChange)) return;
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
@@ -350,14 +361,15 @@ void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes)
     m_ed->beginChange(tr("Slide Size"));
     if (size != m_ed->doc()->pageSize()) deck::setSlideSize(*m_ed->doc(), size, scale);
     if (notesChange) deck::setNotesPortrait(*m_ed->doc(), notes == 1);
+    if (firstChange) m_ed->doc()->setup.firstPageNumber = first;
     m_ed->endChange();
 }
 
 // A new size asks whether the content scales to it or keeps its own size.
-void DeckWindow::askSlideSize(const QSizeF &size, int notes)
+void DeckWindow::askSlideSize(const QSizeF &size, int notes, int first)
 {
     if (size == m_ed->doc()->pageSize()) {
-        setSlideSize(size, true, notes);   // (only the notes pages can change)
+        setSlideSize(size, true, notes, first);   // (only the notes pages can change)
         refreshUi();   // the check on the chosen size stays
         return;
     }
@@ -370,8 +382,8 @@ void DeckWindow::askSlideSize(const QSizeF &size, int notes)
     box.addButton(QMessageBox::Cancel);
     box.setDefaultButton(fit);
     box.exec();
-    if (box.clickedButton() == fit) setSlideSize(size, true, notes);
-    else if (box.clickedButton() == keep) setSlideSize(size, false, notes);
+    if (box.clickedButton() == fit) setSlideSize(size, true, notes, first);
+    else if (box.clickedButton() == keep) setSlideSize(size, false, notes, first);
     else refreshUi();
 }
 
