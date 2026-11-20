@@ -912,6 +912,86 @@ void PubFileTests::aRecipientListOverTheLimitIsRefusedBeforeItIsRead()
     QCOMPARE(m.rows.size(), 2);
 }
 
+// Each reader of Insert File and of recipient lists is given its file damaged in many ways (bytes changed, the end cut off, a run of junk put in): it
+// takes what it can and says nothing is wrong, or it refuses and says why. The damage is the same on every run (a fixed sequence of numbers).
+void PubFileTests::aDamagedTextFileOrListIsTakenInOrRefusedWithAReason()
+{
+    jp::ZipWriter z;
+    z.add(QStringLiteral("word/document.xml"), QByteArray("<w:document xmlns:w=\"w\"><w:body><w:p><w:r><w:t>Hello world</w:t></w:r></w:p><w:p><w:r><w:b/><w:t>Second</w:t></w:r></w:p></w:body></w:document>"), true);
+    struct Seed {
+        QString name;
+        QByteArray bytes;
+        bool list;
+    };
+    const QVector<Seed> seeds = {
+        {QStringLiteral("a.docx"), z.finish(), false},
+        {QStringLiteral("a.rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Hello \\b world\\b0\\par Second\\par}"), false},
+        {QStringLiteral("a.html"), QByteArray("<html><body><p>Hello <b>world</b></p><ul><li>one</li></ul></body></html>"), false},
+        {QStringLiteral("a.md"), QByteArray("# Title\n\nHello **world**\n\n- one\n- two\n"), false},
+        {QStringLiteral("a.csv"), QByteArray("Name,City\nAda,Oslo\n\"Bo, Jr\",Rome\n"), true},
+        {QStringLiteral("a.vcf"), QByteArray("BEGIN:VCARD\nVERSION:3.0\nFN:Ada Lovelace\nEMAIL:ada@example.com\nEND:VCARD\n"), true},
+    };
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    quint32 state = 12345;
+    auto next = [&state](quint32 n) {
+        state = state * 1664525u + 1013904223u;
+        return (state >> 8) % n;
+    };
+    int taken = 0, refused = 0;
+    for (const Seed &seed : seeds) {
+        for (int round = 0; round < 150; ++round) {
+            QByteArray b = seed.bytes;
+            switch (round % 3) {
+            case 0:
+                for (quint32 k = 1 + next(8); k > 0; --k) b[int(next(quint32(b.size())))] = char(next(256));
+                break;
+            case 1:
+                b.truncate(int(next(quint32(b.size()))));
+                break;
+            default: {
+                QByteArray junk;
+                for (quint32 k = 1 + next(64); k > 0; --k) junk += char(next(256));
+                b.insert(int(next(quint32(b.size()))), junk);
+            }
+            }
+            const QString path = dir.filePath(seed.name);
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(b);
+            f.close();
+            QString problem;
+            bool ok;
+            if (seed.list) {
+                jp::MergeSource m;
+                ok = jp::loadMergeSource(path, &m, &problem);
+            } else {
+                QTextDocument doc;
+                ok = jp::loadTextFileInto(&doc, path, &problem);
+                if (!ok) QVERIFY2(doc.isEmpty(), qPrintable(seed.name));
+            }
+            if (ok) ++taken;
+            else {
+                ++refused;
+                QVERIFY2(!problem.isEmpty(), qPrintable(QStringLiteral("%1 round %2: refused, but with no reason").arg(seed.name).arg(round)));
+            }
+        }
+    }
+    // (both outcomes happened, so each was checked)
+    QVERIFY(taken > 0);
+    QVERIFY(refused > 0);
+    // a file with nothing in it: a document is refused, a plain text file is nothing to insert
+    for (const QString &name : {QStringLiteral("e.docx"), QStringLiteral("e.rtf")}) {
+        QFile f(dir.filePath(name));
+        QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        f.close();
+        QString problem;
+        QTextDocument doc;
+        QVERIFY(!jp::loadTextFileInto(&doc, f.fileName(), &problem));
+        QVERIFY(!problem.isEmpty());
+    }
+}
+
 
 // The gallery Change Template opens is the New page's, in a mode of its
 // own: its title and button say so, it offers designs and no blank

@@ -93,6 +93,7 @@ private Q_SLOTS:
     void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
     void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();
     void aRecipientListOverTheLimitIsRefusedBeforeItIsRead();
+    void aDamagedTextFileOrListIsTakenInOrRefusedWithAReason();
     void changeTemplateGallery();
     void templatesFitTheirText();
     void pubTextIndexChains();
