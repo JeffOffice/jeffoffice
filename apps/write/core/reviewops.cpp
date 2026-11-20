@@ -249,6 +249,7 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
             r.from = b.position() + b.length() - 1;
             r.to = r.from + 1;
             r.block = blockNo;
+            r.moved = name[0] == 'm';
             out->push_back(r);
         }
     }
@@ -680,6 +681,15 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
     if (!b.isValid()) return;
     const QTextBlock n = b.next();
     const QTextBlockFormat bf = b.blockFormat();
+    if (!n.isValid() && b.length() == 1 && b.position() > 0 && !b.previous().blockFormat().hasProperty(prop::EndnoteBlock) && !isLocked(b) && !isLocked(b.previous()) && canJoinBlocks(b.previous(), b) &&
+        !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter) && bf.intProperty(flow::fp::Frame) == b.previous().blockFormat().intProperty(flow::fp::Frame)) {
+        // Nothing of the last paragraph is left (it was all inserted): it goes, and the one before it is the last.
+        QTextCursor t(d);
+        t.setPosition(b.position() - 1);
+        t.setPosition(b.position(), QTextCursor::KeepAnchor);
+        t.removeSelectedText();
+        return;
+    }
     if (!n.isValid() || isLocked(b) || isLocked(n) || !canJoinBlocks(b, n) || n.blockFormat().hasProperty(prop::EndnoteBlock) ||
         bf.intProperty(flow::fp::Frame) != n.blockFormat().intProperty(flow::fp::Frame)) {
         clearMarkRecord(b);
@@ -692,6 +702,19 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
         t.setPosition(pos - 1);
         t.setPosition(pos + len, QTextCursor::KeepAnchor);
         t.removeSelectedText();
+        return;
+    }
+    if (len == 0 && pos == 0 && !n.textList() && !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter)) {
+        // Nothing of the first paragraph is left, and no paragraph is before it: its mark goes, and the next paragraph, which is the first now, keeps its own look.
+        const QTextBlockFormat nextFormat = n.blockFormat();
+        const QTextCharFormat nextMark = markFormat(n);
+        QTextCursor t(d);
+        t.setPosition(0);
+        t.setPosition(1, QTextCursor::KeepAnchor);
+        t.removeSelectedText();
+        t.setPosition(0);
+        t.setBlockFormat(nextFormat);
+        setMarkFormat(d->begin(), nextMark);
         return;
     }
     // The text of the paragraph joins the next one's.
@@ -708,8 +731,21 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
 } // namespace
 
 
+// The tag of the element kept as written that is the one character at `pos` of the story (none where it is no such element).
+QString atomTagAt(const QTextDocument *story, int pos)
+{
+    if (pos < 0 || pos >= story->characterCount() - 1 || story->characterAt(pos) != QChar::ObjectReplacementCharacter) return QString();
+    QTextCursor c(const_cast<QTextDocument *>(story));
+    c.setPosition(pos + 1);
+    const QTextCharFormat cf = c.charFormat();
+    if (!cf.hasProperty(prop::Atom)) return QString();
+    const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
+    return a.kind == Inline::ParaAtom && a.role == Inline::Single ? a.tag : QString();
+}
+
 // A move has two halves, the text taken from a place and the same text put in another, joined by the name of the move that the marks of their ranges give. Where one half is among the changes
-// to resolve, the other half is too.
+// to resolve, the other half is too, and so are the marks of the paragraphs that are wholly in a half. A name that more than one move (or one half) has, or that has only one half, joins nothing:
+// each half of it is then a change of its own.
 QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revision> &which)
 {
     bool any = false;
@@ -725,8 +761,12 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
             if (!cf.hasProperty(prop::Atom)) continue;
             const Inline a = unpackAtom(storedBytes(cf, prop::Atom));
             if (a.kind != Inline::ParaAtom || a.role != Inline::Single) continue;
-            if (a.tag == QLatin1String("moveFromRangeStart")) fromStarts.push_back({it.fragment().position(), attributeOf(a.raw, "name")});
-            else if (a.tag == QLatin1String("moveToRangeStart")) toStarts.push_back({it.fragment().position(), attributeOf(a.raw, "name")});
+            const QString t = it.fragment().text();
+            for (int k = 0; k < t.size(); ++k) {
+                if (t[k] != QChar::ObjectReplacementCharacter) continue;
+                if (a.tag == QLatin1String("moveFromRangeStart")) fromStarts.push_back({it.fragment().position() + k, attributeOf(a.raw, "name")});
+                else if (a.tag == QLatin1String("moveToRangeStart")) toStarts.push_back({it.fragment().position() + k, attributeOf(a.raw, "name")});
+            }
         }
     }
     // (In the order of the story, so the one before a place is found by search.)
@@ -734,17 +774,19 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
         auto it = std::lower_bound(starts.begin(), starts.end(), pos, [](const Start &s, int v) { return s.pos < v; });
         return it == starts.begin() ? QString() : (it - 1)->name;
     };
-    QHash<QString, int> fromByName, toByName;
-    for (const Start &s : fromStarts) fromByName[s.name] = s.pos;
-    for (const Start &s : toStarts) toByName[s.name] = s.pos;
+    QHash<QString, int> fromByName, toByName, fromCount, toCount;
+    for (const Start &s : fromStarts) { fromByName[s.name] = s.pos; ++fromCount[s.name]; }
+    for (const Start &s : toStarts) { toByName[s.name] = s.pos; ++toCount[s.name]; }
     QVector<Revision> out = which;
     QSet<qint64> have;
     for (const Revision &r : which) have.insert(qint64(r.kind) << 40 | r.from);
+    QVector<Revision> halves;   // (the halves of the moves: those asked for and their partners)
     for (const Revision &r : which) {
         if (r.kind != Revision::MovedFrom && r.kind != Revision::MovedTo) continue;
+        halves.push_back(r);
         const bool isFrom = r.kind == Revision::MovedFrom;
         const QString name = nameBefore(isFrom ? fromStarts : toStarts, r.from);
-        if (name.isEmpty()) continue;
+        if (name.isEmpty() || fromCount.value(name) != 1 || toCount.value(name) != 1) continue;
         const int otherPos = (isFrom ? toByName : fromByName).value(name, -1);
         if (otherPos < 0) continue;
         // The first move of the other kind that begins after that mark.
@@ -756,6 +798,24 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
         if (!pair || have.contains(qint64(pair->kind) << 40 | pair->from)) continue;
         have.insert(qint64(pair->kind) << 40 | pair->from);
         out.push_back(*pair);
+        halves.push_back(*pair);
+    }
+    // The mark of a paragraph that a half covers whole (the paragraph was moved with its mark).
+    for (const Revision &h : std::as_const(halves)) {
+        const QTextBlock b = story->findBlock(h.from);
+        if (!b.isValid()) continue;
+        // (the half is the whole paragraph, but for the marks of its range at either end)
+        const int markAt = b.position() + b.length() - 1;
+        const bool startsIt = h.from == b.position() || (h.from == b.position() + 1 && atomTagAt(story, b.position()).endsWith(QLatin1String("RangeStart")));
+        const bool endsIt = h.to == markAt || (h.to == markAt - 1 && atomTagAt(story, markAt - 1).endsWith(QLatin1String("RangeEnd")));
+        if (!startsIt || !endsIt) continue;
+        for (const Revision &m : revisionsIn(story, b.position() + b.length() - 1, b.position() + b.length() - 1)) {
+            if (!m.moved || m.block != b.blockNumber()) continue;
+            if (m.kind != (h.kind == Revision::MovedFrom ? Revision::MarkDeleted : Revision::MarkInserted)) continue;
+            if (have.contains(qint64(m.kind) << 40 | m.from)) continue;
+            have.insert(qint64(m.kind) << 40 | m.from);
+            out.push_back(m);
+        }
     }
     return out;
 }
@@ -805,6 +865,18 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
             case Revision::MovedFrom: {
                 const bool removes = (r.kind == Revision::Insertion || r.kind == Revision::MovedTo) ? !accept : accept;
                 if (to <= r.from) break;
+                // A move's range begins just before its text and ends just after it: the marks of the range go with the move.
+                const bool isMove = r.kind == Revision::MovedFrom || r.kind == Revision::MovedTo;
+                const char *startTag = r.kind == Revision::MovedFrom ? "moveFromRangeStart" : "moveToRangeStart";
+                const char *endTag = r.kind == Revision::MovedFrom ? "moveFromRangeEnd" : "moveToRangeEnd";
+                const bool endMark = isMove && atomTagAt(story, to) == QLatin1String(endTag);
+                const bool startMark = isMove && r.from > 0 && atomTagAt(story, r.from - 1) == QLatin1String(startTag);
+                if (endMark) {
+                    t.setPosition(to);
+                    t.setPosition(to + 1, QTextCursor::KeepAnchor);
+                    t.removeSelectedText();
+                    did.push_back({to, -1});
+                }
                 if (removes) {
                     t.setPosition(r.from);
                     t.setPosition(to, QTextCursor::KeepAnchor);
@@ -818,6 +890,12 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
                     t.setPosition(r.from + 1, QTextCursor::KeepAnchor);
                     t.removeSelectedText();
                     did.push_back({r.from, -2});
+                }
+                if (startMark) {
+                    t.setPosition(r.from - 1);
+                    t.setPosition(r.from, QTextCursor::KeepAnchor);
+                    t.removeSelectedText();
+                    did.push_back({r.from - 1, -1});
                 }
                 structural = true;
                 ++done;

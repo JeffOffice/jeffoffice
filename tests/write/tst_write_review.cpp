@@ -460,6 +460,8 @@ QTextCharFormat storedFormatIn(QTextDocument *story, const QString &text)
             if (!it.fragment().charFormat().hasProperty(prop::Atom) && it.fragment().text() == text) return it.fragment().charFormat();
     return QTextCharFormat();
 }
+int acceptAllOrReject(WriteDoc &doc, bool accept) { return accept ? acceptAll(doc) : rejectAll(doc); }
+
 
 class ReviewTests : public QObject {
     Q_OBJECT
@@ -2599,6 +2601,145 @@ private Q_SLOTS:
                 QCOMPARE(textWithDeletions(*doc), accept ? QStringLiteral("keep \nmoved tail") : QStringLiteral("keep moved\n tail"));
             }
         }
+    }
+
+    // ---------------------------------------------------------------- Round B2: moves
+    void aMovedParagraphGoesWithItsMarkAndItsRangeWhicheverHalfIsChosen()
+    {
+        const QByteArray markOf = "<w:rPr><w:moveFrom" + rev(20) + "/></w:rPr>", markTo = "<w:rPr><w:moveTo" + rev(21) + "/></w:rPr>";
+        const QByteArray body = para(moveFromOf("move1", 1, "moved text"), markOf) + para(run("keep"), "<w:jc w:val=\"center\"/>") + para(moveToOf("move1", 5, "moved text"), markTo);
+        for (const bool accept : {true, false}) {
+            for (const bool fromHalf : {true, false}) {
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                QVector<Revision::Kind> kinds;
+                for (const Revision &r : revisionsIn(doc->story())) kinds << r.kind;
+                QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::MovedFrom, Revision::MarkDeleted, Revision::MovedTo, Revision::MarkInserted}));
+                QVector<Revision> which;
+                for (const Revision &r : revisionsIn(doc->story()))
+                    if (r.kind == (fromHalf ? Revision::MovedFrom : Revision::MovedTo)) which << r;
+                QCOMPARE(which.size(), 1);
+                // The two halves and the two marks: all four, whichever half was asked for.
+                QCOMPARE(resolveRevisions(*doc, doc->story(), which, accept), 4);
+                QCOMPARE(revisionCount(doc->story()), 0);
+                QCOMPARE(textWithDeletions(*doc), accept ? QStringLiteral("keep\nmoved text") : QStringLiteral("moved text\nkeep"));
+                QCOMPARE(doc->story()->findBlockByNumber(accept ? 0 : 1).blockFormat().alignment(), Qt::AlignHCenter);   // ("keep" keeps its own look)
+                // Nothing of the move is left in the file: no mark, no range.
+                const QByteArray saved = documentXml(doc->toDocx());
+                for (const char *left : {"<w:moveFrom", "<w:moveTo", "RangeStart", "RangeEnd"}) QVERIFY2(!saved.contains(left), saved.constData());
+                QVERIFY(doc->undo());
+                QCOMPARE(revisionCount(doc->story()), 4);
+                QVERIFY(!doc->canUndo());
+            }
+        }
+    }
+
+    void twoMovesAreEachPairedByTheirOwnNameAndAreWrittenBackPaired()
+    {
+        const QByteArray body = para(moveFromOf("mA", 1, "AA")) + para(moveFromOf("mB", 5, "BB")) + para(moveToOf("mB", 9, "BB")) + para(moveToOf("mA", 13, "AA"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        QVector<Revision> which;
+        for (const Revision &r : revisionsIn(doc->story()))
+            if (r.kind == Revision::MovedTo && r.id == QLatin1String("10")) which << r;   // (B's other half)
+        QCOMPARE(which.size(), 1);
+        QCOMPARE(resolveRevisions(*doc, doc->story(), which, true), 2);
+        QCOMPARE(revisionCount(doc->story()), 2);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QCOMPARE(saved.count("<w:moveFromRangeStart"), 1);
+        QCOMPARE(saved.count("<w:moveToRangeStart"), 1);
+        QCOMPARE(saved.count("w:name=\"mA\""), 2);
+        QVERIFY(!saved.contains("w:name=\"mB\""));
+        // And what is left is still a pair that reads back as one.
+        auto again = open(doc->toDocx());
+        QVERIFY(again);
+        QVector<Revision> left;
+        for (const Revision &r : revisionsIn(again->story())) left << r;
+        QCOMPARE(left.size(), 2);
+        QCOMPARE(resolveRevisions(*again, again->story(), {left[0]}, false), 2);
+        QCOMPARE(revisionCount(again->story()), 0);
+    }
+
+    void moveNamesThatAreHostileAreHandledAndNothingIsLeftInTheFile()
+    {
+        // A name that two halves have joins nothing: the half asked for is the only one resolved.
+        {
+            auto doc = open(makeDocx(para(run("a ") + moveFromOf("dup", 1, "x")) + para(run("b ") + moveFromOf("dup", 5, "y")) + para(moveToOf("dup", 9, "x"))));
+            QVERIFY(doc);
+            QVector<Revision> which;
+            for (const Revision &r : revisionsIn(doc->story()))
+                if (r.kind == Revision::MovedTo) which << r;
+            QCOMPARE(resolveRevisions(*doc, doc->story(), which, true), 1);
+            QCOMPARE(revisionCount(doc->story()), 2);
+        }
+        // A half with no partner is a change of its own, both ways, and leaves its range marks out of the file.
+        for (const bool accept : {true, false}) {
+            auto doc = open(makeDocx(para(moveFromOf("only", 1, "x") + run(" tail")) + para(moveToOf("lonely", 5, "z") + run(" end"))));
+            QVERIFY(doc);
+            QCOMPARE(acceptAllOrReject(*doc, accept), 2);
+            QCOMPARE(textWithDeletions(*doc), accept ? QStringLiteral(" tail\nz end") : QStringLiteral("x tail\n end"));
+            const QByteArray saved = documentXml(doc->toDocx());
+            for (const char *left : {"<w:moveFrom", "<w:moveTo", "RangeStart", "RangeEnd"}) QVERIFY2(!saved.contains(left), saved.constData());
+        }
+        // A move inside a move, and a name that is empty or has odd characters.
+        {
+            const QByteArray nested = "<w:moveFromRangeStart w:id=\"1\" w:name=\"a\"/><w:moveFrom" + rev(2) + "><w:moveFrom" + rev(3) + "><w:r><w:delText>in</w:delText></w:r></w:moveFrom></w:moveFrom><w:moveFromRangeEnd w:id=\"1\"/>";
+            auto doc = open(makeDocx(para(nested) + para(moveToOf("a", 5, "in")) + para(moveToOf("", 9, "q") + moveFromOf("&lt;&amp;&gt;", 13, "r"))));
+            QVERIFY(doc);
+            QVERIFY(acceptAll(*doc) > 0);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            QVERIFY(!documentXml(doc->toDocx()).contains("<w:moveFrom"));
+        }
+    }
+
+    void movesInAHeaderAndANoteArePairedAndAMoveAcrossStoriesIsNot()
+    {
+        StoryParts p;
+        p.body = para(moveFromOf("far", 1, "X"));
+        p.header = para(run("h ") + moveFromOf("h1", 10, "x")) + para(moveToOf("h1", 14, "x"));
+        p.footnote = para(run("n ") + moveFromOf("n1", 20, "y")) + para(moveToOf("n1", 24, "y"));
+        p.footer = para(moveToOf("far", 30, "X"));
+        const QByteArray file = makeDocxWithStories(p);
+        auto doc = open(file);
+        QVERIFY(doc);
+        QVector<StoryRevision> all = documentRevisions(*doc), toHalves;
+        QCOMPARE(all.size(), 6);
+        for (const StoryRevision &r : all)
+            if (r.revision.kind == Revision::MovedTo && r.container != QLatin1String("footer:1:0")) toHalves << r;
+        QCOMPARE(toHalves.size(), 2);   // (the header's and the note's)
+        QCOMPARE(resolveDocumentRevisions(*doc, toHalves, true), 4);
+        QCOMPARE(documentRevisionCount(*doc), 2);
+        const QByteArray saved = doc->toDocx();
+        for (const char *part : {"/word/header1.xml", "/word/footnotes.xml"})
+            for (const char *left : {"<w:moveFrom", "<w:moveTo", "RangeStart", "RangeEnd"}) QVERIFY2(!partOf(saved, part).contains(left), part);
+        QVERIFY(doc->undo());
+        QVERIFY(!doc->canUndo());
+        QCOMPARE(documentRevisionCount(*doc), 6);
+        // The halves of "far" are in two stories: each is a change of its own.
+        QVector<StoryRevision> far;
+        for (const StoryRevision &r : documentRevisions(*doc))
+            if (r.container == QLatin1String("footer:1:0")) far << r;
+        QCOMPARE(far.size(), 1);
+        QCOMPARE(resolveDocumentRevisions(*doc, far, true), 1);
+        QCOMPARE(documentRevisionCount(*doc), 5);
+    }
+
+    void acceptingThousandsOfMovesIsOnePassOverTheParagraphs()
+    {
+        const int moves = 1500;
+        QByteArray body;
+        for (int i = 0; i < moves; ++i) body += para(moveFromOf(("m" + QByteArray::number(i)).constData(), 10 + i * 4, "x"), "<w:jc w:val=\"left\"/>");
+        for (int i = moves - 1; i >= 0; --i) body += para(moveToOf(("m" + QByteArray::number(i)).constData(), 10 + i * 4 + 2000000, "x"));
+        auto doc = open(makeDocx(body));
+        QVERIFY(doc);
+        const int paragraphs = int(doc->story()->blockCount());
+        QCOMPARE(revisionCount(doc->story()), 2 * moves);
+        const qint64 before = revisionBlocksScannedForTest();
+        QCOMPARE(acceptAll(*doc), 2 * moves);
+        // The paragraphs looked through do not grow with the square of the moves: a few passes, not one for each move.
+        QVERIFY2(revisionBlocksScannedForTest() - before < qint64(paragraphs) * 12, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QCOMPARE(int(doc->story()->blockCount()), 2 * moves);   // (these paragraphs have no marks that moved: they stay)
     }
 
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()

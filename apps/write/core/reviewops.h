@@ -21,6 +21,7 @@ struct Revision {
     QDateTime date;               // none (invalid) when the file gives none
     int from = 0, to = 0;         // the places in the story: the two pieces that mark a change of the text are the first and last character of it; a paragraph mark is the character after its text
     int block = 0;                // the number of the paragraph it begins in
+    bool moved = false;           // a paragraph mark (MarkInserted, MarkDeleted) that a move inserted or took away (w:moveTo, w:moveFrom), which goes with its move
 
     bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted; }
     bool operator==(const Revision &o) const { return kind == o.kind && id == o.id && from == o.from && to == o.to; }
