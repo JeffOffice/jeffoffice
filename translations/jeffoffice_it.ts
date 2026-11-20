@@ -14847,7 +14847,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+476"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+485"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">La cartella di lavoro contiene più nomi di qualsiasi file reale.</translation>
     </message>
@@ -14892,7 +14892,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1366"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1365"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più intervalli uniti di qualsiasi file reale.</translation>
     </message>
@@ -15067,7 +15067,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Questo file è un file composito, ma non contiene alcuna cartella di lavoro.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1156"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1155"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15075,8 +15075,8 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Il file non contiene alcuna cartella di lavoro.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1132"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1805"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1134"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1804"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
     </message>
@@ -15087,7 +15087,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">La parte del foglio non è presente nel file.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1819"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1818"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Questa cartella di lavoro è in un formato di file più vecchio di quelli letti dal programma.</translation>
@@ -15099,12 +15099,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+2"/>
-        <location line="+607"/>
+        <location line="+606"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Un foglio presenta un livello di annidamento superiore a quello di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-597"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">Questo file è protetto da password e non è stato aperto con una password.</translation>
     </message>
@@ -15139,7 +15139,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>
     <message>
-        <location line="+508"/>
+        <location line="+507"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">I fogli della cartella di lavoro condividono dati, cosa che nessun file reale presenta.</translation>
     </message>
@@ -15210,12 +15210,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+3"/>
-        <location line="+63"/>
+        <location line="+64"/>
         <source>formatting inside a text</source>
         <translation type="unfinished">formattazione all&apos;interno di un testo</translation>
     </message>
     <message>
-        <location line="-65"/>
+        <location line="-66"/>
         <location line="+46"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-1"/>
         <source>charts</source>
@@ -15249,18 +15249,23 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     </message>
     <message>
         <location line="+1"/>
-        <location line="+11"/>
+        <location line="+12"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">tabelle pivot</translation>
     </message>
     <message>
-        <location line="-10"/>
+        <location line="-11"/>
         <source>notes</source>
         <translation type="unfinished">note</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>links to other workbooks (their formulas keep the values they had)</source>
         <translation type="unfinished">collegamenti ad altre cartelle di lavoro (le relative formule mantengono i valori che avevano)</translation>
     </message>
@@ -15300,7 +15305,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">commenti</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="-17"/>
+        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="-18"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>macros</source>
         <translation type="unfinished">macro</translation>
@@ -15352,18 +15357,18 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location filename="../libs/office/sheet/xlsformula.cpp" line="-123"/>
         <location line="+77"/>
         <location line="+27"/>
-        <location line="+595"/>
+        <location line="+603"/>
         <source>A formula&apos;s tokens do not make one value.</source>
         <translation type="unfinished">I token di una formula non producono un unico valore.</translation>
     </message>
     <message>
-        <location line="-355"/>
+        <location line="-363"/>
         <source>A formula is one that other cells share, and is read where they are.</source>
         <translation type="unfinished">Una formula è condivisa da altre celle e viene letta nella loro posizione.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formule non supportate dal formato (mantengono il valore calcolato)</translation>
     </message>
@@ -15377,7 +15382,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+623"/>
+        <location line="+670"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Il salvataggio è stato interrotto.</translation>
@@ -15420,7 +15425,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">%1 testi troncati a 32.767 caratteri</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlscompile.cpp" line="+266"/>
+        <location filename="../libs/office/sheet/xlscompile.cpp" line="+267"/>
         <location line="+15"/>
         <location line="+30"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-360"/>
@@ -15432,7 +15437,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+36"/>
         <location line="+178"/>
         <location line="+14"/>
-        <location line="+19"/>
+        <location line="+22"/>
         <location line="+31"/>
         <location line="+44"/>
         <location line="+28"/>
@@ -15442,54 +15447,56 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <location line="+11"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+255"/>
-        <location line="+74"/>
+        <location line="+308"/>
+        <location line="+84"/>
         <source>The formula has something the old format can&apos;t write.</source>
         <translation type="unfinished">La formula contiene un elemento che il formato precedente non può scrivere.</translation>
     </message>
     <message>
-        <location line="-657"/>
+        <location line="-723"/>
         <location line="+98"/>
         <location line="+55"/>
-        <location line="+548"/>
+        <location line="+614"/>
         <source>The formula is nested more deeply than the old format allows.</source>
         <translation type="unfinished">La formula ha più livelli di annidamento di quanti ne consenta il formato precedente.</translation>
     </message>
     <message>
-        <location line="-521"/>
-        <location line="+283"/>
+        <location line="-585"/>
+        <location line="+323"/>
+        <location line="+2"/>
+        <location line="+135"/>
         <source>The formula refers to another workbook, which the old format cannot do here.</source>
         <translation type="unfinished">La formula fa riferimento a un&apos;altra cartella di lavoro, cosa non possibile qui nel formato precedente.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-438"/>
         <source>The formula has a text of more than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished">La formula contiene un testo di oltre 255 caratteri, non supportato dal formato precedente.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+257"/>
+        <location line="+307"/>
         <source>The formula has a row past the old format&apos;s last one.</source>
         <translation type="unfinished">La formula contiene una riga oltre l&apos;ultima del formato precedente.</translation>
     </message>
     <message>
-        <location line="-30"/>
+        <location line="-39"/>
         <source>The formula names a sheet that is not in the workbook.</source>
         <translation type="unfinished">La formula fa riferimento a un foglio non presente nella cartella di lavoro.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+68"/>
         <source>The formula has a column past the old format&apos;s last one.</source>
         <translation type="unfinished">La formula contiene una colonna oltre l&apos;ultima del formato precedente.</translation>
     </message>
     <message>
-        <location line="+24"/>
-        <location line="+19"/>
+        <location line="+25"/>
+        <location line="+20"/>
         <source>The formula has a cell past the old format&apos;s last row or column.</source>
         <translation type="unfinished">La formula contiene una cella oltre l&apos;ultima riga o colonna del formato precedente.</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+32"/>
         <source>The formula names a table&apos;s column, which the old format can&apos;t hold.</source>
         <translation type="unfinished">La formula fa riferimento a una colonna di tabella, non supportata dal formato precedente.</translation>
     </message>
@@ -15504,27 +15511,38 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">La formula usa un nome la cui definizione non è supportata dal formato precedente.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
+        <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>The formula uses the function %1, which the old format doesn&apos;t have.</source>
         <translation type="unfinished">La formula usa la funzione %1, non presente nel formato precedente.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
+        <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The formula calls a function with more than 30 arguments, which the old format can&apos;t hold.</source>
         <translation type="unfinished">La formula chiama una funzione con più di 30 argomenti, non supportata dal formato precedente.</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+82"/>
+        <location line="+67"/>
         <source>The formula names more sheets than the old format can.</source>
         <translation type="unfinished">La formula fa riferimento a più fogli di quanti ne supporti il formato precedente.</translation>
     </message>
     <message>
         <location line="+71"/>
-        <source>The formula names more functions than the old format can.</source>
-        <translation type="unfinished">La formula fa riferimento a più funzioni di quante ne supporti il formato precedente.</translation>
+        <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-904"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-951"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">La cartella di lavoro è più grande di quanto supportato dal formato precedente.</translation>
     </message>
@@ -15534,7 +15552,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Impossibile proteggere la cartella di lavoro con la password.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+119"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">colori oltre i 56 supportati dal formato (ciascuno diventa il più vicino tra i primi 56)</translation>
     </message>
@@ -15554,12 +15572,37 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">formati di cella oltre i %1 supportati dal formato (le celle hanno l&apos;aspetto predefinito)</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+34"/>
+        <source>The formula reads another workbook that has no link with an address in the workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A link&apos;s address is longer than 1,000 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>%1 names the format cannot hold</source>
         <translation type="unfinished">%1 nomi non supportati dal formato</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+73"/>
         <source>the name %1 (%2)</source>
         <translation type="unfinished">il nome %1 (%2)</translation>
     </message>
@@ -70083,7 +70126,7 @@ Impossibile applicare la password al file.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1361"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -70999,9 +71042,9 @@ Impossibile applicare la password al file.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+970"/>
-        <location line="+56"/>
-        <location line="+13"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
+        <location line="+77"/>
+        <location line="+14"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
         <location line="+1653"/>
         <location line="+61"/>
@@ -71307,7 +71350,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile scrivere il file: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-105"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">La cartella di lavoro non è stata letta da un file di un altro formato.</translation>
     </message>
@@ -71317,12 +71360,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">oggetti incorporati creati in un altro tipo di file (conservati come immagini)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+91"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Impossibile leggere un foglio della cartella di lavoro per salvarlo.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">I grafici di un foglio sono stati modificati durante il salvataggio della cartella di lavoro.</translation>
     </message>
@@ -71475,7 +71518,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+569"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Assegna un nome allo stile tabella.</translation>
     </message>

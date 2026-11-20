@@ -14709,7 +14709,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <name>Sheet</name>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formula yang tidak dapat disimpan dalam format ini (nilainya tetap seperti nilai yang dihasilkan)</translation>
     </message>
@@ -14723,7 +14723,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+623"/>
+        <location line="+670"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Penyimpanan dihentikan.</translation>
@@ -14822,14 +14822,14 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+63"/>
+        <location line="+64"/>
         <source>formatting inside a text</source>
         <translation type="unfinished">pemformatan di dalam teks</translation>
     </message>
     <message>
-        <location line="-65"/>
+        <location line="-66"/>
         <location line="+46"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1188"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1196"/>
         <source>charts</source>
         <translation type="unfinished">bagan</translation>
     </message>
@@ -14861,13 +14861,13 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+11"/>
+        <location line="+12"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">tabel pivot</translation>
     </message>
     <message>
-        <location line="-10"/>
+        <location line="-11"/>
         <source>notes</source>
         <translation type="unfinished">catatan</translation>
     </message>
@@ -14876,6 +14876,11 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location filename="../libs/office/sheet/xls.cpp" line="+2"/>
         <source>macros</source>
         <translation type="unfinished">makro</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15072,7 +15077,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-717"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-716"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">Buku kerja memiliki lebih banyak nama daripada berkas nyata mana pun.</translation>
     </message>
@@ -15117,7 +15122,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1366"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1365"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Lembar memiliki lebih banyak rentang sel gabungan daripada file nyata mana pun.</translation>
     </message>
@@ -15292,7 +15297,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">File ini adalah file majemuk, tetapi tidak memiliki buku kerja di dalamnya.</translation>
     </message>
     <message>
-        <location line="+1132"/>
+        <location line="+1134"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+666"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Lembar tersebut tidak ada.</translation>
@@ -15304,7 +15309,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Bagian lembar tersebut tidak ada dalam file.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1822"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1821"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15324,12 +15329,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+607"/>
+        <location line="+606"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Sebuah lembar bersarang lebih dalam daripada file nyata mana pun.</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-597"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">File ini dilindungi kata sandi, dan belum dibuka dengan kata sandi.</translation>
     </message>
@@ -15364,7 +15369,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Buku kerja tidak memiliki lembar.</translation>
     </message>
     <message>
-        <location line="+508"/>
+        <location line="+507"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Lembar-lembar dalam buku kerja berbagi data, yang tidak dimiliki file nyata mana pun.</translation>
     </message>
@@ -15427,7 +15432,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Sebuah rumus memiliki token yang tidak dapat dibaca program ini.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlscompile.cpp" line="+266"/>
+        <location filename="../libs/office/sheet/xlscompile.cpp" line="+267"/>
         <location line="+15"/>
         <location line="+30"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-360"/>
@@ -15439,7 +15444,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+36"/>
         <location line="+178"/>
         <location line="+14"/>
-        <location line="+19"/>
+        <location line="+22"/>
         <location line="+31"/>
         <location line="+44"/>
         <location line="+28"/>
@@ -15449,54 +15454,56 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+255"/>
-        <location line="+74"/>
+        <location line="+308"/>
+        <location line="+84"/>
         <source>The formula has something the old format can&apos;t write.</source>
         <translation type="unfinished">Rumus berisi sesuatu yang tidak dapat ditulis format lama.</translation>
     </message>
     <message>
-        <location line="-657"/>
+        <location line="-723"/>
         <location line="+98"/>
         <location line="+55"/>
-        <location line="+548"/>
+        <location line="+614"/>
         <source>The formula is nested more deeply than the old format allows.</source>
         <translation type="unfinished">Rumus bersarang lebih dalam daripada yang diizinkan format lama.</translation>
     </message>
     <message>
-        <location line="-521"/>
-        <location line="+283"/>
+        <location line="-585"/>
+        <location line="+323"/>
+        <location line="+2"/>
+        <location line="+135"/>
         <source>The formula refers to another workbook, which the old format cannot do here.</source>
         <translation type="unfinished">Rumus mengacu ke buku kerja lain, yang tidak dapat dilakukan format lama di sini.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-438"/>
         <source>The formula has a text of more than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Rumus berisi teks lebih dari 255 karakter, yang tidak dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+257"/>
+        <location line="+307"/>
         <source>The formula has a row past the old format&apos;s last one.</source>
         <translation type="unfinished">Rumus memiliki baris melebihi baris terakhir format lama.</translation>
     </message>
     <message>
-        <location line="-30"/>
+        <location line="-39"/>
         <source>The formula names a sheet that is not in the workbook.</source>
         <translation type="unfinished">Rumus menyebut lembar yang tidak ada dalam buku kerja.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+68"/>
         <source>The formula has a column past the old format&apos;s last one.</source>
         <translation type="unfinished">Rumus memiliki kolom melebihi kolom terakhir pada format lama.</translation>
     </message>
     <message>
-        <location line="+24"/>
-        <location line="+19"/>
+        <location line="+25"/>
+        <location line="+20"/>
         <source>The formula has a cell past the old format&apos;s last row or column.</source>
         <translation type="unfinished">Rumus memiliki sel melebihi baris atau kolom terakhir pada format lama.</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+32"/>
         <source>The formula names a table&apos;s column, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Rumus merujuk ke kolom tabel, yang tidak dapat ditampung oleh format lama.</translation>
     </message>
@@ -15511,40 +15518,51 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Rumus menggunakan nama yang definisinya tidak dapat ditampung oleh format lama.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
+        <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>The formula uses the function %1, which the old format doesn&apos;t have.</source>
         <translation type="unfinished">Rumus menggunakan fungsi %1, yang tidak ada di format lama.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
+        <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The formula calls a function with more than 30 arguments, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Rumus memanggil fungsi dengan lebih dari 30 argumen, yang tidak dapat ditampung oleh format lama.</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+82"/>
+        <location line="+67"/>
         <source>The formula names more sheets than the old format can.</source>
         <translation type="unfinished">Rumus merujuk ke lebih banyak lembar daripada yang dapat ditampung format lama.</translation>
     </message>
     <message>
         <location line="+71"/>
-        <source>The formula names more functions than the old format can.</source>
-        <translation type="unfinished">Rumus merujuk ke lebih banyak fungsi daripada yang dapat ditampung format lama.</translation>
+        <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/xlsformula.cpp" line="-123"/>
         <location line="+77"/>
         <location line="+27"/>
-        <location line="+595"/>
+        <location line="+603"/>
         <source>A formula&apos;s tokens do not make one value.</source>
         <translation type="unfinished">Token rumus tidak menghasilkan satu nilai.</translation>
     </message>
     <message>
-        <location line="-355"/>
+        <location line="-363"/>
         <source>A formula is one that other cells share, and is read where they are.</source>
         <translation type="unfinished">Rumus ini digunakan bersama oleh sel lain dan dibaca di tempat sel-sel tersebut berada.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-904"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-951"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Buku kerja lebih besar daripada yang dapat ditampung format lama.</translation>
     </message>
@@ -15554,7 +15572,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Buku kerja tidak dapat dilindungi dengan sandi tersebut.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+119"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">warna melebihi 56 yang ditampung format (masing-masing diganti dengan warna terdekat dari 56 yang pertama)</translation>
     </message>
@@ -15574,12 +15592,37 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">format sel melebihi %1 yang ditampung format (sel menggunakan tampilan biasa)</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+34"/>
+        <source>The formula reads another workbook that has no link with an address in the workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A link&apos;s address is longer than 1,000 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>%1 names the format cannot hold</source>
         <translation type="unfinished">%1 nama yang tidak dapat ditampung format</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+73"/>
         <source>the name %1 (%2)</source>
         <translation type="unfinished">nama %1 (%2)</translation>
     </message>
@@ -70038,7 +70081,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1361"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -70984,9 +71027,9 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+970"/>
-        <location line="+56"/>
-        <location line="+13"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
+        <location line="+77"/>
+        <location line="+14"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
         <location line="+1653"/>
         <location line="+61"/>
@@ -71022,7 +71065,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Lembar tidak dapat disimpan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-105"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Buku kerja ini bukan yang dibaca dari file dengan bentuk lain.</translation>
     </message>
@@ -71032,12 +71075,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+91"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Sebuah lembar pada buku kerja tidak dapat dibaca untuk disimpan.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">Bagan lembar berubah saat buku kerja sedang disimpan.</translation>
     </message>
@@ -71423,7 +71466,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+569"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Beri nama gaya tabel.</translation>
     </message>

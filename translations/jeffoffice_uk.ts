@@ -14944,7 +14944,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 формул, які формат не може зберегти (вони зберігають значення, яке мали)</translation>
     </message>
@@ -14958,7 +14958,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+623"/>
+        <location line="+670"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Збереження було зупинено.</translation>
@@ -15068,18 +15068,18 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+1"/>
         <location line="+46"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1188"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1196"/>
         <source>charts</source>
         <translation type="unfinished">діаграми</translation>
     </message>
     <message>
         <location line="-44"/>
-        <location line="+63"/>
+        <location line="+64"/>
         <source>formatting inside a text</source>
         <translation type="unfinished">форматування всередині тексту</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>formulas that fill the cells beside them (each is saved with the values it gave)</source>
         <translation type="unfinished">формули, що заповнюють сусідні комірки (кожна зберігається зі значеннями, які дала)</translation>
     </message>
@@ -15096,13 +15096,13 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+11"/>
+        <location line="+12"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">зведені таблиці</translation>
     </message>
     <message>
-        <location line="-10"/>
+        <location line="-11"/>
         <source>notes</source>
         <translation type="unfinished">примітки</translation>
     </message>
@@ -15111,6 +15111,11 @@ Open it in your email program, add recipients and send.</source>
         <location filename="../libs/office/sheet/xls.cpp" line="+2"/>
         <source>macros</source>
         <translation type="unfinished">макроси</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15307,7 +15312,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-717"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-716"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">У книзі більше імен, ніж у будь-якому справжньому файлі.</translation>
     </message>
@@ -15352,7 +15357,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1366"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1365"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">На аркуші більше об&apos;єднаних діапазонів, ніж у будь-якому справжньому файлі.</translation>
     </message>
@@ -15527,7 +15532,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Цей файл є складеним файлом, але книги в ньому немає.</translation>
     </message>
     <message>
-        <location line="+1132"/>
+        <location line="+1134"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+666"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Такого аркуша немає.</translation>
@@ -15539,7 +15544,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Частини аркуша немає у файлі.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1822"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1821"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15559,12 +15564,12 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+607"/>
+        <location line="+606"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Аркуш вкладено глибше, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-597"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">Цей файл захищено паролем, а відкрито його без пароля.</translation>
     </message>
@@ -15599,7 +15604,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">У книзі немає аркушів.</translation>
     </message>
     <message>
-        <location line="+508"/>
+        <location line="+507"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Аркуші книги спільно використовують дані, чого не буває в справжніх файлах.</translation>
     </message>
@@ -15662,7 +15667,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Формула містить елемент, який ця програма не читає.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlscompile.cpp" line="+266"/>
+        <location filename="../libs/office/sheet/xlscompile.cpp" line="+267"/>
         <location line="+15"/>
         <location line="+30"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-360"/>
@@ -15674,7 +15679,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+36"/>
         <location line="+178"/>
         <location line="+14"/>
-        <location line="+19"/>
+        <location line="+22"/>
         <location line="+31"/>
         <location line="+44"/>
         <location line="+28"/>
@@ -15684,54 +15689,56 @@ Open it in your email program, add recipients and send.</source>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+255"/>
-        <location line="+74"/>
+        <location line="+308"/>
+        <location line="+84"/>
         <source>The formula has something the old format can&apos;t write.</source>
         <translation type="unfinished">Формула містить елемент, який старий формат не може записати.</translation>
     </message>
     <message>
-        <location line="-657"/>
+        <location line="-723"/>
         <location line="+98"/>
         <location line="+55"/>
-        <location line="+548"/>
+        <location line="+614"/>
         <source>The formula is nested more deeply than the old format allows.</source>
         <translation type="unfinished">Формула вкладена глибше, ніж дозволяє старий формат.</translation>
     </message>
     <message>
-        <location line="-521"/>
-        <location line="+283"/>
+        <location line="-585"/>
+        <location line="+323"/>
+        <location line="+2"/>
+        <location line="+135"/>
         <source>The formula refers to another workbook, which the old format cannot do here.</source>
         <translation type="unfinished">Формула посилається на іншу книгу, що в цьому місці неможливо в старому форматі.</translation>
     </message>
     <message>
-        <location line="-262"/>
+        <location line="-438"/>
         <source>The formula has a text of more than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Формула містить текст довший за 255 символів, який старий формат не може зберегти.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+257"/>
+        <location line="+307"/>
         <source>The formula has a row past the old format&apos;s last one.</source>
         <translation type="unfinished">Формула містить рядок за межами останнього рядка старого формату.</translation>
     </message>
     <message>
-        <location line="-30"/>
+        <location line="-39"/>
         <source>The formula names a sheet that is not in the workbook.</source>
         <translation type="unfinished">Формула посилається на аркуш, якого немає в книзі.</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+68"/>
         <source>The formula has a column past the old format&apos;s last one.</source>
         <translation type="unfinished">Формула містить стовпець за межами останнього стовпця старого формату.</translation>
     </message>
     <message>
-        <location line="+24"/>
-        <location line="+19"/>
+        <location line="+25"/>
+        <location line="+20"/>
         <source>The formula has a cell past the old format&apos;s last row or column.</source>
         <translation type="unfinished">Формула містить комірку за межами останнього рядка або стовпця старого формату.</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+32"/>
         <source>The formula names a table&apos;s column, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Формула посилається на стовпець таблиці, який старий формат не може зберегти.</translation>
     </message>
@@ -15746,40 +15753,51 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Формула використовує ім&apos;я, визначення якого старий формат не може зберегти.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
+        <source>The formula calls a function whose name is longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>The formula uses the function %1, which the old format doesn&apos;t have.</source>
         <translation type="unfinished">Формула використовує функцію %1, якої немає в старому форматі.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
+        <source>The formula calls a function by its name with more than 29 arguments, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>The formula calls a function with more than 30 arguments, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Формула викликає функцію з більш ніж 30 аргументами, що старий формат не може зберегти.</translation>
     </message>
     <message>
-        <location line="+141"/>
+        <location line="+82"/>
+        <location line="+67"/>
         <source>The formula names more sheets than the old format can.</source>
         <translation type="unfinished">Формула посилається на більше аркушів, ніж може старий формат.</translation>
     </message>
     <message>
         <location line="+71"/>
-        <source>The formula names more functions than the old format can.</source>
-        <translation type="unfinished">Формула посилається на більше функцій, ніж може старий формат.</translation>
+        <source>The workbook calls more than 255 different functions by their names, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/xlsformula.cpp" line="-123"/>
         <location line="+77"/>
         <location line="+27"/>
-        <location line="+595"/>
+        <location line="+603"/>
         <source>A formula&apos;s tokens do not make one value.</source>
         <translation type="unfinished">Елементи формули не утворюють одного значення.</translation>
     </message>
     <message>
-        <location line="-355"/>
+        <location line="-363"/>
         <source>A formula is one that other cells share, and is read where they are.</source>
         <translation type="unfinished">Формула є спільною для інших комірок і обчислюється там, де вони розміщені.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-904"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-951"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Книга більша, ніж може зберегти старий формат.</translation>
     </message>
@@ -15789,7 +15807,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Книгу не вдалося захистити паролем.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+119"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">Кольорів понад 56, які підтримує формат (кожен замінено найближчим із перших 56)</translation>
     </message>
@@ -15809,12 +15827,37 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Форматів комірок понад %1, які підтримує формат (комірки матимуть звичайний вигляд)</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+34"/>
+        <source>The formula reads another workbook that has no link with an address in the workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook has more than 250 links to other workbooks, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A link&apos;s address is longer than 1,000 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>%1 names the format cannot hold</source>
         <translation type="unfinished">Формат не може зберегти імена: %1</translation>
     </message>
     <message>
-        <location line="+66"/>
+        <location line="+73"/>
         <source>the name %1 (%2)</source>
         <translation type="unfinished">ім&apos;я %1 (%2)</translation>
     </message>
@@ -70128,7 +70171,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1361"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -71086,9 +71129,9 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+970"/>
-        <location line="+56"/>
-        <location line="+13"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
+        <location line="+77"/>
+        <location line="+14"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
         <location line="+1653"/>
         <location line="+61"/>
@@ -71131,7 +71174,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Частина файла, що містить коментарі, має форму, яку ця програма не змінює.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-105"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Книга не була прочитана з файла іншого формату.</translation>
     </message>
@@ -71141,12 +71184,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">вбудовані об&apos;єкти, створені в іншому типі файлу (збережено як малюнки)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+91"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Аркуш книги не вдалося прочитати для збереження.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">Діаграми аркуша змінилися під час збереження книги.</translation>
     </message>
@@ -71527,7 +71570,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+569"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Дайте назву стилю таблиці.</translation>
     </message>
