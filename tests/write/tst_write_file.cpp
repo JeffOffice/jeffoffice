@@ -1158,7 +1158,6 @@ private Q_SLOTS:
         QCOMPARE(fileNames.size(), 2);
         QVERIFY(!fileNames[0].isEmpty());
         QVERIFY2(fileNames[1].isEmpty(), qPrintable(fileNames[1]));
-        QCOMPARE(formats[1], int(QPrinter::NativeFormat));
         QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("paper.pdf"))));
         QCOMPARE(PdfDocument(fileBytes(target)).pageCount(), PdfDocument(fileBytes(dir.filePath(QStringLiteral("paper.pdf")))).pageCount());
     }

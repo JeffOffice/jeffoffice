@@ -869,7 +869,7 @@ bool WriteWindow::shrinkByOnePage()
         return false;
     }
     if (pages > write::kMostShrinkPages) {
-        notice(title, tr("The document is longer than %n page(s), which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.", nullptr, write::kMostShrinkPages), true);
+        notice(title, tr("The document is longer than %1 pages, which is too long to shrink by one page without the window stopping. Make the text of a part of it smaller by hand.").arg(write::kMostShrinkPages), true);
         return false;
     }
     const write::ShrinkLook look = write::shrinkLook(*m_doc);
@@ -881,7 +881,7 @@ bool WriteWindow::shrinkByOnePage()
         notice(title, tr("A page break or a section break keeps the pages apart, so smaller text can't bring them together. Take the break out first."), true);
         return false;
     }
-    const QString tooSmall = tr("The text can't be made smaller than %n point(s) to take a page off, so nothing was changed.", nullptr, int(write::kShrinkLeastSize));
+    const QString tooSmall = tr("The text can't be made smaller than %1 points to take a page off, so nothing was changed.").arg(int(write::kShrinkLeastSize));
     if (look.steps <= 0) {
         notice(title, tooSmall, true);
         return false;

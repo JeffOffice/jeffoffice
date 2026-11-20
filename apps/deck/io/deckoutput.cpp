@@ -592,7 +592,7 @@ void paintCommentsPage(const Sheet &s, int slide, int part, const CommentsLayout
         i = j;
     }
     if (part == layout.pages.size() - 1 && layout.notShown > 0) {
-        const QString more = QCoreApplication::translate("DeckOutput", "%n more comment(s) not shown.", nullptr, layout.notShown);
+        const QString more = QCoreApplication::translate("DeckOutput", "Comments not shown: %1.").arg(layout.notShown);
         tagged(QStringLiteral("P"), [&] { body.draw(s.p, kMargin, kMargin + h - body.lineHeight() + body.ascent(), more, kRule); });
     }
 }

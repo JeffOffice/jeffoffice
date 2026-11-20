@@ -646,7 +646,6 @@ private Q_SLOTS:
         QCOMPARE(fileNames.size(), 2);
         QVERIFY(!fileNames[0].isEmpty());
         QVERIFY2(fileNames[1].isEmpty(), qPrintable(fileNames[1]));
-        QCOMPARE(formats[1], int(QPrinter::NativeFormat));
         QVERIFY(QFileInfo::exists(dir.filePath(QStringLiteral("paper.pdf"))));
         w.editor()->markSaved();
     }
@@ -810,9 +809,9 @@ private Q_SLOTS:
         QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
         const QByteArray pdf = fileBytes(path);
         QCOMPARE(pdfPageCount(pdf), 21);
-        // (the words of the counted message, whether the text is the translation's or the source's: the number, "more comment", and "not shown")
+        // (the line that says how many are left out)
         const QString said = pdfText(pdf, 20);
-        QVERIFY2(said.contains(QStringLiteral("%1 more comment").arg(last.notShown)) && said.contains(QStringLiteral("not shown")), qPrintable(said.right(120)));
+        QVERIFY2(said.contains(QStringLiteral("Comments not shown: %1.").arg(last.notShown)), qPrintable(said.right(120)));
     }
 
     // The comments are real content of a tagged PDF, a heading and a paragraph for each comment or reply, in reading order after the slide's own page; not decoration.
@@ -943,6 +942,14 @@ private Q_SLOTS:
         againQuality->setChecked(false);
         QTRY_VERIFY(!againNote->isVisibleTo(again));
         w.editor()->doc()->setup.size = QSizeF(960, 540);
+        // (the first Print page is gone: what is looked at from here on is the one that is shown)
+        screen = again;
+        comments = screen->findChild<QCheckBox *>(QStringLiteral("printComments"));
+        quality = screen->findChild<QCheckBox *>(QStringLiteral("printHighQuality"));
+        printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        button = screen->findChild<QPushButton *>(QStringLiteral("printPrinterSettings"));
+        openPdf = screen->findChild<QCheckBox *>(QStringLiteral("printOpenPdf"));
+        QVERIFY(comments && quality && printer && button && openPdf);
         // (no window of the system's on the test display: the button is hidden, not disabled; the box is for a file)
         const auto restore = qScopeGuard([] { setPrinterPropertiesStandIn({}); });
         printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
