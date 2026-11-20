@@ -939,12 +939,12 @@ QByteArray Writer::masterPages()
             if (rid.isEmpty()) return;
             masters += "<style:" + QByteArray(tag) + ">" + headerBody(rid, header, 1) + "</style:" + tag + ">";
         };
-        // (the standard puts a left page's header after the header of the other pages, and a footer after neither: when only the left one is set, the other is there and empty)
-        if (m_evenOdd && s.headerRef[0].isEmpty() && !s.headerRef[1].isEmpty()) masters += "<style:header/>";
+        // (the standard puts a left page's header after the header of the other pages, and a footer after neither: when only the left one is set, the other is there and empty, marked jo:order-only so that the reader drops it)
+        if (m_evenOdd && s.headerRef[0].isEmpty() && !s.headerRef[1].isEmpty()) masters += "<style:header jo:order-only=\"true\"/>";
         part("header", s.headerRef[0], true);
         if (m_evenOdd) part("header-left", s.headerRef[1].isEmpty() ? s.headerRef[0] : s.headerRef[1], true);
         if (s.titlePg) part("header-first", s.headerRef[2], true);
-        if (m_evenOdd && s.footerRef[0].isEmpty() && !s.footerRef[1].isEmpty()) masters += "<style:footer/>";
+        if (m_evenOdd && s.footerRef[0].isEmpty() && !s.footerRef[1].isEmpty()) masters += "<style:footer jo:order-only=\"true\"/>";
         part("footer", s.footerRef[0], false);
         if (m_evenOdd) part("footer-left", s.footerRef[1].isEmpty() ? s.footerRef[0] : s.footerRef[1], false);
         if (s.titlePg) part("footer-first", s.footerRef[2], false);

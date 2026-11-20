@@ -428,6 +428,90 @@ private Q_SLOTS:
         QVERIFY(office::odt::looksLikeOdt(again.readAll()));
     }
 
+    // A document with a header for the left pages alone: the .odt writes an empty header of the other pages before it (the standard's order), and opening that file again must not make it a header of the
+    // document: the header set and the page count are what they were. (Through the window: open the .docx, Save As .odt, open the .odt.)
+    static QByteArray leftHeaderOnlyDocx()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        office::PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), "<w:document " + ns + "><w:body><w:p><w:r><w:t>body words</w:t></w:r></w:p><w:sectPr><w:headerReference w:type=\"even\" r:id=\"rIdH1\"/>"
+                  "<w:footerReference w:type=\"even\" r:id=\"rIdF1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:body></w:document>",
+                  type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), "<w:settings " + ns + "><w:evenAndOddHeaders/></w:settings>", type + QStringLiteral("settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), "<w:hdr " + ns + "><w:p><w:r><w:t>left head</w:t></w:r></w:p></w:hdr>", type + QStringLiteral("header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH1"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        w.addPart(QStringLiteral("/word/footer1.xml"), "<w:ftr " + ns + "><w:p><w:r><w:t>left foot</w:t></w:r></w:p></w:ftr>", type + QStringLiteral("footer+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF1"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+        return w.finish();
+    }
+
+    // The headers and footers a document has, from its own .docx form: each reference ("header:even"), and each part with its words ("part:header=left head": the numbers in part names are not kept), sorted.
+    static QStringList headerSetOf(WriteWindow &win)
+    {
+        office::Package p;
+        if (!p.read(win.document()->toDocx())) return {QStringLiteral("unreadable")};
+        QStringList set;
+        static const QRegularExpression ref(QStringLiteral("<w:(header|footer)Reference [^>]*w:type=\"(\\w+)\""));
+        const QString body = QString::fromUtf8(p.part(QStringLiteral("/word/document.xml")));
+        for (auto it = ref.globalMatch(body); it.hasNext();) {
+            const auto m = it.next();
+            set << m.captured(1) + QLatin1Char(':') + m.captured(2);
+        }
+        static const QRegularExpression text(QStringLiteral("<w:t[^>]*>([^<]*)</w:t>"));
+        for (const QString &name : p.partNames()) {
+            if (!(name.startsWith(QLatin1String("/word/header")) || name.startsWith(QLatin1String("/word/footer"))) || name.contains(QLatin1String("_rels"))) continue;
+            QString words;
+            for (auto it = text.globalMatch(QString::fromUtf8(p.part(name))); it.hasNext();) words += it.next().captured(1);
+            set << QStringLiteral("part:") + (name.startsWith(QLatin1String("/word/header")) ? QStringLiteral("header") : QStringLiteral("footer")) + QLatin1Char('=') + words;
+        }
+        set.sort();
+        return set;
+    }
+
+    void aLeftPageHeaderAloneIsStillTheOnlyHeaderAfterAnOdtSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString docx = writeFile(dir.filePath(QStringLiteral("left.docx")), leftHeaderOnlyDocx());
+        WriteWindow a;
+        QVERIFY(a.openFile(docx));
+        const QStringList before = headerSetOf(a);
+        QVERIFY2(before.contains(QStringLiteral("header:even")) && before.contains(QStringLiteral("footer:even")) && !before.contains(QStringLiteral("header:default")), qPrintable(before.join(QLatin1Char(' '))));
+        const int pages = a.document()->pager().pageCount();
+        a.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("left.odt")); });
+        QVERIFY(a.saveAs());
+        QByteArray odt;
+        {
+            QFile f(a.filePath());
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            odt = f.readAll();
+        }
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(odt, parts));
+        // (the empty header is in the file, for the standard's order, with the mark that says it is only that)
+        QVERIFY2(parts.value(QStringLiteral("styles.xml")).contains("<style:header jo:order-only=\"true\"/>"), "the file has no marked empty header");
+        WriteWindow b;
+        QVERIFY(b.openFile(a.filePath()));
+        QCOMPARE(headerSetOf(b), before);
+        QCOMPARE(b.document()->pager().pageCount(), pages);
+        // A header that is empty in a file of another maker is a header: with no mark of ours it stays.
+        QByteArray styles = parts.value(QStringLiteral("styles.xml"));
+        styles.replace("<style:header jo:order-only=\"true\"/>", "<style:header/>");
+        parts[QStringLiteral("styles.xml")] = styles;
+        jp::ZipWriter z;
+        z.add(QStringLiteral("mimetype"), parts.value(QStringLiteral("mimetype")), false);
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            if (it.key() != QLatin1String("mimetype")) z.add(it.key(), it.value(), true);
+        const QString foreign = writeFile(dir.filePath(QStringLiteral("foreign.odt")), z.finish());
+        WriteWindow c;
+        QVERIFY(c.openFile(foreign));
+        QVERIFY2(headerSetOf(c).contains(QStringLiteral("header:default")), qPrintable(headerSetOf(c).join(QLatin1Char(' '))));
+    }
+
     // Book fold is kept in an .odt as a setting of its own (the standard has none for it), comes back, and goes on through another save.
     void bookFoldSurvivesSavingAsOdtAndOpeningAgain()
     {

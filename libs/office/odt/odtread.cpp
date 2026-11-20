@@ -383,8 +383,10 @@ void Reader::collectMasterPage(const Odf &o, int node)
     m.name = o.at(node, "style:name");
     m.layout = o.at(node, "style:page-layout-name");
     m.next = o.at(node, "style:next-style-name");
+    const int jo = t.namespaceId("urn:jeffoffice:odf-extension");
     for (int c = t.firstChild(node); c >= 0; c = t.next(c)) {
-        const bool off = o.at(c, "style:display") == QLatin1String("false");
+        // (an empty header or footer that ours wrote only to keep the standard's order is not a header of the document)
+        const bool off = o.at(c, "style:display") == QLatin1String("false") || (jo >= 0 && t.attr(c, "order-only", jo) == QLatin1String("true"));
         if (o.is(c, "style:header")) m.header = off ? -1 : c;
         else if (o.is(c, "style:header-left")) m.headerLeft = off ? -1 : c;
         else if (o.is(c, "style:header-first")) m.headerFirst = off ? -1 : c;
