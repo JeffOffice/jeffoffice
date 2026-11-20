@@ -335,11 +335,11 @@
         },
         {
          "status": "partly",
-         "text": "97a82a448492dbcf962c520d1cf5ad6e7aa0826a1e1f10896de4c17e2f16ec1d"
+         "text": "2a1a0c0a1cec79b20ad25dd37972972002ae314cb0bbfefedfd159b72654d12a"
         },
         {
          "status": "partly",
-         "text": "09f4463054751fcc2b053afac4e1bb01151f7d7d1e12310d47f88b3d8d310d22"
+         "text": "e78afe7a2babe8a8d9a86dc48a9e79c30b97ac1ce22593c21c5bc5452d90ef3e"
         },
         {
          "hide_soon": true,
@@ -597,8 +597,9 @@
          "text": "a96884d5e4cd243b4f143d9dfe088f0d37d3913647d8ad507b53bd7b7bca6b73"
         },
         {
-         "status": "partly",
-         "text": "5028909fb2ca7f339d58aad8226175251a098f260f5f2d83766ff770318c05b2"
+         "hide_soon": true,
+         "status": "done",
+         "text": "96a8a32a07aece165ce7a7fc1fb1acbb132f0a117060f593dfe120c6785ec375"
         }
        ]
       },
@@ -918,7 +919,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "ff0d917731497100a3e02316a4906ceff7d61c7d8acbfaab3e1a74ce61358748"
+         "text": "8a3d8bdf52ebb0ed44f6d502e4d32c393cd751b712c8331aeeb50570e08a705e"
         }
        ]
       }
@@ -1148,7 +1149,7 @@
         },
         {
          "status": "partly",
-         "text": "dc90f4fe881fe9b53566d23cdcab01934d9c482e39ef601be7f723844263a382"
+         "text": "f031eac7c7d8e89f01ef1939b726b04ea3436c092fa45efc076ea6bd663ef431"
         },
         {
          "status": "partly",
@@ -1294,7 +1295,7 @@
         },
         {
          "status": "partly",
-         "text": "c82115d9f4bbc63f37f2466b2ea116a853a4f549cc55c0430f1816156425f001"
+         "text": "b9c5820ee1bebe235b2f89913316707481e8267453d487e84d7032fd3ef05d16"
         },
         {
          "status": "partly",
@@ -2024,11 +2025,12 @@
         },
         {
          "status": "partly",
-         "text": "ac227c5d49b4dedee3f386084fdb3f3e91e4c5431a62686d0a9eb2d0491c865a"
+         "text": "16afa954e924cc18a412d71d62ee4ad03a856815830f85f38fea0c32943be9b8"
         },
         {
-         "status": "partly",
-         "text": "a854169a46d6d35f7af6e447f93e5ef28e78e2212100f49c62ea11aff894e6e6"
+         "hide_soon": true,
+         "status": "done",
+         "text": "da41dd05b937283fc270f8a521613302b56fcf679d18b13bf1db56f094b49eb3"
         },
         {
          "status": "partly",
@@ -8528,18 +8530,6 @@
     "fr": ""
    }
   },
-  "09f4463054751fcc2b053afac4e1bb01151f7d7d1e12310d47f88b3d8d310d22": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Display options: gridlines, formulas and zeros, headings, sheet tabs, scroll bars, outline symbols, page breaks, and comment display",
-    "es": "Opciones de visualización: líneas de cuadrícula, fórmulas y ceros, encabezados, pestañas de hoja, barras de desplazamiento, símbolos de esquema, saltos de página y visualización de comentarios",
-    "fr": "Options d’affichage : quadrillage, formules et zéros, en-têtes, onglets de feuille, barres de défilement, symboles du plan, sauts de page et affichage des commentaires"
-   }
-  },
   "09f4f77306c8c245958d2d4eedea19c73d119dc5aab1d1474d2d00919bbeda49": {
    "drop": false,
    "en": "Preview a print with a ruler, page navigation, zoom to 150, 200, or 300 percent with scrolling, front and back view, and an option to show numbers.",
@@ -9342,6 +9332,18 @@
     "en": "Chart Format tab: current selection, shape styles, text art styles, shapes, text boxes, pictures, size, and arrange",
     "es": "Pestaña Formato de gráfico: selección actual, estilos de forma, estilos de texto artístico, formas, cuadros de texto, imágenes, tamaño y organización",
     "fr": "Onglet Format du graphique : sélection active, styles de forme, styles de texte artistique, formes, zones de texte, images, taille et organisation"
+   }
+  },
+  "16afa954e924cc18a412d71d62ee4ad03a856815830f85f38fea0c32943be9b8": {
+   "drop": false,
+   "en": "Undo and Redo, with the name of the step shown in their tips.",
+   "es": "Deshacer y Rehacer, con el nombre del paso en sus información sobre herramientas.",
+   "fr": "Annuler et Rétablir, avec le nom de l’étape dans leurs info-bulles.",
+   "soon": {
+    "drop": false,
+    "en": "History list on the Undo and Redo buttons, and Repeat",
+    "es": "Lista de historial en los botones Deshacer y Rehacer, y Repetir",
+    "fr": "Liste d’historique sur les boutons Annuler et Rétablir, et Répéter"
    }
   },
   "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
@@ -11082,6 +11084,18 @@
     "en": "Formulas, charts, and freeform shapes in `.odt` files",
     "es": "Fórmulas, gráficos y formas libres en archivos `.odt`",
     "fr": "Formules, graphiques et formes libres dans les fichiers `.odt`"
+   }
+  },
+  "2a1a0c0a1cec79b20ad25dd37972972002ae314cb0bbfefedfd159b72654d12a": {
+   "drop": false,
+   "en": "Set calculation to automatic, automatic except data tables, or manual, recalculate before saving, and set iterative calculation with a maximum number of iterations and a maximum change. These settings belong to the workbook, are saved with it, and are one step of Undo.",
+   "es": "Establezca el cálculo como automático, automático excepto las tablas de datos o manual, recalcule antes de guardar y configure el cálculo iterativo con un número máximo de iteraciones y un cambio máximo. Estos ajustes pertenecen al libro, se guardan con él y cuentan como un solo paso de Deshacer.",
+   "fr": "Définissez le calcul en automatique, automatique sauf les tables de données ou manuel, recalculez avant d’enregistrer et réglez le calcul itératif avec un nombre maximal d’itérations et une variation maximale. Ces paramètres appartiennent au classeur, sont enregistrés avec lui et forment une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "R1C1 style, error-checking rules, and 1904 date system settings",
+    "es": "Ajustes del estilo R1C1, las reglas de comprobación de errores y el sistema de fechas 1904",
+    "fr": "Paramètres du style L1C1, des règles de vérification des erreurs et du système de dates 1904"
    }
   },
   "2a2527d3924c903603eaf65721dcd6112928664ccc7d044a748ebe1a69508d72": {
@@ -13830,18 +13844,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5028909fb2ca7f339d58aad8226175251a098f260f5f2d83766ff770318c05b2": {
-   "drop": false,
-   "en": "Drag the border of the selection to move the cells, with what points at them following, or hold `Ctrl` to copy them. It is one step, with a dashed outline of where the cells land.",
-   "es": "Arrastre el borde de la selección para mover las celdas, con lo que apunta a ellas ajustado, o mantenga `Ctrl` para copiarlas. Es un solo paso, con un contorno discontinuo de dónde caen las celdas.",
-   "fr": "Faites glisser la bordure de la sélection pour déplacer les cellules, ce qui y fait référence suivant le mouvement, ou maintenez `Ctrl` pour les copier. C’est une seule étape, avec un contour en pointillés de l’endroit où les cellules arrivent.",
-   "soon": {
-    "drop": false,
-    "en": "Drop onto another sheet’s tab with `Alt`, insert with `Shift`, and insert copied cells",
-    "es": "Soltar en la pestaña de otra hoja con `Alt`, insertar con `Shift` e insertar celdas copiadas",
-    "fr": "Dépôt sur l’onglet d’une autre feuille avec `Alt`, insertion avec `Maj` et insertion de cellules copiées"
    }
   },
   "503fe987edbb4c85eaaadaeadeccee354b0f4436a3af467c5b00b334bbc9a5d8": {
@@ -18140,6 +18142,18 @@
     "fr": ""
    }
   },
+  "8a3d8bdf52ebb0ed44f6d502e4d32c393cd751b712c8331aeeb50570e08a705e": {
+   "drop": false,
+   "en": "Bring objects to the front or send them to the back.",
+   "es": "Traiga objetos al frente o envíelos al fondo.",
+   "fr": "Placez des objets au premier plan ou à l’arrière-plan.",
+   "soon": {
+    "drop": false,
+    "en": "Selection pane, align, group, rotate, flip, and snap",
+    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
+    "fr": "Volet de sélection, alignement, groupement, rotation, retournement et magnétisme"
+   }
+  },
   "8a42fc06a073286a989aecd9cf5282ffb8fb68a231b1877807257d11f9696176": {
    "drop": false,
    "en": "Cut, copy, and paste cells within a workbook and between workbooks. Values, formulas with their relative references moved, formats, and merged cells are pasted, and a cut moves the cells and what refers to them. Tab-separated text and HTML tables go in and out.",
@@ -18944,6 +18958,18 @@
     "fr": "Application de trames et de bordures de paragraphe"
    }
   },
+  "96a8a32a07aece165ce7a7fc1fb1acbb132f0a117060f593dfe120c6785ec375": {
+   "drop": false,
+   "en": "Move a selection by dragging its border, or copy it with `Ctrl`. Hold `Alt` and drop onto another sheet's tab to move or copy it to the same cells there, and insert copied cells while shifting the rest. References to the cells follow, and each action is one step of Undo.",
+   "es": "Mueva una selección arrastrando su borde, o cópiela con `Ctrl`. Mantenga pulsada `Alt` y suelte sobre la pestaña de otra hoja para moverla o copiarla a las mismas celdas allí, e inserte celdas copiadas desplazando el resto. Las referencias a las celdas las siguen y cada acción es un paso de Deshacer.",
+   "fr": "Déplacez une sélection en faisant glisser sa bordure, ou copiez-la avec `Ctrl`. Maintenez `Alt` et déposez sur l’onglet d’une autre feuille pour la déplacer ou la copier vers les mêmes cellules, et insérez des cellules copiées en décalant les autres. Les références aux cellules suivent, et chaque action forme une seule étape d’annulation.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "973a16406b9b58a415423aee42652b2b72521493185af842c0265a1ff375bc8e": {
    "drop": false,
    "en": "Save the active sheet as `.csv`, `.tsv`, or Unicode text. Choose the separator, encoding, line ends, and whether cells are written as shown or as stored. A warning names the sheets that are not saved, and formula cells are written as their results.",
@@ -18978,18 +19004,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "97a82a448492dbcf962c520d1cf5ad6e7aa0826a1e1f10896de4c17e2f16ec1d": {
-   "drop": false,
-   "en": "Set the calculation mode (automatic, automatic except data tables, or manual), iterative calculation, and formula autocomplete in the Formulas tab.",
-   "es": "Defina el modo de cálculo (automático, automático excepto tablas de datos o manual), el cálculo iterativo y el autocompletado de fórmulas en la pestaña Fórmulas.",
-   "fr": "Réglez le mode de calcul (automatique, automatique sauf tables de données ou manuel), le calcul itératif et la saisie semi-automatique des formules dans l’onglet Formules.",
-   "soon": {
-    "drop": false,
-    "en": "Formulas options page",
-    "es": "Página de opciones de fórmulas",
-    "fr": "Page d’options des formules"
    }
   },
   "980d3d937e0bb8d92a4424aaa3af760edee0ccd3a28af81215f68c857bd765de": {
@@ -20084,18 +20098,6 @@
     "fr": ""
    }
   },
-  "a854169a46d6d35f7af6e447f93e5ef28e78e2212100f49c62ea11aff894e6e6": {
-   "drop": false,
-   "en": "Drag the fill handle to fill a series.",
-   "es": "Arrastre el controlador de relleno para rellenar una serie.",
-   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
-   "soon": {
-    "drop": false,
-    "en": "Move or copy a selection by dragging its border",
-    "es": "Mover o copiar una selección arrastrando su borde",
-    "fr": "Déplacer ou copier une sélection en faisant glisser sa bordure"
-   }
-  },
   "a8554254f5f837308c961675a672b6e8c443a45f770798837c017582721edd44": {
    "drop": false,
    "en": "Save and Save As, with automatic recovery that offers unsaved work again after a crash, and backup on save.",
@@ -20365,18 +20367,6 @@
    "en": "Slicer and Timeline tabs",
    "es": "Pestañas Segmentación y Escala de tiempo",
    "fr": "Onglets Segment et Chronologie",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "ac227c5d49b4dedee3f386084fdb3f3e91e4c5431a62686d0a9eb2d0491c865a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
@@ -21174,6 +21164,18 @@
     "en": "Pivot table printing and printing a selected table or chart alone",
     "es": "Impresión de tablas dinámicas e impresión de una tabla o un gráfico seleccionado por separado",
     "fr": "Impression des tableaux croisés dynamiques et impression seule d’un tableau ou d’un graphique sélectionné"
+   }
+  },
+  "b9c5820ee1bebe235b2f89913316707481e8267453d487e84d7032fd3ef05d16": {
+   "drop": false,
+   "en": "Open a second window of the workbook for reading, arrange all windows, cascade them, view side by side with synchronous scrolling, reset the window position, switch windows, and hide and unhide windows.",
+   "es": "Abra una segunda ventana del libro para lectura, organice todas las ventanas, colóquelas en cascada, véalas en paralelo con desplazamiento sincrónico, restablezca la posición de la ventana, cambie de ventana y oculte o muestre ventanas.",
+   "fr": "Ouvrez une deuxième fenêtre du classeur en lecture seule, réorganisez toutes les fenêtres, disposez-les en cascade, affichez-les côte à côte avec défilement synchrone, réinitialisez la position de la fenêtre, changez de fenêtre et masquez ou affichez des fenêtres.",
+   "soon": {
+    "drop": false,
+    "en": "Second view that shows edits from the first as they are made",
+    "es": "Segunda vista que muestra las ediciones de la primera a medida que se realizan",
+    "fr": "Deuxième vue qui affiche les modifications de la première au fur et à mesure"
    }
   },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
@@ -22086,18 +22088,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c82115d9f4bbc63f37f2466b2ea116a853a4f549cc55c0430f1816156425f001": {
-   "drop": false,
-   "en": "New Window opens the saved workbook in a second, read-only window. Arrange All, Cascade, View Side by Side with Synchronous Scrolling, Reset Window Position, and Switch Windows are available.",
-   "es": "Nueva ventana abre el libro guardado en una segunda ventana de solo lectura. Están disponibles Organizar todo, Cascada, Ver en paralelo con desplazamiento sincrónico, Restablecer posición de la ventana y Cambiar ventanas.",
-   "fr": "Nouvelle fenêtre ouvre le classeur enregistré dans une seconde fenêtre en lecture seule. Réorganiser tout, Cascade, Côte à côte avec défilement synchrone, Rétablir la position de la fenêtre et Changer de fenêtre sont disponibles.",
-   "soon": {
-    "drop": false,
-    "en": "Windows: hide and unhide, and a second view that shows edits as they are made",
-    "es": "Ventanas: ocultar y mostrar, y una segunda vista que muestra las ediciones a medida que se hacen",
-    "fr": "Fenêtres : masquage et affichage, et seconde vue qui montre les modifications au fur et à mesure"
    }
   },
   "c83cf9316c02b2690c8f8b7fc99b972565bd318e3bf06cf68a7aadc5c49e7ef4": {
@@ -23552,6 +23542,18 @@
     "fr": ""
    }
   },
+  "da41dd05b937283fc270f8a521613302b56fcf679d18b13bf1db56f094b49eb3": {
+   "drop": false,
+   "en": "Drag the fill handle to fill a series.",
+   "es": "Arrastre el controlador de relleno para rellenar una serie.",
+   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
+   "soon": {
+    "drop": false,
+    "en": "Move or copy a selection by dragging its border",
+    "es": "Mover o copiar una selección arrastrando su borde",
+    "fr": "Déplacer ou copier une sélection en faisant glisser sa bordure"
+   }
+  },
   "da7fb64837fb11736def11d807579833f837a5b0358736ab221ba57f62a52c12": {
    "drop": false,
    "en": "Open and save macro-enabled files (`.xlsm`, `.xltm`), keeping the macro project untouched and never running it. Save As offers `.xlsm` when the workbook came from a file with macros.",
@@ -23694,18 +23696,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "dc90f4fe881fe9b53566d23cdcab01934d9c482e39ef601be7f723844263a382": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
-    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
-    "fr": "Groupement et dissociation de lignes et colonnes, plan automatique et effacement du plan"
    }
   },
   "dca33679352a49347ed787cd881576ad34b11bf6a3dbb54d2590f5a7b1436bf3": {
@@ -24560,6 +24550,18 @@
     "fr": ""
    }
   },
+  "e78afe7a2babe8a8d9a86dc48a9e79c30b97ac1ce22593c21c5bc5452d90ef3e": {
+   "drop": false,
+   "en": "Set the gridline color, the zoom of a new workbook, and the standard column width.",
+   "es": "Establezca el color de las líneas de cuadrícula, el zoom de un libro nuevo y el ancho de columna estándar.",
+   "fr": "Définissez la couleur du quadrillage, le zoom d’un nouveau classeur et la largeur de colonne standard.",
+   "soon": {
+    "drop": false,
+    "en": "Show and hide sheet tabs and scroll bars, and display choices for notes and objects",
+    "es": "Mostrar y ocultar las pestañas de hoja y las barras de desplazamiento, y opciones de visualización de notas y objetos",
+    "fr": "Affichage et masquage des onglets de feuille et des barres de défilement, et choix d’affichage des notes et des objets"
+   }
+  },
   "e7c6d65cbb1cb5cd969bfc1ec44ea33de0900de1f69d587a0d3dc7d61260b600": {
    "drop": true,
    "en": "",
@@ -25218,6 +25220,18 @@
     "en": "Pasted equations drawn in two dimensions right away",
     "es": "Ecuaciones pegadas dibujadas en dos dimensiones de inmediato",
     "fr": "Équations collées dessinées aussitôt en deux dimensions"
+   }
+  },
+  "f031eac7c7d8e89f01ef1939b726b04ea3436c092fa45efc076ea6bd663ef431": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
+    "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
+    "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
    }
   },
   "f046a58ffc31f9fc7e620618016bcbfbd3e635843c3402d9e24c5e692425be79": {
@@ -26370,18 +26384,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ff0d917731497100a3e02316a4906ceff7d61c7d8acbfaab3e1a74ce61358748": {
-   "drop": false,
-   "en": "Bring objects to the front or send them to the back.",
-   "es": "Traiga objetos al frente o envíelos al fondo.",
-   "fr": "Amenez des objets au premier plan ou envoyez-les à l’arrière-plan.",
-   "soon": {
-    "drop": false,
-    "en": "Selection pane, align, group, rotate, flip, and snap",
-    "es": "Panel de selección, alinear, agrupar, girar, voltear y ajustar",
-    "fr": "Volet Sélection, alignement, groupement, rotation, retournement et magnétisme"
    }
   },
   "ff508b2c6b1ec140a92dd9d68c324f4a0c4b6daaf020dc772d5e33f7cd013b28": {
