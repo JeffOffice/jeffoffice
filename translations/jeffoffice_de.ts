@@ -51692,7 +51692,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::ReviewPane</name>
     <message>
-        <location filename="../apps/write/app/reviewpane.cpp" line="+34"/>
+        <location filename="../apps/write/app/reviewpane.cpp" line="+35"/>
         <source>Inserted</source>
         <translation type="unfinished">Eingefügt</translation>
     </message>
@@ -51732,6 +51732,46 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Gelöschter Absatz</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Inserted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Inserted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merged cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+27"/>
         <location line="+29"/>
         <source>Comments</source>
@@ -51750,12 +51790,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+2"/>
-        <location line="+207"/>
+        <location line="+224"/>
         <source>Resolve</source>
         <translation type="unfinished">Auflösen</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-222"/>
         <source>Delete</source>
         <translation type="unfinished">Löschen</translation>
     </message>
@@ -51766,18 +51806,18 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+2"/>
-        <location line="+30"/>
+        <location line="+36"/>
         <source>Previous</source>
         <translation type="unfinished">Zurück</translation>
     </message>
     <message>
-        <location line="-28"/>
-        <location line="+30"/>
+        <location line="-34"/>
+        <location line="+36"/>
         <source>Next</source>
         <translation type="unfinished">Weiter</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-22"/>
         <location line="+5"/>
         <source>Reviewer</source>
         <translation type="unfinished">Bearbeiter</translation>
@@ -51794,7 +51834,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+2"/>
-        <location line="+24"/>
+        <location line="+30"/>
         <source>Changes</source>
         <translation type="unfinished">Änderungen</translation>
     </message>
@@ -51823,8 +51863,16 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <source>All Reviewers</source>
         <translation type="unfinished">Alle Bearbeiter</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+31"/>
+        <source>%n more change(s) are inside text boxes.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Resolved</source>
         <translation type="unfinished">Aufgelöst</translation>
     </message>
@@ -51834,7 +51882,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Erneut öffnen</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+55"/>
         <source>The reply can&apos;t be added here.</source>
         <translation type="unfinished">Die Antwort kann hier nicht hinzugefügt werden.</translation>
     </message>
@@ -59418,12 +59466,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Annehmen</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Reject</source>
         <translation type="unfinished">Ablehnen</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Accept All Changes Shown</source>
         <translation type="unfinished">Alle angezeigten Änderungen annehmen</translation>
     </message>
@@ -59438,24 +59486,22 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Alle Änderungen annehmen</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <location line="+376"/>
+        <location line="+331"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 Änderung angenommen.</translation>
     </message>
     <message>
-        <location line="-376"/>
-        <location line="+376"/>
+        <location line="+0"/>
         <source>%1 changes accepted.</source>
         <translation type="unfinished">%1 Änderungen angenommen.</translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-320"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Alle Änderungen annehmen und Nachverfolgung beenden</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+321"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 Änderung angenommen. „Änderungen nachverfolgen“ ist deaktiviert.</translation>
     </message>
@@ -59465,24 +59511,22 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 Änderungen angenommen. „Änderungen nachverfolgen“ ist deaktiviert.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-310"/>
         <source>Reject All Changes</source>
         <translation type="unfinished">Alle Änderungen ablehnen</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <location line="+358"/>
+        <location line="+309"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">1 Änderung abgelehnt.</translation>
     </message>
     <message>
-        <location line="-358"/>
-        <location line="+358"/>
+        <location line="+0"/>
         <source>%1 changes rejected.</source>
         <translation type="unfinished">%1 Änderungen abgelehnt.</translation>
     </message>
     <message>
-        <location line="-355"/>
+        <location line="-298"/>
         <source>Next Change</source>
         <translation type="unfinished">Nächste Änderung</translation>
     </message>
@@ -59791,18 +59835,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Kommentar auflösen</translation>
     </message>
     <message>
-        <location line="-161"/>
-        <location line="+180"/>
+        <location line="-152"/>
+        <location line="+171"/>
         <source>Spelling</source>
         <translation type="unfinished">Rechtschreibung</translation>
     </message>
     <message>
-        <location line="-178"/>
+        <location line="-169"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+196"/>
+        <location line="+187"/>
         <source>Reviewing</source>
         <translation type="unfinished">Überprüfung</translation>
     </message>
@@ -59827,13 +59871,26 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Hier kann kein Kommentar eingefügt werden.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>%n change(s) kept because the table would break.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
+        <source>This change is in a part of the document that no page shows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Es sind keine weiteren Änderungen vorhanden.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
         <source>There are no more comments.</source>
         <translation type="unfinished">Es sind keine weiteren Kommentare vorhanden.</translation>
     </message>
@@ -72243,7 +72300,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1002"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1017"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Das Dokument konnte nicht gepackt werden.</translation>
     </message>
@@ -77044,7 +77101,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2048"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2061"/>
         <source>Column 1</source>
         <translation type="unfinished">Spalte 1</translation>
     </message>
@@ -77137,7 +77194,32 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Review</name>
     <message>
-        <location filename="../apps/write/core/commentops.cpp" line="+1130"/>
+        <location filename="../apps/write/core/commentops.cpp" line="+1133"/>
+        <source>Inserted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Inserted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merged cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Inserted</source>
         <translation type="unfinished">Eingefügt</translation>
     </message>
@@ -77167,7 +77249,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Verschoben: %1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-6"/>
+        <location line="+8"/>
         <source>Formatted</source>
         <translation type="unfinished">Formatiert</translation>
     </message>

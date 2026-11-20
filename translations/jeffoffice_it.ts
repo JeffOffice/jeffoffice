@@ -51692,7 +51692,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::ReviewPane</name>
     <message>
-        <location filename="../apps/write/app/reviewpane.cpp" line="+34"/>
+        <location filename="../apps/write/app/reviewpane.cpp" line="+35"/>
         <source>Inserted</source>
         <translation type="unfinished">Inserito</translation>
     </message>
@@ -51732,6 +51732,46 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Paragrafo eliminato</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Inserted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Inserted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merged cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+27"/>
         <location line="+29"/>
         <source>Comments</source>
@@ -51750,12 +51790,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+2"/>
-        <location line="+207"/>
+        <location line="+224"/>
         <source>Resolve</source>
         <translation type="unfinished">Risolvi</translation>
     </message>
     <message>
-        <location line="-205"/>
+        <location line="-222"/>
         <source>Delete</source>
         <translation type="unfinished">Elimina</translation>
     </message>
@@ -51766,18 +51806,18 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+2"/>
-        <location line="+30"/>
+        <location line="+36"/>
         <source>Previous</source>
         <translation type="unfinished">Precedente</translation>
     </message>
     <message>
-        <location line="-28"/>
-        <location line="+30"/>
+        <location line="-34"/>
+        <location line="+36"/>
         <source>Next</source>
         <translation type="unfinished">Successivo</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-22"/>
         <location line="+5"/>
         <source>Reviewer</source>
         <translation type="unfinished">Revisore</translation>
@@ -51794,7 +51834,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     </message>
     <message>
         <location line="+2"/>
-        <location line="+24"/>
+        <location line="+30"/>
         <source>Changes</source>
         <translation type="unfinished">Modifiche</translation>
     </message>
@@ -51823,8 +51863,16 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <source>All Reviewers</source>
         <translation type="unfinished">Tutti i revisori</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+31"/>
+        <source>%n more change(s) are inside text boxes.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Resolved</source>
         <translation type="unfinished">Risolto</translation>
     </message>
@@ -51834,7 +51882,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Riapri</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+55"/>
         <source>The reply can&apos;t be added here.</source>
         <translation type="unfinished">La risposta non può essere aggiunta qui.</translation>
     </message>
@@ -59418,12 +59466,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Accetta</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Reject</source>
         <translation type="unfinished">Rifiuta</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+1"/>
         <source>Accept All Changes Shown</source>
         <translation type="unfinished">Accetta tutte le modifiche visualizzate</translation>
     </message>
@@ -59438,24 +59486,22 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Accetta tutte le modifiche</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <location line="+376"/>
+        <location line="+331"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 modifica accettata.</translation>
     </message>
     <message>
-        <location line="-376"/>
-        <location line="+376"/>
+        <location line="+0"/>
         <source>%1 changes accepted.</source>
         <translation type="unfinished">%1 modifiche accettate.</translation>
     </message>
     <message>
-        <location line="-373"/>
+        <location line="-320"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Accetta tutte le modifiche e interrompi revisioni</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+321"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 modifica accettata. Revisioni disattivate.</translation>
     </message>
@@ -59465,24 +59511,22 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">%1 modifiche accettate. Revisioni disattivate.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-310"/>
         <source>Reject All Changes</source>
         <translation type="unfinished">Rifiuta tutte le modifiche</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <location line="+358"/>
+        <location line="+309"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">1 modifica rifiutata.</translation>
     </message>
     <message>
-        <location line="-358"/>
-        <location line="+358"/>
+        <location line="+0"/>
         <source>%1 changes rejected.</source>
         <translation type="unfinished">%1 modifiche rifiutate.</translation>
     </message>
     <message>
-        <location line="-355"/>
+        <location line="-298"/>
         <source>Next Change</source>
         <translation type="unfinished">Modifica successiva</translation>
     </message>
@@ -59791,18 +59835,18 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Risolvi commento</translation>
     </message>
     <message>
-        <location line="-161"/>
-        <location line="+180"/>
+        <location line="-152"/>
+        <location line="+171"/>
         <source>Spelling</source>
         <translation type="unfinished">Controllo ortografia</translation>
     </message>
     <message>
-        <location line="-178"/>
+        <location line="-169"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+196"/>
+        <location line="+187"/>
         <source>Reviewing</source>
         <translation type="unfinished">Revisioni</translation>
     </message>
@@ -59827,13 +59871,26 @@ Impossibile applicare la password al file.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Impossibile aggiungere un commento in questo punto.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>%n change(s) kept because the table would break.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
+        <source>This change is in a part of the document that no page shows.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Non ci sono altre modifiche.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+15"/>
         <source>There are no more comments.</source>
         <translation type="unfinished">Non ci sono altri commenti.</translation>
     </message>
@@ -72243,7 +72300,7 @@ Impossibile applicare la password al file.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1002"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1017"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Impossibile creare il pacchetto del documento.</translation>
     </message>
@@ -77044,7 +77101,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2048"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2061"/>
         <source>Column 1</source>
         <translation type="unfinished">Colonna 1</translation>
     </message>
@@ -77137,7 +77194,32 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::Review</name>
     <message>
-        <location filename="../apps/write/core/commentops.cpp" line="+1130"/>
+        <location filename="../apps/write/core/commentops.cpp" line="+1133"/>
+        <source>Inserted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Inserted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Deleted cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Merged cells</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>Inserted</source>
         <translation type="unfinished">Inserito</translation>
     </message>
@@ -77167,7 +77249,8 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Spostato: %1</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-6"/>
+        <location line="+8"/>
         <source>Formatted</source>
         <translation type="unfinished">Formattato</translation>
     </message>

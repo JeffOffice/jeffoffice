@@ -395,6 +395,17 @@
     </message>
 </context>
 <context>
+    <name>jp::ReviewPane</name>
+    <message numerus="yes">
+        <location filename="../apps/write/app/reviewpane.cpp" line="+254"/>
+        <source>%n more change(s) are inside text boxes.</source>
+        <translation>
+            <numerusform>1 more change is inside text boxes.</numerusform>
+            <numerusform>%n more changes are inside text boxes.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
         <location filename="../apps/write/app/writewindow.cpp" line="+784"/>
@@ -442,6 +453,14 @@
         <translation>
             <numerusform>%n more list style is in the Styles pane</numerusform>
             <numerusform>%n more list styles are in the Styles pane</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+406"/>
+        <source>%n change(s) kept because the table would break.</source>
+        <translation>
+            <numerusform>1 change kept because the table would break.</numerusform>
+            <numerusform>%n changes kept because the table would break.</numerusform>
         </translation>
     </message>
 </context>
