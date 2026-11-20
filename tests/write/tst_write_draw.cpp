@@ -7697,6 +7697,85 @@ private Q_SLOTS:
         }
     }
 
+    // Current Selection lists the chart's parts, Format Selection opens the format pane at the one chosen, and Reset to Match Style takes away what was set on it as one step (none when the part
+    // already matches); the saved .docx, opened again in a window, keeps what the reset left and what it did not touch.
+    void currentSelectionAndResetToMatchStyle()
+    {
+        Win win;
+        win.w.act("insert.chart.column")->trigger();
+        const int at = win.w.view()->selectedPicture();
+        QVERIFY(at >= 0);
+        QTRY_VERIFY(win.tabShown(QStringLiteral("Chart")));
+        win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Chart")));
+        QComboBox *box = chartPartBoxOn(win.w.ribbon()->tab(QStringLiteral("Chart")));
+        QVERIFY(box);
+        QTRY_COMPARE(box->count(), 4);
+        QCOMPARE(box->itemText(1), QStringLiteral("Plot Area"));
+        QVERIFY(tabHasButtonFor(win.w.ribbon()->tab(QStringLiteral("Chart")), win.w.act("chartdesign.resetStyle")));
+        QVERIFY(tabHasButtonFor(win.w.ribbon()->tab(QStringLiteral("Chart")), win.w.act("chartdesign.formatSelection")));
+        auto look = [&](WriteWindow &w, int where, office::sheet::ChartPart part, int series) {
+            office::Chart now;
+            if (!readChartAt(*w.document(), where, &now)) qFatal("no chart");
+            return office::sheet::partLookOf(now, part, series);
+        };
+        office::Chart c;
+        QVERIFY(readChartAt(*win.w.document(), at, &c));
+        const QColor style = office::chartStyleSeriesColor(c, 1, 2);
+        pickChartPart(box, 3);
+        withDialog([&] { win.w.act("chartdesign.formatSelection")->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 3);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(3);
+            dialog->choosePart(0);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+        });
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        const QByteArray before = win.w.document()->toDocx();
+        win.w.act("chartdesign.resetStyle")->trigger();
+        QVERIFY(win.w.document()->toDocx() != before);
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Series, 1).fill, style);
+        QVERIFY(!look(win.w, at, office::sheet::ChartPart::Series, 1).line.set);
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Area, 0).fill.name(), QStringLiteral("#fff0c0"));
+        // one step: one Undo brings the color back, one Redo takes it away again
+        QTRY_VERIFY(win.w.act("edit.undo")->isEnabled());
+        win.w.act("edit.undo")->trigger();
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        QTRY_VERIFY(win.w.act("edit.redo")->isEnabled());
+        win.w.act("edit.redo")->trigger();
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Series, 1).fill, style);
+        // a part that already matches its style is no step
+        pickChartPart(box, 1);
+        const QByteArray reset = win.w.document()->toDocx();
+        win.w.act("chartdesign.resetStyle")->trigger();
+        QCOMPARE(win.w.document()->toDocx(), reset);
+        QTRY_VERIFY(win.w.act("edit.undo")->isEnabled());
+        win.w.act("edit.undo")->trigger();
+        QCOMPARE(look(win.w, at, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        QTRY_VERIFY(win.w.act("edit.redo")->isEnabled());
+        win.w.act("edit.redo")->trigger();
+        // saved through the window and opened again in another
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("c.docx"));
+        QVERIFY(win.w.saveTo(path));
+        WriteWindow second;
+        second.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(second.openFile(path));
+        second.resize(1100, 800);
+        second.show();
+        int backAt = -1;
+        for (int p = 0; p < second.document()->story()->characterCount() && backAt < 0; ++p)
+            if (isDrawnObjectAt(second.document()->story(), p) && pictureAt(*second.document(), second.document()->story(), p).kind == DrawnKind::Chart) backAt = p;
+        QVERIFY(backAt >= 0);
+        QCOMPARE(look(second, backAt, office::sheet::ChartPart::Area, 0).fill.name(), QStringLiteral("#fff0c0"));
+        QVERIFY(look(second, backAt, office::sheet::ChartPart::Series, 1).fill.name() != QStringLiteral("#204060"));
+        QVERIFY(!look(second, backAt, office::sheet::ChartPart::Series, 1).line.set);
+        second.view()->selectPicture(backAt);
+        second.ribbon()->showTab(second.ribbon()->tab(QStringLiteral("Chart")));
+        QTRY_COMPARE(chartPartBoxOn(second.ribbon()->tab(QStringLiteral("Chart")))->count(), 4);
+    }
+
     // Each entry of Chart Parts, Layouts, Colors, and Looks is one step of Undo, and the .docx and the .odt keep what they made.
     void everyChartDesignCommandIsOneStepAndBothFilesKeepTheResult()
     {

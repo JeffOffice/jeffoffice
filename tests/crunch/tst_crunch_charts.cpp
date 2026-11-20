@@ -1,6 +1,8 @@
 // Tests of making and changing charts in JeffCrunch's window: New Chart from the cells selected, moving and sizing objects, the chart's elements, Chart Data, Chart Kind, Copy and Paste of a
 // chart, and what each saves (the chart part, the drawing, and what names them), read back by the readers of this program. Every workbook is built here.
 #include "../sheet/drawinghelpers.h"
+#include "../chartmenu.h"
+#include "../withdialog.h"
 #include "editwindow.h"
 #include "savedok.h"
 #include "app/picturetools.h"
@@ -1141,6 +1143,115 @@ private Q_SLOTS:
         const int steps = e.win.w.session()->undoStack()->index();
         e.win.w.act(QStringLiteral("chartdesign.axisH"))->trigger();
         QCOMPARE(e.win.w.session()->undoStack()->index(), steps);
+    }
+
+    // Format Chart Part is on the Chart tab and in the chart's menu, with the commands the menu lacked (Swap Rows and Columns, and the two axes); it sets the look of the chart area and a series as one
+    // step of Undo, and the saved file, opened again in the window, has it.
+    void formatChartPartIsOnTheChartTabAndInTheMenu()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        QAction *format = e.win.w.act(QStringLiteral("chartdesign.formatPart"));
+        QVERIFY(format && !format->isEnabled());
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(format->isEnabled());
+        Ribbon *r = e.win.w.ribbon();
+        r->showTab(r->tab(QStringLiteral("Chart")));
+        QVERIFY(tabHasButtonFor(r->tab(QStringLiteral("Chart")), format));
+        std::unique_ptr<QMenu> menu(e.win.w.buildObjectMenu(0, &e.win.w));
+        for (const char *id : {"chartdesign.formatPart", "chartdesign.switch", "chartdesign.axisH", "chartdesign.axisV"}) QVERIFY2(menu->actions().contains(e.win.w.act(QString::fromLatin1(id))), id);
+        const int steps = e.win.w.session()->undoStack()->index();
+        withDialog([&] { format->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->partsShown(), 3);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+            dialog->choosePart(2);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(2.5);
+        });
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(partLookOf(chartOf(e), ChartPart::Area).fill.name() != QStringLiteral("#fff0c0"));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("edit.redo"))->isEnabled());
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).line.width, 2.5);
+        QVERIFY(save(e));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        crunch::SheetObjects *o = second.w.objects();
+        QTRY_VERIFY(o->shownSheet() == 0 && o->layer()->count() == 1);
+        const Chart again = o->chartNow(0, 0);
+        QCOMPARE(partLookOf(again, ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QCOMPARE(partLookOf(again, ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
+        QCOMPARE(partLookOf(again, ChartPart::Series, 0).line.width, 2.5);
+    }
+
+    // Current Selection lists the chart's parts, Format Selection opens the format pane at the one chosen, and Reset to Match Style takes away what was set on it (one step of Undo, none when the part
+    // already matches); a save and a reopen keep what the reset left and what it did not touch.
+    void currentSelectionAndResetToMatchStyleInTheSpreadsheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->isEnabled());
+        Ribbon *r = e.win.w.ribbon();
+        r->showTab(r->tab(QStringLiteral("Chart")));
+        QComboBox *box = chartPartBoxOn(r->tab(QStringLiteral("Chart")));
+        QVERIFY(box);
+        QTRY_COMPARE(box->count(), 3);
+        QCOMPARE(box->itemText(0), QStringLiteral("Chart Area"));
+        QCOMPARE(box->itemText(2), QStringLiteral("East"));
+        QVERIFY(tabHasButtonFor(r->tab(QStringLiteral("Chart")), e.win.w.act(QStringLiteral("chartdesign.resetStyle"))));
+        QVERIFY(tabHasButtonFor(r->tab(QStringLiteral("Chart")), e.win.w.act(QStringLiteral("chartdesign.formatSelection"))));
+        const QColor style = chartStyleSeriesColor(chartOf(e), 0, 1);
+        // Format Selection opens at the part chosen
+        pickChartPart(box, 2);
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 2);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(3);
+            dialog->choosePart(0);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+        });
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        // Reset to Match Style: the selected part only, as one step
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill, style);
+        QVERIFY(!partLookOf(chartOf(e), ChartPart::Series, 0).line.set);
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("edit.undo"))->isEnabled());
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), QStringLiteral("#204060"));
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("edit.redo"))->isEnabled());
+        e.win.w.act(QStringLiteral("edit.redo"))->trigger();
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill, style);
+        // a part that already matches its style is no step
+        pickChartPart(box, 1);
+        e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(e.win.w.session()->undoStack()->index(), steps + 1);
+        // saved and opened again: the page keeps what was set on it, and the series is as the style gives it
+        QVERIFY(save(e));
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        crunch::SheetObjects *o = second.w.objects();
+        QTRY_VERIFY(o->shownSheet() == 0 && o->layer()->count() == 1);
+        const Chart again = o->chartNow(0, 0);
+        QCOMPARE(partLookOf(again, ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QVERIFY(partLookOf(again, ChartPart::Series, 0).fill.name() != QStringLiteral("#204060"));
+        QVERIFY(!partLookOf(again, ChartPart::Series, 0).line.set);
+        // the box has no parts while no chart is picked
+        e.win.w.objects()->layer()->select(-1);
+        QTRY_COMPARE(box->count(), 0);
+        QVERIFY(!box->isEnabled());
     }
 
     // Turning only "Print this object" on or off does not resize the object: the box shows sizes to a tenth of a point, so a size like it is not a change.

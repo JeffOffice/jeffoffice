@@ -45,6 +45,7 @@ void DeckWindow::addChartParts(RibbonParts &parts)
     parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) { return m_chartActions->layoutsMenu(owner); };
     parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) { return m_chartActions->colorsMenu(owner); };
     parts.menus[QStringLiteral("chartLooks")] = [this](QWidget *owner) { return m_chartActions->looksMenu(owner); };
+    parts.widgets[QStringLiteral("chartPartBox")] = [this]() -> QWidget * { return m_chartActions->design()->partBox(nullptr); };
     parts.menus[QStringLiteral("chartLegend")] = [this](QWidget *owner) { return m_chartActions->legendMenu(owner); };
 }
 

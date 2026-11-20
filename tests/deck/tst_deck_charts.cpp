@@ -279,6 +279,71 @@ private Q_SLOTS:
         QVERIFY(office::sheet::partLookOf(c, office::sheet::ChartPart::Area).fill.name() != QStringLiteral("#fff0c0"));
     }
 
+    // Current Selection lists the chart's parts, Format Selection opens the format pane at the one chosen, and Reset to Match Style takes away what was set on it as one step (none when the part
+    // already matches); the saved .pptx, opened again in a window, keeps what the reset left and what it did not touch.
+    void currentSelectionAndResetToMatchStyle()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("insert.chart.column"))->trigger();
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Chart")));
+        QComboBox *box = chartPartBoxOn(w.ribbon()->tab(QStringLiteral("Chart")));
+        QVERIFY(box);
+        QTRY_COMPARE(box->count(), 4);
+        QCOMPARE(box->itemText(1), QStringLiteral("Plot Area"));
+        QVERIFY(tabHasButtonFor(w.ribbon()->tab(QStringLiteral("Chart")), w.act(QStringLiteral("chartdesign.resetStyle"))));
+        QVERIFY(tabHasButtonFor(w.ribbon()->tab(QStringLiteral("Chart")), w.act(QStringLiteral("chartdesign.formatSelection"))));
+        office::Chart c;
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        const QColor style = office::chartStyleSeriesColor(c, 1, 2);
+        pickChartPart(box, 3);
+        withDialog([&] { w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 3);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+            dialog->setLineWidth(3);
+            dialog->choosePart(0);
+            dialog->setFill(QColor(0xFF, 0xF0, 0xC0));
+        });
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        const int steps = ed->undoStack()->index();
+        w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).fill, style);
+        QVERIFY(!office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).line.set);
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        ed->undo();
+        QVERIFY(readChartOf(*ed->doc(), *selectedChart(ed), &c));
+        QCOMPARE(office::sheet::partLookOf(c, office::sheet::ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        ed->redo();
+        // a part that already matches its style is no step
+        pickChartPart(box, 1);
+        w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        // saved through the window and opened again in another
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("c.pptx"));
+        QVERIFY(w.saveTo(path));
+        DeckWindow second;
+        QVERIFY(second.openFile(path));
+        Editor *again = second.editor();
+        QVERIFY(!chartsOn(*again->doc(), again->currentPage()).isEmpty());
+        again->select(chartsOn(*again->doc(), again->currentPage()).first()->id);
+        office::Chart back;
+        QVERIFY(readChartOf(*again->doc(), *selectedChart(again), &back));
+        QCOMPARE(office::sheet::partLookOf(back, office::sheet::ChartPart::Area).fill.name(), QStringLiteral("#fff0c0"));
+        QVERIFY(office::sheet::partLookOf(back, office::sheet::ChartPart::Series, 1).fill.name() != QStringLiteral("#204060"));
+        QVERIFY(!office::sheet::partLookOf(back, office::sheet::ChartPart::Series, 1).line.set);
+        second.ribbon()->showTab(second.ribbon()->tab(QStringLiteral("Chart")));
+        QTRY_COMPARE(chartPartBoxOn(second.ribbon()->tab(QStringLiteral("Chart")))->count(), 4);
+        // no chart selected: the box is empty
+        ed->clearSelection();
+        QTRY_COMPARE(box->count(), 0);
+    }
+
     void chartFiltersLeaveASeriesOutAndKeepTheLastOne()
     {
         DeckWindow w;

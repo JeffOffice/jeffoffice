@@ -2299,6 +2299,28 @@
           ]
         },
         {
+          "name": "Current Selection",
+          "keytip": "ZU",
+          "items": [
+            {
+              "row": [
+                {
+                  "widget": "chartPartBox",
+                  "keytip": "CB"
+                }
+              ]
+            },
+            {
+              "small": "chartdesign.formatSelection",
+              "keytip": "FS"
+            },
+            {
+              "small": "chartdesign.resetStyle",
+              "keytip": "RS"
+            }
+          ]
+        },
+        {
           "name": "Format",
           "keytip": "ZX",
           "items": [

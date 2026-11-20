@@ -684,9 +684,19 @@
           ]
         },
         {
+          "name": "Current Selection",
+          "keytip": "ZU",
+          "items": [
+            {"row": [{"widget": "chartPartBox", "keytip": "CB"}]},
+            {"small": "chartdesign.formatSelection", "keytip": "FS"},
+            {"small": "chartdesign.resetStyle", "keytip": "RS"}
+          ]
+        },
+        {
           "name": "Format",
           "keytip": "ZF",
           "items": [
+            {"small": "chartdesign.formatPart", "keytip": "FP"},
             {"small": "chartdesign.axisH", "keytip": "AH"},
             {"small": "chartdesign.axisV", "keytip": "AV"},
             {"small": "chartdesign.moveChart", "keytip": "MC"},

@@ -126,6 +126,9 @@ void CrunchWindow::createChartActions()
         }
         changePickedChart(tr("Swap Rows and Columns"), [switched](Chart *c) { *c = switched; });
     }, false, false);
+    mk("chartdesign.formatPart", tr("Format Chart Part…"), "paintbrush", QKeySequence(), [this] { m_design->formatPart(); }, false, false);
+    mk("chartdesign.formatSelection", tr("Format Selection…"), "paintbrush", QKeySequence(), [this] { m_design->formatSelection(); }, false, false);
+    mk("chartdesign.resetStyle", tr("Reset to Match Style"), "rotate-ccw", QKeySequence(), [this] { m_design->resetSelectionToStyle(); }, false, false);
     mk("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(true); }, false, false);
     mk("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", QKeySequence(), [this] { formatAxisDialog(false); }, false, false);
     mk("chartdesign.moveChart", tr("Move Chart…"), "move", QKeySequence(), [this] { moveChartDialog(); }, false, false);
@@ -152,6 +155,7 @@ void CrunchWindow::chartRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) { return m_design->layoutsMenu(owner); };
     parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) { return m_design->colorsMenu(owner); };
     parts.menus[QStringLiteral("chartStyles")] = [this](QWidget *owner) { return m_design->stylesMenu(owner); };
+    parts.widgets[QStringLiteral("chartPartBox")] = [this]() -> QWidget * { return m_design->partBox(nullptr); };
     parts.colors[QStringLiteral("chartDesign")] = QColor(0x13, 0x77, 0x3A);
 }
 
@@ -892,7 +896,8 @@ void CrunchWindow::updateChartState()
     const bool chart = picked && m_objects->kindOf(m_sheet, id) == ObjectKind::Chart;
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
-    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch", "chartdesign.formatPart", "chartdesign.formatSelection", "chartdesign.resetStyle"}) act(QString::fromLatin1(name))->setEnabled(editable);
+    m_design->refreshParts();
     {
         // (Move Chart needs a chart it can move: on a worksheet, a new chart sheet is always a place to go to; on a chart sheet, another worksheet is)
         bool other = false;
@@ -1015,7 +1020,11 @@ QMenu *CrunchWindow::buildObjectMenu(int id, QWidget *owner)
     if (chart) {
         menu->addSeparator();
         menu->addAction(act(QStringLiteral("chartdesign.selectData")));
+        menu->addAction(act(QStringLiteral("chartdesign.switch")));
         menu->addAction(act(QStringLiteral("chartdesign.changeType")));
+        menu->addAction(act(QStringLiteral("chartdesign.formatPart")));
+        menu->addAction(act(QStringLiteral("chartdesign.axisH")));
+        menu->addAction(act(QStringLiteral("chartdesign.axisV")));
         menu->addAction(act(QStringLiteral("chartdesign.saveAsPicture")));
         menu->addAction(act(QStringLiteral("chartdesign.saveTemplate")));
         menu->addAction(act(QStringLiteral("chartdesign.applyTemplate")));

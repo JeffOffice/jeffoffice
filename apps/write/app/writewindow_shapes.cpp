@@ -442,6 +442,8 @@ void WriteWindow::createChartActions()
     design("chartdesign.switch", tr("Swap Rows and Columns"), "arrow-left-right", [this] { m_chartDesign->switchRowsAndColumns(); });
     design("chartdesign.changeType", tr("Chart Kind…"), "chart-no-axes-combined", [this] { m_chartDesign->changeType(); });
     design("chartdesign.formatPart", tr("Format Chart Part…"), "paintbrush", [this] { m_chartDesign->formatPart(); });
+    design("chartdesign.formatSelection", tr("Format Selection…"), "paintbrush", [this] { m_chartDesign->formatSelection(); });
+    design("chartdesign.resetStyle", tr("Reset to Match Style"), "rotate-ccw", [this] { m_chartDesign->resetSelectionToStyle(); });
     design("chartdesign.axisH", tr("Format Horizontal Axis…"), "ruler", [this] { m_chartDesign->formatAxis(true); });
     design("chartdesign.axisV", tr("Format Vertical Axis…"), "ruler", [this] { m_chartDesign->formatAxis(false); });
     m_chartButtonsTimer.setSingleShot(true);
@@ -552,6 +554,7 @@ void WriteWindow::chartRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("chartLayouts")] = [this](QWidget *owner) { return m_chartDesign->layoutsMenu(owner); };
     parts.menus[QStringLiteral("chartColors")] = [this](QWidget *owner) { return m_chartDesign->colorsMenu(owner); };
     parts.menus[QStringLiteral("chartLooks")] = [this](QWidget *owner) { return m_chartDesign->stylesMenu(owner); };
+    parts.widgets[QStringLiteral("chartPartBox")] = [this]() -> QWidget * { return m_chartDesign->partBox(nullptr); };
     parts.menus[QStringLiteral("chartLegend")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         auto *group = new QActionGroup(m);
@@ -585,7 +588,8 @@ void WriteWindow::refreshChartUi()
         a->setEnabled(editable && info.dataEditable && !rearranges);
         a->setToolTip(plainToolTip(rearranges && editable ? ChartDesign::workbookShapeProblem() : problem));
     }
-    for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart"}) act(QString::fromLatin1(id))->setEnabled(editable);
+    for (const char *id : {"chartdesign.changeType", "chartdesign.formatPart", "chartdesign.formatSelection", "chartdesign.resetStyle"}) act(QString::fromLatin1(id))->setEnabled(editable);
+    m_chartDesign->refreshParts();
     act("chartdesign.axisH")->setEnabled(editable && info.hasAxes);
     act("chartdesign.axisV")->setEnabled(editable && info.hasAxes);
     m_chartButtonsTimer.start();
