@@ -3,6 +3,7 @@
 // file are read here; writing them is notesave.h. A note that belongs to a thread of comments is given its text from the thread and marked, so that it can be shown and kept but not
 // changed. A damaged part gives what was read before the damage.
 
+#include "sheet/notebox.h"
 #include "sheet/sheetreader.h"
 #include "sheet/threads.h"
 
@@ -33,21 +34,6 @@ constexpr int kMaxPersonChars = 200;
 // characters read are counted for the whole workbook.
 struct NoteInfo;
 struct NoteReadContext;
-
-// Where a note's box sits when the file says so: the corners as the file's anchor has them, a cell (counted from the note's own cell) and a distance from its top left in pixels, for the
-// box's top left and for its bottom right. A note with none (`set` false) is drawn where the program puts it.
-struct NoteBox {
-    bool set = false;
-    int row1 = 0, col1 = 0, y1 = 0, x1 = 0;
-    int row2 = 0, col2 = 0, y2 = 0, x2 = 0;
-    bool operator==(const NoteBox &o) const
-    {
-        return set == o.set && (!set || (row1 == o.row1 && col1 == o.col1 && y1 == o.y1 && x1 == o.x1 && row2 == o.row2 && col2 == o.col2 && y2 == o.y2 && x2 == o.x2));
-    }
-};
-// The most cells and pixels a corner of the box may be from the note's cell.
-constexpr int kMaxNoteBoxCells = 100000;
-constexpr int kMaxNoteBoxPixels = 100000;
 
 struct NoteInfo {
     QString author;
@@ -91,6 +77,8 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
 qint64 noteReads();
 // How many thread parts have been parsed since the program began (a part that many sheets name is parsed once for a workbook).
 qint64 threadPartReads();
+// The notes of a sheet read from an OpenDocument file, as the model has them (at most `most`; `truncated`, if given, is told whether that stopped it).
+std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most = kMaxNotes, bool *truncated = nullptr);
 // Just the texts (what Find looks in).
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated = nullptr);
 

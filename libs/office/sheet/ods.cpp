@@ -12,6 +12,8 @@
 #include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
 #include "sheet/odsformula.h"
+#include "sheet/odsnotes.h"
+#include "sheet/notes.h"
 #include "sheet/odsstyles.h"
 #include "sheet/xmlscan.h"
 
@@ -38,6 +40,7 @@ constexpr QLatin1String NS_STYLE("urn:oasis:names:tc:opendocument:xmlns:style:1.
 constexpr QLatin1String NS_FO("urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0");
 constexpr QLatin1String NS_NUMBER("urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0");
 constexpr QLatin1String NS_SVG("urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0");
+constexpr QLatin1String NS_DC("http://purl.org/dc/elements/1.1/");
 constexpr QLatin1String NS_DRAW("urn:oasis:names:tc:opendocument:xmlns:drawing:1.0");
 constexpr QLatin1String NS_CONFIG("urn:oasis:names:tc:opendocument:xmlns:config:1.0");
 constexpr QLatin1String NS_SCRIPT("urn:oasis:names:tc:opendocument:xmlns:script:1.0");
@@ -47,6 +50,9 @@ constexpr QLatin1String NS_LOEXT("urn:org:documentfoundation:names:experimental:
 
 // The most bytes of XML in one piece the parser is given (a text, a tag with its attributes): a document's consolidation of cells has been found with 11 MB in one attribute.
 constexpr qint64 kMaxOdsTokenBytes = qint64(64) << 20;
+
+// The most characters of one note's text that are read (a note in a real file is a few hundred; the most another program lets one have is 32,767).
+constexpr qint64 kMaxOdsNoteChars = 100000;
 
 const char kMimeSpreadsheet[] = "application/vnd.oasis.opendocument.spreadsheet";
 
@@ -1095,7 +1101,6 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     if ((m.found.charts && !m.chartDocuments && keptObjects == 0) || (m.found.oleObjects && keptBinary < m.found.oleObjectCount)) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "charts");
     if (m.found.drawings) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "form controls, freehand shapes, and callouts");
     if (m.found.pivots) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "pivot tables");
-    if (m.found.comments) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "comments");
     if (m.found.hyperlinks) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "hyperlinks");
     if (m.found.macros) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "macros");
     if (m.found.conditional) book->m_skipped << QCoreApplication::translate("jp::office::sheet::Ods", "conditional formats");
@@ -1272,6 +1277,92 @@ private:
         return true;
     }
 
+    // The note just begun (an annotation in a cell: its start was counted in m_depth, and its end is counted here): its text, author, whether it is shown, and the four lengths of its box,
+    // kept to be made into a box when the sheet's sizes are known. Only the first note of a cell is kept; what is past the limits is read and left out.
+    bool readAnnotation(const QXmlStreamAttributes &a, bool *noted)
+    {
+        QXmlStreamReader &xml = *m_xml;
+        if (m_cellBeyond) return skipElementCounted();   // (a cell past the sheet's last column is not one)
+        const bool keep = !*noted && qint64(m_s.importedNotes.size()) < kMaxNotes && m_noteChars < kMaxNoteChars;
+        if (!*noted && !keep) m_notesOver = true;
+        if (!keep) return skipElementCounted();
+        *noted = true;
+        ImportedNote n;
+        n.row = m_cellRow;
+        n.col = m_cellCol;
+        n.shown = attr(a, NS_OFFICE, QLatin1String("display")) == QLatin1String("true");
+        NoteRaw raw;
+        {
+            double x = 0, y = 0, w = 0, h = 0;
+            raw.ok = odsLengthPoints(attr(a, NS_SVG, QLatin1String("x")), &x) && odsLengthPoints(attr(a, NS_SVG, QLatin1String("y")), &y) && odsLengthPoints(attr(a, NS_SVG, QLatin1String("width")), &w)
+                     && odsLengthPoints(attr(a, NS_SVG, QLatin1String("height")), &h);
+            raw.x = x;
+            raw.y = y;
+            raw.w = w;
+            raw.h = h;
+        }
+        QString text, author;
+        int depth = 1, paragraphs = 0, paragraphDepth = 0, authorDepth = 0;
+        bool inParagraph = false, inAuthor = false, cut = false;
+        // (what fits is kept, and the rest of the note's characters are left out: the text is never longer than a note may be, however many characters the file stands for)
+        auto room = [&] { return std::min<qint64>(kMaxOdsNoteChars - text.size(), kMaxNoteChars - m_noteChars - text.size()); };
+        auto add = [&](QStringView part) {
+            const qint64 fits = std::max<qint64>(0, room());
+            if (qint64(part.size()) > fits) cut = true;
+            text += part.left(qsizetype(std::min<qint64>(part.size(), fits)));
+        };
+        auto fill = [&](QChar c, qint64 count) {
+            const qint64 fits = std::max<qint64>(0, room());
+            if (count > fits) cut = true;
+            text += QString(int(std::min(count, fits)), c);
+        };
+        for (;;) {
+            if (xml.atEnd()) return damaged();
+            const QXmlStreamReader::TokenType t = xml.readNext();
+            if (t == QXmlStreamReader::StartElement) {
+                ++depth;
+                if (++m_depth > kMaxOdsDepth) return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file has items inside items more deeply than any real file has."));
+                const QStringView ns = xml.namespaceUri(), name = xml.name();
+                if (ns == NS_TEXT && (name == QLatin1String("p") || name == QLatin1String("h"))) {
+                    if (paragraphs++ > 0) fill(QLatin1Char('\n'), 1);
+                    inParagraph = true;
+                    paragraphDepth = depth;
+                } else if (ns == NS_TEXT && name == QLatin1String("s")) {
+                    bool good = false;
+                    const int count = attr(xml.attributes(), NS_TEXT, QLatin1String("c")).toInt(&good);
+                    if (inParagraph) fill(QLatin1Char(' '), good ? std::max(1, count) : 1);
+                } else if (ns == NS_TEXT && name == QLatin1String("tab")) {
+                    if (inParagraph) fill(QLatin1Char('\t'), 1);
+                } else if (ns == NS_TEXT && name == QLatin1String("line-break")) {
+                    if (inParagraph) fill(QLatin1Char('\n'), 1);
+                } else if (ns == NS_DC && name == QLatin1String("creator")) {
+                    inAuthor = true;
+                    authorDepth = depth;
+                }
+            } else if (t == QXmlStreamReader::EndElement) {
+                --m_depth;
+                if (--depth == 0) break;
+                if (inParagraph && depth == paragraphDepth - 1) inParagraph = false;
+                if (inAuthor && depth == authorDepth - 1) inAuthor = false;
+            } else if (t == QXmlStreamReader::Characters) {
+                if (inAuthor) {
+                    if (author.size() < kMaxPersonChars * 5) author += xml.text();
+                } else if (inParagraph) {
+                    add(xml.text());
+                }
+            } else if (t == QXmlStreamReader::DTD || t == QXmlStreamReader::EntityReference) {
+                return fail(QCoreApplication::translate("jp::office::sheet::Ods", "The file begins with instructions that this program does not allow, so it can't be read."));
+            }
+        }
+        if (cut) ++m_notesCut;
+        n.text = text;
+        n.author = author.trimmed();
+        m_noteChars += text.size() + n.author.size();
+        m_s.importedNotes.append(n);
+        m_noteRaw.push_back(raw);
+        return true;
+    }
+
     // Skips the element just begun (its start was counted in m_depth, and its end is counted here).
     bool skipElementCounted()
     {
@@ -1343,6 +1434,7 @@ private:
                 Proto p;
                 m_cellRow = quint32(std::min<qint64>(rowIndex, kMaxRows - 1));
                 m_cellCol = std::min<quint32>(col, kMaxColumns - 1);
+                m_cellBeyond = col >= kMaxColumns;
                 if (!cell(name == QLatin1String("covered-table-cell"), col, &p)) return false;
                 const quint32 here = col;
                 col = quint32(std::min<quint64>(quint64(col) + p.repeat, quint64(kMaxColumns) + 1));   // (a row of more cells than a sheet has stops counting at its edge)
@@ -1444,6 +1536,7 @@ private:
         QString text;
         QVector<QString> spanStack;
         QVector<QPair<qsizetype, QString>> spans;
+        bool noted = false;
         int paragraphs = 0, depth = 0, skipDepth = 0;
         bool inParagraph = false, tooLong = false;
         int paragraphDepth = 0;
@@ -1492,6 +1585,9 @@ private:
                     } else if (name == QLatin1String("note") || name == QLatin1String("note-body")) {
                         skipDepth = depth;
                     }
+                } else if (ns == NS_OFFICE && name == QLatin1String("annotation")) {
+                    if (!readAnnotation(xml.attributes(), &noted)) return false;
+                    --depth;
                 } else if (ns == NS_DRAW) {
                     // (a shape anchored to the cell: kept whole, and read with the sheet's other shapes)
                     if (!captureShape(true, m_cellRow, m_cellCol)) return false;
@@ -1824,15 +1920,15 @@ private:
         m_s.tabColor = m_m.shapes[m_index].tabColor;
         m_s.view.rightToLeft = m_m.shapes[m_index].rightToLeft;
         view();
+        notes();
         drawing();
         m_s.stats.heldBytes = m_held;
         m_s.stats.xmlBytes = 0;
     }
 
-    // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).
-    void drawing()
+    // Where the columns and rows read so far are (in points).
+    odsdraw::Grid gridNow() const
     {
-        if (m_s.partial || (m_shapes.isEmpty() && !m_shapesOver)) return;
         const double defaultCol = m_s.format.defaultColWidth > 0 ? m_s.format.defaultColWidth * m_m.maxDigitWidth * 72.0 / 96.0 : 64.0;
         const double defaultRow = m_s.format.defaultRowHeight > 0 ? m_s.format.defaultRowHeight : 15.0;
         QVector<odsdraw::Grid::Run> cols, rows;
@@ -1844,7 +1940,29 @@ private:
             const double h = heightOf(r);
             rows.append({r.first, r.first + r.count - 1, r.hidden ? 0.0 : (h > 0 ? h : defaultRow)});
         }
-        const odsdraw::Grid grid(cols, defaultCol, rows, defaultRow);
+        return odsdraw::Grid(cols, defaultCol, rows, defaultRow);
+    }
+
+    // The boxes of the notes read, now that the sizes of the columns and rows are known, and what was left out of them said.
+    void notes()
+    {
+        if (!m_s.importedNotes.isEmpty()) {
+            const odsdraw::Grid grid = gridNow();
+            for (qsizetype i = 0; i < m_s.importedNotes.size(); ++i) {
+                ImportedNote &n = m_s.importedNotes[i];
+                const NoteRaw &raw = m_noteRaw[size_t(i)];
+                if (raw.ok) n.box = noteBoxFromOds(raw.x, raw.y, raw.w, raw.h, n.row, n.col, grid);
+            }
+        }
+        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "notes past the %1 a sheet may have").arg(kMaxNotes);
+        if (m_notesCut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "notes cut to %1 characters").arg(kMaxOdsNoteChars);
+    }
+
+    // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).
+    void drawing()
+    {
+        if (m_s.partial || (m_shapes.isEmpty() && !m_shapesOver)) return;
+        const odsdraw::Grid grid = gridNow();
         odsdraw::Budget budget;
         {
             QMutexLocker locker(&m_m.lock);
@@ -2031,7 +2149,15 @@ private:
     QVector<odsdraw::SheetShape> m_shapes;
     odsdraw::Counters m_drawCounters;
     bool m_shapesOver = false;
+    struct NoteRaw {
+        bool ok = false;
+        double x = 0, y = 0, w = 0, h = 0;
+    };
+    std::vector<NoteRaw> m_noteRaw;   // the lengths of each note of m_s.importedNotes
+    qint64 m_noteChars = 0, m_notesCut = 0;
+    bool m_notesOver = false;
     quint32 m_cellRow = 0, m_cellCol = 0;
+    bool m_cellBeyond = false;   // the cell being read is past the last column a sheet has
 };
 
 } // namespace
@@ -2073,6 +2199,13 @@ bool OdsBook::mayHaveDrawings(int index) const
     if (index < 0 || index >= m->slices.size()) return false;
     const Range r = m->slices[index];
     return QByteArrayView(m->content).mid(r.from, r.to - r.from).indexOf(QByteArrayView("draw:")) >= 0;
+}
+
+bool OdsBook::mayHaveNotes(int index) const
+{
+    if (index < 0 || index >= m->slices.size()) return false;
+    const Range r = m->slices[index];
+    return QByteArrayView(m->content).mid(r.from, r.to - r.from).indexOf(QByteArrayView("annotation")) >= 0;
 }
 
 QStringList OdsBook::changed() const

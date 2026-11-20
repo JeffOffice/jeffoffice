@@ -7,6 +7,7 @@
 #include "calc/linemap.h"
 #include "sheet/cellref.h"
 #include "sheet/links.h"
+#include "sheet/notebox.h"
 #include "sheet/pagesetup.h"
 #include "sheet/protection.h"
 #include "sheet/sparkline.h"
@@ -1495,6 +1496,14 @@ struct ImportedDrawing {
     bool isEmpty() const { return anchors.isEmpty(); }
 };
 
+// A note an OpenDocument sheet has on a cell (see ods.h): the file's own text and author, whether it is shown all the time, and its box counted from the note's cell.
+struct ImportedNote {
+    quint32 row = 0, col = 0;
+    QString author, text;
+    bool shown = false;
+    NoteBox box;
+};
+
 struct Sheet {
     CellStore cells;
     QVector<QString> texts;           // inline strings and the texts of formula results
@@ -1532,6 +1541,7 @@ struct Sheet {
     bool isProtected = false;         // the sheet is protected (sheetProtection): its locked cells can't be changed
     SheetProtection protection;       // and what the protection says (isProtected is its `enabled`)
     QVector<LinkSpec> links;          // the links on cells, in the order of the file (an address outside the workbook is resolved by Workbook::readSheet; a sheet read alone has the relationship's id)
+    QVector<ImportedNote> importedNotes;     // the notes of a sheet read from an OpenDocument spreadsheet (written to the XML form when the workbook is saved as one)
     ImportedDrawing importedDrawing;         // the drawing objects of a sheet read from an OpenDocument spreadsheet (written to the XML form when the workbook is saved as one)
     QVector<ImportedChart> importedCharts;   // the charts of a sheet of the older binary form (see sheet/xlschart.h); they are written when the workbook is saved as the XML form
     QStringList notKept;              // what the sheet's file has that the program neither shows nor writes into a copy of the sheet, in words (sparklines, say)

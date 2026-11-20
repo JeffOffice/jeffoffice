@@ -1,6 +1,7 @@
 #include "sheet/notes.h"
 
 #include "sheet/cellref.h"
+#include "sheet/foreignbook.h"
 #include "sheet/xmlscan.h"
 
 #include <QIODevice>
@@ -508,6 +509,24 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
     return out;
 }
 
+std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most, bool *truncated)
+{
+    std::map<quint64, NoteInfo> out;
+    if (truncated) *truncated = false;
+    for (const ImportedNote &n : sheet.importedNotes) {
+        if (qint64(out.size()) >= most) {
+            if (truncated) *truncated = true;
+            break;
+        }
+        NoteInfo &info = out[noteKey(n.row, n.col)];
+        info.author = n.author;
+        info.text = n.text;
+        info.shown = n.shown;
+        info.box = n.box;
+    }
+    return out;
+}
+
 std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, bool *truncated, qint64 most, NoteReadContext *context)
 {
     NoteReadContext local;
@@ -515,6 +534,12 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
     std::map<quint64, NoteInfo> out;
     if (truncated) *truncated = false;
     const WorkbookInfo &info = book.info();
+    if (sheet >= 0 && sheet < info.sheets.size() && !info.sheets[sheet].deleted && !info.sheets[sheet].isNew && book.foreignBook() && book.foreignBook()->mayHaveNotes(sheet)) {
+        // (a workbook read from an OpenDocument file has its notes in the sheet's model, and is read again to have them)
+        Sheet read;
+        if (book.readSheet(sheet, &read)) out = noteInfosOf(read, std::min(most, kMaxNotes), truncated);
+        return out;
+    }
     if (sheet < 0 || sheet >= info.sheets.size() || info.sheets[sheet].deleted || info.sheets[sheet].isNew || info.sheets[sheet].part.isEmpty()) return out;
     if (book.isConverted()) return out;
     QString commentsPart;

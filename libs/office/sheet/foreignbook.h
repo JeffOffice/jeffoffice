@@ -29,6 +29,12 @@ public:
         Q_UNUSED(index);
         return false;
     }
+    // Whether sheet `index` may have notes (a quick look; they are in Sheet::importedNotes once the sheet is read, and written to the .xlsx a save makes).
+    virtual bool mayHaveNotes(int index) const
+    {
+        Q_UNUSED(index);
+        return false;
+    }
     // The name of the kind of file, as the person is told it (".ods", ".csv").
     virtual QString kind() const = 0;
 };

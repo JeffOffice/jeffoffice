@@ -752,7 +752,7 @@ private Q_SLOTS:
         QCOMPARE(wb.info().definedNames[2].ref, QStringLiteral("S!$B$1*2"));
     }
 
-    // What is not read is said: charts, form controls and freehand shapes, comments, pivot tables, macros, conditional formats, and data validation.
+    // What is not read is said: charts, form controls and freehand shapes, pivot tables, macros, conditional formats, and data validation.
     void whatIsNotReadIsSaid()
     {
         const QString inside = QStringLiteral("<draw:frame><draw:image xlink:href=\"Pictures/a.png\"/></draw:frame><draw:frame><draw:object xlink:href=\"./Object 1\"/></draw:frame><draw:control draw:control=\"c1\"/>"
@@ -764,8 +764,9 @@ private Q_SLOTS:
         extra[QStringLiteral("Basic/script-lc.xml")] = "<x/>";
         Workbook wb = open(buildOds(contentXml(tables), QString(), QByteArray(), extra));
         const QStringList skipped = wb.skippedFeatures();
-        for (const char *what : {"charts", "form controls, freehand shapes, and callouts", "pivot tables", "comments", "macros", "conditional formats", "data validation"})
+        for (const char *what : {"charts", "form controls, freehand shapes, and callouts", "pivot tables", "macros", "conditional formats", "data validation"})
             QVERIFY2(skipped.contains(QString::fromLatin1(what)), what);
+        QVERIFY(!skipped.contains(QStringLiteral("comments")));   // (notes are read)
         Workbook none = open(simple(table(QStringLiteral("S"), row(floatCell(1)))));
         QVERIFY(none.skippedFeatures().isEmpty());
     }

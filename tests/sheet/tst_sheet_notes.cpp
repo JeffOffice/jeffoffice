@@ -6,6 +6,7 @@
 #include "io/zip.h"
 #include "sheet/notes.h"
 #include "sheet/notesave.h"
+#include "sheet/oldsave.h"
 #include "sheet/protection.h"
 #include "sheet/xlsxsave.h"
 
@@ -524,6 +525,31 @@ private Q_SLOTS:
         QVERIFY(!notes.at(noteKey(4, 1)).threaded);
         QCOMPARE(notes.at(noteKey(4, 1)).text, QStringLiteral("plain now"));
         QVERIFY(!entriesOf(again->bytes).value(QStringLiteral("xl/threadedComments/threadedComment1.xml")).contains("ref=\"B5\""));
+    }
+
+    // A conversation of comments has no form in an .ods file: saved as one it is a plain note whose text is the comments' words (the thread itself is not written, and is not read back as one); the
+    // other notes and the shown states are kept, and each note is an annotation with the standard's attributes.
+    void aThreadSavedAsAnOdsIsAPlainNoteWithItsWords()
+    {
+        auto o = open(notesBook());
+        QVERIFY2(o->ok, qPrintable(o->why));
+        QByteArray ods;
+        CopyReport report;
+        QString why;
+        QVERIFY2(saveOds(o->book, &ods, &report, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        const QByteArray content = parts.value(QStringLiteral("content.xml"));
+        QCOMPARE(content.count("<office:annotation "), 3);
+        QCOMPARE(content.count("office:display=\"true\""), 1);
+        const qsizetype thread = content.indexOf("Is this figure final?");
+        QVERIFY(thread > 0);
+        QVERIFY(content.indexOf("Yes, final.") > thread);
+        QVERIFY(!content.contains("threaded"));
+        // (the words are inside one annotation, the one on B5)
+        const qsizetype start = content.lastIndexOf("<office:annotation ", thread), end = content.indexOf("</office:annotation>", thread);
+        QVERIFY(start >= 0 && end > thread);
+        QVERIFY(content.mid(start, end - start).contains("Yes, final."));
     }
 
     void aThreadTakenAwayLeavesNeitherThreadNorNote()

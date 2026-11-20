@@ -1,6 +1,8 @@
 // The file a workbook of the older binary form is saved as: see xlsxbase.h.
 
 #include "sheet/xlsxbase.h"
+#include "sheet/notes.h"
+#include "sheet/notesave.h"
 #include "odt/odtcommon.h"
 #include "sheet/pagesetupxml.h"
 #include "sheet/proofingext.h"
@@ -570,6 +572,7 @@ public:
         }
         m_out += pageSetupElementsXml(m_sheet.page, QByteArray());
         if (!m_sheet.importedCharts.isEmpty() || !m_sheet.importedDrawing.isEmpty()) m_out += "<drawing r:id=\"rId1\"/>";   // (the drawing the charts of an older workbook are in: see writeBaseXlsx)
+        if (!m_sheet.importedNotes.isEmpty()) m_out += "<legacyDrawing r:id=\"rId3\"/>";   // (the drawing of the notes of an OpenDocument sheet: see writeBaseXlsx)
         m_out += "</worksheet>";
         m_out.flush();
         return !m_stopped;
@@ -1025,12 +1028,28 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     int objectFiles = 0;                                                  // the packages written for them
     std::vector<std::unique_ptr<Sheet>> readFirst(size_t(info.sheets.size()));   // (a sheet read to find its objects is kept to be written: it is read once)
     QSet<QString> mediaExtensions;
+    std::vector<bool> hasNotes(size_t(info.sheets.size()), false);   // the sheets that have notes of an OpenDocument file to write
+    qint64 noteChars = 0;
+    const QString notesLeftOut = QCoreApplication::translate("jp::office::sheet::Save", "notes past the limit on the notes of a workbook");
     if (const ForeignBook *foreign = book.foreignBook()) {
         for (int i = 0; i < info.sheets.size(); ++i) {
             if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
-            if (drawingOf[size_t(i)] != 0 || !foreign->mayHaveDrawings(i)) continue;
+            const bool wantDrawing = drawingOf[size_t(i)] == 0 && foreign->mayHaveDrawings(i), wantNotes = foreign->mayHaveNotes(i);
+            if (!wantDrawing && !wantNotes) continue;
             Sheet look;
-            if (!book.readSheet(i, &look) || look.importedDrawing.isEmpty()) continue;
+            if (!book.readSheet(i, &look)) continue;
+            if (wantNotes && !look.importedNotes.isEmpty()) {
+                // (the notes of all the sheets together are bounded as those of one workbook are: what is past the bound is left out, and said)
+                qint64 chars = 0;
+                for (const ImportedNote &n : std::as_const(look.importedNotes)) chars += n.text.size() + n.author.size();
+                if (noteChars + chars <= kMaxNoteCharsPerBook) {
+                    noteChars += chars;
+                    hasNotes[size_t(i)] = true;
+                } else if (notes && !notes->contains(notesLeftOut)) {
+                    notes->append(notesLeftOut);
+                }
+            }
+            if (!wantDrawing || look.importedDrawing.isEmpty()) continue;
             // (a workbook that a window holds the objects of has them written in the sheets as objects, not in the drawings)
             if (book.heldObjects()) {
                 dropFramesOfObjects(&look.importedDrawing);
@@ -1081,6 +1100,13 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             if (const char *type = odt::contentTypeOf(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + type + "\"/>";
         for (const QString &e : std::as_const(objectExtensions)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + (e == QLatin1String("xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : e == QLatin1String("bin") ? "application/vnd.openxmlformats-officedocument.oleObject" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") + "\"/>";
         for (int k = 1; k <= links; ++k) types += "<Override PartName=\"/xl/externalLinks/externalLink" + num(k) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/>";
+        bool anyNotes = false;
+        for (int i = 0; i < info.sheets.size(); ++i)
+            if (hasNotes[size_t(i)]) {
+                anyNotes = true;
+                types += "<Override PartName=\"/xl/comments" + num(i + 1) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml\"/>";
+            }
+        if (anyNotes) types += "<Default Extension=\"vml\" ContentType=\"application/vnd.openxmlformats-officedocument.vmlDrawing\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);
@@ -1114,6 +1140,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         } else if (!book.readSheet(i, &sheet)) return fail(sheet.error.isEmpty() ? QCoreApplication::translate("jp::office::sheet::Save", "A sheet of the workbook could not be read to be saved.") : sheet.error);
         if (!sheet.error.isEmpty()) return fail(sheet.error);
         sheet.importedDrawing = importedOf[size_t(i)];
+        if (!hasNotes[size_t(i)]) sheet.importedNotes.clear();
+        QByteArray sheetRels;   // (the relationships of the sheet: its drawing, and its notes)
         zip.beginStream(baseSheetPart(i).mid(1), true);
         Out sink(&zip);
         SheetWriter writer(book, sheet, &sink, cancel, &references);
@@ -1140,10 +1168,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             const int drawing = drawingOf[size_t(i)];
             zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawing), newDrawingXml(anchors), true);
             zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawing), drawingRels, true);
-            zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
-                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/drawing\" Target=\"../drawings/drawing" +
-                        num(drawing) + ".xml\"/></Relationships>",
-                    true);
+            sheetRels += "<Relationship Id=\"rId1\" Type=\"" + QByteArray(kRelNs) + "/drawing\" Target=\"../drawings/drawing" + num(drawing) + ".xml\"/>";
         }
         if (!sheet.importedDrawing.isEmpty()) {
             // the drawing objects of an OpenDocument sheet: their anchors, and the relationships to the pictures (each picture a file of its own in the package's folder of media)
@@ -1187,11 +1212,29 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             const int drawing = drawingOf[size_t(i)];
             zip.add(QStringLiteral("xl/drawings/drawing%1.xml").arg(drawing), newDrawingXml(anchors), true);
             zip.add(QStringLiteral("xl/drawings/_rels/drawing%1.xml.rels").arg(drawing), drawingRels, true);
-            zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
-                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/drawing\" Target=\"../drawings/drawing" +
-                        num(drawing) + ".xml\"/></Relationships>",
-                    true);
+            sheetRels += "<Relationship Id=\"rId1\" Type=\"" + QByteArray(kRelNs) + "/drawing\" Target=\"../drawings/drawing" + num(drawing) + ".xml\"/>";
         }
+        if (!sheet.importedNotes.isEmpty()) {
+            // the notes of an OpenDocument sheet: the comments (the text and author of each) and the drawing that has a shape for each (where it is, and whether it is shown)
+            std::vector<NoteOp> ops;
+            for (const ImportedNote &n : std::as_const(sheet.importedNotes)) {
+                NoteOp op;
+                op.row = n.row;
+                op.col = n.col;
+                op.author = n.author;
+                op.text = n.text;
+                op.shown = n.shown;
+                op.box = n.box;
+                ops.push_back(std::move(op));
+            }
+            zip.add(QStringLiteral("xl/comments%1.xml").arg(i + 1), newCommentsPart(ops), true);
+            zip.add(QStringLiteral("xl/drawings/vmlDrawing%1.vml").arg(i + 1), newNotesDrawing(ops), true);
+            sheetRels += "<Relationship Id=\"rId2\" Type=\"" + QByteArray(kRelNs) + "/comments\" Target=\"../comments" + num(i + 1) + ".xml\"/>";
+            sheetRels += "<Relationship Id=\"rId3\" Type=\"" + QByteArray(kRelNs) + "/vmlDrawing\" Target=\"../drawings/vmlDrawing" + num(i + 1) + ".vml\"/>";
+        }
+        if (!sheetRels.isEmpty())
+            zip.add(QStringLiteral("xl/worksheets/_rels/sheet%1.xml.rels").arg(i + 1),
+                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + sheetRels + "</Relationships>", true);
     }
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
     *out = zip.finish();

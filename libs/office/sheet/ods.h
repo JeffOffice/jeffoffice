@@ -10,7 +10,7 @@
 // protection), merged cells, repeated rows, columns, and cells, column widths and row heights, hidden and filtered rows and columns, frozen panes, the cell the sheet was left
 // on, the zoom, the tab's color, and named ranges and expressions (the workbook's and a sheet's).
 // Drawing objects (pictures, shapes, text boxes, Text Art as fontwork, groups, and lines) are read into Sheet::importedDrawing (see sheet/odsdraw.h).
-// Not read, and said so by skipped(): charts, form controls and freehand shapes, hyperlinks, comments, pivot tables, macros, conditional formats, and data validation. Changed, and said
+// Notes (an annotation in a cell) are read into Sheet::importedNotes: the text and author, whether the note is shown, and its box from the annotation's width, height, and position. Not read, and said so by skipped(): charts, form controls and freehand shapes, hyperlinks, pivot tables, macros, conditional formats, and data validation. Changed, and said
 // so by changed(): sheet names the .xlsx form does not allow (too long, a mark it does not allow, the same as another in capitals or small letters), which are made valid and unique with
 // the formulas and names that use them, and formulas that could not be converted, which keep the value the file stored. A document that is
 // encrypted is refused, as is one that is a text document or a presentation.
@@ -45,6 +45,7 @@ public:
     QStringList changed() const override;
     QStringList externalTargets() const override;
     bool mayHaveDrawings(int index) const override;
+    bool mayHaveNotes(int index) const override;
     QString kind() const override { return m_flat ? QStringLiteral(".fods") : QStringLiteral(".ods"); }
     ~OdsBook() override;
 

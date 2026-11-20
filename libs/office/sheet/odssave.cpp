@@ -4,6 +4,8 @@
 // XML would; a document is never made past the size the reader accepts.
 
 #include "sheet/oldsave.h"
+#include "sheet/notes.h"
+#include "sheet/odsnotes.h"
 
 #include "calc/formula.h"
 #include "calc/numfmt.h"
@@ -29,6 +31,8 @@
 #include <atomic>
 #include <cmath>
 #include <map>
+#include <optional>
+#include <unordered_map>
 
 namespace jp::office::sheet {
 
@@ -983,6 +987,7 @@ private:
         return global.isEmpty() ? QString() : QStringLiteral("<table:named-expressions>") + global + QStringLiteral("</table:named-expressions>");
     }
     QHash<int, QString> m_localNames;
+    NoteReadContext m_noteContext;   // (a comments part that more than one sheet names is read once, and the characters of the notes are counted for the workbook)
     bool m_explicitDefault = false;     // the sheet being written gives some columns or rows a look of their own
     QHash<quint64, QString> m_linkOf;   // the address a cell of the sheet being written links to, by row and column
 
@@ -1019,6 +1024,11 @@ private:
             m_features.note(sheet);
         }
         const QString shapes = shapesOf(sheet, w, index, w.place);
+        // the notes of the sheet, by cell (a workbook read from an OpenDocument file has them in the model of its sheet, any other in its package)
+        std::map<quint64, NoteInfo> noteMap;
+        if (w.place >= 0) noteMap = m_book.foreignBook() ? noteInfosOf(sheet) : readSheetNoteInfos(m_book, w.place, nullptr, kMaxNotes, &m_noteContext);
+        std::optional<odsdraw::Grid> noteGrid;
+        qint64 notesCovered = 0;
         m_views.append({w.name, sheet.view, w.place});
         const SheetEntry entry = m_book.info().sheets.value(w.place);
         QString tableStyle = QStringLiteral("ta%1").arg(index + 1);
@@ -1181,6 +1191,14 @@ private:
                             seen.insert(r);
                             rowList.append(r);
                         }
+                // (a cell with a note is not an empty one: its row is written)
+                for (const auto &n : noteMap) {
+                    const quint32 noteRow = quint32(n.first >> 32);
+                    if (noteRow < 1048576 && quint32(n.first & 0xffffffffu) < 16384 && !seen.contains(noteRow)) {
+                        seen.insert(noteRow);
+                        rowList.append(noteRow);
+                    }
+                }
                 for (const PageBreak &b : sheet.page.rowBreaks)
                     if (b.manual && b.before < 1048576) {
                         rowBreakSet.insert(b.before);
@@ -1239,6 +1257,7 @@ private:
                     quint32 rowSpan;          // rows (a merged range's first cell)
                     quint32 colSpan;
                     bool member = false;      // a cell inside an array's matrix, other than its first
+                    const NoteInfo *note = nullptr;   // the note on the cell
                 };
                 std::vector<Item> items;
                 std::vector<std::pair<quint32, quint32>> covered;   // columns covered in this row
@@ -1286,6 +1305,26 @@ private:
                         }
                     if (!found) items.push_back({m.col1, nullptr, 1, m.row2 - m.row1 + 1, m.col2 - m.col1 + 1, false});
                 }
+                // the notes of the row: each on its cell (made if the cell has none, so that a cell with only a note is not an empty one)
+                if (!noteMap.empty()) {
+                    auto from = noteMap.lower_bound(noteKey(row, 0)), to = noteMap.lower_bound(noteKey(row + 1, 0));
+                    if (row == 1048575) to = noteMap.end();
+                    if (from != to) {
+                        std::unordered_map<quint32, size_t> itemAt;
+                        for (size_t k = 0; k < items.size(); ++k) itemAt[items[k].col] = k;
+                        for (; from != to; ++from) {
+                            const quint32 noteCol = quint32(from->first & 0xffffffffu);
+                            if (noteCol > 16383) continue;
+                            if (isCovered(noteCol)) {
+                                ++notesCovered;
+                                continue;
+                            }
+                            const auto at = itemAt.find(noteCol);
+                            if (at != itemAt.end()) items[at->second].note = &from->second;
+                            else items.push_back({noteCol, nullptr, 1, 1, 1, false, &from->second});
+                        }
+                    }
+                }
                 for (const auto &c : covered) items.push_back({c.first, nullptr, 0, 0, c.second - c.first + 1, false});
                 std::sort(items.begin(), items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
                 // the row
@@ -1312,7 +1351,12 @@ private:
                         col += it.colSpan;
                         continue;
                     }
-                    rx += cellXml(sheet, it.cell, it.rowSpan, it.colSpan, it.member);
+                    QString noteXml;
+                    if (it.note) {
+                        if (!noteGrid) noteGrid.emplace(gridOf(sheet));
+                        noteXml = annotationXml(*it.note, row, it.col, *noteGrid);
+                    }
+                    rx += cellXml(sheet, it.cell, it.rowSpan, it.colSpan, it.member, noteXml);
                     col += 1;
                 }
                 rx += QStringLiteral("</table:table-row>");
@@ -1324,6 +1368,9 @@ private:
         QString tail;
         const QString localNames = m_localNames.value(index);
         if (!localNames.isEmpty()) tail += QStringLiteral("<table:named-expressions>") + localNames + QStringLiteral("</table:named-expressions>");
+        // (the count is made before the message: the tool that gathers the messages for translation does not read a template argument inside the call)
+        const int coveredCount = int(std::min<qint64>(notesCovered, 1000000000));
+        if (notesCovered > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%n note(s) on cells covered by merged cells", nullptr, coveredCount)));
         spool->add(tail.toUtf8() + "</table:table>");
         return true;
     }
@@ -1390,13 +1437,25 @@ private:
     }
 
     // A cell of the row: `covered` for a cell inside the matrix of an array formula (it holds a value and no formula).
-    QString cellXml(const Sheet &sheet, const PlacedCell *pc, quint32 rowSpan, quint32 colSpan, bool covered)
+    // A note as the standard's annotation: shown or not, its size and place (in points from the sheet's top left), who wrote it, and its text as paragraphs.
+    QString annotationXml(const NoteInfo &note, quint32 row, quint32 col, const odsdraw::Grid &grid) const
+    {
+        QString x = QStringLiteral("<office:annotation office:display=\"%1\"").arg(note.shown ? QStringLiteral("true") : QStringLiteral("false"));
+        double bx = 0, by = 0, bw = 0, bh = 0;
+        if (noteBoxToOds(note.box, row, col, grid, &bx, &by, &bw, &bh))
+            x += QStringLiteral(" svg:width=\"%1pt\" svg:height=\"%2pt\" svg:x=\"%3pt\" svg:y=\"%4pt\"").arg(bw, 0, 'f', 2).arg(bh, 0, 'f', 2).arg(bx, 0, 'f', 2).arg(by, 0, 'f', 2);
+        x += QStringLiteral(">");
+        if (!note.author.isEmpty()) x += QStringLiteral("<dc:creator>") + esc(note.author) + QStringLiteral("</dc:creator>");
+        return x + textParagraphs(note.text) + QStringLiteral("</office:annotation>");
+    }
+
+    QString cellXml(const Sheet &sheet, const PlacedCell *pc, quint32 rowSpan, quint32 colSpan, bool covered, const QString &noteXml = QString())
     {
         QString x = covered ? QStringLiteral("<table:covered-table-cell") : QStringLiteral("<table:table-cell");
         if (!pc) {
             if (rowSpan > 1) x += QStringLiteral(" table:number-rows-spanned=\"%1\"").arg(rowSpan);
             if (colSpan > 1) x += QStringLiteral(" table:number-columns-spanned=\"%1\"").arg(colSpan);
-            return x + QStringLiteral("/>");
+            return noteXml.isEmpty() ? x + QStringLiteral("/>") : x + QStringLiteral(">") + noteXml + QStringLiteral("</table:table-cell>");
         }
         const Cell &c = pc->cell;
         ++m_cells;
@@ -1478,8 +1537,8 @@ private:
             }
         }
         const QString closing = covered ? QStringLiteral("</table:covered-table-cell>") : QStringLiteral("</table:table-cell>");
-        if (c.type == CellType::Empty) return x + QStringLiteral("/>");
-        return x + QStringLiteral(">") + paragraphs + closing;
+        if (c.type == CellType::Empty) return noteXml.isEmpty() ? x + QStringLiteral("/>") : x + QStringLiteral(">") + noteXml + closing;
+        return x + QStringLiteral(">") + noteXml + paragraphs + closing;
     }
 
 public:

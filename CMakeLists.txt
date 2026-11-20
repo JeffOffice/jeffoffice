@@ -511,6 +511,7 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_csvchoices.cpp
   tests/sheet/tst_sheet_csvhostile.cpp
   tests/sheet/tst_sheet_odsreview.cpp
+  tests/sheet/tst_sheet_odsnotes.cpp
   tests/sheet/tst_sheet_csvreview.cpp
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
