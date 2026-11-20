@@ -790,6 +790,12 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     };
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
     ctx.slideCount = int(m_doc.pages.size());
+    ctx.fieldText = [this](const QString &code) {
+        FieldContext fc;
+        fc.doc = &m_doc;
+        fc.pageCount = int(m_doc.pages.size());
+        return fc.resolve(code);
+    };
     ctx.droppedLinks = &m_droppedLinks;
     ctx.mediaBytes = [this](const QString &mediaId, QString *contentType, QString *extension) {
         const auto it = m_doc.media.constFind(mediaId);
@@ -2374,6 +2380,7 @@ QByteArray exportPresentation(const Document &doc, QString *error, QStringList *
     if (live && doc.slideText) {
         const std::unique_ptr<Document> fitted = Document::fromSnapshot(doc.snapshot());
         settleFits(*fitted);
+        fitted->fieldFilePath = doc.fieldFilePath;
         return Exporter(*fitted, kind, skipped, embedFonts, macros).run(error);
     }
     return Exporter(doc, kind, skipped, embedFonts, macros).run(error);
@@ -2385,12 +2392,14 @@ ExportSnapshot snapshotForExport(const Document &doc)
     s.doc = doc.snapshot();
     s.thumbnail = renderThumbnail(doc);
     s.keptFonts = EmbeddedFonts::facesOf(&doc);
+    s.filePath = doc.fieldFilePath;
     return s;
 }
 
 QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error, PresentationKind kind, bool embedFonts, bool macros)
 {
     const std::unique_ptr<Document> doc = Document::fromSnapshot(snapshot.doc);
+    doc->fieldFilePath = snapshot.filePath;
     if (doc->slideText) settleFits(*doc);
     return Exporter(*doc, kind, embedFonts, snapshot.keptFonts, snapshot.thumbnail, macros).run(error);
 }

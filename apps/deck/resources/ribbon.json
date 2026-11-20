@@ -569,6 +569,15 @@
               "menu": "@slideNumberMenu"
             },
             {
+              "large": {
+                "id": "ribbon.field",
+                "text": "Field",
+                "icon": "file-text"
+              },
+              "keytip": "FD",
+              "menu": "@fieldMenu"
+            },
+            {
               "widget": "textArtButton",
               "keytip": "WA"
             },

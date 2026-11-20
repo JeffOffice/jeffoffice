@@ -251,6 +251,16 @@ void DeckWindow::ribbonMenuParts(RibbonParts &parts)
     parts.menus[QStringLiteral("newSlideLayouts")] = [this](QWidget *owner) { return layoutMenu(owner, false); };
     parts.menus[QStringLiteral("changeLayout")] = [this](QWidget *owner) { return layoutMenu(owner, true); };
     parts.menus[QStringLiteral("switchWindowsMenu")] = [](QWidget *owner) { return AppWindow::switchWindowsMenu(owner, DeckWindow::staticMetaObject); };
+    // Field: the document's title and author, the file's name, and the number of slides, in the text being edited.
+    parts.menus[QStringLiteral("fieldMenu")] = [this](QWidget *owner) {
+        auto *m = new QMenu(owner);
+        const QList<QAction *> all = {act("insert.fieldTitle"), act("insert.fieldAuthor"), act("insert.fieldFileName"), act("insert.fieldSlideCount")};
+        for (QAction *a : all) m->addAction(a);
+        connect(m, &QMenu::aboutToShow, m, [this, all] {
+            for (QAction *a : all) a->setEnabled(m_ed->isEditingText());
+        });
+        return m;
+    };
     // Slide Number: on or off, its place, and not on the title slide.
     parts.menus[QStringLiteral("slideNumberMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

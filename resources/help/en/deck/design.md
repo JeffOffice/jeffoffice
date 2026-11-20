@@ -38,6 +38,8 @@ The **Notes and Handouts** tab has the **Date**, **Header**, **Footer**, and **P
 
 The date and the slide number are fields, which keep themselves right: the date is today's, and the number follows the slide's place when you move it.
 
+To put the presentation's title, its author, its file name, or its number of slides into the words of a box, click into the box, then choose **Insert**, **Field**, and the one you want. Each is a field, so it changes when the presentation does: edit the title in **File**, **Info** and the words follow. A saved file has no kind of field for these four, so JeffDeck saves them as the plain words they show, in both .pptx and .odp files. When you open the file again they are ordinary text, and you can put the field back with **Insert**, **Field**. The slide number and the date stay fields in both kinds of file.
+
 ## Themes
 
 A **theme** is the whole look of a presentation: its colors, its fonts, its backgrounds, and the **slide master** and **layouts** with what they draw. The slide master is the page behind all the slides. A layout is a plan for one kind of slide, such as a Title Slide or Two Content. Themes draw bands, lines, and shapes on them.

@@ -12,11 +12,14 @@
 #include "core/threads.h"
 #include "text/storyio.h"
 #include "deckhelpers.h"
+#include "fields/fieldhost.h"
 
 #include "../settingguard.h"
 #include "../withdialog.h"
 
+#include <QFile>
 #include <QStatusBar>
+#include <QTemporaryDir>
 #include <QMouseEvent>
 #include <QToolTip>
 
@@ -231,6 +234,108 @@ private Q_SLOTS:
         QCOMPARE(shownIn(ed, boxId), QStringLiteral("1"));
         ed->movePage(0, 2);
         QCOMPARE(shownIn(ed, boxId), QStringLiteral("3"));
+    }
+
+    // Insert > Slide Number > Field: the title, the author, the file name, and the number of slides go into the box being edited as fields that the shared engine works out
+    // (one step that undoes). The standard's field element has no type for them (section 21.1.2.2.4), so a saved file holds their words as text: through the window's own Save and
+    // Open, the words are there and no field element is.
+    void propertyFieldsShowTheDocumentAndAreSavedAsText()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        w.newSlide();
+        w.newSlide();
+        ed->doc()->props.title = QStringLiteral("Quarterly Plan");
+        ed->doc()->props.author = QStringLiteral("Pat Lee");
+        ed->setCurrentPage(1);
+        const QString boxId = ed->doc()->pages[1]->items[0]->id, storyId = static_cast<TextItem *>(ed->doc()->pages[1]->items[0].get())->storyId;
+        auto codes = [&] {
+            QStringList out;
+            const QTextDocument *story = ed->doc()->storyDoc(storyId);
+            for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+                for (auto it = b.begin(); !it.atEnd(); ++it)
+                    if (const QString code = it.fragment().charFormat().stringProperty(tp::Field); !code.isEmpty()) out << code;
+            return out;
+        };
+        // With no box being edited, they put in nothing.
+        w.act(QStringLiteral("insert.fieldTitle"))->trigger();
+        QVERIFY(codes().isEmpty());
+        ed->select(boxId);
+        ed->beginTextEdit(boxId, 0);
+        for (const char *id : {"insert.fieldTitle", "insert.fieldAuthor", "insert.fieldFileName", "insert.fieldSlideCount"}) w.act(QString::fromLatin1(id))->trigger();
+        QCOMPARE(codes(), QStringList({QStringLiteral("fld:TITLE"), QStringLiteral("fld:AUTHOR"), QStringLiteral("fld:FILENAME"), QStringLiteral("fld:NUMPAGES")}));
+        QString shown = shownIn(ed, boxId);
+        QVERIFY2(shown.contains(QStringLiteral("Quarterly PlanPat Lee")) && shown.endsWith(QLatin1Char('3')), qPrintable(shown));
+        ed->undo();
+        QVERIFY(codes().size() < 4);
+        ed->redo();
+        QCOMPARE(codes().size(), 4);
+        // Through the window's own Save and Open.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString file = dir.filePath(QStringLiteral("plan-deck.pptx"));
+        QVERIFY(w.saveTo(file));
+        shown = shownIn(ed, boxId);
+        QVERIFY2(shown.contains(QStringLiteral("plan-deck.pptx")), qPrintable(shown));
+        QString err;
+        Exported e;
+        QFile packedFile(file);
+        QVERIFY(packedFile.open(QIODevice::ReadOnly));
+        const QByteArray packed = packedFile.readAll();
+        packedFile.close();
+        QVERIFY2(unpack(packed, &e, &err), qPrintable(err));
+        const QString slide = part(e, QStringLiteral("/ppt/slides/slide2.xml"));
+        QVERIFY(!slide.contains(QStringLiteral("<a:fld")));
+        QVERIFY(slide.contains(QStringLiteral("Quarterly Plan")) && slide.contains(QStringLiteral("Pat Lee")) && slide.contains(QStringLiteral("plan-deck.pptx")));
+        DeckWindow again;
+        QVERIFY(again.openFile(file));
+        const auto &t = static_cast<const TextItem &>(*again.editor()->doc()->pages[1]->items[0]);
+        const QString back = again.editor()->doc()->storyDoc(t.storyId)->toPlainText();
+        QVERIFY2(back.contains(QStringLiteral("Quarterly PlanPat Lee")) && back.contains(QStringLiteral("plan-deck.pptx")) && back.endsWith(QLatin1Char('3')), qPrintable(back));
+    }
+
+    // The engine behind the presentation's fields: the page and date codes show what they showed before, a date in the Qt letters is worked out by the engine's own date picture
+    // in every format and language the program offers (the same text as before), and a host answers the codes of the engine.
+    void theSharedEngineWorksOutThePresentationFields()
+    {
+        FieldContext ctx;
+        ctx.pageNumber = 4;
+        ctx.pageCount = 9;
+        QCOMPARE(ctx.resolve(QStringLiteral("page")), QStringLiteral("4"));
+        QCOMPARE(ctx.resolve(QStringLiteral("pages")), QStringLiteral("9"));
+        const QDateTime moments[] = {QDateTime(QDate(2026, 11, 20), QTime(16, 28, 34)), QDateTime(QDate(2027, 1, 5), QTime(0, 5, 9)), QDateTime(QDate(2026, 3, 9), QTime(12, 0, 0))};
+        int worked = 0;
+        for (const QString &lang : {QString(), QStringLiteral("en-US"), QStringLiteral("de-DE"), QStringLiteral("fr-FR"), QStringLiteral("ja-JP")})
+            for (const QString &format : dateTimeFormatsFor(lang))
+                for (const QDateTime &when : moments) {
+                    const QString kind = dateFieldKindOf(format);
+                    const QString expected = dateFieldText(kind, format, lang, when);
+                    const auto got = fields::dateFromQtFormat(when, format, lang.isEmpty() ? QLocale::system() : QLocale(lang));
+                    if (!got) continue;
+                    ++worked;
+                    QCOMPARE(*got, expected);
+                }
+        QVERIFY2(worked > 200, qPrintable(QString::number(worked)));
+        // A letter the picture has no equal for is left to the old way.
+        QVERIFY(!fields::dateFromQtFormat(moments[0], QStringLiteral("M/d/yyyy t"), QLocale::c()));
+        struct Host : fields::FieldHost {
+            int pageNumber() const override { return 4; }
+            QString pageText() const override { return QStringLiteral("4"); }
+            int pageCount() const override { return 9; }
+            fields::Properties properties() const override { fields::Properties p; p.title = QStringLiteral("T"); p.fileName = QStringLiteral("a.pptx"); return p; }
+            QDateTime now() const override { return QDateTime(QDate(2026, 11, 20), QTime(16, 28, 34)); }
+            QLocale locale() const override { return QLocale::c(); }
+        } host;
+        QCOMPARE(*fields::evaluate(host, QStringLiteral("PAGE \\* roman")), QStringLiteral("iv"));
+        QCOMPARE(*fields::evaluate(host, QStringLiteral("NUMPAGES")), QStringLiteral("9"));
+        QCOMPARE(*fields::evaluate(host, QStringLiteral("TITLE")), QStringLiteral("T"));
+        QCOMPARE(*fields::evaluate(host, QStringLiteral("FILENAME")), QStringLiteral("a.pptx"));
+        QCOMPARE(*fields::evaluate(host, QStringLiteral("DATE \\@ \"yyyy-MM-dd\"")), QStringLiteral("2026-11-20"));
+        QVERIFY(!fields::evaluate(host, QStringLiteral("NOSUCHFIELD x")));
+        // A hostile code is read to its bounds only.
+        QVERIFY(fields::parseCode(QStringLiteral("QUOTE ") + QString(QStringLiteral("a ")).repeated(5000)).arguments.size() <= fields::kMostCodeWords);
+        // The codes of the presentation's text: the document's own words.
+        QCOMPARE(ctx.resolve(QStringLiteral("fld:") + QString(QStringLiteral("QUOTE x ")).repeated(2000)).size() < 5000, true);
     }
 
     // The first slide's title with `text` in it, in `language`, and being typed in at its end; returns the story.

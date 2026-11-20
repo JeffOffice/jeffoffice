@@ -232,6 +232,11 @@ void DeckWindow::createInsertActions()
     mk("insert.headerFooter", tr("Header and Footer"), "panel-bottom", QKeySequence(), [this] { showHeaderFooter(); });
     // Slide Number in the text being edited: a field that shows the number of the slide it is on, and follows the slide when it moves.
     mk("insert.slideNumberField", tr("Slide Number in Text"), "hash", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("page")); });
+    // Fields of the shared engine (libs/text/fields) in the text being edited: the document's title and author, the file's name, and the number of slides.
+    mk("insert.fieldTitle", tr("Title"), "file-text", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("fld:TITLE")); });
+    mk("insert.fieldAuthor", tr("Author"), "file-text", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("fld:AUTHOR")); });
+    mk("insert.fieldFileName", tr("File Name"), "file-text", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("fld:FILENAME")); });
+    mk("insert.fieldSlideCount", tr("Number of Slides"), "hash", QKeySequence(), [this] { m_ed->insertField(QStringLiteral("fld:NUMPAGES")); });
     // Slide Number: on or off, the place it goes, and not on the title slide.
     mk("insert.slideNumberOn", tr("Show Slide Number"), "", QKeySequence(), [this] { setSlideNumberOn(act("insert.slideNumberOn")->isChecked()); }, true);
     auto *places = new QActionGroup(this);

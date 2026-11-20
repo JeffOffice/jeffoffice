@@ -255,6 +255,13 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     });
     doc->props.modified = QDateTime::currentDateTime();
     if (doc->props.author.isEmpty() && !m_personalInfoRemoved) doc->props.author = Settings::get().userName();
+    // A field that shows the file's name is written, as the words it shows, with the name this save gives; the open presentation keeps its own unless the save succeeds as itself.
+    const QString fileBefore = doc->fieldFilePath;
+    doc->fieldFilePath = path;
+    bool keepsPath = false;
+    const auto restorePath = qScopeGuard([&] {
+        if (!keepsPath) doc->fieldFilePath = fileBefore;
+    });
     // The macros are kept only in a file of a macro-enabled kind: any other is saved without them, and the person is told once.
     noteMacrosLeftOut(path);
     QString err;
@@ -271,6 +278,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
         statusBar()->showMessage(tr("Saved a copy as %1").arg(QFileInfo(path).fileName()), 4000);
         return true;
     }
+    keepsPath = true;
     m_ed->setFilePath(path);
     m_ed->markSaved();
     if (isReadOnly()) setReadOnly(false);

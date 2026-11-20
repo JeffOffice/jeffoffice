@@ -496,6 +496,13 @@ void Exporter::writeParagraph(X &x, Scope &sc, const QTextBlock &b, bool inList,
             x.open("text:span").attr("text:style-name", span);
             if (field == QLatin1String("page")) {
                 x.open("text:page-number").text(QStringLiteral("<number>")).close();
+            } else if (field.startsWith(QLatin1String("fld:"))) {
+                // A field of the shared engine is written as the words it shows.
+                FieldContext fc;
+                fc.doc = &m_doc;
+                fc.pageCount = int(m_doc.pages.size());
+                Spacing again;
+                writeText(x, fc.resolve(field), again);
             } else {
                 bool isTime = false;
                 const QString style = dateStyle(*sc.styles, field, &isTime);

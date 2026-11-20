@@ -58,6 +58,7 @@ struct ExportSnapshot {
     Document::Snapshot doc;
     QByteArray thumbnail;                  // the first slide's picture, as the file carries it
     QVector<EmbeddedFace> keptFonts;       // the fonts the file this came from carried
+    QString filePath;                      // where the file is (a field that shows its name)
 };
 ExportSnapshot snapshotForExport(const Document &doc);
 QByteArray exportSnapshot(const ExportSnapshot &snapshot, QString *error = nullptr, PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false, bool macros = false);
