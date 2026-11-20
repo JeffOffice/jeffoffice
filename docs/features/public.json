@@ -4168,8 +4168,9 @@
          "text": "dd4f448b416d32bd868fd27be6a65725c3a2a6a774e0dee82cb15913813097f5"
         },
         {
-         "status": "todo",
-         "text": "5b1e84d5aec8d533355752620ab4ff4d7fbf37b9b8ea6d13553312c5e91c5723"
+         "hide_soon": true,
+         "status": "done",
+         "text": "5886217fa1387c2337237c8956c41f8dea782f13ec7addb6d1e7f10741c5018e"
         }
        ]
       },
@@ -5524,7 +5525,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "9dfec36c5160e5cdc2ae8ba03fd09dd02880c7128d0f5f71aef264147097c483"
+         "text": "07278d682bc47ce15c66202fbe2f08f7e4e7b14b9fad71e00a5ada3a45b6b606"
         },
         {
          "hide_soon": true,
@@ -5535,6 +5536,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "f9fee748ef0982d92b57afe3098aa17dc1b1c7b0fe237caab6caa569e9b95b87"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "2e5702431c2915f00496aabcf97fe943285ab3cbe19f200472b013f43134eba1"
         }
        ]
       },
@@ -5968,7 +5974,7 @@
         },
         {
          "status": "partly",
-         "text": "e69db2d8e0ee89c86d11b5eedf6cb2c932e8de25f12826903eb6124eea166943"
+         "text": "ea37e2d36beb3ef2b25fc355cdf3e53c492642c0138ada4dd11655f9f3c16e2c"
         },
         {
          "status": "todo",
@@ -7293,11 +7299,11 @@
         },
         {
          "status": "partly",
-         "text": "455314f90db3ec51ab2a6f966eef84578f8639dd89c587145ac6e890796f0145"
+         "text": "4c37603ecc481e3ef4ebb79c284b47f674098eebbf847535b704514492c5adfe"
         },
         {
          "status": "partly",
-         "text": "2190ef4eb452de735689152a148b50ab406c15fd4907199b77a30b948ff8a0ad"
+         "text": "c528fd005ba23b0bcd76b743bd8b269b79b3a6c692e632130f07d2d30d99d9c3"
         }
        ]
       },
@@ -8181,6 +8187,18 @@
    "en": "Table of Contents",
    "es": "Tabla de contenido",
    "fr": "Table des matières",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "07278d682bc47ce15c66202fbe2f08f7e4e7b14b9fad71e00a5ada3a45b6b606": {
+   "drop": false,
+   "en": "Opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
+   "es": "Abre archivos `.pub` desde 1998 en adelante: páginas, páginas maestras, texto y su formato, tablas, imágenes y objetos en el texto.",
+   "fr": "Ouvre les fichiers `.pub` à partir de 1998 : pages, pages de fond, texte et sa mise en forme, tableaux, images et objets dans le texte.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10216,18 +10234,6 @@
     "fr": ""
    }
   },
-  "2190ef4eb452de735689152a148b50ab406c15fd4907199b77a30b948ff8a0ad": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Embed fonts when saving, where each font’s license allows it",
-    "es": "Incrustar fuentes al guardar, cuando la licencia de cada fuente lo permita",
-    "fr": "Incorporation des polices à l’enregistrement, lorsque la licence de chaque police le permet"
-   }
-  },
   "21b29843b2414872faff41857681efee59dda43dadc21e2f861bd5f25218d30d": {
    "drop": false,
    "en": "Add chart elements: axes, axis titles, chart title, data labels, gridlines, legend, error bars, lines, and trendline. Apply a quick layout to set several at once. Show a data table under the plot area, with options for lines between rows and columns, outline, and legend keys.",
@@ -11277,6 +11283,18 @@
    "en": "Use the logical functions IF, AND, OR, NOT, TRUE, FALSE, and IFERROR.",
    "es": "Utilice las funciones lógicas IF, AND, OR, NOT, TRUE, FALSE e IFERROR.",
    "fr": "Utilisez les fonctions logiques IF, AND, OR, NOT, TRUE, FALSE et IFERROR.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2e5702431c2915f00496aabcf97fe943285ab3cbe19f200472b013f43134eba1": {
+   "drop": false,
+   "en": "Read the fonts stored inside a `.pub` file and use them while that publication is open. Damaged fonts or fonts with restricted licenses are skipped and listed when the file opens.",
+   "es": "Lea las fuentes almacenadas dentro de un archivo `.pub` y utilícelas mientras esa publicación esté abierta. Las fuentes dañadas o con licencia restringida se omiten y se enumeran al abrir el archivo.",
+   "fr": "Lisez les polices stockées dans un fichier `.pub` et utilisez-les tant que cette publication est ouverte. Les polices endommagées ou à licence restreinte sont ignorées et listées à l’ouverture du fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12940,18 +12958,6 @@
     "fr": ""
    }
   },
-  "455314f90db3ec51ab2a6f966eef84578f8639dd89c587145ac6e890796f0145": {
-   "drop": false,
-   "en": "Fonts embedded in a `.docx` file are read and used for that document while it is open. A missing font is replaced by a stand-in with the same letter widths, so lines break where they did.",
-   "es": "Las fuentes incrustadas en un archivo `.docx` se leen y se usan para ese documento mientras está abierto. Una fuente que falta se sustituye por otra con el mismo ancho de letra, de modo que las líneas se dividen donde lo hacían antes.",
-   "fr": "Les polices intégrées dans un fichier `.docx` sont lues et utilisées pour ce document tant qu’il est ouvert. Une police manquante est remplacée par une police de substitution aux largeurs de lettres identiques, de sorte que les retours à la ligne restent aux mêmes endroits.",
-   "soon": {
-    "drop": false,
-    "en": "Embedded fonts in `.doc` and `.rtf` files, and writing fonts into a saved `.docx`",
-    "es": "Fuentes incrustadas en archivos `.doc` y `.rtf`, y escritura de fuentes en un `.docx` guardado",
-    "fr": "Polices intégrées dans les fichiers `.doc` et `.rtf`, et écriture des polices dans un `.docx` enregistré"
-   }
-  },
   "456bb3e3454e3db5d8984c143e25ec5867403d2748a54b15572ce3e0333fde4b": {
    "drop": false,
    "en": "Recover unsaved workbooks from the Open screen, and get an offer to recover them at the next start after a crash.",
@@ -13454,6 +13460,18 @@
     "en": "Form controls, freehand shapes, comments, pivot tables, macros, conditional formats, and data validation in `.ods` files",
     "es": "Controles de formulario, formas a mano alzada, comentarios, tablas dinámicas, macros, formatos condicionales y validación de datos en archivos `.ods`",
     "fr": "Contrôles de formulaire, formes à main levée, commentaires, tableaux croisés dynamiques, macros, mises en forme conditionnelles et validation des données dans les fichiers `.ods`"
+   }
+  },
+  "4c37603ecc481e3ef4ebb79c284b47f674098eebbf847535b704514492c5adfe": {
+   "drop": false,
+   "en": "Fonts embedded in a `.docx` file are read and used for that document while it is open. A missing font is replaced by one with the same letter widths so lines break where they did.",
+   "es": "Las fuentes incrustadas en un archivo `.docx` se leen y se usan para ese documento mientras está abierto. Una fuente ausente se sustituye por otra con los mismos anchos de letra, de modo que las líneas se dividen donde lo hacían.",
+   "fr": "Les polices intégrées à un fichier `.docx` sont lues et utilisées pour ce document tant qu’il est ouvert. Une police manquante est remplacée par une police aux mêmes largeurs de lettres, afin que les lignes se coupent aux mêmes endroits.",
+   "soon": {
+    "drop": false,
+    "en": "Embedded fonts in `.doc` and `.rtf` files: read and use",
+    "es": "Fuentes incrustadas en archivos `.doc` y `.rtf`: lectura y uso",
+    "fr": "Polices intégrées aux fichiers `.doc` et `.rtf` : lecture et utilisation"
    }
   },
   "4c6e9f147aeb3f3e7bb9d4f808256a73bfadfc817b1c03f7fb019019fa52b36e": {
@@ -14344,6 +14362,18 @@
     "fr": ""
    }
   },
+  "5886217fa1387c2337237c8956c41f8dea782f13ec7addb6d1e7f10741c5018e": {
+   "drop": false,
+   "en": "Fonts embedded in an old presentation file are read and used for that presentation only, while it is open. Damaged fonts or fonts with restricted licenses are skipped.",
+   "es": "Las fuentes incrustadas en un archivo de presentación antiguo se leen y se usan solo para esa presentación mientras está abierta. Las fuentes dañadas o con licencia restringida se omiten.",
+   "fr": "Les polices intégrées à un ancien fichier de présentation sont lues et utilisées uniquement pour cette présentation, tant qu’elle est ouverte. Les polices endommagées ou à licence restreinte sont ignorées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "58cc9e1557531891621cb230c4c7f598f8a1f95c08f1abae9d24e74a9c836822": {
    "drop": false,
    "en": "Save your own templates with File > Save as Template and find them under My Templates on the New page.",
@@ -14558,18 +14588,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5b1e84d5aec8d533355752620ab4ff4d7fbf37b9b8ea6d13553312c5e91c5723": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Fonts embedded in an old file",
-    "es": "Fuentes incrustadas en un archivo antiguo",
-    "fr": "Polices incorporées dans un ancien fichier"
    }
   },
   "5b213dd47f182160171102ad322b357b9c0ce1b6f266ffc3d0bc40ed1388040f": {
@@ -19396,18 +19414,6 @@
     "fr": ""
    }
   },
-  "9dfec36c5160e5cdc2ae8ba03fd09dd02880c7128d0f5f71aef264147097c483": {
-   "drop": false,
-   "en": "Opens `.pub` files from 1998 on: pages, master pages, text and its formatting, tables, pictures, and objects in text.",
-   "es": "Abre archivos `.pub` desde 1998: páginas, páginas maestras, texto y su formato, tablas, imágenes y objetos en el texto.",
-   "fr": "Ouvre les fichiers `.pub` depuis 1998 : pages, pages maîtresses, texte et sa mise en forme, tableaux, images et objets dans le texte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "9e15845446292537b9c9ccc1565f8b7f83817935aee60f236ae4e8b2074449ac": {
    "drop": false,
    "en": "A file that is not a spreadsheet, or is damaged, is told apart by its content and refused with a message. A web page saved as `.xls` opens as what it is, with its tables as the sheets.",
@@ -21782,6 +21788,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c528fd005ba23b0bcd76b743bd8b269b79b3a6c692e632130f07d2d30d99d9c3": {
+   "drop": false,
+   "en": "Embed fonts in a saved `.docx` file when Save fonts in the file is on. A font whose license forbids embedding is never written, and the message after saving names it.",
+   "es": "Incruste fuentes en un archivo `.docx` guardado cuando la opción Guardar las fuentes en el archivo está activada. Una fuente cuya licencia prohíbe incrustarla nunca se escribe, y el mensaje posterior al guardado la indica.",
+   "fr": "Intégrez des polices dans un fichier `.docx` enregistré lorsque l’option Enregistrer les polices dans le fichier est activée. Une police dont la licence interdit l’intégration n’est jamais écrite, et le message après l’enregistrement la nomme.",
+   "soon": {
+    "drop": false,
+    "en": "Embed only the characters used",
+    "es": "Incrustar solo los caracteres utilizados",
+    "fr": "Intégration des seuls caractères utilisés"
    }
   },
   "c5702a9ec899a02443ec5c13d1ffd9516c2845ea3f4f568d3e0cc12b31a80063": {
@@ -24364,18 +24382,6 @@
     "fr": ""
    }
   },
-  "e69db2d8e0ee89c86d11b5eedf6cb2c932e8de25f12826903eb6124eea166943": {
-   "drop": false,
-   "en": "Options > Save sets the format Save As offers first for a new document (`.docx` or `.odt`), the recovery interval, and the folder the Open and Save As boxes start in.",
-   "es": "Opciones > Guardar define el formato que Guardar como ofrece primero para un documento nuevo (`.docx` o `.odt`), el intervalo de recuperación y la carpeta en la que comienzan los cuadros Abrir y Guardar como.",
-   "fr": "Options > Enregistrement définit le format proposé en premier par Enregistrer sous pour un nouveau document (`.docx` ou `.odt`), l’intervalle de récupération et le dossier où s’ouvrent les boîtes Ouvrir et Enregistrer sous.",
-   "soon": {
-    "drop": false,
-    "en": "Embed fonts in the file",
-    "es": "Incrustar fuentes en el documento",
-    "fr": "Incorporation des polices dans le fichier"
-   }
-  },
   "e6b58d8728f740a2ede9a83b8c7db1eff3c880e2fececa9a1cab59f23757cda6": {
    "drop": false,
    "en": "Rulers show in, cm, mm, pt, and pica, with drag-out guides and a movable zero point: use `Shift` and the right mouse button on a ruler, or drag from the box where the rulers meet, and double-click a ruler or the box to reset it. The rulers and the status bar count from the zero point, and it is saved with the publication.",
@@ -24633,6 +24639,18 @@
    "en": "Customize the keyboard in `Options > Customize > Keyboard`: search a list of every command by ribbon tab, add or remove keys, and see which command already uses a key and take it over. Reset One and Reset All restore the defaults, and the system's own keys (copy, paste, undo, select all, `Tab`, and others) stay reserved.",
    "es": "Personalice el teclado en `Options > Customize > Keyboard`: busque en una lista de todos los comandos por pestaña de la cinta de opciones, agregue o quite teclas, y vea qué comando ya usa una tecla para reasignarla. Reset One y Reset All restablecen los valores predeterminados, y las teclas propias del sistema (copiar, pegar, deshacer, seleccionar todo, `Tab` y otras) permanecen reservadas.",
    "fr": "Personnalisez le clavier dans `Options > Customize > Keyboard` : recherchez dans une liste de toutes les commandes par onglet du ruban, ajoutez ou retirez des touches, et voyez quelle commande utilise déjà une touche pour la reprendre. Reset One et Reset All rétablissent les valeurs par défaut, et les touches propres au système (copier, coller, annuler, tout sélectionner, `Tab` et autres) restent réservées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ea37e2d36beb3ef2b25fc355cdf3e53c492642c0138ada4dd11655f9f3c16e2c": {
+   "drop": false,
+   "en": "Save options: the default format for a new document (`.docx` or `.odt`), the automatic recovery interval, the default folder, and Save fonts in the file.",
+   "es": "Opciones de guardado: el formato predeterminado para un documento nuevo (`.docx` o `.odt`), el intervalo de recuperación automática, la carpeta predeterminada y Guardar las fuentes en el archivo.",
+   "fr": "Options d’enregistrement : le format par défaut d’un nouveau document (`.docx` ou `.odt`), l’intervalle de récupération automatique, le dossier par défaut et Enregistrer les polices dans le fichier.",
    "soon": {
     "drop": true,
     "en": "",
