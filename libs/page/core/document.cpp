@@ -850,6 +850,26 @@ Story *Document::story(const QString &id) const
     return it == stories.end() ? nullptr : it->get();
 }
 
+fields::Properties Document::fieldProperties() const
+{
+    fields::Properties p;
+    p.author = props.author;
+    p.title = props.title;
+    p.subject = props.subject;
+    p.keywords = props.keywords;
+    p.comments = props.comments;
+    p.lastSavedBy = props.lastModifiedBy;
+    p.company = props.company;
+    p.manager = props.manager;
+    p.category = props.category;
+    p.created = props.created;
+    p.saved = props.modified;
+    p.printed = props.printed;
+    p.filePath = fieldFilePath;
+    p.fileName = QFileInfo(fieldFilePath).fileName();
+    return p;
+}
+
 QList<const QTextDocument *> Document::storyDocs() const
 {
     QList<const QTextDocument *> out;

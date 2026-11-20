@@ -18,6 +18,8 @@
 #include <QFontMetricsF>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include "fields/fieldhost.h"
+
 #include <QMutex>
 #include <QLinearGradient>
 #include <QtMath>
@@ -134,7 +136,15 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
         // The next or previous linked box's page; "#" without one, as in Publisher.
         if (arg == "next") return nextPage > 0 ? QString::number(at(nextPage)) : QStringLiteral("#");
         if (arg == "prev") return prevPage > 0 ? QString::number(at(prevPage)) : QStringLiteral("#");
-        return (doc ? doc->pageNumberPrefix() : QString()) + shown(at(pageNumber));
+        // The shared engine's PAGE shows the number as it is shown here.
+        const QString text = shown(at(pageNumber));
+        if (!text.isEmpty()) {
+            fields::Env env;
+            env.page = at(pageNumber);
+            env.pageText = text;
+            if (const auto result = fields::compute(fields::parseCode(QStringLiteral("PAGE")), env)) return (doc ? doc->pageNumberPrefix() : QString()) + *result;
+        }
+        return (doc ? doc->pageNumberPrefix() : QString()) + text;
     }
     if (kind == "notemark") return noteMark;
     if (kind == "pageref") return doc ? doc->pageRefText(arg) : QString();
@@ -142,7 +152,22 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
     if (kind == "styleref") return arg.section(QChar(0x1f), 2, 2);
     if (kind == "pages") {
         const int total = doc ? doc->pageTotal() : 0;
+        fields::Env env;
+        env.pages = total > 0 ? total : pageCount;
+        if (const auto result = fields::compute(fields::parseCode(QStringLiteral("NUMPAGES")), env)) return *result;
         return QString::number(total > 0 ? total : pageCount);
+    }
+    if (kind == QLatin1String("fld")) {
+        // A field of the shared engine (DOCPROPERTY, TITLE, AUTHOR, FILENAME, NUMPAGES...), worked out from the document's own answers.
+        struct Host : fields::FieldHost {
+            const FieldContext &ctx;
+            explicit Host(const FieldContext &c) : ctx(c) {}
+            int pageNumber() const override { return ctx.pageNumber; }
+            int pageCount() const override { return ctx.doc && ctx.doc->pageTotal() > 0 ? ctx.doc->pageTotal() : ctx.pageCount; }
+            fields::Properties properties() const override { return ctx.doc ? ctx.doc->fieldProperties() : fields::Properties(); }
+            QDateTime now() const override { return ctx.now; }
+        } host(*this);
+        return fields::evaluate(host, arg).value_or(QString());
     }
     if (kind == "sectionpages") {
         const int total = doc ? doc->sectionPageTotal() : 0;
@@ -151,6 +176,9 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
     if (kind == "date" || kind == "time" || kind == "datetime") {
         const DateFieldCode dc = splitDateFieldCode(code);
         const QString fallback = kind == "date" ? QStringLiteral("MMMM d, yyyy") : kind == "time" ? QStringLiteral("h:mm AP") : QStringLiteral("M/d/yyyy h:mm AP");
+        // The shared engine's date picture, where it has an equal for every letter of the format.
+        if (const auto text = fields::dateFromQtFormat(now, dc.format.isEmpty() ? fallback : dc.format, dc.language.isEmpty() ? QLocale::system() : QLocale(dc.language)))
+            return *text;
         return dateFieldText(dc.kind, dc.format.isEmpty() ? fallback : dc.format, dc.language, now);
     }
     if (kind == "biz") {
@@ -346,7 +374,7 @@ StoryFields storyFields(const QTextDocument *doc, const FieldSource *source)
                         out.notes << id;
                     }
                 } else if (kind == QLatin1String("date") || kind == QLatin1String("time") || kind == QLatin1String("datetime") || kind == QLatin1String("biz") ||
-                           kind == QLatin1String("merge") || kind == QLatin1String("mergeblock")) {
+                           kind == QLatin1String("merge") || kind == QLatin1String("mergeblock") || kind == QLatin1String("fld")) {
                     if (!seen.contains(QLatin1Char('#') + field)) {
                         seen.insert(QLatin1Char('#') + field);
                         out.codes << field;

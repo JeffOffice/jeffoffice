@@ -194,9 +194,18 @@ const DateField kDateFields[] = {
     {"datetime9", "datetime:M/d/yyyy h:mm:ss AP"}, {"datetime10", "time:HH:mm"}, {"datetime11", "time:HH:mm:ss"}, {"datetime12", "time:h:mm AP"},
     {"datetime13", "time:h:mm:ss AP"}};
 
+void writeTextRun(QXmlStreamWriter &w, const QString &text, const QTextCharFormat &cf, DrawingWriteContext &ctx);
+
 // A field as a:fld: its type and the text it shows now; false for a field the standard has no type for.
 bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat &cfIn, DrawingWriteContext &ctx)
 {
+    // A field of the shared engine is written as the words it shows.
+    if (code.startsWith(QLatin1String("fld:"))) {
+        const QString shown = ctx.fieldText ? clean(ctx.fieldText(code)) : QString();
+        if (shown.isEmpty()) return false;
+        writeTextRun(w, shown, cfIn, ctx);
+        return true;
+    }
     QString type, shown;
     QTextCharFormat cf = cfIn;
     if (code == QLatin1String("page")) {

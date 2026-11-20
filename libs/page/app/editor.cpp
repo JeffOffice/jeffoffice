@@ -126,6 +126,7 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_cache.clear();
     m_path = path;
     if (!path.isEmpty()) m_doc->folder = QFileInfo(path).absolutePath();
+    m_doc->fieldFilePath = path;
     m_untitledName.clear();
     m_page = 0;
     m_master.clear();
@@ -147,6 +148,7 @@ void Editor::setFilePath(const QString &p)
 {
     m_path = p;
     if (!p.isEmpty()) m_doc->folder = QFileInfo(p).absolutePath();
+    m_doc->fieldFilePath = p;
     Q_EMIT changed();
 }
 

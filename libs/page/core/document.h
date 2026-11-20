@@ -443,6 +443,8 @@ public:
     QString pageNumberPrefix() const override { return flowPagePrefix; }
     QString pageRefText(const QString &bookmark) const override { return flowPageRefs.value(bookmark); }
     int pageTotal() const override { return flowPageTotal; }
+    fields::Properties fieldProperties() const override;
+    QString fieldFilePath;   // where the file is (a field that shows its name); set by the editor, never saved
     int footnotesBefore() const override { return flowFootnotesBefore; }
     int endnotesBefore() const override { return flowEndnotesBefore; }
     QStringList carriedNotes() const override { return flowCarriedNotes; }

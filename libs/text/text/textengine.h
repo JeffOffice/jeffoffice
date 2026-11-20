@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/valign.h"
+#include "fields/fieldcode.h"
 #include "text/textprops.h"
 
 #include <QDateTime>
@@ -80,6 +81,8 @@ public:
     // reference shows the result the file had in it).
     virtual int bookmarkPosition(const QString &name) const { Q_UNUSED(name) return -1; }
     virtual QString pageRefText(const QString &bookmark) const { Q_UNUSED(bookmark) return QString(); }
+    // The properties of the document a field of the shared engine shows (a title, an author, the file name): empty for a document that has none.
+    virtual fields::Properties fieldProperties() const { return fields::Properties(); }
 };
 
 // A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", "dash", or a w:numFmt value of libs/base/text/numbersystems.h: "thaiNumbers"...).
