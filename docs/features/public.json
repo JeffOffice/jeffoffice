@@ -1223,7 +1223,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "24855d1fce7ced1d0ac79d0c275c05120c418d72ece132853bba17c49567e509"
+         "text": "bc70c4ab2973c4cb2286d10a7ceab049b260e06242887b2e553f25945bc8a6db"
         },
         {
          "hide_soon": true,
@@ -10540,18 +10540,6 @@
     "en": "Data table, secondary axes, drop lines, and high-low lines in `.odt` charts",
     "es": "Tabla de datos, ejes secundarios, líneas de caída y líneas de máximos y mínimos en gráficos `.odt`",
     "fr": "Tableau de données, axes secondaires, lignes de projection et lignes haut-bas dans les graphiques `.odt`"
-   }
-  },
-  "24855d1fce7ced1d0ac79d0c275c05120c418d72ece132853bba17c49567e509": {
-   "drop": false,
-   "en": "Add, edit, and delete notes on cells, move between them with Previous and Next, show or hide one note or every note, and see the author name. Move and resize a shown note's box by dragging or with the keyboard, and reset it to the default size. Notes are saved in `.xlsx` and `.ods` files and can be printed at the end or over the cells.",
-   "es": "Agregue, edite y elimine notas en las celdas, desplácese entre ellas con Anterior y Siguiente, muestre u oculte una nota o todas las notas y vea el nombre del autor. Mueva y cambie el tamaño del cuadro de una nota visible arrastrándolo o con el teclado, y restablezca su tamaño predeterminado. Las notas se guardan en archivos `.xlsx` y `.ods` y se pueden imprimir al final o sobre las celdas.",
-   "fr": "Ajoutez, modifiez et supprimez des notes dans les cellules, passez de l’une à l’autre avec Précédent et Suivant, affichez ou masquez une note ou toutes les notes, et voyez le nom de l’auteur. Déplacez et redimensionnez le cadre d’une note affichée en le faisant glisser ou au clavier, et rétablissez sa taille par défaut. Les notes sont enregistrées dans des fichiers `.xlsx` et `.ods` et peuvent être imprimées à la fin ou sur les cellules.",
-   "soon": {
-    "drop": false,
-    "en": "Note box size and position taken from the file’s style",
-    "es": "Tamaño y posición del cuadro de nota tomados del estilo del archivo",
-    "fr": "Taille et position du cadre de note tirées du style du fichier"
    }
   },
   "24a0a957e798d9eb03e5e8b755eed12a2336170bafe5b0d42f3303944178c52b": {
@@ -21292,6 +21280,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "bc70c4ab2973c4cb2286d10a7ceab049b260e06242887b2e553f25945bc8a6db": {
+   "drop": false,
+   "en": "Notes (older-style comments shown in a text box on hover): create, edit, delete, go to the previous or next note, show or hide a note, show every note, move and resize the box, and keep the author name. Notes are saved in `.xlsx`, `.ods`, and `.xls` files, and can be printed at the end or over the cells.",
+   "es": "Notas (comentarios de estilo anterior que se muestran en un cuadro de texto al pasar el puntero): cree, edite y elimine notas, vaya a la nota anterior o siguiente, muestre u oculte una nota, muestre todas las notas, mueva y cambie el tamaño del cuadro, y conserve el nombre del autor. Las notas se guardan en archivos `.xlsx`, `.ods` y `.xls`, y se pueden imprimir al final o sobre las celdas.",
+   "fr": "Notes (commentaires de style ancien affichés dans une zone de texte au survol) : créez, modifiez et supprimez des notes, passez à la note précédente ou suivante, affichez ou masquez une note, affichez toutes les notes, déplacez et redimensionnez la zone, et conservez le nom de l’auteur. Les notes sont enregistrées dans des fichiers `.xlsx`, `.ods` et `.xls`, et peuvent être imprimées à la fin ou sur les cellules.",
+   "soon": {
+    "drop": false,
+    "en": "Size and position of a note box taken from the file’s style",
+    "es": "Tamaño y posición del cuadro de nota tomados del estilo del archivo",
+    "fr": "Taille et position de la zone de note tirées du style du fichier"
    }
   },
   "bc799c05a9d36ac69d755343f5f76b646f8245a208ebc0b996df9103dd28ff3a": {
