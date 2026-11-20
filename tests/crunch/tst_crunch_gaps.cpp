@@ -29,6 +29,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QScrollBar>
+#include <QToolButton>
 #include <QSignalSpy>
 #include <QTest>
 #include <QUndoStack>
@@ -81,6 +82,28 @@ QPoint onLeftBorder(EditWindow &e, const QString &ref)
     parseCellRef(ref, &r, &c);
     const QRect rect = e.view()->sheet().layout().cellRect(r, c);
     return QPoint(rect.left() + 1, rect.center().y());
+}
+
+// A drag of the selection's border from the first cell to the second, let go with `atRelease` held over `over` (a point of a widget, as the geometry of that widget says: the viewport's
+// coordinates of it are found through the screen), or at the second cell when there is none.
+void dropOver(EditWindow &e, const QString &fromRef, const QString &toRef, Qt::KeyboardModifiers atRelease, QWidget *over, const QPoint &overPoint)
+{
+    QWidget *vp = e.view()->viewport();
+    const QPoint to = middleOf(e, toRef);
+    QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, onLeftBorder(e, fromRef));
+    QTest::mouseMove(vp, to);
+    QTest::mouseRelease(vp, Qt::LeftButton, atRelease, over ? vp->mapFromGlobal(over->mapToGlobal(overPoint)) : to);
+}
+// ...over the middle of a sheet's tab (by its place among the tabs; none: not over a tab)
+void dropOverTab(EditWindow &e, const QString &fromRef, const QString &toRef, Qt::KeyboardModifiers atRelease, int tab)
+{
+    QWidget *tabs = e.win.w.sheetTabs();
+    dropOver(e, fromRef, toRef, atRelease, tab < 0 ? nullptr : tabs, tab < 0 ? QPoint() : e.win.w.sheetTabs()->tabRect(tab).center());
+}
+// ...over the middle of a widget
+void dropOverWidget(EditWindow &e, const QString &fromRef, const QString &toRef, Qt::KeyboardModifiers atRelease, QWidget *over)
+{
+    dropOver(e, fromRef, toRef, atRelease, over, over->rect().center());
 }
 
 const char *kBoxComments =
@@ -874,6 +897,227 @@ private Q_SLOTS:
         QVERIFY(s->editText(1, 0, 0).isEmpty());
         QCOMPARE(said.size(), 1);
         QVERIFY(!said.first().isEmpty());
+    }
+
+    // Alt over another sheet's tab at the drop is a move of the block there. What is there is written over as an ordinary move writes over cells (nothing is asked, as the ordinary move asks
+    // nothing), one step of Undo brings both sheets back, and Alt over the new-sheet button, which is no tab, is the ordinary drag.
+    void altDropOntoCellsThatHoldDataIsTheOrdinaryMoveAndUndoBringsBothSheetsBack()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=1", "A2=2", "C1=5"}, {"A1=9", "A2=8", "B1=7"}})));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = e.win.w.undoStack()->count();
+        // (the ordinary move over cells that hold data, for what it does)
+        e.view()->selectRange(0, 0, 1, 0);
+        dropOverTab(e, QStringLiteral("A1"), QStringLiteral("C1"), Qt::NoModifier, -1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(e.win.told.isEmpty());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        // (Alt over the tab of the sheet whose cells hold data)
+        e.view()->selectRange(0, 0, 1, 0);
+        dropOverTab(e, QStringLiteral("A1"), QStringLiteral("C1"), Qt::AltModifier, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(e.win.told.isEmpty());
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("1"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("2"));
+        QCOMPARE(s->editText(1, 0, 1), QStringLiteral("7"));   // (the cell beside the block is not touched)
+        QVERIFY(s->editText(0, 0, 0).isEmpty());
+        QCOMPARE(s->editText(0, 0, 2), QStringLiteral("5"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 0, 0), QStringLiteral("1"));
+        QCOMPARE(s->editText(0, 1, 0), QStringLiteral("2"));
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("9"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("8"));
+        // (let go over the new-sheet button: no tab, so the ordinary move to where the pointer is)
+        auto *plus = e.win.w.findChild<QToolButton *>(QStringLiteral("addSheet"));
+        QVERIFY(plus);
+        e.view()->selectRange(0, 0, 1, 0);
+        const int sheets = e.win.w.session()->calculation()->sheetCount();
+        dropOverWidget(e, QStringLiteral("A1"), QStringLiteral("E5"), Qt::AltModifier, plus);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.session()->calculation()->sheetCount(), sheets);
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("9"));   // (nothing went to the other sheet)
+        QCOMPARE(s->editText(0, 4, 4), QStringLiteral("1"));   // (the block is where the pointer was last over the grid)
+        QVERIFY(s->editText(0, 0, 0).isEmpty());
+    }
+
+    // A target that has merged cells, a table, or a pivot table under the block refuses the drop in words, with nothing changed on either sheet and no step of Undo.
+    void altDropOntoMergedCellsATableOrAPivotTableIsRefusedAndChangesNothing()
+    {
+        const QString table = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:B3\">"
+                                             "<autoFilter ref=\"A1:B3\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/></tableColumns></table>");
+        const QString headed = QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>Region</t></is></c><c r=\"B1\" t=\"inlineStr\"><is><t>Q1</t></is></c></row><row r=\"2\"><c r=\"A2\" t=\"inlineStr\"><is><t>East</t></is></c><c r=\"B2\"><v>1</v></c></row><row r=\"3\"><c r=\"A3\" t=\"inlineStr\"><is><t>West</t></is></c><c r=\"B3\"><v>2</v></c></row>");
+        const QByteArray sourceSheet = worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2", "B3=4", "B4=5"}));
+        struct Case {
+            const char *what;
+            QByteArray book;
+            const char *block;   // the block that is dragged, on the second sheet
+        };
+        QVector<Case> cases;
+        cases.push_back({"merged cells", buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=3"}), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:B2\"/></mergeCells>")), sourceSheet}), "A1:A2"});
+        cases.push_back({"a table", withTables(buildXlsx({worksheet(headed), sourceSheet}), {table}), "A1:A2"});
+        cases.push_back({"a pivot table",
+                         withParts(buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=3"})), sourceSheet}),
+                                   {{QStringLiteral("xl/pivotTables/pivotTable1.xml"), QByteArray("<pivotTableDefinition name=\"p\"><location ref=\"B3:E8\" firstHeaderRow=\"1\" firstDataRow=\"2\" firstDataCol=\"1\"/></pivotTableDefinition>"),
+                                     QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.pivotTable+xml"), 0, QStringLiteral("rIdP"), QStringLiteral("pivotTable"), QStringLiteral("../pivotTables/pivotTable1.xml")}}),
+                         "B3:B4"});
+        for (const Case &c : cases) {
+            EditWindow e;
+            QVERIFY2(e.open(c.book), c.what);
+            QVERIFY(e.settle());
+            e.win.w.resize(1100, 640);
+            e.win.w.show();
+            e.win.w.sheetTabs()->setCurrentIndex(1);   // (the second sheet is the one the block is dragged from, onto the first sheet's tab)
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            const QString first = QString::fromLatin1(c.block).section(QLatin1Char(':'), 0, 0), last = QString::fromLatin1(c.block).section(QLatin1Char(':'), 1, 1);
+            quint32 r1 = 0, c1 = 0, r2 = 0, c2 = 0;
+            parseCellRef(first, &r1, &c1);
+            parseCellRef(last, &r2, &c2);
+            e.view()->selectRange(int(r1), int(c1), int(r2), int(c2));
+            const int steps = e.win.w.undoStack()->count();
+            const QString at = s->editText(1, r1, c1), cell = s->editText(0, r1, c1);
+            dropOverTab(e, first, QStringLiteral("E10"), Qt::AltModifier, 0);
+            QVERIFY(e.settle());
+            QVERIFY2(e.win.w.undoStack()->count() == steps, c.what);
+            QVERIFY2(e.win.told.size() == 1 && !e.win.told.last().isEmpty(), c.what);
+            QVERIFY2(s->editText(1, r1, c1) == at && s->editText(0, r1, c1) == cell, c.what);
+        }
+    }
+
+    // A hidden sheet has no tab to let go over: the block goes to the sheet whose tab is under the pointer, and a hidden one is never the target.
+    void altDropNeverGoesToAHiddenSheet()
+    {
+        const QByteArray bytes = buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2"})), worksheet(crunchtest::rowsOfSpecs({"C1=5"})), worksheet(crunchtest::rowsOfSpecs({"C2=6"}))}, QByteArray(), QString(), QString(),
+                                           QByteArray(), QStringList(), QString(), QByteArray(), QString(), QList<int>{1});
+        EditWindow e;
+        QVERIFY(e.open(bytes));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QCOMPARE(e.win.w.sheetTabs()->count(), 2);
+        crunch::EditSession *s = e.win.w.session();
+        e.view()->selectRange(0, 0, 1, 0);
+        dropOverTab(e, QStringLiteral("A1"), QStringLiteral("E5"), Qt::AltModifier, 1);   // (the second tab is the third sheet)
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(2, 0, 0), QStringLiteral("1"));
+        QCOMPARE(s->editText(2, 1, 0), QStringLiteral("2"));
+        QVERIFY(s->editText(1, 0, 0).isEmpty());   // (the hidden sheet has none of it)
+        QCOMPARE(s->editText(1, 0, 2), QStringLiteral("5"));
+    }
+
+    // Undo of an Alt drop brings both sheets back exactly: the cells, and the notes, the rules of validation, and the conditional formats of the moved cells, as the file the window saves shows.
+    void altDropUndoRestoresBothSheetsExactly()
+    {
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1:A2\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"greaterThan\"><formula>0</formula></cfRule></conditionalFormatting>"
+                                            "<dataValidations count=\"1\"><dataValidation type=\"whole\" sqref=\"A1:A2\"><formula1>1</formula1></dataValidation></dataValidations>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2"}), tail), worksheet(crunchtest::rowsOfSpecs({"C1=5"}))})));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->setNote(0, 0, 0, QStringLiteral("check this"), QStringLiteral("Ann"), false, QStringLiteral("Edit Note")).ok);
+        QVERIFY(e.settle());
+        int copies = 0;
+        auto parts = [&] {
+            // (each a Save As to a file of its own: a window that is as its file is has nothing to save)
+            const QString path = e.folder.dir.filePath(QStringLiteral("state%1.xlsx").arg(++copies));
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            if (!e.win.w.saveAs(path) || !savedOk(saved)) return QMap<QString, QByteArray>();
+            QMap<QString, QByteArray> all;
+            jp::office::Package pk;
+            QString why;
+            if (!pk.readLazyFile(path, &why)) return all;
+            for (const QString &name : pk.partNames())
+                if (name.contains(QLatin1String("worksheets/sheet")) || name.contains(QLatin1String("comments")) || name.contains(QLatin1String("vmlDrawing"))) all[name] = pk.part(name);
+            return all;
+        };
+        const QMap<QString, QByteArray> before = parts();
+        QVERIFY(before.size() >= 3);
+        bool holdsRule = false, holdsFormat = false, holdsNote = false;
+        for (auto it = before.cbegin(); it != before.cend(); ++it) {
+            holdsRule = holdsRule || it.value().contains("<dataValidation");
+            holdsFormat = holdsFormat || it.value().contains("<cfRule");
+            holdsNote = holdsNote || it.value().contains("check this");
+        }
+        QVERIFY(holdsRule && holdsFormat && holdsNote);
+        e.view()->selectRange(0, 0, 1, 0);
+        const int steps = e.win.w.undoStack()->index();
+        dropOverTab(e, QStringLiteral("A1"), QStringLiteral("E5"), Qt::AltModifier, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), steps + 1);
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("1"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), steps);
+        const QMap<QString, QByteArray> after = parts();
+        QVERIFY2(after.keys() == before.keys(), qPrintable(QString::fromUtf8(after.value(QStringLiteral("/xl/comments2.xml")))));
+        for (auto it = before.cbegin(); it != before.cend(); ++it) QVERIFY2(after.value(it.key()) == it.value(), qPrintable(it.key()));
+    }
+
+    // A formula on a third sheet and a name that pointed at the moved cells follow them to the other sheet, and Undo puts both back.
+    void altDropMakesFormulasOnAThirdSheetAndNamesFollowTheCells()
+    {
+        const QString names = QStringLiteral("<definedName name=\"Moved\">Sheet1!$A$2</definedName>");
+        EditWindow e;
+        QVERIFY(e.open(crunchtest::bookOfSheets({{"A1=1", "A2=2"}, {"C1=5"}, {"A1==Sheet1!A1+1", "A2==Moved", "A3==SUM(Sheet1!A1:A2)"}}, QMap<int, QString>(), QMap<int, QString>(), names)));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        const int moved = s->names().find(-1, QStringLiteral("Moved"));
+        QVERIFY(moved >= 0);
+        e.view()->selectRange(0, 0, 1, 0);
+        dropOverTab(e, QStringLiteral("A1"), QStringLiteral("E5"), Qt::AltModifier, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(2, 0, 0), QStringLiteral("=Sheet2!A1+1"));
+        QCOMPARE(s->nameTextOf(moved), QStringLiteral("=Sheet2!$A$2"));
+        QCOMPARE(s->editText(2, 2, 0), QStringLiteral("=SUM(Sheet2!A1:A2)"));
+        QCOMPARE(s->valueAt(2, 1, 0).number(), 2.0);
+        QCOMPARE(s->valueAt(2, 2, 0).number(), 3.0);
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(2, 0, 0), QStringLiteral("=Sheet1!A1+1"));
+        QCOMPARE(s->nameTextOf(moved), QStringLiteral("=Sheet1!$A$2"));
+        QCOMPARE(s->editText(2, 2, 0), QStringLiteral("=SUM(Sheet1!A1:A2)"));
+    }
+
+    // Snap to Grid and Snap to Shape are one choice for the whole program: a change in one window reaches every open window at once (their commands and their layers), not only those made after it.
+    void aSnapChoiceReachesEveryOpenWindowAtOnce()
+    {
+        const QVariant wasGrid = Settings::get().value(QStringLiteral("crunch/snapGrid")), wasShape = Settings::get().value(QStringLiteral("crunch/snapShape"));
+        Settings::get().remove(QStringLiteral("crunch/snapGrid"));
+        Settings::get().remove(QStringLiteral("crunch/snapShape"));
+        {
+            EditWindow a;
+            QVERIFY(a.open(sheetOf({"A1=1"})));
+            QVERIFY(a.settle());
+            EditWindow b;
+            QVERIFY(b.open(sheetOf({"A1=1"})));
+            QVERIFY(b.settle());
+            a.win.w.act(QStringLiteral("object.snapShape"))->trigger();
+            QVERIFY(b.win.w.act(QStringLiteral("object.snapShape"))->isChecked());
+            QVERIFY(b.win.w.objects()->layer()->snapToShapes());
+            QVERIFY(!b.win.w.objects()->layer()->snapToGrid());
+            b.win.w.act(QStringLiteral("object.snapGrid"))->trigger();
+            QVERIFY(a.win.w.act(QStringLiteral("object.snapGrid"))->isChecked());
+            QVERIFY(a.win.w.objects()->layer()->snapToGrid());
+            a.win.w.act(QStringLiteral("object.snapShape"))->trigger();
+            QVERIFY(!b.win.w.act(QStringLiteral("object.snapShape"))->isChecked());
+            QVERIFY(!b.win.w.objects()->layer()->snapToShapes());
+        }
+        for (const auto &kv : {std::pair<const char *, QVariant>{"crunch/snapGrid", wasGrid}, {"crunch/snapShape", wasShape}}) {
+            if (kv.second.isValid()) Settings::get().setValue(QString::fromLatin1(kv.first), kv.second);
+            else Settings::get().remove(QString::fromLatin1(kv.first));
+        }
     }
 
     // Snap to Grid and Snap to Shape on the Shape Format tab are kept for the person (not in a workbook) and reach the objects' layer of every window made afterward.

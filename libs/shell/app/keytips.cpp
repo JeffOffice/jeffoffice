@@ -38,7 +38,7 @@ bool KeyTips::eventFilter(QObject *o, QEvent *e)
         if (!mine() || k->isAutoRepeat()) return false;
         if (k->key() == Qt::Key_Alt) {
             m_altDown = true;
-            m_altUsed = false;
+            m_altUsed = m_mouseDown || QApplication::mouseButtons() != Qt::NoButton;   // (Alt pressed in the middle of a drag, to drop on a sheet's tab or to leave the edges free: its release is not a tap)
             return false;
         }
         if (m_altDown) m_altUsed = true;
@@ -82,9 +82,13 @@ bool KeyTips::eventFilter(QObject *o, QEvent *e)
         m_altDown = false;
         return false;
     }
+    case QEvent::MouseButtonRelease:
+        m_mouseDown = false;
+        return false;
     case QEvent::MouseButtonPress:
     case QEvent::MouseButtonDblClick:
     case QEvent::Wheel:
+        if (e->type() != QEvent::Wheel) m_mouseDown = true;
         if (m_altDown) m_altUsed = true;   // Alt with the mouse (a drag without snapping) isn't KeyTips
         if (m_level != Off) hide();
         return false;

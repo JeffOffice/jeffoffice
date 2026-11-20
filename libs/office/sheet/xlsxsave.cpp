@@ -2117,14 +2117,18 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
                     if (!b.imagePart.isEmpty()) taken.insert(b.imagePart.toLower());
                 takenFilled = true;
             }
-            if (!sc.noteOps.empty()) {
+            // (a sheet with no comments part whose notes are only taken away, as after a note was put there and Undo took it back, has nothing to write: no empty part is made)
+            QString commentsNow;
+            for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/comments")))
+                if (!r.external && package.hasPart(r.target)) {
+                    commentsNow = r.target;
+                    break;
+                }
+            const bool onlyRemovals = std::all_of(sc.noteOps.begin(), sc.noteOps.end(), [](const NoteOp &op) { return op.remove; });
+            if (!sc.noteOps.empty() && !(commentsNow.isEmpty() && onlyRemovals)) {
                 NoteWrite w;
                 w.sheet = sheet;
-                for (const Relationship &r : package.relationshipsOfType(se.part, QStringLiteral("/comments")))
-                    if (!r.external && package.hasPart(r.target)) {
-                        w.commentsPart = r.target;
-                        break;
-                    }
+                w.commentsPart = commentsNow;
                 w.vmlPart = notesDrawingPart(package, se.part);
                 if (w.commentsPart.isEmpty()) {
                     w.newComments = true;

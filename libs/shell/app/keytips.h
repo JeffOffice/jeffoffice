@@ -54,7 +54,7 @@ private:
     Level m_level = Off;
     QVector<Tip> m_tips;
     QString m_typed;
-    bool m_altDown = false, m_altUsed = false;
+    bool m_altDown = false, m_altUsed = false, m_mouseDown = false;
 };
 
 } // namespace jp

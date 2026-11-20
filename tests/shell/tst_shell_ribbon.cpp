@@ -1241,6 +1241,40 @@ private Q_SLOTS:
         Q_UNUSED(ids);
     }
 
+    // Alt pressed in the middle of a mouse drag (to drop on a sheet's tab, or to leave the edges free) and let go is not a tap of Alt: it does not show the KeyTips. Alt tapped alone does.
+    void anAltPressedDuringAMouseDragDoesNotShowTheKeyTips()
+    {
+        RibbonWindow w;
+        w.resize(900, 500);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        KeyTips tips(&w, w.ribbon(), [] {});
+        QWidget *target = w.centralWidget() ? w.centralWidget() : &w;
+        auto mouse = [&](QEvent::Type type) {
+            QMouseEvent e(type, QPointF(5, 5), target->mapToGlobal(QPointF(5, 5)), Qt::LeftButton, type == QEvent::MouseButtonRelease ? Qt::NoButton : Qt::LeftButton, Qt::NoModifier);
+            qApp->sendEvent(target, &e);
+        };
+        auto alt = [&](QEvent::Type type) {
+            QKeyEvent e(type, Qt::Key_Alt, type == QEvent::KeyPress ? Qt::AltModifier : Qt::NoModifier);
+            qApp->sendEvent(&w, &e);
+        };
+        mouse(QEvent::MouseButtonPress);
+        alt(QEvent::KeyPress);
+        alt(QEvent::KeyRelease);   // (let go before the button: a drop)
+        mouse(QEvent::MouseButtonRelease);
+        QCOMPARE(tips.level(), KeyTips::Off);
+        mouse(QEvent::MouseButtonPress);
+        alt(QEvent::KeyPress);
+        mouse(QEvent::MouseButtonRelease);   // (the button first, then Alt)
+        alt(QEvent::KeyRelease);
+        QCOMPARE(tips.level(), KeyTips::Off);
+        // (Alt by itself, with no button down: the letters)
+        alt(QEvent::KeyPress);
+        alt(QEvent::KeyRelease);
+        QCOMPARE(tips.level(), KeyTips::Top);
+        tips.hide();
+    }
+
     void aCommandWithAMenuInTheOverflowMenuIsTheCommand()
     {
         RibbonWindow w;
