@@ -1031,6 +1031,12 @@ std::vector<SaveChanges::ExternalCachedCell> ExternalBooks::readCells(int index)
     return out;
 }
 
+QStringList ExternalBooks::sheetNames(int index) const
+{
+    const std::lock_guard<std::mutex> guard(d->lock);
+    return index >= 1 && index <= int(d->links.size()) ? d->links[size_t(index - 1)].sheetNames : QStringList();
+}
+
 QStringList ExternalBooks::sheetsRead(int index) const
 {
     QStringList out;

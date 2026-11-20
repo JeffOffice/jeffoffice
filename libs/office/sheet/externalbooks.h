@@ -50,6 +50,8 @@ public:
     int count() const;
     // The address the link points to, as the file (or Change Source) has it; and the file on this computer it names (empty for a web address, or none).
     QString target(int index) const;
+    // The sheets the link's stored part names, in order (empty for none).
+    QStringList sheetNames(int index) const;
     QString localPath(int index) const;
     // The file's path whether it is on this computer or not (nothing is looked at); isNetwork says it is on another computer (a path or address that names a host). Such a source is never read, or
     // asked about, until setAllowNetwork says the person asked for it (Update Values, Change Source).

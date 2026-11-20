@@ -129,6 +129,28 @@ QList<RawRecord> rawRecords(const QByteArray &xls, bool *wellFormed = nullptr)
     return out;
 }
 
+// A workbook with one link to another workbook (its part names the sheets given), the link pointing at `target`.
+QByteArray withOneLink(const QString &rows, const QString &target, const QStringList &sheets)
+{
+    QByteArray zip = buildXlsx({worksheet(rows)});
+    QMap<QString, QByteArray> parts;
+    jp::readZip(zip, parts);
+    QString names;
+    for (const QString &n : sheets) names += QStringLiteral("<sheetName val=\"%1\"/>").arg(n.toHtmlEscaped());
+    parts[QStringLiteral("xl/externalLinks/externalLink1.xml")] =
+        ("<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\"><sheetNames>"
+         + names + "</sheetNames></externalBook></externalLink>").toUtf8();
+    parts[QStringLiteral("xl/externalLinks/_rels/externalLink1.xml.rels")] =
+        ("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\""
+         + target.toHtmlEscaped() + "\" TargetMode=\"External\"/></Relationships>").toUtf8();
+    parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/xl/externalLinks/externalLink1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/></Types>");
+    parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", "<Relationship Id=\"rIdEx\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink1.xml\"/></Relationships>");
+    parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", "</sheets><externalReferences><externalReference r:id=\"rIdEx\"/></externalReferences>");
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
 QString manyOnes(int n)
 {
     QStringList parts;
@@ -184,14 +206,14 @@ private Q_SLOTS:
         QCOMPARE(c.xlsReport.formulas, qint64(formulas.size()));
     }
 
-    // A range that runs to the last row or column of the new form runs to the last of the old; a reference to a sheet that is gone is the error.
+    // A range that runs to the last row or column of the new form runs to the last of the old; a reference that is gone keeps the sheet it was on.
     void aRangeToTheLastRowOrColumnIsCutAtTheOldFormsLast()
     {
         Copies c;
         const QStringList in = {QStringLiteral("SUM(Sheet2!$A:$XFD)"), QStringLiteral("SUM(A1:XFD1048576)"), QStringLiteral("INDEX(Sheet2!$1:$1048576,2,3)"), QStringLiteral("COUNT(B2:B1048576)"),
                                 QStringLiteral("Sheet2!#REF!+1"), QStringLiteral("SUM(Sheet2!#REF!:Sheet2!#REF!)")};
         const QStringList out = {QStringLiteral("SUM(Sheet2!$A:$IV)"), QStringLiteral("SUM(A:IV)"), QStringLiteral("INDEX(Sheet2!A:IV,2,3)"), QStringLiteral("COUNT(B2:B65536)"),
-                                 QStringLiteral("#REF!+1"), QString()};
+                                 QStringLiteral("Sheet2!#REF!+1"), QString()};
         QString rows;
         for (int i = 0; i < in.size(); ++i) rows += row(i + 1, num(QStringLiteral("A%1").arg(i + 1), 1) + fnum(QStringLiteral("B%1").arg(i + 1), in[i], 5));
         const QByteArray x = buildXlsx({worksheet(rows), worksheet(row(1, num(QStringLiteral("A1"), 2)))});
@@ -204,8 +226,11 @@ private Q_SLOTS:
     void aFormulaTheOldFormCannotHoldKeepsItsValue()
     {
         Copies c;
-        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("_xlfn.CONCAT(A1,A1)"), 33) + fnum(QStringLiteral("C1"), QStringLiteral("A1+XFD1"), 3)
-                                              + fstr(QStringLiteral("D1"), QStringLiteral("TEXTJOIN(\",\",TRUE,A1)"), QStringLiteral("3"))));
+        const QString longText(300, QLatin1Char('x'));
+        QStringList many;
+        for (int i = 0; i < 31; ++i) many << QStringLiteral("A1");
+        const QByteArray x = simple(row(1, num(QStringLiteral("A1"), 3) + fnum(QStringLiteral("B1"), QStringLiteral("LEN(\"%1\")").arg(longText), 33) + fnum(QStringLiteral("C1"), QStringLiteral("A1+XFD1"), 3)
+                                              + fstr(QStringLiteral("D1"), QStringLiteral("SUM(%1)").arg(many.join(QLatin1Char(','))), QStringLiteral("3"))));
         QVERIFY2(c.make(x, false), qPrintable(c.why));
         const Sheet b = c.sheet(c.xls, 0);
         QCOMPARE(val(c.xls, b, QStringLiteral("B1")), QStringLiteral("n:33"));
@@ -214,6 +239,57 @@ private Q_SLOTS:
         QVERIFY(!b.cells.find(0, 1)->hasFormula());
         QCOMPARE(c.xlsReport.formulasAsValues, qint64(3));
         QVERIFY(c.xlsReport.notKept.join(QLatin1Char(' ')).contains(QLatin1String("formula")));
+    }
+
+    // A function the format has no number for (a newer one, an add-in's, a person's own) is called through its name, as the real files do, and comes back as it was written.
+    void aFunctionWithNoNumberIsSavedByItsNameAndReadBack()
+    {
+        Copies c;
+        const QStringList formulas = {QStringLiteral("_xlfn.CONCAT(A1,A1)"), QStringLiteral("MyCost(A1,2)+1"), QStringLiteral("_xll.HPVAL(A1)"), QStringLiteral("MyCost(1)*MyCost(2)"),
+                                      QStringLiteral("_xlfn.TEXTJOIN(\",\",TRUE,A1)")};
+        QString rows = num(QStringLiteral("A1"), 3);
+        for (int i = 0; i < formulas.size(); ++i) rows += fnum(QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1), formulas[i], 33);
+        QVERIFY2(c.make(simple(row(1, rows)), false), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0);
+        for (int i = 0; i < formulas.size(); ++i) {
+            const QString ref = QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1);
+            QCOMPARE(formula(a, ref), formulas[i]);
+            QCOMPARE(formula(b, ref), formulas[i]);
+            QCOMPARE(val(c.xls, b, ref), QStringLiteral("n:33"));
+        }
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(0));
+    }
+
+    // A formula that reads another workbook ("[1]Sheet1!A1") is written with the link as a book of the list of external sheets, with its address and its sheets, and reads back the same; a link
+    // the workbook does not have is not guessed at, and the formula keeps its value.
+    void aLinkToAnotherWorkbookIsSavedAndReadBack()
+    {
+        Copies c;
+        const QStringList formulas = {QStringLiteral("[1]Sheet1!A1+1"), QStringLiteral("SUM('[1]Q 2'!$B$2:C3)"), QStringLiteral("[1]Sheet1!$A:$A"), QStringLiteral("'[1]Q 2'!B2*2"),
+                                      QStringLiteral("SUM('[1]Sheet1:Q 2'!A1)")};
+        QString rows = num(QStringLiteral("A1"), 3);
+        for (int i = 0; i < formulas.size(); ++i) rows += fnum(QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1), formulas[i], 33);
+        rows += fnum(QStringLiteral("H1"), QStringLiteral("[2]Sheet1!A1"), 44);
+        QVERIFY2(c.make(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1"), QStringLiteral("Q 2")}), false), qPrintable(c.why));
+        const Sheet a = c.sheet(c.original, 0), b = c.sheet(c.xls, 0);
+        for (int i = 0; i < formulas.size(); ++i) {
+            const QString ref = QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1);
+            QCOMPARE(formula(a, ref), formulas[i]);
+            QVERIFY2(formula(b, ref) == formulas[i], qPrintable(ref + QLatin1Char(' ') + formula(b, ref)));
+            QCOMPARE(val(c.xls, b, ref), QStringLiteral("n:33"));
+        }
+        QVERIFY(formula(b, QStringLiteral("H1")).isEmpty());
+        QCOMPARE(val(c.xls, b, QStringLiteral("H1")), QStringLiteral("n:44"));
+        QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
+        int books = 0;
+        bool named = false;
+        for (const RawRecord &r : rawRecords(c.xlsBytes))
+            if (r.id == 0x01AE) {
+                ++books;
+                if (r.data.contains("Costs.xlsx")) named = true;
+            }
+        QCOMPARE(books, 3);   // this workbook's, the add-in's, and the link
+        QVERIFY(named);
     }
 
     // Functions added for the first release and 1.0 are saved with the prefix a file gives them (_xlfn.) and come back the same from the .xlsx, the .xls copy, and the .ods copy.

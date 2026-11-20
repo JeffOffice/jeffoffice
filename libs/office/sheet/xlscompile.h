@@ -23,6 +23,10 @@ struct XlsCompileContext {
     // A function of the old form's add-in set (the functions it keeps in a table of names of its own, not in the list of numbered functions): the place in the list of external sheets of the entry
     // for the add-in functions, and the place of the function's name among the names of the add-in; false if the name is not one the context writes.
     std::function<bool(const QString &name, int *ixti, int *index)> addIn;
+    // Another workbook's sheets (a formula's "[1]Sheet1!A1"): the place of the sheet of that name in the list of link 1, 2, and so on (made if it is new; -1 if there is no such link), and the
+    // place in the list of external sheets of the span of sheets of that link (-1 if it cannot be made).
+    std::function<int(int book, const QString &sheet)> externalSheet;
+    std::function<int(int book, int first, int last)> externalXti;
     QHash<QString, int> names;                        // the defined names, by "<sheet place or -1>|<name in lower case>": the place from 1 in the list of names
     QSet<int> brokenNames;                            // the names (by place from 1) whose definition the form cannot hold: a formula that uses one is refused
     int sheet = -1;                                   // the sheet the formula is in (-1 for a name's formula): a bare name is looked up among this sheet's names first

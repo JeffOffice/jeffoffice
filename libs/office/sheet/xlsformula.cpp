@@ -862,12 +862,20 @@ private:
             }
             case 0x3C:
             case 0x3D: {
+                QString sheet;
                 if (m_b8) {
-                    m_in.skip(id == 0x3C ? 6 : 10);
+                    // (the sheet it was on, if the workbook still has it: "Sheet2!#REF!")
+                    const int ixti = m_in.u16();
+                    m_in.skip(id == 0x3C ? 4 : 8);
+                    bool deleted = false;
+                    if (!m_in.bad() && ixti < m_cx.xti.size() && m_cx.xti[ixti].supbook >= 0 && m_cx.xti[ixti].supbook < m_cx.supbooks.size()
+                        && m_cx.supbooks[m_cx.xti[ixti].supbook].kind == XlsSupBook::Kind::Internal)
+                        sheet = sheetPart(ixti, &deleted);
+                    if (deleted) sheet.clear();
                 } else {
                     m_in.skip(id == 0x3C ? 17 : 20);
                 }
-                if (m_in.bad() || !pushLit(QStringLiteral("#REF!"))) return bad();
+                if (m_in.bad() || !pushLit(sheet + QStringLiteral("#REF!"))) return bad();
                 break;
             }
             default: return bad();

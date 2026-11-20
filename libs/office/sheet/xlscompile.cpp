@@ -235,7 +235,8 @@ constexpr Err kErrors[] = {{"#NULL!", 0x00}, {"#DIV/0!", 0x07}, {"#VALUE!", 0x0F
 
 struct Ref {
     bool is3d = false;
-    int sheet1 = -1, sheet2 = -1;   // from 0
+    int book = 0;                   // 0: this workbook; else the number of the other workbook's link (from 1)
+    int sheet1 = -1, sheet2 = -1;   // from 0 (in the other workbook's list of sheets when book is not 0)
     quint32 row1 = 0, col1 = 0, row2 = 0, col2 = 0;
     bool row1Abs = false, col1Abs = false, row2Abs = false, col2Abs = false;
     bool area = false;
@@ -546,7 +547,10 @@ private:
         if (c == QLatin1Char('#')) return parseError();
         if (c == QLatin1Char('{')) return parseArray();
         if (c.isDigit() || (c == QLatin1Char('.') && peek(1).isDigit())) return parseNumberOrRows();
-        if (c == QLatin1Char('[')) return failNode(QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
+        if (c == QLatin1Char('[')) {
+            if (peek(1).isDigit()) return parseWord();
+            return failNode(QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
+        }
         return parseWord();
     }
 
@@ -762,9 +766,48 @@ private:
     }
 
     // A sheet name written before "!" (quoted with apostrophes, or plain), or two of them with a colon between; true if there is one, and the position after the "!".
-    bool sheetPrefix(int *afterBang, int *first, int *last, bool *unknown)
+    bool sheetPrefix(int *afterBang, int *first, int *last, bool *unknown, int *book)
     {
         int p = m_pos;
+        *book = 0;
+        // another workbook's sheet: "[1]Sheet1!", "[1]Sheet1:Sheet3!", or the same quoted ("'[1]Sheet 1'!")
+        {
+            const bool quoted = p < m_t.size() && m_t[p] == QLatin1Char('\'');
+            int q = quoted ? p + 1 : p;
+            if (q < m_t.size() && m_t[q] == QLatin1Char('[')) {
+                int d = q + 1, n = 0;
+                while (d < m_t.size() && m_t[d].isDigit() && d - q < 7) n = n * 10 + m_t[d++].digitValue();
+                if (d == q + 1 || d >= m_t.size() || m_t[d] != QLatin1Char(']') || n < 1) return false;
+                ++d;
+                QString names;
+                if (quoted) {
+                    for (;;) {
+                        if (d >= m_t.size()) return false;
+                        if (m_t[d] == QLatin1Char('\'')) {
+                            if (d + 1 < m_t.size() && m_t[d + 1] == QLatin1Char('\'')) {
+                                names += QLatin1Char('\'');
+                                d += 2;
+                                continue;
+                            }
+                            ++d;
+                            break;
+                        }
+                        names += m_t[d++];
+                    }
+                } else {
+                    while (d < m_t.size() && (isIdentChar(m_t[d]) || m_t[d].unicode() > 127 || m_t[d] == QLatin1Char(':'))) names += m_t[d++];
+                }
+                if (d >= m_t.size() || m_t[d] != QLatin1Char('!') || names.isEmpty() || names.size() > 31 * 2 + 1) return false;
+                const QStringList parts = names.split(QLatin1Char(':'));
+                if (parts.size() > 2 || parts[0].isEmpty() || parts.last().isEmpty()) return false;
+                *book = n;
+                *afterBang = d + 1;
+                *first = m_cx.externalSheet ? m_cx.externalSheet(n, parts[0]) : -1;
+                *last = parts.size() == 2 ? (m_cx.externalSheet ? m_cx.externalSheet(n, parts[1]) : -1) : *first;
+                *unknown = *first < 0 || *last < 0;
+                return true;
+            }
+        }
         auto readName = [&](int *at, QString *name) {
             if (*at >= m_t.size()) return false;
             if (m_t[*at] == QLatin1Char('\'')) {
@@ -825,10 +868,11 @@ private:
         const int start = m_pos;
         int afterBang = 0, s1 = -1, s2 = -1;
         bool unknownSheet = false;
-        const bool prefixed = sheetPrefix(&afterBang, &s1, &s2, &unknownSheet);
+        int book = 0;
+        const bool prefixed = sheetPrefix(&afterBang, &s1, &s2, &unknownSheet, &book);
         if (prefixed) {
             if (unknownSheet) {
-                if (m_t.mid(start, 2) == QLatin1String("'["))
+                if (book > 0 || m_t.mid(start, 2) == QLatin1String("'["))
                     return failNode(QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
                 return failNode(QCoreApplication::translate("Sheet", "The formula names a sheet that is not in the workbook."));
             }
@@ -836,7 +880,16 @@ private:
         }
         const int bodyStart = m_pos;
         // a reference to a sheet that is gone ("Sheet2!#REF!") is the error
-        if (prefixed && peek() == QLatin1Char('#')) return parseError();
+        if (prefixed && peek() == QLatin1Char('#')) {
+            const int e = parseError();
+            // (on a sheet of this workbook it is the token the format has for it, which names the sheet)
+            if (e >= 0 && book == 0 && m_nodes[size_t(e)].code == 0x17) {
+                m_nodes[size_t(e)].ref.is3d = true;
+                m_nodes[size_t(e)].ref.sheet1 = s1;
+                m_nodes[size_t(e)].ref.sheet2 = s2;
+            }
+            return e;
+        }
         // a function: a name directly followed by "("
         if (!prefixed) {
             int p = m_pos;
@@ -863,6 +916,7 @@ private:
                     if (!ok1 || !ok2 || a < 1 || b < 1 || a > kXlsMaxRows || b > kXlsMaxRows) return failNode(QCoreApplication::translate("Sheet", "The formula has a row past the old format's last one."));
                     Ref r;
                     r.is3d = prefixed;
+                    r.book = book;
                     r.sheet1 = s1;
                     r.sheet2 = s2;
                     r.area = true;
@@ -891,6 +945,7 @@ private:
                     if (c1 >= quint32(kXlsMaxCols) || c2 >= quint32(kXlsMaxCols)) return failNode(QCoreApplication::translate("Sheet", "The formula has a column past the old format's last one."));
                     Ref r;
                     r.is3d = prefixed;
+                    r.book = book;
                     r.sheet1 = s1;
                     r.sheet2 = s2;
                     r.area = true;
@@ -916,6 +971,7 @@ private:
                 }
                 Ref r;
                 r.is3d = prefixed;
+                    r.book = book;
                 r.sheet1 = s1;
                 r.sheet2 = s2;
                 r.row1 = r.row2 = r1;
@@ -952,6 +1008,7 @@ private:
             return failNode(QCoreApplication::translate("Sheet", "The formula has something the old format can't write."));
         }
         const QString word = m_t.mid(bodyStart, p - bodyStart);
+        if (book > 0) return failNode(QCoreApplication::translate("Sheet", "The formula refers to another workbook, which the old format cannot do here."));
         if (!prefixed) {
             const QString up = word.toUpper();
             if (up == QLatin1String("TRUE") || up == QLatin1String("FALSE")) {
@@ -982,10 +1039,15 @@ private:
 
     int parseFunction(int nameEnd)
     {
-        const QString name = m_t.mid(m_pos, nameEnd - m_pos).toUpper();
+        QString name = m_t.mid(m_pos, nameEnd - m_pos).toUpper();
         int number = xlsFunctionNumber(name);
         bool addIn = false;
         if (number < 0 && xlsIsAddInFunction(name) && m_cx.addIn) {
+            number = 255;
+            addIn = true;
+        } else if (number < 0 && m_cx.addIn && nameEnd - m_pos <= 255) {
+            // (a function of an add-in, or one the format has no number for: called through its name, kept as it is written)
+            name = m_t.mid(m_pos, nameEnd - m_pos);
             number = 255;
             addIn = true;
         }
@@ -1092,9 +1154,16 @@ private:
         case Kind::Error:
             if (n.code == 0x17) {
                 // (a reference that is gone: the token the format has for it, not the error as a value; in a name it names a sheet)
-                if (m_cx.isName) {
+                if (n.ref.is3d && m_cx.xti) {
+                    const int first = n.ref.sheet1, last = n.ref.sheet2 < 0 ? n.ref.sheet1 : n.ref.sheet2;
+                    const int x = m_cx.xti(std::min(first, last), std::max(first, last));
+                    if (x < 0) return fail(QCoreApplication::translate("Sheet", "The formula names more sheets than the old format can."));
                     u8(0x3C);
-                    u16(m_cx.xti ? std::max(0, m_cx.xti(0, 0)) : 0);
+                    u16(x);
+                    m_out.append(QByteArray(4, '\0'));
+                } else if (m_cx.isName) {
+                    u8(0x3C);
+                    u16(m_cx.xti ? std::max(0, m_cx.xti(-1, -1)) : 0);
                     m_out.append(QByteArray(4, '\0'));
                 } else {
                     u8(0x2A);
@@ -1153,7 +1222,8 @@ private:
         const int colFlag2 = (r.col2Abs ? 0 : 0x4000) | (r.row2Abs ? 0 : 0x8000);
         if (r.is3d) {
             const int first = r.sheet1, last = r.sheet2 < 0 ? r.sheet1 : r.sheet2;
-            const int x = m_cx.xti ? m_cx.xti(std::min(first, last), std::max(first, last)) : 0;
+            const int x = r.book > 0 ? (m_cx.externalXti ? m_cx.externalXti(r.book, std::min(first, last), std::max(first, last)) : -1)
+                                     : m_cx.xti ? m_cx.xti(std::min(first, last), std::max(first, last)) : 0;
             if (x < 0) return fail(QCoreApplication::translate("Sheet", "The formula names more sheets than the old format can."));
             if (r.area) {
                 u8(0x1B + cls);

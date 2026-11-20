@@ -182,7 +182,8 @@ QStringList Features::result() const
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
         if (notes && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "notes"));
         if (macros) add(QT_TRANSLATE_NOOP("Sheet", "macros"));
-        if (links) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas keep the values they had)"));
+        if (links && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas stay, but this program does not read the files they point to from the old format)"));
+        else if (links) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas keep the values they had)"));
         if (slicers) add(QT_TRANSLATE_NOOP("Sheet", "slicers and timelines"));
         if (controls) add(QT_TRANSLATE_NOOP("Sheet", "form controls"));
         if (!m_book.tables().isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "tables"));
