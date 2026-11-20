@@ -3508,6 +3508,8 @@ CellFormat Workbook::changedFormat(CellFormat f, const FormatChange &c)
         if (c.underline) font.underline = *c.underline;
         if (c.vertAlign) font.vertAlign = *c.vertAlign;
         if (c.fontColor) font.color = *c.fontColor;
+        if (c.fontFamily) font.family = *c.fontFamily;
+        if (c.fontScheme) font.scheme = *c.fontScheme;
         f.font = fontPlace(font);
     }
     if (c.fill) f.fill = fillPlace(*c.fill);
@@ -3575,6 +3577,12 @@ qint32 Workbook::styleNamed(const QString &name)
     m_styles.cellStyles.append(n);
     m_stylesAdded.append({f, n});
     return qint32(n.xfId);
+}
+
+qint64 Workbook::styleRoom() const
+{
+    if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty()) return 0;
+    return std::max<qint64>(0, kMaxStylesMade - m_styles.styleXfs.size());
 }
 
 qint32 Workbook::addNamedStyle(const QString &name, quint32 format)

@@ -1,5 +1,6 @@
 #include "app/finddialog.h"
 
+#include "core/formatfind.h"
 #include "sheet/cellref.h"
 
 #include <QCheckBox>
@@ -95,6 +96,9 @@ FindDialog::FindDialog(QWidget *parent) : QDialog(parent)
     formatRow->addWidget(m_formatClear);
     formatRow->addWidget(m_formatLabel, 1);
     layout->addLayout(formatRow);
+    auto *conditionalNote = new QLabel(tr("A look that a conditional format gives a cell is not searched, only the format the cell has itself."));
+    conditionalNote->setWordWrap(true);
+    layout->addWidget(conditionalNote);
     setFormat(nullptr, QString());
     connect(m_formatButton, &QPushButton::clicked, this, &FindDialog::formatRequested);
     connect(m_formatFromCell, &QPushButton::clicked, this, &FindDialog::formatFromCellRequested);
@@ -178,9 +182,12 @@ void FindDialog::updateTab()
 
 void FindDialog::setFormat(const std::shared_ptr<const jp::office::sheet::FormatChange> &format, const QString &description)
 {
-    m_format = format;
-    m_formatClear->setEnabled(bool(format));
-    m_formatLabel->setText(format ? tr("Looking for the format: %1").arg(description.isEmpty() ? tr("every part of a cell's format") : description) : tr("Any format"));
+    // (a format with nothing in it is no format: the dialog says so now, not after a search that matched every cell)
+    const bool empty = format && crunch::formatIsEmpty(*format);
+    m_format = empty ? nullptr : format;
+    if (empty && m_status) m_status->setText(tr("No format was chosen, so the search looks at the text only."));
+    m_formatClear->setEnabled(bool(m_format));
+    m_formatLabel->setText(m_format ? tr("Looking for the format: %1").arg(description.isEmpty() ? tr("every part of a cell's format") : description) : tr("Any format"));
 }
 
 void FindDialog::setTab(Tab tab) { m_tabs->setCurrentIndex(tab == Tab::Replace ? 1 : 0); }

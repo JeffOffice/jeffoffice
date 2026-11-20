@@ -890,8 +890,12 @@ void CrunchWindow::mergeStylesCommand()
         pick = ok ? int(titles.indexOf(chosen)) : -1;
     }
     if (pick < 0 || pick >= others.size()) return;
-    const std::vector<crunch::EditSession::StyleLook> looks = others[pick]->m_session->namedStyleLooks();
-    if (looks.empty()) {
+    const crunch::EditSession::StyleLooks looks = others[pick]->m_session->namedStyleLooks();
+    if (looks.busy) {
+        notice(tr("Merge Styles"), tr("%1 is busy. Try again in a moment.").arg(titles[pick]));
+        return;
+    }
+    if (looks.styles.empty()) {
         notice(tr("Merge Styles"), tr("%1 has no styles of its own to bring in.").arg(titles[pick]));
         return;
     }

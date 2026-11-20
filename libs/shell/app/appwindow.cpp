@@ -192,7 +192,7 @@ bool AppWindow::commandAllowedReadOnly(const QString &id)
                  "find.find", "find.goto", "find.gotoSpecial", "find.next",
                  "help.feedback", "help.shortcuts", "help.show", "help.whatsNew", "view.pageMovement.sideToSide", "view.pageMovement.vertical", "view.readMode", "view.draft", "view.webLayout", "view.split",
                  "show.fromCurrent", "show.fromStart", "show.presenterView",
-                 "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fullScreen", "view.fields", "view.fit", "view.formulaBar", "view.formulaBarExpand", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
+                 "view.baselines", "view.boundaries", "view.collapseRibbon", "view.fullScreen", "view.fields", "view.fit", "view.formulaBar", "view.formulas", "view.graphics", "view.gridlines", "view.guides",
                  "view.headings", "view.marks", "view.master", "view.measurement", "view.normal", "view.notes", "view.outline", "view.pageBreakView", "view.pageBreaks", "view.pageLayout",
                  "view.navigationPane", "view.focus", "view.pageNav", "view.printLayout", "view.ruler", "view.rulers", "view.scratch", "view.single", "view.slideShow", "view.sorter", "view.spread",
                  "win.arrange", "win.cascade", "win.hide", "win.new", "win.unhide",

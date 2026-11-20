@@ -140,12 +140,6 @@
    "show hidden window",
    "bring back window"
   ],
-  "view.formulaBarExpand": [
-   "bigger formula bar",
-   "multiline formula",
-   "taller formula bar",
-   "line break in formula"
-  ],
   "style.modify": [
    "change style",
    "edit cell style",

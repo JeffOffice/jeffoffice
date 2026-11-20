@@ -1,4 +1,5 @@
 #include "core/editsession.h"
+#include "sheet/builtinstyles.h"
 #include "sheet/linereplay.h"
 #include "sheet/structref.h"
 
@@ -168,7 +169,10 @@ bool EditSession::rememberNewStyle(const QString &name, quint32 format)
 {
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return false;
-    m_book->book->addNamedStyle(name, format);
+    jp::office::sheet::BuiltinStyle def;
+    // (a built-in style is made with its usual look; its change of look is a step of its own)
+    if (jp::office::sheet::builtinStyle(name, &def)) m_book->book->styleNamed(name);
+    else m_book->book->addNamedStyle(name, format);
     return true;
 }
 

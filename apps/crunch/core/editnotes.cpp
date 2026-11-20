@@ -94,12 +94,15 @@ EditSession::Outcome EditSession::replaceInNotes(const std::vector<CellSpot> &ce
         const QString text = matcher.replaced(was->text, with, &count);
         if (count == 0 || text == was->text) continue;
         const QString where = jp::office::sheet::cellName(spot.row, spot.col);
-        if (was->threaded) return refused(tr("The note in %1 is a conversation of comments. Change it with the commands in Comments, on the Review tab. Nothing was replaced.").arg(where));
+        if (was->threaded) {
+            ++done.threadedLeft;   // (a conversation of comments is changed with the Review tab's commands: it is left as it is, and counted)
+            continue;
+        }
         if (text.isEmpty()) return refused(tr("Replacing in the note in %1 would leave it with no words. Nothing was replaced.").arg(where));
         if (text.size() > kMaxNoteLength) return refused(tr("Replacing in the note in %1 would make it longer than %2 characters. Nothing was replaced.").arg(where, QLocale().toString(kMaxNoteLength)));
         NoteInfo now = *was;
         now.text = text;
-        now.date = NoteInfo().date;   // (the date stays with the words it was written for)
+        now.date = NoteInfo().date;   // (the words changed, so the date they were written on is cleared, as when a note's words are edited)
         SideEdit &edit = sides[spot.sheet];
         edit.sheet = spot.sheet;
         SideEdit::Note n;
@@ -111,11 +114,11 @@ EditSession::Outcome EditSession::replaceInNotes(const std::vector<CellSpot> &ce
         ++done.cells;
         done.occurrences += count;
     }
+    if (result) *result = done;
     if (done.cells == 0) return Outcome();
     Step step;
     for (auto &entry : sides) step.sides.push_back(std::move(entry.second));
     pushStep(std::move(step), tr("Replace All"));
-    if (result) *result = done;
     return Outcome();
 }
 

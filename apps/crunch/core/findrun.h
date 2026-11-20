@@ -7,12 +7,14 @@
 #include "core/editsession.h"
 #include "sheet/notes.h"
 #include "sheet/styles.h"
+#include "core/formatfind.h"
 #include "sheet/textmatch.h"
 
 #include <QHash>
 #include <QString>
 
 #include <map>
+#include <optional>
 #include <memory>
 #include <tuple>
 #include <vector>
@@ -51,6 +53,8 @@ public:
     bool step(qint64 budget);
     bool done() const { return m_done; }
     qint64 cellsLooked() const { return m_looked; }
+    // Find by format: how many cell formats were worked out (each distinct one is, once; the cells that have it are answered from that).
+    qint64 formatResolutions() const { return m_formatMatcher ? m_formatMatcher->resolutions() : 0; }
     // List All: the cells, in the order of the search (sheets in the order of the tabs; by rows or by columns), when done. Next: the one cell, when done and found.
     const std::vector<FoundCell> &hits() const { return m_hits; }
     bool found() const { return !m_hits.empty(); }
@@ -91,6 +95,8 @@ private:
     FindOptions m_options;
     Want m_want;
     jp::office::sheet::TextMatcher m_matcher;
+    std::optional<FormatMatcher> m_formatMatcher;
+    static constexpr qint64 kFormatResolutionWork = 64;   // what working out one cell format costs, in cells looked at
     std::vector<int> m_sheets;
     std::vector<Segment> m_segments;
     bool m_ordered = false;     // Next by rows: the first hit in the order of the search is the answer, and the search stops there

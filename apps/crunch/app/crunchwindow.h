@@ -858,7 +858,6 @@ private:
     void autoOutlineSheet(bool make);
     void showHideDetail(bool show);
     void chooseFindFormat(bool fromCell);
-    void setFormulaBarExpanded(bool on);
     bool askReplaceOutline();
     void applySnapChoices(bool save, const QString &changed);
     OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;

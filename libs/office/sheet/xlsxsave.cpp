@@ -542,7 +542,12 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
             const qsizetype stop = xf.selfClosing ? xf.end : xfEnd.end;
             QByteArray element = inner.mid(xf.start, stop - xf.start);
             for (const SaveChanges::StyleChanged &c : changes.changedStyles)
-                if (c.xfId == index) element = prefixed(xfXml(c.format, 0, false), p);
+                if (c.xfId == index) {
+                    // (in place: what the file says of the style besides its look, an attribute or an extension of another program, stays)
+                    QByteArray made;
+                    if (!xfMadeInto(element, c.format, p, &made)) return bad();
+                    element = made;
+                }
             rebuilt += inner.mid(pos, xf.start - pos) + element;
             pos = stop;
             ++index;

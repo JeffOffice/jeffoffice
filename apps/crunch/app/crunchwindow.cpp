@@ -5,7 +5,6 @@
 #include "app/keymap.h"
 #include "app/ribboncustom.h"
 #include "app/crunchwindow.h"
-#include "app/formulabaredit.h"
 #include "core/clipdata.h"
 #include "app/saveoptions.h"
 #include "app/help.h"
@@ -395,7 +394,7 @@ void CrunchWindow::buildCentral()
     connect(fx, &QToolButton::clicked, this, [this] {
         if (QAction *a = act(QStringLiteral("formulas.insertFunction"))) a->trigger();
     });
-    m_formulaBar = new FormulaBarEdit(m_formulaRow);
+    m_formulaBar = new QLineEdit(m_formulaRow);
     m_formulaBar->setObjectName(QStringLiteral("formulaBar"));
     m_formulaBar->setMaxLength(1 << 20);
     m_formulaBar->setAccessibleName(tr("Formula bar"));
@@ -403,8 +402,6 @@ void CrunchWindow::buildCentral()
     row->addWidget(m_nameBox);
     row->addWidget(fx);
     row->addWidget(m_formulaBar, 1);
-    row->setAlignment(m_nameBox, Qt::AlignTop);
-    row->setAlignment(fx, Qt::AlignTop);
     v->addWidget(m_formulaRow);
     m_view = new grid::GridView(central);
     setSheetAccessibleText();
@@ -821,20 +818,6 @@ void CrunchWindow::createActions()
     mk("view.gridlines", tr("Gridlines"), "grid-3x3", QKeySequence(), [this] { m_view->setShowGridlines(act("view.gridlines")->isChecked()); }, true)->setChecked(true);
     mk("view.headings", tr("Headings"), "table-properties", QKeySequence(), [this] { m_view->setShowHeadings(act("view.headings")->isChecked()); }, true)->setChecked(true);
     mk("view.formulaBar", tr("Formula Bar"), "text-cursor-input", QKeySequence(), [this] { m_formulaRow->setVisible(act("view.formulaBar")->isChecked()); }, true)->setChecked(true);
-    mk("view.formulaBarExpand", tr("Expand Formula Bar"), "chevrons-up-down", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_U), [this] { setFormulaBarExpanded(act("view.formulaBarExpand")->isChecked()); }, true);
-    if (auto *bar = static_cast<FormulaBarEdit *>(m_formulaBar)) {
-        bar->setExpandedLines(Settings::get().value(QStringLiteral("crunch/formulaBarLines"), int(FormulaBarEdit::kDefaultLines)).toInt());
-        const bool on = Settings::get().value(QStringLiteral("crunch/formulaBarExpanded"), false).toBool();
-        act("view.formulaBarExpand")->setChecked(on);
-        bar->setExpanded(on);
-        auto *button = new QToolButton(m_formulaRow);
-        button->setObjectName(QStringLiteral("formulaBarExpandButton"));
-        button->setDefaultAction(act("view.formulaBarExpand"));
-        button->setAutoRaise(true);
-        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
-        static_cast<QHBoxLayout *>(m_formulaRow->layout())->addWidget(button, 0, Qt::AlignTop);
-        connect(bar, &FormulaBarEdit::linesChanged, this, [](int lines) { Settings::get().setValue(QStringLiteral("crunch/formulaBarLines"), lines); });
-    }
     mk("view.pageBreaks", tr("Page Lines"), "separator-horizontal", QKeySequence(), [this] { updatePageBreaks(); }, true)->setChecked(true);
     mk("view.formulas", tr("Show Formulas"), "square-function", crunch::showFormulasKey(), [this] {
         m_view->setShowFormulas(act("view.formulas")->isChecked());
@@ -998,20 +981,6 @@ void CrunchWindow::updateBars()
     updateFormatState(false);
 }
 
-// Expand Formula Bar: the bar several lines tall (or one line again). It is a setting of the person, kept for every workbook and window; the text of a cell is the same in both.
-void CrunchWindow::setFormulaBarExpanded(bool on)
-{
-    auto *bar = static_cast<FormulaBarEdit *>(m_formulaBar);
-    if (on && !act("view.formulaBar")->isChecked()) {
-        act("view.formulaBar")->setChecked(true);
-        m_formulaRow->setVisible(true);
-    }
-    bar->setExpanded(on);
-    if (act("view.formulaBarExpand")->isChecked() != on) act("view.formulaBarExpand")->setChecked(on);
-    Settings::get().setValue(QStringLiteral("crunch/formulaBarExpanded"), on);
-    setStatus(on ? tr("The formula bar is several lines tall. Press Alt+Enter for a line break.") : tr("The formula bar is one line."));
-}
-
 // The name box: the address of the selection, or the name of the object that is picked.
 void CrunchWindow::showNameInBox()
 {
@@ -1172,11 +1141,6 @@ bool CrunchWindow::eventFilter(QObject *o, QEvent *e)
     if (o == m_formulaBar && e->type() == QEvent::KeyPress) {
         auto *k = static_cast<QKeyEvent *>(e);
         if (!m_edit.active && m_linkBarId >= 0 && linkBarKey(k)) return true;
-        if ((k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) && (k->modifiers() & Qt::AltModifier) && !(k->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier))) {
-            // (a line break in the text, as in the cell: the entry goes on)
-            if (!m_formulaBar->isReadOnly()) m_formulaBar->insert(QStringLiteral("\n"));
-            return true;
-        }
         if (k->key() == Qt::Key_Return || k->key() == Qt::Key_Enter) {
             const bool asArray = (k->modifiers() & Qt::ControlModifier) && (k->modifiers() & Qt::ShiftModifier);
             if (m_edit.active) commitEdit(asArray ? CellEditor::Way::Array : (k->modifiers() & Qt::ShiftModifier) ? CellEditor::Way::ShiftEnter : CellEditor::Way::Enter);

@@ -728,10 +728,12 @@ public:
     struct ReplaceResult {
         int cells = 0;          // cells that changed
         int occurrences = 0;    // and the places in them
+        int threadedLeft = 0;   // notes that are conversations of comments and have the text (replace in notes): left as they are
     };
     // Replace All in notes: puts `with` in place of what matches the pattern in the note of each of these cells (the cells with no note are passed over), as one step for all the sheets.
-    // Nothing is changed, and the reason is told, if a sheet's notes cannot be changed (protected, too many notes), a note is a conversation of comments, a note would be left with no
-    // words or with more than kMaxNoteLength characters, or there are more than kMaxCellsPerEdit.
+    // A note that is a conversation of comments is left as it is and counted (`threadedLeft`); the plain notes are changed, and their dates are cleared (the words changed). Nothing is changed,
+    // and the reason is told, if a sheet's notes cannot be changed (protected, too many notes), a note would be left with no words or with more than kMaxNoteLength characters, or there are
+    // more than kMaxCellsPerEdit.
     Outcome replaceInNotes(const std::vector<CellSpot> &cells, const jp::office::sheet::TextPattern &pattern, const QString &with, ReplaceResult *result = nullptr);
     // Puts `with` in place of what matches the pattern in the text each of these cells holds (a formula with its "=", a constant as it is typed), and enters the new text as if typed: one
     // step. Nothing is changed, and the reason is told, if a cell is part of an array, is locked on a protected sheet, is in a table's header row, would not be a formula any more, or
@@ -1060,9 +1062,15 @@ public:
     // The styles of the workbook that are shown in its lists (not hidden), each as the change that gives its look: what Merge Styles takes from a workbook.
     struct StyleLook {
         QString name;
-        jp::office::sheet::FormatChange look;
+        jp::office::sheet::FormatChange look;       // as the workbook has it: colors that name its theme stay so
+        jp::office::sheet::FormatChange resolved;   // the same with every color as it shows, and the font by its name (what a workbook with another theme takes)
     };
-    std::vector<StyleLook> namedStyleLooks() const;
+    struct StyleLooks {
+        bool busy = false;      // the workbook's worker could not be held back: nothing was read, try again
+        QString themeKey;       // the workbook's theme, as text (see themeKeyOf)
+        std::vector<StyleLook> styles;
+    };
+    StyleLooks namedStyleLooks() const;
     static constexpr int kMaxMergedStyles = 1000;
     // Merge Styles: the styles are put in this workbook: one it does not have is added, and one it has by that name (whatever the capitals) with another look is changed to the new look, as
     // Modify does, only if `same` says Replace (Ask: nothing is changed, and the outcome asks, with the number in `problem`; Keep: the workbook's own are left). Styles with the look the
@@ -1071,7 +1079,7 @@ public:
     struct MergeReport {
         int added = 0, replaced = 0, kept = 0, alike = 0, left = 0, conflicts = 0;
     };
-    Outcome mergeStyles(const std::vector<StyleLook> &styles, Same same, MergeReport *report = nullptr);
+    Outcome mergeStyles(const StyleLooks &styles, Same same, MergeReport *report = nullptr);
     // (the steps of New Cell Style: pushed after the style is made, and Undo and Redo take it out and put it in again)
     void pushStyleMade(const QString &name, quint32 format);
     bool forgetNewStyle(const QString &name);
@@ -1362,6 +1370,16 @@ private:
         const jp::office::sheet::FormatChange *change = nullptr;   // the change (the caller holds it until the call is over), or none to clear the formats
     };
     using SizeBuilder = std::function<void(jp::office::sheet::Workbook &, const jp::office::sheet::Calculation &, Step *)>;
+    // A style whose look changes (Modify, Merge Styles): its place, the look it had, and the fields that change (with their new values). The cells, columns, and rows that follow it are
+    // found (followersOf) before anything is changed, and take only the fields they have what the style had in (restyleFollowers).
+    struct StyleChange {
+        quint32 place = 0;
+        jp::office::sheet::CellFormat before;
+        jp::office::sheet::FormatChange change;
+    };
+    struct FollowPlan;
+    bool followersOf(const std::vector<StyleChange> &styles, FollowPlan *plan, QString *why) const;
+    Outcome restyleFollowers(const FollowPlan &plan, const QString &text);
     Outcome restyle(int sheet, const std::vector<RestyleTarget> &targets, const QString &text, const SizeBuilder &sizes = nullptr);
     Outcome restyleRange(int sheet, const jp::office::sheet::CellRange &range, const std::shared_ptr<const jp::office::sheet::FormatChange> &change, const QString &text);
     Outcome structure(const jp::office::sheet::StructEdit &edit, const QString &text);

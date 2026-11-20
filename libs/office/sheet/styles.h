@@ -176,6 +176,9 @@ struct FormatChange {
     std::optional<Underline> underline;
     std::optional<quint8> vertAlign;
     std::optional<ColorSpec> fontColor;
+    // the font's family (the kind of face) and scheme ("minor", "major", or empty), as a copy of a style of another workbook carries them
+    std::optional<qint32> fontFamily;
+    std::optional<QString> fontScheme;
     // the fill (the whole of it)
     std::optional<FillSpec> fill;
     // the borders, side by side
@@ -197,7 +200,7 @@ struct FormatChange {
     std::optional<bool> noProof;
     // a named style (its place among `Styles::styleXfs`): the format takes the style's look and follows it
     std::optional<quint32> namedStyle;
-    bool touchesFont() const { return fontName || fontSize || bold || italic || strike || underline || vertAlign || fontColor; }
+    bool touchesFont() const { return fontName || fontSize || bold || italic || strike || underline || vertAlign || fontColor || fontFamily || fontScheme; }
     bool touchesBorder() const { return left || right || top || bottom || diagonal || diagonalUp || diagonalDown; }
 };
 

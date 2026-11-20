@@ -38,8 +38,7 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Enter, Shift+Enter | Keep the entry, and move down or up |
 | Tab, Shift+Tab | Keep the entry, and move right or left |
 | Esc | Give the entry up |
-| Alt+Enter | Start a new line in the cell, or in a formula in the formula bar |
-| Ctrl+Shift+U | Expand the formula bar to several lines, or make it one line again |
+| Alt+Enter | Start a new line in the cell |
 | Delete | Clear the selected cells |
 | {key:Undo}, {key:Redo} | Undo, redo |
 | {key:Save} | Save |

@@ -244,7 +244,9 @@ void CrunchWindow::finishSearch()
                 break;
             }
             if (m_loader.changesMade() != before) m_calculating = true;
-            m_findDialog->setStatus(result.cells == 0 ? tr("Nothing needed to change.") : tr("Changed %1 in %2.").arg(tr("%n place(s)", nullptr, result.occurrences), tr("%n note(s)", nullptr, result.cells)));
+            QString said = result.cells == 0 ? tr("Nothing needed to change.") : tr("Changed %1 in %2.").arg(tr("%n place(s)", nullptr, result.occurrences), tr("%n note(s)", nullptr, result.cells));
+            if (result.threadedLeft > 0) said += QLatin1Char(' ') + tr("%n conversation(s) of comments with the text were left as they are.", nullptr, result.threadedLeft);
+            m_findDialog->setStatus(said);
             break;
         }
         QString why;
@@ -376,6 +378,10 @@ void CrunchWindow::replaceCurrent()
                 return;
             }
             if (m_loader.changesMade() != before) m_calculating = true;
+            if (result.threadedLeft > 0) {
+                m_findDialog->setStatus(tr("%n conversation(s) of comments with the text were left as they are.", nullptr, result.threadedLeft));
+                return;
+            }
         }
         startSearch(SearchFor::Next);
         return;

@@ -19,12 +19,19 @@ FindRun::FindRun(const EditSession *session, const FindOptions &options, Want wa
         m_done = true;
         return;
     }
+    if (options.format && formatIsEmpty(*options.format)) {
+        // (a format with nothing in it would match every cell: it is said, before any cell is looked at)
+        m_problem = QCoreApplication::translate("jp::crunch::FindRun", "The format to look for has nothing in it. Choose a format first, or clear it.");
+        m_done = true;
+        return;
+    }
     const Workbook *book = session ? session->workbook() : nullptr;
     const Calculation *calc = session ? session->calculation() : nullptr;
     if (!book || !calc) {
         m_done = true;
         return;
     }
+    if (options.format) m_formatMatcher.emplace(book->styles(), *options.format);
     auto searchable = [&](int sheet) {
         if (sheet < 0 || sheet >= book->info().sheets.size() || sheet >= calc->sheetCount()) return false;
         const SheetEntry &e = book->info().sheets[sheet];
@@ -103,6 +110,14 @@ FindRun::Key FindRun::keyOf(int sheetPos, quint32 row, quint32 col) const
 
 qint64 FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64, QString> *notes)
 {
+    // (the format first: it is the cheap test, each distinct cell format is worked out once, and the work it was is charged to the slice)
+    qint64 formatWork = 0;
+    if (m_formatMatcher) {
+        const qint64 resolved = m_formatMatcher->resolutions();
+        const bool alike = m_formatMatcher->matches(m_session->calculation()->content(sheet, row, col).style);
+        formatWork = (m_formatMatcher->resolutions() - resolved) * kFormatResolutionWork;
+        if (!alike) return 1 + formatWork;
+    }
     QString text;
     switch (m_options.lookIn) {
     case FindOptions::LookIn::Formulas: text = m_session->searchText(sheet, row, col); break;
@@ -114,12 +129,11 @@ qint64 FindRun::look(int sheet, quint32 row, quint32 col, const std::map<quint64
     }
     }
     const bool formatOnly = m_options.formatOnly();
-    if (m_options.format && !m_session->cellFormatMatches(sheet, row, col, *m_options.format)) return 1;
-    if (text.isEmpty() && !formatOnly) return 1;
+    if (text.isEmpty() && !formatOnly) return 1 + formatWork;
     qint64 steps = 0;
     const bool matched = formatOnly || m_matcher.matches(text, &steps);
     // (a long text costs more than a short one: about a unit for each 64 comparisons)
-    const qint64 work = 1 + steps / 64;
+    const qint64 work = 1 + steps / 64 + formatWork;
     if (!matched) return work;
     FoundCell hit;
     hit.sheet = sheet;
