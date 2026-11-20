@@ -818,9 +818,7 @@ private:
     {
         if (!m_externalsRead) {
             m_externalsRead = true;
-            if (const ForeignBook *foreign = m_book.foreignBook()) {
-                m_linkTargets = foreign->externalTargets();
-            } else if (const std::shared_ptr<ExternalBooks> links = ExternalBooks::read(m_book, QString())) {
+            if (const std::shared_ptr<ExternalBooks> links = ExternalBooks::read(m_book, QString())) {
                 for (int i = 1; i <= links->count(); ++i) m_linkTargets.append(links->target(i));
             }
         }

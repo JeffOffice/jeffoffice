@@ -5,6 +5,7 @@
 #include "sheet/pagesetupxml.h"
 #include "sheet/proofingext.h"
 #include "sheet/drawingadd.h"
+#include "sheet/externalbooks.h"
 #include "sheet/foreignbook.h"
 #include "sheet/odsdraw.h"
 #include "ole/embedobj.h"
@@ -984,7 +985,7 @@ bool dropForeignObjects(ImportedDrawing *d)
 // An object of ours is written as an embedded package of its kind; any other (kept only for a file that goes on to be an OpenDocument one) as a binary part.
 static bool isOurObject(const ImportedObject &o) { return o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other; }
 
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks)
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks, bool dropLinks)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -1045,21 +1046,23 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             charts += int(importedOf[size_t(i)].charts.size());
         }
     }
-    // the links to other workbooks of a workbook read from the older binary form: a part for each (its sheets, no stored values) and the address in its relationships, numbered as the formulas number them
-    const std::vector<ExternalLinkInfo> links = book.convertedLinks();
+    // the links to other workbooks of a workbook read from another form (the list its reader handed over): a part for each (its sheets, no stored values) and the address in its relationships, numbered as
+    // the formulas number them. A save that drops the links writes none, and the formulas that read them are written as values.
+    const std::shared_ptr<ExternalBooks> list = dropLinks ? nullptr : ExternalBooks::read(book, QString());
+    const int links = list ? list->count() : 0;
     // (the numbers a formula may name: the links written here that have an address, and the ones the save adds after them; any other number means nothing in the file)
     std::vector<bool> usableLinks;
-    for (const ExternalLinkInfo &l : links) usableLinks.push_back(!l.target.isEmpty());
+    for (int k = 1; k <= links; ++k) usableLinks.push_back(!list->target(k).isEmpty());
     usableLinks.insert(usableLinks.end(), size_t(std::max(0, extraLinks)), true);
-    for (size_t k = 0; k < links.size(); ++k) {
+    for (int k = 1; k <= links; ++k) {
         QByteArray part = kXmlHead;
         part += "<externalLink xmlns=\"" + QByteArray(kMainNs) + "\" xmlns:r=\"" + kRelNs + "\"><externalBook r:id=\"rId1\"><sheetNames>";
-        for (const QString &name : links[k].sheetNames) part += "<sheetName" + attrText("val", name) + "/>";
+        for (const QString &name : list->sheetNames(k)) part += "<sheetName" + attrText("val", name) + "/>";
         part += "</sheetNames></externalBook></externalLink>";
-        zip.add(QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(k + 1), part, true);
-        if (!links[k].target.isEmpty())
-            zip.add(QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(k + 1),
-                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/externalLinkPath\"" + attrText("Target", links[k].target)
+        zip.add(QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(k), part, true);
+        if (!list->target(k).isEmpty())
+            zip.add(QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(k),
+                    QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"" + kRelNs + "/externalLinkPath\"" + attrText("Target", list->target(k))
                         + " TargetMode=\"External\"/></Relationships>",
                     true);
     }
@@ -1077,7 +1080,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         for (const QString &e : std::as_const(mediaExtensions))
             if (const char *type = odt::contentTypeOf(e)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + type + "\"/>";
         for (const QString &e : std::as_const(objectExtensions)) types += "<Default Extension=\"" + e.toLatin1() + "\" ContentType=\"" + (e == QLatin1String("xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : e == QLatin1String("bin") ? "application/vnd.openxmlformats-officedocument.oleObject" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document") + "\"/>";
-        for (int k = 1; k <= int(links.size()); ++k) types += "<Override PartName=\"/xl/externalLinks/externalLink" + num(k) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/>";
+        for (int k = 1; k <= links; ++k) types += "<Override PartName=\"/xl/externalLinks/externalLink" + num(k) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/>";
         for (int c = 1; c <= charts; ++c) types += "<Override PartName=\"/xl/charts/chart" + num(c) + ".xml\" ContentType=\"application/vnd.openxmlformats-officedocument.drawingml.chart+xml\"/>";
         types += "</Types>";
         zip.add(QStringLiteral("[Content_Types].xml"), types, true);
@@ -1091,11 +1094,11 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             rels += "<Relationship Id=\"rId" + num(i + 1) + "\" Type=\"" + kRelNs + "/worksheet\" Target=\"worksheets/sheet" + num(i + 1) + ".xml\"/>";
         rels += "<Relationship Id=\"rId" + num(info.sheets.size() + 1) + "\" Type=\"" + kRelNs + "/styles\" Target=\"styles.xml\"/>";
         rels += "<Relationship Id=\"rId" + num(info.sheets.size() + 2) + "\" Type=\"" + kRelNs + "/sharedStrings\" Target=\"sharedStrings.xml\"/>";
-        for (int k = 1; k <= int(links.size()); ++k) rels += "<Relationship Id=\"rIdExt" + num(k) + "\" Type=\"" + kRelNs + "/externalLink\" Target=\"externalLinks/externalLink" + num(k) + ".xml\"/>";
+        for (int k = 1; k <= links; ++k) rels += "<Relationship Id=\"rIdExt" + num(k) + "\" Type=\"" + kRelNs + "/externalLink\" Target=\"externalLinks/externalLink" + num(k) + ".xml\"/>";
         rels += "</Relationships>";
         zip.add(QStringLiteral("xl/_rels/workbook.xml.rels"), rels, true);
     }
-    zip.add(QStringLiteral("xl/workbook.xml"), workbookPart(info, int(links.size())), true);
+    zip.add(QStringLiteral("xl/workbook.xml"), workbookPart(info, links), true);
     QSet<int> addedFormats;
     for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) addedFormats.insert(f.id);
     zip.add(QStringLiteral("xl/styles.xml"), stylesPart(book.styles(), qsizetype(book.cellFormatsInFile()), addedFormats), true);

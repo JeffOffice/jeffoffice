@@ -566,7 +566,7 @@ private Q_SLOTS:
         QVERIFY2(fourth.openBinary(fromXml, &c.why), qPrintable(c.why));
         checkFormulas(fourth, "xlsx to xls");
         checkLink(fourth, "xlsx to xls");
-        // to OpenDocument: nothing that means nothing without the link
+        // to OpenDocument: the formulas and the link's address stay (it too keeps links)
         QByteArray ods;
         QVERIFY2(saveOds(c.xls, &ods, &report, &c.why), qPrintable(c.why));
         Workbook opened;
@@ -574,9 +574,63 @@ private Q_SLOTS:
         const Sheet o = c.sheet(opened, 0);
         for (int i = 0; i < formulas.size(); ++i) {
             const QString ref = QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1);
-            QVERIFY2(!formula(o, ref).contains(QLatin1String("[1]")), qPrintable(ref));
-            QCOMPARE(val(opened, o, ref), QStringLiteral("n:33"));
+            QVERIFY2(formula(o, ref) == formulas[i], qPrintable(ref));
         }
+    }
+
+    // One link through every pair of forms (the XML form, the old binary form, OpenDocument), and a third save in each: the formula text (which has the link's number and the sheet's name), the address, and
+    // the sheets a form lists stay the same, and no formula is ever written with a number that means nothing.
+    void aLinkSurvivesEveryPairOfFormsAndASecondSaveInEach()
+    {
+        Copies c;
+        const QStringList formulas = {QStringLiteral("[1]Sheet1!A1+1"), QStringLiteral("SUM('[1]Q 2'!$B$2:C3)"), QStringLiteral("SUM('[1]Sheet1:Q 2'!A1)")};
+        QString rows = num(QStringLiteral("A1"), 3);
+        for (int i = 0; i < formulas.size(); ++i) rows += fnum(QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1), formulas[i], 33);
+        const QStringList sheets = {QStringLiteral("Sheet1"), QStringLiteral("Q 2")};
+        QVERIFY2(c.make(withOneLink(row(1, rows), QStringLiteral("C:\\data\\Costs.xlsx"), sheets), false), qPrintable(c.why));
+        const QStringList names = {QStringLiteral("xlsx"), QStringLiteral("xls"), QStringLiteral("ods")};
+        auto save = [&](const Workbook &wb, int form, Workbook *out) {
+            QByteArray bytes;
+            CopyReport report;
+            if (form == 0) {
+                if (!saveXlsx(wb, SaveChanges(), &bytes, &c.why, nullptr)) return false;
+                return openXlsx(bytes, out, &c.why);
+            }
+            if (form == 1) {
+                if (!saveXls(wb, &bytes, &report, &c.why)) return false;
+                return out->openBinary(bytes, &c.why) && report.formulasAsValues == 0;
+            }
+            if (!saveOds(wb, &bytes, &report, &c.why)) return false;
+            return openBytes(bytes, QStringLiteral("copy.ods"), out, &c.why) && report.formulasAsValues == 0;
+        };
+        // (the address as the form has it: a file's path, or the same as an address)
+        auto samePlace = [](QString a) { return a.replace(QLatin1Char('\\'), QLatin1Char('/')).remove(QStringLiteral("file:///")).toLower(); };
+        int checked = 0;
+        for (int first = 0; first < 3; ++first)
+            for (int second = 0; second < 3; ++second)
+                for (int third = 0; third < 3; ++third) {
+                    Workbook a, b, d;
+                    const QByteArray what = (names[first] + " " + names[second] + " " + names[third]).toUtf8();
+                    QVERIFY2(save(c.xls, first, &a), what.constData());
+                    QVERIFY2(save(a, second, &b), what.constData());
+                    QVERIFY2(save(b, third, &d), what.constData());
+                    for (const Workbook *wb : {&a, &b, &d}) {
+                        const Sheet s = c.sheet(*wb, 0);
+                        for (int i = 0; i < formulas.size(); ++i) {
+                            const QString ref = QStringLiteral("%1%2").arg(QChar('B' + i)).arg(1);
+                            QVERIFY2(formula(s, ref) == formulas[i], what.constData());
+                            QVERIFY2(!formula(s, ref).isEmpty(), what.constData());
+                        }
+                        const auto links = ExternalBooks::read(*wb, QString());
+                        QVERIFY2(links && links->count() == 1, what.constData());
+                        QVERIFY2(samePlace(links->target(1)) == QLatin1String("c:/data/costs.xlsx"), what.constData());
+                        // (the sheets are listed by the old and XML forms; OpenDocument names them only in the formulas)
+                        QVERIFY2(links->sheetNames(1) == sheets || links->sheetNames(1).isEmpty(), what.constData());
+                    }
+                    if (first != 2 && second != 2) QVERIFY2(ExternalBooks::read(b, QString())->sheetNames(1) == sheets, what.constData());
+                    ++checked;
+                }
+        QCOMPARE(checked, 27);
     }
 
     // A formula whose link is not in the workbook for any reason (here the link's address is not a file's, so the reader keeps no address) is written as its value by every writer: the old form, and the XML form.

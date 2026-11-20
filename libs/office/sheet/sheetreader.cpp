@@ -2975,7 +2975,14 @@ QStringList Workbook::changedFeatures() const { return m_foreign ? m_foreign->ch
 
 int Workbook::importedChartCount(int sheet) const { return m_xls ? m_xls->chartCount(sheet) : 0; }
 
-std::vector<ExternalLinkInfo> Workbook::convertedLinks() const { return m_xls ? m_xls->links() : std::vector<ExternalLinkInfo>(); }
+std::vector<ExternalLinkInfo> Workbook::convertedLinks() const
+{
+    if (m_xls) return m_xls->links();
+    std::vector<ExternalLinkInfo> out;
+    if (m_foreign)
+        for (const QString &target : m_foreign->externalTargets()) out.push_back({target, QStringList()});
+    return out;
+}
 
 QString Workbook::convertedKind() const { return m_xls ? QStringLiteral(".xls") : m_foreign ? m_foreign->kind() : QString(); }
 

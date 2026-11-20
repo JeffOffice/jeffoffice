@@ -318,16 +318,10 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
     options.workOutTables = true;              // and the columns of tables are worked out (a formula that names them is no longer kept as the file has it)
     options.workOutDataTables = true;          // and so are the cells of what-if tables (the yardstick of the tools leaves them as the file has them)
     // (the links to other workbooks of an .xlsx file: its formulas that read them are kept as the file stored them until the person updates the links, and are worked out from the stored values or the source after)
-    if (!out->book->isConverted()) {
-        out->externals = jp::office::sheet::ExternalBooks::read(*out->book, out->path.isEmpty() ? QString() : QFileInfo(out->path).absolutePath(), out->path.isEmpty() ? QDateTime() : QFileInfo(out->path).lastModified());
-        // (a workbook with no links has the list too: a formula typed with the name of an open workbook makes the first)
-        if (!out->externals) out->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
-    } else if (const jp::office::sheet::ForeignBook *foreign = out->book->foreignBook(); foreign && !foreign->externalTargets().isEmpty()) {
-        // (a workbook read from an OpenDocument file has its links listed as an .xlsx one does: the same numbers, and saved again with them)
-        out->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
-        if (!out->path.isEmpty()) out->externals->setBaseDir(QFileInfo(out->path).absolutePath());
-        for (const QString &target : foreign->externalTargets()) out->externals->addLink(target);
-    }
+    // (a workbook read from the older binary form or an OpenDocument file has its links listed the same way, in the numbers its formulas use, so a link a person adds comes after them)
+    out->externals = jp::office::sheet::ExternalBooks::read(*out->book, out->path.isEmpty() ? QString() : QFileInfo(out->path).absolutePath(), out->path.isEmpty() ? QDateTime() : QFileInfo(out->path).lastModified());
+    // (a workbook with no links has the list too: a formula typed with the name of an open workbook makes the first)
+    if (!out->externals) out->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
     options.externals = out->externals;
     auto calc = std::make_unique<Calculation>(*out->book, options);
     calc->setFilePath(out->path);

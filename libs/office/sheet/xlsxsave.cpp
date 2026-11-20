@@ -10,7 +10,6 @@
 #include "sheet/hfpictures.h"
 #include "sheet/notes.h"
 #include "sheet/threadsave.h"
-#include "sheet/foreignbook.h"
 
 #include <functional>
 #include "io/zip.h"
@@ -1610,7 +1609,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     const Package *base = &book.package();
     if (!base->isLazy() && book.isConverted()) {
         QByteArray bytes;
-        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects, requested.dropExternalLinks ? 0 : int(requested.newExternalLinks.size()))) return fail(why);
+        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects, int(requested.newExternalLinks.size()), requested.dropExternalLinks)) return fail(why);
         if (!baseFile.readLazy(bytes, &why)) return fail(why);
         base = &baseFile;
     }
@@ -1640,24 +1639,6 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             const QString id = used.takeFree();
             newDrawingRel[sheet] = id;
             adjusted.sheets[sheet].drawingRelId = id;
-        }
-    }
-    // ---- the links to other workbooks of a workbook read from an OpenDocument file: its formulas name them by number, so they come first, before the links a person made
-    if (book.isConverted() && book.foreignBook() && !requested.dropExternalLinks) {
-        const QStringList own = book.foreignBook()->externalTargets();
-        if (!own.isEmpty()) {
-            if (useChanges == &requested) {
-                adjusted = requested;
-                useChanges = &adjusted;
-            }
-            std::vector<SaveChanges::NewExternalLink> all;
-            for (const QString &target : own) {
-                SaveChanges::NewExternalLink link;
-                link.target = target;
-                all.push_back(std::move(link));
-            }
-            for (const SaveChanges::NewExternalLink &link : requested.newExternalLinks) all.push_back(link);
-            adjusted.newExternalLinks = std::move(all);
         }
     }
     // ---- pictures in headers and footers that a person put in, changed, or took out: the sheet is given the element that names their drawing (or loses it), and the drawing and its images are
