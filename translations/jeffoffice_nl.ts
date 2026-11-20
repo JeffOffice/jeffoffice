@@ -15362,7 +15362,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Een formule wordt gedeeld door andere cellen en wordt gelezen waar die cellen staan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+224"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formules die de indeling niet kan bevatten (ze behouden hun berekende waarde)</translation>
@@ -15373,7 +15373,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">wat-als-gegevenstabellen (de cellen behouden hun getallen)</translation>
     </message>
     <message>
-        <location line="+678"/>
+        <location line="+769"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
@@ -62816,7 +62816,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Tabkleur</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
+        <location filename="../apps/crunch/core/editsize.cpp" line="+75"/>
         <location line="+82"/>
         <source>Those are not columns of the sheet.</source>
         <translation type="unfinished">Dat zijn geen kolommen van het blad.</translation>
@@ -62830,7 +62830,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-39"/>
         <location line="+44"/>
-        <location line="+154"/>
+        <location line="+158"/>
         <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
         <translation type="unfinished">Dat zijn meer rijen dan JeffCrunch in één keer wijzigt (%1). Selecteer minder rijen.</translation>
     </message>
@@ -68348,12 +68348,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+295"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+296"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">De werkmap bevat geen bladen.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+57"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Een deel van de werkmap kon niet volledig worden gelezen: %1.</translation>
     </message>
@@ -70555,35 +70555,35 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+62"/>
-        <location line="+1036"/>
+        <location line="+63"/>
+        <location line="+1083"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Het bestand begint met instructies die dit programma niet toestaat en kan daarom niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="-1411"/>
+        <location line="-1459"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Het bestand is beschadigd: het is niet opgebouwd zoals een spreadsheetbestand hoort te zijn.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+818"/>
+        <location line="+855"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Het bestand is beschadigd of de onderdelen ervan zijn groter dan dit programma kan lezen.</translation>
     </message>
     <message>
-        <location line="-794"/>
-        <location line="+1453"/>
+        <location line="-830"/>
+        <location line="+1501"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Het lezen is gestopt.</translation>
     </message>
     <message>
-        <location line="-1450"/>
-        <location line="+1027"/>
+        <location line="-1498"/>
+        <location line="+1074"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70592,14 +70592,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand bevat items die dieper in elkaar zijn genest dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="-1297"/>
-        <location line="+988"/>
+        <location line="-1344"/>
+        <location line="+1035"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Het bestand is beschadigd.</translation>
     </message>
     <message>
-        <location line="-976"/>
+        <location line="-1023"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70626,7 +70626,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand noemt meer lettertypen dan een echt bestand.</translation>
     </message>
     <message>
-        <location line="+590"/>
+        <location line="+626"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">De spreadsheet is groter dan dit programma kan lezen.</translation>
     </message>
@@ -70678,7 +70678,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand is beschadigd: de bladen zijn niet van elkaar te onderscheiden.</translation>
     </message>
     <message>
-        <location line="+104"/>
+        <location line="+115"/>
         <source>charts</source>
         <translation type="unfinished">grafieken</translation>
     </message>
@@ -70730,7 +70730,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een tekst in dit bestand is langer dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer cellen dan een echt bestand.</translation>
     </message>
@@ -70740,7 +70740,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het blad is groter dan in een echt bestand.</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+191"/>
         <source>The sheet has more rows set apart than any real file has.</source>
         <translation type="unfinished">Het blad heeft meer afzonderlijk ingestelde rijen dan een echt bestand.</translation>
     </message>
@@ -70751,7 +70751,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">tekenobjecten boven het maximum van %1 per werkblad</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+124"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -71002,7 +71002,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+970"/>
         <location line="+56"/>
         <location line="+13"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
         <location line="+1653"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71037,7 +71037,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het blad kan niet worden opgeslagen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3978"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen heeft niet de vorm die dit programma kan wijzigen.</translation>
@@ -71050,7 +71050,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3086"/>
+        <location line="+3104"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71059,19 +71059,19 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het werkmaponderdeel heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="-2437"/>
+        <location line="-2455"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">De werkmap is niet geopend vanuit een bestand dat dit programma kan overschrijven.</translation>
     </message>
     <message>
-        <location line="+795"/>
+        <location line="+813"/>
         <location line="+1759"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Het bestand waaruit deze werkmap is geopend, is beschadigd.</translation>
     </message>
     <message>
-        <location line="-2544"/>
-        <location line="+461"/>
+        <location line="-2562"/>
+        <location line="+479"/>
         <location line="+273"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
@@ -71106,12 +71106,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een blad van het bestand kan niet worden gelezen om op te slaan.</translation>
     </message>
     <message>
-        <location line="-2532"/>
+        <location line="-2550"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Er zijn objecten op een blad geplaatst waarop dit programma ze niet kan plaatsen.</translation>
     </message>
     <message>
-        <location line="+102"/>
+        <location line="+120"/>
         <source>A picture in a header or footer is too large to be saved.</source>
         <translation type="unfinished">Een afbeelding in een koptekst of voettekst is te groot om op te slaan.</translation>
     </message>
@@ -77060,7 +77060,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+790"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">grafieken die het maximum van %1 overschrijden dat een document mag hebben</translation>
     </message>
@@ -77092,31 +77092,31 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+72"/>
         <location line="+69"/>
         <location line="+7"/>
-        <location line="+328"/>
+        <location line="+339"/>
         <location line="+210"/>
         <location line="+10"/>
         <source>drawing shapes</source>
         <translation type="unfinished">tekenvormen</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-456"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objecten zoals formules en grafieken</translation>
     </message>
     <message>
-        <location line="+393"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-766"/>
+        <location line="+404"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">te diep geneste inhoud</translation>
     </message>
     <message>
-        <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1697"/>
+        <location line="+332"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">te diep geneste tabellen</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+205"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">een tabel met meer herhaalde cellen dan worden behouden</translation>
     </message>
@@ -77172,7 +77172,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">styles.xml kan niet worden gelezen: %1</translation>
     </message>
     <message>
-        <location line="+649"/>
+        <location line="+654"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Het bestand bevat geen tekst.</translation>
     </message>
@@ -77192,7 +77192,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De tekst van het document kan niet worden gelezen.</translation>
     </message>
     <message>
-        <location line="+749"/>
+        <location line="+756"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">kolommen met verschillende breedten (opgeslagen als gelijke kolommen)</translation>
     </message>
@@ -77247,7 +77247,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">markeringen &quot;spelling niet controleren&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1092"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">formuliervelden (behouden als de tekst die ze weergeven)</translation>
     </message>
@@ -77255,12 +77255,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+415"/>
         <location line="+4"/>
         <location line="+163"/>
-        <location line="+332"/>
+        <location line="+339"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">tekeningen, vormen en grafieken</translation>
     </message>
     <message>
-        <location line="-294"/>
+        <location line="-301"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">bewerkte tekstomlooppunten op vormen</translation>
@@ -77271,7 +77271,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">afbeeldingen die niet kunnen worden gelezen</translation>
     </message>
     <message>
-        <location line="+256"/>
+        <location line="+263"/>
         <source>embedded objects</source>
         <translation type="unfinished">ingesloten objecten</translation>
     </message>

@@ -424,7 +424,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+2022"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+2082"/>
         <source>%n sheet name(s), made valid for an .xlsx file</source>
         <translation>
             <numerusform>%n sheet name, made valid for an .xlsx file</numerusform>

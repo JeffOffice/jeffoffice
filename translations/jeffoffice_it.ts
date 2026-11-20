@@ -15362,7 +15362,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">Una formula è condivisa da altre celle e viene letta nella loro posizione.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+224"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+227"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="+218"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formule non supportate dal formato (mantengono il valore calcolato)</translation>
@@ -15373,7 +15373,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">tabelle dati di simulazione (le relative celle mantengono i numeri contenuti)</translation>
     </message>
     <message>
-        <location line="+678"/>
+        <location line="+769"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
@@ -62816,7 +62816,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Colore scheda</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsize.cpp" line="+70"/>
+        <location filename="../apps/crunch/core/editsize.cpp" line="+75"/>
         <location line="+82"/>
         <source>Those are not columns of the sheet.</source>
         <translation type="unfinished">Queste non sono colonne del foglio.</translation>
@@ -62830,7 +62830,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="-39"/>
         <location line="+44"/>
-        <location line="+154"/>
+        <location line="+158"/>
         <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
         <translation type="unfinished">Sono più righe di quante JeffCrunch ne possa modificare contemporaneamente (%1). Selezionare meno righe.</translation>
     </message>
@@ -68348,12 +68348,12 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+295"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+296"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+57"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Non è stato possibile leggere per intero alcune parti della cartella di lavoro: %1.</translation>
     </message>
@@ -70555,35 +70555,35 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+62"/>
-        <location line="+1036"/>
+        <location line="+63"/>
+        <location line="+1083"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Il file inizia con istruzioni non consentite da questo programma, quindi non può essere letto.</translation>
     </message>
     <message>
-        <location line="-1411"/>
+        <location line="-1459"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Il file è danneggiato: non è scritto come dovrebbe esserlo un file di foglio di calcolo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+818"/>
+        <location line="+855"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Il file è danneggiato oppure le sue parti superano quanto questo programma è in grado di leggere.</translation>
     </message>
     <message>
-        <location line="-794"/>
-        <location line="+1453"/>
+        <location line="-830"/>
+        <location line="+1501"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lettura è stata interrotta.</translation>
     </message>
     <message>
-        <location line="-1450"/>
-        <location line="+1027"/>
+        <location line="-1498"/>
+        <location line="+1074"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70592,14 +70592,14 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file contiene elementi annidati più profondamente di quanto avvenga in qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1297"/>
-        <location line="+988"/>
+        <location line="-1344"/>
+        <location line="+1035"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Il file è danneggiato.</translation>
     </message>
     <message>
-        <location line="-976"/>
+        <location line="-1023"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70626,7 +70626,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file cita più tipi di carattere di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+590"/>
+        <location line="+626"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">Il foglio di calcolo è più grande di quanto questo programma sia in grado di leggere.</translation>
     </message>
@@ -70678,7 +70678,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file è danneggiato: non è possibile distinguere i fogli.</translation>
     </message>
     <message>
-        <location line="+104"/>
+        <location line="+115"/>
         <source>charts</source>
         <translation type="unfinished">grafici</translation>
     </message>
@@ -70730,7 +70730,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Un testo in questo file è più lungo di quelli di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Il foglio contiene più celle di qualsiasi file reale.</translation>
     </message>
@@ -70740,7 +70740,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il foglio è più grande di quelli di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+191"/>
         <source>The sheet has more rows set apart than any real file has.</source>
         <translation type="unfinished">Il foglio ha più righe definite separatamente di qualsiasi file reale.</translation>
     </message>
@@ -70751,7 +70751,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">oggetti di disegno oltre il limite di %1 che un foglio può contenere</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+124"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Il foglio non esiste.</translation>
     </message>
@@ -71002,7 +71002,7 @@ Impossibile applicare la password al file.</translation>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+970"/>
         <location line="+56"/>
         <location line="+13"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
         <location line="+1653"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71037,7 +71037,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile salvare il foglio.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3978"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è nel formato modificabile da questo programma.</translation>
@@ -71050,7 +71050,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3086"/>
+        <location line="+3104"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71059,19 +71059,19 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">La parte della cartella di lavoro non è nel formato modificabile da questo programma.</translation>
     </message>
     <message>
-        <location line="-2437"/>
+        <location line="-2455"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">La cartella di lavoro non è stata aperta da un file che questo programma può sovrascrivere.</translation>
     </message>
     <message>
-        <location line="+795"/>
+        <location line="+813"/>
         <location line="+1759"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Il file da cui è stata aperta questa cartella di lavoro è danneggiato.</translation>
     </message>
     <message>
-        <location line="-2544"/>
-        <location line="+461"/>
+        <location line="-2562"/>
+        <location line="+479"/>
         <location line="+273"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
@@ -71106,12 +71106,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile leggere un foglio del file per salvarlo.</translation>
     </message>
     <message>
-        <location line="-2532"/>
+        <location line="-2550"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Sono stati inseriti oggetti in un foglio in cui questo programma non può inserirli.</translation>
     </message>
     <message>
-        <location line="+102"/>
+        <location line="+120"/>
         <source>A picture in a header or footer is too large to be saved.</source>
         <translation type="unfinished">Un&apos;immagine in un&apos;intestazione o in un piè di pagina è troppo grande per essere salvata.</translation>
     </message>
@@ -77060,7 +77060,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+790"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+807"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">grafici che superano il %1 consentito per un documento</translation>
     </message>
@@ -77092,31 +77092,31 @@ Impossibile applicare la password al file.</translation>
         <location line="+72"/>
         <location line="+69"/>
         <location line="+7"/>
-        <location line="+328"/>
+        <location line="+339"/>
         <location line="+210"/>
         <location line="+10"/>
         <source>drawing shapes</source>
         <translation type="unfinished">forme di disegno</translation>
     </message>
     <message>
-        <location line="-445"/>
+        <location line="-456"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">oggetti come formule e grafici</translation>
     </message>
     <message>
-        <location line="+393"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-766"/>
+        <location line="+404"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-782"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">contenuto con troppi livelli di annidamento</translation>
     </message>
     <message>
-        <location line="+303"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1697"/>
+        <location line="+332"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+1720"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabelle con troppi livelli di annidamento</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+205"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">una tabella con più celle ripetute del numero mantenuto</translation>
     </message>
@@ -77172,7 +77172,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile leggere styles.xml: %1</translation>
     </message>
     <message>
-        <location line="+649"/>
+        <location line="+654"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Il file non contiene testo.</translation>
     </message>
@@ -77192,7 +77192,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile leggere il testo del documento.</translation>
     </message>
     <message>
-        <location line="+749"/>
+        <location line="+756"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">colonne di larghezza diversa (salvate come colonne uguali)</translation>
     </message>
@@ -77247,7 +77247,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">contrassegni &quot;non controllare ortografia&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1092"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1099"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">campi modulo (mantenuti come il testo visualizzato)</translation>
     </message>
@@ -77255,12 +77255,12 @@ Impossibile applicare la password al file.</translation>
         <location line="+415"/>
         <location line="+4"/>
         <location line="+163"/>
-        <location line="+332"/>
+        <location line="+339"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">disegni, forme e grafici</translation>
     </message>
     <message>
-        <location line="-294"/>
+        <location line="-301"/>
         <location line="+22"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">punti di disposizione del testo modificati sulle forme</translation>
@@ -77271,7 +77271,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">immagini non leggibili</translation>
     </message>
     <message>
-        <location line="+256"/>
+        <location line="+263"/>
         <source>embedded objects</source>
         <translation type="unfinished">oggetti incorporati</translation>
     </message>
