@@ -6784,7 +6784,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "58d8e8c298cf91db3553d889dadc3c6a2f506743078d78db49efcdcea798b0c1"
+         "text": "501a0a2b2b4102c08aa8fb57b13b24e771542863752f63aa2d123468ad40f325"
         },
         {
          "hide_soon": true,
@@ -13830,6 +13830,18 @@
     "fr": "Équations manuscrites"
    }
   },
+  "501a0a2b2b4102c08aa8fb57b13b24e771542863752f63aa2d123468ad40f325": {
+   "drop": false,
+   "en": "Turn Track Changes on and off with `Ctrl+Shift+E`. Typed text is marked as inserted, deleted text is marked and kept, and changes to the look of text or paragraphs are recorded, each with the author and time. Next and Previous Change, the Reviewing pane, Accept, Reject, Accept All, and Reject All Shown work on changes in the text, headers, footers, footnotes, endnotes, and tables, including moves and table row, cell, and property changes in files that come back from an editor.",
+   "es": "Active y desactive el control de cambios con `Ctrl+Shift+E`. El texto escrito se marca como insertado, el texto eliminado se marca y se conserva, y los cambios en el aspecto del texto o de los párrafos quedan registrados, cada uno con el autor y la hora. Cambio siguiente y anterior, el panel de revisión, Aceptar, Rechazar, Aceptar todo y Rechazar todo lo mostrado funcionan con los cambios del texto, los encabezados, los pies de página, las notas al pie, las notas finales y las tablas, incluidos los movimientos y los cambios de filas, celdas y propiedades de tablas en los documentos que regresan de un editor.",
+   "fr": "Activez et désactivez le suivi des modifications avec `Ctrl+Shift+E`. Le texte saisi est marqué comme inséré, le texte supprimé est marqué et conservé, et les changements d’aspect du texte ou des paragraphes sont enregistrés, chacun avec l’auteur et l’heure. Modification suivante et précédente, le volet de vérification, Accepter, Rejeter, Tout accepter et Tout rejeter pour les modifications affichées fonctionnent sur les modifications du texte, des en-têtes, des pieds de page, des notes de bas de page, des notes de fin et des tableaux, y compris les déplacements et les changements de lignes, de cellules et de propriétés de tableau dans les documents renvoyés par un relecteur.",
+   "soon": {
+    "drop": false,
+    "en": "Tracking of changes you make yourself in tables, numbering, sections, and headers",
+    "es": "Control de los cambios que usted mismo realiza en tablas, numeración, secciones y encabezados",
+    "fr": "Suivi des modifications que vous effectuez vous-même dans les tableaux, la numérotation, les sections et les en-têtes"
+   }
+  },
   "50206111499dec7b5129148d1787eb30fbf9d757cf35a695cd993f931035e7de": {
    "drop": false,
    "en": "Open and save plain text with the encoding and line ends chosen, including UTF-8, UTF-16, Windows code pages, ISO 8859, and East Asian encodings.",
@@ -14536,18 +14548,6 @@
     "en": "Built-in themes as places to start on the New page",
     "es": "Temas integrados como punto de partida en la página Nuevo",
     "fr": "Thèmes intégrés comme points de départ sur la page Nouveau"
-   }
-  },
-  "58d8e8c298cf91db3553d889dadc3c6a2f506743078d78db49efcdcea798b0c1": {
-   "drop": false,
-   "en": "Track Changes can be turned on and off (`Ctrl+Shift+E`) and the setting is saved with the document. Typing is recorded as an insertion, deleting marks text as deleted and keeps it, Enter and Backspace over a paragraph mark are recorded as inserted and deleted marks, and changes to the look of text or a paragraph keep the old look. Each change has the user name and time, and each edit is one step of Undo.",
-   "es": "El control de cambios se puede activar y desactivar (`Ctrl+Shift+E`) y el ajuste se guarda con el documento. Escribir se registra como inserción, eliminar marca el texto como eliminado y lo conserva, `Enter` y `Retroceso` sobre una marca de párrafo se registran como marcas insertadas y eliminadas, y los cambios en el aspecto del texto o de un párrafo conservan el aspecto anterior. Cada cambio lleva el nombre de usuario y la hora, y cada edición es un paso de Deshacer.",
-   "fr": "Le suivi des modifications peut être activé et désactivé (`Ctrl+Shift+E`) et le réglage est enregistré avec le document. La saisie est enregistrée comme une insertion, la suppression marque le texte comme supprimé et le conserve, `Entrée` et `Retour arrière` sur une marque de paragraphe sont enregistrés comme marques insérées et supprimées, et les changements d’aspect du texte ou d’un paragraphe conservent l’ancien aspect. Chaque modification porte le nom d’utilisateur et l’heure, et chaque édition correspond à une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Tracking of moves and of changes to tables, numbering, sections, and text in headers, footers, and notes",
-    "es": "Seguimiento de movimientos y de cambios en tablas, numeración, secciones y texto en encabezados, pies de página y notas",
-    "fr": "Suivi des déplacements et des modifications dans les tableaux, la numérotation, les sections et le texte des en-têtes, pieds de page et notes"
    }
   },
   "58f7412911f22ec248af2dcf1f009c05e55328999aec9edf03eefee002ea95f2": {
