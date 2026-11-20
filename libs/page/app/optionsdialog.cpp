@@ -5,7 +5,6 @@
 
 #include "app/appwords.h"
 #include "app/autocorrectdialog.h"
-#include "app/languagedetect.h"
 #include "app/userdictionarydialog.h"
 #include "app/editor.h"
 #include "app/appwindow.h"
@@ -216,14 +215,6 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
     customDictionary->setObjectName(QStringLiteral("customDictionaryButton"));
     QObject::connect(customDictionary, &QPushButton::clicked, &dlg.d, [&dlg] { userDictionaryDialog(&dlg.d); });
     pf->addRow(customDictionary);
-    QCheckBox *detect = nullptr;
-    if (languageDetectionOffered()) {
-        detect = new QCheckBox(QCoreApplication::translate("Dialogs", "Detect the language of a paragraph as you type"), proof);
-        detect->setObjectName(QStringLiteral("detectLanguage"));
-        detect->setChecked(detectLanguageAsYouType());
-        detect->setToolTip(jp::plainToolTip(QCoreApplication::translate("Dialogs", "When you have typed twelve words of a paragraph that has no language set, and one dictionary accepts clearly more of them than the document's language does, the paragraph is given that language. Undo takes it back.")));
-        pf->addRow(detect);
-    }
     pf->addRow(autocorrect);
     auto *autocorrectOptions = new QPushButton(QCoreApplication::translate("Dialogs", "AutoCorrect Options..."), proof);
     autocorrectOptions->setObjectName(QStringLiteral("autoCorrectOptionsButton"));
@@ -284,7 +275,6 @@ bool optionsDialog(QWidget *p, Editor *, const QVector<OptionsPage> &appPages, b
         st.setValue("ui/language", lang);
         jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Display Language"), forThisApp(QCoreApplication::translate("Dialogs", "JeffPub shows its text in the new language the next time it starts.")));
     }
-    if (detect) setDetectLanguageAsYouType(detect->isChecked());
     st.setValue("proof/ignoreUpper", ignoreUpper->isChecked());
     st.setValue("proof/ignoreNumbers", ignoreNum->isChecked());
     st.setValue("proof/autocorrect", autocorrect->isChecked());

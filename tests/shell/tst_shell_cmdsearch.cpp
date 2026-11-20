@@ -874,7 +874,7 @@ private Q_SLOTS:
         for (const Entry &e : collect(&w, Words()))
             if (e.id == QLatin1String("options:Proofing")) {
                 found = true;
-                for (const char *word : {"custom dictionary", "excluded words", "added words", "detect language"}) QVERIFY2(e.extra.contains(QString::fromLatin1(word)), word);
+                for (const char *word : {"custom dictionary", "excluded words", "added words"}) QVERIFY2(e.extra.contains(QString::fromLatin1(word)), word);
             }
         QVERIFY(found);
     }

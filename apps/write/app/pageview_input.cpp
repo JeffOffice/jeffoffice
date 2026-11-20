@@ -9,7 +9,6 @@
 #include "core/linkops.h"
 #include "app/settings.h"
 #include "core/homeops.h"
-#include "core/proofops.h"
 #include "core/insertops.h"
 #include <functional>
 #include <optional>
@@ -685,7 +684,6 @@ void PageView::insertText(const QString &text)
     if (m_overtype) auto_ = write::AutoOptions{false, false, false, false};
     auto_.record = &m_autoFix;
     write::typeText(*m_doc, m_cursor, text, auto_);
-    if (text.size() == 1 && !m_overtype && !text[0].isLetterOrNumber()) write::detectLanguageOfParagraph(*m_doc, m_cursor);
     noteAutoFix();
     caretMoved();
 }

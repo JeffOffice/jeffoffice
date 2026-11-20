@@ -1,7 +1,5 @@
 #include "core/proofops.h"
 
-#include "app/languagedetect.h"
-#include "app/spelling.h"
 #include "core/editops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -138,36 +136,6 @@ QTextCharFormat withProofingLanguage(QTextCharFormat f, const QString &tag)
 void setProofingLanguage(WriteDoc &doc, QTextCursor &c, const QString &tag)
 {
     changeCharFormat(doc, c, [&](QTextCharFormat &f) { f = withProofingLanguage(f, tag); });
-}
-
-bool detectLanguageOfParagraph(WriteDoc &doc, const QTextCursor &caret)
-{
-    if (!detectLanguageAsYouType() || caret.document() != doc.story() || caret.hasSelection()) return false;
-    const QTextBlock b = caret.block();
-    if (!b.isValid() || isLocked(b)) return false;
-    // (The paragraph's words as far as the caret: it is the twelfth that has just been finished, no more and no fewer.)
-    const QString before = b.text().left(caret.position() - b.position());
-    // (Just after the separator that ends a word: a second separator, or one typed after an Undo took the language back, is not the end of the twelfth word.)
-    if (before.size() < 2 || !before[before.size() - 2].isLetter()) return false;
-    int words = 0;
-    auto it = spellingWordPattern().globalMatch(before);
-    while (it.hasNext()) {
-        QString w = it.next().captured();
-        while (w.endsWith(QLatin1Char('\'')) || w.endsWith(QChar(0x2019))) w.chop(1);
-        if (w.size() >= 3) ++words;
-    }
-    if (words != kDetectMinWords) return false;
-    for (QTextBlock::iterator f = b.begin(); !f.atEnd(); ++f) {
-        const QTextCharFormat cf = f.fragment().charFormat();
-        if (!cf.stringProperty(tp::Language).isEmpty() || cf.boolProperty(tp::NoProof)) return false;
-    }
-    const QString tag = detectLanguage(b.text(), doc.proofingLanguage());
-    if (tag.isEmpty()) return false;
-    QTextCursor all(doc.story());
-    all.setPosition(b.position());
-    all.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
-    setProofingLanguage(doc, all, tag);
-    return true;
 }
 
 void setNoProof(WriteDoc &doc, QTextCursor &c, bool noProof)

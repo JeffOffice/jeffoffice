@@ -1758,7 +1758,6 @@ private Q_SLOTS:
     void theReplacementListHasArrowsAndEllipsesAndIsTheStoredListOfTheLanguage();
     void eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff();
     void theOptionsAfterAnAutoCorrectChangeUndoItAndGoAwayOnTheNextEdit();
-    void aParagraphIsGivenItsLanguageWhenItsTwelfthWordIsTypedAndTheChoiceIsOn();
     void stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThatMadeIt();
     void theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSettings();
     void theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn();

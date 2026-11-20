@@ -1,5 +1,4 @@
 // The user's dictionary (libs/shell/app/spelling, libs/page/app/userdictionarydialog): excluded words, word list files read and written safely, and the dialog that edits both lists.
-#include "app/languagedetect.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
 #include "app/spelling.h"
@@ -245,70 +244,6 @@ private Q_SLOTS:
         // A file that isn't there says so and changes nothing.
         page.importFile(false, own.dir.filePath(QStringLiteral("none.txt")));
         QVERIFY(page.addedWords().isEmpty());
-    }
-
-    void aTextIsTakenForTheLanguageWhoseDictionaryAcceptsClearlyMostOfItsWords()
-    {
-        struct Sample {
-            const char *tag, *text;
-        };
-        const Sample samples[] = {
-            {"fr-FR", "Je pense que nous devons toujours regarder les choses avec beaucoup de patience et de courage pour avancer dans la vie"},
-            {"de-DE", "Ich glaube dass wir die Dinge immer mit viel Geduld und Mut betrachten müssen um im Leben weiterzukommen"},
-            {"es-ES", "Creo que siempre debemos mirar las cosas con mucha paciencia y valor para poder avanzar en la vida"},
-            {"it-IT", "Credo che dobbiamo sempre guardare le cose con molta pazienza e coraggio per andare avanti nella vita"},
-            {"nl-NL", "Ik denk dat we de dingen altijd met veel geduld en moed moeten bekijken om verder te komen in het leven"},
-            {"ru-RU", "Я думаю что мы всегда должны смотреть на вещи с большим терпением и мужеством чтобы идти вперёд в жизни"},
-        };
-        for (const Sample &s : samples) {
-            const QString found = detectLanguage(QString::fromUtf8(s.text), QString());
-            QCOMPARE(found.section(QLatin1Char('-'), 0, 0), QString::fromLatin1(s.tag).section(QLatin1Char('-'), 0, 0));
-            QCOMPARE(detectLanguage(QString::fromUtf8(s.text), QString()), found);   // (the same every time)
-            // The language the text is in already is no news.
-            QVERIFY(detectLanguage(QString::fromUtf8(s.text), found).isEmpty());
-        }
-        const QString english = QStringLiteral("I think that we must always look at things with a lot of patience and courage so that we can move forward in life");
-        QVERIFY(detectLanguage(english, QString()).isEmpty());
-        QVERIFY(detectLanguage(english, QStringLiteral("en-GB")).isEmpty());   // (regional forms are not told apart)
-        QCOMPARE(detectLanguage(english, QStringLiteral("fr-FR")).section(QLatin1Char('-'), 0, 0), QStringLiteral("en"));
-    }
-
-    void aTextTooShortOrMixedOrWithNoWordsOfAnyLanguageIsNamedNone()
-    {
-        QVERIFY(detectLanguage(QStringLiteral("Je pense que nous devons"), QString()).isEmpty());   // (five words)
-        QVERIFY(detectLanguage(QString(), QString()).isEmpty());
-        QVERIFY(detectLanguage(QStringLiteral("xqz wvk plm zrt qqq xxx yyy zzz bbb ccc ddd fff ggg"), QString()).isEmpty());
-        // Half of one language and half of another: no language stands out.
-        QVERIFY(detectLanguage(QStringLiteral("Je pense que nous devons toujours regarder les choses and we must always look at things with patience"), QString()).isEmpty());
-        // Words of three letters or more only, and no more than the first ones count.
-        QString many;
-        for (int i = 0; i < 400; ++i) many += QStringLiteral("choses avec ");
-        QCOMPARE(detectLanguage(many, QString()).section(QLatin1Char('-'), 0, 0), QStringLiteral("fr"));
-    }
-
-    void theChoiceToDetectTheLanguageIsOnlyOfferedByAnAppThatDoesIt()
-    {
-        QVERIFY(!detectLanguageAsYouType());   // (off until it is turned on)
-        for (const bool offered : {false, true}) {
-            setLanguageDetectionOffered(offered);
-            bool found = false, box = false;
-            QTimer poll;
-            poll.setInterval(20);
-            QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
-                for (QWidget *w : QApplication::topLevelWidgets()) {
-                    auto *dlg = qobject_cast<QDialog *>(w);
-                    if (!dlg || !dlg->isVisible() || dlg->objectName() != QLatin1String("optionsDialog")) continue;
-                    found = true;
-                    box = dlg->findChild<QCheckBox *>(QStringLiteral("detectLanguage")) != nullptr;
-                    dlg->reject();
-                }
-            });
-            poll.start();
-            optionsDialog(nullptr, nullptr, {}, false);
-            QVERIFY(found);
-            QCOMPARE(box, offered);
-        }
-        setLanguageDetectionOffered(false);
     }
 
     void theCustomDictionaryIsReachedFromTheProofingOptionsAndKeptWhenAccepted()

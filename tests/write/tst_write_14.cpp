@@ -312,61 +312,6 @@ void WriteTests::theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSetting
 }
 
 
-// Detecting the language as you type: the twelfth word of a paragraph that states no language, with one dictionary accepting clearly more of the words than the document's language.
-void WriteTests::aParagraphIsGivenItsLanguageWhenItsTwelfthWordIsTypedAndTheChoiceIsOn()
-{
-    const QString french = QStringLiteral("Je pense que nous devons toujours regarder les choses avec beaucoup de patience et de courage ");
-    auto languageOf = [](Typer &t) {
-        QTextCursor c(t.doc->story());
-        c.setPosition(2);
-        return proofingLanguageAt(*t.doc, c);
-    };
-    {
-        const SettingGuard on(QStringLiteral("proof/detectLanguage"), true, false);
-        Typer t;
-        t.type(french);
-        QCOMPARE(languageOf(t), QStringLiteral("fr-FR"));
-        QCOMPARE(t.text(), french);
-        // It is looked at once: what is typed after goes on in the language, and English words do not change it back.
-        t.type(QStringLiteral("and then we went home to eat our dinner "));
-        QCOMPARE(languageOf(t), QStringLiteral("fr-FR"));
-        // One step that undoes: the text stays, the language goes; and the next word does not give it again.
-        Typer u;
-        u.type(french);
-        QCOMPARE(languageOf(u), QStringLiteral("fr-FR"));
-        u.doc->undo();
-        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
-        QCOMPARE(u.text(), french);
-        u.type(QStringLiteral(" "));   // (a separator after the one that was typed is not the end of the twelfth word)
-        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
-        u.type(QStringLiteral("encore "));
-        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
-        // Another paragraph of the same document is its own.
-        Typer v;
-        v.type(QStringLiteral("I think that we must always look at things with a lot of patience and courage "));
-        QCOMPARE(languageOf(v), QStringLiteral("en-US"));   // (the document's language already)
-        // Eleven words are too few; text that states a language is left as it is.
-        Typer w;
-        w.type(QStringLiteral("Je pense que nous devons toujours regarder les choses avec beaucoup de patience "));
-        QCOMPARE(languageOf(w), QStringLiteral("en-US"));
-        Typer x;
-        x.type(QStringLiteral("Hello there friend "));
-        QTextCursor all(x.doc->story());
-        all.select(QTextCursor::Document);
-        setProofingLanguage(*x.doc, all, QStringLiteral("de-DE"));
-        x.view.cursor().movePosition(QTextCursor::End);
-        x.type(french);
-        QCOMPARE(languageOf(x), QStringLiteral("de-DE"));
-    }
-    // With the choice off (as it is until it is turned on) nothing is changed.
-    {
-        Typer t;
-        t.type(french);
-        QCOMPARE(languageOf(t), QStringLiteral("en-US"));
-    }
-}
-
-
 void WriteTests::theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn()
 {
     auto typeInCell = [](const QString &words) {

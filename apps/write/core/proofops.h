@@ -27,10 +27,6 @@ WordStats countWordsIn(const QTextDocument *story, int from = 0, int to = -1, bo
 QString proofingLanguageAt(WriteDoc &doc, const QTextCursor &c);
 // Gives the selected text (the text typed next, with none) the language `tag`; an empty tag takes the language the run states away, so the document's holds. The file keeps it as w:lang. One step.
 void setProofingLanguage(WriteDoc &doc, QTextCursor &c, const QString &tag);
-// Detecting the language as it is typed: with the choice on (app/languagedetect.h), when the caret is just after the twelfth word (of three or more letters) of a paragraph of the text in which no
-// run states a language or is marked "do not check", and one dictionary accepts clearly more of its words than the document's language does, the paragraph is given that language, as one step
-// of its own (an Undo takes it back, and it is looked at once only, so it never changes its mind). False where nothing was done.
-bool detectLanguageOfParagraph(WriteDoc &doc, const QTextCursor &caret);
 // Marks the selected text (the text typed next) "do not check spelling or grammar" (w:noProof), or takes the mark away. One step.
 void setNoProof(WriteDoc &doc, QTextCursor &c, bool noProof);
 // Whether all the selected text (the text typed next, with none) has the mark.
