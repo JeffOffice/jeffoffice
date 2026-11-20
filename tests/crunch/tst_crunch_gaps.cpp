@@ -9,6 +9,7 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "grid/gridview.h"
 #include "office/package.h"
 #include "savedok.h"
@@ -16,9 +17,11 @@
 #include "sheet/pagesetup.h"
 
 #include <QAction>
+#include <QDateTime>
 #include <QImage>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QTest>
 #include <QUndoStack>
@@ -79,13 +82,20 @@ const char *kBoxVml =
     "<v:shape id=\"_x0000_s1026\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:2;visibility:visible\"><x:ClientData ObjectType=\"Note\"><x:Anchor>3, 15, 1, 2, 5, 15, 4, 16</x:Anchor>"
     "<x:Row>2</x:Row><x:Column>2</x:Column><x:Visible/></x:ClientData></v:shape></xml>";
 
+// The same two notes, but C3's box is anchored 100,000 cells and pixels before its cell and ends as far after it: the file's own numbers, at their largest.
+const char *kHostileVml =
+    "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+    "<v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"><v:stroke joinstyle=\"miter\"/><v:path gradientshapeok=\"t\" o:connecttype=\"rect\"/></v:shapetype>"
+    "<v:shape id=\"_x0000_s1026\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:2;visibility:visible\"><x:ClientData ObjectType=\"Note\">"
+    "<x:Anchor>-100000, -100000, -100000, -100000, 100000, 100000, 100000, 100000</x:Anchor><x:Row>2</x:Row><x:Column>2</x:Column><x:Visible/></x:ClientData></v:shape></xml>";
+
 // A1:C3 hold numbers; a note on A1 (hidden) and one on C3 (shown, its box from D2 to F5).
-QByteArray bookWithBoxes()
+QByteArray bookWithBoxes(const QByteArray &drawing = QByteArray(kBoxVml))
 {
     QVector<ExtraPart> parts;
     parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kBoxComments), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rId11"),
                      QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
-    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), QByteArray(kBoxVml), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rId12"),
+    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), drawing, QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rId12"),
                      QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
     QMap<QString, QByteArray> all;
     jp::readZip(withParts(editBook(), parts), all);
@@ -668,6 +678,7 @@ private Q_SLOTS:
         dragFromTo(e, from, to, Qt::ShiftModifier);
         QVERIFY(e.settle());
         QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Moving cells"));   // (the step is named for what the person did)
         QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:3"));
         QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:1"));
         QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:2"));
@@ -690,15 +701,18 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("-"));
     }
 
-    // Dragged across, the cells in the way move right; a block of two cells makes room for two.
+    // Dragged across, the cells in the way move right; a block of two cells makes room for two. A formula that points at a cell that moved, and one at a cell that was pushed over, follow
+    // them, and Undo puts everything back as one step.
     void shiftDragAcrossMovesTheCellsInTheWayRight()
     {
         EditWindow e;
-        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1=7", "B2=8", "D1=4", "D2=5"})));
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1=7", "B2=8", "D1=4", "D2=5", "F1==D1+1", "F2==B1"})));
         QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
         e.view()->selectRange(0, 3, 1, 3);   // D1:D2
         const QRect d = e.view()->sheet().layout().cellRect(0, 3);
         const QPoint from(d.left() + 1, d.center().y()), to(middleOf(e, QStringLiteral("B1")).x() - 4, from.y());
+        const int steps = e.win.w.undoStack()->count();
         dragFromTo(e, from, to, Qt::ShiftModifier);
         QVERIFY(e.settle());
         QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:4"));
@@ -706,6 +720,191 @@ private Q_SLOTS:
         QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:7"));
         QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:8"));
         QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("-"));
+        // (F1 and F2 are pushed over too, to G1 and G2)
+        QCOMPARE(e.valueAt(QStringLiteral("G1")), QStringLiteral("n:5"));   // (it pointed at a cell that moved)
+        QCOMPARE(e.valueAt(QStringLiteral("G2")), QStringLiteral("n:7"));   // (and this at a cell that was pushed over)
+        QCOMPARE(s->editText(0, 0, 6), QStringLiteral("=B1+1"));
+        QCOMPARE(s->editText(0, 1, 6), QStringLiteral("=C1"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), steps);
+        const std::pair<const char *, const char *> back[] = {{"A1", "n:1"}, {"A2", "n:2"}, {"B1", "n:7"}, {"B2", "n:8"}, {"D1", "n:4"}, {"D2", "n:5"}, {"F1", "n:5"}, {"F2", "n:7"}, {"C1", "-"}, {"C2", "-"}, {"G1", "-"}};
+        for (const auto &cell : back) QCOMPARE(e.valueAt(QString::fromLatin1(cell.first)), QString::fromLatin1(cell.second));
+        QCOMPARE(s->editText(0, 0, 5), QStringLiteral("=D1+1"));
+        QCOMPARE(s->editText(0, 1, 5), QStringLiteral("=B1"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:4"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:7"));
+    }
+
+    // What points at the cells from another sheet, or by a name, follows them as well: a cell that moved and one that was pushed over; Undo brings all of it back.
+    void formulasOnOtherSheetsAndNamesFollowTheCellsThatMoveAndThoseThatArePushedOver()
+    {
+        const QString names = QStringLiteral("<definedName name=\"Moved\">Sheet1!$A$3</definedName><definedName name=\"Pushed\">Sheet1!$A$1</definedName>");
+        EditWindow e;
+        QVERIFY(e.open(crunchtest::bookOfSheets({{"A1=1", "A2=2", "A3=3"}, {"A1==Sheet1!A3", "A2==Sheet1!A1", "A3==Moved", "A4==Pushed"}}, QMap<int, QString>(), QMap<int, QString>(), names)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const int moved = s->names().find(-1, QStringLiteral("Moved")), pushed = s->names().find(-1, QStringLiteral("Pushed"));
+        QVERIFY(moved >= 0 && pushed >= 0);
+        QVERIFY(s->moveCellsInserting(0, rangeOf(QStringLiteral("A3")), 0, 0, true).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("=Sheet1!A1"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("=Sheet1!A2"));
+        QCOMPARE(s->nameTextOf(moved), QStringLiteral("=Sheet1!$A$1"));
+        QCOMPARE(s->nameTextOf(pushed), QStringLiteral("=Sheet1!$A$2"));
+        QCOMPARE(s->editText(1, 2, 0), QStringLiteral("=Moved"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("=Sheet1!A3"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("=Sheet1!A1"));
+        QCOMPARE(s->nameTextOf(moved), QStringLiteral("=Sheet1!$A$3"));
+        QCOMPARE(s->nameTextOf(pushed), QStringLiteral("=Sheet1!$A$1"));
+    }
+
+    // A shift-click on a selection's border is a click like any other (it extends the selection); only a move past the drag distance makes it an insert.
+    void aShiftClickOnTheBorderExtendsTheSelectionAndOnlyADragInserts()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "B2=2", "C3=3", "D4=4"})));
+        QVERIFY(e.settle());
+        QWidget *vp = e.view()->viewport();
+        const jp::grid::GridRange block{1, 1, 2, 2};   // B2:C3
+        e.view()->selectRange(1, 1, 2, 2);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, middleOf(e, QStringLiteral("B3")));
+        const jp::grid::GridRange extended = e.view()->selection().range;
+        QVERIFY(!(extended == block));
+        const int steps = e.win.w.undoStack()->count();
+        e.view()->selectRange(1, 1, 2, 2);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, onLeftBorder(e, QStringLiteral("B3")));
+        QVERIFY(e.view()->selection().range == extended);
+        // (a move of a pixel is not a drag)
+        e.view()->selectRange(1, 1, 2, 2);
+        const QPoint at = onLeftBorder(e, QStringLiteral("B3"));
+        QTest::mousePress(vp, Qt::LeftButton, Qt::ShiftModifier, at);
+        QTest::mouseMove(vp, at + QPoint(0, 1));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, at + QPoint(0, 1));
+        QVERIFY(e.view()->selection().range == extended);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:2"));
+    }
+
+    // A shift-click or a ctrl-click on a shown note's box acts on the cell under it, as it does on the sheet; a plain click picks the box.
+    void aShiftOrCtrlClickOnAShownNoteBoxKeepsItsMeaningOnTheCellUnderIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QWidget *vp = e.view()->viewport();
+        const QRect box = e.view()->shownNoteRect(2, 2);
+        QVERIFY(!box.isEmpty());
+        e.view()->selectRange(0, 0, 0, 0);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ShiftModifier, box.center());
+        QVERIFY(!e.view()->hasPickedNote());
+        QVERIFY(e.view()->selection().range.row2 > 0 && e.view()->selection().range.col2 > 0);   // (A1 to the cell under the box)
+        e.view()->selectRange(0, 0, 0, 0);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::ControlModifier, box.center());
+        QVERIFY(!e.view()->hasPickedNote());
+        QVERIFY(e.view()->hasSeveralRanges());
+        e.view()->selectRange(0, 0, 0, 0);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, box.center());
+        QVERIFY(e.view()->hasPickedNote());
+    }
+
+    // A move that makes room and then moves is one thing: if either part passes what Undo holds the person is asked once, before anything is done, and then both are done (and the history
+    // is let go of at the end, not between them); if the person says no, nothing is done.
+    void aPairThatPassesTheUndoLimitIsAskedOnceAndDoneWholeOrNotAtAll()
+    {
+        QStringList cells;
+        for (int i = 1; i <= 80; ++i) cells << QStringLiteral("A%1=%1").arg(i);
+        cells << QStringLiteral("C1==A41*10");
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(cells)));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        s->setUndoByteLimit(4000);
+        const int steps = e.win.w.undoStack()->count();
+        const crunch::EditSession::Outcome o = s->moveCellsInserting(0, rangeOf(QStringLiteral("A41:A80")), 0, 0, true);
+        QVERIFY(!o.ok && o.confirm);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A41")), QStringLiteral("n:41"));
+        QStringList asked;
+        bool answer = false;
+        e.win.w.setBigStepAsker([&](const QString &text) {
+            asked << text;
+            return answer;
+        });
+        e.win.told.clear();
+        e.view()->moveInsertRequested(jp::grid::GridRange{40, 0, 79, 0}, jp::grid::GridRange{0, 0, 39, 0});
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QVERIFY(e.win.told.isEmpty());
+        answer = true;
+        e.view()->moveInsertRequested(jp::grid::GridRange{40, 0, 79, 0}, jp::grid::GridRange{0, 0, 39, 0});
+        QCOMPARE(asked.size(), 2);   // (once for the two parts)
+        QVERIFY(e.settle());
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:41"));
+        QCOMPARE(e.valueAt(QStringLiteral("A40")), QStringLiteral("n:80"));
+        QCOMPARE(e.valueAt(QStringLiteral("A41")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A80")), QStringLiteral("n:40"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:410"));
+    }
+
+    // If the second part is refused after the first was done, the first is taken back, the person is told why, and Undo and Redo are as they were (nothing is left to redo).
+    void aRefusedSecondPartTakesBackTheFirstAndLeavesNothingToRedo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 5, 5, QStringLiteral("x")).ok);
+        const int steps = e.win.w.undoStack()->count(), index = e.win.w.undoStack()->index();
+        const bool canUndo = s->canUndo();
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        s->setBetweenStepsHook([&] { s->setSheetProtection(0, locked, QStringLiteral("Protect")); });
+        crunch::EditSession::Outcome o = s->moveCellsInserting(0, rangeOf(QStringLiteral("A3")), 0, 0, true);
+        QVERIFY(!o.ok && !o.confirm);
+        QVERIFY2(o.problem.contains(QLatin1String("protected")), qPrintable(o.problem));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(e.win.w.undoStack()->index(), index);
+        QCOMPARE(s->canUndo(), canUndo);
+        QVERIFY(!e.win.w.undoStack()->canRedo());
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+        // through the window it is said
+        e.win.told.clear();
+        e.view()->moveInsertRequested(jp::grid::GridRange{2, 0, 2, 0}, jp::grid::GridRange{0, 0, 0, 0});
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.w.undoStack()->canRedo());
+        s->setBetweenStepsHook(nullptr);
+        QVERIFY(s->type(0, 6, 6, QStringLiteral("y")).ok);   // (the sheet is not left protected)
+    }
+
+    // The part that makes room is asked about as the sheet stands, and the move as it stands after: a shift onto cells that move away is not refused for a merged range or an array just
+    // below them that would move too.
+    void aMoveOntoCellsThatShiftAwayIsNotRefusedForAMergedRangeThatShiftsWithThem()
+    {
+        EditWindow e;
+        const QByteArray book = buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A2=5", "A10=1", "B10=2", "A11=3", "B11=4"}), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A2:B3\"/></mergeCells>"))},
+                                          QByteArray(), QString(), QString(), QByteArray());
+        QVERIFY(e.open(book));
+        QVERIFY(e.settle());
+        const crunch::EditSession::Outcome o = e.win.w.session()->moveCellsInserting(0, rangeOf(QStringLiteral("A10:B11")), 0, 0, true);
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:4"));
+        QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:5"));
     }
 
     // A protected sheet, a merged range the room would cut, and a block that is in its own way refuse in words, and leave nothing done and nothing to redo.
@@ -724,6 +923,7 @@ private Q_SLOTS:
             // (the second goes to A2, cutting the merged range A1:A2 and, for the third, over its own cells)
             const crunch::EditSession::Outcome o = s->moveCellsInserting(0, from, which == 2 ? 3 : 1, 0, true);
             QVERIFY2(!o.ok && !o.problem.isEmpty(), qPrintable(QString::number(which)));
+            if (which == 2) QCOMPARE(o.problem, QStringLiteral("Cells can't be inserted into themselves. Drag them somewhere else."));
             QCOMPARE(e.win.w.undoStack()->count(), 0);
             QVERIFY(!e.win.w.undoStack()->canRedo());
             QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:4"));
@@ -862,6 +1062,151 @@ private Q_SLOTS:
         QCOMPARE(e.view()->shownNoteRect(2, 2), was);
     }
 
+    // A box with anchors at the file's largest numbers is drawn at a size and a distance from its cell that are bounded, and does not take the clicks of the sheet: a cell and a header still
+    // work.
+    void aHostileNoteBoxCannotSwallowTheClicksOfTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes(QByteArray(kHostileVml))));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QWidget *vp = e.view()->viewport();
+        const QRect box = e.view()->shownNoteRect(2, 2);
+        QVERIFY2(box.width() <= 640 && box.height() <= 480, qPrintable(QString::number(box.width()) + "x" + QString::number(box.height())));
+        const QRect c3 = e.view()->sheet().layout().cellRect(2, 2);
+        QVERIFY(box.isEmpty() || (qAbs(box.left() - c3.left()) <= 1000 && qAbs(box.top() - c3.top()) <= 1000));
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, middleOf(e, QStringLiteral("B2")));
+        QVERIFY(!e.view()->hasPickedNote());
+        QCOMPARE(e.selected(), QStringLiteral("B2"));
+        const jp::grid::GridLayout &L = e.view()->sheet().layout();
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, QPoint(L.cellRect(0, 4).center().x(), L.headerHeight() / 2));
+        QVERIFY(!e.view()->hasPickedNote());
+        QVERIFY(e.view()->selection().whole == jp::grid::Selection::Whole::Columns);
+    }
+
+    // A box that reaches up over the column headers (the sheet is scrolled) is drawn and hit only over the cells of its own pane: a click on a header is a click on the header.
+    void aNoteBoxIsClippedToTheCellsOfItsPane()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QWidget *vp = e.view()->viewport();
+        const jp::grid::GridLayout &L = e.view()->sheet().layout();
+        const int two = int(L.rows.position(2));
+        QTRY_VERIFY(e.view()->verticalScrollBar()->maximum() >= two);
+        e.view()->verticalScrollBar()->setValue(two);   // (C3 is the first row in view; its box begins a row above it, over the headers)
+        QTRY_COMPARE(e.view()->firstRowInView(), qint64(2));
+        const QRect box = e.view()->shownNoteRect(2, 2);
+        QVERIFY(!box.isEmpty());
+        QVERIFY2(box.top() < L.headerHeight() - 2, qPrintable(QString::number(box.top())));
+        const QPoint onHeader(box.center().x(), L.headerHeight() - 3);
+        QTest::mouseClick(vp, Qt::LeftButton, Qt::NoModifier, onHeader);
+        QVERIFY(!e.view()->hasPickedNote());
+        QVERIFY(e.view()->selection().whole == jp::grid::Selection::Whole::Columns);
+        // nor is it painted there
+        const QImage shot = vp->grab().toImage();
+        QVERIFY(shot.pixelColor(onHeader) != QColor(0xFF, 0xFF, 0xE1));
+    }
+
+    // The positions a box is worked out in are those of all the rows, also with some scrolled out of sight above the frozen rows: the box of a note in a frozen row is the same size, and a
+    // drag saves the anchor it was drawn at.
+    void aNoteBoxIsConvertedAtThePositionsOfAllRowsAndColumnsEvenWhenSomeAreSkipped()
+    {
+        jp::grid::Axis rows(200, 20), cols(50, 64);
+        jp::office::sheet::NoteBox b;
+        b.set = true;
+        b.row1 = -2;
+        b.y1 = 3;
+        b.col1 = 1;
+        b.x1 = 5;
+        b.row2 = 2;
+        b.y2 = 7;
+        b.col2 = 3;
+        b.x2 = 9;
+        const QRect plain = jp::crunch::noteBoxPixels(b, rows, cols, 2, 2);
+        QVERIFY(plain.top() < 0 && plain.height() > 60);
+        jp::grid::Axis skippedRows = rows, skippedCols = cols;
+        skippedRows.setSkipped(2);
+        skippedCols.setSkipped(1);
+        QCOMPARE(jp::crunch::noteBoxPixels(b, skippedRows, skippedCols, 2, 2), plain);
+        QVERIFY(jp::crunch::noteBoxFromPixels(plain, skippedRows, skippedCols, 2, 2) == b);
+        QVERIFY(jp::crunch::noteBoxFromPixels(plain.translated(20, 30), skippedRows, skippedCols, 2, 2) == jp::crunch::noteBoxFromPixels(plain.translated(20, 30), rows, cols, 2, 2));
+    }
+
+    // A box dragged while a cell is being edited finishes the entry first, as a block dragged by its border does (the grid asks for it by its signal, whatever took the focus).
+    void draggingANoteBoxFinishesAnEditInProgressFirst()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        const QRect was = e.view()->shownNoteRect(2, 2);
+        e.select(QStringLiteral("A5"));
+        e.type(QStringLiteral("hello"));
+        QVERIFY(e.win.w.isEditing());
+        const int steps = e.win.w.undoStack()->count();
+        e.view()->noteBoxRequested(2, 2, QRect(60, 10, 150, 80));
+        QVERIFY(!e.win.w.isEditing());
+        QCOMPARE(e.shownAt(QStringLiteral("A5")), QStringLiteral("hello"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);   // (the entry, and the box)
+        QVERIFY(e.view()->shownNoteRect(2, 2) != was);
+    }
+
+    // A note that is moved with its cell keeps its box, also when it is touched after, and the file has it where it was relative to the cell.
+    void aNoteKeepsItsBoxWhenItsCellMovesAndIsTouchedAfter()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const jp::office::sheet::NoteBox before = s->anchors().noteAt(0, 2, 2)->box;
+        QVERIFY(before.set);
+        QVERIFY(s->moveCells(0, rangeOf(QStringLiteral("C3")), 0, 7, 4).ok);
+        QVERIFY(s->anchors().noteAt(0, 7, 4));
+        QVERIFY(s->anchors().noteAt(0, 7, 4)->box == before);
+        QVERIFY(s->setNote(0, 7, 4, QStringLiteral("Changed"), QStringLiteral("Ann"), true, QStringLiteral("Edit Note")).ok);
+        QVERIFY(s->anchors().noteAt(0, 7, 4)->box == before);
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const jp::office::sheet::NoteInfo *again = second.w.session()->anchors().noteAt(0, 7, 4);
+        QVERIFY(again && again->box == before);
+    }
+
+    // A sheet that reads right to left prints as it does left to right (the page is not mirrored), so the box that has no place of its own is beside its cell on the same side in both.
+    void notesPrintOnASheetThatReadsRightToLeftWhereTheyDoOnOne()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QVERIFY(s->setNote(0, 1, 0, QStringLiteral("Look here"), QStringLiteral("Ann"), true, QStringLiteral("Add Note")).ok);
+        jp::office::sheet::PageSetup p = s->pages().sheet(0);
+        p.comments = jp::office::sheet::PrintComments::AsDisplayed;
+        QVERIFY(s->setPageSetup(0, p, QStringLiteral("Comments")).ok);
+        auto page = [&] {
+            crunch::PrintJobOptions options;
+            options.now = QDateTime::fromString(QStringLiteral("2026-03-05T14:07:09-05:00"), Qt::ISODate);
+            QString why;
+            const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
+            return job ? job->preview(0, 900) : QImage();
+        };
+        const QImage ltr = page();
+        QVERIFY(!ltr.isNull());
+        w.act(QStringLiteral("view.rightToLeft"))->trigger();
+        QVERIFY(w.act(QStringLiteral("view.rightToLeft"))->isChecked());
+        QVERIFY(e.view()->sheet().rightToLeft());
+        QVERIFY(page() == ltr);
+    }
+
     // Comments set to print as displayed draw the boxes of the notes that are shown over the page's cells; at the end, or not at all, they do not.
     void notesPrintAsDisplayedOnTheSheet()
     {
@@ -878,7 +1223,9 @@ private Q_SLOTS:
             jp::office::sheet::PageSetup p = s->pages().sheet(0);
             p.comments = how;
             if (!s->setPageSetup(0, p, QStringLiteral("Comments")).ok) return QImage();
-            const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+            crunch::PrintJobOptions options;
+            options.now = QDateTime::fromString(QStringLiteral("2026-03-05T14:07:09-05:00"), Qt::ISODate);   // (the footer shows the time: it is the same for every page made here)
+            const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
             return job ? job->preview(0, 900) : QImage();
         };
         const QImage none = pageWith(jp::office::sheet::PrintComments::None);
