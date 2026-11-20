@@ -88,7 +88,7 @@ void CrunchWindow::insertCommand()
     const grid::Selection::Whole whole = m_view->selection().whole;
     if (whole == grid::Selection::Whole::Rows) insertLines(true);
     else if (whole == grid::Selection::Whole::Columns) insertLines(false);
-    else if (whole == grid::Selection::Whole::None && m_clip.valid() && m_view->hasCopyBorder() && act(QStringLiteral("edit.insertClip"))->isEnabled()) insertClipCells();   // (cells are cut or copied: they are what is inserted, as in the programs people know)
+    else if (whole == grid::Selection::Whole::None && clipGoesInByKey()) insertClipCells();   // (cells are cut, or copied with nothing changed since: they are what is inserted; else blank cells)
     else insertOrDeleteCells(true);
 }
 

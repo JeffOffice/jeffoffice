@@ -562,7 +562,7 @@ EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange 
     return pairedWithRoom(insert, &moveEdit, [&] { return structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells")); }, tr("Moving cells"));
 }
 
-EditSession::Outcome EditSession::insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown)
+EditSession::Outcome EditSession::insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown, const PasteOptions &options)
 {
     Outcome out;
     auto refuse = [&](const QString &why) {
@@ -572,18 +572,33 @@ EditSession::Outcome EditSession::insertCellsPasting(int sheet, quint32 row, qui
     };
     if (!clip.valid() || sheet < 0) return refuse(tr("There is nothing to paste."));
     if (qint64(row) + clip.rows > jp::office::sheet::kMaxRows || qint64(col) + clip.cols > jp::office::sheet::kMaxColumns) return refuse(tr("That would put cells outside the sheet."));
+    // The room is as tall as what the paste will write: a paste passes over the rows a filter hides (the rows that show take the block one after another), so the room holds those rows too, and
+    // ends at the row of the block's last cell. (Rows hidden by hand are not passed over by a paste, so they count as any row, as in a plain Insert.)
+    const std::vector<quint32> hiddenRows = hiddenRowsIn(sheet, row, std::min<quint64>(kMaxRows - 1, quint64(row) + clip.rows - 1 + qint64(clip.rows) * 4 + 1000000));
+    quint64 lastRow = row;
+    {
+        quint32 written = 0;
+        size_t skip = 0;
+        for (quint64 r = row; r < kMaxRows; ++r) {
+            while (skip < hiddenRows.size() && hiddenRows[skip] < r) ++skip;
+            if (skip < hiddenRows.size() && hiddenRows[skip] == r) continue;
+            lastRow = r;
+            if (++written == clip.rows) break;
+        }
+        if (written < clip.rows) return refuse(tr("That would go past the edge of the sheet. Select a cell nearer its start."));
+    }
     CellRange target;
     target.valid = true;
     target.row1 = row;
     target.col1 = col;
-    target.row2 = row + clip.rows - 1;
+    target.row2 = quint32(lastRow);
     target.col2 = col + clip.cols - 1;
     QString why;
     const StructEdit insert = shiftDown ? StructEdit::insertCellsDown(sheet, target) : StructEdit::insertCellsRight(sheet, target);
     if (!canMove(insert, &why)) return refuse(why);
     Outcome pasted;
     out = pairedWithRoom(insert, nullptr, [&] {
-        pasted = paste(sheet, target, clip, PasteOptions());
+        pasted = paste(sheet, target, clip, options);
         return pasted;
     }, tr("Inserting cells"));
     if (out.ok) {

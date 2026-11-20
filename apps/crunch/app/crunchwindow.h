@@ -878,6 +878,7 @@ private:
     crunch::CsvWrite csvWriteFor(const QString &path) const;
     // what Paste Special asks for: the options (a dialog unless this stands in for it: tests); false gives it up
     std::function<bool(crunch::EditSession::PasteOptions *)> m_pasteOptionsAsker;
+    bool m_clipEdited = false;             // something was changed since the cells in m_clip were copied (Insert puts them in by its keys only before that)
     crunch::ClipData m_clip, m_pendingClip;   // the last copy or cut made here that the clipboard still holds, and the one being made
     jp::grid::GridRange m_pendingBorder{-1, -1, -1, -1};
     QString m_pendingHtml;
@@ -1316,6 +1317,8 @@ private:
     void forgetClip();
     void insertClipCells();
     void updateInsertClipAction();
+    bool clipGoesInByKey() const;
+    crunch::EditSession::PasteOptions defaultPasteOptions() const;
     void cancelCut();
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;
@@ -1907,7 +1910,8 @@ private:
     void noteBoxDragged(qint64 row, qint64 col, const QRect &box);
     void moveSizeNote();
     void resetNoteSize();
-    void noteKeysChanged();
+    void noteKeysChanged(grid::GridView::NoteKeys what);
+    void setSheetAccessibleText();
     // ---- comments: threads (crunchwindow_comments.cpp)
     void createCommentActions();
     void updateCommentActions();

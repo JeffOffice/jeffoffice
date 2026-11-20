@@ -898,6 +898,34 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("N2:N9")), QStringLiteral("|p||||q||"));
     }
 
+    // Copied cells put between others in a filtered list: a paste passes over the rows the filter hides, so the room made for it holds them too and ends at the block's last row. Nothing outside
+    // the room is changed, and nothing the room shifted is written over.
+    void insertingCopiedCellsIntoAFilteredListMakesRoomForWhatIsPasted()
+    {
+        EditWindow e;
+        QStringList cells = fruit();
+        cells << "J1=x" << "J2=y" << "J3=z";
+        for (int r = 3; r <= 10; ++r) cells << QStringLiteral("L%1=c%1").arg(r);
+        QVERIFY(e.open(bookOfSheets({cells})));
+        crunch::EditSession *s = e.win.w.session();
+        using Op = FilterColumn::Op;
+        const crunch::ClipData three = s->copyCells(0, rangeOf(QStringLiteral("J1:J3")), false);
+        QVERIFY(filterWith(e, with(e, 1, custom(Op::Greater, QStringLiteral("10")))));
+        QCOMPARE(shownRows(e), QStringLiteral("3 7 9"));
+        const int before = e.win.w.undoStack()->count();
+        // down, at row 3: the block goes into rows 3, 7, and 9, and the room is rows 3 to 9 (seven rows), so what was in L3:L10 moves seven rows down
+        QVERIFY(s->insertCellsPasting(0, 2, 11, three, true, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("L3:L17")), QStringLiteral("x||||y||z|c3|c4|c5|c6|c7|c8|c9|c10"));
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(shown(e, QStringLiteral("L3:L17")), QStringLiteral("c3|c4|c5|c6|c7|c8|c9|c10|||||||"));
+        // to the right, from K: the room is K3:K9, and what was in L3:L9 moves one column right; L10 is outside the room and stays
+        QVERIFY(s->insertCellsPasting(0, 2, 10, three, false, crunch::EditSession::PasteOptions()).ok);
+        QCOMPARE(shown(e, QStringLiteral("K3:K9")), QStringLiteral("x||||y||z"));
+        QCOMPARE(shown(e, QStringLiteral("L3:L10")), QStringLiteral("|||||||c10"));
+        QCOMPARE(shown(e, QStringLiteral("M3:M9")), QStringLiteral("c3|c4|c5|c6|c7|c8|c9"));
+    }
+
     void aFillOfAFilteredListGoesOnlyIntoTheRowsThatShow()
     {
         EditWindow e;

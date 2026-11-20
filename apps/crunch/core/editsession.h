@@ -872,9 +872,9 @@ public:
     // the cells follows. Not ok, and nothing changed, if either part is refused (a protected sheet, a merged range or an array that would be cut, a pivot table), or the block is in its own way
     // (some of its cells would be shifted and some would not).
     Outcome moveCellsInserting(int sheet, const jp::office::sheet::CellRange &source, quint32 toRow, quint32 toCol, bool shiftDown);
-    // Copied cells put between others: room is made at the place for a block of the clip's size (the cells there move down, or right), and the clip is pasted in it. One step; not ok, and
-    // nothing changed, if either part is refused.
-    Outcome insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown);
+    // Copied cells put between others: room is made at the place for a block of the clip's size (the cells there move down, or right), and the clip is pasted in it as `options` say. One step;
+    // not ok, and nothing changed, if either part is refused. The room is for the cells the paste writes: it covers the rows a filter hides in the way, as a paste passes over them.
+    Outcome insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown, const PasteOptions &options);
     // For a test: called between the two parts of the one above, to change something the second part would then refuse.
     void setBetweenStepsHook(const std::function<void()> &hook) { m_betweenStepsHook = hook; }
 
@@ -1532,7 +1532,7 @@ private:
     int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
     Outcome changeNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText, bool reset);
     Outcome pairedWithRoom(const jp::office::sheet::StructEdit &room, const jp::office::sheet::StructEdit *alsoHeld, const std::function<Outcome()> &second, const QString &macroText);
-    bool m_pairing = false;            // moveCellsInserting is between its two parts: they were asked about together, and the history is not let go of until both are done
+    bool m_pairing = false;            // moveCellsInserting or insertCellsPasting (see pairedWithRoom) is between its two parts: they were asked about together, and the history is not let go of until both are done
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     std::shared_ptr<LineDrops> m_lineDrops = std::make_shared<LineDrops>();
     // With the workbook held: lets go of what the steps that are gone held of the order of rows and columns.
