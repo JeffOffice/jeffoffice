@@ -236,6 +236,8 @@ public:
     QRect noteKeysBox() const { return m_noteKeyRel; }
     // The key that makes the steps fine (Ctrl; on a Mac, where Qt's Control is the Command key and Command with an arrow is the sheet's, it is Option).
     static Qt::KeyboardModifier noteFineModifier();
+    // For tests: the choice of the other platform (NoModifier gives this platform's back).
+    static void forceNoteFineModifier(Qt::KeyboardModifier m);
     enum class NoteKeys { Began, Moved, Kept, GivenUp };
 
     // Several ranges selected (Ctrl with a click or a drag adds one): the selection's own range is the last one added (where the cursor is), and these are the ones before it. Any other change of

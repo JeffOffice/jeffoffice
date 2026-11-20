@@ -1852,38 +1852,50 @@ private Q_SLOTS:
         QCOMPARE(w.undoStack()->count(), steps);
     }
 
-    // While the keys have a note's box no chord with Alt or Meta reaches the sheet (the selection stays where it was), and the fine key (Ctrl; Option on a Mac) makes 1 pixel steps.
+    // While the keys have a note's box no chord with a modifier other than the fine key (Ctrl; Option on a Mac, where Command is Qt's Control) and Shift reaches the sheet or the box, and the fine key
+    // makes 1 pixel steps. Run for each platform's fine key.
     void noChordMovesTheSelectionWhileTheKeysHaveANoteBox()
     {
-        EditWindow e;
-        QVERIFY(e.open(bookWithBoxes()));
-        QVERIFY(e.settle());
-        CrunchWindow &w = e.win.w;
-        w.resize(1100, 640);
-        w.show();
-        e.select(QStringLiteral("C3"));
-        w.act(QStringLiteral("notes.moveSize"))->trigger();
-        QVERIFY(e.view()->inNoteKeys());
-        const QRect rel0 = e.view()->noteKeysBox();
-        const Qt::KeyboardModifier fine = grid::GridView::noteFineModifier();
-        QSignalSpy lists(e.view(), &grid::GridView::dropDownRequested);
-        const int steps = w.undoStack()->count();
-        for (const Qt::Key key : {Qt::Key_Right, Qt::Key_Down, Qt::Key_Left, Qt::Key_Up, Qt::Key_Home, Qt::Key_PageDown, Qt::Key_Return, Qt::Key_Tab, Qt::Key_F2, Qt::Key_Delete, Qt::Key_A}) {
-            QTest::keyClick(e.view(), key, Qt::MetaModifier);
-            QTest::keyClick(e.view(), key, Qt::AltModifier | Qt::ShiftModifier);
-            if (fine != Qt::AltModifier) QTest::keyClick(e.view(), key, Qt::AltModifier);
-            if (fine != Qt::ControlModifier) QTest::keyClick(e.view(), key, Qt::ControlModifier);
-            QTest::keyClick(e.view(), key, Qt::MetaModifier | fine);
-            QCOMPARE(e.selected(), QStringLiteral("C3"));
-            QCOMPARE(e.view()->noteKeysBox(), rel0);
+        struct Reset { ~Reset() { grid::GridView::forceNoteFineModifier(Qt::NoModifier); } } reset;
+        for (const Qt::KeyboardModifier fine : {Qt::ControlModifier, Qt::AltModifier}) {
+            grid::GridView::forceNoteFineModifier(fine);
+            QCOMPARE(grid::GridView::noteFineModifier(), fine);
+            EditWindow e;
+            QVERIFY(e.open(bookWithBoxes()));
+            QVERIFY(e.settle());
+            CrunchWindow &w = e.win.w;
+            w.resize(1100, 640);
+            w.show();
+            e.select(QStringLiteral("C3"));
+            w.act(QStringLiteral("notes.moveSize"))->trigger();
             QVERIFY(e.view()->inNoteKeys());
-            QVERIFY(!w.isEditing());
+            const QRect rel0 = e.view()->noteKeysBox();
+            QSignalSpy lists(e.view(), &grid::GridView::dropDownRequested);
+            const int steps = w.undoStack()->count();
+            const Qt::KeyboardModifiers chordKeys = Qt::AltModifier | Qt::MetaModifier | Qt::ControlModifier;
+            for (const Qt::Key key : {Qt::Key_Right, Qt::Key_Down, Qt::Key_Left, Qt::Key_Up, Qt::Key_Home, Qt::Key_PageDown, Qt::Key_Return, Qt::Key_Tab, Qt::Key_F2, Qt::Key_Delete, Qt::Key_A}) {
+                for (int mask = 0; mask < 16; ++mask) {
+                    Qt::KeyboardModifiers m;
+                    if (mask & 1) m |= Qt::AltModifier;
+                    if (mask & 2) m |= Qt::MetaModifier;
+                    if (mask & 4) m |= Qt::ControlModifier;
+                    if (mask & 8) m |= Qt::ShiftModifier;
+                    if (!(m & chordKeys & ~Qt::KeyboardModifiers(fine))) continue;   // (only the chords that are not the fine key's or Shift's own)
+                    QTest::keyClick(e.view(), key, m);
+                    QVERIFY2(e.selected() == QStringLiteral("C3") && e.view()->noteKeysBox() == rel0 && e.view()->inNoteKeys() && !w.isEditing(),
+                             qPrintable(QStringLiteral("key %1 modifiers %2 fine %3").arg(int(key)).arg(int(m)).arg(int(fine))));
+                }
+            }
+            QCOMPARE(lists.size(), 0);
+            QCOMPARE(w.undoStack()->count(), steps);
+            QTest::keyClick(e.view(), Qt::Key_Right, fine);
+            QCOMPARE(e.view()->noteKeysBox().x(), rel0.x() + 1);
+            QTest::keyClick(e.view(), Qt::Key_Down, fine | Qt::ShiftModifier);
+            QCOMPARE(e.view()->noteKeysBox().height(), rel0.height() + 1);
+            QTest::keyClick(e.view(), Qt::Key_Down);
+            QCOMPARE(e.view()->noteKeysBox().y(), rel0.y() + 10);
+            QCOMPARE(e.selected(), QStringLiteral("C3"));
         }
-        QCOMPARE(lists.size(), 0);
-        QCOMPARE(w.undoStack()->count(), steps);
-        QTest::keyClick(e.view(), Qt::Key_Right, fine);
-        QCOMPARE(e.view()->noteKeysBox().x(), rel0.x() + 1);
-        QCOMPARE(e.selected(), QStringLiteral("C3"));
     }
 
     // Any sheet switch, any other command, an Undo, a Redo, and a change to the workbook end the keys' hold of a note's box (even when the other sheet has the same note); running Move or Size Note

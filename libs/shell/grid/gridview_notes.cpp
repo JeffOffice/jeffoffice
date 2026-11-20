@@ -228,8 +228,18 @@ namespace {
 constexpr int kKeyStep = 10, kKeyFineStep = 1, kBoxLeastWidth = 24, kBoxLeastHeight = 16;
 }
 
+namespace {
+Qt::KeyboardModifier g_fineForced = Qt::NoModifier;   // (set only by tests, to run the other platform's choice)
+}
+
+void GridView::forceNoteFineModifier(Qt::KeyboardModifier m)
+{
+    g_fineForced = m;
+}
+
 Qt::KeyboardModifier GridView::noteFineModifier()
 {
+    if (g_fineForced != Qt::NoModifier) return g_fineForced;
 #ifdef Q_OS_MACOS
     return Qt::AltModifier;
 #else
