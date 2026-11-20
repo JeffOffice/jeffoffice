@@ -188,6 +188,7 @@ private Q_SLOTS:
     void thePrintSettingsFollowInsertedAndDeletedRows();
     void aSavedFileHasTheSetupAndNothingElseChanges();
     void aJobCutsTheSheetsIntoPages();
+    void textThatRunsPastTheLastColumnHasAPageOfItsOwn();
     void theWholeWorkbookPrintsTheShownSheets();
     void theSelectedSheetsPrintTogether();
     void aSelectionPrintsAlone();

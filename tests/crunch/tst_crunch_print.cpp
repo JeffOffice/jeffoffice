@@ -316,6 +316,22 @@ void CrunchPrintTests::aJobCutsTheSheetsIntoPages()
 }
 
 
+// The original prints the columns that a text spilling out of the last cell of a row reaches: a long text in a narrow cell, with nothing after it, is on the pages past the page it starts on.
+void CrunchPrintTests::textThatRunsPastTheLastColumnHasAPageOfItsOwn()
+{
+    auto pagesOf = [](const QString &text) {
+        EditWindow e;
+        if (!e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>%1</t></is></c></row>").arg(text))}))) return -1;
+        QString why;
+        std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+        return job ? job->pageCount() : -2;
+    };
+    QCOMPARE(pagesOf(QStringLiteral("short")), 1);
+    // (300 letters are wider than three pages of any font)
+    QVERIFY(pagesOf(QString(300, QLatin1Char('x'))) >= 3);
+}
+
+
 void CrunchPrintTests::theWholeWorkbookPrintsTheShownSheets()
 {
     EditWindow e;

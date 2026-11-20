@@ -437,7 +437,9 @@ std::vector<CellRange> blocksOf(const PrintRequest &q, const Axis &rows, const A
         all.row1 = 0;
         all.col1 = 0;
         all.row2 = std::min<quint32>(used->row, quint32(rows.count() - 1));
-        all.col2 = std::min<quint32>(used->col, quint32(cols.count() - 1));
+        quint32 reach = used->col;
+        for (const SpillRun &r : q.spills) reach = std::max(reach, r.col2);
+        all.col2 = std::min<quint32>(reach, quint32(cols.count() - 1));
         blocks.push_back(all);
     }
     std::vector<CellRange> shown;
@@ -596,7 +598,7 @@ std::vector<CellRange> printedBlocks(const PrintRequest &request)
 }
 
 struct PaginateTask::Impl {
-    enum class Stage { Blocks, Scan, Fit, Pages, Done };
+    enum class Stage { Blocks, Scan, Fit, Pages, Trim, Done };
     // the stages of the fit: the whole sheet at the ceiling, at the least, and then between them
     enum class Fit { Ceiling, Least, Between, Done };
 
@@ -626,6 +628,11 @@ struct PaginateTask::Impl {
     std::vector<Band> rowBands, colBands;
     std::unique_ptr<BandCutter> rowCut, colCut;
     qint64 emitted = 0;
+
+    // the blank pages at the end
+    bool trimReady = false;
+    std::vector<quint32> formattedRows;
+    std::vector<std::pair<quint32, quint32>> formattedCols;
 
     explicit Impl(const PrintRequest &request) : q(request)
     {
@@ -805,6 +812,62 @@ struct PaginateTask::Impl {
         return true;
     }
 
+    // Whether the page has something of the sheet on it: a cell (one that holds something or has a format), a format of its columns or of one of its rows, a merged range, or an object.
+    bool pageHasSomething(const PageCut &p, Work &w)
+    {
+        const jp::office::sheet::Sheet &sheet = *q.sheet;
+        bool found = false;
+        jp::office::sheet::CellStore::RangeWalk walk;
+        sheet.cells.forEachInRange(quint32(p.row1), quint32(p.col1), quint32(p.row2), quint32(p.col2),
+                                   [&](quint32, quint32, const jp::office::sheet::Cell &cell) {
+                                       found = cell.type != CellType::Empty || cell.style != 0 || cell.hasFormula();
+                                       return !found;
+                                   },
+                                   &walk);
+        w.add(1 + walk.stepped + walk.compared);
+        if (found) return true;
+        for (const auto &span : formattedCols)
+            if (qint64(span.first) <= p.col2 && qint64(span.second) >= p.col1) return true;
+        const auto row = std::lower_bound(formattedRows.begin(), formattedRows.end(), quint32(p.row1));
+        if (row != formattedRows.end() && qint64(*row) <= p.row2) return true;
+        for (const SpillRun &r : q.spills)
+            if (qint64(r.row) >= p.row1 && qint64(r.row) <= p.row2 && qint64(r.col1) <= p.col2 && qint64(r.col2) >= p.col1) return true;
+        w.add(qint64(q.spills.size()));
+        for (const CellRange &m : sheet.merges)
+            if (m.valid && (m.row2 > m.row1 || m.col2 > m.col1) && qint64(m.row1) <= p.row2 && qint64(m.row2) >= p.row1 && qint64(m.col1) <= p.col2 && qint64(m.col2) >= p.col1) return true;
+        w.add(qint64(sheet.merges.size()));
+        if (q.objects.empty()) return false;
+        const double x0 = double(cols.position(p.col1)) / c.colFine, x1 = double(cols.position(p.col2 + 1)) / c.colFine;
+        const double y0 = double(rows.position(p.row1)) / c.rowFine, y1 = double(rows.position(p.row2 + 1)) / c.rowFine;
+        w.add(qint64(q.objects.size()));
+        for (const ObjectBox &b : q.objects)
+            if (!b.isNothing() && b.x + b.w >= x0 && b.x < x1 && b.y + b.h >= y0 && b.y < y1) return true;
+        return false;
+    }
+
+    // The original does not print the pages at the end of the print order that are blank (the used range ends with the last page that has something; the blank pages between are printed, and a print
+    // area or a selection is printed whole).
+    bool trimStep(Work &w)
+    {
+        if (q.onlySelection || (q.setup.hasPrintArea() && !q.ignorePrintArea) || out.truncated || out.areas.size() != 1) return true;
+        if (!trimReady) {
+            for (const jp::office::sheet::RowSpec &r : q.sheet->placedRowSpecs())
+                if (r.customFormat && r.style != 0) formattedRows.push_back(r.row);
+            std::sort(formattedRows.begin(), formattedRows.end());
+            for (const jp::office::sheet::ColumnSpan &s : q.sheet->columns)
+                if (s.style != 0) formattedCols.emplace_back(s.first, s.last);
+            w.add(qint64(formattedRows.size() + formattedCols.size()));
+            trimReady = true;
+        }
+        while (out.pages.size() > 1) {
+            if (w.spent()) return false;
+            if (pageHasSomething(out.pages.back(), w)) break;
+            out.pages.pop_back();
+            --out.pagesNeeded;
+        }
+        return true;
+    }
+
     bool step(Work &w)
     {
         for (;;) {
@@ -848,6 +911,10 @@ struct PaginateTask::Impl {
             case Stage::Pages:
                 out.scalePercent = percent;
                 if (!pagesStep(w)) return false;
+                stage = Stage::Trim;
+                break;
+            case Stage::Trim:
+                if (!trimStep(w)) return false;
                 stage = Stage::Done;
                 break;
             }

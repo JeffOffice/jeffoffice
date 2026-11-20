@@ -531,6 +531,8 @@ private Q_SLOTS:
         QCOMPARE(rowsOf(p), QStringLiteral("0-54 55-99"));   // (45 shown rows: 0-9 and 20-54)
         // hidden rows at the end
         Fixture g(99, 9);
+        g.sheet.cells.add(numberAt(89, 9));   // (the cell of the fixture is in a hidden row: a cell that shows is on the last page)
+        g.sheet.cells.finish();
         for (int r = 90; r < 100; ++r) g.rows.setSize(r, 0);
         QCOMPARE(rowsOf(g.run()), QStringLiteral("0-44 45-89"));
         // a page does not begin on a hidden row, whatever the break says
@@ -853,6 +855,193 @@ private Q_SLOTS:
         QVERIFY(p.headings);
         QCOMPARE(rowsOf(p), QStringLiteral("0-43 44-87 88-99"));   // (912 less the 20 pixels of the letters: 892 pixels, 44 rows)
         QCOMPARE(colsOf(p), QStringLiteral("0-9 0-9 0-9"));       // (681.6 less 36: 645.6 pixels, 10 columns)
+    }
+
+    // The original does not print the blank pages at the end of the print order: the pages after the last one that has a cell, a column or row format, a merged range, or an object. Blank pages
+    // before the last page with something are printed. (Measured on 1,283 sheets of the collection: 20 more page counts agree, none fewer.)
+    void blankPagesAtTheEndOfThePrintOrderAreNotPrinted()
+    {
+        // cells at A1, C100, and M1: columns 0-9 hold three pages (rows 0-44, 45-89, 90-99), columns 10-12 three more, of which only the first has the cell at M1
+        Fixture f(99, 2);
+        f.sheet.cells.add(numberAt(0, 0));
+        f.sheet.cells.add(numberAt(0, 12));
+        f.sheet.cells.finish();
+        const SheetPrint p = f.run();
+        QCOMPARE(colsOf(p), QStringLiteral("0-9 0-9 0-9 10-12"));
+        QCOMPARE(rowsOf(p), QStringLiteral("0-44 45-89 90-99 0-44"));
+        QCOMPARE(p.pagesNeeded, qint64(4));
+        // over, then down: the pages after the last with a cell are the end of that order
+        Fixture g(99, 2);
+        g.sheet.cells.add(numberAt(0, 0));
+        g.sheet.cells.add(numberAt(0, 12));
+        g.sheet.cells.finish();
+        g.request.setup.pageOrder = jp::office::sheet::PageOrder::OverThenDown;
+        QCOMPARE(colsOf(g.run()), QStringLiteral("0-9 10-12 0-9 10-12 0-9"));
+    }
+
+    void blankPagesBeforeAPageWithSomethingArePrinted()
+    {
+        // the last page (rows 90-99, columns 10-12) has the cell at M100: the blank pages before it stay
+        Fixture f(99, 12);
+        f.sheet.cells.add(numberAt(0, 0));
+        f.sheet.cells.finish();
+        QCOMPARE(f.run().pages.size(), size_t(6));
+    }
+
+    void aColumnFormatARowFormatAMergeOrAnObjectKeepsItsPageAtTheEnd()
+    {
+        // the pages of columns 10-12 below the first are at the end, and blank, until something is on them
+        auto build = [](Fixture &f) {
+            f.sheet.cells.add(numberAt(0, 0));
+            f.sheet.cells.add(numberAt(0, 12));
+            f.sheet.cells.finish();
+        };
+        Fixture base(99, 2);
+        build(base);
+        QCOMPARE(base.run().pages.size(), size_t(4));
+        // a format for the columns
+        Fixture col(99, 2);
+        build(col);
+        jp::office::sheet::ColumnSpan span;
+        span.first = 10;
+        span.last = 12;
+        span.style = 3;
+        col.sheet.columns.append(span);
+        QCOMPARE(col.run().pages.size(), size_t(6));
+        // a format for a row that the last page holds (and a format of none, which is no format)
+        Fixture row(99, 2);
+        build(row);
+        jp::office::sheet::RowSpec rs;
+        rs.row = 95;
+        rs.customFormat = true;
+        rs.style = 3;
+        row.sheet.rowSpecs.append(rs);
+        QCOMPARE(row.run().pages.size(), size_t(6));
+        Fixture none(99, 2);
+        build(none);
+        rs.style = 0;
+        none.sheet.rowSpecs.append(rs);
+        span.style = 0;
+        none.sheet.columns.append(span);
+        QCOMPARE(none.run().pages.size(), size_t(4));
+        // a merged range of empty cells in the last page
+        Fixture merged(99, 2);
+        build(merged);
+        CellRange m;
+        m.valid = true;
+        m.row1 = 95;
+        m.row2 = 96;
+        m.col1 = 11;
+        m.col2 = 12;
+        merged.sheet.merges.append(m);
+        QCOMPARE(merged.run().pages.size(), size_t(6));
+        // an object over the last page
+        Fixture obj(99, 2);
+        build(obj);
+        ObjectBox box;
+        box.x = 700;
+        box.y = 1850;
+        box.w = 10;
+        box.h = 10;
+        obj.request.objects = {box};
+        QCOMPARE(obj.run().pages.size(), size_t(6));
+    }
+
+    // A print area is printed whole, blank pages at its end too (measured: the original does so, and the trimming made one sheet in 45 with a print area wrong).
+    void aPrintAreaKeepsItsBlankPagesAtTheEnd()
+    {
+        Fixture f(99, 2);
+        f.sheet.cells.add(numberAt(0, 0));
+        f.sheet.cells.add(numberAt(0, 12));
+        f.sheet.cells.finish();
+        CellRange a;
+        a.valid = true;
+        a.row1 = 0;
+        a.row2 = 99;
+        a.col1 = 0;
+        a.col2 = 12;
+        f.request.setup.printArea = {a};
+        QCOMPARE(f.run().pages.size(), size_t(6));
+        // and a selection
+        f.request.setup.printArea.clear();
+        f.request.onlySelection = true;
+        f.request.selection = a;
+        QCOMPARE(f.run().pages.size(), size_t(6));
+    }
+
+    // A sheet whose used range is only a merge of empty cells, or only an object, still has its page: trimming never leaves none.
+    void trimmingNeverLeavesASheetWithoutPages()
+    {
+        Fixture f(0, 0);
+        f.sheet = Sheet();
+        f.sheet.cells.finish();
+        CellRange m;
+        m.valid = true;
+        m.row1 = 60;
+        m.row2 = 70;
+        m.col1 = 14;
+        m.col2 = 20;
+        f.sheet.merges.append(m);
+        const SheetPrint p = f.run();
+        QCOMPARE(p.pages.size(), size_t(6));   // (rows 0-70 in two bands, columns 0-20 in three: the merge is on the last page)
+        Fixture g(0, 0);
+        g.sheet = Sheet();
+        g.sheet.cells.finish();
+        ObjectBox box;
+        box.x = 5000;
+        box.y = 5000;
+        box.w = 40;
+        box.h = 40;
+        g.request.objects = {box};
+        const SheetPrint q = g.run();
+        QVERIFY(!q.pages.empty());
+        QCOMPARE(q.pages.back().row2 >= 249, true);
+    }
+
+    // Text that runs out of the last cell of a row past the last column is printed on the pages of the columns it reaches (a page of its own when it is the only thing there).
+    void textThatSpillsPastTheLastColumnHasItsPages()
+    {
+        Fixture f(0, 2);
+        SpillRun run;
+        run.row = 0;
+        run.col1 = 2;
+        run.col2 = 25;
+        f.request.spills = {run};
+        QCOMPARE(colsOf(f.run()), QStringLiteral("0-9 10-19 20-25"));
+        // (not as far as the text goes when a print area says where the printing ends)
+        CellRange a;
+        a.valid = true;
+        a.row1 = 0;
+        a.row2 = 0;
+        a.col1 = 0;
+        a.col2 = 2;
+        f.request.setup.printArea = {a};
+        QCOMPARE(colsOf(f.run()), QStringLiteral("0-2"));
+        // a run that ends inside the cells printed adds nothing, and one on another row keeps the pages of the rows it is on
+        Fixture g(99, 12);
+        run.col2 = 5;
+        g.request.spills = {run};
+        QCOMPARE(g.run().pages.size(), size_t(6));
+        // the run is in the rows 45-89: the page of the rows 90-99 in the last columns is after the last page with something, and is not printed
+        Fixture h(99, 2);
+        run.row = 60;
+        run.col2 = 25;
+        h.request.spills = {run};
+        QCOMPARE(colsOf(h.run()), QStringLiteral("0-9 0-9 0-9 10-19 10-19 10-19 20-25 20-25"));
+        // a run of any length is held to the sheet: the pages are those of its columns, never endless
+        Fixture far(0, 2);
+        run.row = 0;
+        run.col2 = 4000000000u;
+        far.request.spills = {run};
+        const SheetPrint p = far.run();
+        QCOMPARE(p.pages.back().col2, qint64(16383));
+        QCOMPARE(p.pages.size(), size_t(1639));   // (16,384 columns of 10 to a page)
+        // and on a sheet whose rows are all hidden, nothing is printed
+        Fixture hidden(0, 2);
+        hidden.rows.setSize(0, 0);
+        run.col2 = 25;
+        hidden.request.spills = {run};
+        QVERIFY(hidden.run().pages.empty());
     }
 
     // A sheet of a million rows at the smallest scale still has a bound on its pages, and the work of cutting is that of the pages, not of the rows.

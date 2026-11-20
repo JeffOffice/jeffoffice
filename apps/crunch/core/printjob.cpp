@@ -2,7 +2,9 @@
 
 #include "core/notebox.h"
 
+#include "grid/gridsheet.h"
 #include "grid/hfpicturecache.h"
+#include "grid/painter.h"
 #include "io/pdftransparency.h"
 
 #include "core/sheetobjects.h"
@@ -252,8 +254,64 @@ std::vector<QStringList> notePagesOf(const std::vector<PrintNote> &notes, const 
 
 } // namespace
 
+namespace {
+
+// How far the text that spills out of the cell at the end of each row goes (the original prints the columns it reaches: a long text in a cell of a narrow column is on a page of its own
+// when it runs past the page). Only the last cell of a row with something in it can spill past the last column; only a text of a left-aligned cell that is not wrapped, shrunk, turned, or
+// merged does; and a text too short to be wider than its own column is not measured.
+class SpillScan {
+public:
+    SpillScan(const GridData &data, const jp::grid::Axis &rows, const jp::grid::Axis &cols) : m_data(data), m_rows(rows), m_cols(cols), m_painter(&m_grid) { m_grid.setData(data); }
+
+    bool step(jp::grid::Work &work)
+    {
+        qint64 steps = 0;
+        const qint64 room = std::max<qint64>(1, work.limit - work.used);
+        const bool done = m_data.sheet->cells.forEachRowTailSome(&m_cursor, room, &steps, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &cell) {
+            using jp::office::sheet::CellType;
+            if (cell.type == CellType::Empty) return false;
+            if (cell.type == CellType::SharedString || cell.type == CellType::InlineString || cell.type == CellType::FormulaString) consider(row, col, cell, work);
+            return true;
+        });
+        work.add(steps);
+        return done;
+    }
+    std::vector<jp::grid::SpillRun> runs;
+
+private:
+    void consider(quint32 row, quint32 col, const jp::office::sheet::Cell &cell, jp::grid::Work &work)
+    {
+        if (col + 1 >= quint32(m_cols.count())) return;
+        const double left = double(m_cols.position(col)) / jp::grid::kCutFine, own = double(m_cols.position(col + 1)) / jp::grid::kCutFine - left;
+        const QString text = m_data.sheet->text(cell, *m_data.strings);
+        const jp::grid::CellLook &look = m_grid.lookOf(row, col, m_grid.styleOf(row, col, &cell));
+        // (no letter of any font is narrower than a quarter of its size, so a text shorter than that cannot be wider than its column)
+        if (own <= 0 || m_rows.position(row + 1) <= m_rows.position(row)) return;   // (a hidden cell shows nothing)
+        if (double(text.size()) * look.pointSize * (96.0 / 72.0) * 0.25 <= own) return;
+        if (look.wrap || look.shrink || look.rotation != 0) return;
+        const jp::grid::Shown shown = m_grid.shown(row, col, cell);
+        work.add(8);
+        if (shown.kind != jp::grid::Kind::Text || shown.align != jp::grid::HAlign::Left || shown.width + 2 * jp::grid::kCellPadding <= own) return;
+        for (const jp::office::sheet::CellRange &m : m_data.sheet->merges)
+            if (m.valid && row >= m.row1 && row <= m.row2 && col >= m.col1 && col <= m.col2 && (m.row2 > m.row1 || m.col2 > m.col1)) return;
+        const double end = left + shown.width + 2 * jp::grid::kCellPadding;
+        qint64 c = m_cols.indexAt(qint64(end * jp::grid::kCutFine));
+        if (c < 0) c = m_cols.count() - 1;
+        c = std::min<qint64>(c, qint64(col) + jp::grid::kMaxSpill);
+        if (c > qint64(col)) runs.push_back({row, col, quint32(c)});
+    }
+    const GridData &m_data;
+    const jp::grid::Axis &m_rows;
+    const jp::grid::Axis &m_cols;
+    jp::grid::GridSheet m_grid;
+    jp::grid::GridPainter m_painter;
+    jp::office::sheet::CellStore::RowTailCursor m_cursor;
+};
+
+} // namespace
+
 struct PrintJob::Build {
-    enum class Stage { Sheet, Rows, Pages, Finish };
+    enum class Stage { Sheet, Rows, Spill, Pages, Finish };
     QVector<int> sheets;
     int at = 0;
     int next = 1;
@@ -263,6 +321,8 @@ struct PrintJob::Build {
     jp::grid::Axis cutRows, cutCols;
     jp::grid::PrintRequest request;     // (its axes are the two above)
     std::unique_ptr<jp::grid::RowAxisTask> rowTask;
+    GridData data;
+    std::unique_ptr<SpillScan> spill;
     std::unique_ptr<jp::grid::PaginateTask> paginateTask;
 };
 
@@ -366,6 +426,7 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
                 if (!info.setup.draft) boxes = objects.boxes();
                 work.add(qint64(data.sheet->columns.size()) + qint64(objects.count()));
             }
+            b.data = data;
             jp::grid::PrintRequest &q = b.request;
             q = jp::grid::PrintRequest();
             q.sheet = data.sheet;
@@ -389,6 +450,17 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
             if (!b.rowTask->step(work)) return BuildState::Working;
             b.cutRows = b.rowTask->take();
             b.rowTask.reset();
+            // (a sheet with a print area, or a selection, is printed as it is told: nothing is looked for)
+            if (!b.request.onlySelection && !(b.request.setup.hasPrintArea() && !b.request.ignorePrintArea) && b.data.strings && !b.request.setup.draft)
+                b.spill = std::make_unique<SpillScan>(b.data, b.cutRows, b.cutCols);
+            b.stage = Build::Stage::Spill;
+            break;
+        case Build::Stage::Spill:
+            if (b.spill) {
+                if (!b.spill->step(work)) return BuildState::Working;
+                b.request.spills = std::move(b.spill->runs);
+                b.spill.reset();
+            }
             b.paginateTask = std::make_unique<jp::grid::PaginateTask>(b.request);
             b.stage = Build::Stage::Pages;
             break;

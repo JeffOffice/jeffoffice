@@ -105,6 +105,11 @@ struct SheetPrint {
     bool headings = false;                    // the headings are printed
 };
 
+// A text that runs from the cell at (row, col1) over the empty cells to the column col2.
+struct SpillRun {
+    quint32 row = 0, col1 = 0, col2 = 0;
+};
+
 struct PrintRequest {
     const Sheet *sheet = nullptr;
     const Styles *styles = nullptr;
@@ -114,6 +119,7 @@ struct PrintRequest {
     PageSetup setup;                          // what the job prints with (the sheet's own, with what the person chose for the job on top)
     std::vector<ObjectBox> objects;           // the boxes of the objects that print, in the grid's pixels from the first row and column
     bool ignorePrintArea = false;
+    std::vector<SpillRun> spills;             // text that runs out of the last cell of a row into the columns after it: a sheet with no print area prints as far as they reach, and the pages they are on
     bool onlySelection = false;               // print this block and nothing else
     CellRange selection;
     int maxPages = kMaxSheetPages;
