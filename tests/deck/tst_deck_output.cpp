@@ -1767,7 +1767,7 @@ private Q_SLOTS:
         QVERIFY(keptDoc.isTagged());
         QVERIFY2(keptDoc.structure(0).size() > 2, "the PDF/A has a tag tree with nothing in it");
         QCOMPARE(keptDoc.outline().size(), 3);
-        QVERIFY2(kept.contains("pdfaid:part=\"1\""), "no PDF/A-1 mark");
+        QVERIFY2(kept.contains("pdfaid:part=\"1\"") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A-1 mark");   // (as Qt writes it, or as the program's own metadata does)
         QVERIFY(kept.contains("GTS_PDFA1"));
         // handouts: a bookmark for each slide, to the page it is on
         deck::OutputOptions handout;
@@ -2058,7 +2058,7 @@ private Q_SLOTS:
         const QByteArray plain = fileBytes(dir.filePath(QStringLiteral("plain.pdf"))), kept = fileBytes(target);
         QVERIFY(plain.startsWith("%PDF") && kept.startsWith("%PDF"));
         QVERIFY(!plain.contains("pdfaid:part"));
-        QVERIFY2(kept.contains("pdfaid:part=\"1\""), "no PDF/A-1 mark");
+        QVERIFY2(kept.contains("pdfaid:part=\"1\"") || kept.contains("<pdfaid:part>1</pdfaid:part>"), "no PDF/A-1 mark");   // (as Qt writes it, or as the program's own metadata does)
         QVERIFY(kept.contains("GTS_PDFA1") || kept.contains("OutputIntent"));
     }
 
