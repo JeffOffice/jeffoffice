@@ -837,9 +837,8 @@ QString validSheetName(const QString &original, int number)
     while (name.endsWith(QLatin1Char('\''))) name.chop(1);
     name = name.left(31);
     if (!name.isEmpty() && name.back().isHighSurrogate()) name.chop(1);   // (not in the middle of a letter written with two code units)
-    name = name.trimmed();
     while (name.endsWith(QLatin1Char('\''))) name.chop(1);
-    if (name.isEmpty()) name = QStringLiteral("Sheet%1").arg(number);
+    if (name.trimmed().isEmpty()) name = QStringLiteral("Sheet%1").arg(number);   // (a name keeps the spaces at its ends, as a workbook of the XML form may have them; one of nothing else is unnamed)
     if (name.compare(QLatin1String("History"), Qt::CaseInsensitive) == 0) name += QLatin1Char('_');
     return name;
 }

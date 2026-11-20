@@ -461,6 +461,16 @@ private Q_SLOTS:
         QCOMPARE(t.view.zoom, 100);
     }
 
+    // A sheet whose name begins or ends with a space keeps the space when the file is read (a workbook of the XML form may have such names, and a name that came back changed would no longer be the one formulas and links use); a name of spaces only is unnamed.
+    void aSheetNameKeepsTheSpacesAtItsEnds()
+    {
+        Workbook wb = open(buildOds(contentXml(table(QStringLiteral(" Lead"), row(floatCell(1))) + table(QStringLiteral("Trail  "), row(floatCell(2))) + table(QStringLiteral("   "), row(floatCell(3))))));
+        QCOMPARE(wb.info().sheets.size(), 3);
+        QCOMPARE(wb.info().sheets[0].name, QStringLiteral(" Lead"));
+        QCOMPARE(wb.info().sheets[1].name, QStringLiteral("Trail  "));
+        QCOMPARE(wb.info().sheets[2].name, QStringLiteral("Sheet3"));
+    }
+
     // A split that is not held (mode 1: the bars are at a place in pixels) is read and written again: the bars in twentieths of a point, and the cells the lower right part begins at.
     void aSplitIsReadAndWrittenAgain()
     {
