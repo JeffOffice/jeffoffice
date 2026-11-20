@@ -79,6 +79,7 @@
 #include "app/crash.h"
 #include "core/fonts.h"
 #include <QApplication>
+#include <memory>
 #endif
 #include <QCoreApplication>
 #include <QDir>
@@ -917,8 +918,24 @@ int main(int argc, char **argv)
         return code >= 0 ? code : usage();
     }
 #endif
+#ifdef JC_GRID
+    // (copy-check saves workbooks as the window does: with the window system parts and the program's fonts, which the writers of the copies measure text with)
+    std::unique_ptr<QApplication> copyGui;
+    if (argc > 1 && QByteArray(argv[1]) == "copy-check") {
+        if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
+        Q_INIT_RESOURCE(resources);
+        Q_INIT_RESOURCE(crunch);
+        ::jp::setAppInfo(::jp::crunchAppInfo());
+        copyGui = std::make_unique<QApplication>(argc, argv);
+        ::jp::initCore();
+    }
+    std::unique_ptr<QCoreApplication> coreApp;
+    if (!copyGui) coreApp = std::make_unique<QCoreApplication>(argc, argv);
+    const QStringList args = (copyGui ? copyGui->arguments() : coreApp->arguments()).mid(1);
+#else
     QCoreApplication app(argc, argv);
     const QStringList args = app.arguments().mid(1);
+#endif
     if (args.size() >= 2 && args[0] == QLatin1String("info")) {
         const bool tsv = args[1] == QLatin1String("--tsv");
         if (args.size() == (tsv ? 3 : 2)) return info(args.last(), tsv);

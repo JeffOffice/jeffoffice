@@ -7,7 +7,9 @@
 //                                                  that differ, the formulas the workbook had, the formulas the copy has, the formulas whose text is the same, the formulas written as values,
 //                                                  the cells whose format was compared, those whose number format is the same, those whose look is the same, the cells lost by a limit, the
 //                                                  merged ranges of the workbook and of the copy, the milliseconds the write and the read took, what the copy does not have, and the first
-//                                                  difference. (tools/crunch_copy_check.py runs it over a list of workbooks and sums it up.)
+//                                                  difference, the formula reasons, and the kinds of difference the workbook has (sheet names, extents, cells the copy added, and the sizes of columns
+//                                                  and rows that were set by hand are compared too). COPY_CHECK_KEEP=<file> keeps the copy. (tools/crunch_copy_check.py runs it over a list of workbooks and sums
+//                                                  it up; tools/crunch_save_checks.py samples the collections and also opens each copy in LibreOffice.)
 
 #include "office/package.h"
 #include "sheet/oldsave.h"
@@ -39,6 +41,18 @@ QTextStream &out()
 }
 
 enum class Class { None, Number, Text, Bool, Error };
+
+const char *kindName(Class c)
+{
+    switch (c) {
+    case Class::Number: return "number";
+    case Class::Text: return "text";
+    case Class::Bool: return "truth value";
+    case Class::Error: return "error";
+    case Class::None: break;
+    }
+    return "nothing";
+}
 
 Class classOf(const Cell &c)
 {
@@ -84,6 +98,7 @@ QString shownCode(QString code)
         out += c;
     }
     out = out.trimmed();
+    if (out.compare(QLatin1String("general"), Qt::CaseInsensitive) == 0) out = QStringLiteral("General");   // (the name of the first format is written in capitals by some)
     if (out.endsWith(QLatin1String(";@"))) out.chop(2);   // (a section for texts that shows them as they are)
     return out;
 }
@@ -232,7 +247,12 @@ int copyCheckMain(const QStringList &args)
     for (int place : back.info().order)
         if (place >= 0 && place < back.info().sheets.size() && !back.info().sheets[place].deleted && back.info().sheets[place].kind == SheetKind::Worksheet) backPlaces.push_back(place);
     QString firstDiff;
-    auto diff = [&](const QString &what) {
+    QSet<QString> kinds;   // the kinds of difference this workbook has (each once), for the last field
+    auto diff = [&](const QString &what, QString kind = QString()) {
+        if (kind.isEmpty()) kind = what.left(std::min<qsizetype>(what.indexOf(QLatin1String(" at ")) >= 0 ? what.indexOf(QLatin1String(" at ")) : what.size(), what.indexOf(QLatin1Char('(')) >= 0 ? what.indexOf(QLatin1Char('(')) : what.size())).trimmed();
+        if (kind.startsWith(QLatin1String("sheet count"))) kind = QStringLiteral("sheet count");
+        if (kind.startsWith(QLatin1String("names "))) kind = QStringLiteral("defined names");
+        kinds.insert(kind);
         if (firstDiff.isEmpty()) firstDiff = what;
         firstDiff.replace(QLatin1Char('\n'), QLatin1Char(' ')).replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\t'), QLatin1Char(' '));   // (one line, whatever the text of a cell holds)
     };
@@ -252,7 +272,7 @@ int copyCheckMain(const QStringList &args)
     }
     if (format != QLatin1String("xlsx") && written.size() != backPlaces.size() && !(written.size() == 1 && written[0].place < 0 && backPlaces.size() == 1)) diff(QStringLiteral("sheet count %1 vs %2").arg(written.size()).arg(backPlaces.size()));
     for (size_t i = 0; i < written.size(); ++i)
-        if (pairedBack[i] < 0 && written[i].place >= 0) diff(QStringLiteral("sheet %1 is not in the copy").arg(written[i].name));
+        if (pairedBack[i] < 0 && written[i].place >= 0) diff(QStringLiteral("sheet %1 is not in the copy").arg(written[i].name), QStringLiteral("sheet missing"));
     QHash<quint64, quint8> styleSame;
     for (size_t i = 0; i < written.size(); ++i) {
         if (written[i].place < 0 || pairedBack[i] < 0) continue;
@@ -348,7 +368,7 @@ int copyCheckMain(const QStringList &args)
                         const Class k = classOf(*cell);
                         return k == Class::Text ? QStringLiteral("\"") + sh.text(*cell, ss).left(40) + QLatin1Char('"') : QString::number(cell->number, 'g', 17);
                     };
-                    diff(QStringLiteral("value at %1!%2 (%3 vs %4: %5 vs %6)").arg(written[i].name, cellName(row, col)).arg(int(ca)).arg(int(cb), 0, 10, QLatin1Char(' ')).arg(repr(a, book.sharedStrings(), &c), repr(b, back.sharedStrings(), e)));
+                    diff(QStringLiteral("value at %1!%2 (%3 vs %4: %5 vs %6)").arg(written[i].name, cellName(row, col)).arg(int(ca)).arg(int(cb), 0, 10, QLatin1Char(' ')).arg(repr(a, book.sharedStrings(), &c), repr(b, back.sharedStrings(), e)), QStringLiteral("value: %1 to %2").arg(QLatin1String(kindName(ca)), QLatin1String(kindName(cb))));
                 }
                 // the formats
                 if (e) {
@@ -370,6 +390,7 @@ int copyCheckMain(const QStringList &args)
             if (c.hasFormula() || arrayCells.contains((quint64(row) << 20) | col)) {
                 if (c.hasFormula() && !(c.flags & DataTable)) {
                     ++formulas;
+                    if (!e || !e->hasFormula()) diff(QStringLiteral("formula written as a value at %1!%2").arg(written[i].name, cellName(row, col)), QStringLiteral("formula written as a value"));
                     if (e && e->hasFormula()) {
                         ++formulasBack;
                         if (shownFormula(a.formulaText(c)) == shownFormula(b.formulaText(*e))) ++formulasSame;
@@ -378,13 +399,69 @@ int copyCheckMain(const QStringList &args)
                 }
             }
         });
+        // the name of the sheet, its extent, a cell the copy has that the workbook did not, and the sizes of columns and rows that were set by hand
+        if (written[i].name.compare(back.info().sheets[pairedBack[i]].name, Qt::CaseInsensitive) != 0) diff(QStringLiteral("sheet name %1 vs %2").arg(written[i].name, back.info().sheets[pairedBack[i]].name), QStringLiteral("sheet name"));
+        {
+            quint32 ar = 0, ac = 0, br = 0, bc = 0;
+            qint64 extra = 0;
+            a.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                const bool emptyText = classOf(c) == Class::Text && a.text(c, book.sharedStrings()).isEmpty();   // (a text of nothing is no cell in some formats)
+                if (row < maxRow && col < maxCol && !emptyText && (classOf(c) != Class::None || c.hasFormula())) {
+                    ar = std::max(ar, row + 1);
+                    ac = std::max(ac, col + 1);
+                }
+            });
+            b.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
+                if (classOf(c) == Class::None && !c.hasFormula()) return;
+                if (classOf(c) == Class::Text && b.text(c, back.sharedStrings()).isEmpty()) return;
+                br = std::max(br, row + 1);
+                bc = std::max(bc, col + 1);
+                const Cell *d = a.cells.find(row, col);
+                if (!d || (classOf(*d) == Class::None && !d->hasFormula())) {
+                    if (!coveredByMerge(row, col) && !arrayCells.contains((quint64(row) << 20) | col) && !(classOf(c) == Class::Text && b.text(c, back.sharedStrings()).isEmpty())) ++extra;
+                }
+            });
+            if (ar != br || ac != bc) diff(QStringLiteral("size %1x%2 vs %3x%4 at %5").arg(ar).arg(ac).arg(br).arg(bc).arg(written[i].name), QStringLiteral("sheet size"));
+            if (extra) diff(QStringLiteral("%1 cells the workbook did not have at %2").arg(extra).arg(written[i].name), QStringLiteral("extra cell"));
+        }
+        {
+            auto widthOf = [](const Sheet &sh, quint32 col) {
+                for (const ColumnSpan &sp : sh.columns)
+                    if (sp.first <= col && col <= sp.last && sp.customWidth && sp.width >= 0) return sp.hidden ? 0.0 : sp.width;
+                return -1.0;
+            };
+            bool bad = false;
+            for (const ColumnSpan &sp : a.columns) {
+                if (!sp.customWidth || sp.width < 0) continue;
+                for (quint32 col = sp.first; col <= std::min<quint32>(sp.last, std::min<quint32>(maxCol - 1, sp.first + 300)) && !bad; ++col) {
+                    const double wa = sp.hidden ? 0.0 : sp.width, wb = widthOf(b, col);
+                    if (wb < 0 ? std::abs(wa - (b.format.defaultColWidth > 0 ? b.format.defaultColWidth : b.format.baseColWidth + 0.71)) > 1.0 : std::abs(wa - wb) > 1.0) bad = true;
+                }
+                if (bad) break;
+            }
+            if (bad) diff(QStringLiteral("column widths differ at %1").arg(written[i].name), QStringLiteral("column width"));
+            QHash<quint32, RowSpec> specsB;
+            for (const RowSpec &r : b.rowSpecs) specsB.insert(r.row, r);
+            bool badRow = false;
+            int looked = 0;
+            for (const RowSpec &r : a.rowSpecs) {
+                if (!r.customHeight || r.height < 0 || r.row >= maxRow || ++looked > 20000) continue;
+                const auto it = specsB.constFind(r.row);
+                const double hb = it == specsB.cend() ? b.format.defaultRowHeight : (it->height >= 0 ? it->height : b.format.defaultRowHeight);
+                if (!r.hidden && std::abs(r.height - hb) > 1.0) {
+                    badRow = true;
+                    break;
+                }
+            }
+            if (badRow) diff(QStringLiteral("row heights differ at %1").arg(written[i].name), QStringLiteral("row height"));
+        }
     }
     if (book.info().definedNames.size() != back.info().definedNames.size() && format != QLatin1String("ods")) diff(QStringLiteral("names %1 vs %2").arg(book.info().definedNames.size()).arg(back.info().definedNames.size()));
     const qint64 readMs = timer.elapsed();
     line(firstDiff.isEmpty() ? QStringLiteral("ok") : QStringLiteral("differs"),
          {QString::number(bytes.size()), QString::number(sheets), QString::number(compared), QString::number(valueDiffs), QString::number(formulas), QString::number(formulasBack), QString::number(formulasSame),
           QString::number(report.formulasAsValues), QString::number(fmt), QString::number(fmtNum), QString::number(fmtLook), QString::number(lost), QString::number(mergesA), QString::number(mergesB),
-          QString::number(writeMs), QString::number(readMs), report.notKept.join(QStringLiteral("; ")), firstDiff.left(300), report.formulaReasons.join(QStringLiteral("; "))});
+          QString::number(writeMs), QString::number(readMs), report.notKept.join(QStringLiteral("; ")), firstDiff.left(300), report.formulaReasons.join(QStringLiteral("; ")), QStringList(kinds.values()).join(QStringLiteral("; "))});
     return 0;
 }
 
