@@ -239,6 +239,15 @@
       "keytip": "P",
       "groups": [
         {
+          "name": "Themes",
+          "keytip": "ZE",
+          "items": [
+            {"large": {"id": "ribbon.themes", "text": "Themes", "icon": "palette"}, "keytip": "EM", "menu": "@themesMenu"},
+            {"large": {"id": "ribbon.themeColors", "text": "Colors", "icon": "swatch-book"}, "keytip": "EC", "menu": "@themeColorsMenu"},
+            {"large": {"id": "ribbon.themeFonts", "text": "Fonts", "icon": "type"}, "keytip": "EF", "menu": "@themeFontsMenu"}
+          ]
+        },
+        {
           "name": "Page Setup",
           "keytip": "ZP",
           "launcher": "pageSetup",

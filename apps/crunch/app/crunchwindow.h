@@ -28,6 +28,7 @@
 #include "core/csvexport.h"
 #include "app/formatdialog.h"
 #include "app/widgets.h"
+#include "office/theme.h"
 #include "core/color.h"
 #include "core/textdirection.h"
 #include "core/auditing.h"
@@ -1488,6 +1489,16 @@ private:
     // the page commands and the Page Layout tab (crunchwindow_page.cpp)
     void formatAxisDialog(bool horizontal);
     void createPageActions();
+    // Page Layout > Themes, Colors, and Fonts (crunchwindow_themes.cpp)
+    void createThemeActions();
+    void themeRibbonParts(RibbonParts &parts);
+    bool changeTheme(const QString &step, const std::function<jp::office::Theme(const jp::office::Theme &, bool *)> &make);
+    bool applyThemeFile(const QString &path);
+    bool saveThemeFile(const QString &path);
+    bool resetTheme();
+    bool themeDiffers() const;
+    void onThemeChanged();
+    jp::office::Theme m_openedTheme;   // the workbook's theme as it was opened (what Reset gives back)
     void pageRibbonParts(RibbonParts &parts);
     void connectPageSetup();
     void updatePageActions();

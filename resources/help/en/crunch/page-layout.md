@@ -1,7 +1,19 @@
 # Set up the pages
-<!-- keywords: background, picture behind cells, tile, wallpaper, page layout, margins, orientation, portrait, landscape, paper, size, print area, page break, breaks, print titles, titles, repeat rows, scale to fit, fit to page, gridlines, headings, sheet options, right to left, mirror -->
+<!-- keywords: theme, themes, theme colors, theme fonts, colors, fonts, accent, heading font, body font, background, picture behind cells, tile, wallpaper, page layout, margins, orientation, portrait, landscape, paper, size, print area, page break, breaks, print titles, titles, repeat rows, scale to fit, fit to page, gridlines, headings, sheet options, right to left, mirror -->
 
 The **Page Layout** tab decides how a sheet is cut into pages when it is printed or made into a PDF. Each sheet keeps its own choices, and they are saved in the workbook. Every change is one step you can undo.
+
+## Themes, colors, and fonts
+
+A workbook has a **theme**: twelve colors and two fonts (one for headings and one for body text) that its cells, cell styles, table styles, shapes, and charts can name instead of copying. When you change the theme, everything that names it changes with it: a cell filled with "Accent 1, lighter 40%" turns to the new Accent 1, lighter by the same amount.
+
+- **Themes** lists ready-made themes that set colors and fonts together. **Browse for Themes** takes the theme from a theme file, a workbook, a document, or a presentation. **Save Current Theme** keeps this workbook's theme in a file, and **Reset to the Workbook's Theme** gives back the theme the workbook had when you opened it.
+- **Colors** changes only the twelve colors. **Create New Theme Colors** lets you set your own and name them; every JeffOffice app then lists them.
+- **Fonts** changes only the heading and body fonts. Cells that use the theme's fonts follow; cells set in a font by name keep it.
+
+Each choice is one step you can undo. The color buttons (Fill Color, Font Color, Borders, and Tab Color) show the theme's colors in a row with lighter and darker versions under each; a color you pick from there stays a theme color, so it changes with the theme. A color from **Standard Colors** or **More Colors** stays as you picked it.
+
+A new workbook starts with JeffOffice's own theme. A shape or chart you make here keeps the colors it was given; one that came in the file and names a theme color follows the theme. A workbook opened from an older binary file or an OpenDocument file has no theme to change, so these buttons offer nothing for it. When you save a workbook as an OpenDocument file, which has no themes, the colors are written as they look.
 
 ## Margins, orientation, and size
 

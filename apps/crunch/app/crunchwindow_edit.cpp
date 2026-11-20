@@ -55,6 +55,8 @@ void CrunchWindow::createEditing()
         m_view->sheet().invalidateTexts();
         m_view->viewport()->update();
     });
+    m_openedTheme = m_loaded && m_loaded->book && m_loaded->book->hasTheme() ? m_loaded->book->theme() : jp::office::Theme();
+    connect(m_session.get(), &crunch::EditSession::themeChanged, this, &CrunchWindow::onThemeChanged);
     connect(m_session.get(), &crunch::EditSession::stylesChanged, this, [this] {
         m_view->sheet().resetLooks();
         m_view->viewport()->update();

@@ -35,6 +35,7 @@ void CrunchWindow::ribbonParts(RibbonParts &parts)
     // (the ribbon's commands are actions of the window; the controls made in code are those of formatting and of the Page Layout tab)
     formatRibbonParts(parts);
     pageRibbonParts(parts);
+    themeRibbonParts(parts);
     chartRibbonParts(parts);
     objectFormatRibbonParts(parts);
     tableRibbonParts(parts);
