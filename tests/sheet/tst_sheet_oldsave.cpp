@@ -1444,6 +1444,38 @@ private Q_SLOTS:
         for (const quint32 id : spids) QVERIFY(id < word(0));
     }
 
+    // A workbook read from the old form is saved straight to the open-document form with its notes (the model of its sheet is where they are), and to the package form too.
+    void theNotesOfAnXlsWorkbookAreSavedToTheOtherForms()
+    {
+        const QString rows = row(annotated(QStringLiteral("<dc:creator>Ann</dc:creator><text:p>first</text:p>"), QStringLiteral("office:display=\"true\"")) + annotated(QStringLiteral("<text:p>second</text:p>")));
+        Workbook ods;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &ods, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(ods, &xls, &report, &why), qPrintable(why));
+        Workbook old;
+        QVERIFY2(old.openBinary(xls, &why), qPrintable(why));
+        QVERIFY(old.isBinary());
+        QCOMPARE(readSheetNoteInfos(old, 0).size(), size_t(2));
+        QByteArray out;
+        QVERIFY2(saveOds(old, &out, &report, &why), qPrintable(why));
+        Workbook again;
+        QVERIFY(openBytes(out, QStringLiteral("again.ods"), &again, &why));
+        auto notes = readSheetNoteInfos(again, 0);
+        QCOMPARE(notes.size(), size_t(2));
+        QCOMPARE(notes.at(noteKey(0, 0)).text, QStringLiteral("first"));
+        QCOMPARE(notes.at(noteKey(0, 0)).author, QStringLiteral("Ann"));
+        QVERIFY(notes.at(noteKey(0, 0)).shown && !notes.at(noteKey(0, 1)).shown);
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(old, SaveChanges(), &xlsx, &why, nullptr), qPrintable(why));
+        Workbook pack;
+        QVERIFY2(openXlsx(xlsx, &pack, &why), qPrintable(why));
+        notes = readSheetNoteInfos(pack, 0);
+        QCOMPARE(notes.size(), size_t(2));
+        QCOMPARE(notes.at(noteKey(0, 1)).text, QStringLiteral("second"));
+    }
+
     // A note on a cell past the old form's grid is left out of the copy, and the copy says how many.
     void aNoteOnACellPastTheOldFormsGridIsCutAndNamed()
     {

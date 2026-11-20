@@ -220,7 +220,7 @@ private Q_SLOTS:
         QVERIFY(win.open(folder.write(QStringLiteral("pictures.xls"), b.file())));
         QCOMPARE(win.told.size(), 1);
         QVERIFY2(win.told.first().contains(QLatin1String("pictures and other drawing objects")), qPrintable(win.told.first()));
-        QVERIFY2(win.told.first().contains(QLatin1String("comments")), qPrintable(win.told.first()));
+        QVERIFY2(!win.told.first().contains(QLatin1String("comments")), qPrintable(win.told.first()));   // (notes are read; this note record names no shape, so there is none to show)
         QVERIFY(win.w.hasWorkbook());
     }
 
