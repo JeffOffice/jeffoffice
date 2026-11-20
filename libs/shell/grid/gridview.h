@@ -500,10 +500,14 @@ private:
     QRect m_noteRect0, m_noteRectNow;        // the box as it was at the press, and as the drag has it (viewport pixels)
     bool m_noteMoved = false;
     bool m_moveInsert = false;               // the block being dragged goes between cells (Shift was held at the press)
+    bool m_shiftBorder = false;              // a press with Shift on the selection's border: a click extends the selection, a drag past the drag distance moves the block between cells
+    Selection m_shiftSelection;              // the selection (and its other ranges) as it was before that press
+    std::vector<GridRange> m_shiftExtra;
+    QPoint m_shiftFrom;
     int shownIndexAt(qint64 row, qint64 col) const;
-    bool shownBoxRect(size_t index, QRect *out) const;
+    bool shownBoxRect(size_t index, QRect *out, QRect *pane = nullptr) const;   // (and the cells of the pane it belongs to, where it is drawn and takes presses)
     QSize shownSize(size_t index) const;
-    bool noteBoxPress(const QPoint &lp);
+    bool noteBoxPress(const QPoint &lp, Qt::KeyboardModifiers modifiers);
     void noteBoxDrag(const QPoint &lp);
     void noteBoxRelease();
     mutable std::vector<QSize> m_shownSizes;

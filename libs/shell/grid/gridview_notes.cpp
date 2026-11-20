@@ -15,6 +15,14 @@ namespace jp::grid {
 namespace {
 // The most boxes drawn in one paint (the ones in view; a sheet can show thousands of notes, and a paint should cost the ones a person can read).
 constexpr int kMaxBoxes = 200;
+// How large a placed box is drawn at most, and how far from its cell it may begin (pixels at 100%): a file's anchors go to 100,000 cells and pixels, and a box of that size or place would
+// cover the sheet. A box the person drags is kept to the same.
+constexpr int kBoxMaxWidth = 640, kBoxMaxHeight = 480, kBoxReach = 1000;
+
+QRect keepBoxSane(const QRect &rel)
+{
+    return QRect(std::clamp(rel.x(), -kBoxReach, kBoxReach), std::clamp(rel.y(), -kBoxReach, kBoxReach), std::clamp(rel.width(), 1, kBoxMaxWidth), std::clamp(rel.height(), 1, kBoxMaxHeight));
+}
 // The most characters of a note that are laid out and drawn (the note that appears when the pointer rests on its cell is cut at the same place).
 constexpr int kMaxShownNoteChars = 4000;
 }
@@ -68,25 +76,30 @@ QSize GridView::shownSize(size_t index) const
     return size;
 }
 
-bool GridView::shownBoxRect(size_t index, QRect *out) const
+bool GridView::shownBoxRect(size_t index, QRect *out, QRect *pane) const
 {
     const GridLayout &L = m_sheet.layout();
     const ShownNote &n = m_shownNotes[index];
-    bool visible = false;
+    QRect inPane;
     for (Pane p : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
         const PaneView v = L.pane(p);
-        if (!v.isEmpty() && n.row >= v.firstRow && n.row <= v.lastRow && n.col >= v.firstCol && n.col <= v.lastCol) visible = true;
+        if (!v.isEmpty() && n.row >= v.firstRow && n.row <= v.lastRow && n.col >= v.firstCol && n.col <= v.lastCol) {
+            inPane = v.rect;
+            break;
+        }
     }
-    if (!visible) return false;
+    if (inPane.isEmpty()) return false;
     const QRect cell = cellRectInLayout(n.row, n.col);
     if (cell.isEmpty()) return false;
     if (n.placed) {
         const double z = L.zoom();
-        *out = QRect(cell.left() + int(std::lround(n.box.x() * z)), cell.top() + int(std::lround(n.box.y() * z)), std::max(1, int(std::lround(n.box.width() * z))), std::max(1, int(std::lround(n.box.height() * z))));
+        const QRect rel = keepBoxSane(n.box);
+        *out = QRect(cell.left() + int(std::lround(rel.x() * z)), cell.top() + int(std::lround(rel.y() * z)), std::max(1, int(std::lround(rel.width() * z))), std::max(1, int(std::lround(rel.height() * z))));
     } else {
         const QSize size = shownSize(index);
         *out = QRect(cell.right() + int(6 * L.zoom()), cell.top(), size.width(), size.height());
     }
+    if (pane) *pane = inPane;
     return true;
 }
 
@@ -122,18 +135,19 @@ QRect GridView::noteHandleRect(int handle) const
     return mirrored() ? mirror(out) : out;
 }
 
-bool GridView::noteBoxPress(const QPoint &lp)
+bool GridView::noteBoxPress(const QPoint &lp, Qt::KeyboardModifiers modifiers)
 {
-    // (a press is in layout coordinates, as the boxes are)
+    // (a press is in layout coordinates, as the boxes are; Shift or Ctrl with a press is the sheet's: it extends the selection or adds to it, also over a box)
+    if (modifiers & (Qt::ShiftModifier | Qt::ControlModifier)) return false;
     if (m_pickRow >= 0) {
         const int i = shownIndexAt(m_pickRow, m_pickCol);
-        QRect box;
-        if (i >= 0 && shownBoxRect(size_t(i), &box)) {
+        QRect box, pane;
+        if (i >= 0 && shownBoxRect(size_t(i), &box, &pane)) {
             constexpr int kSize = 7;
             const int x[3] = {box.left(), box.left() + box.width() / 2, box.right()}, y[3] = {box.top(), box.top() + box.height() / 2, box.bottom()};
             static const int xi[8] = {0, 1, 2, 2, 2, 1, 0, 0}, yi[8] = {0, 0, 0, 1, 2, 2, 2, 1};
             for (int h = 0; h < 8; ++h) {
-                if (QRect(x[xi[h]] - kSize / 2 - 1, y[yi[h]] - kSize / 2 - 1, kSize + 2, kSize + 2).contains(lp)) {
+                if (pane.contains(lp) && QRect(x[xi[h]] - kSize / 2 - 1, y[yi[h]] - kSize / 2 - 1, kSize + 2, kSize + 2).contains(lp)) {
                     m_drag = Drag::NoteResize;
                     m_noteHandle = h;
                     m_noteFrom = lp;
@@ -146,8 +160,9 @@ bool GridView::noteBoxPress(const QPoint &lp)
         }
     }
     for (size_t k = m_shownNotes.size(); k-- > 0;) {
-        QRect box;
-        if (!shownBoxRect(k, &box) || !box.adjusted(-2, -2, 2, 2).contains(lp)) continue;
+        QRect box, pane;
+        // (only the part of the box over the cells of its own pane takes a press: not the headers, not another frozen part)
+        if (!shownBoxRect(k, &box, &pane) || !pane.contains(lp) || !box.adjusted(-2, -2, 2, 2).contains(lp)) continue;
         m_pickRow = m_shownNotes[k].row;
         m_pickCol = m_shownNotes[k].col;
         m_drag = Drag::NoteMove;
@@ -198,7 +213,8 @@ void GridView::noteBoxRelease()
     const QRect cell = cellRectInLayout(m_pickRow, m_pickCol);
     if (cell.isEmpty()) return;
     const double z = m_sheet.layout().zoom();
-    const QRect rel(int(std::lround((now.left() - cell.left()) / z)), int(std::lround((now.top() - cell.top()) / z)), std::max(1, int(std::lround(now.width() / z))), std::max(1, int(std::lround(now.height() / z))));
+    const QRect rel = keepBoxSane(QRect(int(std::lround((now.left() - cell.left()) / z)), int(std::lround((now.top() - cell.top()) / z)), std::max(1, int(std::lround(now.width() / z))),
+                                        std::max(1, int(std::lround(now.height() / z)))));
     Q_EMIT noteBoxRequested(m_pickRow, m_pickCol, rel);
 }
 
@@ -239,11 +255,13 @@ void GridView::paintNotes(QPainter *painter, const QRect &clip)
     for (size_t index = 0; index < m_shownNotes.size(); ++index) {
         const ShownNote &n = m_shownNotes[index];
         if (boxes >= kMaxBoxes) break;
-        QRect box;
-        if (!shownBoxRect(index, &box)) continue;
+        QRect box, pane;
+        if (!shownBoxRect(index, &box, &pane)) continue;
         if (n.row == m_pickRow && n.col == m_pickCol && (m_drag == Drag::NoteMove || m_drag == Drag::NoteResize)) box = m_noteRectNow;
-        if (!box.adjusted(-5, -5, 5, 5).intersects(inLayout)) continue;
+        if (!(box.adjusted(-5, -5, 5, 5) & pane).intersects(inLayout)) continue;
         ++boxes;
+        painter->save();
+        painter->setClipRect(pane, Qt::IntersectClip);   // (a box is drawn over the cells of its own pane only)
         painter->setPen(QPen(QColor(0x80, 0x80, 0x60), 1));
         painter->setBrush(QColor(0xFF, 0xFF, 0xE1));
         painter->drawRect(box);
@@ -259,6 +277,7 @@ void GridView::paintNotes(QPainter *painter, const QRect &clip)
             static const int xi[8] = {0, 1, 2, 2, 2, 1, 0, 0}, yi[8] = {0, 0, 0, 1, 2, 2, 2, 1};
             for (int h = 0; h < 8; ++h) painter->drawRect(QRect(hx[xi[h]] - 3, hy[yi[h]] - 3, 6, 6));
         }
+        painter->restore();
     }
     painter->restore();
 }

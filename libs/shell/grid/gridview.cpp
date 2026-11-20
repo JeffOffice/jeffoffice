@@ -1442,7 +1442,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() != Qt::LeftButton) return;
     if (headerButtonPress(lp)) return;
-    if (noteBoxPress(lp)) return;
+    if (noteBoxPress(lp, e->modifiers())) return;
     if (dropDownRectInLayout().contains(lp)) {
         Q_EMIT dropDownRequested();
         return;
@@ -1468,16 +1468,24 @@ void GridView::mousePressEvent(QMouseEvent *e)
         m_lastMouse = lp;
         return;
     }
+    m_shiftBorder = false;
     if (h.kind == Hit::Kind::Cell && m_cellsEnabled && m_dragEditing && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
         && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2 && selectionBorderAtInLayout(lp)) {
-        m_drag = Drag::MoveCells;
-        m_moveSource = m_moveTarget = m_selection.range;
-        m_moveCopy = e->modifiers() & Qt::ControlModifier;
-        m_moveInsert = shift && !m_moveCopy;
-        m_pressRow = h.row;
-        m_pressCol = h.col;
-        m_lastMouse = lp;
-        return;
+        if (!shift) {
+            m_drag = Drag::MoveCells;
+            m_moveSource = m_moveTarget = m_selection.range;
+            m_moveCopy = e->modifiers() & Qt::ControlModifier;
+            m_moveInsert = false;
+            m_pressRow = h.row;
+            m_pressCol = h.col;
+            m_lastMouse = lp;
+            return;
+        }
+        // (Shift on the border: a click extends the selection as anywhere else; a move past the drag distance turns it into a block dragged to be put between cells, see mouseMoveEvent)
+        m_shiftBorder = !ctrl;
+        m_shiftSelection = m_selection;
+        m_shiftExtra = m_extra;
+        m_shiftFrom = lp;
     }
     switch (h.kind) {
     case Hit::Kind::Cell:
@@ -1545,6 +1553,16 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     if (m_drag == Drag::NoteMove || m_drag == Drag::NoteResize) {
         noteBoxDrag(lp);
         return;
+    }
+    if (m_shiftBorder && m_drag == Drag::Cells && (lp - m_shiftFrom).manhattanLength() >= QApplication::startDragDistance()) {
+        // the press was Shift on the selection's border and the pointer has moved: the selection goes back to what it was, and the block is dragged to be put between the cells
+        m_shiftBorder = false;
+        m_extra = m_shiftExtra;
+        setSelectionInternal(m_shiftSelection, false);
+        m_drag = Drag::MoveCells;
+        m_moveSource = m_moveTarget = m_selection.range;
+        m_moveCopy = false;
+        m_moveInsert = true;
     }
     if (m_drag == Drag::Resize) {
         const int at = m_resizeColumn ? lp.x() : lp.y();
