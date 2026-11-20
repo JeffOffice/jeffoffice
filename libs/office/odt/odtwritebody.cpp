@@ -788,6 +788,8 @@ void Writer::fieldEnd(ParaCtx *pc)
             if (!f.formText.isEmpty()) text = f.formText;
         } else if (f.form != 1 && !f.result) text = f.formText;
         made = esc(xmlSafe(text), false);
+        // (A text the field's result shows as it is keeps the runs that show it, with their fonts and sizes; only a default text or a blank is written as plain text.)
+        if (f.form != 1 && f.result && text == pc->plain && !pc->xml.isEmpty() && !text.trimmed().replace(QChar(0xA0), QString()).isEmpty()) made = pc->xml;
         // (A check box is its sign for other programs; ours says it is a check box, so that it is read as one.)
         if (f.form == 1) made = QByteArray("<text:span jo:checkbox=\"") + (f.checked ? "checked" : "unchecked") + "\">" + made + "</text:span>";
         shown = text;

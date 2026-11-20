@@ -2158,6 +2158,11 @@ private Q_SLOTS:
     // A text form field that shows only blank space (the five en spaces a blank one is made of) keeps them; one with a default text and a blank result shows the default.
     void aTextFormFieldKeepsItsBlankResult()
     {
+        // (and the runs of a result that shows text keep their font and size)
+        const QString shown = odtStylesAndContentOf("<w:p><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> FORMTEXT </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r>"
+                                                    "<w:r><w:rPr><w:rFonts w:ascii=\"Arial\"/><w:sz w:val=\"16\"/></w:rPr><w:t>Small words</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>");
+        QVERIFY2(shown.contains(QRegularExpression(QStringLiteral("<text:span text:style-name=\"T\\d+\">Small words</text:span>"))), qPrintable(shown));
+        QVERIFY2(shown.contains(QLatin1String("fo:font-size=\"8pt\"")), qPrintable(shown));
         const QString blank(5, QChar(0x2002));
         auto field = [&](const QString &defaultText, const QString &result) {
             return QStringLiteral("<w:p><w:r><w:t>Name:</w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"T\"/><w:textInput>") +
