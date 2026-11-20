@@ -14719,7 +14719,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">tabel data what-if (sel-selnya tetap menyimpan angka yang dimilikinya)</translation>
     </message>
     <message>
-        <location line="+769"/>
+        <location line="+767"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
@@ -15297,7 +15297,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">File ini adalah file majemuk, tetapi tidak memiliki buku kerja di dalamnya.</translation>
     </message>
     <message>
-        <location line="+1134"/>
+        <location line="+1141"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+666"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Lembar tersebut tidak ada.</translation>
@@ -68355,7 +68355,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja tidak memiliki lembar.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+51"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Sebagian buku kerja tidak dapat dibaca utuh: %1.</translation>
     </message>
@@ -70081,7 +70081,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1370"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -71027,10 +71027,10 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
-        <location line="+77"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1030"/>
+        <location line="+79"/>
         <location line="+14"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
         <location line="+1653"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71065,7 +71065,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Lembar tidak dapat disimpan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-129"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Buku kerja ini bukan yang dibaca dari file dengan bentuk lain.</translation>
     </message>
@@ -71075,7 +71075,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+93"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Sebuah lembar pada buku kerja tidak dapat dibaca untuk disimpan.</translation>
     </message>
@@ -71085,7 +71085,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagan lembar berubah saat buku kerja sedang disimpan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3978"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Bagian string bersama tidak dalam bentuk yang diubah program ini.</translation>
@@ -71098,7 +71098,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3104"/>
+        <location line="+3086"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71107,25 +71107,25 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagian buku kerja tidak dalam bentuk yang diubah program ini.</translation>
     </message>
     <message>
-        <location line="-2455"/>
+        <location line="-2437"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Buku kerja tidak dibuka dari file yang dapat ditimpa program ini.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+479"/>
+        <location line="+461"/>
         <location line="+273"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
         <translation type="unfinished">Ada perubahan pada lembar yang tidak dimiliki buku kerja.</translation>
     </message>
     <message>
-        <location line="-818"/>
+        <location line="-800"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Objek ditempatkan pada lembar yang tidak dapat ditempatkan program ini.</translation>
     </message>
     <message>
-        <location line="+120"/>
+        <location line="+102"/>
         <source>A picture in a header or footer is too large to be saved.</source>
         <translation type="unfinished">Gambar di header atau footer terlalu besar untuk disimpan.</translation>
     </message>
@@ -71466,7 +71466,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+578"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Beri nama gaya tabel.</translation>
     </message>

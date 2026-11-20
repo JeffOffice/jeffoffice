@@ -15075,7 +15075,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
         <translation type="unfinished">O arquivo não contém nenhuma pasta de trabalho.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1134"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1141"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1804"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Essa planilha não existe.</translation>
@@ -15378,7 +15378,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
         <translation type="unfinished">tabelas de dados de teste de hipóteses (suas células mantêm os números que contêm)</translation>
     </message>
     <message>
-        <location line="+769"/>
+        <location line="+767"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
@@ -68396,7 +68396,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">A pasta de trabalho não tem planilhas.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+51"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Parte da pasta de trabalho não pôde ser lida por completo: %1.</translation>
     </message>
@@ -70126,7 +70126,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1370"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -71042,10 +71042,10 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
-        <location line="+77"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1030"/>
+        <location line="+79"/>
         <location line="+14"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
         <location line="+1653"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71080,7 +71080,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não foi possível salvar a planilha.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3978"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">A parte de cadeias compartilhadas não está no formato que este programa altera.</translation>
@@ -71093,7 +71093,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3104"/>
+        <location line="+3086"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71102,19 +71102,19 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">A parte da pasta de trabalho não está no formato que este programa altera.</translation>
     </message>
     <message>
-        <location line="-2455"/>
+        <location line="-2437"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">A pasta de trabalho não foi aberta de um arquivo que este programa possa substituir ao salvar.</translation>
     </message>
     <message>
-        <location line="+813"/>
+        <location line="+795"/>
         <location line="+1759"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">O arquivo do qual esta pasta de trabalho foi aberta está danificado.</translation>
     </message>
     <message>
-        <location line="-2562"/>
-        <location line="+479"/>
+        <location line="-2544"/>
+        <location line="+461"/>
         <location line="+273"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
@@ -71149,12 +71149,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não foi possível ler uma planilha do arquivo para salvá-la.</translation>
     </message>
     <message>
-        <location line="-2550"/>
+        <location line="-2532"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Foram colocados objetos em uma planilha na qual este programa não pode colocá-los.</translation>
     </message>
     <message>
-        <location line="+120"/>
+        <location line="+102"/>
         <source>A picture in a header or footer is too large to be saved.</source>
         <translation type="unfinished">Uma imagem em um cabeçalho ou rodapé é grande demais para ser salva.</translation>
     </message>
@@ -71350,7 +71350,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não foi possível gravar o arquivo: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-129"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">A pasta de trabalho não foi lida de um arquivo de outro formato.</translation>
     </message>
@@ -71360,7 +71360,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">objetos incorporados feitos em outro tipo de arquivo (mantidos como imagens)</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+93"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Não foi possível ler uma planilha da pasta de trabalho para salvá-la.</translation>
     </message>
@@ -71518,7 +71518,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+578"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Dê um nome ao estilo de tabela.</translation>
     </message>

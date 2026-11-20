@@ -15075,7 +15075,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Datei enthält keine Arbeitsmappe.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1134"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1141"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1804"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dieses Blatt gibt es nicht.</translation>
@@ -15378,7 +15378,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Datentabellen für Was-wäre-wenn-Analysen (ihre Zellen behalten ihre Zahlen)</translation>
     </message>
     <message>
-        <location line="+769"/>
+        <location line="+767"/>
         <location line="+224"/>
         <location line="+42"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
@@ -68396,7 +68396,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Arbeitsmappe enthält keine Blätter.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+51"/>
         <source>Some of the workbook could not be read whole: %1.</source>
         <translation type="unfinished">Teile der Arbeitsmappe konnten nicht vollständig gelesen werden: %1.</translation>
     </message>
@@ -70126,7 +70126,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1363"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1370"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -71042,10 +71042,10 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1029"/>
-        <location line="+77"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1030"/>
+        <location line="+79"/>
         <location line="+14"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2488"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
         <location line="+1653"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71080,7 +71080,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das Tabellenblatt konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3978"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Der Teil mit den gemeinsamen Zeichenfolgen liegt nicht in der Form vor, die dieses Programm ändert.</translation>
@@ -71093,7 +71093,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3104"/>
+        <location line="+3086"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71102,19 +71102,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Arbeitsmappenteil liegt nicht in der Form vor, die dieses Programm ändert.</translation>
     </message>
     <message>
-        <location line="-2455"/>
+        <location line="-2437"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei geöffnet, die dieses Programm überschreiben kann.</translation>
     </message>
     <message>
-        <location line="+813"/>
+        <location line="+795"/>
         <location line="+1759"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Die Datei, aus der diese Arbeitsmappe geöffnet wurde, ist beschädigt.</translation>
     </message>
     <message>
-        <location line="-2562"/>
-        <location line="+479"/>
+        <location line="-2544"/>
+        <location line="+461"/>
         <location line="+273"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
@@ -71149,12 +71149,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein Tabellenblatt der Datei konnte zum Speichern nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="-2550"/>
+        <location line="-2532"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Objekte wurden auf einem Tabellenblatt platziert, auf dem dieses Programm sie nicht platzieren kann.</translation>
     </message>
     <message>
-        <location line="+120"/>
+        <location line="+102"/>
         <source>A picture in a header or footer is too large to be saved.</source>
         <translation type="unfinished">Ein Bild in einer Kopf- oder Fußzeile ist zu groß zum Speichern.</translation>
     </message>
@@ -71350,7 +71350,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Datei konnte nicht geschrieben werden: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-127"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-129"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei eines anderen Formats gelesen.</translation>
     </message>
@@ -71360,7 +71360,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eingebettete Objekte aus einer anderen Dateiart (als Bilder beibehalten)</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+93"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Ein Tabellenblatt der Arbeitsmappe konnte zum Speichern nicht gelesen werden.</translation>
     </message>
@@ -71518,7 +71518,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+571"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+578"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Geben Sie der Tabellenformatvorlage einen Namen.</translation>
     </message>
