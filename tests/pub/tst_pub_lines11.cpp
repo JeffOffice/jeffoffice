@@ -1,6 +1,8 @@
 // JeffPub's tests of the commands that closed lines of the feature list in slice 11: Equalize on Arrange, Duplicate Several Times, and Send to Master Page.
 #include "pubhelpers.h"
 #include "../withdialog.h"
+#include "../localepin.h"
+#include "text/mergeformat.h"
 #include "app/widgets.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
@@ -10,6 +12,7 @@
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QLabel>
 #include <QSpinBox>
 #include <QTemporaryDir>
 #include <QTest>
@@ -471,6 +474,113 @@ private Q_SLOTS:
         auto *kept = static_cast<jp::ShapeItem *>(again.editor()->doc()->item(id));
         QVERIFY(kept);
         QVERIFY(qAbs(jp::cornerRadius(kept->shape, kept->adj, kept->rect.size()) - 30) < 0.01);
+    }
+
+    // The formats a merge field can show its value in: 1234.5 as $1,234.50, and the number, percent, date, and time ones; a value that is not a number or a date shows as it is, and a name with
+    // a bar in it is still a name.
+    void mergeFormatsShowNumbersCurrencyDatesAndTimes()
+    {
+        PinnedLocale pin;
+        using jp::formatMergeValue;
+        QCOMPARE(formatMergeValue(QStringLiteral("1234.5"), QStringLiteral("currency")), QStringLiteral("$1,234.50"));
+        QCOMPARE(formatMergeValue(QStringLiteral("$1,234.5"), QStringLiteral("currency:0")), QStringLiteral("$1,235"));
+        QCOMPARE(formatMergeValue(QStringLiteral("1234,5"), QStringLiteral("number:1")), QStringLiteral("1,234.5"));
+        QCOMPARE(formatMergeValue(QStringLiteral("1.234,56"), QStringLiteral("number:0")), QStringLiteral("1,235"));
+        QCOMPARE(formatMergeValue(QStringLiteral("0.256"), QStringLiteral("percent:1")), QStringLiteral("25.6%"));
+        QCOMPARE(formatMergeValue(QStringLiteral("2026-11-20"), QStringLiteral("date:long")), QStringLiteral("Friday, November 20, 2026"));
+        QCOMPARE(formatMergeValue(QStringLiteral("11/20/2026"), QStringLiteral("date:iso")), QStringLiteral("2026-11-20"));
+        QCOMPARE(formatMergeValue(QStringLiteral("2026-11-20"), QStringLiteral("date:monthday")), QStringLiteral("November 20"));
+        QCOMPARE(formatMergeValue(QStringLiteral("2026-11-20"), QStringLiteral("date:monthyear")), QStringLiteral("November 2026"));
+        QCOMPARE(formatMergeValue(QStringLiteral("15:45"), QStringLiteral("time:12")), QStringLiteral("3:45 PM"));
+        QCOMPARE(formatMergeValue(QStringLiteral("3:45 PM"), QStringLiteral("time:24")), QStringLiteral("15:45"));
+        // What can't be read, and what is empty, is as it is; so is a format the program does not know.
+        QCOMPARE(formatMergeValue(QStringLiteral("a lot"), QStringLiteral("currency")), QStringLiteral("a lot"));
+        QCOMPARE(formatMergeValue(QStringLiteral("soon"), QStringLiteral("date:long")), QStringLiteral("soon"));
+        QCOMPARE(formatMergeValue(QString(), QStringLiteral("currency")), QString());
+        QCOMPARE(formatMergeValue(QStringLiteral("1234.5"), QStringLiteral("number:9")), QStringLiteral("1234.5"));
+        QCOMPARE(formatMergeValue(QStringLiteral("1234.5"), QString()), QStringLiteral("1234.5"));
+        const jp::MergeFieldCode priced = jp::splitMergeField(QStringLiteral("Price|currency"));
+        QCOMPARE(priced.name, QStringLiteral("Price"));
+        QCOMPARE(priced.format, QStringLiteral("currency"));
+        QCOMPARE(jp::splitMergeField(QStringLiteral("A|B")).name, QStringLiteral("A|B"));
+        QCOMPARE(jp::splitMergeField(QStringLiteral("A|B|number:2")).name, QStringLiteral("A|B"));
+        QCOMPARE(jp::joinMergeField(QStringLiteral("Price"), QString()), QStringLiteral("Price"));
+    }
+
+    // Mailings > Format Merge Field sets how the field at the caret shows its value; the merged page shows it that way ($1,234.50 for 1234.5), the field's name is the same, and the
+    // choice is one step of Undo and is kept in a saved file that the app opens again.
+    void formatMergeFieldChangesWhatTheMergedPageShows()
+    {
+        PinnedLocale pin;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::initCore();
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->doc()->merge.fields = {QStringLiteral("Price")};
+        ed->doc()->merge.rows = {{QStringLiteral("1234.5")}};
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 100)));
+        {
+            QTextCursor c(ed->doc()->storyDoc(box->storyId));
+            QTextCharFormat cf;
+            cf.setProperty(jp::tp::Field, QStringLiteral("merge:Price"));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), cf);
+        }
+        ed->addItem(box);
+        auto fieldCode = [&](jp::Editor *e, const jp::TextItem *t) {
+            return e->doc()->storyDoc(t->storyId)->firstBlock().begin().fragment().charFormat().stringProperty(jp::tp::Field);
+        };
+        auto shown = [&](jp::Document *d) {
+            jp::LayoutCache cache;
+            jp::PaintContext ctx;
+            ctx.doc = d;
+            ctx.cache = &cache;
+            ctx.opt.output = true;
+            ctx.opt.mergeRecord = 0;
+            return jp::Renderer::renderToImage(ctx, 0, 1.0);
+        };
+        QVERIFY(!w.act(QStringLiteral("mm.formatField"))->isEnabled());
+        ed->beginTextEdit(box->id, 0);
+        QTRY_VERIFY(w.act(QStringLiteral("mm.formatField"))->isEnabled());
+        const QImage plainImage = shown(ed->doc());
+        withDialog([&] { w.act(QStringLiteral("mm.formatField"))->trigger(); }, QStringLiteral("mergeFormatDialog"), [&](QDialog *d) {
+            auto *kind = d->findChild<QComboBox *>(QStringLiteral("mergeFormatKind"));
+            QCOMPARE(kind->currentIndex(), 0);
+            kind->setCurrentIndex(2);   // Currency
+            QCOMPARE(d->findChild<QLabel *>(QStringLiteral("mergeFormatSample"))->text(), QStringLiteral("$1,234.50"));
+        });
+        ed->endTextEdit();
+        QCOMPARE(fieldCode(ed, box.get()), QStringLiteral("merge:Price|currency"));
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Format Merge Field"));
+        const QImage currencyImage = shown(ed->doc());
+        QVERIFY(currencyImage != plainImage);
+        // The page shows what the text "$1,234.50" shows.
+        {
+            jp::MainWindow second;
+            second.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            auto text = std::static_pointer_cast<jp::TextItem>(second.editor()->newTextBox(QRectF(72, 72, 400, 100), QStringLiteral("$1,234.50")));
+            second.editor()->addItem(text);
+            second.editor()->doc()->merge = ed->doc()->merge;
+            QCOMPARE(shown(second.editor()->doc()), currencyImage);
+        }
+        const QString path = dir.filePath(QStringLiteral("merge.jpub"));
+        QVERIFY(w.saveTo(path));
+        {
+            jp::MainWindow again;
+            QVERIFY(again.openFile(path));
+            jp::TextItem *kept = textBoxOf(again.editor());
+            QVERIFY(kept);
+            QCOMPARE(fieldCode(again.editor(), kept), QStringLiteral("merge:Price|currency"));
+            QCOMPARE(shown(again.editor()->doc()), currencyImage);
+        }
+        ed->undo();
+        QCOMPARE(fieldCode(ed, box.get()), QStringLiteral("merge:Price"));
+        QCOMPARE(shown(ed->doc()), plainImage);
+        ed->redo();
+        QCOMPARE(shown(ed->doc()), currencyImage);
     }
 };
 

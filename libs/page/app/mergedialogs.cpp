@@ -3,14 +3,22 @@
 
 #include "app/mergedialogs.h"
 
+#include "app/editor.h"
 #include "app/filedialogs.h"
+#include "app/uistyle.h"
+#include "text/mergeformat.h"
 #include "app/plaintext.h"
 #include "core/mergesource.h"
 
 #include <QBrush>
+#include <algorithm>
 #include <QCoreApplication>
 #include <QDialog>
+#include <QComboBox>
 #include <QDialogButtonBox>
+#include <QFormLayout>
+#include <QLabel>
+#include <QSpinBox>
 #include <QHash>
 #include <QHBoxLayout>
 #include <QInputDialog>
@@ -169,6 +177,86 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
     }
     m = out;
     return true;
+}
+
+bool mergeFieldFormatDialog(QWidget *p, Editor *ed)
+{
+    if (!ed->mergeFieldAtCaret()) return false;
+    enum Kind { AsIs, Number, Currency, Percent, Date, Time };
+    static const char *const dateStyles[] = {"short", "long", "iso", "monthday", "monthyear"};
+    static const char *const timeStyles[] = {"short", "12", "24"};
+    QDialog d(p);
+    d.setObjectName(QStringLiteral("mergeFormatDialog"));
+    d.setWindowTitle(QCoreApplication::translate("MergeDialogs", "Format Merge Field"));
+    auto *v = new QVBoxLayout(&d);
+    auto *form = new QFormLayout();
+    auto *kind = new QComboBox(&d);
+    kind->setObjectName(QStringLiteral("mergeFormatKind"));
+    kind->addItems({QCoreApplication::translate("MergeDialogs", "As it is in the list"), QCoreApplication::translate("MergeDialogs", "Number"), QCoreApplication::translate("MergeDialogs", "Currency"),
+                    QCoreApplication::translate("MergeDialogs", "Percent"), QCoreApplication::translate("MergeDialogs", "Date"), QCoreApplication::translate("MergeDialogs", "Time")});
+    auto *places = new QSpinBox(&d);
+    places->setObjectName(QStringLiteral("mergeFormatPlaces"));
+    places->setRange(0, 4);
+    places->setValue(2);
+    auto *style = new QComboBox(&d);
+    style->setObjectName(QStringLiteral("mergeFormatStyle"));
+    auto *sample = new QLabel(&d);
+    sample->setObjectName(QStringLiteral("mergeFormatSample"));
+    sample->setTextFormat(Qt::PlainText);
+    form->addRow(QCoreApplication::translate("MergeDialogs", "Show the value as"), kind);
+    form->addRow(QCoreApplication::translate("MergeDialogs", "Decimal places"), places);
+    form->addRow(QCoreApplication::translate("MergeDialogs", "Style"), style);
+    form->addRow(QCoreApplication::translate("MergeDialogs", "Sample"), sample);
+    v->addLayout(form);
+    auto format = [&] {
+        switch (kind->currentIndex()) {
+        case Number: return QStringLiteral("number:%1").arg(places->value());
+        case Currency: return places->value() == 2 ? QStringLiteral("currency") : QStringLiteral("currency:%1").arg(places->value());
+        case Percent: return QStringLiteral("percent:%1").arg(places->value());
+        case Date: return QStringLiteral("date:") + QLatin1String(dateStyles[std::clamp(style->currentIndex(), 0, 4)]);
+        case Time: return QStringLiteral("time:") + QLatin1String(timeStyles[std::clamp(style->currentIndex(), 0, 2)]);
+        default: return QString();
+        }
+    };
+    auto fillStyles = [&] {
+        const QSignalBlocker block(style);
+        style->clear();
+        if (kind->currentIndex() == Date)
+            style->addItems({QCoreApplication::translate("MergeDialogs", "Short"), QCoreApplication::translate("MergeDialogs", "Long"), QCoreApplication::translate("MergeDialogs", "Year, month, day"),
+                             QCoreApplication::translate("MergeDialogs", "Month and day"), QCoreApplication::translate("MergeDialogs", "Month and year")});
+        else if (kind->currentIndex() == Time)
+            style->addItems({QCoreApplication::translate("MergeDialogs", "Short"), QCoreApplication::translate("MergeDialogs", "12-hour"), QCoreApplication::translate("MergeDialogs", "24-hour")});
+    };
+    auto refresh = [&] {
+        const int k = kind->currentIndex();
+        places->setEnabled(k == Number || k == Currency || k == Percent);
+        style->setEnabled(k == Date || k == Time);
+        const QString value = k == Date ? QStringLiteral("2026-11-20") : k == Time ? QStringLiteral("15:45") : QStringLiteral("1234.5");
+        sample->setText(k == AsIs ? QCoreApplication::translate("MergeDialogs", "The value is shown as the list holds it.") : formatMergeValue(value, format()));
+    };
+    QObject::connect(kind, &QComboBox::currentIndexChanged, &d, [=](int) { fillStyles(); refresh(); });
+    QObject::connect(places, &QSpinBox::valueChanged, &d, [=](int) { refresh(); });
+    QObject::connect(style, &QComboBox::currentIndexChanged, &d, [=](int) { refresh(); });
+    // The format the field has now.
+    bool mixed = false;
+    const QString now = ed->mergeFieldFormat(&mixed);
+    if (!mixed && isMergeFormat(now)) {
+        const QString what = now.section(QLatin1Char(':'), 0, 0), detail = now.section(QLatin1Char(':'), 1);
+        const int k = what == QLatin1String("number") ? Number : what == QLatin1String("currency") ? Currency : what == QLatin1String("percent") ? Percent : what == QLatin1String("date") ? Date : Time;
+        kind->setCurrentIndex(k);
+        fillStyles();
+        if (k == Date || k == Time) {
+            for (int i = 0; i < (k == Date ? 5 : 3); ++i)
+                if (detail == QLatin1String(k == Date ? dateStyles[i] : timeStyles[i])) style->setCurrentIndex(i);
+        } else places->setValue(detail.isEmpty() ? 2 : detail.toInt());
+    }
+    refresh();
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &d);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &d, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &d, &QDialog::reject);
+    v->addWidget(bb);
+    if (d.exec() != QDialog::Accepted) return false;
+    return ed->setMergeFieldFormat(format());
 }
 
 } // namespace jp

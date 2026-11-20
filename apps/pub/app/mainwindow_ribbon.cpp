@@ -1133,6 +1133,7 @@ void MainWindow::refreshUi()
         m_pageNumbersStep = ed->undoStack()->index();
     }
     act("ins.pageNumberRemove")->setEnabled(m_pageNumbersOn);
+    act("mm.formatField")->setEnabled(ed->mergeFieldAtCaret());
     // (each shows the key the command has now, which Options > Customize can change)
     act("edit.undo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Undo %1 (Ctrl+Z)").arg(ed->undoStack()->undoText()), QStringLiteral("Ctrl+Z"), act("edit.undo"))));
     act("edit.redo")->setToolTip(jp::plainToolTip(KeyMap::tipWithShownKey(tr("Redo %1 (Ctrl+Y)").arg(ed->undoStack()->redoText()), QStringLiteral("Ctrl+Y"), act("edit.redo"))));

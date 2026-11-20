@@ -26,6 +26,7 @@
 
 #include "app/dialogs.h"
 #include "app/duplicatedialog.h"
+#include "app/mergedialogs.h"
 #include "app/formatops.h"
 #include "app/formatpresets.h"
 #include "app/guidesdialog.h"
@@ -724,6 +725,7 @@ void MainWindow::createActions()
     mk("mm.editList", tr("Edit Recipient List"), "user-pen", QKeySequence(), [this] { recipientsDialog(this, m_ed, false); });
     mk("mm.addressBlock", tr("Address Block"), "mail-open", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 0); });
     mk("mm.greeting", tr("Greeting Line"), "hand", QKeySequence(), [this] { mergeFieldDialog(this, m_ed, 1); });
+    mk("mm.formatField", tr("Format Merge Field…"), "braces", QKeySequence(), [this, ed] { mergeFieldFormatDialog(this, ed); });
     mk("mm.pictureField", tr("Picture Field"), "image", QKeySequence(), [this] {
         const QStringList fields = m_ed->doc()->merge.fields;
         if (fields.isEmpty()) { jp::plainInformation(this, tr("Picture Field"), tr("Select a recipient list first.")); return; }

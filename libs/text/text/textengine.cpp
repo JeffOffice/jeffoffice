@@ -1,4 +1,5 @@
 #include "text/textengine.h"
+#include "text/mergeformat.h"
 #include "core/threadcheck.h"
 #include "core/items.h"
 
@@ -159,8 +160,9 @@ QString FieldContext::resolve(const QString &code) const
         return v;
     }
     if (kind == "merge") {
-        if (!doc || mergeRecord < 0) return QStringLiteral("«%1»").arg(arg);
-        return doc->mergeValue(mergeRecord, arg);
+        const MergeFieldCode field = splitMergeField(arg);
+        if (!doc || mergeRecord < 0) return QStringLiteral("«%1»").arg(field.name);
+        return formatMergeValue(doc->mergeValue(mergeRecord, field.name), field.format);
     }
     if (kind == "mergeblock") {
         if (!doc || mergeRecord < 0) return arg == "greeting" ? QCoreApplication::translate("Text", "«Greeting Line»") : QCoreApplication::translate("Text", "«Address Block»");

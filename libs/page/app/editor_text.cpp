@@ -9,6 +9,7 @@
 
 #include "core/texteffects.h"
 #include "text/autocorrect.h"
+#include "text/mergeformat.h"
 #include "text/textprops.h"
 #include "app/plaintext.h"
 
@@ -1051,6 +1052,72 @@ void Editor::insertField(const QString &code)
     m_cursor.setCharFormat(f);
     endChange();
     textEdited();
+}
+
+namespace {
+
+// The places of the merge fields' marks in the part of the story from `from` to `to` (or, with nothing there, the character just before and just after `at`).
+QVector<int> mergeFieldPlaces(QTextDocument *doc, int from, int to, int at)
+{
+    QVector<int> places;
+    auto look = [&](int p) {
+        if (p < 0 || p >= doc->characterCount() - 1 || places.contains(p)) return;
+        QTextCursor c(doc);
+        c.setPosition(p);
+        c.setPosition(p + 1, QTextCursor::KeepAnchor);
+        if (c.charFormat().stringProperty(tp::Field).startsWith(QLatin1String("merge:"))) places << p;
+    };
+    if (from < to) {
+        for (int p = from; p < to && places.size() < 1000; ++p) look(p);
+    } else {
+        look(at - 1);
+        look(at);
+    }
+    return places;
+}
+
+} // namespace
+
+bool Editor::mergeFieldAtCaret() const
+{
+    return isEditingText() && !mergeFieldPlaces(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd(), m_cursor.position()).isEmpty();
+}
+
+QString Editor::mergeFieldFormat(bool *mixed) const
+{
+    if (mixed) *mixed = false;
+    if (!isEditingText()) return QString();
+    QString format;
+    bool first = true;
+    for (int p : mergeFieldPlaces(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd(), m_cursor.position())) {
+        QTextCursor c(m_cursor.document());
+        c.setPosition(p);
+        c.setPosition(p + 1, QTextCursor::KeepAnchor);
+        const QString f = splitMergeField(c.charFormat().stringProperty(tp::Field).mid(6)).format;
+        if (first) format = f;
+        else if (f != format && mixed) *mixed = true;
+        first = false;
+    }
+    return format;
+}
+
+bool Editor::setMergeFieldFormat(const QString &format)
+{
+    if (!isEditingText() || (!format.isEmpty() && !isMergeFormat(format))) return false;
+    const QVector<int> places = mergeFieldPlaces(m_cursor.document(), m_cursor.selectionStart(), m_cursor.selectionEnd(), m_cursor.position());
+    if (places.isEmpty()) return false;
+    beginChange(tr("Format Merge Field"));
+    for (int p : places) {
+        QTextCursor c(m_cursor.document());
+        c.setPosition(p);
+        c.setPosition(p + 1, QTextCursor::KeepAnchor);
+        QTextCharFormat f = c.charFormat();
+        f.setProperty(tp::Field, QStringLiteral("merge:") + joinMergeField(splitMergeField(f.stringProperty(tp::Field).mid(6)).name, format));
+        c.setCharFormat(f);
+    }
+    endChange();
+    textEdited();
+    return true;
 }
 
 void Editor::editTextAs(const QString &label, const std::function<void(QTextCursor &)> &fn)

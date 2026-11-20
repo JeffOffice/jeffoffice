@@ -417,6 +417,11 @@ public:
     void editText(const std::function<void(QTextCursor &)> &fn);   // keystroke-level edit, grouped as Typing
     void retargetText(const QString &itemId);                       // caret moved into another linked box
     void insertField(const QString &code);
+    // The merge fields at the editing caret: the ones in the selection, or else the one just before or after it. mergeFieldFormat gives the format they show their value in (empty: as the
+    // list holds it; `mixed` is set when they do not agree); setMergeFieldFormat sets it, as one step of Undo (false when no merge field is there or the format is not one of text/mergeformat.h).
+    bool mergeFieldAtCaret() const;
+    QString mergeFieldFormat(bool *mixed = nullptr) const;
+    bool setMergeFieldFormat(const QString &format);
     void insertTextBlock(const QString &text, const QString &label);
     QString currentStyleName() const;
     QVector<QTextCursor> formatTargets() const;   // cursor(s) a formatting command applies to

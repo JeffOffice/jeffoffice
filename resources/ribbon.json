@@ -189,7 +189,8 @@
         {"small": "mm.addressBlock", "keytip": "AB"},
         {"small": "mm.greeting", "keytip": "GL"},
         {"small": {"id": "ribbon.insertMergeField", "text": "Insert Merge Field", "icon": "braces"}, "keytip": "IF", "menu": "@mergeFieldMenu"},
-        {"small": "mm.pictureField", "keytip": "PF"}
+        {"small": "mm.pictureField", "keytip": "PF"},
+        {"small": "mm.formatField", "keytip": "FF"}
       ]},
       {"name": "Preview Results", "keytip": "ZP", "items": [
         {"large": "mm.preview", "keytip": "PR"},
