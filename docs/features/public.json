@@ -6027,8 +6027,9 @@
        "heading": "8ee7229f15276667148da220fbdac0c3b6b731d61ad484f1de4f841889ae8809",
        "items": [
         {
-         "status": "partly",
-         "text": "f546e9705ac8aca0a14e47e11aac9e03f62565016554a9fddbe99c2dcade2093"
+         "hide_soon": true,
+         "status": "done",
+         "text": "983f50c25d516cf96cd741b2ca6f6989f0956dcf40c25330caa548e49724ca19"
         },
         {
          "hide_soon": true,
@@ -6037,12 +6038,12 @@
         },
         {
          "status": "partly",
-         "text": "c130705cfa2629984348120c6f324c9e2fcdc1cf482ab6d9711d4d56b7093fa9"
+         "text": "39a01ae0a1cd48cdca93801c0d81cec4d8936a16af356f537260deba6ca90973"
         },
         {
          "hide_soon": true,
          "status": "done",
-         "text": "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81"
+         "text": "a3469a82d01555d94c411e312a010ae5583479b95bd101de1acc27fe8017889d"
         }
        ]
       },
@@ -11279,18 +11280,6 @@
     "fr": ""
    }
   },
-  "2da2eb67c09fefbeb5314717959c00c1da27cb0a505f700a8d8665aff360be81": {
-   "drop": false,
-   "en": "Smart cut and paste fixes spaces around moved words, and can be turned off in Options > Advanced. After a paste, the Paste Options button offers Keep Source Formatting, Merge Formatting, and Keep Text Only.",
-   "es": "Cortar y pegar inteligente corrige los espacios alrededor de las palabras movidas y puede desactivarse en Opciones > Avanzadas. Tras pegar, el botón Opciones de pegado ofrece Mantener formato de origen, Combinar formato y Mantener solo texto.",
-   "fr": "Le couper-coller intelligent corrige les espaces autour des mots déplacés et peut être désactivé dans Options > Avancé. Après un collage, le bouton Options de collage propose Conserver la mise en forme source, Fusionner la mise en forme et Conserver le texte uniquement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "2dc41131caef3eeece2632ea6a7a14dd72c57da771a512b8b6e1dc9032236b1a": {
    "drop": false,
    "en": "Change or remove a picture, swap pictures between picture frames, and arrange thumbnails.",
@@ -12045,6 +12034,18 @@
     "en": "Grouping: text items in named groups, groups of several days, and groups when two tables share data",
     "es": "Agrupación: elementos de texto en grupos con nombre, grupos de varios días y grupos cuando dos tablas comparten datos",
     "fr": "Regroupement : éléments de texte en groupes nommés, groupes de plusieurs jours et groupes lorsque deux tableaux partagent des données"
+   }
+  },
+  "39a01ae0a1cd48cdca93801c0d81cec4d8936a16af356f537260deba6ca90973": {
+   "drop": false,
+   "en": "Paste list items to continue a list, start a new list, or merge with a list. Paste spreadsheet cells as a table, nest a table, merge a table, or insert as new rows, new columns, or overwritten cells. Each paste is one undo step.",
+   "es": "Pegue elementos de lista para continuar una lista, iniciar una lista nueva o combinarla con otra. Pegue celdas de hoja de cálculo como tabla, anide una tabla, combine una tabla o insértela como filas nuevas, columnas nuevas o celdas sobrescritas. Cada pegado es un solo paso de deshacer.",
+   "fr": "Collez des éléments de liste pour poursuivre une liste, en commencer une nouvelle ou la fusionner avec une autre. Collez des cellules de feuille de calcul comme tableau, imbriquez un tableau, fusionnez un tableau ou insérez-le comme nouvelles lignes, nouvelles colonnes ou cellules écrasées. Chaque collage correspond à une seule étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Table style from the source, paste cells as a picture, and Set Default Paste",
+    "es": "Estilo de tabla del origen, pegado de celdas como imagen y Set Default Paste",
+    "fr": "Style de tableau de la source, collage de cellules comme image et Set Default Paste"
    }
   },
   "39ac727bf5666ce3a985550487a5f33f32f551c95fab69063b0f53590b7f6a51": {
@@ -18911,6 +18912,18 @@
     "fr": ""
    }
   },
+  "983f50c25d516cf96cd741b2ca6f6989f0956dcf40c25330caa548e49724ca19": {
+   "drop": false,
+   "en": "Cut, copy, and paste text, with paste choices for merging formatting, keeping text only, and pasting a picture. `Paste Special` (`Ctrl+Alt+V`) lists the formats the clipboard can be pasted as.",
+   "es": "Corte, copie y pegue texto, con opciones de pegado para combinar el formato, conservar solo el texto y pegar una imagen. `Paste Special` (`Ctrl+Alt+V`) muestra los formatos en los que se puede pegar el contenido del portapapeles.",
+   "fr": "Coupez, copiez et collez du texte, avec des options de collage pour fusionner la mise en forme, conserver uniquement le texte et coller une image. `Paste Special` (`Ctrl+Alt+V`) liste les formats sous lesquels le contenu du presse-papiers peut être collé.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9848cd66c9afa034654c5f893684892375514c468e13863cc63777fc54a3cfc6": {
    "drop": false,
    "en": "Copy formatting from text and objects, once or, by holding `Shift` on the button, many times.",
@@ -19665,6 +19678,18 @@
     "en": "Larger gallery of built-in header and footer designs",
     "es": "Galería más amplia de diseños integrados de encabezado y pie de página",
     "fr": "Galerie plus large de modèles d’en-tête et de pied de page intégrés"
+   }
+  },
+  "a3469a82d01555d94c411e312a010ae5583479b95bd101de1acc27fe8017889d": {
+   "drop": false,
+   "en": "Smart cut and paste fixes spaces and punctuation around moved words, and can be turned off in Options > Advanced. After pasting, the Paste Options button offers Keep Source Formatting, Merge Formatting, and Keep Text Only; open it with the `Ctrl` key.",
+   "es": "El corte y pegado inteligente corrige los espacios y la puntuación alrededor de las palabras movidas, y se puede desactivar en Options > Advanced. Después de pegar, el botón Paste Options ofrece Keep Source Formatting, Merge Formatting y Keep Text Only; ábralo con la tecla `Ctrl`.",
+   "fr": "Le couper-coller intelligent corrige les espaces et la ponctuation autour des mots déplacés, et peut être désactivé dans Options > Advanced. Après un collage, le bouton Paste Options propose Keep Source Formatting, Merge Formatting et Keep Text Only ; ouvrez-le avec la touche `Ctrl`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6": {
@@ -21453,18 +21478,6 @@
     "en": "Other chart types and chart styling from `.xls`: 3-D looks, radar, surface, bubble, and stock charts, fonts and fills, axis number formats, and points of other colors",
     "es": "Otros tipos y estilos de gráfico desde `.xls`: aspectos 3D, gráficos de radar, de superficie, de burbujas y de cotizaciones, fuentes y rellenos, formatos numéricos de los ejes y puntos de otros colores",
     "fr": "Autres types et styles de graphique depuis `.xls` : aspects 3D, graphiques radar, de surface, à bulles et boursiers, polices et remplissages, formats numériques des axes et points d’autres couleurs"
-   }
-  },
-  "c130705cfa2629984348120c6f324c9e2fcdc1cf482ab6d9711d4d56b7093fa9": {
-   "drop": false,
-   "en": "Paste list items to continue a list, start a new one, or merge with it. Paste spreadsheet cells as a table, and with the caret in a table, nest the table, merge it, insert it as new rows, or overwrite cells. Each paste is one undo step.",
-   "es": "Pegue elementos de lista para continuar una lista, iniciar una nueva o combinarla. Pegue celdas de hoja de cálculo como tabla y, con el cursor en una tabla, anide la tabla, combínela, insértela como filas nuevas o sobrescriba celdas. Cada pegado es un solo paso de deshacer.",
-   "fr": "Collez des éléments de liste pour poursuivre une liste, en commencer une nouvelle ou la fusionner. Collez des cellules de tableur sous forme de tableau et, le curseur dans un tableau, imbriquez le tableau, fusionnez-le, insérez-le comme nouvelles lignes ou remplacez des cellules. Chaque collage est une seule étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Paste as the source’s table style, paste as a picture, and Set Default Paste",
-    "es": "Pegar con el estilo de tabla del origen, pegar como imagen y Establecer pegado predeterminado",
-    "fr": "Collage avec le style de tableau de la source, collage en image et Définir le collage par défaut"
    }
   },
   "c1385eff263b71d5bf4c43563cb48d761cf5da35ad0b84a7a18fdbb01004e3e0": {
@@ -25485,18 +25498,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "f546e9705ac8aca0a14e47e11aac9e03f62565016554a9fddbe99c2dcade2093": {
-   "drop": false,
-   "en": "Cut, Copy, Paste, and Select All keep the formatting of the text. The Paste menu offers Merge Formatting, Keep Text Only, and Picture, and Paste Special (`Ctrl+Alt+V`) lists the formats the clipboard can be pasted as, including formatted text (RTF).",
-   "es": "Cortar, Copiar, Pegar y Seleccionar todo conservan el formato del texto. El menú Pegar ofrece Combinar formato, Mantener solo texto e Imagen, y Pegado especial (`Ctrl+Alt+V`) muestra los formatos en que se puede pegar el contenido del portapapeles, incluido el texto con formato (RTF).",
-   "fr": "Couper, Copier, Coller et Tout sélectionner conservent la mise en forme du texte. Le menu Coller propose Fusionner la mise en forme, Conserver le texte uniquement et Image, et Collage spécial (`Ctrl+Alt+V`) liste les formats sous lesquels le contenu du presse-papiers peut être collé, dont le texte mis en forme (RTF).",
-   "soon": {
-    "drop": false,
-    "en": "Paste choices for lists and tables, and the Paste Options button",
-    "es": "Opciones de pegado para listas y tablas, y el botón Opciones de pegado",
-    "fr": "Choix de collage pour les listes et les tableaux, et bouton Options de collage"
    }
   },
   "f5c1d40ddcc1c823b1e0c89b31c426be81eb2e1552a6e8fbaebbb7c5c5130157": {
