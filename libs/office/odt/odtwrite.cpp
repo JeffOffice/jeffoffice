@@ -474,7 +474,7 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
                 if (line > 0) {
                     if (rule == QLatin1String("exact")) x += " fo:line-height=\"" + inchesFromTwips(line).toUtf8() + "\"";
                     else if (rule == QLatin1String("atLeast")) x += " style:line-height-at-least=\"" + inchesFromTwips(line).toUtf8() + "\"";
-                    else x += " fo:line-height=\"" + QByteArray::number(std::round(line / 240.0 * 100.0)) + "%\"";
+                    else x += " fo:line-height=\"" + QByteArray::number(line / 240.0 * 100.0, 'g', 7) + "%\"";   // (not rounded to a whole percent: 227 twentieths of a point is 94.58333%, which comes back as 227)
                 }
             }
         } else if (name == "ind") {
@@ -834,6 +834,9 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             s.top = tw(c, "top", s.top);
             s.bottom = tw(c, "bottom", s.bottom);
             s.left = tw(c, "left", s.left);
+            // (The binding's room is added to the margin it is at: the format has no gutter. It is not done for mirrored margins or a gutter at the top, where the room is on another side.)
+            if (const qint64 gutter = std::max<qint64>(0, tw(c, "gutter", 0)); gutter > 0 && !(m_settings && (m_settings->child(m_settings->root(), "mirrorMargins") >= 0 || m_settings->child(m_settings->root(), "gutterAtTop") >= 0)))
+                s.left += gutter;
             s.right = tw(c, "right", s.right);
             s.header = tw(c, "header", s.header);
             s.footer = tw(c, "footer", s.footer);

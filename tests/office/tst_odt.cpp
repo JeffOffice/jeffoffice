@@ -2292,6 +2292,27 @@ private Q_SLOTS:
         QVERIFY2(back.contains(QLatin1String("<w:br w:type=\"column\"/>")), qPrintable(back));
         QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("after")}));
     }
+
+    // Line spacing of "automatic" kind is a share of the line, not rounded to a whole percent: a spacing of 227 or 272 comes back as 227 or 272, not 228 or 271.
+    void anAutomaticLineSpacingIsNotRoundedToAWholePercent()
+    {
+        const QString body = QStringLiteral("<w:p><w:pPr><w:spacing w:line=\"227\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>a</w:t></w:r></w:p><w:p><w:pPr><w:spacing w:line=\"272\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>b</w:t></w:r></w:p>"
+                                            "<w:p><w:pPr><w:spacing w:line=\"360\" w:lineRule=\"auto\"/></w:pPr><w:r><w:t>c</w:t></w:r></w:p>");
+        const QString c = odtStylesAndContentOf(body.toUtf8());
+        QVERIFY2(c.contains(QLatin1String("fo:line-height=\"150%\"")), qPrintable(c));
+        const QString back = roundTripBody(body.toUtf8());
+        QVERIFY2(back.contains(QLatin1String("w:line=\"227\"")) && back.contains(QLatin1String("w:line=\"272\"")) && back.contains(QLatin1String("w:line=\"360\"")), qPrintable(back));
+    }
+
+    // A page's gutter (the room for the binding) is part of its left margin in the file, the format having none: the text is where it was, and it comes back as the margin it is.
+    void aPageGutterIsPartOfTheLeftMargin()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"432\"/></w:sectPr>";
+        const QString c = odtStylesAndContentOf(body);
+        QVERIFY2(c.contains(QLatin1String("fo:margin-left=\"1.3000in\"")), qPrintable(c));
+        const QString back = roundTripBody(body);
+        QVERIFY2(back.contains(QLatin1String("w:left=\"1872\"")), qPrintable(back));
+    }
 };
 
 QTEST_MAIN(OdtTests)
