@@ -1087,6 +1087,7 @@ void Reader::applyStyleColors()
     int total = 0;
     for (const ChartPlot &p : std::as_const(c.plots)) total += int(p.series.size());
     const QColor base = kind == 0 ? QColor(128, 128, 128) : m_theme.colors[m_map.accent[kind - 2]];
+    c.styleBase = base;
     int k = 0;
     for (ChartPlot &p : c.plots)
         for (ChartSeries &s : p.series) {
@@ -1256,6 +1257,12 @@ bool Reader::read(const QDomElement &root, QString *error)
 }
 
 } // namespace
+
+QColor chartStyleSeriesColor(const Chart &chart, int k, int total)
+{
+    if (chart.styleBase.isValid()) return shadeOf(chart.styleBase, k, total);
+    return chart.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : chart.palette[k % chart.palette.size()];
+}
 
 bool chartAllowsDataTable(const Chart &chart)
 {

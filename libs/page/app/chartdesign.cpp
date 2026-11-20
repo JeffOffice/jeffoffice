@@ -7,6 +7,8 @@
 #include "sheet/chartedit.h"
 
 #include <QActionGroup>
+#include <QComboBox>
+#include <QPointer>
 #include <QCoreApplication>
 #include <QFileInfo>
 #include <QImage>
@@ -567,6 +569,78 @@ void ChartDesign::formatPart(int part)
     if (dialog.exec() != QDialog::Accepted) return;
     const Chart made = dialog.result();
     m_host->changeChart(tr("Format Chart Part"), [made](Chart *c) { *c = made; });
+}
+
+QStringList ChartDesign::partNames() const
+{
+    Chart chart;
+    return m_host->chartNow(&chart) ? chartPartNames(chart) : QStringList();
+}
+
+void ChartDesign::selectPart(int index)
+{
+    const int count = int(partNames().size());
+    const int now = count > 0 ? std::clamp(index, 0, count - 1) : 0;
+    if (now == m_part) return;
+    m_part = now;
+    Q_EMIT partsChanged();
+}
+
+void ChartDesign::formatSelection()
+{
+    const int count = int(partNames().size());
+    if (count > 0) formatPart(std::clamp(m_part, 0, count - 1));
+}
+
+bool ChartDesign::resetSelectionToStyle()
+{
+    Chart chart;
+    if (!m_host->chartNow(&chart)) return false;
+    const int count = int(chartPartNames(chart).size());
+    const int at = std::clamp(m_part, 0, count - 1);
+    const ChartPart part = at == 0 ? ChartPart::Area : at == 1 ? ChartPart::Plot : ChartPart::Series;
+    // (a part that already matches its style is not a step)
+    Chart reset = chart;
+    resetPartToStyle(&reset, part, at - 2);
+    if (writeChartPart(reset) == writeChartPart(chart)) return false;
+    return m_host->changeChart(tr("Reset to Match Style"), [part, at](Chart *c) { resetPartToStyle(c, part, at - 2); });
+}
+
+void ChartDesign::refreshParts()
+{
+    const int count = int(partNames().size());
+    if (m_part >= count) m_part = std::max(0, count - 1);
+    Q_EMIT partsChanged();
+}
+
+QComboBox *ChartDesign::partBox(QWidget *parent)
+{
+    auto *box = new QComboBox(parent);
+    box->setObjectName(QStringLiteral("chartPartBox"));
+    box->setAccessibleName(tr("Current Selection"));
+    box->setToolTip(plainToolTip(tr("Current Selection: the part of the chart that Format Selection and Reset to Match Style act on")));
+    box->setMinimumContentsLength(14);
+    box->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    QPointer<ChartDesign> design(this);
+    auto fill = [box, design] {
+        if (!design) return;
+        const QSignalBlocker block(box);
+        const QStringList names = design->partNames();
+        QStringList shown;
+        for (int i = 0; i < box->count(); ++i) shown << box->itemText(i);
+        if (shown != names) {
+            box->clear();
+            box->addItems(names);
+        }
+        box->setCurrentIndex(box->count() > 0 ? design->currentPart() : -1);
+        box->setEnabled(box->count() > 0);
+    };
+    connect(this, &ChartDesign::partsChanged, box, fill);
+    connect(box, &QComboBox::activated, this, [design](int index) {
+        if (design) design->selectPart(index);
+    });
+    fill();
+    return box;
 }
 
 bool isOpenDocumentPath(const QString &path)

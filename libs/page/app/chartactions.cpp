@@ -190,6 +190,8 @@ void ChartActions::create()
     mk(QStringLiteral("chartdesign.switch"), QCoreApplication::translate("jp::ChartActions", "Swap Rows and Columns"), "arrow-left-right", [this] { m_design->switchRowsAndColumns(); });
     mk(QStringLiteral("chartdesign.changeType"), QCoreApplication::translate("jp::ChartActions", "Chart Kind…"), "chart-no-axes-combined", [this] { m_design->changeType(); });
     mk(QStringLiteral("chartdesign.formatPart"), QCoreApplication::translate("jp::ChartActions", "Format Chart Part…"), "paintbrush", [this] { m_design->formatPart(); });
+    mk(QStringLiteral("chartdesign.formatSelection"), QCoreApplication::translate("jp::ChartActions", "Format Selection…"), "paintbrush", [this] { m_design->formatSelection(); });
+    mk(QStringLiteral("chartdesign.resetStyle"), QCoreApplication::translate("jp::ChartActions", "Reset to Match Style"), "rotate-ccw", [this] { m_design->resetSelectionToStyle(); });
     mk(QStringLiteral("chartdesign.axisH"), QCoreApplication::translate("jp::ChartActions", "Format Horizontal Axis…"), "ruler", [this] { m_design->formatAxis(true); });
     mk(QStringLiteral("chartdesign.axisV"), QCoreApplication::translate("jp::ChartActions", "Format Vertical Axis…"), "ruler", [this] { m_design->formatAxis(false); });
 }
@@ -258,6 +260,9 @@ bool ChartActions::refresh()
     }
     act(QStringLiteral("chartdesign.changeType"))->setEnabled(editable);
     act(QStringLiteral("chartdesign.formatPart"))->setEnabled(editable);
+    act(QStringLiteral("chartdesign.formatSelection"))->setEnabled(editable);
+    act(QStringLiteral("chartdesign.resetStyle"))->setEnabled(editable);
+    m_design->refreshParts();
     act(QStringLiteral("chartdesign.axisH"))->setEnabled(editable && info.hasAxes);
     act(QStringLiteral("chartdesign.axisV"))->setEnabled(editable && info.hasAxes);
     if (m_canvas) m_buttonsTimer.start();

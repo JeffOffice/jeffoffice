@@ -156,6 +156,10 @@ private:
 
 // Format Chart Part: the look of the chart area, the plot area, or one series, set one part at a time: its fill (a color, or none), its line (a color, a width, or none), and for a series whether its line is
 // smooth and what mark stands at each point. It is given the chart and gives the chart back with the looks the person set; the parts left alone are as they were.
+// The parts of the chart a look can be set on, in the order of the list: the chart area, the plot area, then each series (by its name, or "Series 1" and so on). The same list is Current
+// Selection's.
+JO_COMMON_EXPORT QStringList chartPartNames(const jp::office::Chart &chart);
+
 class JO_COMMON_EXPORT FormatChartPartDialog : public QDialog {
     Q_OBJECT
 public:
@@ -164,6 +168,7 @@ public:
     jp::office::Chart result() const;
     // For tests and the window.
     int partsShown() const;
+    int currentPart() const;
     void choosePart(int index);
     void setFill(const QColor &color);
     void setNoFill(bool on);

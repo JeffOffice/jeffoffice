@@ -590,6 +590,14 @@ const ChartMarker::Symbol kMarkers[] = {ChartMarker::Auto, ChartMarker::None, Ch
 
 } // namespace
 
+QStringList chartPartNames(const Chart &chart)
+{
+    QStringList names = {QCoreApplication::translate("jp::FormatChartPartDialog", "Chart Area"), QCoreApplication::translate("jp::FormatChartPartDialog", "Plot Area")};
+    const QVector<ChartSeries> series = seriesOf(chart);
+    for (int i = 0; i < series.size(); ++i) names << (series[i].name.isEmpty() ? QCoreApplication::translate("jp::FormatChartPartDialog", "Series %1").arg(i + 1) : series[i].name);
+    return names;
+}
+
 FormatChartPartDialog::FormatChartPartDialog(const Chart &chart, int part, QWidget *parent) : QDialog(parent), m_chart(chart)
 {
     setWindowTitle(tr("Format Chart Part"));
@@ -598,10 +606,7 @@ FormatChartPartDialog::FormatChartPartDialog(const Chart &chart, int part, QWidg
     m_parts = new QComboBox(this);
     m_parts->setObjectName(QStringLiteral("chartPartChoice"));
     m_parts->setAccessibleName(tr("Part of the chart"));
-    m_parts->addItem(tr("Chart Area"));
-    m_parts->addItem(tr("Plot Area"));
-    const QVector<ChartSeries> series = seriesOf(chart);
-    for (int i = 0; i < series.size(); ++i) m_parts->addItem(series[i].name.isEmpty() ? tr("Series %1").arg(i + 1) : series[i].name);
+    m_parts->addItems(chartPartNames(chart));
     m_looks.resize(m_parts->count());
     for (int i = 0; i < m_looks.size(); ++i) m_looks[i] = partLookOf(chart, i == 0 ? ChartPart::Area : i == 1 ? ChartPart::Plot : ChartPart::Series, i - 2);
     form->addRow(tr("Part"), m_parts);
@@ -706,6 +711,8 @@ Chart FormatChartPartDialog::result() const
 }
 
 int FormatChartPartDialog::partsShown() const { return m_parts->count(); }
+
+int FormatChartPartDialog::currentPart() const { return m_parts->currentIndex(); }
 
 void FormatChartPartDialog::choosePart(int index) { m_parts->setCurrentIndex(index); }
 

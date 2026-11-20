@@ -149,6 +149,9 @@ struct ChartPartLook {
 ChartPartLook partLookOf(const Chart &chart, ChartPart part, int series = 0);
 // Gives the part the look: a fill color replaces what the file had (a gradient too), and `noFill` takes the fill away. Nothing for a series the chart does not have.
 void setPartLook(Chart *chart, ChartPart part, int series, const ChartPartLook &look);
+// Reset to Match Style: takes away what was set on the part itself and leaves what the chart's style gives it. The chart area and the plot area have no fill and no line of their own again; a
+// series has the color its style gives it, no outline, the stroke and marks of its kind, and its points (and slices) in the style's colors. Nothing for a series the chart does not have.
+void resetPartToStyle(Chart *chart, ChartPart part, int series);
 
 // ---- kinds
 // What each series is drawn as, in the order of the chart's series (the plots' in turn).

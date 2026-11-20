@@ -1090,4 +1090,41 @@ void setPartLook(Chart *chart, ChartPart part, int series, const ChartPartLook &
     }
 }
 
+void resetPartToStyle(Chart *chart, ChartPart part, int series)
+{
+    switch (part) {
+    case ChartPart::Area:
+        chart->background = QColor();
+        chart->backgroundNone = false;
+        chart->backgroundKept = ChartKept();
+        chart->border = ChartLine();
+        break;
+    case ChartPart::Plot:
+        chart->plotFill = QColor();
+        chart->plotNone = false;
+        chart->plotKept = ChartKept();
+        chart->plotBorder = ChartLine();
+        break;
+    case ChartPart::Series: {
+        const int total = seriesCount(*chart);
+        int n = 0;
+        for (ChartPlot &p : chart->plots)
+            for (ChartSeries &s : p.series) {
+                if (n++ != series) continue;
+                s.color = chartStyleSeriesColor(*chart, series, total);
+                s.colorFromFile = false;
+                s.noFill = false;
+                s.outline = ChartLine();
+                s.kept = ChartKept();
+                s.pointColors.clear();
+                s.keptPoints.clear();
+                s.smooth = p.type == ChartType::Scatter && p.lines && p.smooth;
+                s.marker = ChartMarker();
+                if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
+            }
+        break;
+    }
+    }
+}
+
 } // namespace jp::office::sheet

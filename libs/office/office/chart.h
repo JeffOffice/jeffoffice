@@ -281,6 +281,7 @@ struct Chart {
     bool drawTrendlines = false;    // the series' trendlines are drawn (and named in the legend); a program that has not asked for them draws a chart as it always has
     // What it is set in and drawn on, from the theme and the color map.
     QVector<QColor> palette;        // the colors series (and slices) take when the file gives none, in order
+    QColor styleBase;               // the color the chart's style shades the series from (its styles of one color); invalid when the style colors them from the palette in turn
     QString fontFamily;
     ChartFont font;                 // c:txPr of the chart: its text, unless a part says otherwise
     QColor textColor, backgroundColor;
@@ -340,6 +341,8 @@ bool readChart(const QByteArray &chartPartXml, const Theme &theme, const ColorMa
 
 // How many characters of number format codes were parsed on this thread since it began (a code past what a spreadsheet allows is not parsed): a count for tests of cost.
 qint64 chartFormatCharsReadForTest();
+// The color the chart's style gives series number `k` of `total` when nothing sets it (the palette in turn, or shades of the style's one color).
+QColor chartStyleSeriesColor(const Chart &chart, int k, int total);
 
 // Whether a chart can have a data table: every plot is columns, lines, or areas (not bars across, scatter, pie, or a kind drawn as Other). One rule for what is drawn, what is written, and what the
 // menus offer.

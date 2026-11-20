@@ -10,11 +10,13 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
 #include <QToolButton>
 #include <QVector>
 #include <functional>
 
 class QAction;
+class QComboBox;
 class QMenu;
 class QWidget;
 
@@ -102,10 +104,27 @@ public:
     // Format Chart Part: the look of the chart area, the plot area, or a series (`part`: 0, 1, or 2 and on for the series).
     void formatPart(int part = 0);
 
+    // Current Selection: the part of the chart the Format commands act on, one of the list of chartPartNames (the chart area, the plot area, and each series). It is chosen in the box
+    // partBox() makes (every box of the window shows the same one) or by selectPart; Format Selection opens Format Chart Part at it, and Reset to Match Style takes away what was set on it
+    // (sheet/chartedit.h resetPartToStyle) as one step, or does nothing, and says so by returning false, when the part already matches its style.
+    QStringList partNames() const;
+    int currentPart() const { return m_part; }
+    void selectPart(int index);
+    void formatSelection();
+    bool resetSelectionToStyle();
+    // The box that lists the parts. It is empty and off while no chart is selected; the window calls refreshParts when the selection or the chart changes.
+    QComboBox *partBox(QWidget *parent);
+    void refreshParts();
+
     ChartDesignHost *host() const { return m_host; }
+
+Q_SIGNALS:
+    // The list of parts or the selected one changed.
+    void partsChanged();
 
 private:
     ChartDesignHost *m_host;
+    int m_part = 0;
 };
 
 // The three buttons beside a selected chart: Chart Parts (the elements menu), Chart Looks (colors and looks), and Chart Filters (the series). They are children of `viewport`, which the app

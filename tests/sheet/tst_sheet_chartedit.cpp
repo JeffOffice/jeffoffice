@@ -500,6 +500,61 @@ private Q_SLOTS:
         QVERIFY(!roundTrip(c).plotNone);
     }
 
+    // Reset to Match Style takes away what was set on one part and leaves the others; what it leaves is what the style gives, for a style of accents in turn and for one of shades.
+    void aPartIsResetToMatchItsStyle()
+    {
+        for (int style : {2, 3}) {
+            Chart c = columns();
+            c.style = style;
+            c = roundTrip(c);
+            QCOMPARE(c.styleBase.isValid(), style == 3);
+            const QColor first = chartStyleSeriesColor(c, 0, 2), second = chartStyleSeriesColor(c, 1, 2);
+            QVERIFY(first != second);
+            if (style == 3) QVERIFY(second != c.palette[1]);
+            ChartPartLook area;
+            area.fill = QColor(Qt::yellow);
+            area.line.set = true;
+            area.line.width = 3;
+            setPartLook(&c, ChartPart::Area, 0, area);
+            setPartLook(&c, ChartPart::Plot, 0, area);
+            ChartPartLook look = partLookOf(c, ChartPart::Series, 0);
+            look.fill = QColor(0x12, 0x34, 0x56);
+            look.line.set = true;
+            look.line.width = 4;
+            look.smooth = true;
+            look.marker = ChartMarker::Star;
+            setPartLook(&c, ChartPart::Series, 0, look);
+            look = partLookOf(c, ChartPart::Series, 1);
+            look.noFill = true;
+            setPartLook(&c, ChartPart::Series, 1, look);
+            // the series alone: its color is the style's, its stroke, line, and marks are gone, and nothing else changed
+            resetPartToStyle(&c, ChartPart::Series, 0);
+            const ChartPartLook now = partLookOf(c, ChartPart::Series, 0);
+            QCOMPARE(now.fill, first);
+            QVERIFY(!now.noFill && !now.line.set && !now.smooth && now.marker == ChartMarker::Auto);
+            QVERIFY(partLookOf(c, ChartPart::Series, 1).noFill);
+            QCOMPARE(partLookOf(c, ChartPart::Area).fill, QColor(Qt::yellow));
+            // the other series, then the page and the plot
+            resetPartToStyle(&c, ChartPart::Series, 1);
+            QCOMPARE(partLookOf(c, ChartPart::Series, 1).fill, second);
+            QVERIFY(!partLookOf(c, ChartPart::Series, 1).noFill);
+            resetPartToStyle(&c, ChartPart::Area, 0);
+            QVERIFY(!partLookOf(c, ChartPart::Area).fill.isValid() && !partLookOf(c, ChartPart::Area).line.set);
+            QCOMPARE(partLookOf(c, ChartPart::Plot).fill, QColor(Qt::yellow));
+            resetPartToStyle(&c, ChartPart::Plot, 0);
+            QVERIFY(!partLookOf(c, ChartPart::Plot).fill.isValid() && !partLookOf(c, ChartPart::Plot).line.set);
+            // a series the chart does not have changes nothing, and a reset of what matches the style is no change
+            const QByteArray written = writeChartPart(c);
+            resetPartToStyle(&c, ChartPart::Series, 9);
+            resetPartToStyle(&c, ChartPart::Series, 0);
+            QCOMPARE(writeChartPart(c), written);
+            // and what was reset is what the file keeps
+            const Chart back = roundTrip(c);
+            QCOMPARE(partLookOf(back, ChartPart::Series, 0).fill.name(), chartStyleSeriesColor(back, 0, 2).name());
+            QVERIFY(!partLookOf(back, ChartPart::Area).fill.isValid());
+        }
+    }
+
     void colorsAndLooksAreOurOwnAndStay()
     {
         QVERIFY(chartColorSchemeCount() >= 6 && chartStyleCount() >= 4 && chartLayoutCount() >= 4);
