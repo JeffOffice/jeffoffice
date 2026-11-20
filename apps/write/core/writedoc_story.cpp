@@ -684,6 +684,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         }
     };
 
+    // (The changes of a header, a footer, or a note are marked when it is in the form it is edited in: as the text's are, for Show Markup and the views of Display for Review.)
+    const bool markRevisions = !header || editable;
     QHash<QByteArray, QTextCharFormat> formats;
     const TableLayer *layer = nullptr;   // what the style of the table that the paragraphs are in gives them
     auto formatOf = [&](const QString &paraStyle, const RunProps &props) {
@@ -964,13 +966,13 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         // A paragraph whose mark a tracked change deleted is joined to the next as the text stands (and ends no section).
         if (!direct.section && markIsDeleted(direct)) {
             markFormat = asDeleted(markFormat);
-            if (!header) {
+            if (markRevisions) {
                 QString who;
                 for (const RawChild &ch : direct.markRun->extra)
                     if (ch.xml.startsWith("<w:del") || ch.xml.startsWith("<w:moveFrom")) who = attributeOfTag(ch.xml, QStringLiteral("author"));
                 markFormat = inRevision(markFormat, 2, reviewerIndex(who));
             }
-        } else if (!header && !direct.section && direct.markRun) {
+        } else if (markRevisions && !direct.section && direct.markRun) {
             // (A mark that a change inserted shows only where what the change made is shown.)
             for (const RawChild &ch : direct.markRun->extra)
                 if (ch.xml.startsWith("<w:ins") || ch.xml.startsWith("<w:moveTo")) markFormat = inRevision(markFormat, ch.xml.startsWith("<w:ins") ? 1 : 4, reviewerIndex(attributeOfTag(ch.xml, QStringLiteral("author"))));
@@ -1265,7 +1267,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         for (int inAt = 0; inAt < p.content.size(); ++inAt) {
             const Inline &in = p.content[inAt];
             if (in.kind == Inline::ParaAtom && isDeletedRevision(in.tag)) deletedDepth = std::max(0, deletedDepth + (in.role == Inline::Open ? 1 : in.role == Inline::Close ? -1 : 0));
-            if (in.kind == Inline::ParaAtom && !header && revisionKindOf(in.tag) > 0 && in.role != Inline::Single) {
+            if (in.kind == Inline::ParaAtom && markRevisions && revisionKindOf(in.tag) > 0 && in.role != Inline::Single) {
                 if (in.role == Inline::Open && inChanges.size() < 64) inChanges.push_back({revisionKindOf(in.tag), reviewerIndex(attributeOfTag(in.raw, QStringLiteral("author")))});
                 else if (in.role == Inline::Close && !inChanges.isEmpty()) inChanges.pop_back();
                 changeKind = changeAuthor = 0;
@@ -1293,7 +1295,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (!in.text.isEmpty()) {
                     QTextCharFormat shown = deleted ? asDeleted(formatOf(styleId, in.props)) : formatOf(styleId, in.props);
                     if (blankResult.contains(inAt)) shown.setProperty(tp::BlankFieldResult, true);
-                    if (!header) {
+                    if (markRevisions) {
                         shown = inRevision(shown, changeKind, changeAuthor, changeInserted);
                         for (const RawChild &ch : in.props.extra)
                             if (ch.xml.startsWith("<w:rPrChange")) shown.setProperty(tp::RevisionFormat, true);
@@ -1312,7 +1314,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 if (const std::optional<double> asked = advanceTopOf(in)) advanceTop = *asked;
             QTextCharFormat af = formatOf(styleId, in.props);
             if (deleted) af = asDeleted(af);
-            if (!header && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor, changeInserted);
+            if (markRevisions && !(in.kind == Inline::ParaAtom && revisionKindOf(in.tag) > 0)) af = inRevision(af, changeKind, changeAuthor, changeInserted);
             if (markFields) {
                 const bool inside = insideResult();
                 if (in.kind == Inline::RunAtom && in.tag == QLatin1String("fldChar")) {

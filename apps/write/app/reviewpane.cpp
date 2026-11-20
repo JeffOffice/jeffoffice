@@ -206,7 +206,10 @@ void ReviewPane::rebuild()
         const QString was = m_person->currentData().toString();
         m_person->clear();
         m_person->addItem(tr("All Reviewers"), QString());
-        for (const QString &p : write::revisionAuthors(doc->story())) m_person->addItem(p, p);
+        QStringList authors;
+        for (const write::StoryRevision &sr : write::documentRevisions(*doc, kMostListed * 4))
+            if (!sr.revision.author.isEmpty() && !authors.contains(sr.revision.author)) authors.push_back(sr.revision.author);
+        for (const QString &p : std::as_const(authors)) m_person->addItem(p, p);
         const int at = m_person->findData(was);
         m_person->setCurrentIndex(std::max(0, at));
     }
@@ -215,11 +218,12 @@ void ReviewPane::rebuild()
     // The changes.
     m_changes->clear();
     int listed = 0;
-    for (const write::Revision &r : write::revisionsIn(doc->story(), 0, -1, kMostListed + 1)) {
+    for (const write::StoryRevision &sr : write::documentRevisions(*doc, kMostListed * 4 + 1)) {
+        const write::Revision &r = sr.revision;
         if (!person.isEmpty() && r.author != person) continue;
         if (++listed > kMostListed) break;
         auto *item = new QTreeWidgetItem(m_changes);
-        const QString words = write::revisionText(doc->story(), r, 60);
+        const QString words = write::revisionText(sr.story, r, 60);
         item->setText(0, words.isEmpty() ? kindName(r) : kindName(r) + QStringLiteral(": ") + words);
         item->setText(1, r.author);
         item->setText(2, dateText(r.date));
@@ -227,6 +231,7 @@ void ReviewPane::rebuild()
         item->setData(0, Qt::UserRole + 1, r.to);
         item->setData(0, Qt::UserRole + 2, int(r.kind));
         item->setData(0, Qt::UserRole + 3, r.id);
+        item->setData(0, Qt::UserRole + 4, sr.container);
     }
     // The comments, replies under the comment they answer.
     m_comments->clear();
@@ -295,13 +300,13 @@ void ReviewPane::showChosenChange()
     write::WriteDoc *doc = m_win->document();
     const QList<QTreeWidgetItem *> sel = m_changes->selectedItems();
     if (!doc || sel.isEmpty() || m_building) return;
-    m_win->view()->leaveHeaderFooter();
-    m_win->view()->leaveNote();
-    QTextCursor c(doc->story());
-    const int from = sel.first()->data(0, Qt::UserRole).toInt(), to = sel.first()->data(0, Qt::UserRole + 1).toInt();
-    c.setPosition(std::min(from, doc->story()->characterCount() - 1));
-    c.setPosition(std::min(std::max(from, to), doc->story()->characterCount() - 1), QTextCursor::KeepAnchor);
-    m_win->view()->showCursor(c);
+    QTextDocument *story = write::storyOfContainer(*doc, sel.first()->data(0, Qt::UserRole + 4).toString());
+    if (!story) return;
+    write::StoryRevision shown;
+    shown.story = story;
+    shown.revision.from = sel.first()->data(0, Qt::UserRole).toInt();
+    shown.revision.to = sel.first()->data(0, Qt::UserRole + 1).toInt();
+    m_win->showRevision(shown);
 }
 
 void ReviewPane::showChosenComment()
@@ -389,11 +394,9 @@ void ReviewPane::resolveChange(bool accept)
     // The change of the row, by what it is: its kind, its Id, and where it begins (never by a place that is near it).
     const int from = sel.first()->data(0, Qt::UserRole).toInt(), kind = sel.first()->data(0, Qt::UserRole + 2).toInt();
     const QString id = sel.first()->data(0, Qt::UserRole + 3).toString();
-    for (const write::Revision &r : write::revisionsIn(doc->story(), from, from))
-        if (r.from == from && int(r.kind) == kind && r.id == id) {
-            write::resolveRevisions(*doc, doc->story(), {r}, accept);
-            break;
-        }
+    if (const std::optional<write::StoryRevision> r = write::findRevision(*doc, sel.first()->data(0, Qt::UserRole + 4).toString(), kind, id, from))
+        write::resolveDocumentRevisions(*doc, {*r}, accept);
+    invalidate();
     refresh();
 }
 

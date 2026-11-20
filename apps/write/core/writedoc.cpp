@@ -5,6 +5,7 @@
 
 #include "core/commentops.h"
 #include "core/listpresets.h"
+#include "core/reviewops.h"
 
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -929,7 +930,9 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
     } else {
         part.missing = true;
     }
-    m_headerParts.insert(rel.target, part);
+    HeaderPart &stored = m_headerParts.insert(rel.target, part).value();
+    // (A part that holds tracked changes is in the form it is edited in from the first, which is the form that marks them.)
+    if (!stored.unreadable && !stored.missing && xmlHasChanges(partData(rel.target))) makeEditable(stored);
     return doc;
 }
 

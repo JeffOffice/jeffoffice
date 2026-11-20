@@ -417,6 +417,8 @@ public:
     // The Reviewing pane on the right (made when first asked for, so null before): Review > Reviewing Pane, with the page ("comments" or "changes") it is to show.
     void showReviewPane(bool changes = false);
     ReviewPane *reviewPane() const { return m_review; }
+    // Shows a change where it is: in the text, or in the header, footer, or note that holds it.
+    void showRevision(const write::StoryRevision &r);
     // Display for Review: how the document shows its tracked changes and comments. Not saved with the document.
     enum class ReviewView { SimpleMarkup, AllMarkup, NoMarkup, Original };
     ReviewView reviewView() const { return m_reviewView; }
@@ -464,7 +466,8 @@ private:
     void gotoChange(bool forward);
     void gotoComment(bool forward);
     int resolveShown(bool accept);
-    QVector<write::Revision> shownRevisions() const;
+    QVector<write::StoryRevision> shownRevisions() const;
+    void resolveHere(bool accept);
     void addReviewContextMenu(QMenu &menu);
     void addLinkFieldNoteContextMenu(QMenu &menu);
     void createEditingActions();

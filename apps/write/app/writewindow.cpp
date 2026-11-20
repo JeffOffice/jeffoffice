@@ -297,7 +297,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
         connect(m_doc.get(), &write::WriteDoc::reviewChanged, this, [this] { applyProtection(); });
         if (m_reviewView == ReviewView::NoMarkup || m_reviewView == ReviewView::Original) {
-            if (write::revisionCount(m_doc->story()) > 0) setReviewView(ReviewView::AllMarkup);
+            if (write::documentHasRevisions(*m_doc)) setReviewView(ReviewView::AllMarkup);
         }
         applyReviewView();
         if (m_review) m_review->refresh();

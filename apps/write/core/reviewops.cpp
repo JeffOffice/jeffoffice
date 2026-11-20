@@ -25,6 +25,18 @@ namespace {
 std::atomic<qint64> s_blocksScanned{0}, s_runsVisited{0};
 thread_local bool t_withEndnotes = false;   // (the words of the endnotes the pages set, which the changes in them are looked for in, while Accept All and Reject All go through them)
 
+// A paragraph of an endnote the pages set is out of the changes looked for, but while the endnotes are in scope (Accept All, and the list of the changes of the whole document).
+bool outOfScope(const QTextBlock &b)
+{
+    const QTextBlockFormat bf = b.blockFormat();
+    return bf.hasProperty(prop::EndnoteBlock) && !(t_withEndnotes && bf.intProperty(prop::EndnoteNote) > 0);
+}
+struct EndnoteScope {
+    bool was = t_withEndnotes;
+    EndnoteScope() { t_withEndnotes = true; }
+    ~EndnoteScope() { t_withEndnotes = was; }
+};
+
 bool isRevisionTag(const QString &tag)
 {
     return tag == QLatin1String("ins") || tag == QLatin1String("del") || tag == QLatin1String("moveFrom") || tag == QLatin1String("moveTo");
@@ -329,7 +341,7 @@ QVector<Revision> revisionsIn(const QTextDocument *story, int from, int to, int 
     QVector<Revision> out;
     QTextBlock b = story->findBlock(std::max(0, from));
     for (; b.isValid() && (to < 0 || b.position() <= to) && out.size() < most; b = b.next()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock) && !(t_withEndnotes && b.blockFormat().intProperty(prop::EndnoteNote) > 0)) continue;
+        if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         for (const Revision &r : std::as_const(inBlock)) {
@@ -346,7 +358,7 @@ int revisionCount(const QTextDocument *story)
 {
     int n = 0;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         n += int(inBlock.size());
@@ -372,8 +384,8 @@ std::optional<Revision> revisionAt(const QTextDocument *story, int position)
 
 std::optional<Revision> nextRevision(const QTextDocument *story, int position)
 {
-    for (QTextBlock b = story->findBlock(position); b.isValid(); b = b.next()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+    for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid(); b = b.next()) {
+        if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         std::optional<Revision> best;
@@ -386,8 +398,8 @@ std::optional<Revision> nextRevision(const QTextDocument *story, int position)
 
 std::optional<Revision> previousRevision(const QTextDocument *story, int position)
 {
-    for (QTextBlock b = story->findBlock(position); b.isValid(); b = b.previous()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+    for (QTextBlock b = story->findBlock(std::min(position, story->characterCount() - 1)); b.isValid(); b = b.previous()) {
+        if (outOfScope(b)) continue;
         QVector<Revision> inBlock;
         addRevisionsOf(b, &inBlock);
         std::optional<Revision> best;
@@ -707,7 +719,7 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
     struct Start { int pos; QString name; };
     QVector<Start> fromStarts, toStarts;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock)) continue;
+        if (outOfScope(b)) continue;
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextCharFormat cf = it.fragment().charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
@@ -919,27 +931,207 @@ int resolveEverywhere(WriteDoc &doc, bool accept)
 int acceptAll(WriteDoc &doc) { return resolveEverywhere(doc, true); }
 int rejectAll(WriteDoc &doc) { return resolveEverywhere(doc, false); }
 
-int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept)
+namespace {
+
+struct Site {
+    QTextDocument *story = nullptr;
+    QString container;
+};
+
+// The stories that can hold changes, in the order of the document: the text (with the endnotes the pages set, which are in it), the footnotes by their numbers, then the headers
+// and footers by section (a header, then a footer), then any other part. A story is once in the list, however many sections share it.
+QVector<Site> sitesOf(WriteDoc &doc)
 {
-    QTextDocument *story = c.document();
-    QVector<Revision> which;
-    if (c.hasSelection()) {
-        which = revisionsIn(story, c.selectionStart(), c.selectionEnd());
-    } else if (const std::optional<Revision> r = revisionAt(story, c.position())) {
-        which.push_back(*r);
+    QVector<Site> out;
+    out.push_back({doc.story(), QStringLiteral("body")});
+    const QVector<QTextDocument *> others = doc.storiesWithChanges();
+    QSet<const QTextDocument *> used;
+    QVector<std::pair<int, QTextDocument *>> notes;
+    for (QTextDocument *s : others) {
+        int id = 0;
+        if (doc.footnoteIdOf(s, &id)) {
+            notes.push_back({id, s});
+            used.insert(s);
+        }
     }
-    if (which.isEmpty()) {
-        if (const std::optional<Revision> next = nextRevision(story, c.selectionEnd())) c.setPosition(next->from);
-        return 0;
+    std::stable_sort(notes.begin(), notes.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+    for (const auto &n : std::as_const(notes)) out.push_back({n.second, QStringLiteral("footnote:%1").arg(n.first)});
+    const QSet<const QTextDocument *> wanted(others.cbegin(), others.cend());
+    for (int section = 0; section < doc.sectionCount(); ++section)
+        for (const bool footer : {false, true})
+            for (int slot = 0; slot < 3; ++slot) {
+                QTextDocument *s = doc.headerFooterStory(section, footer, slot);
+                if (!s || !wanted.contains(s) || used.contains(s)) continue;
+                used.insert(s);
+                out.push_back({s, QStringLiteral("%1:%2:%3").arg(footer ? QStringLiteral("footer") : QStringLiteral("header")).arg(section + 1).arg(slot)});
+            }
+    for (QTextDocument *s : others)
+        if (!used.contains(s)) out.push_back({s, QStringLiteral("part")});
+    return out;
+}
+
+// The number of the endnote a paragraph of the text belongs to (0 where it is none).
+int endnoteOf(const QTextDocument *story, int position)
+{
+    const QTextBlock b = story->findBlock(position);
+    return b.isValid() && b.blockFormat().hasProperty(prop::EndnoteBlock) ? b.blockFormat().intProperty(prop::EndnoteNote) : 0;
+}
+
+} // namespace
+
+QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most)
+{
+    QVector<StoryRevision> out;
+    const EndnoteScope scope;
+    for (const Site &site : sitesOf(doc)) {
+        if (out.size() >= most) break;
+        for (const Revision &r : revisionsIn(site.story, 0, -1, most - int(out.size()))) out.push_back({site.story, r, site.container});
     }
-    const int at = c.selectionStart();
-    const int done = resolveRevisions(doc, story, which, accept);
-    c.setPosition(std::min(at, story->characterCount() - 1));
-    if (const std::optional<Revision> next = nextRevision(story, std::max(0, c.position() - 1))) c.setPosition(next->from);
+    return out;
+}
+
+int documentRevisionCount(WriteDoc &doc)
+{
+    const EndnoteScope scope;
+    int n = 0;
+    for (const Site &site : sitesOf(doc)) n += revisionCount(site.story);
+    return n;
+}
+
+bool documentHasRevisions(WriteDoc &doc)
+{
+    const EndnoteScope scope;
+    if (revisionCount(doc.story()) > 0) return true;
+    for (const Site &site : sitesOf(doc))
+        if (site.story != doc.story() && revisionCount(site.story) > 0) return true;
+    return false;
+}
+
+QTextDocument *storyOfContainer(WriteDoc &doc, const QString &container)
+{
+    if (container == QLatin1String("body")) return doc.story();
+    for (const Site &site : sitesOf(doc))
+        if (site.container == container) return site.story;
+    return nullptr;
+}
+
+std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &container, int kind, const QString &id, int from)
+{
+    QTextDocument *story = storyOfContainer(doc, container);
+    if (!story) return std::nullopt;
+    const EndnoteScope scope;
+    for (const Revision &r : revisionsIn(story, from, from))
+        if (r.from == from && int(r.kind) == kind && r.id == id) return StoryRevision{story, r, container};
+    return std::nullopt;
+}
+
+std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward)
+{
+    const EndnoteScope scope;
+    const QVector<Site> sites = sitesOf(doc);
+    int at = 0;
+    for (int i = 0; i < sites.size(); ++i)
+        if (sites[i].story == story) at = i;
+    if (forward) {
+        for (int i = at; i < sites.size(); ++i) {
+            const std::optional<Revision> r = nextRevision(sites[i].story, i == at ? position : -1);
+            if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
+        }
+    } else {
+        for (int i = at; i >= 0; --i) {
+            const std::optional<Revision> r = previousRevision(sites[i].story, i == at ? position : sites[i].story->characterCount());
+            if (r) return StoryRevision{sites[i].story, *r, sites[i].container};
+        }
+    }
+    return std::nullopt;
+}
+
+int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept)
+{
+    if (which.isEmpty()) return 0;
+    const EndnoteScope scope;
+    WriteDoc::StepGroup group(doc);
+    // The stories in the order they are first met; a story that resolving the one before took away (a note whose reference was deleted) is left alone, and the changes of a story after
+    // the first are found again by what they are, as an earlier step may have moved them.
+    QVector<QTextDocument *> order;
+    QHash<const QTextDocument *, QVector<Revision>> by;
+    for (const StoryRevision &w : which) {
+        if (!w.story) continue;
+        if (!by.contains(w.story)) order.push_back(w.story);
+        by[w.story].push_back(w.revision);
+    }
+    int done = 0;
+    bool first = true;
+    for (QTextDocument *story : std::as_const(order)) {
+        QSet<const QTextDocument *> alive;
+        for (const Site &site : sitesOf(doc)) alive.insert(site.story);
+        if (!alive.contains(story)) continue;
+        QVector<Revision> revisions = by.value(story);
+        if (!first) {
+            QVector<Revision> found;
+            const QVector<Revision> now = revisionsIn(story);
+            for (const Revision &r : std::as_const(revisions))
+                for (const Revision &n : now)
+                    if (n.kind == r.kind && n.id == r.id && n.author == r.author) {
+                        found.push_back(n);
+                        break;
+                    }
+            revisions = found;
+        }
+        first = false;
+        // The paragraphs of an endnote are changed one note at a time, under that note's own scope.
+        QMap<int, QVector<Revision>> inNotes;
+        QVector<Revision> inText;
+        for (const Revision &r : std::as_const(revisions)) {
+            const int note = story == doc.story() ? endnoteOf(story, r.from) : 0;
+            if (note > 0) inNotes[note].push_back(r);
+            else inText.push_back(r);
+        }
+        done += resolveRevisions(doc, story, inText, accept);
+        for (auto it = inNotes.cbegin(); it != inNotes.cend(); ++it) {
+            QTextCursor c(story);
+            c.setPosition(it.value().first().from);
+            const NoteScopeGuard guard(doc, c);
+            done += resolveRevisions(doc, story, it.value(), accept);
+        }
+    }
     return done;
 }
 
-
+int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept)
+{
+    QTextDocument *story = c.document();
+    const EndnoteScope scope;
+    QVector<Revision> inStory;
+    if (c.hasSelection()) {
+        // (Every change the selection covers, not one that only touches it: the change that begins where the selection ends is not in it.)
+        for (const Revision &r : revisionsIn(story, c.selectionStart(), c.selectionEnd()))
+            if (r.to > c.selectionStart() && r.from < c.selectionEnd()) inStory.push_back(r);
+    } else if (const std::optional<Revision> r = revisionAt(story, c.position())) {
+        inStory.push_back(*r);
+    }
+    if (inStory.isEmpty()) {
+        if (const std::optional<StoryRevision> next = nextDocumentRevision(doc, story, c.selectionStart(), true)) {
+            c = QTextCursor(next->story);
+            c.setPosition(next->revision.from);
+        }
+        return 0;
+    }
+    int at = c.selectionStart();
+    QVector<StoryRevision> which;
+    for (const Revision &r : std::as_const(inStory)) {
+        which.push_back({story, r, QString()});
+        at = std::min(at, r.from);   // (the next change is looked for from where the first of them was)
+    }
+    const int done = resolveDocumentRevisions(doc, which, accept);
+    c = QTextCursor(story);
+    c.setPosition(std::min(at, story->characterCount() - 1));
+    if (const std::optional<StoryRevision> next = nextDocumentRevision(doc, story, c.position() - 1, true)) {
+        c = QTextCursor(next->story);
+        c.setPosition(next->revision.from);
+    }
+    return done;
+}
 
 namespace {
 

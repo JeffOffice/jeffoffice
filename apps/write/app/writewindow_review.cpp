@@ -66,24 +66,8 @@ void WriteWindow::createReviewActions()
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
     }, true);
-    mk("review.accept", tr("Accept"), "check", QKeySequence(), [this] {
-        if (!m_doc) return;
-        m_view->leaveHeaderFooter();
-        m_view->leaveNote();
-        QTextCursor c = m_view->cursor();
-        write::resolveAtCursor(*m_doc, c, true);
-        m_view->showCursor(c);
-        m_view->setFocus(Qt::OtherFocusReason);
-    });
-    mk("review.reject", tr("Reject"), "x", QKeySequence(), [this] {
-        if (!m_doc) return;
-        m_view->leaveHeaderFooter();
-        m_view->leaveNote();
-        QTextCursor c = m_view->cursor();
-        write::resolveAtCursor(*m_doc, c, false);
-        m_view->showCursor(c);
-        m_view->setFocus(Qt::OtherFocusReason);
-    });
+    mk("review.accept", tr("Accept"), "check", QKeySequence(), [this] { resolveHere(true); });
+    mk("review.reject", tr("Reject"), "x", QKeySequence(), [this] { resolveHere(false); });
     mk("review.acceptShown", tr("Accept All Changes Shown"), "check-check", QKeySequence(), [this] { resolveShown(true); });
     mk("review.rejectShown", tr("Reject All Changes Shown"), "circle-x", QKeySequence(), [this] { resolveShown(false); });
     mk("review.acceptAll", tr("Accept All Changes"), "check-check", QKeySequence(), [this] {
@@ -93,6 +77,8 @@ void WriteWindow::createReviewActions()
         const int n = write::acceptAll(*m_doc);
         statusBar()->showMessage(n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
+        updateReviewState();
+        refreshReviewUi();
     });
     mk("review.acceptAllStop", tr("Accept All Changes and Stop Tracking"), "check-check", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -111,6 +97,8 @@ void WriteWindow::createReviewActions()
         const int n = write::rejectAll(*m_doc);
         statusBar()->showMessage(n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
+        updateReviewState();
+        refreshReviewUi();
     });
     mk("review.nextChange", tr("Next Change"), "arrow-down", QKeySequence(), [this] { gotoChange(true); });
     mk("review.previousChange", tr("Previous Change"), "arrow-up", QKeySequence(), [this] { gotoChange(false); });
@@ -235,7 +223,7 @@ void WriteWindow::showReviewPane(bool changes)
         addDockWidget(Qt::RightDockWidgetArea, m_reviewDock);
         resizeDocks({m_reviewDock}, {340}, Qt::Horizontal);
         connect(m_view, &write::PageView::contentChanged, m_review, [this] { QTimer::singleShot(0, m_review, [this] { if (m_review->isVisible()) m_review->refresh(); }); });
-        connect(m_doc.get(), &write::WriteDoc::historyChanged, m_review, [this] { QTimer::singleShot(0, m_review, [this] { if (m_review->isVisible()) m_review->refresh(); }); });
+        connect(m_doc.get(), &write::WriteDoc::historyChanged, m_review, [this] { QTimer::singleShot(0, m_review, [this] { m_review->invalidate(); if (m_review->isVisible()) m_review->refresh(); }); });
     }
     m_reviewDock->show();
     m_reviewDock->raise();
@@ -343,7 +331,7 @@ void WriteWindow::updateReviewState()
         m_reviewStateDoc = nullptr;
         return;
     }
-    m_hasRevisions = write::revisionCount(m_doc->story()) > 0;
+    m_hasRevisions = write::documentHasRevisions(*m_doc);
     m_hasComments = !write::comments(*m_doc).isEmpty();
     m_reviewStateRevision = m_doc->story()->revision();
     m_reviewStateDoc = m_doc.get();
@@ -407,22 +395,55 @@ void WriteWindow::newComment()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// Shows a change where it is: in the text, or in the header, footer, or note that holds it.
+void WriteWindow::showRevision(const write::StoryRevision &r)
+{
+    if (!m_doc || !r.story) return;
+    QTextDocument *s = r.story;
+    if (s == m_doc->story()) {
+        m_view->leaveHeaderFooter();
+        m_view->leaveNote();
+    } else if (m_view->editedSideStory() != s && !m_view->enterSideStory(s)) {
+        statusBar()->showMessage(tr("This change is in a part of the document that no page shows."), 4000);
+        return;
+    }
+    QTextCursor c(s);
+    c.setPosition(std::min(r.revision.from, s->characterCount() - 1));
+    c.setPosition(std::min(std::max(r.revision.from, r.revision.to), s->characterCount() - 1), QTextCursor::KeepAnchor);
+    m_view->showCursor(c);
+}
+
+// Accept or Reject: the change at the caret, in the text or in a header, footer, or note, and on to the next change.
+void WriteWindow::resolveHere(bool accept)
+{
+    if (!m_doc) return;
+    QTextCursor c = m_view->cursor();
+    QTextDocument *was = c.document();
+    write::resolveAtCursor(*m_doc, c, accept);
+    if (c.document() == was) {
+        m_view->showCursor(c);
+    } else {
+        // (On to a change in another story: a header, a footer, a note, or the text.)
+        write::StoryRevision next;
+        next.story = c.document();
+        next.revision.from = next.revision.to = c.position();
+        showRevision(next);
+    }
+    updateReviewState();
+    refreshReviewUi();
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::gotoChange(bool forward)
 {
     if (!m_doc) return;
-    m_view->leaveHeaderFooter();
-    m_view->leaveNote();
-    QTextDocument *s = m_doc->story();
     const QTextCursor &cur = m_view->cursor();
-    const std::optional<write::Revision> r = forward ? write::nextRevision(s, cur.selectionEnd()) : write::previousRevision(s, cur.selectionStart());
+    const std::optional<write::StoryRevision> r = write::nextDocumentRevision(*m_doc, cur.document(), cur.selectionStart(), forward);   // (from the start of what is selected: a change that begins where the one selected ends is the next)
     if (!r) {
         statusBar()->showMessage(tr("There are no more changes."), 4000);
         return;
     }
-    QTextCursor c(s);
-    c.setPosition(std::min(r->from, s->characterCount() - 1));
-    c.setPosition(std::min(std::max(r->from, r->to), s->characterCount() - 1), QTextCursor::KeepAnchor);
-    m_view->showCursor(c);
+    showRevision(*r);
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
@@ -445,18 +466,19 @@ void WriteWindow::gotoComment(bool forward)
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
-// The changes the way they are shown now covers (the kinds Show Markup has on; with the Reviewing pane open, the reviewer chosen in it).
-QVector<write::Revision> WriteWindow::shownRevisions() const
+// The changes the way they are shown now covers (the kinds Show Markup has on; with the Reviewing pane open, the reviewer chosen in it), wherever they are.
+QVector<write::StoryRevision> WriteWindow::shownRevisions() const
 {
-    QVector<write::Revision> out;
+    QVector<write::StoryRevision> out;
     if (!m_doc) return out;
     const QString person = m_review && m_reviewDock && m_reviewDock->isVisible() ? m_review->chosenPerson() : QString();
-    for (const write::Revision &r : write::revisionsIn(m_doc->story())) {
+    for (const write::StoryRevision &sr : write::documentRevisions(*m_doc)) {
+        const write::Revision &r = sr.revision;
         const bool formatting = r.kind == write::Revision::Format || r.kind == write::Revision::ParagraphFormat;
         if (formatting ? !m_showFormatting : !m_showInsertionsAndDeletions) continue;
         if (m_reviewView == ReviewView::NoMarkup) continue;
         if (!person.isEmpty() && r.author != person) continue;
-        out.push_back(r);
+        out.push_back(sr);
     }
     return out;
 }
@@ -466,9 +488,11 @@ int WriteWindow::resolveShown(bool accept)
     if (!m_doc) return 0;
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
-    const int n = write::resolveRevisions(*m_doc, m_doc->story(), shownRevisions(), accept);
+    const int n = write::resolveDocumentRevisions(*m_doc, shownRevisions(), accept);
     statusBar()->showMessage(accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n)), 5000);
     m_view->setFocus(Qt::OtherFocusReason);
+    updateReviewState();
+    refreshReviewUi();
     return n;
 }
 

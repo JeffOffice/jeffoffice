@@ -25,6 +25,8 @@ public:
     explicit ReviewPane(WriteWindow *win, QWidget *parent = nullptr);
     // Brings the lists up to date with the document (when the text, the comments, or who reviews has changed since they were made).
     void refresh();
+    // The lists are made again at the next refresh (a change was made in a header, a footer, or a note, which the text's own revision does not tell).
+    void invalidate() { m_madeRevision = -1; }
     // Which list is shown.
     enum Page { Comments, Changes };
     void showPage(Page page);

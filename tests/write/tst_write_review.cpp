@@ -387,6 +387,80 @@ QString words(const char *prefix, int n)
     return w.join(QLatin1Char(' '));
 }
 
+// A package with a header, a footer, a footnote, and an endnote, each given as the XML of its paragraphs (a story left empty has no part); the text has a reference to each note.
+struct StoryParts {
+    QByteArray body = para(run("body ") + inserted(30, "new "));
+    QByteArray header, footer, footnote, endnote;
+};
+QByteArray makeDocxWithStories(const StoryParts &parts)
+{
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+    const QByteArray ns = QByteArray(kNs) + " xmlns:v=\"urn:schemas-microsoft-com:vml\"";
+    office::PackageWriter w;
+    QByteArray refs, sect;
+    if (!parts.footnote.isEmpty()) refs += "<w:r><w:footnoteReference w:id=\"2\"/></w:r>";
+    if (!parts.endnote.isEmpty()) refs += "<w:r><w:endnoteReference w:id=\"2\"/></w:r>";
+    if (!parts.header.isEmpty()) sect += "<w:headerReference w:type=\"default\" r:id=\"rIdH\"/>";
+    if (!parts.footer.isEmpty()) sect += "<w:footerReference w:type=\"default\" r:id=\"rIdF\"/>";
+    QByteArray body = parts.body;
+    if (!refs.isEmpty()) body += para(refs);
+    body += "<w:sectPr>" + sect + "</w:sectPr>";
+    w.addPart(QStringLiteral("/word/document.xml"), xml("<w:document " + ns + "><w:body>" + body + "</w:body></w:document>"), type + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    if (!parts.header.isEmpty()) {
+        w.addPart(QStringLiteral("/word/header1.xml"), xml("<w:hdr " + ns + ">" + parts.header + "</w:hdr>"), type + QStringLiteral("header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+    }
+    if (!parts.footer.isEmpty()) {
+        w.addPart(QStringLiteral("/word/footer1.xml"), xml("<w:ftr " + ns + ">" + parts.footer + "</w:ftr>"), type + QStringLiteral("footer+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+    }
+    if (!parts.footnote.isEmpty()) {
+        w.addPart(QStringLiteral("/word/footnotes.xml"), xml("<w:footnotes " + ns + "><w:footnote w:id=\"2\">" + parts.footnote + "</w:footnote></w:footnotes>"), type + QStringLiteral("footnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+    }
+    if (!parts.endnote.isEmpty()) {
+        w.addPart(QStringLiteral("/word/endnotes.xml"), xml("<w:endnotes " + ns + "><w:endnote w:id=\"2\">" + parts.endnote + "</w:endnote></w:endnotes>"), type + QStringLiteral("endnotes+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("endnotes"), QStringLiteral("/word/endnotes.xml"));
+    }
+    return w.finish();
+}
+
+// The same changes in every story: an insertion and then a deletion.
+StoryParts everyStory()
+{
+    StoryParts p;
+    p.header = para(inserted(33, "headin ") + deleted(34, "headout"));
+    p.footer = para(inserted(37, "footin ") + deleted(38, "footout"));
+    p.footnote = para(inserted(35, "noteIn ") + deleted(36, "noteOut"));
+    p.endnote = para(inserted(39, "endIn ") + deleted(40, "endOut"));
+    return p;
+}
+
+QStringList idsOf(const QVector<StoryRevision> &list)
+{
+    QStringList out;
+    for (const StoryRevision &r : list) out << r.revision.id;
+    return out;
+}
+
+// The look of a change's run in a story of the document, as the text engine resolves it for the way changes are shown now.
+QTextCharFormat shownFormatIn(WriteDoc &doc, QTextDocument *story, const QString &text)
+{
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (!it.fragment().charFormat().hasProperty(prop::Atom) && it.fragment().text() == text) return resolveCharFormat(it.fragment().charFormat(), doc.flow().env);
+    return QTextCharFormat();
+}
+QTextCharFormat storedFormatIn(QTextDocument *story, const QString &text)
+{
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (!it.fragment().charFormat().hasProperty(prop::Atom) && it.fragment().text() == text) return it.fragment().charFormat();
+    return QTextCharFormat();
+}
+
 class ReviewTests : public QObject {
     Q_OBJECT
 private Q_SLOTS:
@@ -2219,6 +2293,292 @@ private Q_SLOTS:
             for (const Part &part : parts) QVERIFY2(!xmlHasChanges(partOf(again, part.name)) && partOf(again, part.name).contains(accept ? part.in : part.out), part.name);
             QVERIFY(!doc->canRedo());
         }
+    }
+
+    // ---------------------------------------------------------------- Round B2: changes in headers, footers, and notes
+    void theChangesOfHeadersFootersAndNotesAreListedInDocumentOrder()
+    {
+        auto doc = open(makeDocxWithStories(everyStory()));
+        QVERIFY(doc);
+        QCOMPARE(revisionCount(doc->story()), 1);   // (the text's own: the endnote is not in it)
+        const QVector<StoryRevision> all = documentRevisions(*doc);
+        // The text with the endnotes the pages set, the footnote, the header, then the footer.
+        QCOMPARE(idsOf(all), (QStringList{"30", "39", "40", "35", "36", "33", "34", "37", "38"}));
+        QCOMPARE(all[3].container, QStringLiteral("footnote:2"));
+        QCOMPARE(all[5].container, QStringLiteral("header:1:0"));
+        QCOMPARE(all[7].container, QStringLiteral("footer:1:0"));
+        QCOMPARE(documentRevisionCount(*doc), 9);
+        QVERIFY(documentHasRevisions(*doc));
+        QCOMPARE(documentRevisions(*doc, 4).size(), 4);
+        // The Reviewing pane's model lists them all, each with its story.
+        const jp::review::ChangeList list = reviewChanges(*doc);
+        QCOMPARE(list.size(), 9);
+        QStringList where;
+        for (const auto &c : list.changes) where << c.target.container;
+        QCOMPARE(where, (QStringList{"body", "body", "body", "footnote:2", "footnote:2", "header:1:0", "header:1:0", "footer:1:0", "footer:1:0"}));
+        // A document with changes only in a header has them too.
+        StoryParts onlyHeader;
+        onlyHeader.body = para(run("plain"));
+        onlyHeader.header = para(inserted(5, "H"));
+        auto other = open(makeDocxWithStories(onlyHeader));
+        QVERIFY(other);
+        QCOMPARE(revisionCount(other->story()), 0);
+        QVERIFY(documentHasRevisions(*other));
+        QCOMPARE(documentRevisionCount(*other), 1);
+        auto none = open(makeDocxWithStories(StoryParts{para(run("plain")), para(run("h")), QByteArray(), QByteArray(), QByteArray()}));
+        QVERIFY(none);
+        QVERIFY(!documentHasRevisions(*none));
+    }
+
+    void theChangesInHeadersFootersAndNotesAreMarkedAsTheViewSays()
+    {
+        MarkupGuard guard;
+        auto doc = open(makeDocxWithStories(everyStory()));
+        QVERIFY(doc);
+        const QColor ann = tp::revisionColor(doc->reviewerIndex(QStringLiteral("Ann")));
+        doc->setRevisionView(tp::kRevisionShowDeleted | tp::kRevisionMark);
+        QTextDocument *header = doc->headerFooterStory(0, false, 0), *footer = doc->headerFooterStory(0, true, 0), *note = doc->editableFootnote(2);
+        QVERIFY(header && footer && note);
+        const struct { QTextDocument *story; const char *in, *out; } stories[] = {{header, "headin ", "headout"}, {footer, "footin ", "footout"}, {note, "noteIn ", "noteOut"}};
+        for (const auto &s : stories) {
+            const QTextCharFormat in = shownFormatIn(*doc, s.story, QString::fromLatin1(s.in)), out = shownFormatIn(*doc, s.story, QString::fromLatin1(s.out));
+            QCOMPARE(storedFormatIn(s.story, QString::fromLatin1(s.in)).intProperty(tp::Revision), 1);
+            QCOMPARE(storedFormatIn(s.story, QString::fromLatin1(s.out)).intProperty(tp::Revision), 2);
+            QVERIFY2(in.underlineStyle() != QTextCharFormat::NoUnderline, s.in);
+            QCOMPARE(in.foreground().color(), ann);
+            QVERIFY2(out.fontStrikeOut(), s.out);
+            QCOMPARE(out.foreground().color(), ann);
+            // The views: as it was (insertions out, deletions in), and as it stands (deletions out).
+            QVERIFY(tp::hiddenInView(storedFormatIn(s.story, QString::fromLatin1(s.in)), tp::kRevisionShowDeleted | tp::kRevisionHideInserted));
+            QVERIFY(!tp::hiddenInView(storedFormatIn(s.story, QString::fromLatin1(s.out)), tp::kRevisionShowDeleted | tp::kRevisionHideInserted));
+            QVERIFY(tp::hiddenInView(storedFormatIn(s.story, QString::fromLatin1(s.out)), 0));
+            QVERIFY(!tp::hiddenInView(storedFormatIn(s.story, QString::fromLatin1(s.in)), 0));
+        }
+        // Showing is no edit: the file and the history are as they were.
+        QVERIFY(!doc->canUndo());
+        QVERIFY(!doc->isModified());
+    }
+
+    void nextAndPreviousChangeGoThroughEveryStoryInOrder()
+    {
+        auto doc = open(makeDocxWithStories(everyStory()));
+        QVERIFY(doc);
+        const QVector<StoryRevision> all = documentRevisions(*doc);
+        QStringList forward;
+        QTextDocument *story = doc->story();
+        int at = -1;
+        std::optional<StoryRevision> r;
+        QVector<StoryRevision> walked;
+        while ((r = nextDocumentRevision(*doc, story, at, true)) && walked.size() < 30) {
+            walked.push_back(*r);
+            story = r->story;
+            at = r->revision.from;
+        }
+        QCOMPARE(idsOf(walked), idsOf(all));
+        QCOMPARE(walked.last().story, all.last().story);
+        // And back.
+        QVector<StoryRevision> back;
+        story = walked.last().story;
+        at = walked.last().revision.from;
+        back.push_back(walked.last());
+        while ((r = nextDocumentRevision(*doc, story, at, false)) && back.size() < 30) {
+            back.push_back(*r);
+            story = r->story;
+            at = r->revision.from;
+        }
+        std::reverse(back.begin(), back.end());
+        QCOMPARE(idsOf(back), idsOf(all));
+    }
+
+    void oneChangeInAHeaderOrANoteIsAcceptedOrRejectedAsOneStepAndWrittenBack()
+    {
+        // Rejecting a header's insertion, at the caret in the header.
+        {
+            auto doc = open(makeDocxWithStories(everyStory()));
+            QVERIFY(doc);
+            QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+            QVERIFY(header);
+            const QVector<Revision> inHeader = revisionsIn(header);
+            QCOMPARE(inHeader.size(), 2);
+            QTextCursor c(header);
+            c.setPosition(inHeader[0].from + 1);
+            QCOMPARE(resolveAtCursor(*doc, c, false), 1);
+            const QByteArray saved = partOf(doc->toDocx(), "/word/header1.xml");
+            QVERIFY2(!saved.contains("headin") && saved.contains("headout") && saved.contains("<w:del "), saved.constData());
+            QVERIFY(!saved.contains("<w:ins "));
+            // The caret goes on to the next change, which is the header's deletion.
+            QCOMPARE(c.document(), header);
+            QCOMPARE(revisionAt(header, c.position())->kind, Revision::Deletion);
+            // One step of Undo brings it back, and there is no more.
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+            const QByteArray undone = partOf(doc->toDocx(), "/word/header1.xml");
+            QVERIFY2(undone.contains("headin") && undone.contains("<w:ins ") && undone.contains("headout"), undone.constData());
+            QVERIFY(doc->redo());
+            QVERIFY(!partOf(doc->toDocx(), "/word/header1.xml").contains("headin"));
+        }
+        // Accepting a footnote's deletion, and the next change is in the story after it.
+        {
+            auto doc = open(makeDocxWithStories(everyStory()));
+            QVERIFY(doc);
+            QTextDocument *note = doc->editableFootnote(2);
+            QVERIFY(note);
+            std::optional<Revision> del;
+            for (const Revision &r : revisionsIn(note))
+                if (r.kind == Revision::Deletion) del = r;
+            QVERIFY(del);
+            QTextCursor c(note);
+            c.setPosition(del->from + 1);
+            QCOMPARE(resolveAtCursor(*doc, c, true), 1);
+            const QByteArray saved = partOf(doc->toDocx(), "/word/footnotes.xml");
+            QVERIFY2(!saved.contains("noteOut") && saved.contains("noteIn") && !saved.contains("<w:del "), saved.constData());
+            QVERIFY(c.document() != note);   // (on to the header)
+            QCOMPARE(c.document(), doc->headerFooterStory(0, false, 0));
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+            QVERIFY(partOf(doc->toDocx(), "/word/footnotes.xml").contains("noteOut"));
+        }
+        // An endnote's insertion, rejected from the cursor in it.
+        {
+            auto doc = open(makeDocxWithStories(everyStory()));
+            QVERIFY(doc);
+            std::optional<StoryRevision> ins;
+            for (const StoryRevision &r : documentRevisions(*doc))
+                if (r.revision.id == QLatin1String("39")) ins = r;
+            QVERIFY(ins);
+            QCOMPARE(ins->story, doc->story());
+            QCOMPARE(resolveDocumentRevisions(*doc, {*ins}, false), 1);
+            const QByteArray saved = partOf(doc->toDocx(), "/word/endnotes.xml");
+            QVERIFY2(!saved.contains("endIn") && saved.contains("endOut"), saved.constData());
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+        }
+    }
+
+    void changesOfLookInHeadersFootersAndNotesAreListedAndRejectedOrAccepted()
+    {
+        const QByteArray change = " w:id=\"50\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"";
+        StoryParts p;
+        p.body = para(run("plain"));
+        p.header = para("<w:r><w:rPr><w:b/><w:rPrChange" + change + "><w:rPr/></w:rPrChange></w:rPr><w:t>bold</w:t></w:r>");
+        p.footer = para("<w:r><w:t>centered</w:t></w:r>", "<w:jc w:val=\"center\"/><w:pPrChange w:id=\"51\" w:author=\"Bob\" w:date=\"2020-01-01T00:00:00Z\"><w:pPr/></w:pPrChange>");
+        p.footnote = para("<w:r><w:rPr><w:i/><w:rPrChange w:id=\"52\" w:author=\"Ann\" w:date=\"2020-01-01T00:00:00Z\"><w:rPr/></w:rPrChange></w:rPr><w:t>slanted</w:t></w:r>");
+        const QByteArray file = makeDocxWithStories(p);
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            const QVector<StoryRevision> all = documentRevisions(*doc);
+            QVector<Revision::Kind> kinds;
+            for (const StoryRevision &r : all) kinds << r.revision.kind;
+            QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::Format, Revision::Format, Revision::ParagraphFormat}));   // (the note, the header, the footer)
+            QCOMPARE(all[0].container, QStringLiteral("footnote:2"));
+            QCOMPARE(resolveDocumentRevisions(*doc, all, false), 3);
+            const QByteArray saved = doc->toDocx();
+            for (const char *name : {"/word/header1.xml", "/word/footer1.xml", "/word/footnotes.xml"}) {
+                const QByteArray x = partOf(saved, name);
+                QVERIFY2(!x.contains("Change") && !x.contains("<w:b/>") && !x.contains("<w:i/>") && !x.contains("<w:jc "), x.constData());
+            }
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+            QVERIFY(partOf(doc->toDocx(), "/word/header1.xml").contains("rPrChange"));
+        }
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            QCOMPARE(acceptAll(*doc), 3);
+            const QByteArray saved = doc->toDocx();
+            QVERIFY(partOf(saved, "/word/header1.xml").contains("<w:b/>") && !partOf(saved, "/word/header1.xml").contains("rPrChange"));
+            QVERIFY(partOf(saved, "/word/footer1.xml").contains("<w:jc w:val=\"center\"/>") && !partOf(saved, "/word/footer1.xml").contains("pPrChange"));
+            QVERIFY(partOf(saved, "/word/footnotes.xml").contains("<w:i/>"));
+        }
+    }
+
+    void aChangeThatBeginsWhereAnotherEndsIsTheNextOneAndIsNotResolvedWithIt()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a ") + inserted(1, "new") + deleted(2, "old") + run(" z")))), QString());
+        write::WriteDoc *doc = w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        w.view()->setCursor(c);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(revisionAt(doc->story(), w.view()->cursor().selectionStart() + 1)->kind, Revision::Insertion);
+        w.act(QStringLiteral("review.nextChange"))->trigger();   // (the deletion that follows at once, not the end)
+        QCOMPARE(revisionAt(doc->story(), w.view()->cursor().selectionStart() + 1)->kind, Revision::Deletion);
+        w.act(QStringLiteral("review.previousChange"))->trigger();
+        QCOMPARE(revisionAt(doc->story(), w.view()->cursor().selectionStart() + 1)->kind, Revision::Insertion);
+        // Rejecting the insertion, which is selected, leaves the deletion beside it as it was.
+        w.act(QStringLiteral("review.reject"))->trigger();
+        QCOMPARE(revisionCount(doc->story()), 1);
+        QCOMPARE(revisionsIn(doc->story()).first().kind, Revision::Deletion);
+        QCOMPARE(textWithDeletions(*doc), QStringLiteral("a old z"));
+    }
+
+    void thePaneAndTheCommandsReachChangesInHeadersFootersAndNotes()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        StoryParts p;
+        p.body = para(run("plain text"));
+        p.header = para(inserted(33, "headin ") + deleted(34, "headout"));
+        p.footnote = para(inserted(35, "noteIn ") + deleted(36, "noteOut"));
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QCOMPARE(revisionCount(doc->story()), 0);
+        // A document that has changes only outside its text has its commands on, and opens showing its markup.
+        QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        QVERIFY(w.act(QStringLiteral("review.nextChange"))->isEnabled());
+        QCOMPARE(w.reviewView(), WriteWindow::ReviewView::AllMarkup);
+        QCOMPARE(doc->revisionView(), tp::kRevisionShowDeleted | tp::kRevisionMark | tp::kRevisionMarkFormat);
+        // Next Change: the footnote's, then the header's, then no more.
+        QTextCursor start(doc->story());
+        start.setPosition(0);
+        w.view()->setCursor(start);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QTRY_VERIFY(w.view()->inNote());
+        QCOMPARE(w.view()->cursor().document(), doc->editableFootnote(2));
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("35"));
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("36"));
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QTRY_VERIFY(w.view()->inHeaderFooter());
+        QCOMPARE(w.view()->cursor().document(), doc->headerFooterStory(0, false, 0));
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("33"));
+        // Previous Change goes back into the note.
+        w.act(QStringLiteral("review.previousChange"))->trigger();
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("36"));
+        QVERIFY(w.view()->inNote());
+        // Accept at the caret: the change is done where it is, and the caret goes on to the next.
+        w.act(QStringLiteral("review.accept"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 3);
+        QVERIFY(!partOf(doc->toDocx(), "/word/footnotes.xml").contains("noteOut"));
+        QCOMPARE(revisionAt(w.view()->cursor().document(), w.view()->cursor().position())->id, QStringLiteral("33"));
+        QVERIFY(doc->undo());
+        QCOMPARE(documentRevisionCount(*doc), 4);
+        QVERIFY(!doc->canUndo());
+        // The Reviewing pane lists all four, in order, and its buttons reach the header's.
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 4);
+        QVERIFY(pane->changeList()->topLevelItem(0)->text(0).contains(QStringLiteral("noteIn")));
+        QVERIFY(pane->changeList()->topLevelItem(3)->text(0).contains(QStringLiteral("headout")));
+        pane->changeList()->topLevelItem(3)->setSelected(true);
+        QTRY_VERIFY(w.view()->inHeaderFooter());
+        pane->findChild<QPushButton *>(QStringLiteral("rejectButton"))->click();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 3);
+        QVERIFY(partOf(doc->toDocx(), "/word/header1.xml").contains("headout"));
+        // Accept All Changes Shown takes every story's.
+        w.act(QStringLiteral("review.acceptShown"))->trigger();
+        QCOMPARE(documentRevisionCount(*doc), 0);
+        QVERIFY(!w.act(QStringLiteral("review.acceptAll"))->isEnabled());
     }
 
     void oneHalfOfAMoveResolvesItsPairToo()

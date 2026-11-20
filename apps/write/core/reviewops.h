@@ -50,8 +50,31 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
 int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept);
 int acceptAll(WriteDoc &doc);
 int rejectAll(WriteDoc &doc);
-// The change at the cursor (or the selection: every change it touches), then the one after it. `c` is put where the next change is when there is one.
+// The change at the cursor (or the selection: every change it touches), then the one after it. `c` is put where the next change is when there is one, which may be in another
+// story (a header, a footer, or a note): the cursor is the one of that story then. The cursor may be in the text, an endnote, a header, a footer, or a footnote.
 int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept);
+
+// ---- the changes of the whole document
+// A change, and the story it is in: the text (the endnotes the pages set are in it), a footnote, a header, or a footer. `container` names the story ("body", "footnote:3",
+// "header:1:0": the section, then the slot: odd, first, even; "footer:1:0"), for a list of changes to say where each is.
+struct StoryRevision {
+    QTextDocument *story = nullptr;
+    Revision revision;
+    QString container;
+};
+// Every change of the document in its order: the text, then the footnotes by number, then the headers and footers by section. At most `most`.
+QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most = kMostRevisions);
+int documentRevisionCount(WriteDoc &doc);
+// Whether there is a change anywhere in the document (the text is looked through first, the other stories only when it has none).
+bool documentHasRevisions(WriteDoc &doc);
+// The story a change's `container` names, or none where the document has no such story now.
+QTextDocument *storyOfContainer(WriteDoc &doc, const QString &container);
+// The change of that story that begins at `from` and is of that kind and Id (never one only near it); none where there is none now.
+std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &container, int kind, const QString &id, int from);
+// The next change after `position` of `story` (or the one before it), going on into the stories after it (before it); none where there is none. Next and Previous Change use it.
+std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward);
+// Accepts or rejects changes of any stories, as one step of the history (the same one step as one story's). Returns how many were done.
+int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept);
 
 // ---- the marks that make a change
 // A format with the look of the tracked change it is in; the marks of a deletion hide the text as hidden text is.

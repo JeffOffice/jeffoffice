@@ -1106,14 +1106,18 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
 {
     using jp::review::Change;
     jp::review::ChangeList out;
-    const QTextDocument *story = doc.story();
     // The comments are listed first in the budget: the revisions have what they leave (a document of ten thousand changes still lists its comments).
     const QVector<Comment> all = comments(doc);
     int threads = 0;
     for (const Comment &k : all) threads += k.parent < 0;
     const int commentRoom = std::min(threads, jp::review::kMaxChanges), revisionRoom = jp::review::kMaxChanges - commentRoom;
-    const QVector<Revision> revisions = revisionsIn(story, 0, -1, revisionRoom + 1);
-    for (const Revision &r : revisions) {
+    // (Every story that has changes, the text first: a change's place is its story's number in the document's order, then where it is in the story.)
+    const QVector<StoryRevision> revisions = documentRevisions(doc, revisionRoom + 1);
+    QVector<const QTextDocument *> storyOrder;
+    for (const StoryRevision &sr : revisions) {
+        const Revision &r = sr.revision;
+        const QTextDocument *const where = sr.story;
+        if (!storyOrder.contains(where)) storyOrder.push_back(where);
         if (out.changes.size() >= revisionRoom) {
             out.tooMany = true;
             break;
@@ -1122,9 +1126,9 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
         c.id = QStringLiteral("rev:") + r.id;
         c.author = r.author;
         c.when = r.date;
-        c.target = {QStringLiteral("body"), r.id, QStringLiteral("%1-%2").arg(r.from).arg(r.to)};
-        c.position = r.from;
-        const QString words = revisionText(story, r);
+        c.target = {sr.container, r.id, QStringLiteral("%1-%2").arg(r.from).arg(r.to)};
+        c.position = (qint64(storyOrder.indexOf(where)) << 32) | r.from;
+        const QString words = revisionText(where, r);
         switch (r.kind) {
         case Revision::Insertion:
         case Revision::MarkInserted: c.kind = jp::review::Kind::Added; c.summary = words.isEmpty() ? QCoreApplication::translate("jp::write::Review", "Inserted") : QCoreApplication::translate("jp::write::Review", "Inserted: %1").arg(words); break;

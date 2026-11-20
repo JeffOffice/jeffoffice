@@ -208,7 +208,7 @@ QVector<InspectItem> WriteWindow::inspectItems()
     write::WriteDoc *doc = m_doc.get();
     items.push_back({tr("Comments"), tr("Notes that people left in the margin, with their names."), [doc] { return int(write::comments(*doc).size()); }, [doc] { return write::deleteAllComments(*doc); }, true, QString()});
     items.push_back({tr("Tracked changes"), tr("Insertions and deletions that are still waiting to be accepted or rejected. Accept All keeps every change as part of the text; to choose, use the Review tab."),
-                     [doc] { return write::revisionCount(doc->story()); }, [doc] { return write::acceptAll(*doc); }, true, tr("Accept All")});
+                     [doc] { return write::documentRevisionCount(*doc); }, [doc] { return write::acceptAll(*doc); }, true, tr("Accept All")});
     items.push_back({tr("Document properties and personal information"), tr("The author, the person who last saved it, the company, and the manager."), [doc] { return write::personalInfoCount(*doc); },
                      [this] { return removePersonalInformation(); }, true, QString()});
     items.push_back({tr("Hidden text"), tr("Text that is set to be hidden: it does not show or print, but it is in the file."), [doc] { return write::hiddenTextCount(*doc); },
