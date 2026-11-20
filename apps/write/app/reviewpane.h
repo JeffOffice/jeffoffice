@@ -6,6 +6,7 @@
 #include "core/reviewops.h"
 
 #include <QTimer>
+#include <QLabel>
 #include <QWidget>
 
 class QComboBox;
@@ -55,6 +56,7 @@ private:
     WriteWindow *m_win;
     QTabWidget *m_tabs;
     QTreeWidget *m_comments, *m_changes;
+    QLabel *m_boxLine = nullptr;
     QLineEdit *m_reply;
     QComboBox *m_person;
     QPushButton *m_new, *m_post, *m_resolve, *m_delete, *m_prevComment, *m_nextComment;

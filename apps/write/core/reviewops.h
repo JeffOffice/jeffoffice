@@ -23,6 +23,7 @@ struct Revision {
     QDateTime date;               // none (invalid) when the file gives none
     int from = 0, to = 0;         // the places in the story: the two pieces that mark a change of the text are the first and last character of it; a paragraph mark is the character after its text
     int block = 0;                // the number of the paragraph it begins in
+    bool partner = false;         // set where changes are listed or resolved together: the second half of a move, and the paragraph marks that went with it (a move is shown once)
     bool moved = false;           // a paragraph mark (MarkInserted, MarkDeleted) that a move inserted or took away (w:moveTo, w:moveFrom), which goes with its move
 
     bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted || kind == RowDeleted || kind == CellDeleted; }
@@ -54,13 +55,14 @@ QString revisionText(const QTextDocument *story, const Revision &revision, int m
 QStringList revisionAuthors(const QTextDocument *story);
 
 // Accepts or rejects changes, all as one step of the history. Accepting a deletion takes the text out, and rejecting an insertion does; the other two keep it (and rejecting a change of properties gives
-// the properties it recorded back). A deleted paragraph mark joins the paragraph to the next when accepted. Returns how many were done; `kept` (when given) gets how many changes of tables were
+// the properties it recorded back). A deleted paragraph mark joins the paragraph to the next when accepted. Returns how many were done; `partners` (when given) gets how many of those were the second
+// half of a move, or a paragraph mark that went with one (the lists show a move once, so the figure to tell a person is the return less these); `kept` (when given) gets how many changes of tables were
 // settled by keeping the row, cell, or grid because taking it out (or giving the old grid back) would have broken the table: their records are gone, or stay when a grid can't be given back.
-int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept, int *kept = nullptr);
+int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept, int *kept = nullptr, int *partners = nullptr);
 // The changes that touch [from, to] of the body of the text (the whole story with `to` below 0).
-int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept = nullptr);
-int acceptAll(WriteDoc &doc, int *kept = nullptr);
-int rejectAll(WriteDoc &doc, int *kept = nullptr);
+int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept = nullptr, int *partners = nullptr);
+int acceptAll(WriteDoc &doc, int *kept = nullptr, int *partners = nullptr);
+int rejectAll(WriteDoc &doc, int *kept = nullptr, int *partners = nullptr);
 // The change at the cursor (or the selection: every change it touches), then the one after it. `c` is put where the next change is when there is one, which may be in another
 // story (a header, a footer, or a note): the cursor is the one of that story then. The cursor may be in the text, an endnote, a header, a footer, or a footnote.
 int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept);
@@ -78,6 +80,8 @@ QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most = kMostRevision
 int documentRevisionCount(WriteDoc &doc);
 // A number that is not the same after an edit of any story (the text, a header, a footer, or a note), for what keeps a list of the changes up to date.
 qint64 reviewStamp(const WriteDoc &doc);
+// How many changes are inside text boxes of the document's stories: they are kept as the XML they are written in, so they are not listed, but Accept All and Reject All do them.
+int textBoxChangeCount(WriteDoc &doc);
 // Whether there is a change anywhere in the document (the text is looked through first, the other stories only when it has none).
 bool documentHasRevisions(WriteDoc &doc);
 // The story a change's `container` names, or none where the document has no such story now.
@@ -88,7 +92,7 @@ std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &containe
 // (the change last visited), the one after (before) that one in the story's order, whatever place it was at.
 std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward, const StoryRevision *after = nullptr);
 // Accepts or rejects changes of any stories, as one step of the history (the same one step as one story's). Returns how many were done.
-int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept = nullptr);
+int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept = nullptr, int *partners = nullptr);
 
 // ---- the marks that make a change
 // A format with the look of the tracked change it is in; the marks of a deletion hide the text as hidden text is.
@@ -138,6 +142,8 @@ QTextBlockFormat withParagraphRecord(WriteDoc &doc, const QTextBlockFormat &old,
 // The same for a piece of XML that is kept as written (the content of a text box): its changes accepted or rejected, the XML given back (as it was when it has none or can't be read).
 QByteArray resolveChangesInXml(const QByteArray &xml, bool accept);
 bool xmlHasChanges(const QByteArray &xml);
+// How many changes the XML holds (each element that records one: an insertion, a deletion, a move's half, a change of a run's or a paragraph's properties).
+int xmlChangeCount(const QByteArray &xml);
 // Whether the XML has a change of a table that xmlHasChanges does not name: of a table's, a row's, or a cell's properties, a grid, or a cell's insertion, deletion, or merge.
 bool xmlHasTableChanges(const QByteArray &xml);
 // The Ids of the marks of changes in blocks about to be written: every Id is used once, and none is the Id of a comment or a bookmark (the first mark that has an Id keeps it; the others, which
@@ -148,6 +154,8 @@ qint64 revisionBlocksScannedForTest();
 qint64 revisionRunsVisitedForTest();
 // How many people were looked at to find the places of the people the changes name (a count for the tests of its cost).
 qint64 reviewerProbesForTest();
+// How many times the list of the document's stories that can hold changes was made, since the program began.
+qint64 siteListsBuiltForTest();
 
 // Makes the look of the changes in the paragraph follow the marks it has (after the pieces that mark them were taken out or put in).
 void refreshRevisionLook(WriteDoc &doc, QTextBlock block);

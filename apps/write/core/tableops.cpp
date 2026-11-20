@@ -11,11 +11,13 @@
 #include <QDate>
 #include <QHash>
 #include <QLocale>
+#include <QMutex>
 #include <QRegularExpression>
 #include <QSet>
 #include <QTextDocument>
 #include <QTextDocumentFragment>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <functional>
@@ -3311,18 +3313,41 @@ struct Record {
     QByteArray name, xml;   // the record's element, as written
 };
 
-// The records of tracked changes among the properties of the start of a table, a row, or a cell (kept as written), and for a table the change of its grid.
+std::atomic<qint64> g_recordParses{0};
+
+// Whether the bytes name an element (`name`, as the last part of a tag: "<w:ins " and "<w:ins/>" but not "<w:insideH ").
+bool namesElement(const QByteArray &x, const char *name)
+{
+    const qsizetype len = qstrlen(name);
+    for (qsizetype at = x.indexOf(name); at >= 0; at = x.indexOf(name, at + len)) {
+        const char before = at > 0 ? x.at(at - 1) : '\0', after = at + len < x.size() ? x.at(at + len) : '\0';
+        if ((before == '<' || before == ':') && (after == ' ' || after == '/' || after == '>' || after == '\t' || after == '\r' || after == '\n')) return true;
+    }
+    return false;
+}
+
+// The records of tracked changes among the properties of the start of a table, a row, or a cell (kept as written), and for a table the change of its grid. What is parsed is remembered: the
+// starts of a table's parts are the same bytes each time the story is looked through.
 QVector<Record> recordsOf(const QByteArray &open, int kind)
 {
+    // (Most starts say nothing of changes: a look for the elements that do, and not for letters that other names have, as the borders' insideH.)
+    if (!open.contains("Change") && !namesElement(open, "ins") && !namesElement(open, "del") && !namesElement(open, "cellIns") && !namesElement(open, "cellDel") && !namesElement(open, "cellMerge")) return {};
+    static QMutex lock;
+    static QHash<QByteArray, QVector<Record>> parsed;
+    const QByteArray key = QByteArray(1, char('0' + kind)) + open;
+    {
+        const QMutexLocker locker(&lock);
+        const auto it = parsed.constFind(key);
+        if (it != parsed.constEnd()) return it.value();
+    }
     QVector<Record> out;
-    // (Most starts say nothing of changes: a quick look first.)
-    if (!open.contains("Change") && !open.contains("ins") && !open.contains("del") && !open.contains("cellIns") && !open.contains("cellDel") && !open.contains("cellMerge")) return out;
+    ++g_recordParses;
     XmlTree t;
     int el = -1;
     const char *closing = kind == kTbl ? "</w:tbl>" : kind == kRow ? "</w:tr>" : "</w:tc>";
-    if (!parseKept(&t, open, closing, &el)) return out;
+    const bool readable = parseKept(&t, open, closing, &el);
     const char *prName = kind == kTbl ? "tblPr" : kind == kRow ? "trPr" : "tcPr";
-    for (int c = t.firstChild(el); c >= 0; c = t.next(c)) {
+    for (int c = readable ? t.firstChild(el) : -1; c >= 0; c = t.next(c)) {
         const bool pr = t.is(c, prName), grid = kind == kTbl && t.is(c, "tblGrid"), ex = kind == kRow && t.is(c, "tblPrEx");
         if (!pr && !grid && !ex) continue;
         for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
@@ -3333,6 +3358,9 @@ QVector<Record> recordsOf(const QByteArray &open, int kind)
             if (wanted) out.push_back({name, t.raw(k)});
         }
     }
+    const QMutexLocker locker(&lock);
+    if (parsed.size() > 4096) parsed.clear();
+    parsed.insert(key, out);
     return out;
 }
 
@@ -3377,6 +3405,8 @@ TableChange makeChange(TableChange::Kind kind, const QByteArray &xml, int from, 
 }
 
 } // namespace
+
+qint64 tableRecordParsesForTest() { return g_recordParses.load(); }
 
 void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out)
 {
@@ -3437,7 +3467,8 @@ QByteArray oldPropsOf(const QByteArray &record)
     if (!parseKept(&t, record, "", &el)) return QByteArray();
     QByteArray out;
     for (int c = t.firstChild(el); c >= 0; c = t.next(c))
-        for (int k = t.firstChild(c); k >= 0; k = t.next(k)) out += t.raw(k);
+        for (int k = t.firstChild(c); k >= 0; k = t.next(k))
+            if (!t.localName(k).endsWith("Change")) out += t.raw(k);   // (a record in the old properties is not a change that is made again when they are given back)
     return out;
 }
 

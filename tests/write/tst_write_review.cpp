@@ -3346,6 +3346,263 @@ private Q_SLOTS:
         QCOMPARE(pane->changeList()->topLevelItemCount(), 2);
     }
 
+    // ---------------------------------------------------------------- Round B2 review fixes: headers, moves, and cost
+    void aParagraphThatWasDeletedInAHeaderOrFooterIsListedAndResolvedLikeOneInTheText()
+    {
+        const QByteArray gone = para(deleted(40, "gone"), "<w:rPr><w:del" + rev(41) + "/></w:rPr>");
+        for (QByteArray StoryParts::*field : {&StoryParts::header, &StoryParts::footer}) {
+            const bool header = field == &StoryParts::header;
+            for (const bool accept : {true, false}) {
+                StoryParts p;
+                p.body = para(run("body"));
+                p.*field = gone + para(run("keep"));
+                auto doc = open(makeDocxWithStories(p));
+                QVERIFY(doc);
+                QStringList kinds;
+                for (const StoryRevision &sr : documentRevisions(*doc)) kinds << QString::number(int(sr.revision.kind));
+                QCOMPARE(kinds, (QStringList{QString::number(int(Revision::Deletion)), QString::number(int(Revision::MarkDeleted))}));
+                QCOMPARE(acceptAllOrReject(*doc, accept), 2);
+                QCOMPARE(documentRevisionCount(*doc), 0);
+                const QByteArray saved = partXml(doc->toDocx(), header ? "/word/header1.xml" : "/word/footer1.xml");
+                QVERIFY2(!saved.contains("<w:del") && saved.contains("keep") && saved.contains("gone") == !accept, saved.constData());
+                QCOMPARE(count(saved, "<w:p>") + count(saved, "<w:p "), accept ? 1 : 2);
+            }
+        }
+    }
+
+    void aMovesRangeMarksGoWithItEvenWithABookmarkBetweenThem()
+    {
+        const QByteArray from = "<w:moveFromRangeStart w:id=\"1\" w:name=\"mv\"/><w:bookmarkStart w:id=\"7\" w:name=\"bkA\"/><w:moveFrom" + rev(2) + "><w:r><w:delText>moved</w:delText></w:r></w:moveFrom><w:bookmarkEnd w:id=\"7\"/><w:moveFromRangeEnd w:id=\"1\"/>";
+        const QByteArray to = "<w:moveToRangeStart w:id=\"3\" w:name=\"mv\"/><w:bookmarkStart w:id=\"8\" w:name=\"bkB\"/><w:moveTo" + rev(4) + "><w:r><w:t>moved</w:t></w:r></w:moveTo><w:bookmarkEnd w:id=\"8\"/><w:moveToRangeEnd w:id=\"3\"/>";
+        for (const bool accept : {true, false}) {
+            for (const bool fromHalf : {true, false}) {
+                auto doc = open(makeDocx(para(run("keep ") + from) + para(to + run(" tail"))));
+                QVERIFY(doc);
+                QVector<Revision> which;
+                for (const Revision &r : revisionsIn(doc->story()))
+                    if (r.kind == (fromHalf ? Revision::MovedFrom : Revision::MovedTo)) which << r;
+                QCOMPARE(which.size(), 1);
+                QCOMPARE(resolveRevisions(*doc, doc->story(), which, accept), 2);
+                const QByteArray saved = documentXml(doc->toDocx());
+                for (const char *left : {"<w:moveFrom", "<w:moveTo", "RangeStart", "RangeEnd"}) QVERIFY2(!saved.contains(left), saved.constData());
+                QCOMPARE(count(saved, "<w:bookmarkStart"), 2);
+                QCOMPARE(count(saved, "<w:bookmarkEnd"), 2);
+                QVERIFY(open(doc->toDocx()));
+            }
+        }
+    }
+
+    void aMoveOfThreeParagraphsIsPairedPieceByPiece()
+    {
+        // One range for each side, and a piece of the move in each of the three paragraphs (each with its paragraph mark moved too).
+        const QByteArray markFrom = "<w:rPr><w:moveFrom" + rev(30) + "/></w:rPr>", markTo = "<w:rPr><w:moveTo" + rev(31) + "/></w:rPr>";
+        auto fromPiece = [](int id, const char *t) { return "<w:moveFrom" + rev(id) + "><w:r><w:delText>" + QByteArray(t) + "</w:delText></w:r></w:moveFrom>"; };
+        auto toPiece = [](int id, const char *t) { return "<w:moveTo" + rev(id) + "><w:r><w:t>" + QByteArray(t) + "</w:t></w:r></w:moveTo>"; };
+        const QByteArray body = para("<w:moveFromRangeStart w:id=\"1\" w:name=\"three\"/>" + fromPiece(10, "P1"), markFrom) + para(fromPiece(11, "P2"), markFrom) + para(fromPiece(12, "P3") + "<w:moveFromRangeEnd w:id=\"1\"/>", markFrom) +
+                                para(run("keep")) +
+                                para("<w:moveToRangeStart w:id=\"2\" w:name=\"three\"/>" + toPiece(20, "P1"), markTo) + para(toPiece(21, "P2"), markTo) + para(toPiece(22, "P3") + "<w:moveToRangeEnd w:id=\"2\"/>", markTo);
+        for (const bool accept : {true, false}) {
+            for (const bool fromHalf : {true, false}) {
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                QVector<Revision> which;
+                for (const Revision &r : revisionsIn(doc->story()))
+                    if (r.kind == (fromHalf ? Revision::MovedFrom : Revision::MovedTo)) { which << r; break; }   // (the first piece only)
+                QCOMPARE(which.size(), 1);
+                const int done = resolveRevisions(*doc, doc->story(), which, accept);
+                QCOMPARE(revisionCount(doc->story()), 0);
+                QVERIFY2(done >= 6, qPrintable(QString::number(done)));
+                QCOMPARE(textWithDeletions(*doc), accept ? QStringLiteral("keep\nP1\nP2\nP3") : QStringLiteral("P1\nP2\nP3\nkeep"));
+                const QByteArray saved = documentXml(doc->toDocx());
+                for (const char *left : {"<w:moveFrom", "<w:moveTo", "RangeStart", "RangeEnd"}) QVERIFY2(!saved.contains(left), saved.constData());
+            }
+        }
+    }
+
+    void movePiecesInOneParagraphArePairedWithoutRescanningTheParagraphForEach()
+    {
+        const int moves = 1500;
+        QByteArray from, to;
+        for (int i = 0; i < moves; ++i) from += moveFromOf(("m" + QByteArray::number(i)).constData(), 10 + i * 4, "x");
+        for (int i = moves - 1; i >= 0; --i) to += moveToOf(("m" + QByteArray::number(i)).constData(), 10 + i * 4 + 2000000, "x");
+        auto doc = open(makeDocx(para(from) + para(to)));
+        QVERIFY(doc);
+        QVector<Revision> which;
+        for (const Revision &r : revisionsIn(doc->story()))
+            if (r.kind == Revision::MovedFrom) which << r;
+        QCOMPARE(which.size(), moves);
+        const qint64 before = revisionBlocksScannedForTest();
+        QCOMPARE(resolveRevisions(*doc, doc->story(), which, true), 2 * moves);
+        // A few passes over the two paragraphs, not one for each piece.
+        QVERIFY2(revisionBlocksScannedForTest() - before < 40, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QVERIFY(!documentXml(doc->toDocx()).contains("RangeStart"));
+    }
+
+    void tablesWithNothingMarkedAreNotParsedAndRecordsAreParsedOnce()
+    {
+        // The borders of a table are named insideH and insideV, and a table of many rows says nothing of changes.
+        const QByteArray borders = "<w:tblBorders><w:top w:val=\"single\" w:sz=\"4\"/><w:insideH w:val=\"single\" w:sz=\"4\"/><w:insideV w:val=\"single\" w:sz=\"4\"/></w:tblBorders>";
+        QVector<TableRow> rows;
+        for (int i = 0; i < 40; ++i) rows.push_back({QByteArray(), {cellOf({}, para(run("c")))}});
+        auto plain = open(makeDocx(tableOf(rows, 1, borders)));
+        QVERIFY(plain);
+        qint64 before = tableRecordParsesForTest();
+        QCOMPARE(revisionCount(plain->story()), 0);
+        QCOMPARE(tableRecordParsesForTest() - before, qint64(0));
+        // Rows that do record changes are parsed once for each different record, and not again while the story is looked through again and again.
+        QVector<TableRow> marked;
+        for (int i = 0; i < 40; ++i) marked.push_back({"<w:cantSplit/><w:trPrChange" + rev(200 + i) + "><w:trPr/></w:trPrChange>", {cellOf({}, para(run("c")))}});
+        auto doc = open(makeDocx(tableOf(marked, 1, borders)));
+        QVERIFY(doc);
+        QCOMPARE(revisionCount(doc->story()), 40);
+        before = tableRecordParsesForTest();
+        for (int i = 0; i < 5; ++i) QCOMPARE(revisionCount(doc->story()), 40);
+        QCOMPARE(tableRecordParsesForTest() - before, qint64(0));
+    }
+
+    void aRecordNestedInItsOwnOldPropertiesIsNotANewChangeAfterReject()
+    {
+        const QByteArray tbl = "<w:tblW w:w=\"5000\" w:type=\"dxa\"/><w:tblPrChange" + rev(100) + "><w:tblPr><w:tblPrChange" + rev(101) + "><w:tblPr/></w:tblPrChange></w:tblPr></w:tblPrChange>";
+        const QByteArray tr = "<w:cantSplit/><w:trPrChange" + rev(102) + "><w:trPr><w:trPrChange" + rev(103) + "><w:trPr/></w:trPrChange></w:trPr></w:trPrChange>";
+        const QByteArray tc = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFF00\"/><w:tcPrChange" + rev(104) + "><w:tcPr><w:tcPrChange" + rev(105) + "><w:tcPr/></w:tcPrChange></w:tcPr></w:tcPrChange>";
+        const QByteArray rpr = "<w:r><w:rPr><w:b/><w:rPrChange" + rev(106) + "><w:rPr><w:rPrChange" + rev(107) + "><w:rPr/></w:rPrChange></w:rPr></w:rPrChange></w:rPr><w:t>x</w:t></w:r>";
+        auto doc = open(makeDocx(tableOf({{tr, {cellOf(tc, para(run("c")))}}}, 1, tbl) + para(rpr)));
+        QVERIFY(doc);
+        QVERIFY(rejectAll(*doc) >= 4);
+        const QByteArray saved = documentXml(doc->toDocx());
+        QVERIFY2(!saved.contains("Change"), saved.constData());
+        QCOMPARE(revisionCount(doc->story()), 0);
+        QCOMPARE(rejectAll(*doc), 0);
+    }
+
+    void documentChangesAreResolvedWithTheListOfStoriesMadeOnceNotForEachStory()
+    {
+        StoryParts p = everyStory();
+        auto doc = open(makeDocxWithStories(p));
+        QVERIFY(doc);
+        const QVector<StoryRevision> all = documentRevisions(*doc);
+        QCOMPARE(all.size(), 9);
+        const qint64 before = siteListsBuiltForTest();
+        QCOMPARE(resolveDocumentRevisions(*doc, all, true), 9);
+        QVERIFY2(siteListsBuiltForTest() - before <= 2, qPrintable(QString::number(siteListsBuiltForTest() - before)));
+        QStringList left;
+        for (const StoryRevision &sr : documentRevisions(*doc)) left << sr.container + QLatin1Char(':') + sr.revision.id;
+        QVERIFY2(left.isEmpty(), qPrintable(left.join(QLatin1Char(' '))));
+        QCOMPARE(documentRevisionCount(*doc), 0);
+    }
+
+    void aDocumentWithChangesInItsHeadersOpensUnmodifiedWithTheSamePages()
+    {
+        // The same words in the header, with and without tracked changes round them (the page is the same either way).
+        auto build = [](bool tracked) {
+            StoryParts p;
+            p.body = para(run("body text of the page"));
+            p.header = tracked ? para(run("head ") + inserted(33, "in ") + deleted(34, "out")) : para(run("head in out"));
+            p.footer = tracked ? para(inserted(37, "foot ")) : para(run("foot "));
+            return makeDocxWithStories(p);
+        };
+        int pages[2] = {0, 0};
+        for (int tracked = 0; tracked < 2; ++tracked) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            auto doc = open(build(tracked));
+            QVERIFY(doc);
+            int announced = 0;
+            QObject::connect(doc.get(), &WriteDoc::headerFooterChanged, &w, [&](QTextDocument *) { ++announced; });
+            w.setDocument(std::move(doc), QString());
+            QVERIFY(w.document());
+            QVERIFY(!w.document()->isModified());
+            QVERIFY(!w.document()->canUndo());
+            if (tracked) {
+                // (A header that has changes is made in its editing form as it is read, and nothing is told or laid out again for it.)
+                QCOMPARE(announced, 0);
+            }
+            QTRY_VERIFY(w.view()->pageCount() > 0);
+            pages[tracked] = w.view()->pageCount();
+        }
+        QCOMPARE(pages[1], pages[0]);
+    }
+
+    void theFigureAfterAcceptAllIsWhatThePaneListedAndAMoveIsOne()
+    {
+        const QByteArray markFrom = "<w:rPr><w:moveFrom" + rev(20) + "/></w:rPr>", markTo = "<w:rPr><w:moveTo" + rev(21) + "/></w:rPr>";
+        const QByteArray body = para(moveFromOf("move1", 1, "moved text"), markFrom) + para(run("keep")) + para(moveToOf("move1", 5, "moved text"), markTo) + para(inserted(40, "new"));
+        // The tables' kept cells are told apart from what was done.
+        const QByteArray table = tableOf({{QByteArray(), {cellOf("<w:vMerge w:val=\"restart\"/>" + revTag("cellDel", 50), para(run("m1"))), cellOf({}, para(run("x")))}},
+                                          {QByteArray(), {cellOf("<w:vMerge/>", para(run("m2"))), cellOf({}, para(run("y")))}}}, 2);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(body + table)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        // The move is one line (the paragraph marks and the second half go with the first), then the insertion, then the cell.
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 3);
+        int listedMoves = 0;
+        for (const StoryRevision &sr : documentRevisions(*doc))
+            if (!sr.revision.partner && (sr.revision.kind == Revision::MovedFrom || sr.revision.kind == Revision::MovedTo)) ++listedMoves;
+        QCOMPARE(listedMoves, 1);
+        w.act(QStringLiteral("review.acceptAll"))->trigger();
+        const QString said = w.statusBar()->currentMessage();
+        QVERIFY2(said.startsWith(QStringLiteral("2 changes accepted.")), qPrintable(said));
+        QVERIFY2(said.contains(QStringLiteral("kept because the table would break")), qPrintable(said));
+        QCOMPARE(documentRevisionCount(*doc), 0);
+        // The same from the core: the figure to tell is what was done less the second halves.
+        auto again = open(makeDocx(body));
+        int kept = -1, partners = -1;
+        QCOMPARE(acceptAll(*again, &kept, &partners), 5);   // (the move's two halves and two marks, and the insertion)
+        QCOMPARE(partners, 3);
+        QCOMPARE(kept, 0);
+    }
+
+    void changesInsideTextBoxesAreCountedForThePaneAndDoneByAcceptAll()
+    {
+        const QByteArray box = "<w:r><w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:shape style=\"width:100pt;height:40pt\"><v:textbox><w:txbxContent><w:p>" + inserted(300, "in ") + deleted(301, "out") +
+                               "</w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r>";
+        {
+            auto doc = open(makeDocx(para(run("a") + box + inserted(302, "b"))));
+            QVERIFY(doc);
+            QCOMPARE(revisionCount(doc->story()), 1);
+            QCOMPARE(textBoxChangeCount(*doc), 2);
+            QCOMPARE(acceptAll(*doc), 3);   // (the one in the text and the two in the box)
+            QCOMPARE(textBoxChangeCount(*doc), 0);
+            QVERIFY(!documentHasRevisions(*doc));
+        }
+        // A document whose only changes are in a text box has its commands on, and the pane says how many.
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a") + box))), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *pane = w.reviewPane();
+        QVERIFY(pane);
+        pane->showPage(ReviewPane::Changes);
+        pane->refresh();
+        QCOMPARE(pane->changeList()->topLevelItemCount(), 0);
+        QLabel *line = pane->findChild<QLabel *>(QStringLiteral("textBoxLine"));
+        QVERIFY(line);
+        QVERIFY(!line->isHidden());
+        QVERIFY2(line->text().contains(QStringLiteral("2")) && line->text().contains(QStringLiteral("text boxes")), qPrintable(line->text()));
+        QVERIFY(pane->findChild<QPushButton *>(QStringLiteral("acceptAllButton"))->isEnabled());
+        w.act(QStringLiteral("review.acceptAll"))->trigger();
+        pane->refresh();
+        QVERIFY(line->isHidden());
+        QCOMPARE(textBoxChangeCount(*doc), 0);
+    }
+
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()
     {
         // The reader follows 24 levels of containers (kMaxContainerDepth in wmlread.cpp); what is nested deeper is kept as the XML it is.

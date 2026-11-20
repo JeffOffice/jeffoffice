@@ -66,6 +66,8 @@ struct TableChange {
 };
 // The changes that the paragraph begins (it is the first of a cell, and may be of a row and a table too); `store` has the records of the document's cells.
 void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out);
+// For tests of cost: how many starts of tables, rows, and cells were parsed to look for records of changes, since the program began.
+qint64 tableRecordParsesForTest();
 // Accepts or rejects the changes of tables, which `which` has as tableChangesAt found them in the story as it is now: a record that is accepted (an inserted row, a deleted row that is gone)
 // or rejected (a deleted row that stays) is taken out, a row or cell that a rejected insertion or an accepted deletion removes goes (with its words), a rejected change of properties gives
 // the old ones back, and a rejected merge splits the cells again. A cell that cannot go (it is joined with others) keeps its change. One step; returns how many were done.

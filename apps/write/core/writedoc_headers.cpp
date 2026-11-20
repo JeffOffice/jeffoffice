@@ -111,14 +111,13 @@ void WriteDoc::finishEditable(HeaderPart &part)
     watchHistory(s);
 }
 
-bool WriteDoc::makeEditable(HeaderPart &part)
+bool WriteDoc::makeEditable(HeaderPart &part, bool announce)
 {
     if (part.editForm) return true;
     if (part.unreadable || part.missing || part.created) return false;
     QVector<Block> blocks;
     QByteArray root;
     if (!readBlocks(partData(part.name), &blocks, true, &root)) return false;
-    leaveOutDeletedParagraphs(&blocks, true);   // (as the page shows it: what a tracked change deleted is not in the story, and is written back as it was)
     QTextDocument *s = part.story.get();
     // (The pages keep the room that the story leaves the text: it is the same story, and the pages stay as they are unless the new form takes another room.)
     if (m_pager) m_pager->watchFurniture(s);
@@ -129,8 +128,10 @@ bool WriteDoc::makeEditable(HeaderPart &part)
     part.rootStart = root;
     fillStory(s, blocks, true, part.name, true, false, -1, true);
     finishEditable(part);
-    if (m_pager) m_pager->furnitureChanged(s);
-    Q_EMIT headerFooterChanged(s);
+    if (announce) {
+        if (m_pager) m_pager->furnitureChanged(s);
+        Q_EMIT headerFooterChanged(s);
+    }
     return true;
 }
 

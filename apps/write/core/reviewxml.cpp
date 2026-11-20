@@ -139,6 +139,24 @@ bool xmlHasChanges(const QByteArray &xml)
     return xml.contains("rPrChange") || xml.contains("pPrChange");
 }
 
+int xmlChangeCount(const QByteArray &xml)
+{
+    // (The marks that are changes: an element named so, not w:delText or w:instrText, and not the marks of a move's range.)
+    int n = 0;
+    for (const char *name : {"ins", "del", "moveFrom", "moveTo", "rPrChange", "pPrChange"}) {
+        const qsizetype len = qstrlen(name);
+        for (qsizetype at = xml.indexOf(name); at >= 0; at = xml.indexOf(name, at + len)) {
+            const char before = at > 0 ? xml.at(at - 1) : '\0', next = at + len < xml.size() ? xml.at(at + len) : '\0';
+            if (!(before == '<' || before == ':') || !(next == ' ' || next == '>' || next == '/' || next == '\t' || next == '\n' || next == '\r')) continue;
+            // (A start tag: the "<" before the prefix is not the "</" of an end tag.)
+            qsizetype q = at - 1;
+            while (q > 0 && xml.at(q) != '<' && qsizetype(at) - q < 16) --q;
+            if (xml.at(q) == '<' && !(q + 1 < xml.size() && xml.at(q + 1) == '/')) ++n;
+        }
+    }
+    return n;
+}
+
 bool xmlHasTableChanges(const QByteArray &xml)
 {
     return xml.contains("tblPrChange") || xml.contains("tcPrChange") || xml.contains("tblGridChange") || xml.contains("<w:cellIns") || xml.contains("<w:cellDel") || xml.contains("<w:cellMerge");

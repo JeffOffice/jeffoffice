@@ -464,6 +464,7 @@ private:
     void updateReviewState();
     void newComment();
     void gotoChange(bool forward);
+    QString resolvedMessage(bool accept, int n, int kept, bool stopTracking) const;
     void gotoComment(bool forward);
     int resolveShown(bool accept);
     QVector<write::StoryRevision> shownRevisions() const;

@@ -1019,7 +1019,8 @@ private:
     HeaderPart *partOfStory(const QTextDocument *story);
     const HeaderPart *partOfStory(const QTextDocument *story) const;
     // Puts a part's story in the form it is edited in; false for a part that can't be.
-    bool makeEditable(HeaderPart &part);
+    // `announce` false: the story was just made, so no page has used it and nothing is told (making one while the headers are being attached must not reach back into the pages).
+    bool makeEditable(HeaderPart &part, bool announce = true);
     // Takes a story into the history and tells the page layout of its edits.
     void watchHistory(QTextDocument *story);
     void stepAdded(QTextDocument *story);

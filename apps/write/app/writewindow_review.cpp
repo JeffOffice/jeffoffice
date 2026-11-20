@@ -74,8 +74,9 @@ void WriteWindow::createReviewActions()
         if (!m_doc) return;
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
-        const int n = write::acceptAll(*m_doc);
-        statusBar()->showMessage(n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n), 5000);
+        int kept = 0, partners = 0;
+        const int n = write::acceptAll(*m_doc, &kept, &partners) - partners;
+        statusBar()->showMessage(resolvedMessage(true, n, kept, false), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         updateReviewState();
         refreshReviewUi();
@@ -84,9 +85,10 @@ void WriteWindow::createReviewActions()
         if (!m_doc) return;
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
-        const int n = write::acceptAll(*m_doc);
+        int kept = 0, partners = 0;
+        const int n = write::acceptAll(*m_doc, &kept, &partners) - partners;
         m_doc->setTrackChanges(false);
-        statusBar()->showMessage(n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n), 5000);
+        statusBar()->showMessage(resolvedMessage(true, n, kept, true), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
     });
@@ -94,8 +96,9 @@ void WriteWindow::createReviewActions()
         if (!m_doc) return;
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
-        const int n = write::rejectAll(*m_doc);
-        statusBar()->showMessage(n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n), 5000);
+        int kept = 0, partners = 0;
+        const int n = write::rejectAll(*m_doc, &kept, &partners) - partners;
+        statusBar()->showMessage(resolvedMessage(false, n, kept, false), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         updateReviewState();
         refreshReviewUi();
@@ -395,6 +398,15 @@ void WriteWindow::newComment()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
+// What the status bar says after Accept All or Reject All: the changes done (a move once), and the changes of tables that were kept because taking them out would have broken the table.
+QString WriteWindow::resolvedMessage(bool accept, int n, int kept, bool stopTracking) const
+{
+    QString text = accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n));
+    if (stopTracking) text = n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n);
+    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) kept because the table would break.", "", kept);
+    return text;
+}
+
 // Shows a change where it is: in the text, or in the header, footer, or note that holds it.
 void WriteWindow::showRevision(const write::StoryRevision &r)
 {
@@ -531,8 +543,9 @@ int WriteWindow::resolveShown(bool accept)
     if (!m_doc) return 0;
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
-    const int n = write::resolveDocumentRevisions(*m_doc, shownRevisions(), accept);
-    statusBar()->showMessage(accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n)), 5000);
+    int kept = 0, partners = 0;
+    const int n = write::resolveDocumentRevisions(*m_doc, shownRevisions(), accept, &kept, &partners) - partners;
+    statusBar()->showMessage(resolvedMessage(accept, n, kept, false), 5000);
     m_view->setFocus(Qt::OtherFocusReason);
     updateReviewState();
     refreshReviewUi();

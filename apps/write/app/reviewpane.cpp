@@ -10,6 +10,7 @@
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QInputDialog>
+#include <QLabel>
 #include <QLineEdit>
 #include <QLocale>
 #include <QPushButton>
@@ -119,6 +120,12 @@ ReviewPane::ReviewPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     m_changes->setRootIsDecorated(false);
     m_changes->setAccessibleName(tr("Changes"));
     hv->addWidget(m_changes, 1);
+    m_boxLine = new QLabel(hp);
+    m_boxLine->setObjectName(QStringLiteral("textBoxLine"));
+    m_boxLine->setTextFormat(Qt::PlainText);
+    m_boxLine->setWordWrap(true);
+    m_boxLine->hide();
+    hv->addWidget(m_boxLine);
     auto *h1 = new QHBoxLayout;
     m_accept = new QPushButton(tr("Accept"), hp);
     m_accept->setObjectName(QStringLiteral("acceptButton"));
@@ -228,7 +235,7 @@ void ReviewPane::rebuild()
     int listed = 0;
     for (const write::StoryRevision &sr : write::documentRevisions(*doc, kMostListed * 4 + 1)) {
         const write::Revision &r = sr.revision;
-        if (!person.isEmpty() && r.author != person) continue;
+        if (r.partner || (!person.isEmpty() && r.author != person)) continue;   // (a move is one line: its other half goes with it)
         if (++listed > kMostListed) break;
         auto *item = new QTreeWidgetItem(m_changes);
         const QString words = write::revisionText(sr.story, r, 60);
@@ -240,6 +247,12 @@ void ReviewPane::rebuild()
         item->setData(0, Qt::UserRole + 2, int(r.kind));
         item->setData(0, Qt::UserRole + 3, r.id);
         item->setData(0, Qt::UserRole + 4, sr.container);
+    }
+    // The changes inside text boxes are not listed (they are kept as the XML they are written in), but Accept All and Reject All do them: the line says how many there are.
+    {
+        const int inBoxes = write::textBoxChangeCount(*doc);
+        m_boxLine->setText(tr("%n more change(s) are inside text boxes.", "", inBoxes));
+        m_boxLine->setVisible(inBoxes > 0);
     }
     // The comments, replies under the comment they answer.
     m_comments->clear();
@@ -299,8 +312,9 @@ void ReviewPane::updateButtons()
     const bool change = !m_changes->selectedItems().isEmpty();
     m_accept->setEnabled(doc && change);
     m_reject->setEnabled(doc && change);
-    m_acceptAll->setEnabled(doc && m_changes->topLevelItemCount() > 0);
-    m_rejectAll->setEnabled(doc && m_changes->topLevelItemCount() > 0);
+    const bool any = m_changes->topLevelItemCount() > 0 || (m_boxLine && !m_boxLine->isHidden());
+    m_acceptAll->setEnabled(doc && any);
+    m_rejectAll->setEnabled(doc && any);
 }
 
 void ReviewPane::showChosenChange()
