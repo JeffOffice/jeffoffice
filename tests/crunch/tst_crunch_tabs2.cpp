@@ -970,8 +970,8 @@ private Q_SLOTS:
         {
             // (what the cells that were made read is what reads a cell that very many formulas read is found once for a block of cells, not again for each: the readers found stay a small multiple of the cells, not cells times readers)
             const jp::office::sheet::Calculation *c = w.session()->calculation();
-            QVERIFY2(c->readersFound() <= 100 * n, qPrintable(QString::number(c->readersFound())));
-            QVERIFY2(c->graph().queryWork() <= 400 * n, qPrintable(QString::number(c->graph().queryWork())));
+            QVERIFY2(c->readersFound() <= 100 * n * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(c->readersFound())));   // (a search that is stopped is made again: a slower build counts more)
+            QVERIFY2(c->graph().queryWork() <= 400 * n * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(c->graph().queryWork())));
         }
         qInfo("sheets: %d", liveSheetCount(w));
         QVERIFY(std::isfinite(w.session()->valueAt(fs, n + 10000, 4).number()));

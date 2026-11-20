@@ -3718,7 +3718,7 @@ private Q_SLOTS:
             QVERIFY(!canGroupObject(*doc, 0));
             best = qMin(best, jp::threadCpuMicros() - start);
         }
-        QVERIFY2(best < 2000000, qPrintable(QString::number(best)));
+        QVERIFY2(best < 2000000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QString::number(best)));
         QVERIFY(!ungroupObject(*doc, 0, QPointF(0, 0)));
         // Sixty shapes put in one after another are not grouped either.
         auto many = textDoc({"Before after"});
