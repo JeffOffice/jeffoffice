@@ -1087,16 +1087,16 @@ private Q_SLOTS:
         // and a note of a very long text is cut where the one beside the cell is (what is laid out is bounded)
         EditWindow longOne;
         QVERIFY(longOne.open(bookWithNotes()));
-        longOne.select(QStringLiteral("B1"));
+        longOne.select(QStringLiteral("A1"));
         answerNotesWith(longOne, QString(500000, QLatin1Char('x')));
         longOne.win.w.act(QStringLiteral("notes.edit"))->trigger();
         longOne.win.w.act(QStringLiteral("notes.showHide"))->trigger();
-        QVERIFY(longOne.win.w.session()->anchors().noteAt(0, 0, 1)->shown);
+        QVERIFY(longOne.win.w.session()->anchors().noteAt(0, 0, 0)->shown);
         QElapsedTimer t;
         t.start();
         longOne.win.w.grab();
         const qint64 once = longOne.view()->shownNoteLayouts();
-        QVERIFY(once <= 3);   // (the long one's, and the other's)
+        QVERIFY(once <= 3);   // (C3's, and the long one's)
         longOne.win.w.grab();
         QCOMPARE(longOne.view()->shownNoteLayouts(), once);
         QVERIFY(t.elapsed() < 20000);
