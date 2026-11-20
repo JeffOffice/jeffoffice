@@ -20,6 +20,7 @@
 #include <QHash>
 #include <QObject>
 #include <QPointer>
+#include <QSet>
 
 class QWidget;
 
@@ -34,10 +35,13 @@ public:
     ShowMedia(const Document *doc, QWidget *view);
 
     // A slide is on the screen to stay, with `done` of its click steps played: what plays by itself begins.
-    void arrive(int slide, int done);
+    // `pos` is its place in the order the show goes in (what a count of slides is counted in; the slide's own number when the show goes in order).
+    void arrive(int slide, int done, int pos = -1);
     // The slide on the screen goes (a transition begins, or the show moves to another slide): what plays stops, but
-    // what the file says plays across slides, which goes on until it has been across that many. Said again, it counts once.
-    void leave();
+    // what the file says plays across slides goes on, while the show is within the places the count names, counted from the place it began at
+    // (going back and forth inside them stops nothing; going past the last, or back before the first, stops it). Said again, it counts once.
+    // `nextPos` is the place the show goes to (-1: nowhere, everything stops).
+    void leave(int nextPos = -1);
     // The show is over (its last slide has gone, or it is closed): everything stops.
     void end();
     // The show is bound to another presentation: everything stops, and nothing of the old one is used again.
@@ -71,7 +75,7 @@ private:
         int slide = -1;
         QString itemId;
         deck::MediaPlay play;
-        int left = 1;   // slides it still plays across, this one included
+        int first = -1, last = -1;   // the places of the show it plays across, from where it began (the same when it plays on its own slide only)
     };
     struct Pending {   // a step of only calls: a click of its own
         int atDone = 0;
@@ -82,6 +86,8 @@ private:
     const PictureItem *pictureWithId(const QString &id) const;
     const PictureItem *pictureAt(const QPointF &pos) const;
     Entry *entryFor(const PictureItem &pic, bool create);
+    int m_pos = -1;   // the place of the slide on the screen
+    QSet<QString> m_carried;   // the media that went on playing across slides to the slide now arriving: its own start does not play them again
     Entry *entryOnSlide(const QString &itemId);
     void run(const deck::MediaCue &cue);
     void runStep(int step);

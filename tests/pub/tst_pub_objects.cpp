@@ -973,6 +973,52 @@ private Q_SLOTS:
         QCOMPARE(int(ed.doc()->pages[0]->items.size()), 3);
     }
 
+    // The publishing app shares the editor's Regroup: several groups taken apart at once are all put back, with their names, in one step; with an object gone it does nothing and says why.
+    void regroupPutsBackEveryGroupOrRefuses()
+    {
+        using namespace jp;
+        Editor ed;
+        ed.setDocument(Document::blank(QSizeF(612, 792)));
+        QList<QStringList> sets;
+        QStringList groups;
+        for (int g = 0; g < 2; ++g) {
+            QStringList ids;
+            for (int i = 0; i < 2; ++i) {
+                auto s = std::make_shared<ShapeItem>();
+                s->rect = QRectF(72 + 100 * i, 72 + 100 * g, 72, 72);
+                ids << ed.addItem(s);
+            }
+            sets << ids;
+            ed.select(ids);
+            ed.groupSelection();
+            groups << ed.selection().first();
+            ed.doc()->item(groups.last())->name = QStringLiteral("Group %1").arg(g);
+        }
+        QStringList said;
+        QObject::connect(&ed, &Editor::status, &ed, [&](const QString &text) { said << text; });
+        ed.select(groups);
+        ed.ungroupSelection();   // (both: the first one's remembering is not cleared by the second)
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 4);
+        const int steps = ed.undoStack()->count();
+        ed.regroup();
+        QCOMPARE(ed.undoStack()->count(), steps + 1);
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 2);
+        QStringList names;
+        for (const ItemPtr &it : ed.doc()->pages[0]->items) names << it->name;
+        names.sort();
+        QCOMPARE(names, (QStringList{QStringLiteral("Group 0"), QStringLiteral("Group 1")}));
+        ed.undo();
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 4);
+        ed.select(sets[0][0]);
+        ed.deleteSelection();
+        const int after = ed.undoStack()->count();
+        QVERIFY(!ed.canRegroup());
+        ed.regroup();
+        QCOMPARE(ed.undoStack()->count(), after);
+        QCOMPARE(int(ed.doc()->pages[0]->items.size()), 3);   // (not even the other group went back)
+        QCOMPARE(said.size(), 1);
+    }
+
     // Effect sizes a file gives stay in the ranges the Format pane offers, so a damaged value cannot make
     // a blur that takes minutes.
     void effectSizesFromAFileAreBounded()

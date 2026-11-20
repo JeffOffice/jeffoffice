@@ -2128,7 +2128,7 @@ void Exporter::writePresentation()
     const FooterOptions footers = footerOptions(m_doc);
     QString xml = QStringLiteral("<p:presentation%1").arg(kNamespaces);
     if (footers.skipTitleSlide) xml += QStringLiteral(" showSpecialPlsOnTitleSld=\"0\"");
-    if (m_doc.setup.firstPageNumber != 1) xml += QStringLiteral(" firstSlideNum=\"%1\"").arg(std::clamp(m_doc.setup.firstPageNumber, 0, 9999));
+    if (m_doc.setup.firstPageNumber != 1) xml += QStringLiteral(" firstSlideNum=\"%1\"").arg(m_doc.setup.firstPageNumber);
     // Without this the presentation program does not look at the fonts the file carries.
     if (!m_fonts.listXml.isEmpty()) xml += QStringLiteral(" embedTrueTypeFonts=\"1\"");
     xml += QStringLiteral("><p:sldMasterIdLst>");

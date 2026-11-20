@@ -34,6 +34,15 @@ struct MediaListener {
 // that takes depends on the machine (13 s under a load of 40 on Nov 20), so no test counts on a time.
 static constexpr int kHangGuardMs = 120000;
 
+// A show with a sound that plays across slides (see startAcross in the tests).
+struct AcrossShow {
+    std::unique_ptr<Document> doc;
+    std::shared_ptr<PictureItem> sound;
+    LayoutCache cache;
+    std::unique_ptr<SlideShow> show;
+    QPointer<MediaPlayback> song;
+};
+
 class DeckMediaTests : public QObject {
     Q_OBJECT
 
@@ -1743,7 +1752,9 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(saved);
     }
 
-    // Play Across Slides is a box of the Playback tab: one step that undoes, off when no movie or sound is selected, and kept when the presentation is saved and opened again.
+    // Play Across Slides is a box of the Playback tab, for a sound (a movie is drawn only on its own slide): one step that undoes, off when no sound is selected or a movie is, and kept when the
+    // presentation is saved and opened again. A count the file gave stays while the box is checked (also through a save and open, whatever its size); unchecked there is none; checked from none it is
+    // 999, the number other programs write for all the slides.
     void playAcrossSlidesIsAPlaybackBoxThatIsSaved()
     {
         QTemporaryDir dir;
@@ -1751,9 +1762,7 @@ private Q_SLOTS:
         DeckWindow w;
         w.show();
         Editor *ed = w.editor();
-        const QByteArray avi = testAvi(30, QSize(320, 180), 10, true);
-        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
-        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("tune.wav"), testWav(500)), QStringLiteral("audio")));
         QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
         const QString id = lastMedia(*ed->doc())->id;
         auto play = [&] { return deck::mediaPlayOf(*ed->doc()->pages[0], *lastMedia(*ed->doc())); };
@@ -1764,8 +1773,22 @@ private Q_SLOTS:
         QCOMPARE(play().acrossSlides, 1);
         const int steps = ed->undoStack()->count();
         across->setChecked(true);
-        QCOMPARE(play().acrossSlides, 999);
+        QCOMPARE(play().acrossSlides, deck::kAcrossAllSlides);
         QCOMPARE(ed->undoStack()->count(), steps + 1);
+        // A count of a file's own (any size) is kept by a save and open, and stays while the box is checked, whatever else is changed.
+        deck::MediaPlay own = play();
+        own.acrossSlides = 1500;
+        deck::setMediaPlay(*ed->doc()->pages[0], *static_cast<PictureItem *>(ed->doc()->item(id)), own, 500);
+        ed->setCurrentPage(0);
+        ed->select(id);
+        QTRY_VERIFY(across->isChecked());
+        QMetaObject::invokeMethod(across, "toggled", Qt::DirectConnection, Q_ARG(bool, true));   // (checked again while it is checked)
+        QCOMPARE(play().acrossSlides, 1500);
+        auto *loop = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaLoop"));
+        QVERIFY(loop);
+        loop->setChecked(true);
+        QCOMPARE(play().acrossSlides, 1500);
+        loop->setChecked(false);
         const QString saved = dir.filePath(QStringLiteral("across.pptx"));
         QVERIFY(w.saveTo(saved));
         {
@@ -1773,18 +1796,35 @@ private Q_SLOTS:
             QVERIFY(other.openFile(saved));
             const PictureItem *again = lastMedia(*other.editor()->doc());
             QVERIFY(again);
-            QCOMPARE(deck::mediaPlayOf(*other.editor()->doc()->pages[0], *again).acrossSlides, 999);
+            QCOMPARE(deck::mediaPlayOf(*other.editor()->doc()->pages[0], *again).acrossSlides, 1500);
             Settings::get().removeRecentFile(saved);
         }
         across->setChecked(false);
         QCOMPARE(play().acrossSlides, 1);
         ed->undo();
-        QCOMPARE(play().acrossSlides, 999);
+        QCOMPARE(play().acrossSlides, 1500);
         QTRY_VERIFY(across->isChecked());
         ed->clearSelection();
         QTRY_VERIFY(!across->isEnabled());
         ed->select(id);
         QTRY_VERIFY(across->isEnabled() && across->isChecked());
+    }
+
+    // A movie is drawn only on its own slide, so Play Across Slides is off for one (the count a file gave it is still kept).
+    void playAcrossSlidesIsNotOfferedForAMovie()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        const QByteArray avi = testAvi(30, QSize(320, 180), 10, true);
+        if (!backendReads(avi, "avi", true)) QSKIP("this Qt can't read the test movie here");
+        QVERIFY(w.insertMedia(writeTestFile(dir, QStringLiteral("clip.avi"), avi), QStringLiteral("video")));
+        QTRY_VERIFY(tabShown(w.ribbon(), QStringLiteral("Playback")));
+        auto *across = w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaAcross"));
+        QVERIFY(across);
+        QTRY_VERIFY(!across->isEnabled());
+        QVERIFY(w.ribbon()->findChild<QCheckBox *>(QStringLiteral("mediaLoop"))->isEnabled());   // (the boxes for both are on)
     }
 
     // The Playback tab has Alt Text, Align (the Arrange group), and the Size boxes for a movie or sound too: a height typed there is one step that undoes.
@@ -2353,6 +2393,133 @@ private Q_SLOTS:
         QVERIFY(once);
         show.next();
         QTRY_VERIFY(once.isNull());
+    }
+
+    // A sound that plays across slides, in a show on a window of its own: `across` slides from the first, one long sound (it can't end by itself during the test).
+    static void startAcross(AcrossShow &r, int slides, int across, int ms, bool loop = false, bool rewind = false)
+    {
+        r.doc = showDeck(slides);
+        deck::MediaPlay play;
+        play.start = deck::MediaStart::Automatically;
+        play.acrossSlides = across;
+        play.loop = loop;
+        play.rewind = rewind;
+        r.sound = showMedia(*r.doc, 0, testWav(ms), QStringLiteral("song.wav"), QPointF(40, 40), play);
+        r.show = std::make_unique<SlideShow>(r.doc.get(), &r.cache, 0);
+        r.show->resize(960, 540);
+        r.show->show();
+        r.song = r.show->media()->playbackOf(r.sound->id);
+    }
+
+    // The sound goes on when the show advances, for as many slides as the count names counted from the slide it began on, and stops after the last of them.
+    void showSoundGoesOnForTheSlidesTheCountNamesThenStops()
+    {
+        AcrossShow r;
+        startAcross(r, 5, 3, 60000);
+        QVERIFY(r.song);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*r.song, false), kHangGuardMs);
+        const bool audible = !r.song->failed();
+        for (int slide = 1; slide <= 2; ++slide) {
+            r.show->next();
+            QCOMPARE(r.show->currentSlide(), slide);
+            QVERIFY(!r.song.isNull());
+            if (audible) QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Playing));
+        }
+        r.show->next();   // the third slide after the first is past the count
+        QCOMPARE(r.show->currentSlide(), 3);
+        QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);
+    }
+
+    // Going back inside the places the count names stops nothing and counts nothing: the same player goes on (not a new one) when the show comes back to the slide it began on, and the count is
+    // from there, so the sound is still on at the third place after going to and fro.
+    void showGoingBackWithinTheCountKeepsTheSoundPlaying()
+    {
+        AcrossShow r;
+        startAcross(r, 5, 3, 60000);
+        QVERIFY(r.song);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*r.song, false), kHangGuardMs);
+        const bool audible = !r.song->failed();
+        MediaPlayback *same = r.song;
+        r.show->next();
+        r.show->next();
+        QCOMPARE(r.show->currentSlide(), 2);
+        r.show->previous();
+        r.show->previous();
+        QCOMPARE(r.show->currentSlide(), 0);
+        QVERIFY(!r.song.isNull());
+        QCOMPARE(r.show->media()->playbackOf(r.sound->id), same);   // the same player, not started again by the slide's own start
+        if (audible) {
+            QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Playing));
+            // A sound the presenter paused is not started again by the slide's own start when the show comes back to it.
+            r.song->pause();
+            r.show->next();
+            r.show->previous();
+            QCOMPARE(r.show->currentSlide(), 0);
+            QCOMPARE(r.show->media()->playbackOf(r.sound->id), same);
+            QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Paused));
+            r.song->resume();
+        }
+        r.show->next();
+        r.show->next();
+        QCOMPARE(r.show->currentSlide(), 2);
+        QVERIFY(!r.song.isNull());   // (a count that went down with each slide left would have run out)
+        r.show->next();
+        QCOMPARE(r.show->currentSlide(), 3);
+        QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);
+    }
+
+    // The show's end stops a sound that was to go on over more slides than there are.
+    void showEndStopsASoundThatPlaysAcrossSlides()
+    {
+        AcrossShow r;
+        startAcross(r, 3, deck::kAcrossAllSlides, 60000);
+        QVERIFY(r.song);
+        r.show->next();
+        r.show->next();
+        QCOMPARE(r.show->currentSlide(), 2);
+        QVERIFY(!r.song.isNull());
+        r.show->next();   // the end screen
+        QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);
+    }
+
+    // With Loop the sound starts again each time it ends while the show goes on over the slides (and still stops where the count says); with Rewind and no Loop it ends by itself and stays ended (its
+    // picture back at the start) until the slides it was to play across are over.
+    void showAcrossSlidesWithLoopAndWithRewind()
+    {
+        {
+            AcrossShow r;
+            startAcross(r, 4, 2, 400, true);
+            QVERIFY(r.song);
+            QSignalSpy ended(r.song.data(), &MediaPlayback::ended);
+            QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*r.song, false), kHangGuardMs);
+            if (r.song->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no sound output here: ") + r.song->error()));
+            r.show->next();
+            QCOMPARE(r.show->currentSlide(), 1);
+            // It comes back to the start of the file by itself while the show is on the second slide: the place it has played to goes down.
+            qint64 most = 0;
+            QTRY_VERIFY_WITH_TIMEOUT((most = std::max(most, r.song->played())) > 0 && r.song->played() + 100 < most, kHangGuardMs);
+            QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Playing));
+            QCOMPARE(ended.count(), 0);
+            r.show->next();
+            QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);
+        }
+        {
+            AcrossShow r;
+            startAcross(r, 4, 3, 400, false, true);
+            QVERIFY(r.song);
+            QSignalSpy ended(r.song.data(), &MediaPlayback::ended);
+            QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*r.song, false) || ended.count() > 0, kHangGuardMs);
+            if (r.song->failed()) QSKIP(qPrintable(QStringLiteral("this Qt has no sound output here: ") + r.song->error()));
+            r.show->next();
+            QTRY_VERIFY_WITH_TIMEOUT(ended.count() > 0, kHangGuardMs);   // (it ends by itself, on the first slide or the second)
+            QCOMPARE(int(r.song->state()), int(MediaPlayback::State::Stopped));
+            QVERIFY(!r.song->started());   // (rewound)
+            QVERIFY(!r.song.isNull());
+            r.show->next();
+            QVERIFY(!r.song.isNull());
+            r.show->next();
+            QTRY_VERIFY_WITH_TIMEOUT(r.song.isNull(), kHangGuardMs);
+        }
     }
 
     // A movie that waits for a click on it: the click plays it, another pauses it, a third plays it again; the mouse over it

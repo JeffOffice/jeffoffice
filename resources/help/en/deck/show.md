@@ -41,9 +41,9 @@ You can write on a slide while the show plays. What you draw is called **ink**. 
 
 While the pen, highlighter, or eraser is chosen, a click does not move on to the next slide. Use the keys to move, or go back to the arrow.
 
-**Arrow Options** is in the same menu, under **Pointer Options**. **Automatic** (Ctrl+U) shows the arrow in a show that is in a window and keeps it out of sight on a full screen, **Visible** always shows it, and **Hidden** (Ctrl+H) never shows it, even over a link. While you rehearse timings the arrow always shows, because you click the bar with it.
+**Arrow Options** is in the same menu, under **Pointer Options**. **Automatic** (Ctrl+U) shows the arrow in a show that is in a window and keeps it out of sight on a full screen, **Visible** always shows it, and **Hidden** (Ctrl+H) never shows it, even over a link. While you rehearse timings the arrow always shows, because you click the bar with it. The choice lasts until you close the program, so the next show starts with it. On a Mac the keys are Control+U and Control+H with the key marked Control, because Command+H hides the program.
 
-To open the show's menu without a mouse, press the Menu key or Shift+F10. Press Esc to close it.
+To open the show's menu without a mouse, press the Menu key or Shift+F10. The menu opens on the window you are looking at: Presenter View when it is open, else the show. Press Esc once to close the menu and stay in the show; a second Esc ends the show.
 
 To change the color, right-click, then click **Pointer Options > Ink Color**. The pen and the highlighter each keep their own color. The pen starts with the color you chose in **Set Up Slide Show**, and the highlighter starts yellow.
 

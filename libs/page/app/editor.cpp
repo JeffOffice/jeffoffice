@@ -1149,12 +1149,10 @@ void Editor::forEachSelected(const QString &label, const std::function<void(Item
     endChange();
 }
 
-void Editor::groupSelection()
+// The objects of `ids` (found on the surface, in their stacking order) as a group put where the topmost of them was, inside a change the caller has begun. Null when fewer than two are there.
+GroupItem *Editor::buildGroup(const QStringList &ids)
 {
-    const QStringList ids = topLevelSelection();
-    if (ids.size() < 2) return;
     ItemList &list = surfaceItems();
-    beginChange(tr("Group"));
     auto g = std::make_shared<GroupItem>();
     int insertAt = -1;
     for (int i = 0; i < int(list.size());) {
@@ -1168,11 +1166,23 @@ void Editor::groupSelection()
     }
     if (g->children.size() < 2) {
         for (auto &c : g->children) list.push_back(c);
-        cancelChange();
-        return;
+        return nullptr;
     }
     g->syncRect();
     list.insert(list.begin() + std::clamp(insertAt, 0, int(list.size())), g);
+    return g.get();
+}
+
+void Editor::groupSelection()
+{
+    const QStringList ids = topLevelSelection();
+    if (ids.size() < 2) return;
+    beginChange(tr("Group"));
+    GroupItem *g = buildGroup(ids);
+    if (!g) {
+        cancelChange();
+        return;
+    }
     m_sel = QStringList{g->id};
     endChange();
     Q_EMIT selectionChanged();
@@ -1186,6 +1196,7 @@ void Editor::ungroupSelection()
     if (!any) return;
     beginChange(tr("Ungroup"));
     QStringList newSel;
+    m_regroup.clear();   // (the groups of this one ungrouping, each remembered: Regroup puts them all back)
     for (Item *it : items) {
         if (it->type() != ItemType::Group) continue;
         const auto loc = m_doc->find(it->id);
@@ -1194,34 +1205,82 @@ void Editor::ungroupSelection()
         auto *g = static_cast<GroupItem *>(keep.get());
         loc.list->erase(loc.list->begin() + loc.index);
         int at = loc.index;
-        m_regroup.clear();
+        RegroupSet set;
         for (auto &c : g->children) {
             loc.list->insert(loc.list->begin() + at++, c);
             newSel << c->id;
-            m_regroup << c->id;
+            set.ids << c->id;
         }
+        // What the group itself had stays with its objects: its name, description, links, and the number its animations aim at.
+        g->children.clear();
+        set.group = keep;
+        if (set.ids.size() >= 2) m_regroup << set;
     }
     m_sel = newSel;
     endChange();
     Q_EMIT selectionChanged();
 }
 
-bool Editor::canRegroup() const
+// Whether the remembered objects can all go back into their groups: each is still there, on the surface in front of the person, and in no group. `why` says what is wrong when not.
+bool Editor::regroupPossible(QString *why) const
 {
-    if (m_regroup.size() < 2) return false;
-    int found = 0;
-    for (const ItemPtr &it : surfaceItems()) found += m_regroup.contains(it->id);
-    return found >= 2;
+    auto refuse = [why](const QString &text) {
+        if (why) *why = text;
+        return false;
+    };
+    if (m_regroup.isEmpty()) return refuse(tr("There is no group to put back."));
+    const ItemList *here = &surfaceItems();
+    for (const RegroupSet &set : m_regroup)
+        for (const QString &id : set.ids) {
+            const auto loc = m_doc->find(id);
+            if (!loc.item) return refuse(tr("The group can't be put back: one of its objects was deleted."));
+            if (loc.parent) return refuse(tr("The group can't be put back: one of its objects is in another group now."));
+            if (loc.list != here) return refuse(tr("The group can't be put back: one of its objects is not on this %1 now.").arg(m_master.isEmpty() ? tr("page") : tr("master")));
+        }
+    return true;
 }
+
+bool Editor::canRegroup() const { return regroupPossible(nullptr); }
 
 void Editor::regroup()
 {
-    if (!canRegroup()) return;
-    QStringList ids;
-    for (const ItemPtr &it : surfaceItems())
-        if (m_regroup.contains(it->id)) ids << it->id;
-    m_sel = ids;
-    groupSelection();
+    QString why;
+    if (!regroupPossible(&why)) {
+        Q_EMIT status(why);
+        return;
+    }
+    beginChange(tr("Regroup"));
+    QStringList made;
+    for (const RegroupSet &set : m_regroup) {
+        GroupItem *g = buildGroup(set.ids);
+        if (!g) continue;
+        const auto *old = static_cast<const GroupItem *>(set.group.get());
+        g->name = old->name;
+        g->role = old->role;
+        g->altText = old->altText;
+        g->altTitle = old->altTitle;
+        g->decorative = old->decorative;
+        g->hyperlink = old->hyperlink;
+        g->hoverLink = old->hoverLink;
+        g->clickExtras = old->clickExtras;
+        g->hoverExtras = old->hoverExtras;
+        g->keptHover = old->keptHover;
+        g->keptClick = old->keptClick;
+        g->barcode = old->barcode;
+        // The number the group's animations aim at, unless something else has it now.
+        bool taken = false;
+        if (old->sourceId)
+            walkItems(surfaceItems(), [&](const ItemPtr &it) { taken = taken || (it.get() != g && it->sourceId == old->sourceId); });
+        if (!taken) g->sourceId = old->sourceId;
+        made << g->id;
+    }
+    if (made.isEmpty()) {
+        cancelChange();
+        return;
+    }
+    m_sel = made;
+    endChange();
+    Q_EMIT selectionChanged();
 }
 
 void Editor::arrange(Order o)

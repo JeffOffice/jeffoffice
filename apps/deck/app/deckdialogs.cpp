@@ -349,8 +349,8 @@ SlideSizeDialog::SlideSizeDialog(const QSizeF &current, bool notesPortrait, int 
     form->addRow(tr("Notes pages"), notes);
     m_first = new QSpinBox(this);
     m_first->setObjectName(QStringLiteral("slideFirstNumber"));
-    m_first->setRange(0, 9999);
-    m_first->setValue(std::clamp(firstNumber, 0, 9999));
+    m_first->setRange(PageSetup::kFirstSlideMin, PageSetup::kFirstSlideMax);
+    m_first->setValue(firstNumber);
     form->addRow(tr("Number slides from"), m_first);
     // Each pair is a choice of its own.
     auto *slidesGroup = new QButtonGroup(this);

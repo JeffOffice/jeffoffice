@@ -3,6 +3,7 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/plaintext.h"
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "grid/gridview.h"
@@ -44,6 +45,12 @@ void CrunchWindow::createWindowActions()
         for (CrunchWindow *w : crunchWindows()) wins << w;
         AppWindow::cascade(wins);
     });
+    // Where the window system places the windows itself these do nothing: they are off, and say why.
+    if (!AppWindow::windowPlacementAllowed())
+        for (const char *id : {"win.arrange", "win.cascade"}) {
+            act(QLatin1String(id))->setEnabled(false);
+            act(QLatin1String(id))->setToolTip(jp::plainToolTip(AppWindow::windowPlacementNote()));
+        }
     mk("view.sideBySide", tr("View Side by Side"), "columns-2", QKeySequence(), [this] { setSideBySide(act("view.sideBySide")->isChecked()); }, true);
     mk("view.syncScroll", tr("Synchronous Scrolling"), "arrow-down-up", QKeySequence(), [this] { setSynchronousScrolling(act("view.syncScroll")->isChecked()); }, true);
     act("view.syncScroll")->setChecked(true);

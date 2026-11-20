@@ -595,7 +595,7 @@ void setMediaPlay(Page &slide, PictureItem &pic, const MediaPlay &play, qint64 l
     p.shape = pic.sourceId;
     p.video = pic.mediaKind == QLatin1String("video");
     p.volume = std::clamp(p.volume, 0, 100000);
-    p.acrossSlides = std::clamp(p.acrossSlides, 1, 999);
+    p.acrossSlides = std::max(1, p.acrossSlides);   // (the file's own count stays, whatever it is)
     TimingTree t;
     const QString was = slide.props.value(QStringLiteral("timingXml")).toString();
     if (was.isEmpty() || !readTree(was, &t.root) || t.root.local() != QLatin1String("timing")) t.root = skeleton();

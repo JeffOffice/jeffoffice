@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <QWidget>
 #include <algorithm>
+#include <limits>
 
 namespace jp {
 
@@ -80,7 +81,8 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     e.slide = m_slide;
     e.itemId = pic.id;
     e.play = pic.sourceId > 0 && m_plan.plays.contains(pic.sourceId) ? m_plan.plays.value(pic.sourceId) : deck::mediaPlayOf(*page(), pic);
-    e.left = std::max(1, e.play.acrossSlides);
+    e.first = m_pos;
+    e.last = int(std::min<qint64>(qint64(m_pos) + std::max(1, e.play.acrossSlides) - 1, std::numeric_limits<int>::max()));
     auto *pb = new MediaPlayback(this);
     const auto data = m_doc->media.constFind(pic.mediaId);
     if (data != m_doc->media.cend()) pb->setFile(data->bytes, data->extension);
@@ -96,14 +98,14 @@ ShowMedia::Entry *ShowMedia::entryFor(const PictureItem &pic, bool create)
     return &m_entries.insert(QString::number(m_slide) + QLatin1Char(':') + pic.id, e).value();
 }
 
-void ShowMedia::leave()
+void ShowMedia::leave(int nextPos)
 {
     if (!m_on) return;
     m_on = false;
     ++m_generation;   // what was to be called later on the slide is not
     for (auto it = m_entries.begin(); it != m_entries.end();) {
-        if (it->left > 1) {
-            --it->left;   // plays across this slide's end
+        // It goes on over the places its count names, whichever way the show moves inside them.
+        if (nextPos >= 0 && it->last > it->first && nextPos >= it->first && nextPos <= it->last) {
             ++it;
             continue;
         }
@@ -140,16 +142,22 @@ void ShowMedia::rebind(const Document *doc)
     m_pageId.clear();
 }
 
-void ShowMedia::arrive(int slide, int done)
+void ShowMedia::arrive(int slide, int done, int pos)
 {
-    leave();
+    leave(pos < 0 ? slide : pos);
     if (slide < 0 || slide >= m_doc->pages.size()) return;
     m_slide = slide;
+    m_pos = pos < 0 ? slide : pos;
     m_pageId = m_doc->pages[slide]->id;
     m_on = true;
+    // A sound that went on playing to the slide it began on (the show went back to it) is not begun again by the slide's own start.
+    QSet<QString> carried;
+    for (auto it = m_entries.constBegin(); it != m_entries.constEnd(); ++it)
+        if (it->slide == slide && it->player && it->player->state() != MediaPlayback::State::Stopped) carried.insert(it->itemId);
     m_plan = deck::mediaPlanOf(*m_doc->pages[slide]);
     if (m_plan.isEmpty()) return;
     int visual = 0;
+    m_carried = carried;
     for (int i = 0; i < m_plan.steps.size(); ++i) {
         const deck::MediaStep &s = m_plan.steps[i];
         if (s.visual) {
@@ -163,6 +171,7 @@ void ShowMedia::arrive(int slide, int done)
             m_pending.push_back(Pending{visual, i, visual < done});
         }
     }
+    m_carried.clear();
     m_view->update();
 }
 
@@ -214,6 +223,7 @@ void ShowMedia::run(const deck::MediaCue &cue)
     Entry *e = entryFor(*pic, true);
     if (!e || !e->player) return;
     MediaPlayback *pb = e->player;
+    if (m_carried.contains(pic->id) && (cue.command == QLatin1String("play") || cue.command.startsWith(QLatin1String("playFrom")))) return;
     static const QRegularExpression from(QStringLiteral("^playFrom\\(\\s*(-?[0-9]*\\.?[0-9]*)\\s*\\)$"));
     if (const QRegularExpressionMatch m = from.match(cue.command); m.hasMatch()) pb->playFrom(m.captured(1).toDouble());
     else if (cue.command == QLatin1String("play")) pb->play();

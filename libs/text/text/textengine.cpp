@@ -21,6 +21,8 @@
 #include <QMutex>
 #include <QLinearGradient>
 #include <QtMath>
+#include <algorithm>
+#include <limits>
 #include <QGlyphRun>
 #include <QHash>
 #include <QPaintEngine>
@@ -124,13 +126,15 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
     if (kind == "page") {
         // Numbered from the publication's first page number, in its style
         // unless the field names one (Format Page Numbers).
-        const int from = doc ? doc->firstPageNumber() - 1 : 0;
+        const qint64 from = doc ? qint64(doc->firstPageNumber()) - 1 : 0;
+        // (A presentation may start at any 32-bit number: the sum stays inside it, and a step from the lowest one.)
+        auto at = [from](int page) { return int(std::clamp<qint64>(page + from, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max())); };
         const QString style = arg.isEmpty() && doc ? doc->pageNumberFormat() : arg;
         auto shown = [&](int n) { return pageNumberText(n, style); };
         // The next or previous linked box's page; "#" without one, as in Publisher.
-        if (arg == "next") return nextPage > 0 ? QString::number(nextPage + from) : QStringLiteral("#");
-        if (arg == "prev") return prevPage > 0 ? QString::number(prevPage + from) : QStringLiteral("#");
-        return (doc ? doc->pageNumberPrefix() : QString()) + shown(pageNumber + from);
+        if (arg == "next") return nextPage > 0 ? QString::number(at(nextPage)) : QStringLiteral("#");
+        if (arg == "prev") return prevPage > 0 ? QString::number(at(prevPage)) : QStringLiteral("#");
+        return (doc ? doc->pageNumberPrefix() : QString()) + shown(at(pageNumber));
     }
     if (kind == "notemark") return noteMark;
     if (kind == "pageref") return doc ? doc->pageRefText(arg) : QString();

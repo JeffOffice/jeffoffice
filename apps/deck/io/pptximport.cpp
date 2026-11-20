@@ -898,7 +898,10 @@ void Importer::readSize(const QDomElement &presentation)
     m_doc.setup.size = m_doc.setup.sheet = size;
     m_doc.setup.sizeName = name;
     m_doc.setup.margins = QMarginsF(0, 0, 0, 0);
-    m_doc.setup.firstPageNumber = int(std::clamp<qint64>(office::parseInt(office::attr(presentation, QStringLiteral("firstSlideNum")), 1), 0, 9999));
+    const qint64 firstNumber = office::parseInt(office::attr(presentation, QStringLiteral("firstSlideNum")), 1);
+    m_doc.setup.firstPageNumber = int(std::clamp<qint64>(firstNumber, PageSetup::kFirstSlideMin, PageSetup::kFirstSlideMax));
+    if (m_doc.setup.firstPageNumber != firstNumber)
+        note(QCoreApplication::translate("PptxImport", "The number the first slide counts from in the file is too large or too small, so it is %1.").arg(m_doc.setup.firstPageNumber));
     const QDomElement notesSz = pChild(presentation, "notesSz");
     const qint64 nx = office::parseInt(office::attr(notesSz, QStringLiteral("cx"))), ny = office::parseInt(office::attr(notesSz, QStringLiteral("cy")));
     if (nx > 0 && ny > 0)

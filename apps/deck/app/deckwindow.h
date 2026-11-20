@@ -22,6 +22,7 @@
 #include "app/objects.h"
 #include "app/objectsdialog.h"
 
+#include <optional>
 #include <QHash>
 #include <QKeySequence>
 #include <QPointer>
@@ -226,7 +227,7 @@ public:
     // Gives the slides another size, everything on them scaled to fit (as
     // one step that undoes).
     // `notes` 1 or 0 sets the notes pages upright or on their side in the same step; -1 leaves them.
-    void setSlideSize(const QSizeF &size, bool scale = true, int notes = -1, int first = -1);
+    void setSlideSize(const QSizeF &size, bool scale = true, int notes = -1, std::optional<int> first = std::nullopt);
     // A solid background for the slide being edited, or for all of them.
     void setBackground(const QColor &color, bool all);
     void setBackground(const Fill &fill, bool all);
@@ -538,7 +539,7 @@ private:
     void changeFooters(const deck::FooterOptions &o, const QString &step);
     QString chooseBackgroundPicture();
     void showLinkDialog();
-    void askSlideSize(const QSizeF &size, int notes = -1, int first = -1);
+    void askSlideSize(const QSizeF &size, int notes = -1, std::optional<int> first = std::nullopt);
     void insertPictureFromFile();
     void updateTitle();
     bool maybeSave();

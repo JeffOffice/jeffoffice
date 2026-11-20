@@ -1,4 +1,5 @@
 // JeffDeck's tests of the slide show: settings, custom shows, ink, and rehearsal.
+#include <QScopeGuard>
 #include "deckhelpers.h"
 #include "../withdialog.h"
 #include "app/theme.h"
@@ -935,9 +936,11 @@ private Q_SLOTS:
     // rehearsal bar is clicked with the arrow, so it shows then whatever was chosen.
     void arrowOptionsChooseWhetherTheArrowShows()
     {
+        const auto reset = qScopeGuard([] { SlideShow::forceArrowKeyModifier(Qt::NoModifier); });
         auto d = showDeck(3);
         LayoutCache cache;
         SlideShow show(d.get(), &cache, 0);
+        const auto sessionBack = qScopeGuard([] { SlideShow::setSessionArrowShown(SlideShow::ArrowShown::Automatic); });   // (the choice lasts for the session)
         show.resize(960, 540);
         QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));
         QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
@@ -960,7 +963,7 @@ private Q_SLOTS:
         QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Visible));
         QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
         checked("arrowVisible");
-        QTest::keyClick(&show, Qt::Key_H, Qt::ControlModifier);
+        QTest::keyClick(&show, Qt::Key_H, SlideShow::arrowKeyModifier());
         QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Hidden));
         QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
         checked("arrowHidden");
@@ -969,15 +972,98 @@ private Q_SLOTS:
         deck::ShowSettings windowed;
         windowed.type = deck::ShowSettings::Type::Individual;
         show.setSettings(windowed);
-        QTest::keyClick(&show, Qt::Key_U, Qt::ControlModifier);
+        QTest::keyClick(&show, Qt::Key_U, SlideShow::arrowKeyModifier());
         QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));
         QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
-        QTest::keyClick(&show, Qt::Key_H, Qt::ControlModifier);
+        QTest::keyClick(&show, Qt::Key_H, SlideShow::arrowKeyModifier());
         QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
         show.setRecording(true);
         QCOMPARE(show.cursor().shape(), Qt::ArrowCursor);
         show.setRecording(false);
         QCOMPARE(show.cursor().shape(), Qt::BlankCursor);
+    }
+
+    // Where Qt's Control is the Command key (a Mac), the arrow's keys are the key marked Control, which Qt calls Meta: Command+H is the system's Hide. Run as the other platform has it, the key that is not
+    // the choice does nothing, and the menu shows the key that works.
+    void arrowKeysUseTheKeyMarkedControlWhereCommandIsTheSystems()
+    {
+        const auto reset = qScopeGuard([] { SlideShow::forceArrowKeyModifier(Qt::NoModifier); });
+        auto d = showDeck(3);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const auto sessionBack = qScopeGuard([] { SlideShow::setSessionArrowShown(SlideShow::ArrowShown::Automatic); });
+        show.resize(960, 540);
+#ifdef Q_OS_MACOS
+        QCOMPARE(SlideShow::arrowKeyModifier(), Qt::MetaModifier);
+#else
+        QCOMPARE(SlideShow::arrowKeyModifier(), Qt::ControlModifier);
+#endif
+        for (const Qt::KeyboardModifier mine : {Qt::MetaModifier, Qt::ControlModifier}) {
+            const Qt::KeyboardModifier other = mine == Qt::MetaModifier ? Qt::ControlModifier : Qt::MetaModifier;
+            SlideShow::forceArrowKeyModifier(mine);
+            show.setArrowShown(SlideShow::ArrowShown::Automatic);
+            QTest::keyClick(&show, Qt::Key_H, other);
+            QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));   // not the arrow's key here
+            QTest::keyClick(&show, Qt::Key_H, mine);
+            QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Hidden));
+            QTest::keyClick(&show, Qt::Key_U, other);
+            QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Hidden));
+            QTest::keyClick(&show, Qt::Key_U, mine);
+            QCOMPARE(int(show.arrowShown()), int(SlideShow::ArrowShown::Automatic));
+            std::unique_ptr<QMenu> menu(show.pointerMenu(&show));
+            QAction *hidden = menu->findChild<QAction *>(QStringLiteral("arrowHidden"));
+            QVERIFY(hidden);
+            QVERIFY2(hidden->text().endsWith(QKeySequence(mine | Qt::Key_H).toString(QKeySequence::NativeText)), qPrintable(hidden->text()));
+        }
+    }
+
+    // The choice of the arrow lasts for the session: the next show starts with it.
+    void theArrowChoiceIsKeptForTheSessionsLaterShows()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        std::unique_ptr<SlideShow> first(new SlideShow(d.get(), &cache, 0));
+        const auto sessionBack = qScopeGuard([] { SlideShow::setSessionArrowShown(SlideShow::ArrowShown::Automatic); });
+        QCOMPARE(int(first->arrowShown()), int(SlideShow::ArrowShown::Automatic));
+        first->setArrowShown(SlideShow::ArrowShown::Hidden);
+        first.reset();
+        SlideShow second(d.get(), &cache, 0);
+        QCOMPARE(int(second.arrowShown()), int(SlideShow::ArrowShown::Hidden));
+        second.setArrowShown(SlideShow::ArrowShown::Visible);
+        SlideShow third(d.get(), &cache, 0);
+        QCOMPARE(int(third.arrowShown()), int(SlideShow::ArrowShown::Visible));
+        third.setArrowShown(SlideShow::ArrowShown::Automatic);
+        SlideShow fourth(d.get(), &cache, 0);
+        QCOMPARE(int(fourth.arrowShown()), int(SlideShow::ArrowShown::Automatic));
+    }
+
+    // The Menu key opens the menu on the window the presenter is looking at (Presenter View when it is open); Esc closes the menu and leaves the show running, and a second Esc ends it.
+    void theMenuKeyOpensOnPresenterViewAndEscClosesOnlyTheMenu()
+    {
+        auto d = showDeck(2);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        const ScreenInfo a{QStringLiteral("A"), QRect(0, 0, 1920, 1080), QRect(0, 0, 1920, 1040), true};
+        const ScreenInfo b{QStringLiteral("B"), QRect(1920, 0, 1280, 720), QRect(1920, 0, 1280, 720), false};
+        show.placeOn(a, b);
+        PresenterView *pv = show.presenterView();
+        QVERIFY(pv);
+        QTRY_VERIFY(pv->isVisible());
+        QTest::keyClick(&show, Qt::Key_Menu);
+        QPointer<QMenu> menu = pv->findChild<QMenu *>(QStringLiteral("showMenu"));
+        QVERIFY2(menu && menu->isVisible(), "the menu is not on Presenter View");
+        QVERIFY(!show.findChild<QMenu *>(QStringLiteral("showMenu")));
+        // Esc is the menu's: it closes, and the show goes on.
+        QWidget *popup = QApplication::activePopupWidget() ? QApplication::activePopupWidget() : menu.data();
+        QTest::keyClick(popup, Qt::Key_Escape);
+        QTRY_VERIFY(menu.isNull() || !menu->isVisible());
+        QVERIFY(show.isVisible());
+        QCOMPARE(show.currentSlide(), 0);
+        // The next Esc (the menu is gone) ends the show.
+        QTest::keyClick(&show, Qt::Key_Escape);
+        QTRY_VERIFY(!show.isVisible());
     }
 
     // Last Viewed in the show's menu goes back to the slide that was on the screen before this one (off while there is none); the Menu key and Shift+F10 open the menu without a mouse.

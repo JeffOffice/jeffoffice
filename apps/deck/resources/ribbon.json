@@ -1,6 +1,77 @@
 {
   "fileKeytip": "F",
   "quickAccess": [{"cmd": "file.open", "keytip": "1"}, {"cmd": "file.save", "keytip": "2"}, {"cmd": "file.print", "keytip": "3"}, {"cmd": "edit.undo", "keytip": "4"}, {"cmd": "edit.redo", "keytip": "5"}, {"cmd": "edit.cut", "keytip": "6"}, {"cmd": "edit.copy", "keytip": "7"}, {"cmd": "edit.paste", "keytip": "8"}],
+  "templates": {
+    "accessibilityGroup": {
+      "name": "Accessibility",
+      "keytip": "ZY",
+      "items": [
+        {
+          "large": "shape.altText",
+          "keytip": "AT"
+        }
+      ]
+    },
+    "arrangeGroup": {
+      "name": "Arrange",
+      "keytip": "ZR",
+      "items": [
+        {
+          "large": {
+            "id": "ribbon.align",
+            "text": "Align",
+            "icon": "align-start-vertical"
+          },
+          "keytip": "AL",
+          "menu": [
+            "arr.alignLeft",
+            "arr.alignCenter",
+            "arr.alignRight",
+            "-",
+            "arr.alignTop",
+            "arr.alignMiddle",
+            "arr.alignBottom",
+            "-",
+            "arr.distH",
+            "arr.distV",
+            "-",
+            "arr.alignToSlide"
+          ]
+        }
+      ]
+    },
+    "sizeGroup": {
+      "name": "Size",
+      "keytip": "ZZ",
+      "launcher": "shapeSize",
+      "launcherTip": "Size and Position",
+      "launcherKeytip": "LZ",
+      "items": [
+        {
+          "row": [
+            {
+              "label": "Height:"
+            },
+            {
+              "widget": "shapeHeight",
+              "keytip": "SH"
+            }
+          ]
+        },
+        {
+          "row": [
+            {
+              "label": "Width:"
+            },
+            {
+              "widget": "shapeWidth",
+              "keytip": "SW"
+            }
+          ]
+        }
+      ]
+    }
+  },
   "tabs": [
     {
       "name": "Home",
@@ -1619,75 +1690,9 @@
             }
           ]
         },
-        {
-          "name": "Accessibility",
-          "keytip": "ZY",
-          "items": [
-            {
-              "large": "shape.altText",
-              "keytip": "AT"
-            }
-          ]
-        },
-        {
-          "name": "Arrange",
-          "keytip": "ZR",
-          "items": [
-            {
-              "large": {
-                "id": "ribbon.align",
-                "text": "Align",
-                "icon": "align-start-vertical"
-              },
-              "keytip": "AL",
-              "menu": [
-                "arr.alignLeft",
-                "arr.alignCenter",
-                "arr.alignRight",
-                "-",
-                "arr.alignTop",
-                "arr.alignMiddle",
-                "arr.alignBottom",
-                "-",
-                "arr.distH",
-                "arr.distV",
-                "-",
-                "arr.alignToSlide"
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Size",
-          "keytip": "ZZ",
-          "launcher": "shapeSize",
-          "launcherTip": "Size and Position",
-          "launcherKeytip": "LZ",
-          "items": [
-            {
-              "row": [
-                {
-                  "label": "Height:"
-                },
-                {
-                  "widget": "shapeHeight",
-                  "keytip": "SH"
-                }
-              ]
-            },
-            {
-              "row": [
-                {
-                  "label": "Width:"
-                },
-                {
-                  "widget": "shapeWidth",
-                  "keytip": "SW"
-                }
-              ]
-            }
-          ]
-        }
+        {"use": "accessibilityGroup"},
+        {"use": "arrangeGroup"},
+        {"use": "sizeGroup"}
       ]
     },
     {
@@ -1807,75 +1812,9 @@
             }
           ]
         },
-        {
-          "name": "Accessibility",
-          "keytip": "ZY",
-          "items": [
-            {
-              "large": "shape.altText",
-              "keytip": "AT"
-            }
-          ]
-        },
-        {
-          "name": "Arrange",
-          "keytip": "ZR",
-          "items": [
-            {
-              "large": {
-                "id": "ribbon.align",
-                "text": "Align",
-                "icon": "align-start-vertical"
-              },
-              "keytip": "AL",
-              "menu": [
-                "arr.alignLeft",
-                "arr.alignCenter",
-                "arr.alignRight",
-                "-",
-                "arr.alignTop",
-                "arr.alignMiddle",
-                "arr.alignBottom",
-                "-",
-                "arr.distH",
-                "arr.distV",
-                "-",
-                "arr.alignToSlide"
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Size",
-          "keytip": "ZZ",
-          "launcher": "shapeSize",
-          "launcherTip": "Size and Position",
-          "launcherKeytip": "LZ",
-          "items": [
-            {
-              "row": [
-                {
-                  "label": "Height:"
-                },
-                {
-                  "widget": "shapeHeight",
-                  "keytip": "SH"
-                }
-              ]
-            },
-            {
-              "row": [
-                {
-                  "label": "Width:"
-                },
-                {
-                  "widget": "shapeWidth",
-                  "keytip": "SW"
-                }
-              ]
-            }
-          ]
-        }
+        {"use": "accessibilityGroup"},
+        {"use": "arrangeGroup"},
+        {"use": "sizeGroup"}
       ]
     },
     {
@@ -1974,75 +1913,9 @@
             }
           ]
         },
-        {
-          "name": "Accessibility",
-          "keytip": "ZA",
-          "items": [
-            {
-              "large": "shape.altText",
-              "keytip": "AT"
-            }
-          ]
-        },
-        {
-          "name": "Size",
-          "keytip": "ZZ",
-          "launcher": "shapeSize",
-          "launcherTip": "Size and Position",
-          "launcherKeytip": "LZ",
-          "items": [
-            {
-              "row": [
-                {
-                  "label": "Height:"
-                },
-                {
-                  "widget": "shapeHeight",
-                  "keytip": "SH"
-                }
-              ]
-            },
-            {
-              "row": [
-                {
-                  "label": "Width:"
-                },
-                {
-                  "widget": "shapeWidth",
-                  "keytip": "SW"
-                }
-              ]
-            }
-          ]
-        },
-        {
-          "name": "Arrange",
-          "keytip": "ZR",
-          "items": [
-            {
-              "large": {
-                "id": "ribbon.align",
-                "text": "Align",
-                "icon": "align-start-vertical"
-              },
-              "keytip": "AL",
-              "menu": [
-                "arr.alignLeft",
-                  "arr.alignCenter",
-                  "arr.alignRight",
-                  "-",
-                  "arr.alignTop",
-                  "arr.alignMiddle",
-                  "arr.alignBottom",
-                  "-",
-                  "arr.distH",
-                  "arr.distV",
-                  "-",
-                  "arr.alignToSlide"
-              ]
-            }
-          ]
-        },
+        {"use": "accessibilityGroup", "keytip": "ZA"},
+        {"use": "sizeGroup"},
+        {"use": "arrangeGroup"},
         {
           "name": "Format",
           "keytip": "ZF",
@@ -2574,16 +2447,7 @@
             }
           ]
         },
-        {
-          "name": "Accessibility",
-          "keytip": "ZA",
-          "items": [
-            {
-              "large": "shape.altText",
-              "keytip": "AT"
-            }
-          ]
-        },
+        {"use": "accessibilityGroup", "keytip": "ZA"},
         {
           "name": "Format",
           "keytip": "ZF",

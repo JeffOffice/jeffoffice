@@ -14,7 +14,7 @@ A check mark shows the size the presentation has now. When you choose the other 
 
 A presentation opened from a file can have a size that is neither of these. It keeps that size, and neither choice is checked.
 
-**Custom Slide Size** has a list of sizes, a width and a height, Landscape or Portrait, and the way the notes pages are turned. **Number slides from** is the number the first slide counts from, so that a slide number on the slides, the printed pages, and the pages of a saved .pptx file start there (zero or higher; a .odp file does not keep it, and Check Compatibility says so). Changing the size, the number, or the notes pages is one step of Ctrl+Z.
+**Custom Slide Size** has a list of sizes, a width and a height, Landscape or Portrait, and the way the notes pages are turned. **Number slides from** is the number the first slide counts from, so that a slide number on the slides, the printed pages, and the pages of a saved .pptx file start there. It can be any whole number, zero or negative too, up to about two billion either way; a file from another program with a number past that is opened with the nearest one, and the notes at the open say so. Slide numbers on the slides and the printed pages show it. A PDF bookmark of a slide with a title is the title, with the slide's number in front when the numbers don't start at 1 ("7. Title"), and a bookmark of a slide without a title is "Slide 7"; the pictures you export are still named by the slide's place ("Slide 1.png", "Slide 2.png") so they sort in order. A .odp file does not keep the number, and Check Compatibility says so. Changing the size, the number, or the notes pages is one step of Ctrl+Z.
 
 ## Background
 

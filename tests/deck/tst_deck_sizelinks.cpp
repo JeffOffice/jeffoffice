@@ -16,6 +16,7 @@
 #include <QMessageBox>
 #include <QSpinBox>
 #include <QTemporaryDir>
+#include <limits>
 #include <QFile>
 
 namespace {
@@ -201,7 +202,8 @@ private Q_SLOTS:
             auto *first = dlg->findChild<QSpinBox *>(QStringLiteral("slideFirstNumber"));
             QVERIFY(first);
             QCOMPARE(first->value(), 1);
-            QCOMPARE(first->minimum(), 0);
+            QCOMPARE(first->minimum(), std::numeric_limits<int>::min());   // (the format's own range: any 32-bit integer)
+            QCOMPARE(first->maximum(), std::numeric_limits<int>::max());
             first->setValue(7);
         });
         QCOMPARE(ed->doc()->setup.firstPageNumber, 7);
@@ -227,13 +229,74 @@ private Q_SLOTS:
         QStringList told;
         w.setNotifier([&](const QString &, const QString &text) { told << text; });
         w.checkCompatibility();
-        QVERIFY2(!told.isEmpty() && told.last().contains(QStringLiteral("counts from")), qPrintable(told.join(QLatin1Char('|'))));
+        QVERIFY2(!told.isEmpty() && told.last().contains(QStringLiteral("The number that the first slide counts from can't be saved in this kind of file.")), qPrintable(told.join(QLatin1Char('|'))));
         ed->undo();
         QCOMPARE(ed->doc()->setup.firstPageNumber, 1);
         QCOMPARE(slideNumberOf(ed->doc(), 2), QStringLiteral("2"));
         told.clear();
         w.checkCompatibility();
         QVERIFY(told.isEmpty() || !told.last().contains(QStringLiteral("counts from")));
+    }
+
+    // The number survives an undo and a redo of ANY edit (the undo restores the whole presentation), whatever it is: 0, a large one, a negative one, and the ends of the format's range.
+    void numberSlidesFromSurvivesUndoAndRedo()
+    {
+        const int values[] = {0, 5000, 123456, -3, std::numeric_limits<int>::max(), std::numeric_limits<int>::min()};
+        for (int value : values) {
+            DeckWindow w;
+            Editor *ed = w.editor();
+            w.setSlideSize(ed->doc()->pageSize(), true, -1, value);
+            QVERIFY2(ed->doc()->setup.firstPageNumber == value, qPrintable(QString::number(value)));
+            w.newSlide();   // another edit after it
+            QVERIFY2(ed->doc()->setup.firstPageNumber == value, qPrintable(QString::number(value)));
+            ed->undo();   // the new slide goes
+            QVERIFY2(ed->doc()->setup.firstPageNumber == value, qPrintable(QString::number(value)));
+            ed->redo();
+            QVERIFY2(ed->doc()->setup.firstPageNumber == value, qPrintable(QString::number(value)));
+            ed->undo();
+            ed->undo();   // the number goes
+            QCOMPARE(ed->doc()->setup.firstPageNumber, 1);
+            ed->redo();
+            QVERIFY2(ed->doc()->setup.firstPageNumber == value, qPrintable(QString::number(value)));
+            // The slide number fields count from it without overflowing at the top.
+            FieldContext ctx;
+            ctx.doc = ed->doc();
+            ctx.pageNumber = 3;
+            QCOMPARE(ctx.resolve(QStringLiteral("page")), QString::number(std::clamp<qint64>(qint64(value) + 2, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max())));
+        }
+    }
+
+    // A file from another program: the number is read at each end of the format's range (a 32-bit integer) and kept by a save; one outside it is brought to the nearest end, and the open notice says so.
+    void numberSlidesFromReadsTheWholeRangeAndClampsOutsideIt()
+    {
+        auto readWith = [](const QString &value, QString *notes) {
+            Parts p = samplePptx();
+            QString pres = QString::fromUtf8(p.data["/ppt/presentation.xml"].xml);
+            pres.replace(QStringLiteral("<p:presentation "), QStringLiteral("<p:presentation firstSlideNum=\"%1\" ").arg(value));
+            p.data["/ppt/presentation.xml"].xml = pres.toUtf8();
+            return deck::importPresentation(pack(p), notes);
+        };
+        const std::pair<QString, int> inside[] = {{QStringLiteral("0"), 0}, {QStringLiteral("2147483647"), std::numeric_limits<int>::max()}, {QStringLiteral("-2147483648"), std::numeric_limits<int>::min()}, {QStringLiteral("4000"), 4000}};
+        for (const auto &c : inside) {
+            QString notes;
+            auto d = readWith(c.first, &notes);
+            QVERIFY2(d, qPrintable(c.first));
+            QCOMPARE(d->setup.firstPageNumber, c.second);
+            QVERIFY2(!notes.contains(QStringLiteral("counts from")), qPrintable(notes));
+            QString err;
+            auto back = deck::importPresentation(deck::exportPresentation(*d, &err), &err);
+            QVERIFY2(back, qPrintable(err));
+            QCOMPARE(back->setup.firstPageNumber, c.second);
+            QCOMPARE(Document::fromSnapshot(d->snapshot())->setup.firstPageNumber, c.second);
+        }
+        const std::pair<QString, int> outside[] = {{QStringLiteral("2147483648"), std::numeric_limits<int>::max()}, {QStringLiteral("99999999999"), std::numeric_limits<int>::max()}, {QStringLiteral("-2147483649"), std::numeric_limits<int>::min()}};
+        for (const auto &c : outside) {
+            QString notes;
+            auto d = readWith(c.first, &notes);
+            QVERIFY2(d, qPrintable(c.first));
+            QCOMPARE(d->setup.firstPageNumber, c.second);
+            QVERIFY2(notes.contains(QStringLiteral("The number the first slide counts from in the file is too large or too small, so it is %1.").arg(c.second)), qPrintable(notes));
+        }
     }
 
     // Portrait, paper, and banner decks save in .pptx and .odp and open as they were, and their slides print, export, and draw in their own shape.

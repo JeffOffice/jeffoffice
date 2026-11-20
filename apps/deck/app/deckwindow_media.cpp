@@ -346,18 +346,18 @@ void DeckWindow::addMediaParts(RibbonParts &parts)
     connect(ed, &Editor::documentReplaced, this, syncAll);
 
     auto check = [this, ed, syncs](const char *name, const QString &text, const QString &tip, const std::function<bool(const deck::MediaPlay &)> &read,
-                                   const std::function<void(deck::MediaPlay &, bool)> &write, bool videoOnly) {
+                                   const std::function<void(deck::MediaPlay &, bool)> &write, bool videoOnly, bool soundOnly = false) {
         auto *box = new QCheckBox(text);
         box->setObjectName(QLatin1String(name));
         box->setToolTip(jp::plainToolTip(tip));
         connect(box, &QCheckBox::toggled, this, [this, write, text](bool on) {
             editMedia(text.isEmpty() ? tr("Media Options") : text, [write, on](deck::MediaPlay &p) { write(p, on); });
         });
-        syncs->append([box, ed, read, videoOnly] {
+        syncs->append([box, ed, read, videoOnly, soundOnly] {
             const QSignalBlocker block(box);
             const deck::MediaPlay p = currentPlay(ed);
             box->setChecked(read(p));
-            box->setEnabled(selectedMedia(ed) && (!videoOnly || p.video));
+            box->setEnabled(selectedMedia(ed) && (!videoOnly || p.video) && (!soundOnly || !p.video));
         });
         syncs->last()();
         return box;
@@ -378,10 +378,11 @@ void DeckWindow::addMediaParts(RibbonParts &parts)
         return check("mediaRewind", tr("Rewind after Playing"), tr("Rewind after Playing: when it ends, a movie goes back to its first picture."),
                      [](const deck::MediaPlay &p) { return p.rewind; }, [](deck::MediaPlay &p, bool on) { p.rewind = on; }, false);
     };
-    // The file's own count of slides it plays over: 999 is "until it ends or is stopped".
+    // A sound goes on over the next slides (a movie is drawn only on its own slide, so the box is for sounds). The count a file gives stays while the box is checked; checked from none it is 999,
+    // the number other programs write for "all the slides" (the file's count is an unsigned integer of the slides it plays over); unchecked, none.
     parts.widgets[QStringLiteral("mediaAcross")] = [check, this]() -> QWidget * {
-        return check("mediaAcross", tr("Play Across Slides"), tr("Play Across Slides: in the slide show, it goes on playing when the slide changes."),
-                     [](const deck::MediaPlay &p) { return p.acrossSlides > 1; }, [](deck::MediaPlay &p, bool on) { p.acrossSlides = on ? 999 : 1; }, false);
+        return check("mediaAcross", tr("Play Across Slides"), tr("Play Across Slides: in the slide show, the sound goes on playing when the slide changes."),
+                     [](const deck::MediaPlay &p) { return p.acrossSlides > 1; }, [](deck::MediaPlay &p, bool on) { p.acrossSlides = !on ? 1 : p.acrossSlides > 1 ? p.acrossSlides : deck::kAcrossAllSlides; }, false, true);
     };
     parts.widgets[QStringLiteral("mediaVolume")] = [this, ed, syncs]() -> QWidget * {
         auto *box = new QComboBox();

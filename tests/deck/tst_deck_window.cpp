@@ -781,6 +781,252 @@ private Q_SLOTS:
         QCOMPARE(ed->undoStack()->count(), after);
     }
 
+    // Regroup puts back exactly what was taken apart, or does nothing and says why: an object deleted, taken to another slide, or put into another group since each stop it, whole (no partial
+    // group), with no step made.
+    void regroupRefusesWhenItCannotPutTheWholeSetBack()
+    {
+        enum Spoil { Delete, OtherSlide, OtherGroup };
+        for (Spoil spoil : {Delete, OtherSlide, OtherGroup}) {
+            Editor ed;
+            ed.setDocument(deck::newPresentation());
+            deck::addSlide(*ed.doc(), *deck::layoutOfType(*ed.doc(), QStringLiteral("title"), QString()));
+            ed.setCurrentPage(0);
+            QStringList ids;
+            for (int i = 0; i < 4; ++i) {
+                auto s = std::make_shared<ShapeItem>();
+                s->rect = QRectF(72 + 100 * i, 300, 72, 72);
+                ids << ed.addItem(s);
+            }
+            QStringList said;
+            QObject::connect(&ed, &Editor::status, &ed, [&](const QString &text) { said << text; });
+            ed.select(ids);
+            ed.groupSelection();
+            ed.ungroupSelection();
+            QVERIFY(ed.canRegroup());
+            const int before = ed.surfaceItems().size();
+            if (spoil == Delete) {
+                ed.select(ids[1]);
+                ed.deleteSelection();
+            } else if (spoil == OtherSlide) {
+                auto &from = ed.doc()->pages[0]->items;
+                for (size_t i = 0; i < from.size(); ++i)
+                    if (from[i]->id == ids[2]) {
+                        ed.doc()->pages[1]->items.push_back(from[i]);
+                        from.erase(from.begin() + i);
+                        break;
+                    }
+            } else {
+                ed.select(QStringList{ids[0], ids[3]});
+                ed.groupSelection();   // (now in a group of its own)
+            }
+            const int after = ed.surfaceItems().size(), steps = ed.undoStack()->count();
+            QVERIFY(!ed.canRegroup());
+            said.clear();
+            ed.regroup();
+            QCOMPARE(said.size(), 1);
+            QVERIFY2(said[0].startsWith(QStringLiteral("The group can't be put back")), qPrintable(said[0]));
+            QCOMPARE(ed.undoStack()->count(), steps);
+            QCOMPARE(int(ed.surfaceItems().size()), after);
+            QVERIFY(before >= after);
+            for (const ItemPtr &it : ed.surfaceItems()) QVERIFY(it->type() != ItemType::Group || spoil == OtherGroup);   // no partial group
+        }
+    }
+
+    // Taking several groups apart at once remembers each; Regroup puts them all back in one step, each with its own name, description, link, and the number its animations aim at, and an undo and
+    // a Regroup again works.
+    void regroupRestoresEveryGroupWithWhatItKept()
+    {
+        Editor ed;
+        ed.setDocument(deck::newPresentation());
+        ed.setCurrentPage(0);
+        QList<QStringList> members;
+        QStringList groups;
+        for (int g = 0; g < 3; ++g) {
+            QStringList ids;
+            for (int i = 0; i < 2 + g % 2; ++i) {
+                auto s = std::make_shared<ShapeItem>();
+                s->rect = QRectF(20 + 90 * g, 300 + 60 * i, 72, 40);
+                ids << ed.addItem(s);
+            }
+            members << ids;
+            ed.select(ids);
+            ed.groupSelection();
+            groups << ed.selection().first();
+        }
+        Page &slide = *ed.doc()->pages[0];
+        auto *second = static_cast<GroupItem *>(ed.doc()->item(groups[1]));
+        second->name = QStringLiteral("Second group");
+        second->altText = QStringLiteral("Described");
+        second->hyperlink = QStringLiteral("https://example.com/");
+        const int number = deck::shapeNumber(slide, groups[1]);
+        QVERIFY(number > 0);
+        const deck::EffectKind *kind = deck::effectKind(QStringLiteral("entr.fade"));
+        QVERIFY(kind);
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(*kind, number));
+        deck::setAnimations(*ed.doc(), slide, seq);
+        QVERIFY(deck::readAnimations(slide, ed.doc()).effects.size() == 1);
+        ed.select(groups);
+        ed.ungroupSelection();
+        QCOMPARE(int(ed.surfaceItems().size()) >= 7, true);
+        QVERIFY(ed.canRegroup());
+        const int steps = ed.undoStack()->count();
+        ed.regroup();
+        QCOMPARE(ed.undoStack()->count(), steps + 1);   // one step for all three
+        QCOMPARE(ed.selection().size(), 3);
+        int found = 0;
+        for (const QString &id : ed.selection()) {
+            auto *g = static_cast<GroupItem *>(ed.doc()->item(id));
+            QVERIFY(g && g->type() == ItemType::Group);
+            QStringList kids;
+            for (const ItemPtr &c : g->children) kids << c->id;
+            for (const QStringList &m : members)
+                if (QSet<QString>(kids.begin(), kids.end()) == QSet<QString>(m.begin(), m.end())) ++found;
+            if (kids.contains(members[1][0])) {
+                QCOMPARE(g->name, QStringLiteral("Second group"));
+                QCOMPARE(g->altText, QStringLiteral("Described"));
+                QCOMPARE(g->hyperlink, QStringLiteral("https://example.com/"));
+                QCOMPARE(g->sourceId, number);
+                const deck::AnimSequence back = deck::readAnimations(slide, ed.doc());
+                QCOMPARE(back.effectsOf(g->sourceId).size(), 1);
+            }
+        }
+        QCOMPARE(found, 3);
+        ed.undo();
+        QVERIFY(ed.canRegroup());   // (back to the objects apart: it can be done again)
+        ed.regroup();
+        QCOMPARE(ed.selection().size(), 3);
+    }
+
+    // Arrange All and Cascade leave a minimized window minimized and a full screen one as it is (they are not forced to normal), count only the windows they place, and keep each window inside the
+    // free area of the screen (the test display has one screen: that each window goes to its own screen could not be tried).
+    void arrangeAndCascadeLeaveMinimizedAndFullScreenWindowsAlone()
+    {
+        DeckWindow w;
+        w.show();
+        QList<QPointer<AppWindow>> others;
+        for (AppWindow *a : AppWindow::windows())
+            if (a != &w && a->isVisible()) others << a;
+        for (const QPointer<AppWindow> &a : others) a->hide();
+        std::unique_ptr<DeckWindow> second(new DeckWindow), third(new DeckWindow);
+        second->show();
+        third->show();
+        QTRY_VERIFY(second->isVisible() && third->isVisible());
+        second->showMinimized();
+        if (!second->isMinimized()) QSKIP("this display does not minimize windows");
+        const QRect area = w.screen()->availableGeometry();
+        AppWindow::arrangeInColumns({&w, second.get(), third.get()});
+        QVERIFY(second->isMinimized());   // (not forced to normal)
+        // Two windows were placed: each has half the width.
+        QCOMPARE(qAbs(w.pos().x() - third->pos().x()), area.width() / 2);
+        AppWindow::cascade({&w, second.get(), third.get()});
+        QVERIFY(second->isMinimized());
+        third->showFullScreen();
+        if (third->isFullScreen()) {
+            const QRect was = third->geometry();
+            AppWindow::cascade({&w, third.get()});
+            AppWindow::arrangeInColumns({&w, third.get()});
+            QVERIFY(third->isFullScreen());
+            QCOMPARE(third->geometry(), was);
+            QCOMPARE(w.geometry().width(), area.width());   // (alone in its screen, it has all of it)
+        }
+        for (const QPointer<AppWindow> &a : others)
+            if (a) a->show();
+    }
+
+    // The stack is kept inside the free area of the screen and starts again at the corner when the next window would run off it.
+    void cascadeStaysInsideTheScreenAndWraps()
+    {
+        std::vector<std::unique_ptr<DeckWindow>> made;
+        QList<AppWindow *> wins;
+        for (int i = 0; i < 9; ++i) {
+            made.emplace_back(new DeckWindow);
+            made.back()->show();
+            wins << made.back().get();
+        }
+        QList<QPointer<AppWindow>> others;
+        for (AppWindow *a : AppWindow::windows())
+            if (!wins.contains(a) && a->isVisible()) others << a;
+        for (const QPointer<AppWindow> &a : others) a->hide();
+        const QRect area = wins.first()->screen()->availableGeometry();
+        // Each is as large as the area allows a few steps of the stack: three quarters of its width and height, or its least.
+        for (AppWindow *a : wins) a->resize(std::max(a->minimumWidth(), area.width() * 3 / 4), std::max(a->minimumHeight(), area.height() * 3 / 4));
+        QTRY_VERIFY(wins.first()->width() > 0);
+        if (wins.first()->frameGeometry().width() > area.width() || wins.first()->frameGeometry().height() > area.height()) QSKIP("the windows are larger than the screen's free area here");
+        AppWindow::cascade(wins);
+        QList<QPoint> corners;
+        for (AppWindow *a : wins) {
+            const QRect frame = a->frameGeometry();
+            QVERIFY2(frame.left() >= area.left() && frame.top() >= area.top() && frame.right() <= area.right() && frame.bottom() <= area.bottom(), qPrintable(QStringLiteral("a window is off the screen's free area")));
+            corners << frame.topLeft();
+        }
+        // The stack began again at least once, at the same corner as the first.
+        QVERIFY(corners.mid(1).contains(corners.first()));
+        for (const QPointer<AppWindow> &a : others)
+            if (a) a->show();
+    }
+
+    // Where the window system places the windows itself a program's placing is ignored: the two commands are off, with the reason for a tooltip, and the placing does nothing.
+    void arrangeAndCascadeAreOffWhereWindowsCantBePlaced()
+    {
+        const auto back = qScopeGuard([] { AppWindow::forceWindowPlacementForTest(-1); });
+        AppWindow::forceWindowPlacementForTest(0);
+        DeckWindow w;
+        w.show();
+        for (const char *id : {"win.arrange", "win.cascade"}) {
+            QVERIFY(!w.act(QLatin1String(id))->isEnabled());
+            QVERIFY(!AppWindow::windowPlacementNote().isEmpty());
+            QCOMPARE(w.act(QLatin1String(id))->toolTip(), AppWindow::windowPlacementNote());
+        }
+        const QRect was = w.geometry();
+        AppWindow::arrangeInColumns({&w});
+        AppWindow::cascade({&w});
+        QCOMPARE(w.geometry(), was);
+        AppWindow::forceWindowPlacementForTest(1);
+        DeckWindow other;
+        QVERIFY(other.act(QStringLiteral("win.arrange"))->isEnabled() && other.act(QStringLiteral("win.cascade"))->isEnabled());
+    }
+
+    // The ribbon file defines the groups of the Playback, Picture Format, Shape Format, and Chart Format tabs once (the loader's templates) and the tabs refer to them: no two of the groups Accessibility, Arrange, and Size are copies
+    // of each other.
+    void ribbonGroupsAreDefinedOnceAndReferredTo()
+    {
+        QFile file(QStringLiteral(":/deck/ribbon.json"));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QJsonObject root = QJsonDocument::fromJson(file.readAll()).object();
+        const QJsonObject templates = root.value(QStringLiteral("templates")).toObject();
+        QVERIFY(templates.contains(QStringLiteral("accessibilityGroup")) && templates.contains(QStringLiteral("arrangeGroup")) && templates.contains(QStringLiteral("sizeGroup")));
+        QHash<QString, QString> seen;   // the group's content (without its keytip) -> where
+        int uses = 0;
+        for (const QJsonValue &tab : root.value(QStringLiteral("tabs")).toArray())
+            for (const QJsonValue &gv : tab.toObject().value(QStringLiteral("groups")).toArray()) {
+                QJsonObject g = gv.toObject();
+                const QString where = tab.toObject().value(QStringLiteral("name")).toString() + QLatin1Char('/') + g.value(QStringLiteral("name")).toString();
+                if (g.contains(QStringLiteral("use"))) {
+                    QVERIFY2(templates.contains(g.value(QStringLiteral("use")).toString()), qPrintable(where));
+                    ++uses;
+                    continue;
+                }
+                if (g.value(QStringLiteral("name")).toString() != QLatin1String("Accessibility") && g.value(QStringLiteral("name")).toString() != QLatin1String("Arrange") && g.value(QStringLiteral("name")).toString() != QLatin1String("Size")) continue;
+                g.remove(QStringLiteral("keytip"));
+                g.remove(QStringLiteral("name"));
+                const QString key = QString::fromUtf8(QJsonDocument(g).toJson(QJsonDocument::Compact));
+                if (g.value(QStringLiteral("items")).toArray().size() > 1) QVERIFY2(!seen.contains(key) || seen.value(key) == where, qPrintable(where + QStringLiteral(" copies ") + seen.value(key)));
+                seen.insert(key, where);
+            }
+        QCOMPARE(uses, 10);
+        // The tabs made from them have the groups (with the keytip each tab chose).
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        QVERIFY2(w.ribbonErrors().isEmpty(), qPrintable(w.ribbonErrors()));
+        for (const char *tab : {"Playback", "Picture Format", "Shape Format"}) {
+            QWidget *t = w.ribbon()->tab(QLatin1String(tab));
+            QVERIFY(t);
+            QVERIFY2(t->findChild<MeasureSpin *>(QStringLiteral("shapeHeight")), tab);
+        }
+    }
+
     // A presentation shows no rulers until asked, and no outline around every
     // object; the View tab's check boxes turn the ruler, gridlines, and guides on.
     void normalViewDefaults()

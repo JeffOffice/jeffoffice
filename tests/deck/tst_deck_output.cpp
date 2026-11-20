@@ -1696,6 +1696,29 @@ private Q_SLOTS:
         QVERIFY(!QFileInfo::exists(dir.filePath(QStringLiteral("missing"))));
     }
 
+    // Where the first slide counts from 7, a bookmark says the number its page shows (a title gets it in front; an untitled slide is "Slide 7"), and the pictures' file names stay by position, so
+    // they sort and never clash.
+    void bookmarksShowTheNumbersThePagesShowAndPictureNamesStayPositional()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = showDeck(3);
+        d->storyDoc(static_cast<TextItem *>(d->pages[1]->items[0].get())->storyId)->setPlainText(QString());
+        d->setup.firstPageNumber = 7;
+        const QString path = dir.filePath(QStringLiteral("seven.pdf"));
+        QString err;
+        QVERIFY2(deck::exportPdf(*d, path, deck::OutputOptions(), &err), qPrintable(err));
+        PdfDocument pdf(fileBytes(path));
+        QVERIFY(pdf.isValid());
+        const auto outline = pdf.outline();
+        QCOMPARE(outline.size(), 3);
+        QCOMPARE(outline[0].title, QStringLiteral("7. Slide 1 title"));
+        QCOMPARE(outline[1].title, QStringLiteral("Slide 8"));
+        QCOMPARE(outline[2].title, QStringLiteral("9. Slide 3 title"));
+        QCOMPARE(deck::slidePictureName(0, false), QStringLiteral("Slide 1.png"));
+        QCOMPARE(deck::slidePictureName(2, true), QStringLiteral("Slide 3.jpg"));
+    }
+
     // The PDF has a bookmark for each slide (its title, or "Slide N" for an untitled one) and is tagged: a section for each slide, its title a heading, its objects in the order the slide
     // lists them, a picture with its alt text. PDF/A keeps both and still opens.
     void pdfHasBookmarksAndTagsForEachSlide()

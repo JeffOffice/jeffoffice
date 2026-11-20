@@ -17,7 +17,9 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QTextEdit>
+#include <QGuiApplication>
 #include <QScreen>
+#include <algorithm>
 #include <QSet>
 #include <QMenu>
 #include <QToolButton>
@@ -147,25 +149,77 @@ QMenu *AppWindow::switchWindowsMenu(QWidget *owner, const QMetaObject &kind)
     return switchMenu;
 }
 
+namespace {
+int g_placementForced = -1;   // (set only by tests: 0 the window system refuses a program's placing, 1 it allows it)
+
+// The windows that can be placed, in groups by the screen each is on: a minimized window stays minimized and a full screen one is left as it is.
+QList<QPair<QScreen *, QList<AppWindow *>>> placeable(const QList<AppWindow *> &wins)
+{
+    QList<QPair<QScreen *, QList<AppWindow *>>> out;
+    for (AppWindow *w : wins) {
+        if (w->isMinimized() || w->isFullScreen() || !w->screen()) continue;
+        bool placed = false;
+        for (auto &g : out)
+            if (g.first == w->screen()) {
+                g.second << w;
+                placed = true;
+            }
+        if (!placed) out.append({w->screen(), {w}});
+    }
+    return out;
+}
+}
+
+bool AppWindow::windowPlacementAllowed()
+{
+    if (g_placementForced >= 0) return g_placementForced == 1;
+    // (A Wayland compositor puts the windows itself: a program's move and resize are ignored.)
+    return !QGuiApplication::platformName().startsWith(QLatin1String("wayland"));
+}
+
+void AppWindow::forceWindowPlacementForTest(int allowed) { g_placementForced = allowed; }
+
+QString AppWindow::windowPlacementNote()
+{
+    return windowPlacementAllowed() ? QString() : QCoreApplication::translate("AppWindow", "This window system places the windows itself, so a program can't arrange them.");
+}
+
 void AppWindow::arrangeInColumns(const QList<AppWindow *> &wins)
 {
-    if (wins.isEmpty()) return;
-    const QRect area = wins.first()->screen()->availableGeometry();
-    const int each = area.width() / int(wins.size());
-    for (int i = 0; i < wins.size(); ++i) {
-        wins[i]->showNormal();
-        wins[i]->setGeometry(area.left() + i * each, area.top(), each, area.height());
+    if (!windowPlacementAllowed()) return;
+    // Each window goes on the screen it is on, in a column of that screen's free area (the taskbar and the menu bar left out).
+    for (const auto &group : placeable(wins)) {
+        const QRect area = group.first->availableGeometry();
+        const int count = int(group.second.size()), each = area.width() / count;
+        for (int i = 0; i < count; ++i) {
+            group.second[i]->showNormal();
+            group.second[i]->setGeometry(area.left() + i * each, area.top(), each, area.height());
+        }
     }
 }
 
 void AppWindow::cascade(const QList<AppWindow *> &wins)
 {
-    int k = 0;
-    for (AppWindow *w : wins) {
-        w->showNormal();
-        w->move(40 + k * 30, 40 + k * 30);
-        w->raise();
-        ++k;
+    if (!windowPlacementAllowed()) return;
+    constexpr int kStep = 30, kInset = 40;
+    for (const auto &group : placeable(wins)) {
+        const QRect area = group.first->availableGeometry();
+        int k = 0;
+        for (AppWindow *w : group.second) {
+            w->showNormal();
+            // A window larger than three quarters of the area is made that size, so that the stack has room to show.
+            if (w->width() > area.width() * 3 / 4 || w->height() > area.height() * 3 / 4) w->resize(std::min(w->width(), area.width() * 3 / 4), std::min(w->height(), area.height() * 3 / 4));
+            const QSize size = w->frameGeometry().size();
+            auto at = [&](int step) { return QPoint(area.left() + kInset + step * kStep, area.top() + kInset + step * kStep); };
+            // A window that would run off the area starts the stack again from the corner; one bigger than the area is as far in as it fits.
+            if (k > 0 && (at(k).x() + size.width() > area.right() + 1 || at(k).y() + size.height() > area.bottom() + 1)) k = 0;
+            QPoint where = at(k);
+            where.setX(std::max(area.left(), std::min(where.x(), area.right() + 1 - size.width())));
+            where.setY(std::max(area.top(), std::min(where.y(), area.bottom() + 1 - size.height())));
+            w->move(where);
+            w->raise();
+            ++k;
+        }
     }
 }
 

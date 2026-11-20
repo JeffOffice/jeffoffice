@@ -1572,6 +1572,58 @@ private Q_SLOTS:
         w.showFormatPane(false);   // (the pane is open or shut as the person left it, in the next window too)
     }
 
+    // The size boxes of a picture show the size that was applied (a number past the most an object can be is brought to it, and the box says so), a cropped picture's box is the visible size and sets
+    // it (the crop goes with it), and a turned picture stays turned.
+    void pictureSizeBoxesShowWhatWasAppliedAndKeepCropAndTurn()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1280, 800);
+        w.show();
+        Editor *ed = w.editor();
+        QImage image(40, 20, QImage::Format_RGB32);
+        image.fill(Qt::red);
+        const QString path = dir.filePath(QStringLiteral("red.png"));
+        QVERIFY(image.save(path));
+        QVERIFY(w.insertPicture(path));
+        QWidget *tab = w.ribbon()->tab(QStringLiteral("Picture Format"));
+        QVERIFY(tab);
+        auto *height = tab->findChild<MeasureSpin *>(QStringLiteral("shapeHeight"));
+        auto *width = tab->findChild<MeasureSpin *>(QStringLiteral("shapeWidth"));
+        QVERIFY(height && width);
+        const QString id = ed->selection().first();
+        QTRY_VERIFY(height->isEnabled());
+        auto *pic = static_cast<PictureItem *>(ed->doc()->item(id));
+        // Past the limit: the object takes the most, and the box shows it.
+        pic->lockAspect = false;
+        height->setValue(9000);
+        QCOMPARE(pic->rect.height(), 4000.0);
+        QCOMPARE(height->value(), 4000.0);
+        QCOMPARE(width->value(), pic->rect.width());
+        ed->undo();
+        // A crop: the picture is larger than its frame; the boxes are the frame's (what shows), and a new height is the frame's with the picture's crop going with it.
+        pic = static_cast<PictureItem *>(ed->doc()->item(id));
+        pic->rect = QRectF(100, 100, 200, 100);
+        pic->imgRect = QRectF(-20, -10, 240, 120);
+        pic->lockAspect = false;
+        ed->select(QStringList{});
+        ed->select(id);
+        QTRY_COMPARE(height->value(), 100.0);
+        QCOMPARE(width->value(), 200.0);
+        height->setValue(150);
+        QCOMPARE(pic->rect.height(), 150.0);
+        QCOMPARE(pic->rect.width(), 200.0);
+        QCOMPARE(pic->imgRect, QRectF(-20, -15, 240, 180));   // (the crop kept its share of the picture)
+        QCOMPARE(height->value(), 150.0);
+        // A turned picture keeps its turn.
+        pic->rotation = 30;
+        width->setValue(260);
+        QCOMPARE(pic->rotation, 30.0);
+        QCOMPARE(pic->rect.width(), 260.0);
+        QCOMPARE(width->value(), 260.0);
+    }
+
     // The three menus of the tab reach the same settings as the pane, each choice one step: a color, none, a gradient, or a picture for the fill; a
     // color, none, a weight, a dash, or arrows for the outline; a shadow, reflection, glow, or soft edges. The last choice of each opens the pane.
     void shapeFormatMenusReachThePanesSettings()

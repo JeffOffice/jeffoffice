@@ -268,7 +268,7 @@ public:
     void forEachSelected(const QString &label, const std::function<void(Item *)> &fn);
     void groupSelection();
     // Regroup: the objects of the group last ungrouped, grouped again.
-    bool canRegroup() const;
+    bool canRegroup() const;   // true when Regroup would put every remembered group back
     void regroup();
     // Objects set in text (Wrap Text > In Line with Text). The selected object
     // goes into the text box under it, at the character nearest its top left;
@@ -446,6 +446,8 @@ Q_SIGNALS:
 
 private:
     bool moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster, const std::function<double(const Item &)> &dx, QString *why);
+    GroupItem *buildGroup(const QStringList &ids);
+    bool regroupPossible(QString *why) const;
     TextItem *textBoxUnder(const Item &obj) const;
     void applyCopiedFormatting(Item *it);
     friend class SnapshotCommand;
@@ -490,7 +492,11 @@ private:
     QTextCursor m_cursor;
     CellBlock m_block;
     Tool m_tool = Tool::Select;
-    QStringList m_regroup;   // the objects of the group last ungrouped
+    struct RegroupSet {
+        QStringList ids;   // the objects of one group the last Ungroup took apart
+        ItemPtr group;     // that group without its objects: what it kept (name, description, link, the number its animations aim at)
+    };
+    QVector<RegroupSet> m_regroup;   // every group the last Ungroup took apart
     QString m_toolShape;
 
     bool m_readOnly = false;

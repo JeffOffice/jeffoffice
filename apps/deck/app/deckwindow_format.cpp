@@ -610,6 +610,7 @@ void DeckWindow::addShapeFormatParts(RibbonParts &parts)
                     else size.setWidth(v);
                     formatops::resizeFrame(m_ed, it, size);
                 }, FormatSession::Scope::Selected, !hold->held(), false);
+                refreshShapeFormat();   // (the boxes show the size that was applied: a number past the most an object can be is brought to it)
             });
             return s;
         };

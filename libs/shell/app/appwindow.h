@@ -43,9 +43,14 @@ public:
     // A window that is out of view on purpose and has work that is not saved shows itself and asks about it here; false when the person said to stay. The rest say yes.
     virtual bool readyToQuit() { return true; }
     // The View > Window group's placing, for the windows an app lists (its own kind): side by side in columns across the screen, stacked with each a little down and right from the one
-    // before, and two windows each filling half of the screen. Each window that is placed is shown normal (not maximized or minimized).
+    // before, and two windows each filling half of the screen. Each window is placed on the screen it is on, in that screen's free area; one that is placed is shown normal (not maximized),
+    // a minimized window stays minimized, and a full screen one is left alone. A window larger than three quarters of the area is made that size; the stack wraps to the corner of the area when the next window would run off it.
+    // Nothing is done where the window system places the windows itself: the commands are off there, with windowPlacementNote() as their tooltip.
     static void arrangeInColumns(const QList<AppWindow *> &wins);
     static void cascade(const QList<AppWindow *> &wins);
+    static bool windowPlacementAllowed();
+    static QString windowPlacementNote();   // empty when windows can be placed
+    static void forceWindowPlacementForTest(int allowed);   // 1 allowed, 0 refused, -1 the system's own answer
     static void placeSideBySide(AppWindow *left, AppWindow *right);
     // The View > Window group's Switch Windows menu: a command for each open window of `kind` (an app's own window class, as T::staticMetaObject), named by its title, that brings the window forward.
     // The list is made each time the menu is shown.

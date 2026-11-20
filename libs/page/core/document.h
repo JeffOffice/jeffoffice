@@ -18,6 +18,7 @@
 #include <QSizeF>
 #include <QTextBlockFormat>
 #include <QTextCharFormat>
+#include <limits>
 #include <algorithm>
 #include <memory>
 
@@ -143,8 +144,12 @@ struct PageSetup {
     // "roman" i ii iii, "ROMAN" I II III.
     int firstPageNumber = 1;
     QString pageNumberFormat;
+    // The first number's range: a publication's 1 to 1000 (what the .pub format and the dialog keep), a presentation's whole 32-bit
+    // integer range (the first slide number attribute of the presentation element, ECMA-376 Part 1 section 19.2.1.26, is an xsd:int).
+    static constexpr int kFirstPageMin = 1, kFirstPageMax = 1000;
+    static constexpr int kFirstSlideMin = std::numeric_limits<int>::min(), kFirstSlideMax = std::numeric_limits<int>::max();
     QJsonObject toJson() const;
-    static PageSetup fromJson(const QJsonObject &o);
+    static PageSetup fromJson(const QJsonObject &o, int firstMin = kFirstPageMin, int firstMax = kFirstPageMax);
 };
 
 struct StyleSet;

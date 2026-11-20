@@ -1,4 +1,5 @@
 // Tests of the File, Review, and View items of round 12: Check Accessibility's blank layout cells and reading order, and the others as they were added. Every workbook is built here.
+#include <QScopeGuard>
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/settings.h"
@@ -94,6 +95,23 @@ private Q_SLOTS:
         initCore();
         m_localeBefore = QLocale();
         m_pin = std::make_unique<PinnedLocale>();
+    }
+
+    // Where the window system places the windows itself, Arrange All and Cascade are off, with the reason for a tooltip.
+    void windowPlacementCommandsAreOffWhereTheWindowSystemPlacesWindows()
+    {
+        const auto back = qScopeGuard([] { AppWindow::forceWindowPlacementForTest(-1); });
+        AppWindow::forceWindowPlacementForTest(0);
+        CrunchWindow w;
+        for (const char *id : {"win.arrange", "win.cascade"}) {
+            QVERIFY(!w.act(QLatin1String(id))->isEnabled());
+            QCOMPARE(w.act(QLatin1String(id))->toolTip(), AppWindow::windowPlacementNote());
+        }
+        QVERIFY(!AppWindow::windowPlacementNote().isEmpty());
+        AppWindow::forceWindowPlacementForTest(1);
+        CrunchWindow other;
+        QVERIFY(other.act(QStringLiteral("win.arrange"))->isEnabled() && other.act(QStringLiteral("win.cascade"))->isEnabled());
+        QVERIFY(AppWindow::windowPlacementNote().isEmpty());
     }
 
     void cleanupTestCase()

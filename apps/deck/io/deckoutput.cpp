@@ -933,7 +933,11 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         QVector<PdfBookmark> marks;
         for (int k = 0; k < slides.size(); ++k) {
             const QString slideName = slideTitle(d, slides[k]).trimmed();
-            marks.push_back({slideName.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(slides[k] + 1) : slideName, 0, slidesPerPage(o.layout) ? k / per : at.value(k, k)});
+            // The number the page shows (the first slide's number may not be 1), with the title when the numbers are not the plain count.
+            const qint64 shown = qint64(d.setup.firstPageNumber) + slides[k];
+            const QString text = slideName.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(shown)
+                                 : d.setup.firstPageNumber == 1 ? slideName : QCoreApplication::translate("DeckOutput", "%1. %2").arg(shown).arg(slideName);
+            marks.push_back({text, 0, slidesPerPage(o.layout) ? k / per : at.value(k, k)});
         }
         bytes = addPdfBookmarks(bytes, marks);
     }

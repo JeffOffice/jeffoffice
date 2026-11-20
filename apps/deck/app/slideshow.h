@@ -249,6 +249,13 @@ public:
     // Arrow Options: the arrow shows by itself (not on a full screen, in a window), always, or never (Ctrl+U and Ctrl+H). The rehearsal bar is clicked with the arrow, so it always shows then.
     enum class ArrowShown { Automatic, Visible, Hidden };
     ArrowShown arrowShown() const { return m_arrowShown; }
+    // The choice made in this session (the next show starts with it).
+    static ArrowShown sessionArrowShown();
+    static void setSessionArrowShown(ArrowShown how);   // (for tests: puts the choice back)
+    // The key that goes with H and U for the arrow: Control (on a Mac, where Qt's Control is the Command key, which hides the program with H, the key marked Control, Qt's Meta).
+    static Qt::KeyboardModifier arrowKeyModifier();
+    // For tests: the choice of the other platform (NoModifier gives this platform's back).
+    static void forceArrowKeyModifier(Qt::KeyboardModifier m);
     void setArrowShown(ArrowShown how);
     // Last Viewed: back to the slide that was on the screen before this one; false, and said, when there is none.
     bool goToLastViewed();
@@ -392,7 +399,7 @@ private:
     };
     QVector<Return> m_returns;       // the places a custom show followed with "and return" comes back to
     int m_lastViewed = -1;
-    ArrowShown m_arrowShown = ArrowShown::Automatic;
+    ArrowShown m_arrowShown = sessionArrowShown();
     int m_focusIndex = -1;
     int m_focusSlide = -1;
     const Item *m_hoverItem = nullptr;

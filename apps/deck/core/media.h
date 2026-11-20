@@ -30,6 +30,8 @@ enum class MediaStart { ClickSequence, Automatically, WhenClickedOn };
 
 // The volumes the Playback tab offers, in thousandths of a percent as the file writes them.
 constexpr int kVolumeLow = 20000, kVolumeMedium = 50000, kVolumeHigh = 80000;
+// The count of slides that stands for "all of them" (a sound that goes on to the end of the show), as other programs write it.
+constexpr int kAcrossAllSlides = 999;
 
 struct MediaPlay {
     int shape = 0;                        // the picture's number in the file (Item::sourceId); 0 for one the timing can't name

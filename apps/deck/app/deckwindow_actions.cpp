@@ -8,6 +8,7 @@
 #include "app/deckdialogs.h"
 #include "app/editor.h"
 #include "app/pictureask.h"
+#include "app/plaintext.h"
 #include "app/filedialogs.h"
 #include "app/icons.h"
 #include "app/notespane.h"
@@ -313,6 +314,12 @@ void DeckWindow::createViewActions()
     };
     mk("win.arrange", tr("Arrange All"), "layout-panel-left", QKeySequence(), [openWindows] { AppWindow::arrangeInColumns(openWindows()); });
     mk("win.cascade", tr("Cascade"), "layers-2", QKeySequence(), [openWindows] { AppWindow::cascade(openWindows()); });
+    // Where the window system places the windows itself these do nothing: they are off, and say why.
+    if (!AppWindow::windowPlacementAllowed())
+        for (const char *id : {"win.arrange", "win.cascade"}) {
+            act(QLatin1String(id))->setEnabled(false);
+            act(QLatin1String(id))->setToolTip(jp::plainToolTip(AppWindow::windowPlacementNote()));
+        }
     mk("view.slideShow", tr("Slide Show"), "presentation", QKeySequence(), [this] { startShow(m_ed->currentPage()); });
     mk("view.rulers", tr("Ruler"), "ruler", QKeySequence(), [this] {
         m_ed->view.rulers = !m_ed->view.rulers;
@@ -349,10 +356,10 @@ void DeckWindow::createViewActions()
 }
 
 // ---------------- what the commands do ----------------
-void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes, int first)
+void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes, std::optional<int> first)
 {
     const bool notesChange = notes >= 0 && deck::notesArePortrait(*m_ed->doc()) != (notes == 1);
-    const bool firstChange = first >= 0 && first <= 9999 && m_ed->doc()->setup.firstPageNumber != first;
+    const bool firstChange = first && m_ed->doc()->setup.firstPageNumber != *first;
     if (size.isEmpty() || (size == m_ed->doc()->pageSize() && !notesChange && !firstChange)) return;
     m_notes->commit();
     if (m_outline) m_outline->commit();
@@ -361,12 +368,12 @@ void DeckWindow::setSlideSize(const QSizeF &size, bool scale, int notes, int fir
     m_ed->beginChange(tr("Slide Size"));
     if (size != m_ed->doc()->pageSize()) deck::setSlideSize(*m_ed->doc(), size, scale);
     if (notesChange) deck::setNotesPortrait(*m_ed->doc(), notes == 1);
-    if (firstChange) m_ed->doc()->setup.firstPageNumber = first;
+    if (firstChange) m_ed->doc()->setup.firstPageNumber = *first;
     m_ed->endChange();
 }
 
 // A new size asks whether the content scales to it or keeps its own size.
-void DeckWindow::askSlideSize(const QSizeF &size, int notes, int first)
+void DeckWindow::askSlideSize(const QSizeF &size, int notes, std::optional<int> first)
 {
     if (size == m_ed->doc()->pageSize()) {
         setSlideSize(size, true, notes, first);   // (only the notes pages can change)

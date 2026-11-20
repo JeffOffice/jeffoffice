@@ -467,7 +467,7 @@ QJsonObject PageSetup::toJson() const
     if (!pageNumberFormat.isEmpty()) o["pageNumberFormat"] = pageNumberFormat;
     return o;
 }
-PageSetup PageSetup::fromJson(const QJsonObject &o)
+PageSetup PageSetup::fromJson(const QJsonObject &o, int firstMin, int firstMax)
 {
     PageSetup s;
     s.size = sizeF(o["size"], s.size);
@@ -484,7 +484,7 @@ PageSetup PageSetup::fromJson(const QJsonObject &o)
     auto gap = [](double v) { return std::isfinite(v) ? std::clamp(v, 0.0, 20000.0) : 0.0; };
     s.gapH = gap(o["gapH"].toDouble());
     s.gapV = gap(o["gapV"].toDouble());
-    s.firstPageNumber = std::clamp(o["firstPageNumber"].toInt(1), 1, 1000);   // as far as .pub files and the dialog go
+    s.firstPageNumber = std::clamp(o["firstPageNumber"].toInt(1), firstMin, firstMax);
     s.pageNumberFormat = o["pageNumberFormat"].toString();
     s.sideMargin = o["sideMargin"].toDouble();
     s.topMargin = o["topMargin"].toDouble();
@@ -2399,7 +2399,8 @@ void Document::fromJson(const QJsonObject &o)
 {
     g_equations = EquationBudget();
     dropChainIndex();
-    setup = PageSetup::fromJson(o["setup"].toObject());
+    // (A presentation's numbers go as far as its file format's attribute does.)
+    setup = slideText ? PageSetup::fromJson(o["setup"].toObject(), PageSetup::kFirstSlideMin, PageSetup::kFirstSlideMax) : PageSetup::fromJson(o["setup"].toObject());
     masters.clear();
     pages.clear();
     stories.clear();

@@ -1014,7 +1014,7 @@ void SlideShow::goToPosition(int pos)
 // The slide at a place in the order on the screen with `steps` of its steps played.
 void SlideShow::showSlide(int pos, int steps)
 {
-    m_media->leave();
+    m_media->leave(pos);
     m_frame.stop();
     // A stroke being drawn stays on the slide it began on.
     m_drawing = m_erasing = false;
@@ -1045,7 +1045,7 @@ void SlideShow::startTransition(int pos, const deck::Transition &t)
 {
     // Both images are ready before the first frame, with the ink the slides hold.
     const int slide = slideAt(pos);
-    m_media->leave();
+    m_media->leave(pos);
     // A morph moves the slides' objects: it needs no pictures of them.
     m_morph = t.isMorph() ? morphFor(slide, t) : nullptr;
     m_fromOverlay = m_morph ? QImage() : withOverlay(nowImage(), m_slide);
@@ -1103,7 +1103,7 @@ void SlideShow::endTransition()
 // The slide is on the screen to stay, for now.
 void SlideShow::settle()
 {
-    m_media->arrive(m_slide, m_done);
+    m_media->arrive(m_slide, m_done, m_pos);
     update();
     startAutomaticSteps();
     startAutoAdvance();
@@ -1395,7 +1395,7 @@ void SlideShow::keyPressEvent(QKeyEvent *e)
         return;
     }
     // Ctrl and a letter choose the pointer (the pen is not for a rehearsal); Ctrl+H hides the arrow and Ctrl+U leaves it to the show.
-    if ((e->modifiers() & Qt::ControlModifier) && !(e->modifiers() & Qt::AltModifier) && (k == Qt::Key_H || k == Qt::Key_U)) {
+    if ((e->modifiers() & arrowKeyModifier()) && !(e->modifiers() & Qt::AltModifier) && (k == Qt::Key_H || k == Qt::Key_U)) {
         m_typed.clear();
         setArrowShown(k == Qt::Key_H ? ArrowShown::Hidden : ArrowShown::Automatic);
         return;
@@ -1812,8 +1812,34 @@ bool SlideShow::goToLastViewed()
     return true;
 }
 
+namespace {
+// The arrow's choice lasts for the session: the next show starts with it. (Tests set it back.)
+SlideShow::ArrowShown g_arrowShown = SlideShow::ArrowShown::Automatic;
+Qt::KeyboardModifier g_arrowModifierForced = Qt::NoModifier;   // (set only by tests, to run the other platform's choice)
+}
+
+void SlideShow::forceArrowKeyModifier(Qt::KeyboardModifier m)
+{
+    g_arrowModifierForced = m;
+}
+
+Qt::KeyboardModifier SlideShow::arrowKeyModifier()
+{
+    if (g_arrowModifierForced != Qt::NoModifier) return g_arrowModifierForced;
+#ifdef Q_OS_MACOS
+    return Qt::MetaModifier;   // (Qt's Control is the Command key there, and Command+H hides the program: the key marked Control is Qt's Meta)
+#else
+    return Qt::ControlModifier;
+#endif
+}
+
+SlideShow::ArrowShown SlideShow::sessionArrowShown() { return g_arrowShown; }
+
+void SlideShow::setSessionArrowShown(ArrowShown how) { g_arrowShown = how; }
+
 void SlideShow::setArrowShown(ArrowShown how)
 {
+    g_arrowShown = how;
     if (how == m_arrowShown) return;
     m_arrowShown = how;
     updateCursor();
@@ -1826,9 +1852,13 @@ void SlideShow::openMenu()
         previous();
         return;
     }
-    QMenu *menu = buildMenu(this);
+    // On the window the presenter is looking at: Presenter View when it is open, else the show.
+    QWidget *where = this;
+    if (PresenterView *pv = presenterView(); pv && pv->isVisible()) where = pv;
+    QMenu *menu = buildMenu(where);
+    menu->setObjectName(QStringLiteral("showMenu"));
     menu->setAttribute(Qt::WA_DeleteOnClose);
-    menu->popup(mapToGlobal(rect().center()));
+    menu->popup(where->mapToGlobal(where->rect().center()));
 }
 
 // A mouse-over action: a question (web, mail, a file, another presentation) is asked once during a visit to a slide, and a jump inside the presentation is followed once and then
@@ -2273,9 +2303,9 @@ QMenu *SlideShow::pointerMenu(QWidget *parent)
     arrow->setObjectName(QStringLiteral("arrowOptionsMenu"));
     auto *arrowGroup = new QActionGroup(arrow);
     const struct { ArrowShown how; const char *id; QString text; QKeySequence key; } arrows[] = {
-        {ArrowShown::Automatic, "arrowAutomatic", tr("Automatic"), QKeySequence(Qt::CTRL | Qt::Key_U)},
+        {ArrowShown::Automatic, "arrowAutomatic", tr("Automatic"), QKeySequence(arrowKeyModifier() | Qt::Key_U)},
         {ArrowShown::Visible, "arrowVisible", tr("Visible"), QKeySequence()},
-        {ArrowShown::Hidden, "arrowHidden", tr("Hidden"), QKeySequence(Qt::CTRL | Qt::Key_H)},
+        {ArrowShown::Hidden, "arrowHidden", tr("Hidden"), QKeySequence(arrowKeyModifier() | Qt::Key_H)},
     };
     for (const auto &k : arrows) {
         // As for the pointer's tools, the key is shown beside the name and read by the show itself.
@@ -2434,7 +2464,7 @@ void SlideShow::showEvent(QShowEvent *e)
     if (m_started) return;
     m_started = true;
     m_media->askAboutLinks(this);
-    m_media->arrive(m_slide, m_done);
+    m_media->arrive(m_slide, m_done, m_pos);
     // The time on the first slide counts from when it is on the screen.
     if (m_recording && !m_recId.isEmpty()) {
         m_recBase = 0;

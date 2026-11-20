@@ -1220,7 +1220,7 @@ void Importer::readDocumentAtom(const Rec &r)
             note(QCoreApplication::translate("PptImport", "The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches."));
         }
         if (nx > 0 && ny > 0) m_doc.appData[QStringLiteral("notesSize")] = QJsonObject{{"w", nx * kPoints}, {"h", ny * kPoints}};
-        m_doc.setup.firstPageNumber = std::clamp(firstNumber, 0, 9999);
+        m_doc.setup.firstPageNumber = firstNumber;   // (16 bits: inside the range)
     }
     m_doc.setup.size = m_doc.setup.sheet = size;
     m_doc.setup.sizeName = name;
