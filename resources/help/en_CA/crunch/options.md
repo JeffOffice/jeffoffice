@@ -1,5 +1,5 @@
 # Change JeffCrunch's settings
-<!-- keywords: recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys, gridline colour -->
+<!-- keywords: formulas options, calculation settings, maximum change, iteration, recovery, recover unsaved work, automatic recovery, proofing, editing, autocomplete, fill handle, drag and drop, decimal places, options, settings, preferences, usage statistics, install number, privacy, privacy notice, JP_NO_TELEMETRY, delete statistics, updates, about, edit in cell, gridline color, default zoom, standard width, privacy, personal information, customize keyboard, customize the ribbon, customize the quick toolbar, quick toolbar, add a command to the quick toolbar, hide a tab, hide a group, add a tab, add a group, rename a tab, reset the ribbon, change shortcut keys, reassign keys, reset keys, gridline colour -->
 
 Your settings are in the **JeffCrunch Options** window. Click **File > Options** to open it. Click **OK** to keep your changes, or **Cancel** to throw them away.
 
@@ -18,6 +18,10 @@ The **Editing** page changes how typing in cells works.
 - **Put a decimal point in whole numbers that are typed** is called automatic decimal places. Set **Places** to 2, and typing 1234 enters 12.34. Set it to -2, and typing 5 enters 500. A number you type with a decimal point is entered as typed.
 
 - **Allow editing directly in cells** is on by default. When you turn it off, a typed entry or F2 goes to the formula bar, and the cell shows the result only when you finish.
+
+## Formulas options
+
+The **Formulas** page sets how the open workbook works out its formulas: **Calculation** (automatic, automatic except data tables, or manual), whether to work the formulas out before the workbook is saved when calculating by hand, whether a formula that reads itself is worked out by going round it, the most rounds, and the change that stops the rounds. These settings belong to the workbook, not to you: they are saved in its file and are not kept for other workbooks, and the choices are off when no workbook is open. The change is shown with all of its digits, and you can type it as a number such as 0.0000001 or 1e-7. Only a setting that you change is written: **OK** with nothing changed adds no step of Undo and leaves the workbook as it was. A change is one step of Undo. The newer workbook file and the older .xls file keep all of the settings. A .ods copy keeps the iteration settings, but has no place for calculating by hand, so the copy works the formulas out as they change, and the report before the copy is saved says so. The same settings are on the **Formulas** tab.
 
 ## Save options
 

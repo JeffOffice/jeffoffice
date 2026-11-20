@@ -862,7 +862,7 @@
 <context>
     <name>AppWindow</name>
     <message>
-        <location filename="../libs/shell/app/appwindow.cpp" line="+271"/>
+        <location filename="../libs/shell/app/appwindow.cpp" line="+300"/>
         <source>Enable Editing</source>
         <translation type="unfinished">Увімкнути редагування</translation>
     </message>
@@ -15125,7 +15125,12 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
+        <source>calculation set by hand or without data tables</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>the dates of notes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15172,7 +15177,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+1"/>
         <location line="+52"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1244"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1285"/>
         <source>charts</source>
         <translation type="unfinished">діаграми</translation>
     </message>
@@ -15421,7 +15426,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-741"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-762"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">У книзі більше імен, ніж у будь-якому справжньому файлі.</translation>
     </message>
@@ -15466,7 +15471,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1534"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1555"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">На аркуші більше об&apos;єднаних діапазонів, ніж у будь-якому справжньому файлі.</translation>
     </message>
@@ -15653,7 +15658,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Частини аркуша немає у файлі.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1990"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-2028"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15673,17 +15678,17 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+614"/>
+        <location line="+635"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Аркуш вкладено глибше, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="-605"/>
+        <location line="-626"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">Цей файл захищено паролем, а відкрито його без пароля.</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+43"/>
         <source>The workbook has more fonts than any real file has.</source>
         <translation type="unfinished">Книга має більше шрифтів, ніж будь-який справжній файл.</translation>
     </message>
@@ -15713,17 +15718,17 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">У книзі немає аркушів.</translation>
     </message>
     <message>
-        <location line="+509"/>
+        <location line="+513"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Аркуші книги спільно використовують дані, чого не буває в справжніх файлах.</translation>
     </message>
     <message>
-        <location line="+110"/>
+        <location line="+124"/>
         <source>Two sheets of the workbook share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Два аркуші книги спільно використовують дані, чого не буває в справжніх файлах.</translation>
     </message>
     <message>
-        <location line="+96"/>
+        <location line="+99"/>
         <source>parts of charts</source>
         <translation type="unfinished">частини діаграм</translation>
     </message>
@@ -22881,13 +22886,14 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+183"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+193"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+185"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
     <message>
         <location line="+132"/>
+        <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+101"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -22939,7 +22945,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+21"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+37"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+39"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+543"/>
         <source>Average</source>
         <translation type="unfinished">Середнє</translation>
@@ -22969,7 +22975,7 @@ Source: %3</source>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-2"/>
         <location line="+1"/>
-        <location line="+42"/>
+        <location line="+43"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+1"/>
         <source>Sum</source>
         <translation type="unfinished">Сума</translation>
@@ -23067,7 +23073,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+492"/>
+        <location line="+571"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -23078,7 +23084,7 @@ Source: %3</source>
         <location line="+18"/>
         <location line="+20"/>
         <location line="+34"/>
-        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+102"/>
+        <location filename="../apps/crunch/app/crunchwindow_drawings.cpp" line="+103"/>
         <location filename="../apps/crunch/app/crunchwindow_oldformat.cpp" line="+37"/>
         <location line="+10"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-291"/>
@@ -23099,7 +23105,7 @@ Source: %3</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-570"/>
         <source>Save As…</source>
         <translation type="unfinished">Зберегти як…</translation>
     </message>
@@ -23150,7 +23156,7 @@ Source: %3</source>
         <translation type="unfinished">Книга (*.xlsx)</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+80"/>
         <location line="+463"/>
         <source>Editing</source>
         <translation type="unfinished">Редагування</translation>
@@ -23163,7 +23169,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-3"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-36"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-37"/>
         <source>Down</source>
         <translation type="unfinished">Униз</translation>
     </message>
@@ -23218,12 +23224,27 @@ Source: %3</source>
         <translation type="unfinished">Пропонувати завершити текст із комірок вище й нижче (автозавершення)</translation>
     </message>
     <message>
-        <location line="-394"/>
+        <location line="-473"/>
         <source>End</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+398"/>
+        <location line="+397"/>
+        <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>These settings belong to a workbook. Open one to change them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Work the formulas out before the workbook is saved (when calculating by hand)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
         <source>Use the fill handle, and drag cells to move or copy them</source>
         <translation type="unfinished">Використовувати маркер заповнення та перетягувати комірки для переміщення або копіювання</translation>
     </message>
@@ -23487,15 +23508,15 @@ Source: %3</source>
         <translation type="unfinished">Закрийте вікно після завершення Підбору параметра або Диспетчера сценаріїв.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_arrange.cpp" line="+24"/>
-        <location line="+103"/>
+        <location filename="../apps/crunch/app/crunchwindow_arrange.cpp" line="+25"/>
+        <location line="+136"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+424"/>
         <source>Group</source>
         <translation type="unfinished">Згрупувати</translation>
     </message>
     <message>
-        <location line="-102"/>
-        <location line="+179"/>
+        <location line="-135"/>
+        <location line="+212"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+640"/>
         <location line="+6"/>
         <location line="+3"/>
@@ -23504,62 +23525,92 @@ Source: %3</source>
         <translation type="unfinished">Розгрупувати</translation>
     </message>
     <message>
-        <location line="-178"/>
-        <location line="+55"/>
+        <location line="-211"/>
+        <location line="+88"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-778"/>
         <source>Align Left</source>
         <translation type="unfinished">Вирівняти за лівим краєм</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Align Center</source>
         <translation type="unfinished">Вирівняти за центром</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+2"/>
         <source>Align Right</source>
         <translation type="unfinished">Вирівняти за правим краєм</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Align Top</source>
         <translation type="unfinished">Вирівняти за верхнім краєм</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Align Middle</source>
         <translation type="unfinished">Вирівняти за серединою</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Align Bottom</source>
         <translation type="unfinished">Вирівняти за нижнім краєм</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Distribute Horizontally</source>
         <translation type="unfinished">Розподілити по горизонталі</translation>
     </message>
     <message>
-        <location line="-54"/>
-        <location line="+55"/>
+        <location line="-87"/>
+        <location line="+88"/>
         <source>Distribute Vertically</source>
         <translation type="unfinished">Розподілити по вертикалі</translation>
     </message>
     <message>
-        <location line="-54"/>
+        <location line="-86"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Select Objects</source>
         <translation type="unfinished">Вибрати об&apos;єкти</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+19"/>
+        <source>Snap to Grid is on: objects go to the edges of cells as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Shape is on: objects go to the edges of other objects as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Shape is off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+98"/>
         <source>An object from another app can&apos;t be put in a group.</source>
         <translation type="unfinished">Об&apos;єкт з іншої програми не можна помістити в групу.</translation>
     </message>
@@ -23699,6 +23750,7 @@ Source: %3</source>
         <translation type="unfinished"> або більше</translation>
     </message>
     <message>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-702"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+904"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -23706,12 +23758,13 @@ Source: %3</source>
         <translation type="unfinished">Автоматично</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+2"/>
         <source>Manual</source>
         <translation type="unfinished">Вручну</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+7"/>
         <source>Go Round Circular Formulas…</source>
         <translation type="unfinished">Обчислити циклічні формули…</translation>
     </message>
@@ -23722,36 +23775,44 @@ Source: %3</source>
         <translation type="unfinished">Циклічні формули</translation>
     </message>
     <message>
-        <location line="-32"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+8"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-32"/>
         <source>Work out a formula that reads itself by going round it</source>
         <translation type="unfinished">Обчислювати формулу, яка посилається сама на себе, проходячи по колу</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+6"/>
+        <location line="+4"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+5"/>
         <location line="+3"/>
         <source>Most rounds</source>
         <translation>Найбільше проходів</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
+        <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+2"/>
         <location line="+4"/>
         <source>Stop when no value changes by more than</source>
         <translation>Зупинити, коли жодне значення не змінюється більше ніж на</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+22"/>
         <source>Calculate Before Save</source>
         <translation type="unfinished">Обчислювати перед збереженням</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-28"/>
+        <location line="+4"/>
+        <location line="+52"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+5"/>
         <location line="+118"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+225"/>
         <source>Calculation</source>
         <translation type="unfinished">Обчислення</translation>
     </message>
     <message>
-        <location line="-115"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-115"/>
         <source>Recalculate This Sheet</source>
         <translation type="unfinished">Перерахувати цей аркуш</translation>
     </message>
@@ -23781,12 +23842,13 @@ Source: %3</source>
         <translation type="unfinished">Циклічні формули не обчислюються</translation>
     </message>
     <message>
-        <location line="-200"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-55"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-200"/>
         <source>Automatic Except Data Tables</source>
         <translation type="unfinished">Автоматично, крім таблиць даних</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+51"/>
         <location line="+39"/>
         <location line="+4"/>
         <location line="+9"/>
@@ -24199,7 +24261,7 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-929"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+366"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+405"/>
         <source>Columns</source>
         <translation>Стовпці</translation>
     </message>
@@ -24713,7 +24775,9 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-327"/>
         <location line="+230"/>
         <location line="+41"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-216"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-254"/>
+        <location line="+8"/>
+        <location line="+29"/>
         <location line="+8"/>
         <source>Copy</source>
         <translation>Копіювати</translation>
@@ -24758,7 +24822,7 @@ Source: %3</source>
         <translation type="unfinished">%1 скопійовано</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-44"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+658"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -24822,7 +24886,8 @@ Source: %3</source>
         <translation type="unfinished">Значення</translation>
     </message>
     <message>
-        <location line="-343"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-671"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-343"/>
         <location line="+299"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+53"/>
@@ -24831,7 +24896,7 @@ Source: %3</source>
         <translation type="unfinished">Формули</translation>
     </message>
     <message>
-        <location line="-338"/>
+        <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-338"/>
         <location line="+338"/>
         <source>Formatting</source>
         <translation>Форматування</translation>
@@ -25737,7 +25802,7 @@ The file that was there is as it was.</source>
     <message>
         <location line="+4"/>
         <location line="+456"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+165"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+166"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Велику зміну ще виконують. Її можна знову змінити, коли це завершиться.</translation>
     </message>
@@ -27871,9 +27936,14 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="-798"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+92"/>
+        <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+98"/>
         <location line="+9"/>
         <location line="+13"/>
+        <location line="+5"/>
+        <location line="+12"/>
+        <location line="+1"/>
+        <location line="+11"/>
+        <location line="+4"/>
         <location line="+5"/>
         <source>Outline</source>
         <translation type="unfinished">Контур</translation>
@@ -28190,7 +28260,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Книги (*.xlsx)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-325"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-364"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+442"/>
         <source>How Many Numbers</source>
         <translation type="unfinished">Скільки чисел</translation>
@@ -28212,19 +28282,19 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+450"/>
+        <location line="+489"/>
         <location line="+4"/>
         <source>Justify</source>
         <translation type="unfinished">Вирівняти за шириною</translation>
     </message>
     <message>
-        <location line="-453"/>
+        <location line="-492"/>
         <source>Across Worksheets…</source>
         <translation type="unfinished">По робочих аркушах…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+468"/>
+        <location line="+507"/>
         <source>Flash Fill</source>
         <translation type="unfinished">Миттєве заповнення</translation>
     </message>
@@ -28232,9 +28302,9 @@ This file is protected with a password. Password:</source>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-229"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-593"/>
         <location line="+543"/>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-466"/>
-        <location line="+87"/>
-        <location line="+133"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-505"/>
+        <location line="+88"/>
+        <location line="+171"/>
         <location line="+114"/>
         <location line="+73"/>
         <location line="+6"/>
@@ -28246,18 +28316,30 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Заливка</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-362"/>
+        <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-400"/>
+        <location line="+37"/>
         <source>There are too many cells to copy.</source>
         <translation type="unfinished">Комірок для копіювання забагато.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+23"/>
+        <location line="-29"/>
+        <location line="+37"/>
+        <location line="+24"/>
         <source>Move</source>
         <translation type="unfinished">Перемістити</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="-19"/>
+        <source>Copied the cells to the sheet &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Moved the cells to the sheet &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+104"/>
         <location line="+1"/>
         <source>Fill Options</source>
         <translation type="unfinished">Параметри заливки</translation>
@@ -28378,31 +28460,42 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">У цій книзі лише один аркуш, тому заповнювати інший аркуш немає чого.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="-98"/>
-        <location line="+97"/>
+        <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="-133"/>
+        <location line="+99"/>
         <source>Group Rows</source>
         <translation type="unfinished">Згрупувати рядки</translation>
     </message>
     <message>
-        <location line="-96"/>
-        <location line="+96"/>
+        <location line="-98"/>
+        <location line="+98"/>
         <source>Ungroup Rows</source>
         <translation type="unfinished">Розгрупувати рядки</translation>
     </message>
     <message>
-        <location line="-95"/>
-        <location line="+95"/>
+        <location line="-97"/>
+        <location line="+97"/>
         <source>Group Columns</source>
         <translation type="unfinished">Згрупувати стовпці</translation>
     </message>
     <message>
-        <location line="-94"/>
-        <location line="+94"/>
+        <location line="-96"/>
+        <location line="+96"/>
         <source>Ungroup Columns</source>
         <translation type="unfinished">Розгрупувати стовпці</translation>
     </message>
     <message>
-        <location line="-93"/>
+        <location line="-95"/>
+        <location line="+141"/>
+        <source>Auto Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-140"/>
+        <source>Clear Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Outline Symbols</source>
         <translation type="unfinished">Символи структури</translation>
     </message>
@@ -28442,6 +28535,51 @@ This file is protected with a password. Password:</source>
         <location line="+0"/>
         <source>These %1 are not in a group.</source>
         <translation type="unfinished">Ці %1 не належать до групи.</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>This sheet has no outline to clear.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Outline cleared.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The groups the formulas call for are longer than %1 rows, and were left out. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No totals were found: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The outline of this sheet is already the one its formulas call for. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Outline made from the formulas.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some groups were left out because an outline has at most %1 levels.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Groups of more than %1 rows were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>This sheet has an outline. Replace it with one made from the formulas?</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-302"/>
@@ -31371,6 +31509,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-482"/>
+        <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="+2"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-67"/>
         <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+16"/>
         <source>Replace</source>
@@ -31534,7 +31673,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Перемістити розрив сторінки</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+21"/>
+        <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="-79"/>
         <source>New Window</source>
         <translation type="unfinished">Нове вікно</translation>
     </message>
@@ -31565,6 +31704,17 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+18"/>
+        <source>Hide Window</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-17"/>
+        <source>Unhide Window…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Reset Window Position</source>
         <translation type="unfinished">Скинути положення вікна</translation>
     </message>
@@ -31574,7 +31724,37 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Спочатку увімкніть режим Переглянути поруч: це поверне два вікна на половини екрана.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+14"/>
+        <source>This is the only window that is open. Open or create another workbook first: a hidden window is brought back with Unhide Window in another one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The window &quot;%1&quot; is hidden. Unhide Window on the View tab brings it back.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>No window is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Unhide Window</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Window to show</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The window &quot;%1&quot; is shown again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Synchronous Scrolling is on: the two windows scroll together.</source>
         <translation type="unfinished">Синхронне прокручування увімкнено: два вікна прокручуються разом.</translation>
     </message>
@@ -54823,12 +55003,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+12"/>
         <location line="+7"/>
         <location line="+8"/>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Update</source>
         <translation type="unfinished">Оновлення</translation>
     </message>
     <message>
-        <location line="-22"/>
+        <location line="-23"/>
         <source>The download didn&apos;t finish: %1</source>
         <translation type="unfinished">Завантаження не завершено: %1</translation>
     </message>
@@ -54843,7 +55023,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Програмі %1 не вдалося зберегти інсталятор до %2.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>%1 couldn&apos;t start the installer. You can run it yourself from %2.</source>
         <translation type="unfinished">Програмі %1 не вдалося запустити інсталятор. Ви можете запустити його самостійно з %2.</translation>
     </message>
@@ -62506,6 +62686,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/crunch/core/editsession.cpp" line="+485"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-657"/>
         <location line="+279"/>
+        <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
         <location filename="../apps/crunch/core/editstruct.cpp" line="+227"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="+404"/>
         <location line="+89"/>
@@ -64580,7 +64761,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Текст містить більше форматування, ніж JeffCrunch зберігає.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsize.cpp" line="+75"/>
+        <location filename="../apps/crunch/core/editsize.cpp" line="-215"/>
         <location line="+82"/>
         <source>Those are not columns of the sheet.</source>
         <translation type="unfinished">Це не стовпці аркуша.</translation>
@@ -64594,12 +64775,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-39"/>
         <location line="+44"/>
-        <location line="+158"/>
+        <location line="+292"/>
         <source>That is more rows than JeffCrunch changes at once (%1). Select fewer rows.</source>
         <translation type="unfinished">Рядків більше, ніж JeffCrunch змінює одночасно (%1). Виділіть менше рядків.</translation>
     </message>
     <message>
-        <location line="-60"/>
+        <location line="-126"/>
+        <source>This sheet has more formulas than Auto Outline reads (%1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>This sheet has an outline. Replace it with one made from the formulas?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Auto Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Clear Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>A default width can be from 0 to 255 characters, and a default height from 0 to 409.5 points.</source>
         <translation type="unfinished">Ширина за замовчуванням може становити від 0 до 255 символів, а висота за замовчуванням від 0 до 409,5 пункту.</translation>
     </message>
@@ -69740,7 +69941,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">фігуру або малюнок, які не вдалося прочитати</translation>
     </message>
     <message numerus="yes">
-        <location line="+463"/>
+        <location line="+464"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Файл зберігає цей об&apos;єкт разом з %n іншим, тому їх не можна видалити по одному.</numerusform>
@@ -71327,8 +71528,8 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+63"/>
-        <location line="+1084"/>
+        <location line="+65"/>
+        <location line="+1091"/>
         <location line="+43"/>
         <location line="+105"/>
         <location line="+264"/>
@@ -71336,27 +71537,27 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл починається з інструкцій, які ця програма не дозволяє, тому його не можна прочитати.</translation>
     </message>
     <message>
-        <location line="-1558"/>
+        <location line="-1567"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Файл пошкоджено: його структура не відповідає структурі файлу електронної таблиці.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+856"/>
+        <location line="+863"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Файл пошкоджено, або його частини перевищують обсяг, який читає ця програма.</translation>
     </message>
     <message>
-        <location line="-831"/>
-        <location line="+1600"/>
+        <location line="-836"/>
+        <location line="+1607"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Читання було зупинено.</translation>
     </message>
     <message>
-        <location line="-1597"/>
-        <location line="+1075"/>
+        <location line="-1604"/>
+        <location line="+1082"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+67"/>
@@ -71366,21 +71567,21 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл має елементи всередині елементів глибше, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="-1440"/>
-        <location line="+1036"/>
+        <location line="-1447"/>
+        <location line="+1043"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Файл пошкоджено.</translation>
     </message>
     <message>
-        <location line="-1024"/>
-        <location line="+118"/>
+        <location line="-1031"/>
+        <location line="+123"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
         <translation type="unfinished">Файл має більше стилів, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="-142"/>
+        <location line="-147"/>
         <source>The file has number formats made of more parts than any real file has.</source>
         <translation type="unfinished">Файл має числові формати, що складаються з більшої кількості частин, ніж будь-який справжній файл.</translation>
     </message>
@@ -71395,7 +71596,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Книга має більше імен, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+85"/>
         <source>The file names more fonts than any real file does.</source>
         <translation type="unfinished">Файл називає більше шрифтів, ніж будь-який справжній файл.</translation>
     </message>
@@ -71452,7 +71653,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл пошкоджено: його аркуші неможливо розрізнити.</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+118"/>
         <source>charts</source>
         <translation type="unfinished">діаграми</translation>
     </message>
@@ -71827,7 +72028,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1049"/>
         <location line="+96"/>
         <location line="+25"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2473"/>
         <location line="+1657"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -71889,7 +72090,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Діаграми аркуша змінилися під час збереження книги.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3964"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3968"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Частина спільних рядків має форму, яку ця програма не змінює.</translation>
@@ -71902,7 +72103,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3090"/>
+        <location line="+3094"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71911,20 +72112,20 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Частина книги має форму, яку ця програма не змінює.</translation>
     </message>
     <message>
-        <location line="-2441"/>
+        <location line="-2445"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Книгу не було відкрито з файла, поверх якого ця програма може зберегти.</translation>
     </message>
     <message>
         <location line="+10"/>
         <location line="+461"/>
-        <location line="+273"/>
+        <location line="+277"/>
         <location line="+71"/>
         <source>A change is to a sheet the workbook does not have.</source>
         <translation type="unfinished">Зміна стосується аркуша, якого немає в книзі.</translation>
     </message>
     <message>
-        <location line="-800"/>
+        <location line="-804"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Об&apos;єкти були розміщені на аркуші, на якому ця програма не може їх розмістити.</translation>
     </message>
@@ -71969,7 +72170,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Примітки та посилання не можна зберегти на цьому аркуші.</translation>
     </message>
     <message>
-        <location line="+275"/>
+        <location line="+279"/>
         <source>A table was made that this program can&apos;t put in the file.</source>
         <translation type="unfinished">Створено таблицю, яку ця програма не може записати у файл.</translation>
     </message>
