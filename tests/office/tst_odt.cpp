@@ -2538,8 +2538,7 @@ private Q_SLOTS:
                 QVERIFY2(node >= 0, qPrintable(what + c));
                 const int box = frame >= 0 ? frame : node;
                 const double w = lengthInches(t.attrAny(box, "width"));
-                double h = lengthInches(t.attrAny(box, "height"));
-                if (kind == QLatin1String("box")) h = lengthInches(t.attrAny(findElement(t, "text-box"), "min-height"));
+                const double h = lengthInches(t.attrAny(box, "height"));
                 QVERIFY2(qAbs(w - 2.0) < 0.002 && qAbs(h - 1.0) < 0.002, qPrintable(what));
                 TurnedBox b;
                 if (t.attrAny(box, "transform").isEmpty()) {
@@ -2568,6 +2567,84 @@ private Q_SLOTS:
                 QCOMPARE(back.flipH, k.flipX);
                 QCOMPARE(back.flipV, k.flipY);
                 QVERIFY2(qAbs(back.left - 1.0) < 0.003 && qAbs(back.top - 0.5) < 0.003, qPrintable(QStringLiteral("%1: back at %2, %3").arg(what).arg(back.left).arg(back.top)));
+            }
+    }
+
+    // A picture of the older form that the file holds and that floats (it says its place) is a frame set from its paragraph with the wrap it had, not a picture in the line: set in the line it makes
+    // the line as tall as itself, and the text under it goes a page further. One that says no place stays in the line.
+    void aFloatingPictureOfTheOlderFormStaysFloating()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        for (const bool floating : {true, false}) {
+            const QByteArray shape = floating ? QByteArray("<v:shape type=\"#_x0000_t75\" style=\"position:absolute;margin-left:10pt;margin-top:-20pt;width:100pt;height:50pt;z-index:251660288\"><v:imagedata r:id=\"rId8\"/>"
+                                                           "<w10:wrap type=\"square\"/></v:shape>")
+                                              : QByteArray("<v:shape type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\"><v:imagedata r:id=\"rId8\"/></v:shape>");
+            PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"),
+                      QByteArray("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:v=\"urn:schemas-microsoft-com:vml\" "
+                                 "xmlns:w10=\"urn:schemas-microsoft-com:office:word\"><w:body><w:p><w:r><w:t>text</w:t></w:r><w:r><w:pict>") + shape + "</w:pict></w:r></w:p></w:body></w:document>",
+                      QStringLiteral("application/xml"));
+            w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/media/image1.png"), kPng, QStringLiteral("image/png"));
+            w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId8"), rel + QStringLiteral("image"), QStringLiteral("/word/media/image1.png"));
+            const QByteArray odt = fromDocxPackage(w.finish());
+            const QString c = standardContentOf(filesOf(odt));
+            QVERIFY2(c.contains(QLatin1String("<draw:image ")), qPrintable(c));
+            QCOMPARE(c.contains(QLatin1String("text:anchor-type=\"as-char\"")), !floating);
+            QCOMPARE(c.contains(QLatin1String("text:anchor-type=\"paragraph\"")), floating);
+            if (floating) {
+                QVERIFY2(c.contains(QLatin1String("style:wrap=\"parallel\"")), qPrintable(c));
+                const ShapeInDocx back = firstShapeOfDocx(odt);
+                QVERIFY(back.found && qAbs(back.top + 20.0 / 72.0) < 0.003);
+            }
+        }
+    }
+
+    // A text box has the height it was given, in the file's own words: a fixed box is the frame's height, an auto-height box is the frame's minimum height (the text box inside says none), so a program that reads the
+    // standard sees the same box, and it comes back the same height, unturned or turned, with room inside and a wide line (the outer size is the frame's, whatever the padding and the line take of it).
+    void aTextBoxKeepsItsHeightWhateverItsPaddingAndLine()
+    {
+        const double heightPt = 72.35;
+        for (const QString &kind : {QStringLiteral("vml"), QStringLiteral("fixed"), QStringLiteral("auto")})
+            for (const double turn : {0.0, 30.0, 90.0}) {
+                const QString what = QStringLiteral("%1 turned %2").arg(kind).arg(turn);
+                QByteArray body;
+                if (kind == QLatin1String("vml")) {
+                    body = pictBody(QStringLiteral("<v:shape type=\"#_x0000_t202\" id=\"b1\" style=\"position:absolute;margin-left:72pt;margin-top:36pt;width:144pt;height:%1pt;z-index:251660288%2\" filled=\"f\" "
+                                                   "stroked=\"t\" strokecolor=\"#ff0000\" strokeweight=\"4pt\"><v:textbox inset=\"9pt,4pt,11pt,5pt\"><w:txbxContent><w:p><w:r><w:t>Boxed</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape>")
+                                        .arg(heightPt).arg(turn != 0 ? QStringLiteral(";rotation:%1").arg(turn) : QString()).toUtf8());
+                } else {
+                    body = QStringLiteral("<w:p><w:r><w:drawing><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+                                         "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"column\"><wp:posOffset>914400</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"paragraph\"><wp:posOffset>457200</wp:posOffset></wp:positionV>"
+                                         "<wp:extent cx=\"1828800\" cy=\"%1\"/><wp:wrapSquare wrapText=\"bothSides\"/><wp:docPr id=\"1\" name=\"B\"/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+                                         "<wps:wsp xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm rot=\"%2\"><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1828800\" cy=\"%1\"/></a:xfrm>"
+                                         "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:ln w=\"50800\"><a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill></a:ln></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>Boxed</w:t></w:r></w:p></w:txbxContent></wps:txbx>"
+                                         "<wps:bodyPr lIns=\"114300\" tIns=\"50800\" rIns=\"139700\" bIns=\"63500\">%3</wps:bodyPr></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>")
+                               .arg(qint64(std::llround(heightPt * 12700))).arg(qint64(turn * 60000)).arg(kind == QLatin1String("auto") ? QStringLiteral("<a:spAutoFit/>") : QStringLiteral("<a:noAutofit/>")).toUtf8();
+                }
+                const QByteArray odt = odtOfDrawing(body);
+                const QString c = standardContentOf(filesOf(odt));
+                wml::XmlTree t;
+                QVERIFY2(t.parse(c.toUtf8(), nullptr), qPrintable(what));
+                const int inner = findElement(t, "text-box");
+                QVERIFY2(inner >= 0, qPrintable(what + c));
+                const int frame = t.parent(inner);
+                // (the text box inside says no height of its own; the frame says it as the box is: fixed, or at least)
+                QVERIFY2(t.attrAny(inner, "min-height").isEmpty(), qPrintable(what + ": the text box says a minimum height"));
+                const QString fixedHeight = t.attrAny(frame, "height"), leastHeight = t.attrAny(frame, "min-height");
+                if (kind == QLatin1String("auto")) {
+                    QVERIFY2(fixedHeight.isEmpty() && !leastHeight.isEmpty(), qPrintable(what + ": the frame is at least its height"));
+                    QVERIFY2(qAbs(lengthInches(leastHeight) * 72.0 - heightPt) < 0.05, qPrintable(what + ": " + leastHeight));
+                } else {
+                    QVERIFY2(leastHeight.isEmpty() && !fixedHeight.isEmpty(), qPrintable(what + ": the frame is its height"));
+                    QVERIFY2(qAbs(lengthInches(fixedHeight) * 72.0 - heightPt) < 0.05, qPrintable(what + ": " + fixedHeight));
+                }
+                // And back: the same outer height.
+                wml::XmlTree d;
+                QVERIFY2(d.parse(part(docxOf(odt), QStringLiteral("/word/document.xml")).toUtf8(), nullptr), qPrintable(what));
+                const int extent = findElement(d, "extent");
+                QVERIFY2(extent >= 0, qPrintable(what));
+                QVERIFY2(qAbs(d.attr(extent, "cy").toDouble() / 12700.0 - heightPt) < 0.05, qPrintable(what + ": back " + d.attr(extent, "cy")));
             }
     }
 

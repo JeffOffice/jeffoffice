@@ -1314,6 +1314,7 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     }
     // A text box's padding, fill, and line, from its shape.
     QByteArray boxProps;
+    bool growsToFit = false;   // (a text box that says its height is at least what it is: it grows with its text)
     if (txbx >= 0 || (blip < 0 && !shapePrst.isEmpty())) {
         // (One value for each attribute: later ones replace the usual.)
         QMap<QByteArray, QByteArray> pr{{"fo:padding", "0in"}, {"fo:border", "none"}, {"draw:fill", "none"}, {"draw:stroke", "none"}};
@@ -1325,6 +1326,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             else if (t.localName(n) == "spPr" && sp < 0 && t.ns(t.parent(n)) != wml::NsW) sp = n;
             for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
         }
+        for (int k = body >= 0 ? t.firstChild(body) : -1; k >= 0; k = t.next(k))
+            if (t.localName(k) == "spAutoFit") growsToFit = true;
         if (body >= 0) {
             auto ins = [&](const char *a) { return emuLength(std::max<qint64>(0, t.attr(body, a).toLongLong())); };
             pr.insert("fo:padding-left", ins("lIns"));
@@ -1473,7 +1476,8 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     if (pc->depth >= kMaxNesting - 6) return QByteArray();
     QByteArray inner;
     emitBlocks(t, txbx, &inner, pc->depth + 6, false);
-    x += "><draw:text-box fo:min-height=\"" + emuLength(cy) + "\">" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
+    // (The frame says the height: as it is, or at least, for a box that grows; the text box inside says none.)
+    x += (growsToFit ? " fo:min-height=\"" : " svg:height=\"") + emuLength(cy) + "\"><draw:text-box>" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
     Q_UNUSED(depth);
     return x;
 }
@@ -1737,7 +1741,7 @@ QByteArray Writer::shapeXml(const T &t, const wml::Shape &source, ParaCtx *pc, i
         auto ins = [&](int i) { return emuLength(pointsEmu(std::clamp(s.inset[i], 0.0, 1584.0))); };
         const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Frame\"",
                                            "<style:graphic-properties" + gp + look + " fo:padding-left=\"" + ins(0) + "\" fo:padding-top=\"" + ins(1) + "\" fo:padding-right=\"" + ins(2) + "\" fo:padding-bottom=\"" + ins(3) + "\" fo:border=\"none\"/>");
-        return "<draw:frame draw:style-name=\"" + esc(style) + "\"" + where + " svg:width=\"" + emuLength(std::max<qint64>(9525, cx)) + "\"><draw:text-box fo:min-height=\"" + emuLength(std::max<qint64>(9525, cy)) + "\">" +
+        return "<draw:frame draw:style-name=\"" + esc(style) + "\"" + where + " svg:width=\"" + emuLength(std::max<qint64>(9525, cx)) + "\" svg:height=\"" + emuLength(std::max<qint64>(9525, cy)) + "\"><draw:text-box>" +
                (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box></draw:frame>";
     }
     const QString style = m_sink->make("gr", "graphic", " style:parent-style-name=\"Frame\"", "<style:graphic-properties" + gp + look + " fo:padding=\"0in\" fo:border=\"none\"/>");
@@ -1984,7 +1988,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
             const QVector<wml::Shape> drawn = rawPict.size() <= kMostShapeXml ? wml::readShapes(rawPict) : QVector<wml::Shape>();
             // (A picture that is not turned or mirrored, and that the file holds, is written as it always was; one that is linked, turned, or mirrored is a shape.)
             QString heldHref;
-            const bool onlyPicture = drawn.size() == 1 && drawn[0].kind == wml::Shape::Picture && std::abs(drawn[0].rotation) < 0.0001 && !drawn[0].flipH && !drawn[0].flipV && !imagePart(t.attr(image, "id", wml::NsR), &heldHref).isEmpty();
+            const bool onlyPicture = drawn.size() == 1 && drawn[0].kind == wml::Shape::Picture && !drawn[0].floating && std::abs(drawn[0].rotation) < 0.0001 && !drawn[0].flipH && !drawn[0].flipV && !imagePart(t.attr(image, "id", wml::NsR), &heldHref).isEmpty();
             if (image >= 0 && !onlyPicture && !drawn.isEmpty()) {
                 const QByteArray x = shapesXml(t, c, pc, drawn);
                 if (!x.isEmpty()) {
