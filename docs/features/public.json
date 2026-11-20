@@ -2167,7 +2167,7 @@
         },
         {
          "status": "partly",
-         "text": "e95b95cbb4c215ea9313a70c2cb2975d4349046ea1249c686fe0e8bcf813b27a"
+         "text": "1cb9f3377e6dfd4b5a4c2776fee2023392e86c487d4168bb04acb5861f36b6b4"
         },
         {
          "hide_soon": true,
@@ -7403,7 +7403,7 @@
         },
         {
          "status": "partly",
-         "text": "4290810191e6943292a7e61104923a29af6c9f9f7888c36d7f7515e7d90a94b3"
+         "text": "7478cca15a82e2118bd5d718e13a2c861e57685a887eedbe2e2dabf58b471ee5"
         },
         {
          "hide_soon": true,
@@ -7473,7 +7473,7 @@
         },
         {
          "status": "partly",
-         "text": "0a38ee8c9689aa44a3151d63ea93a41cf801decfe56b9db2c4549db929603896"
+         "text": "24a76cc5e4de0942c47888b2ff9e9c1ffea5d8972aab281fc71c2ea6724cd91e"
         },
         {
          "status": "partly",
@@ -8510,18 +8510,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0a38ee8c9689aa44a3151d63ea93a41cf801decfe56b9db2c4549db929603896": {
-   "drop": false,
-   "en": "Save as `.odt` with comments and tracked changes. After saving, the app says what the format has no place for.",
-   "es": "Guarde como `.odt` con comentarios y cambios con seguimiento. Tras guardar, la aplicación indica lo que el formato no puede contener.",
-   "fr": "Enregistrez en `.odt` avec commentaires et modifications suivies. Après l’enregistrement, l’application indique ce que le format ne peut pas contenir.",
-   "soon": {
-    "drop": false,
-    "en": "Save `.ott` templates",
-    "es": "Guardar plantillas `.ott`",
-    "fr": "Enregistrement de modèles `.ott`"
    }
   },
   "0a4901ac80d5c7db1acaf091367320c462cf176222f194bc328d5bc76eccdfb5": {
@@ -9700,6 +9688,18 @@
     "fr": ""
    }
   },
+  "1cb9f3377e6dfd4b5a4c2776fee2023392e86c487d4168bb04acb5861f36b6b4": {
+   "drop": false,
+   "en": "Saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
+   "es": "Guarda archivos `.xlsx` que conservan los valores, las fórmulas y el formato del libro.",
+   "fr": "Enregistre des fichiers `.xlsx` qui conservent les valeurs, les formules et la mise en forme du classeur.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1cd87d37f62bc26ea44e8392bd6425e5bf379a53fd43ed44028f284cb6d18702": {
    "drop": false,
    "en": "Free and open source (GPL-3.0), with no license fee, subscription, account, or sign-in, and nothing that has to be online.",
@@ -10490,6 +10490,18 @@
     "en": "Array functions `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND`, and `GROWTH`, entered as array formulas",
     "es": "Funciones matriciales `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` y `GROWTH`, introducidas como fórmulas matriciales",
     "fr": "Fonctions matricielles `MMULT`, `MINVERSE`, `MDETERM`, `FREQUENCY`, `LINEST`, `LOGEST`, `TREND` et `GROWTH`, saisies comme formules matricielles"
+   }
+  },
+  "24a76cc5e4de0942c47888b2ff9e9c1ffea5d8972aab281fc71c2ea6724cd91e": {
+   "drop": false,
+   "en": "Save as `.odt`, including comments and tracked changes. After saving, the app tells you what the format has no place for: tracked changes to tables, columns, and page setup, form fields, equations, and drawings.",
+   "es": "Guarde como `.odt`, con comentarios y cambios con seguimiento. Después de guardar, la aplicación le indica lo que el formato no admite: cambios con seguimiento en tablas, columnas y configuración de página, campos de formulario, ecuaciones y dibujos.",
+   "fr": "Enregistrez au format `.odt`, avec les commentaires et les modifications suivies. Après l’enregistrement, l’application vous indique ce que le format ne peut pas contenir : modifications suivies des tableaux, des colonnes et de la mise en page, champs de formulaire, équations et dessins.",
+   "soon": {
+    "drop": false,
+    "en": "Save as `.ott` templates",
+    "es": "Guardar como plantillas `.ott`",
+    "fr": "Enregistrement en modèles `.ott`"
    }
   },
   "24c00247a58535c37a0b6fb4551048cd06a5b6cdd0047c312c380706a5b7d01c": {
@@ -12729,18 +12741,6 @@
    "en": "Use `AVERAGE`, `MAX`, `MIN`, `COUNT`, and `COUNTA`.",
    "es": "Utilice `AVERAGE`, `MAX`, `MIN`, `COUNT` y `COUNTA`.",
    "fr": "Utilisez `AVERAGE`, `MAX`, `MIN`, `COUNT` et `COUNTA`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4290810191e6943292a7e61104923a29af6c9f9f7888c36d7f7515e7d90a94b3": {
-   "drop": false,
-   "en": "Saves `.docx` files that keep the document's content and look.",
-   "es": "Guarda archivos `.docx` que conservan el contenido y el aspecto del documento.",
-   "fr": "Enregistre des fichiers `.docx` qui conservent le contenu et l’apparence du document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16617,6 +16617,18 @@
    "en": "File (backstage)",
    "es": "Archivo (vista Backstage)",
    "fr": "Fichier (vue Backstage)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7478cca15a82e2118bd5d718e13a2c861e57685a887eedbe2e2dabf58b471ee5": {
+   "drop": false,
+   "en": "Saves `.docx` files that keep the document's content and look.",
+   "es": "Guarda archivos `.docx` que conservan el contenido y el aspecto del documento.",
+   "fr": "Enregistre des fichiers `.docx` qui conservent le contenu et l’aspect du document.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24573,18 +24585,6 @@
    "en": "Edit the handout master: choose 1, 2, 3, 4, 6, or 9 slides per page, set the orientation, header, date, footer, and page number, change the background color, and reset the layout. Printing and PDF use it, and it is saved in `.pptx` and `.odp` files.",
    "es": "Edite el patrón de documentos: elija 1, 2, 3, 4, 6 o 9 diapositivas por página, defina la orientación, el encabezado, la fecha, el pie y el número de página, cambie el color de fondo y restablezca el diseño. La impresión y el PDF lo usan, y se guarda en archivos `.pptx` y `.odp`.",
    "fr": "Modifiez le masque du document : choisissez 1, 2, 3, 4, 6 ou 9 diapositives par page, définissez l’orientation, l’en-tête, la date, le pied de page et le numéro de page, changez la couleur d’arrière-plan et réinitialisez la mise en page. L’impression et le PDF l’utilisent, et il est enregistré dans les fichiers `.pptx` et `.odp`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "e95b95cbb4c215ea9313a70c2cb2975d4349046ea1249c686fe0e8bcf813b27a": {
-   "drop": false,
-   "en": "Saves `.xlsx` files that keep the workbook's values, formulas, and formatting.",
-   "es": "Guarda archivos `.xlsx` que conservan los valores, las fórmulas y el formato del libro.",
-   "fr": "Enregistre des fichiers `.xlsx` qui conservent les valeurs, les formules et la mise en forme du classeur.",
    "soon": {
     "drop": true,
     "en": "",
