@@ -426,6 +426,20 @@ private Q_SLOTS:
         QVERIFY2(styles.contains("theme=\"6\"") && styles.contains("tint=\"0.6\"") && styles.contains("theme=\"7\"") && styles.contains("FF123456"), styles.constData());
     }
 
+    // A theme part that was not changed here is written back byte for byte, even one with a byte order mark.
+    void anUnchangedThemePartIsWrittenBackAsItWas()
+    {
+        const QByteArray part = QByteArray("\xEF\xBB\xBF") + writeTheme(ourTheme());
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({themedSheet()}, QByteArray(), QString(), QString(), themedStyles(), QStringList(), QString(), part)));
+        QVERIFY(e.settle());
+        QVERIFY(e.win.w.session()->hasTheme());
+        e.select(QStringLiteral("D3"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(saveNow(e));
+        QCOMPARE(partsOf(e.path).value(QStringLiteral("xl/theme/theme1.xml")), part);
+    }
+
     // A scheme can say how a tint is made (the shared color code): the picker of a workbook has its tints as a file does, and a scheme that says nothing mixes in white or black as before.
     void aColorSchemeCanSayHowATintIsMade()
     {

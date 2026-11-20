@@ -3250,6 +3250,8 @@ void Workbook::setThemeFont(bool major, const QString &name)
 
 QByteArray Workbook::themeXmlNow() const
 {
+    // (as it is, byte for byte, unless a font was named another way)
+    if (m_styles.majorFont == m_themeMajorInFile && m_styles.minorFont == m_themeMinorInFile) return m_themeXml;
     QString xml = QString::fromUtf8(m_themeXml);
     if (xml.isEmpty()) return QByteArray();
     auto put = [&](const char *kind, const QString &now, const QString &was) {
