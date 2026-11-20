@@ -3307,6 +3307,37 @@ private Q_SLOTS:
         QVERIFY(!odfcheck::checkPart(QStringLiteral("content.xml"), swapped).errors.isEmpty());
     }
 
+    // Tracked changes: each changed region has the standard's id (xml:id, which the marks name), not only a text:id of its own.
+    void aDocumentWithTrackedChangesIsValidAgainstTheSchema()
+    {
+        const QByteArray odt = odtOfDrawing("<w:p><w:r><w:t>kept </w:t></w:r><w:ins w:id=\"1\" w:author=\"Bob\" w:date=\"2024-05-06T07:08:09Z\"><w:r><w:t>added</w:t></w:r></w:ins>"
+                                           "<w:del w:id=\"2\" w:author=\"Ann\" w:date=\"2024-05-06T07:08:09Z\"><w:r><w:delText>gone</w:delText></w:r></w:del></w:p>");
+        QVERIFY(QString::fromUtf8(filesOf(odt).value(QStringLiteral("content.xml"))).contains(QLatin1String("<text:changed-region")));
+        mustBeValid(odt, "tracked changes");
+    }
+
+    // A header for the left pages only: the standard gives a left page's header after the header of the other pages, so an empty one is written before it.
+    void aLeftPageHeaderAloneIsValidAgainstTheSchema()
+    {
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QString type = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        PackageWriter w;
+        w.addPart(QStringLiteral("/word/document.xml"), "<w:document " + ns + "><w:body><w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:headerReference w:type=\"even\" r:id=\"rIdH1\"/>"
+                  "<w:footerReference w:type=\"even\" r:id=\"rIdF1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr></w:body></w:document>",
+                  type + QStringLiteral("document.main+xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/settings.xml"), "<w:settings " + ns + "><w:evenAndOddHeaders/></w:settings>", type + QStringLiteral("settings+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("settings"), QStringLiteral("/word/settings.xml"));
+        w.addPart(QStringLiteral("/word/header1.xml"), "<w:hdr " + ns + "><w:p><w:r><w:t>left head</w:t></w:r></w:p></w:hdr>", type + QStringLiteral("header+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdH1"), rel + QStringLiteral("header"), QStringLiteral("/word/header1.xml"));
+        w.addPart(QStringLiteral("/word/footer1.xml"), "<w:ftr " + ns + "><w:p><w:r><w:t>left foot</w:t></w:r></w:p></w:ftr>", type + QStringLiteral("footer+xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdF1"), rel + QStringLiteral("footer"), QStringLiteral("/word/footer1.xml"));
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(QString::fromUtf8(filesOf(odt).value(QStringLiteral("styles.xml"))).contains(QLatin1String("<style:header-left")));
+        mustBeValid(odt, "a header for left pages alone");
+    }
+
     void aDocumentWithMirroredPagesIsValidAgainstTheSchema()
     {
         const QByteArray odt = odtOfBodyWithSettings("<w:p><w:r><w:t>x</w:t></w:r></w:p><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>", "<w:mirrorMargins/>");
