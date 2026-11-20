@@ -113,6 +113,11 @@ void CrunchWindow::createEditing()
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
+    connect(u, &QUndoStack::indexChanged, this, [this] {   // (and puts an end to Insert's keys putting in what was copied; a note's box taken by the keys is given up)
+        m_clipEdited = true;
+        m_view->endNoteKeys(false);
+        updateInsertClipAction();
+    });
     connect(u, &QUndoStack::indexChanged, this, [this] { updateFormatState(false); });   // (the buttons show the format the cell has now)
     connect(u, &QUndoStack::indexChanged, this, [this] { updatePivotTab(); });   // (the fields pane shows the table as an Undo or Redo leaves it, and drops changes waiting for Update that were made on another version)
     connect(u, &QUndoStack::undoTextChanged, this, &CrunchWindow::updateEditActions);

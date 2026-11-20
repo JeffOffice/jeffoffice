@@ -39,14 +39,14 @@ void CrunchWindow::createClipboardActions()
 {
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this] { copySelection(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this] { cutSelection(); });
-    // (no key of its own: Ctrl+Plus, Ctrl+Shift+Plus, and Insert do this when cells are cut or copied, see insertCommand)
+    // (no key of its own: Ctrl+Plus, Ctrl+Shift+Plus, and the Insert button do this when cells are cut, or copied and nothing was changed since, see insertCommand)
     mk("edit.insertClip", tr("Insert Cut or Copied Cells"), "", QKeySequence(), [this] { insertClipCells(); }, false, false);
     using Options = crunch::EditSession::PasteOptions;
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this] {
-        Options o;
+        Options o = defaultPasteOptions();
         // (cells that were copied here or in another JeffCrunch window are pasted as the default says; text from other programs is only text)
         const QMimeData *md = QApplication::clipboard()->mimeData();
-        if (md && md->hasFormat(QLatin1String(crunch::kClipMime))) o.what = Options::What(std::clamp(Settings::get().value(QStringLiteral("crunch/defaultPaste"), 0).toInt(), 0, int(Options::What::Comments)));
+        if (!md || !md->hasFormat(QLatin1String(crunch::kClipMime))) o.what = Options::What::All;
         pasteClipboard(o);
     });
     mk("paste.values", tr("Values"), "", QKeySequence(), [this] {
@@ -96,6 +96,7 @@ void CrunchWindow::createClipboardActions()
     mk("paste.special", tr("Paste Special…"), "", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecial(); });
     for (const char *id : {"edit.cut", "edit.paste", "paste.values", "paste.formulas", "paste.formats", "paste.transpose", "paste.special"}) m_opsActions << QString::fromLatin1(id);
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
+    connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateInsertClipAction(); });
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] { onClipboardChanged(); });
     updateEditActions();
 }
@@ -282,6 +283,7 @@ void CrunchWindow::copyOrCut(bool cut)
     }
     if (m_session) {
         m_pendingClip = m_session->copyCells(m_sheet, selectedRange(), cut);
+        m_clipEdited = false;
         m_pendingClip.serial = ++serial;
         if (m_pendingClip.valid()) m_pendingHtml = htmlOfClip(m_pendingClip);
     }
@@ -660,7 +662,26 @@ void CrunchWindow::updateInsertClipAction()
     if (!a) return;
     const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
     a->setText(!m_clip.valid() ? tr("Insert Cut or Copied Cells") : m_clip.cut ? tr("Insert Cut Cells") : tr("Insert Copied Cells"));
-    a->setEnabled(open && m_clip.valid());
+    // (whole rows or columns selected have their own Insert: the cells are put in only where one cell, or a block of cells, is selected)
+    a->setEnabled(open && m_clip.valid() && m_view->selection().whole == grid::Selection::Whole::None);
+}
+
+// Whether Insert (its keys and its button) puts the cut or copied cells in, as against blank cells: when cells are cut and the cut is still waiting on the sheet they came from, or when cells
+// were copied and nothing has been changed since (an edit, an Undo, or a Redo). Anything else is the Insert people had before; the command in the menu works whenever cells are cut or copied.
+bool CrunchWindow::clipGoesInByKey() const
+{
+    const QAction *a = act(QStringLiteral("edit.insertClip"));
+    if (!a || !a->isEnabled() || !m_clip.valid()) return false;
+    return m_clip.cut ? m_clip.sheet == m_sheet : !m_clipEdited;
+}
+
+// What a plain Paste of cells copied here does: as the default says.
+crunch::EditSession::PasteOptions CrunchWindow::defaultPasteOptions() const
+{
+    using Options = crunch::EditSession::PasteOptions;
+    Options o;
+    o.what = Options::What(std::clamp(Settings::get().value(QStringLiteral("crunch/defaultPaste"), 0).toInt(), 0, int(Options::What::Comments)));
+    return o;
 }
 
 // Insert Cut Cells and Insert Copied Cells: the cells that were cut or copied here go in at the selected cell, and the cells that were there move down, or right (asked in the small box
@@ -687,7 +708,7 @@ void CrunchWindow::insertClipCells()
     const CellRange at = selectedRange();
     const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = doStructural([&] {
-        return clip.cut ? m_session->moveCellsInserting(m_sheet, clip.source, at.row1, at.col1, down) : m_session->insertCellsPasting(m_sheet, at.row1, at.col1, clip, down);
+        return clip.cut ? m_session->moveCellsInserting(m_sheet, clip.source, at.row1, at.col1, down) : m_session->insertCellsPasting(m_sheet, at.row1, at.col1, clip, down, defaultPasteOptions());
     });
     if (!o.ok) {
         if (!o.confirm) notice(tr("Insert"), o.problem);

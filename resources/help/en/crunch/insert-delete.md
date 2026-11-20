@@ -15,10 +15,19 @@ With whole rows or columns selected, the new ones go in at once, above the rows 
 
 ## Insert cut or copied cells
 
-To put cells that you cut or copied between other cells, instead of over them, cut or copy them first (**Ctrl+X** or **Ctrl+C**). Then select the cell where they should go, and use **Home > Insert > Insert Cut or Copied Cells** (the command reads **Insert Cut Cells** or **Insert Copied Cells** once there is something to put), or right-click the cell and choose it, or press **Ctrl and the plus key**. A small window asks whether the cells that are there should **shift right** or **shift down** to make room.
+To put cells that you cut or copied between other cells, instead of over them, cut or copy them first (**Ctrl+X** or **Ctrl+C**). Then select the cell where they should go, and use **Home > Insert > Insert Cut or Copied Cells** (the command reads **Insert Cut Cells** or **Insert Copied Cells** once there is something to put), or right-click the cell and choose it. A small window asks whether the cells that are there should **shift right** or **shift down** to make room.
+
+The **Insert** button and **Ctrl and the plus key** (also **Ctrl+Shift and the plus key**) do this too, but only when it is plain what you mean:
+
+- when cells are **cut** and the cut is still waiting (its dashed border shows) on the sheet they came from, and
+- when cells are **copied** and you have changed nothing since (no typing, no other edit, no Undo or Redo).
+
+In every other case, the button and the keys insert blank cells, as they always do. After you change something, a copy is still there for **Paste** and for the command in the menu. **Esc** ends a cut or a copy: the border goes, and the button and the keys insert blank cells again. If cells are cut on one sheet and you press the keys on another, blank cells go in; the command in the menu tells you that cut cells can be put between others only on their own sheet. With whole rows or columns selected, the command is off, and Insert adds rows or columns as before.
 
 - Cut cells **move**: they leave their old place, and what points at them follows. It is the same as holding **Shift** while you drag the border of the selection, and it is all or nothing: if any part is refused, nothing changes.
-- Copied cells are **put in** as a copy, and the copy stays ready, so you can put it in again somewhere else.
+- Copied cells are **put in** as a copy, as **Paste** would put them (as **Set Default Paste** says, and with formulas changed for their new place), and the copy stays ready, so you can put it in again somewhere else.
+- The cells go in once, at the top left cell of what you selected, even if you selected more cells than you copied.
+- If the list is filtered, the cells go into the rows that show, as a paste does, and the room made for them includes the rows the filter hides in between. A row you hid by hand counts as any other row.
 - Each is one step you can undo. Cut cells can be put between others only on the sheet they came from; to move them to another sheet, use **Paste**.
 - A cell can't be put in its own way (cells cut from A3:A4 can't go between A3 and A4), and a protected sheet refuses it. JeffCrunch says why, and changes nothing.
 
