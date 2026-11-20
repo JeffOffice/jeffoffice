@@ -40,7 +40,13 @@ int loadedCount();
 // accepts every word; hasSpelling() says whether it's there.
 bool hasSpelling(const QString &code);
 bool spell(const QString &code, const QString &word);
+// The suggestions for a word (empty for a word of more than kMaxSuggestLength letters). The search is limited by a count of the
+// library's own checks, not by time (third_party/README.md), so a word gives the same list on every machine.
+constexpr int kMaxSuggestLength = 64;
 QStringList suggest(const QString &code, const QString &word);
+// How many of those checks the last suggest() made, and the limit of one search for a language (a word whose search the limit ends makes a few more than that); for tests.
+long long lastSuggestSteps();
+long long suggestStepLimit(const QString &code);
 
 // The language's hyphenation patterns (a LibreOffice hyph_*.dic), or empty. It is the plain file's name even where only the
 // compressed file exists: read it with readFile().

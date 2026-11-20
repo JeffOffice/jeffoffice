@@ -965,6 +965,8 @@ private Q_SLOTS:
     void aWordStillBeingTypedIsNotUnderlinedUntilTheCaretMovesOn();
     void onlyTheParagraphsOnThePagesInViewAreChecked();
     void theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary();
+    void suggestionsAreTheSameEveryTimeAndAHardWordStopsAtTheWorkLimit();
+    void aWordOverTheSuggestionLengthGetsNoSuggestions();
     void rightClickingAMisspelledWordInTheWindowShowsItsSuggestions();
     void reviewSpellingStepsThroughTheMisspellingsFromTheCaret();
     void reviewSpellingBeginsAtTheCaretAndComesBackToWhereItBegan();

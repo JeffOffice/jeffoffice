@@ -2,6 +2,7 @@
 #include "core/booklet.h"
 #include "core/datafolder.h"
 #include "tst_write.h"
+#include "text/dictionaries.h"
 #include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include "app/theme.h"
@@ -2734,6 +2735,51 @@ void WriteTests::theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
         if (a->text() == QStringLiteral("Ignore All")) a->trigger();
     QCOMPARE(view.spelling()->misspellingAt(10), qMakePair(-1, -1));
     QVERIFY(changed.count() > 0);
+}
+
+void WriteTests::suggestionsAreTheSameEveryTimeAndAHardWordStopsAtTheWorkLimit()
+{
+    // The search is limited by a count of checks, not by time: the same word gives the same list and the same count, and a word
+    // that would search for very long stops at the limit (without a limit these make millions of checks and take seconds).
+    const QString en = jp::dict::match(QStringLiteral("en-US"));
+    if (!jp::dict::hasSpelling(en)) QSKIP("no English dictionary");
+    const QStringList first = jp::dict::suggest(en, QStringLiteral("adress"));
+    const long long firstSteps = jp::dict::lastSuggestSteps();
+    QVERIFY(!first.isEmpty());
+    QVERIFY(firstSteps > 0);
+    QVERIFY2(firstSteps < jp::dict::suggestStepLimit(en), "an ordinary word finishes its whole search");
+    for (int again = 0; again < 3; ++again) {
+        QCOMPARE(jp::dict::suggest(en, QStringLiteral("adress")), first);
+        QCOMPARE(jp::dict::lastSuggestSteps(), firstSteps);
+    }
+    const struct { const char *tag, *word; } hard[] = {
+        {"en-US", "yqopinhcisbfwhzlfvuecfnsrleczg"},
+        {"de-DE", "xybreilpetuowljfokscpoithfcpjm"},
+        {"es-MX", "oe\u00f3nb\u00e9seclyzj\u00f1qac\u00fc\u00f1emqjbit\u00f3tr\u00f3"},
+    };
+    for (const auto &h : hard) {
+        const QString code = jp::dict::match(QString::fromLatin1(h.tag));
+        if (!jp::dict::hasSpelling(code)) continue;
+        const QString word = QString::fromUtf8(h.word);
+        const QStringList list = jp::dict::suggest(code, word);
+        const long long steps = jp::dict::lastSuggestSteps();
+        const long long limit = jp::dict::suggestStepLimit(code);
+        QVERIFY2(limit > 0, h.tag);
+        QVERIFY2(steps >= limit, qPrintable(QStringLiteral("%1: %2 checks, limit %3").arg(code).arg(steps).arg(limit)));
+        QVERIFY2(steps < limit + limit / 10, qPrintable(QStringLiteral("%1: %2 checks, limit %3").arg(code).arg(steps).arg(limit)));
+        QCOMPARE(jp::dict::suggest(code, word), list);
+        QCOMPARE(jp::dict::lastSuggestSteps(), steps);
+    }
+}
+
+void WriteTests::aWordOverTheSuggestionLengthGetsNoSuggestions()
+{
+    const QString en = jp::dict::match(QStringLiteral("en-US"));
+    if (!jp::dict::hasSpelling(en)) QSKIP("no English dictionary");
+    QVERIFY(jp::dict::suggest(en, QString(jp::dict::kMaxSuggestLength + 1, QLatin1Char('x'))).isEmpty());
+    QCOMPARE(jp::dict::lastSuggestSteps(), 0);
+    jp::dict::suggest(en, QString(jp::dict::kMaxSuggestLength, QLatin1Char('x')));
+    QVERIFY(jp::dict::lastSuggestSteps() > 0);
 }
 
 

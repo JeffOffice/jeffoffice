@@ -11,6 +11,7 @@
 #include <QMutex>
 
 #include <hunspell/hunspell.hxx>
+#include <hunspell/hunspell_steps.hxx>
 #include <map>
 #include <memory>
 #include <string>
@@ -46,6 +47,7 @@ struct Entry {
     const char *hyphenation;   // under root()
     const char *common = nullptr;   // the words every region shares (Spanish), loaded first, with `spelling`'s .dic added on top
     const char *affix = nullptr;    // the .aff, when it is another entry's (several regions share one)
+    int stepPercent = 100;   // the share of the suggestion work limits it gets (a check costs more in some dictionaries: third_party/README.md)
 };
 
 const Entry kEntries[] = {
@@ -53,33 +55,33 @@ const Entry kEntries[] = {
     {"en-GB", QT_TRANSLATE_NOOP("Text", "English (United Kingdom)"), "en/en_GB", "en/hyph_en_GB.dic"},
     {"en-CA", QT_TRANSLATE_NOOP("Text", "English (Canada)"), "en/en_CA", "en/hyph_en_US.dic"},
     {"en-AU", QT_TRANSLATE_NOOP("Text", "English (Australia)"), "en/en_AU", "en/hyph_en_GB.dic"},
-    {"es-MX", QT_TRANSLATE_NOOP("Text", "Spanish (Mexico)"), "es/es_MX", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
-    {"es-ES", QT_TRANSLATE_NOOP("Text", "Spanish (Spain)"), "es/es_ES", "es/hyph_es.dic", "es/es_common", "es/es_ES"},
-    {"es-AR", QT_TRANSLATE_NOOP("Text", "Spanish (Argentina)"), "es/es_AR", "es/hyph_es.dic", "es/es_common", "es/es_AR"},
-    {"es-BO", QT_TRANSLATE_NOOP("Text", "Spanish (Bolivia)"), "es/es_BO", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-CL", QT_TRANSLATE_NOOP("Text", "Spanish (Chile)"), "es/es_CL", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-CO", QT_TRANSLATE_NOOP("Text", "Spanish (Colombia)"), "es/es_CO", "es/hyph_es.dic", "es/es_common", "es/es_CO"},
-    {"es-CR", QT_TRANSLATE_NOOP("Text", "Spanish (Costa Rica)"), "es/es_CR", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-CU", QT_TRANSLATE_NOOP("Text", "Spanish (Cuba)"), "es/es_CU", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-DO", QT_TRANSLATE_NOOP("Text", "Spanish (Dominican Republic)"), "es/es_DO", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-EC", QT_TRANSLATE_NOOP("Text", "Spanish (Ecuador)"), "es/es_EC", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-SV", QT_TRANSLATE_NOOP("Text", "Spanish (El Salvador)"), "es/es_SV", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-GT", QT_TRANSLATE_NOOP("Text", "Spanish (Guatemala)"), "es/es_GT", "es/hyph_es.dic", "es/es_common", "es/es_GT"},
-    {"es-HN", QT_TRANSLATE_NOOP("Text", "Spanish (Honduras)"), "es/es_HN", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-NI", QT_TRANSLATE_NOOP("Text", "Spanish (Nicaragua)"), "es/es_NI", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-PA", QT_TRANSLATE_NOOP("Text", "Spanish (Panama)"), "es/es_PA", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-PY", QT_TRANSLATE_NOOP("Text", "Spanish (Paraguay)"), "es/es_PY", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-PE", QT_TRANSLATE_NOOP("Text", "Spanish (Peru)"), "es/es_PE", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
-    {"es-PR", QT_TRANSLATE_NOOP("Text", "Spanish (Puerto Rico)"), "es/es_PR", "es/hyph_es.dic", "es/es_common", "es/es_BO"},
-    {"es-US", QT_TRANSLATE_NOOP("Text", "Spanish (United States)"), "es/es_US", "es/hyph_es.dic", "es/es_common", "es/es_US"},
-    {"es-UY", QT_TRANSLATE_NOOP("Text", "Spanish (Uruguay)"), "es/es_UY", "es/hyph_es.dic", "es/es_common", "es/es_UY"},
-    {"es-VE", QT_TRANSLATE_NOOP("Text", "Spanish (Venezuela)"), "es/es_VE", "es/hyph_es.dic", "es/es_common", "es/es_MX"},
+    {"es-MX", QT_TRANSLATE_NOOP("Text", "Spanish (Mexico)"), "es/es_MX", "es/hyph_es.dic", "es/es_common", "es/es_MX", 60},
+    {"es-ES", QT_TRANSLATE_NOOP("Text", "Spanish (Spain)"), "es/es_ES", "es/hyph_es.dic", "es/es_common", "es/es_ES", 60},
+    {"es-AR", QT_TRANSLATE_NOOP("Text", "Spanish (Argentina)"), "es/es_AR", "es/hyph_es.dic", "es/es_common", "es/es_AR", 60},
+    {"es-BO", QT_TRANSLATE_NOOP("Text", "Spanish (Bolivia)"), "es/es_BO", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-CL", QT_TRANSLATE_NOOP("Text", "Spanish (Chile)"), "es/es_CL", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-CO", QT_TRANSLATE_NOOP("Text", "Spanish (Colombia)"), "es/es_CO", "es/hyph_es.dic", "es/es_common", "es/es_CO", 60},
+    {"es-CR", QT_TRANSLATE_NOOP("Text", "Spanish (Costa Rica)"), "es/es_CR", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-CU", QT_TRANSLATE_NOOP("Text", "Spanish (Cuba)"), "es/es_CU", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-DO", QT_TRANSLATE_NOOP("Text", "Spanish (Dominican Republic)"), "es/es_DO", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-EC", QT_TRANSLATE_NOOP("Text", "Spanish (Ecuador)"), "es/es_EC", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-SV", QT_TRANSLATE_NOOP("Text", "Spanish (El Salvador)"), "es/es_SV", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-GT", QT_TRANSLATE_NOOP("Text", "Spanish (Guatemala)"), "es/es_GT", "es/hyph_es.dic", "es/es_common", "es/es_GT", 60},
+    {"es-HN", QT_TRANSLATE_NOOP("Text", "Spanish (Honduras)"), "es/es_HN", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-NI", QT_TRANSLATE_NOOP("Text", "Spanish (Nicaragua)"), "es/es_NI", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-PA", QT_TRANSLATE_NOOP("Text", "Spanish (Panama)"), "es/es_PA", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-PY", QT_TRANSLATE_NOOP("Text", "Spanish (Paraguay)"), "es/es_PY", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-PE", QT_TRANSLATE_NOOP("Text", "Spanish (Peru)"), "es/es_PE", "es/hyph_es.dic", "es/es_common", "es/es_MX", 60},
+    {"es-PR", QT_TRANSLATE_NOOP("Text", "Spanish (Puerto Rico)"), "es/es_PR", "es/hyph_es.dic", "es/es_common", "es/es_BO", 60},
+    {"es-US", QT_TRANSLATE_NOOP("Text", "Spanish (United States)"), "es/es_US", "es/hyph_es.dic", "es/es_common", "es/es_US", 60},
+    {"es-UY", QT_TRANSLATE_NOOP("Text", "Spanish (Uruguay)"), "es/es_UY", "es/hyph_es.dic", "es/es_common", "es/es_UY", 60},
+    {"es-VE", QT_TRANSLATE_NOOP("Text", "Spanish (Venezuela)"), "es/es_VE", "es/hyph_es.dic", "es/es_common", "es/es_MX", 60},
     {"fr-FR", QT_TRANSLATE_NOOP("Text", "French"), "fr_FR/fr", "fr_FR/hyph_fr.dic"},
     {"de-DE", QT_TRANSLATE_NOOP("Text", "German"), "de/de_DE_frami", "de/hyph_de_DE.dic"},
-    {"it-IT", QT_TRANSLATE_NOOP("Text", "Italian"), "it_IT/it_IT", "it_IT/hyph_it_IT.dic"},
+    {"it-IT", QT_TRANSLATE_NOOP("Text", "Italian"), "it_IT/it_IT", "it_IT/hyph_it_IT.dic", nullptr, nullptr, 70},
     {"nl-NL", QT_TRANSLATE_NOOP("Text", "Dutch"), "nl_NL/nl_NL", "nl_NL/hyph_nl_NL.dic"},
-    {"pt-BR", QT_TRANSLATE_NOOP("Text", "Portuguese (Brazil)"), "pt_BR/pt_BR", "pt_BR/hyph_pt_BR.dic"},
-    {"pt-PT", QT_TRANSLATE_NOOP("Text", "Portuguese (Portugal)"), "pt_PT/pt_PT", "pt_PT/hyph_pt_PT.dic"},
+    {"pt-BR", QT_TRANSLATE_NOOP("Text", "Portuguese (Brazil)"), "pt_BR/pt_BR", "pt_BR/hyph_pt_BR.dic", nullptr, nullptr, 20},
+    {"pt-PT", QT_TRANSLATE_NOOP("Text", "Portuguese (Portugal)"), "pt_PT/pt_PT", "pt_PT/hyph_pt_PT.dic", nullptr, nullptr, 25},
     {"ru-RU", QT_TRANSLATE_NOOP("Text", "Russian"), "ru_RU/ru_RU", "ru_RU/hyph_ru_RU.dic"},
     {"id-ID", QT_TRANSLATE_NOOP("Text", "Indonesian"), "id/id_ID", "id/hyph_id_ID.dic"},
     {"uk-UA", QT_TRANSLATE_NOOP("Text", "Ukrainian"), "uk_UA/uk_UA", "uk_UA/hyph_uk_UA.dic"},
@@ -97,6 +99,7 @@ const Entry *entry(const QString &code)
 struct Checker {
     std::unique_ptr<Hunspell> h;
     bool utf8 = true;
+    int stepPercent = 100;
     std::string encode(QString w) const
     {
         if (utf8) return w.toStdString();
@@ -191,6 +194,7 @@ Checker *checker(const QString &code)
             // (a region's own words are added to the common ones: the same words as one file of both)
             c->h = std::make_unique<Hunspell>("jeffoffice-memory:aff", "jeffoffice-memory:dic");
             if (!common.isEmpty()) c->h->add_dic("jeffoffice-memory:region");
+            c->stepPercent = e->stepPercent;
             c->utf8 = QString::fromStdString(c->h->get_dict_encoding()).compare(QLatin1String("UTF-8"), Qt::CaseInsensitive) == 0;
         }
     }
@@ -282,6 +286,7 @@ bool spell(const QString &code, const QString &word)
     QMutexLocker lock(&mutex());
     Checker *c = checker(code);
     if (!c || word.isEmpty()) return true;
+    jeffoffice_hunspell_percent() = c->stepPercent;
     if (c->h->spell(c->encode(word))) return true;
     // Dictionaries list words with one apostrophe or the other.
     const QChar curly(0x2019);
@@ -290,14 +295,34 @@ bool spell(const QString &code, const QString &word)
     return false;
 }
 
+// (the checks the last suggest() made, for tests; under the mutex)
+static long long s_lastSuggestSteps = 0;
+
 QStringList suggest(const QString &code, const QString &word)
 {
     QMutexLocker lock(&mutex());
     QStringList out;
+    s_lastSuggestSteps = 0;
     Checker *c = checker(code);
-    if (!c) return out;
+    if (!c || word.size() > kMaxSuggestLength) return out;
+    jeffoffice_hunspell_percent() = c->stepPercent;
+    const long long before = jeffoffice_hunspell_steps();
     for (const std::string &s : c->h->suggest(c->encode(word))) out << c->decode(s);
+    s_lastSuggestSteps = jeffoffice_hunspell_steps() - before;
     return out;
+}
+
+long long lastSuggestSteps()
+{
+    QMutexLocker lock(&mutex());
+    return s_lastSuggestSteps;
+}
+
+long long suggestStepLimit(const QString &code)
+{
+    QMutexLocker lock(&mutex());
+    const Checker *c = checker(code);
+    return c ? JEFFOFFICE_STEPS_SUGGESTION * c->stepPercent / 100 : 0;
 }
 
 QByteArray hunspellFileName(const QString &path)

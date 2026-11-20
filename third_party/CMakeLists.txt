@@ -93,18 +93,25 @@ file(GLOB HUNSPELL_ORIGINALS ${hunspell_SOURCE_DIR}/src/hunspell/*.cxx ${hunspel
 set(HUNSPELL_SOURCES)
 foreach(original ${HUNSPELL_ORIGINALS})
   get_filename_component(fname ${original} NAME)
-  if(fname STREQUAL "filemgr.hxx" OR fname STREQUAL "filemgr.cxx" OR fname STREQUAL "atypes.hxx")
+  if(fname STREQUAL "filemgr.hxx" OR fname STREQUAL "filemgr.cxx" OR fname STREQUAL "atypes.hxx"
+     OR fname STREQUAL "affixmgr.hxx" OR fname STREQUAL "affixmgr.cxx" OR fname STREQUAL "suggestmgr.hxx" OR fname STREQUAL "suggestmgr.cxx"
+     OR fname STREQUAL "hunspell.cxx" OR fname STREQUAL "hashmgr.cxx")
     file(READ ${original} text)
     if(fname STREQUAL "atypes.hxx")
       jo_hunspell_patch(atypes.hxx "#define TIMELIMIT_GLOBAL_MS std::chrono::milliseconds(250)
 #define TIMELIMIT_SUGGESTION_MS std::chrono::milliseconds(100)
 #define TIMELIMIT_MS std::chrono::milliseconds(50)
 "
-"/* JeffOffice patch: no wall-clock limits on a suggestion (a slow or busy machine gave a different list than a fast one). The work stays
-   bounded by the counters (MINTIMER, MAXPLUSTIMER), the suggestion caps, and the dictionary's size. */
-#define TIMELIMIT_GLOBAL_MS std::chrono::hours(24)
-#define TIMELIMIT_SUGGESTION_MS std::chrono::hours(24)
-#define TIMELIMIT_MS std::chrono::hours(24)
+"#include \"hunspell_steps.hxx\"   /* JeffOffice patch: the time limits are counts of checks, see that file */
+")
+    elseif(fname MATCHES "^(affixmgr|suggestmgr|hunspell)\\.[ch]xx$")
+      jo_hunspell_patch(${fname} "std::chrono::steady_clock" "jeffoffice_steady_clock")
+    elseif(fname STREQUAL "hashmgr.cxx")
+      # a dictionary lookup counts as a check too: the searches test whole words, and a lookup costs about the same in every dictionary
+      jo_hunspell_patch(hashmgr.cxx "struct hentry* HashMgr::lookup(const char* word, size_t len) const {
+"
+"struct hentry* HashMgr::lookup(const char* word, size_t len) const {
+  ++jeffoffice_hunspell_steps();   /* JeffOffice patch: a check of the work limit (hunspell_steps.hxx) */
 ")
     elseif(fname STREQUAL "filemgr.hxx")
       jo_hunspell_patch(filemgr.hxx "class FileMgr {"
@@ -179,6 +186,7 @@ FileMgr::FileMgr(const char* file, const char* key)
     list(APPEND HUNSPELL_SOURCES ${HUNSPELL_PATCHED}/${fname})
   endif()
 endforeach()
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/hunspell_steps.hxx ${HUNSPELL_PATCHED}/hunspell_steps.hxx COPYONLY)
 add_library(jp_hunspell STATIC ${HUNSPELL_SOURCES})
 target_include_directories(jp_hunspell PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/hunspell-patched/src)
 target_compile_definitions(jp_hunspell PUBLIC HUNSPELL_STATIC)
