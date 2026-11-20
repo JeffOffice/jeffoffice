@@ -3,6 +3,7 @@
 
 #include "app/settings.h"
 #include "app/crunchwindow.h"
+#include "app/pdfproperties.h"
 #include "app/printpage.h"
 #include "app/printsides.h"
 
@@ -29,6 +30,9 @@ std::unique_ptr<crunch::PrintJob> CrunchWindow::makePrintJob(crunch::PrintJobOpt
     }
     options.activeSheet = m_sheet;
     if (options.what == crunch::PrintWhat::ActiveSheet) options.sheets = selectedSheets();
+    // (what the workbook says of itself goes into a PDF: with its personal information removed, or Remove personal information on, no author and no name of the file)
+    options.pdfInfo = pdfDocumentInfo(properties(), displayName(), m_personalInfoRemoved);
+    options.hasPdfInfo = true;
     options.fileName = m_path.isEmpty() ? displayName() : QFileInfo(m_path).fileName();
     options.folder = m_path.isEmpty() ? QString() : QFileInfo(m_path).absolutePath();
     if (options.what == crunch::PrintWhat::Selection && !options.selection.valid) {
@@ -116,8 +120,16 @@ bool CrunchWindow::exportPdf(bool wholeWorkbook, bool archival, const PdfProtect
         return false;
     }
     setStatus(tr("Exported %1").arg(QFileInfo(path).fileName()));
+    openPdfIfAsked(path);
     armPageBreaks();
     return true;
+}
+
+// "Open the PDF after saving": when the system won't open the file, the status bar says so (the file is saved all the same).
+void CrunchWindow::openPdfIfAsked(const QString &path)
+{
+    if (!openPdfAfterSaving()) return;
+    if (!openSavedPdf(path)) setStatus(tr("%1 is saved, but your computer would not open it.").arg(QFileInfo(path).fileName()));
 }
 
 bool CrunchWindow::printWith(const crunch::PrintChoices &c)
@@ -156,7 +168,10 @@ bool CrunchWindow::printWith(const crunch::PrintChoices &c)
             return false;
         }
         if (!ok) notice(tr("Save as PDF"), tr("%1 couldn't save \"%2\".\n%3").arg(appInfo().name, QFileInfo(path).fileName(), why));
-        else setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
+        else {
+            setStatus(tr("Saved %1").arg(QFileInfo(path).fileName()));
+            openPdfIfAsked(path);
+        }
     } else {
         // Both sides by hand: the physical sheets are shared out, the first, third, ... then the others last first (a front with no back gets a blank sheet).
         QVector<QVector<QVector<int>>> runs;

@@ -13,6 +13,10 @@
 #include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include <QPointer>
+#include "app/privacy.h"
+#include "app/filedialogs.h"
+#include "app/help.h"
+#include <QPrintDialog>
 #include "io/qtpdf.h"
 #include "io/pdftransparency.h"
 #include "../pdftransparencyfixtures.h"
@@ -2311,7 +2315,7 @@ void CrunchPrintTests::aPrinterThatIsGoneIsSaidAndNothingIsSent()
     QVERIFY(!w.printWith(c));
     QCOMPARE(said.size(), 1);
     QVERIFY2(said[0].contains(QStringLiteral("No Such Printer")), qPrintable(said[0]));
-    QVERIFY(!w.statusBar()->currentMessage().contains(QStringLiteral("Sent")));
+    QVERIFY(!w.statusText().contains(QStringLiteral("Sent")));
     // the list is asked for when the Print page is opened, each time, and not before
     int asked = 0;
     setPrinterNamesStandIn([&] {
@@ -3080,6 +3084,156 @@ void CrunchPrintTests::noHandlesWhereThePageIsNotTheSheetsOwn()
     QVERIFY(perSheet);
     perSheet->setCurrentIndex(perSheet->findData(2));
     QTRY_VERIFY(!previewHandle(&w, QStringLiteral("Left margin")) && !previewHandle(&w, QStringLiteral("Width of column A")));
+}
+
+// The Print page has the shared Printer Properties button: hidden (not disabled) for a PDF file and where the platform has no window of its own; what the window says comes back to the page. The
+// Print page and the Export page have the box "Open the PDF after saving".
+void CrunchPrintTests::thePrintPageUsesTheSharedPrinterPropertiesAndHasTheOpenBox()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1300, 900);
+    w.act(QStringLiteral("file.print"))->trigger();
+    auto *printer = w.findChild<QComboBox *>(QStringLiteral("printPrinter"));
+    auto *button = w.findChild<QPushButton *>(QStringLiteral("printPrinterSettings"));
+    auto *openPdf = w.findChild<QCheckBox *>(QStringLiteral("printOpenPdf"));
+    auto *copies = w.findChild<QSpinBox *>(QStringLiteral("printCopies"));
+    QVERIFY(printer && button && openPdf && copies);
+    QCOMPARE(button->text(), QStringLiteral("Printer Properties…"));
+    const auto restore = qScopeGuard([] {
+        setPrinterPropertiesStandIn({});
+        setPrintDialogStandIn({});
+    });
+    printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+    printer->setCurrentIndex(0);
+    QTRY_VERIFY(!button->isVisibleTo(button->window()));   // (the test display has no window of the system's)
+    QVERIFY(!openPdf->isVisibleTo(openPdf->window()));
+    setPrinterPropertiesStandIn([] { return true; });
+    printer->setCurrentIndex(printer->count() - 1);   // Save as PDF
+    QTRY_VERIFY(openPdf->isVisibleTo(openPdf->window()));
+    QVERIFY(!button->isVisibleTo(button->window()));
+    printer->setCurrentIndex(0);
+    QTRY_VERIFY(button->isVisibleTo(button->window()));
+    const QPrinter *configured = nullptr;
+    setPrintDialogStandIn([&](QPrintDialog &dialog) {
+        configured = dialog.printer();
+        dialog.printer()->setCopyCount(4);
+        return int(QDialog::Accepted);
+    });
+    button->click();
+    QVERIFY(configured);
+    QCOMPARE(configured, &w.printer());
+    QCOMPARE(copies->value(), 4);
+    // the Export page has the box too, and it is the same choice
+    w.showFileScreen(QStringLiteral("export"));
+    auto *exportBox = w.findChild<QCheckBox *>(QStringLiteral("exportOpenPdf"));
+    QVERIFY(exportBox);
+    const bool before = openPdfAfterSaving();
+    exportBox->setChecked(!before);
+    QCOMPARE(openPdfAfterSaving(), !before);
+    setOpenPdfAfterSaving(false);
+}
+
+// Every way of making a PDF puts the workbook's title, author, subject, and keywords in the file's information dictionary, and with personal information to be left out (Options > Save, or
+// removed with Inspect) no author and no title taken from the file's name.
+void CrunchPrintTests::everyPdfCarriesTheWorkbooksPropertiesAndLeavesPersonalInformationOut()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    jp::office::PackageProps props = w.properties();
+    props.title = QStringLiteral("Annual Budget");
+    props.creator = QStringLiteral("Pat Person");
+    props.subject = QStringLiteral("Plans");
+    props.keywords = QStringLiteral("alpha, beta");
+    w.applyProperties(props);
+    const bool removeBefore = jp::privacy::removeOnSave();
+    const auto restore = qScopeGuard([&] { jp::privacy::setRemoveOnSave(removeBefore); });
+    QString path;
+    w.setSavePicker([&](const QString &, const QString &) { return path; });
+    struct Way {
+        const char *name;
+        std::function<bool()> make;
+        QString password;
+    };
+    const QVector<Way> ways = {
+        {"sheet", [&] { return w.exportPdf(false); }, QString()},
+        {"workbook", [&] { return w.exportPdf(true); }, QString()},
+        {"archival", [&] { return w.exportPdf(true, true); }, QString()},
+        {"tagged", [&] { return w.exportPdf(true, false, PdfProtection(), true); }, QString()},
+        {"locked", [&] {
+             PdfProtection p;
+             p.openPassword = QStringLiteral("pw");
+             return w.exportPdf(true, false, p);
+         }, QStringLiteral("pw")},
+        {"print", [&] {
+             crunch::PrintChoices c;
+             c.toFile = true;
+             return w.printWith(c);
+         }, QString()},
+    };
+    for (const bool removed : {false, true})
+        for (const bool titled : {true, false})
+            for (const Way &way : ways) {
+                const QString label = QStringLiteral("%1 removed %2 titled %3").arg(QString::fromLatin1(way.name)).arg(removed).arg(titled);
+                jp::privacy::setRemoveOnSave(removed);
+                props.title = titled ? QStringLiteral("Annual Budget") : QString();
+                w.applyProperties(props);
+                path = e.folder.dir.filePath(QStringLiteral("props-%1.pdf").arg(QString::fromLatin1(way.name)));
+                QFile::remove(path);
+                QVERIFY2(way.make(), qPrintable(label));
+                QFile f(path);
+                QVERIFY2(f.open(QIODevice::ReadOnly), qPrintable(label));
+                const QByteArray bytes = f.readAll();
+                f.close();
+                const jp::PdfDocument doc(bytes, way.password);
+                QVERIFY2(doc.isValid(), qPrintable(label));
+                QCOMPARE(doc.meta(QStringLiteral("Title")), titled ? QStringLiteral("Annual Budget") : removed ? QString() : w.displayName());
+                QCOMPARE(doc.meta(QStringLiteral("Author")), removed ? QString() : QStringLiteral("Pat Person"));
+                QCOMPARE(doc.meta(QStringLiteral("Subject")), QStringLiteral("Plans"));
+                QCOMPARE(doc.meta(QStringLiteral("Keywords")), QStringLiteral("alpha, beta"));
+                QVERIFY2(doc.meta(QStringLiteral("Producer")).contains(QStringLiteral("Crunch")), qPrintable(label));
+                QVERIFY2(!doc.meta(QStringLiteral("CreationDate")).isEmpty(), qPrintable(label));
+                if (removed) QVERIFY2(!bytes.contains("Pat Person"), qPrintable(label));
+            }
+}
+
+// "Open the PDF after saving" opens the file just saved from the Export page and from Print to a PDF file, only when it is on, and says so in the status bar when the system won't open it.
+void CrunchPrintTests::aPdfIsOpenedAfterSavingWhenAskedFor()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    const QString target = e.folder.dir.filePath(QStringLiteral("open.pdf"));
+    w.setSavePicker([&](const QString &, const QString &) { return target; });
+    const auto openBefore = jp::help::openUrl;
+    const auto restore = qScopeGuard([&] {
+        jp::help::openUrl = openBefore;
+        setOpenPdfAfterSaving(false);
+    });
+    QList<QUrl> opened;
+    bool answer = true;
+    jp::help::openUrl = [&](const QUrl &url) {
+        opened << url;
+        return answer;
+    };
+    setOpenPdfAfterSaving(false);
+    crunch::PrintChoices toFile;
+    toFile.toFile = true;
+    QVERIFY(w.exportPdf(true));
+    QVERIFY(w.printWith(toFile));
+    QVERIFY(opened.isEmpty());
+    setOpenPdfAfterSaving(true);
+    QVERIFY(w.exportPdf(true));
+    QCOMPARE(opened.size(), 1);
+    QCOMPARE(opened[0].toLocalFile(), target);
+    QVERIFY(w.printWith(toFile));
+    QCOMPARE(opened.size(), 2);
+    answer = false;
+    QVERIFY(w.exportPdf(true));   // (it is saved all the same)
+    QVERIFY2(w.statusText().contains(QStringLiteral("would not open it")), qPrintable(w.statusText()));
+    QVERIFY(QFileInfo(target).size() > 0);
 }
 
 // A PDF can be protected with a password: the file is encrypted (AES-256), opens with the password and not without, is not PDF/A, and the plain PDF is not left beside it.

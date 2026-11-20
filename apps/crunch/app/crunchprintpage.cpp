@@ -97,8 +97,7 @@ QWidget *CrunchFileScreen::buildPrint()
     printer->setItemData(printer->count() - 1, true, Qt::UserRole + 1);
     const int wanted = choices.toFile ? printer->count() - 1 : printer->findData(choices.printer.isEmpty() ? QPrinterInfo::defaultPrinter().printerName() : choices.printer);
     printer->setCurrentIndex(wanted >= 0 ? wanted : printer->count() - 1);
-    auto *settings = new QPushButton(tr("Printer settings…"), w);
-    settings->setObjectName(QStringLiteral("printPrinterSettings"));
+    QPushButton *settings = makePrinterPropertiesButton(w);
     auto *printerRow = new QWidget(w);
     auto *printerLine = new QHBoxLayout(printerRow);
     printerLine->setContentsMargins(0, 0, 0, 0);
@@ -186,6 +185,8 @@ QWidget *CrunchFileScreen::buildPrint()
     // the groups of the Print page (docs/design/STYLE.md)
     column.group(PrintColumn::printerHeading());
     column.wide(printerRow);
+    QCheckBox *openPdf = makeOpenPdfBox(w, QStringLiteral("printOpenPdf"));
+    column.checks(openPdf);
     column.group(PrintColumn::pagesHeading());
     column.pair(tr("Print"), what, tr("Pages"), range);
     column.pair(tr("Which pages"), sides, tr("Sides"), duplex);
@@ -492,6 +493,8 @@ QWidget *CrunchFileScreen::buildPrint()
     auto fitSides = [=]() {
         const bool toFile = printer->currentData(Qt::UserRole + 1).toBool();
         updateSidesBox(duplex, toFile ? QString() : printer->currentData().toString(), toFile);
+        updatePrinterPropertiesButton(settings, printer);
+        openPdf->setVisible(toFile);
     };
     fitSides();
     connect(printer, &QComboBox::currentIndexChanged, w, [=] {
@@ -532,17 +535,12 @@ QWidget *CrunchFileScreen::buildPrint()
         paint();
     });
     connect(settings, &QPushButton::clicked, this, [=] {
-        QPrinter &p = win->printer();
-        const QString name = printer->currentData(Qt::UserRole + 1).toBool() ? QString() : printer->currentData().toString();
-        if (!name.isEmpty()) p.setPrinterName(name);
-        const QString before = p.printerName();
-        QPrintDialog dialog(&p, this);
-        if (execPrintDialog(dialog) == QDialog::Accepted) {
-            const int at = p.printerName() != before ? printer->findData(p.printerName()) : -1;
-            if (at >= 0) printer->setCurrentIndex(at);
-            copies->setValue(std::max(1, p.copyCount()));
-            collate->setChecked(p.collateCopies());
-        }
+        PrinterControls controls;
+        controls.printer = printer;
+        controls.copies = copies;
+        controls.collate = collate;
+        controls.gray = gray;
+        showPrinterProperties(this, win->printer(), controls);
     });
     connect(setupButton, &QPushButton::clicked, this, [=] {
         win->pageSetupDialog(0);
@@ -580,6 +578,8 @@ QWidget *CrunchFileScreen::buildExport()
     tags->setToolTip(tr("Tags the cells of each sheet as a table, so that a screen reader reads the PDF row by row."));
     connect(tags, &QCheckBox::toggled, w, [](bool on) { Settings::get().setValue(QStringLiteral("export/pdfTags"), on); });
     v->addWidget(tags);
+    // (the same choice as on the Print page: kept for the next time)
+    v->addWidget(makeOpenPdfBox(w, QStringLiteral("exportOpenPdf")));
     auto *sheet = new ActionCard(QStringLiteral("file-output"), tr("Export this sheet to PDF"), tr("The pages of the sheet you are on, as a PDF that looks the same everywhere."), w);
     sheet->setObjectName(QStringLiteral("exportSheetPdf"));
     connect(sheet, &QAbstractButton::clicked, this, [this, protect, tags] {

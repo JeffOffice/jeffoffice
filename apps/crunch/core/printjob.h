@@ -54,6 +54,8 @@ struct PrintJobOptions {
     bool grayscale = false;                     // every page is painted in shades of gray, in the preview, on paper, and in a PDF
     bool archival = false;                      // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency)
     bool pdfTags = false;                       // for a PDF: tagged for screen readers (each page's cells are a table)
+    bool hasPdfInfo = false;                    // for a PDF: the document's own properties are in `pdfInfo` (the window makes them; none: the file's name and this program)
+    jp::PdfInfo pdfInfo;
     // what the person chose for this job, over what the sheets say
     bool setOrientation = false;
     jp::office::sheet::PageOrientation orientation = jp::office::sheet::PageOrientation::Default;
@@ -298,6 +300,8 @@ private:
     // The bookmarks of a PDF of the pages: one for each sheet of the workbook that has a page in it, going to the PDF page its first page is on, at most jp::kMostPdfBookmarks.
     QVector<jp::PdfBookmark> pdfBookmarks(const QVector<int> &pdfPageOf);
     // The links of the pages as the PDF holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF) and `places` where each page is put on its sheet. At most kMostPdfLinks.
+    // The properties of a PDF file: the document's own when the job was given them, else the file's name, this program, and the time.
+    jp::PdfInfo pdfInfoForFile() const;
     QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places);
     int firstPdfPageOf(int sheet, const QVector<int> &pdfPageOf) const;
     bool shownRect(int page, qint64 r1, qint64 c1, qint64 r2, qint64 c2, QRectF *rect);

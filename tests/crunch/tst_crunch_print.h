@@ -262,6 +262,9 @@ private Q_SLOTS:
     void aColumnDraggedOnThePreviewIsOneStepOfUndo();
     void theHandlesOnThePreviewMoveWithTheArrowKeysAndHaveNames();
     void noHandlesWhereThePageIsNotTheSheetsOwn();
+    void thePrintPageUsesTheSharedPrinterPropertiesAndHasTheOpenBox();
+    void everyPdfCarriesTheWorkbooksPropertiesAndLeavesPersonalInformationOut();
+    void aPdfIsOpenedAfterSavingWhenAskedFor();
     void exportToPdfCanBeProtectedWithAPassword();
     void anEmailedPdfCanHaveAPassword();
     void aCancelledExportKeepsThePasswordOnThePage();

@@ -1195,6 +1195,16 @@ QVector<jp::PdfBookmark> PrintJob::pdfBookmarks(const QVector<int> &pdfPageOf)
     return out;
 }
 
+jp::PdfInfo PrintJob::pdfInfoForFile() const
+{
+    jp::PdfInfo info;
+    if (m_options.hasPdfInfo) info = m_options.pdfInfo;
+    else info.title = QFileInfo(m_options.fileName).completeBaseName();
+    if (info.program.isEmpty()) info.program = QStringLiteral("JeffCrunch");
+    if (!info.created.isValid()) info.created = (m_now.isValid() ? m_now : QDateTime::currentDateTimeUtc()).toUTC();
+    return info;
+}
+
 bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect,
                          const QVector<QVector<int>> *sheets)
 {
@@ -1232,6 +1242,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     const QVector<jp::PdfLink> links = pdfLinks(pdfPageOf, places);
     const QVector<jp::PdfBookmark> marks = pdfBookmarks(pdfPageOf);
     const bool tagging = m_options.pdfTags;
+    const jp::PdfInfo info = pdfInfoForFile();
     // The PDF is made in memory (the bookmarks, the links, and the tags are added to the finished file; with a password the plain PDF is never on the disk).
     QSaveFile file(path);
     QBuffer memory;
@@ -1253,10 +1264,12 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         bool ok = true;
         {
             QPdfWriter pdf(inMemory ? static_cast<QIODevice *>(&memory) : static_cast<QIODevice *>(&file));
-            pdf.setCreator(QStringLiteral("JeffCrunch"));
-            pdf.setTitle(QFileInfo(m_options.fileName).completeBaseName());
+            pdf.setCreator(info.program);
+            pdf.setTitle(info.title);
             // PDF/A-1b: Qt puts every font in the file, writes the identification (part 1, conformance B) and an sRGB output intent, and leaves transparency out
             if (m_options.archival && !encrypted) pdf.setPdfVersion(QPagedPaintDevice::PdfVersion_A1b);
+            // (the metadata packet says what the information dictionary will: both are made from the same properties)
+            if (m_options.hasPdfInfo || (m_options.archival && !encrypted)) pdf.setDocumentXmpMetadata(jp::pdfInfoXmp(info, m_options.archival && !encrypted, 1));
             // (a gray job is made gray by the PDF itself, so that its words stay words and can be tagged, and not a picture of each page)
             if (m_options.grayscale) pdf.setColorModel(QPdfWriter::ColorModel::Grayscale);
             m_grayInPdf = m_options.grayscale;
@@ -1336,7 +1349,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         } else if (tagging) {
             jp::PdfTagOptions tagOptions;
             tagOptions.language = QLocale().bcp47Name();
-            tagOptions.title = QFileInfo(m_options.fileName).completeBaseName();
+            tagOptions.title = info.title;
             const int pagesMade = std::max<int>(1, int(std::min<qint64>(groups.size(), kMaxSentPages)));
             if (progress)
                 tagOptions.progress = [&](int done, int count) { return progress(pagesMade + int(qint64(done) * pagesMade / std::max(1, count)), 2 * pagesMade); };
@@ -1363,6 +1376,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         }
         if (!links.isEmpty()) bytes = jp::addPdfLinks(bytes, links);
         if (!marks.isEmpty()) bytes = jp::addPdfBookmarks(bytes, marks);
+        bytes = jp::setPdfInfo(bytes, info);
         if (encrypted) {
             QString why;
             bytes = jp::encryptPdf(bytes, *protect, &why);
@@ -1371,6 +1385,11 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size()) return fail(file.errorString());
     }
     if (!file.commit()) return fail(file.errorString());
+    if (!inMemory) {
+        // (a PDF written straight to the file has its properties put on at its end, without reading it all)
+        QFile written(path);
+        if (written.open(QIODevice::ReadWrite)) jp::appendPdfInfo(&written, info);
+    }
     return true;
 }
 

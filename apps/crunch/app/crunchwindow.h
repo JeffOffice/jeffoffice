@@ -613,6 +613,8 @@ public:
     // person gives it up.
     // `protect`: a password to open the PDF with (PDF/A is then not made: that standard forbids one); the caller wipes it. `tags`: the PDF is tagged for screen readers.
     bool exportPdf(bool wholeWorkbook, bool archival = false, const PdfProtection &protect = PdfProtection(), bool tags = false);
+    // Opens a PDF just saved in the system's viewer when "Open the PDF after saving" is on.
+    void openPdfIfAsked(const QString &path);
     // Email: makes a message as a .eml file (asking where to put it) with the workbook, or the workbook as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Workbook, Pdf };
     // `protect`: a password for the PDF of the Pdf form (the workbook as a file keeps the password the workbook has)
