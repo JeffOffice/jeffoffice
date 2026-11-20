@@ -683,6 +683,7 @@ void CrunchWindow::showContextMenu(const QPoint &globalPos)
         add("insert.link");
         if (act("link.open")->isEnabled()) add("link.open");
         if (act("link.remove")->isEnabled()) add("link.remove");
+        if (act("link.removeAll")->isEnabled()) add("link.removeAll");
         menu->addSeparator();
         add("format.cells");
     }

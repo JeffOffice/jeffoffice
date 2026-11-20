@@ -156,6 +156,21 @@
    "copy styles from workbook",
    "bring in styles"
   ],
+  "link.removeAll": [
+   "remove links and link color",
+   "unlink and restyle",
+   "strip hyperlinks"
+  ],
+  "outline.showDetail": [
+   "expand group",
+   "show grouped rows",
+   "open group"
+  ],
+  "outline.hideDetail": [
+   "collapse group",
+   "hide grouped rows",
+   "close group"
+  ],
   "outline.auto": [
    "make groups",
    "group from formulas",

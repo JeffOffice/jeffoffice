@@ -856,6 +856,7 @@ private:
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);
     void autoOutlineSheet(bool make);
+    void showHideDetail(bool show);
     void chooseFindFormat(bool fromCell);
     void setFormulaBarExpanded(bool on);
     bool askReplaceOutline();
@@ -1963,7 +1964,7 @@ private:
     void showHoverTip();
     QString hoverTipText(bool *isNote) const;
     void insertLink();
-    void removeSelectedLinks();
+    void removeSelectedLinks(bool withLook = false);
     void followSelectedLink();
     void followLinkAt(quint32 row, quint32 col);
     void goToPlace(const QString &place);

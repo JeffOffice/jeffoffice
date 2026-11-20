@@ -77,6 +77,7 @@ void CrunchWindow::createNoteActions()
     mk("insert.link", tr("Link"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] { insertLink(); }, false, false);
     mk("link.open", tr("Open Link"), "external-link", QKeySequence(), [this] { followSelectedLink(); }, false, false);
     mk("link.remove", tr("Remove Link"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
+    mk("link.removeAll", tr("Remove Hyperlinks"), "unlink", QKeySequence(), [this] { removeSelectedLinks(true); }, false, false);
     mk("edit.clear.notes", tr("Clear Comments and Notes"), "message-square-x", QKeySequence(), [this] { deleteSelectedNotes(); }, false, false);
     mk("edit.clear.links", tr("Clear Hyperlinks"), "unlink", QKeySequence(), [this] { removeSelectedLinks(); }, false, false);
     createCommentActions();
@@ -264,6 +265,7 @@ void CrunchWindow::updateNoteActions()
                 break;
             }
     act("link.remove")->setEnabled(can && anyLinks);
+    act("link.removeAll")->setEnabled(can && anyLinks);
     act("edit.clear.links")->setEnabled(can && anyLinks);
     updateCommentActions();
 }
@@ -508,10 +510,10 @@ void CrunchWindow::insertLink()
     updateBars();
 }
 
-void CrunchWindow::removeSelectedLinks()
+void CrunchWindow::removeSelectedLinks(bool withLook)
 {
     if (!m_session || m_sheet < 0) return;
-    const crunch::EditSession::Outcome o = m_session->removeLinks(m_sheet, selectedRange(), tr("Remove Link"));
+    const crunch::EditSession::Outcome o = withLook ? m_session->removeLinksAndLook(m_sheet, selectedRange(), tr("Remove Hyperlinks")) : m_session->removeLinks(m_sheet, selectedRange(), tr("Remove Link"));
     if (!o.ok) notice(tr("Link"), o.problem);
 }
 

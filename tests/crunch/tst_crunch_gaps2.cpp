@@ -7,6 +7,7 @@
 #include "app/formatdialog.h"
 #include "app/formulabaredit.h"
 #include "core/formatfind.h"
+#include "core/outline.h"
 #include "sheet/notes.h"
 #include "app/settings.h"
 #include "core/editsession.h"
@@ -660,6 +661,153 @@ private Q_SLOTS:
         e.win.w.act(QStringLiteral("style.merge"))->trigger();
         QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("Open the workbook")));
         QCOMPARE(e.win.w.undoStack()->count(), steps);
+    }
+
+    // ---- 5. Show Detail, Hide Detail, and Remove Hyperlinks
+    void hideAndShowDetailCollapseAndOpenTheGroupInOneStepEachAndAreSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(styledBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto hidden = [&](Window &win, quint32 row) {
+            auto hold = win.w.workbookLoader().hold();
+            return win.w.session()->outlineOf(0, false).hiddenOf(row);
+        };
+        // rows 1 to 2 are a group, and row 3 sums them up
+        QVERIFY(w.session()->changeOutline(0, false, crunch::Outline({}, 1048576, true).group(0, 1), QStringLiteral("Group")).ok);
+        e.select(QStringLiteral("A3"));
+        int steps = w.undoStack()->index();
+        w.act(QStringLiteral("outline.hideDetail"))->trigger();
+        QCOMPARE(w.undoStack()->index(), steps + 1);
+        QVERIFY(hidden(e.win, 0) && hidden(e.win, 1) && !hidden(e.win, 2));
+        // saved: the file the app writes, and the copies, hold the hidden lines
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        {
+            const auto again = reopen(e.copyOfFile());
+            QVERIFY(again);
+            QVERIFY(hidden(*again, 0) && hidden(*again, 1));
+        }
+        for (const QString &kind : {QStringLiteral("xls"), QStringLiteral("ods")}) {
+            const QString copy = e.folder.dir.filePath(QStringLiteral("copy.") + kind);
+            QSignalSpy exported(&w, &CrunchWindow::copyExported);
+            QVERIFY(w.saveAs(copy, true));
+            QVERIFY(exported.count() > 0 || exported.wait(20000));
+            QVERIFY2(exported.first().at(1).toBool(), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            const auto again = reopen(copy);
+            QVERIFY(again);
+            QVERIFY2(hidden(*again, 0) && hidden(*again, 1), qPrintable(kind));
+        }
+        // Hide Detail again: nothing to hide (the group is collapsed), said in a message
+        e.win.told.clear();
+        steps = w.undoStack()->index();
+        w.act(QStringLiteral("outline.hideDetail"))->trigger();
+        QVERIFY(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("Nothing was changed")));
+        QCOMPARE(w.undoStack()->index(), steps);
+        w.act(QStringLiteral("outline.showDetail"))->trigger();
+        QCOMPARE(w.undoStack()->index(), steps + 1);
+        QVERIFY(!hidden(e.win, 0) && !hidden(e.win, 1));
+        w.undoStack()->undo();
+        QVERIFY(hidden(e.win, 0));
+        // with a cell that is in no group: said, nothing changed
+        e.select(QStringLiteral("A9"));
+        e.win.told.clear();
+        w.act(QStringLiteral("outline.showDetail"))->trigger();
+        QVERIFY(!e.win.told.isEmpty());
+        QVERIFY(hidden(e.win, 0));
+    }
+
+    void showAndHideDetailOnAProtectedSheetAreRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(styledBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QVERIFY(w.session()->changeOutline(0, false, crunch::Outline({}, 1048576, true).group(0, 1), QStringLiteral("Group")).ok);
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        QVERIFY(w.session()->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);
+        e.select(QStringLiteral("A3"));
+        const int steps = w.undoStack()->index();
+        e.win.told.clear();
+        w.act(QStringLiteral("outline.hideDetail"))->trigger();
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(w.undoStack()->index(), steps);
+        auto hold = w.workbookLoader().hold();
+        QVERIFY(!w.session()->outlineOf(0, false).hiddenOf(0));
+    }
+
+    void removeHyperlinksTakesTheLinkAndItsLookOffInOneStepAndIsSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(styledBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        jp::office::sheet::LinkSpec link;
+        link.target = QStringLiteral("https://example.com/");
+        QVERIFY(s->setLink(0, rangeOf(QStringLiteral("A1")), link, QStringLiteral("Link")).ok);
+        QVERIFY(s->applyStyleNamed(0, rangeOf(QStringLiteral("A1")), QStringLiteral("Hyperlink"), QStringLiteral("Link look")).ok);
+        QVERIFY(e.settle());
+        auto underlined = [&](Window &win) {
+            auto hold = win.w.workbookLoader().hold();
+            const grid::GridSheet &gs = win.w.view()->sheet();
+            const jp::office::sheet::Styles &st = win.w.loaded()->book->styles();
+            return st.font(st.format(gs.styleOf(0, 0, gs.cellAt(0, 0))).font).underline != jp::office::sheet::Underline::None;
+        };
+        QVERIFY(underlined(e.win) && s->anchors().linkAt(0, 0, 0));
+        // a protected sheet that does not allow links refuses, and nothing changes
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);
+        e.select(QStringLiteral("A1"));
+        int steps = w.undoStack()->index();
+        e.win.told.clear();
+        w.act(QStringLiteral("link.removeAll"))->setEnabled(true);
+        w.act(QStringLiteral("link.removeAll"))->trigger();
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(w.undoStack()->index(), steps);
+        QVERIFY(underlined(e.win) && s->anchors().linkAt(0, 0, 0));
+        w.undoStack()->undo();   // (the protection)
+        e.select(QStringLiteral("A1"));
+        QVERIFY(w.act(QStringLiteral("link.removeAll"))->isEnabled());
+        steps = w.undoStack()->index();
+        w.act(QStringLiteral("link.removeAll"))->trigger();
+        QCOMPARE(w.undoStack()->index(), steps + 1);
+        QVERIFY(!underlined(e.win) && !s->anchors().linkAt(0, 0, 0));
+        w.undoStack()->undo();
+        QVERIFY(underlined(e.win) && s->anchors().linkAt(0, 0, 0));
+        w.undoStack()->redo();
+        QVERIFY(!underlined(e.win) && !s->anchors().linkAt(0, 0, 0));
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        {
+            const auto again = reopen(e.copyOfFile());
+            QVERIFY(again);
+            QVERIFY(!underlined(*again) && !again->w.session()->anchors().linkAt(0, 0, 0));
+        }
+        for (const QString &kind : {QStringLiteral("xls"), QStringLiteral("ods")}) {
+            const QString copy = e.folder.dir.filePath(QStringLiteral("copy.") + kind);
+            QSignalSpy exported(&w, &CrunchWindow::copyExported);
+            QVERIFY(w.saveAs(copy, true));
+            QVERIFY(exported.count() > 0 || exported.wait(20000));
+            const auto again = reopen(copy);
+            QVERIFY(again);
+            QVERIFY2(!underlined(*again) && !again->w.session()->anchors().linkAt(0, 0, 0), qPrintable(kind));
+        }
+    }
+
+    void removeHyperlinksIsFoundBySearchAndIsOnTheClearMenu()
+    {
+        EditWindow e;
+        QVERIFY(e.open(styledBook()));
+        const QString problem = jptest::commandSearchProblem(e.win.w, QStringLiteral(":/crunch/cmdsearch.json"), QStringLiteral("strip hyperlinks"), QStringLiteral("Remove Hyperlinks"));
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        const QString problem2 = jptest::commandSearchProblem(e.win.w, QStringLiteral(":/crunch/cmdsearch.json"), QStringLiteral("collapse group"), QStringLiteral("Hide Detail"));
+        QVERIFY2(problem2.isEmpty(), qPrintable(problem2));
     }
 };
 

@@ -669,6 +669,9 @@ public:
     // Whether setLink would put the link there: not ok, with the reason, if not.
     Outcome checkLink(int sheet, const jp::office::sheet::CellRange &range, const jp::office::sheet::LinkSpec &link) const;
     Outcome removeLinks(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
+    // Remove Hyperlinks: the links the range touches are taken away, and the cells of those links that follow the Hyperlink style go back to the Normal style, as one step. Nothing is changed
+    // (and the reason is told) for a protected sheet that does not allow links or formatting, or a locked cell on it.
+    Outcome removeLinksAndLook(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
     // Takes the notes and the links off the cells of the range (what Clear All does besides the cells): one step; nothing to do is ok.
     Outcome clearNotesAndLinks(int sheet, const jp::office::sheet::CellRange &range, const QString &stepText);
     // The notes and links on the cells of the range, as a step's change to take them off.

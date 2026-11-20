@@ -1360,4 +1360,67 @@ EditSession::Outcome EditSession::mergeStyles(const std::vector<StyleLook> &sour
     return out;
 }
 
+EditSession::Outcome EditSession::removeLinksAndLook(int sheet, const CellRange &range, const QString &stepText)
+{
+    Outcome out;
+    QString why;
+    if (!canEditNotes(sheet, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    std::vector<CellRange> linked;
+    for (const jp::office::sheet::LinkSpec &l : m_anchors.links(sheet))
+        if (l.range.row1 <= range.row2 && l.range.row2 >= range.row1 && l.range.col1 <= range.col2 && l.range.col2 >= range.col1) linked.push_back(l.range);
+    if (linked.empty()) return out;
+    // the cells of those links that follow the Hyperlink style, as runs, and the style they go back to
+    std::vector<StyleRun> runs;
+    qint32 normal = -1;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
+        const Styles &styles = m_book->book->styles();
+        qint32 link = -1;
+        for (const CellStyleName &n : styles.cellStyles) {
+            if (n.name.compare(QStringLiteral("Hyperlink"), Qt::CaseInsensitive) == 0 && !n.hidden) link = qint32(n.xfId);
+            if (n.builtin == 0) normal = qint32(n.xfId);
+        }
+        if (link >= 0 && normal >= 0 && link != normal) {
+            const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
+            for (const CellRange &r : linked) {
+                if (!r.valid || r.cellCount() > kMaxCellsPerEdit) continue;
+                StyleRun open{sheet, CellRange()};
+                model.cells.forEachInRange(r.row1, r.col1, r.row2, r.col2, [&](quint32 row, quint32 col, const jp::office::sheet::Cell &) {
+                    if (styles.format(m_book->calc->content(sheet, row, col).style).xfId != quint32(link)) return true;
+                    if (open.range.valid && open.range.row1 == row && open.range.col2 + 1 == col) {
+                        open.range.col2 = col;
+                        return true;
+                    }
+                    if (open.range.valid) runs.push_back(open);
+                    open.range.valid = true;
+                    open.range.row1 = open.range.row2 = row;
+                    open.range.col1 = open.range.col2 = col;
+                    return runs.size() < 5000;
+                });
+                if (open.range.valid) runs.push_back(open);
+                if (runs.size() >= 5000) {
+                    out.ok = false;
+                    out.problem = tr("Those links are on too many cells to take the look off at once (more than 5,000 runs of cells).");
+                    return out;
+                }
+            }
+        }
+    }
+    m_undo.beginMacro(stepText);
+    out = removeLinks(sheet, range, stepText);
+    for (size_t i = 0; out.ok && i < runs.size(); ++i) out = applyStyle(runs[i].sheet, runs[i].range, quint32(normal), stepText);
+    m_undo.endMacro();
+    if (!out.ok) m_undo.undo();   // (the look could not be taken off: the links stay)
+    return out;
+}
+
 } // namespace jp::crunch

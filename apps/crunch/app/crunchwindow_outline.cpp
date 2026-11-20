@@ -26,10 +26,12 @@ void CrunchWindow::createOutlineActions()
     mk("outline.ungroupRows", tr("Ungroup Rows"), "list-x", QKeySequence(), [this] { groupSelected(false, false); }, false, false);
     mk("outline.groupColumns", tr("Group Columns"), "list-tree", QKeySequence(), [this] { groupSelected(true, true); }, false, false);
     mk("outline.ungroupColumns", tr("Ungroup Columns"), "list-x", QKeySequence(), [this] { groupSelected(true, false); }, false, false);
+    mk("outline.showDetail", tr("Show Detail"), "list-tree", QKeySequence(), [this] { showHideDetail(true); }, false, false);
+    mk("outline.hideDetail", tr("Hide Detail"), "list-x", QKeySequence(), [this] { showHideDetail(false); }, false, false);
     mk("outline.auto", tr("Auto Outline"), "list-tree", QKeySequence(), [this] { autoOutlineSheet(true); }, false, false);
     mk("outline.clear", tr("Clear Outline"), "list-x", QKeySequence(), [this] { autoOutlineSheet(false); }, false, false);
     mk("view.outline", tr("Outline Symbols"), "list-tree", QKeySequence(), [this] { refreshOutline(true); }, true)->setChecked(true);
-    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns", "outline.auto", "outline.clear"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns", "outline.showDetail", "outline.hideDetail", "outline.auto", "outline.clear"}) m_opsActions << QString::fromLatin1(id);
 }
 
 // The widgets beside the rows and above the columns, with the grid in the middle of them.
@@ -105,6 +107,45 @@ void CrunchWindow::outlineLevelClicked(bool columns, int level)
     const crunch::Outline outline = m_session->outlineOf(m_sheet, columns);
     const crunch::EditSession::Outcome o = m_session->changeOutline(m_sheet, columns, outline.showButton(level), tr("Show Level %1").arg(level));
     if (!o.ok) notice(tr("Outline"), o.problem);
+}
+
+// Show Detail or Hide Detail: for the rows of the selection (or the columns, when whole columns are selected, or when no group is found among the rows). Hide Detail collapses the innermost
+// open group that has a selected line or whose summary line is selected; Show Detail opens the outermost collapsed group whose summary line is selected. Each is one step.
+void CrunchWindow::showHideDetail(bool show)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const grid::Selection &sel = m_view->selection();
+    const bool columnsFirst = sel.whole == grid::Selection::Whole::Columns;
+    for (int pass = 0; pass < 2; ++pass) {
+        const bool columns = (pass == 0) == columnsFirst;
+        const grid::GridRange r = sel.range;
+        const quint32 first = quint32(std::max<qint64>(0, columns ? r.col1 : r.row1)), last = quint32(std::max<qint64>(0, columns ? r.col2 : r.row2));
+        const crunch::Outline outline = m_session->outlineOf(m_sheet, columns);
+        std::vector<crunch::Outline::Group> chosen;
+        int level = show ? 99 : 0;
+        for (const crunch::Outline::Group &g : outline.groups(first > 0 ? first - 1 : 0, last + 1)) {
+            const bool onSummary = g.summary >= qint64(first) && g.summary <= qint64(last);
+            const bool inside = g.first <= last && g.last >= first;
+            if (show ? !(g.collapsed && onSummary) : (g.collapsed || !(onSummary || inside))) continue;
+            if (show ? g.level < level : g.level > level) {
+                level = g.level;
+                chosen.clear();
+            }
+            if (g.level == level) chosen.push_back(g);
+        }
+        if (chosen.empty()) continue;
+        std::vector<crunch::OutlineChange> changes;
+        for (const crunch::Outline::Group &g : chosen) {
+            const auto part = show ? outline.expand(g) : outline.collapse(g);
+            changes.insert(changes.end(), part.begin(), part.end());
+        }
+        const crunch::EditSession::Outcome o = m_session->changeOutline(m_sheet, columns, changes, show ? tr("Show Detail") : tr("Hide Detail"));
+        if (!o.ok) notice(tr("Outline"), o.problem);
+        return;
+    }
+    notice(tr("Outline"), show ? tr("Select the row or column that sums up a collapsed group (the one with the plus button), and try again. Nothing was changed.")
+                               : tr("Select a row or column that is in a group, or the one that sums it up, and try again. Nothing was changed."));
 }
 
 // Group or Ungroup: the rows (columns) of the selection get a level more (less).

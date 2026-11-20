@@ -599,6 +599,8 @@ private Q_SLOTS:
             {QStringLiteral("object.snapShape"), QStringLiteral("it turns a preference on or off for the next drag of an object by the mouse; the grid object tests drag with it on and off")},
             {QStringLiteral("win.unhide"), QStringLiteral("with no window hidden it says so in the status bar; the window tests unhide one and pick among several")},
             {QStringLiteral("outline.auto"), QStringLiteral("it tells in a message that no formula calls for a group (the workbooks here have no sum of lines), and groups only when one does; the outline tests run it")},
+            {QStringLiteral("outline.showDetail"), QStringLiteral("it tells in a message that no collapsed group is chosen (the workbooks here have no outline), and shows lines only for a group; the outline tests run it with one")},
+            {QStringLiteral("outline.hideDetail"), QStringLiteral("it tells in a message that no group is chosen (the workbooks here have no outline), and hides lines only for a group; the outline tests run it with one")},
             {QStringLiteral("outline.clear"), QStringLiteral("it tells in a message that there is no outline to clear (the workbooks here have none); the outline tests run it with one")},
             {QStringLiteral("win.cascade"), QStringLiteral("it sets the open windows in a stack, and with one window the window keeps its place on the screen the checks run on")},
             {QStringLiteral("review.statistics"), QStringLiteral("it tells the numbers in a message and changes nothing in the workbook")},
