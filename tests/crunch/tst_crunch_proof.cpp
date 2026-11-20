@@ -142,6 +142,43 @@ private Q_SLOTS:
         recovery::setRoot(QString());
     }
 
+    // A window hidden with Hide Window keeps its automatic recovery copy: the timer has no condition on the window being in view, so changes made before it was hidden, and the copy the next
+    // interval writes, are not lost with a crash.
+    void aHiddenWindowWithChangesStillWritesItsRecoveryCopy()
+    {
+        QTemporaryDir root;
+        QVERIFY(root.isValid());
+        recovery::setRoot(root.path());
+        recovery::setCopySuffix(QStringLiteral(".xlsx"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            QVERIFY(e.settle());
+            e.win.w.show();
+            e.win.w.act(QStringLiteral("win.new"))->trigger();
+            QTRY_COMPARE(CrunchWindow::crunchWindows().size(), 2);
+            e.select("E5");
+            e.enter("kept hidden");
+            QVERIFY(e.settle());
+            e.win.w.act(QStringLiteral("win.hide"))->trigger();
+            QVERIFY(!e.win.w.isVisible());
+            QVERIFY(recoverNow(e.win.w));
+            const QString copy = e.win.w.recoveryCopy();
+            QVERIFY(QFileInfo::exists(copy));
+            Window again;
+            const QString second = e.folder.dir.filePath(QStringLiteral("hidden-copy.xlsx"));
+            QVERIFY(QFile::copy(copy, second));
+            QVERIFY(again.open(second));
+            quint32 r = 0, c = 0;
+            parseCellRef(QStringLiteral("E5"), &r, &c);
+            QCOMPARE(again.w.session()->valueAt(0, r, c).text(), QStringLiteral("kept hidden"));
+            e.win.w.act(QStringLiteral("win.unhide"))->trigger();
+            for (CrunchWindow *c2 : CrunchWindow::crunchWindows())
+                if (c2 != &e.win.w) c2->close();
+        }
+        recovery::setRoot(QString());
+    }
+
     // After a crash (no clean close: the run's folder is left, its lock gone) the copy is offered, and opens as work that was never saved, with a copy of its own made before the old one goes.
     void aCopyACrashLeftIsOfferedAndOpensAsUnsavedWork()
     {

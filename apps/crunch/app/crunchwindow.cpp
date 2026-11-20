@@ -121,6 +121,7 @@ QList<CrunchWindow *> CrunchWindow::hiddenWindows()
 CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 {
     openWindows().append(this);
+    AppWindow::guardQuit();
     setObjectName(QStringLiteral("crunchWindow"));
     setAcceptDrops(true);
     setWindowIcon(drawnIcon([](QPainter *p, const QRectF &r) {

@@ -33,6 +33,35 @@ QList<AppWindow *> AppWindow::windows()
     return out;
 }
 
+bool AppWindow::hiddenWindowsReadyToQuit()
+{
+    for (AppWindow *w : windows())
+        if (!w->isVisible() && !w->readyToQuit()) return false;
+    return true;
+}
+
+namespace {
+// The event that asks the program to quit: a window out of view is asked first, and the quit is given up when one of them says to stay.
+class QuitGuard : public QObject {
+public:
+    using QObject::QObject;
+    bool eventFilter(QObject *o, QEvent *e) override
+    {
+        if (o != qApp || e->type() != QEvent::Quit || AppWindow::hiddenWindowsReadyToQuit()) return false;
+        e->ignore();
+        return true;
+    }
+};
+}
+
+void AppWindow::guardQuit()
+{
+    static QuitGuard *guard = nullptr;
+    if (guard || !qApp) return;
+    guard = new QuitGuard(qApp);
+    qApp->installEventFilter(guard);
+}
+
 void AppWindow::openOptions(OptionsStart start)
 {
     QAction *options = act(QStringLiteral("file.options"));

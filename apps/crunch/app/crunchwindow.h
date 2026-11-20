@@ -521,6 +521,8 @@ public:
         int before = -1;
         bool copy = false;
     };
+    bool readyToQuit() override;
+    void setOutlineReplaceAsker(const std::function<bool()> &asker) { m_outlineReplaceAsker = asker; }
     void setWindowPicker(const std::function<int(const QStringList &)> &picker) { m_windowPicker = picker; }
     void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
     // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
@@ -849,6 +851,7 @@ private:
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);
     void autoOutlineSheet(bool make);
+    bool askReplaceOutline();
     void applySnapChoices(bool save, const QString &changed);
     OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;
 public:
@@ -877,6 +880,7 @@ private:
     std::function<bool(SizeRequest *)> m_sizeAsker;
     std::function<bool(const QString &, const QString &, int)> m_ruleAsker;
     std::function<bool(const QString &)> m_bigStepAsker;
+    std::function<bool()> m_outlineReplaceAsker;   // test hook: Auto Outline on a sheet that has an outline (true: replace it)
     // Does an edit that moves cells with the window saying it is working (the wait cursor, and the status), and, if the step is too big for Undo to hold, asks first.
     crunch::EditSession::Outcome doStructural(const std::function<crunch::EditSession::Outcome()> &edit);
     bool askAboutRule(const crunch::EditSession::Outcome &outcome);

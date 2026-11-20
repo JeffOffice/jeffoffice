@@ -35,6 +35,13 @@ public:
     virtual QAction *makeKeyCommand(const QString &) { return nullptr; }
     // Every app window that is open, in the order the system lists them.
     static QList<AppWindow *> windows();
+    // Before the program quits (the quit command of the system, or the updater): each window that is not in view is asked whether the program may end (readyToQuit); false from any of them
+    // cancels the quit. Windows in view are closed (and ask about their work) by the program's own closing of windows, or by the caller, as always.
+    static bool hiddenWindowsReadyToQuit();
+    // Makes the system's quit command (the event that asks the program to quit) go through hiddenWindowsReadyToQuit first. Once is enough; more calls do nothing.
+    static void guardQuit();
+    // A window that is out of view on purpose and has work that is not saved shows itself and asks about it here; false when the person said to stay. The rest say yes.
+    virtual bool readyToQuit() { return true; }
     // The View > Window group's placing, for the windows an app lists (its own kind): side by side in columns across the screen, stacked with each a little down and right from the one
     // before, and two windows each filling half of the screen. Each window that is placed is shown normal (not maximized or minimized).
     static void arrangeInColumns(const QList<AppWindow *> &wins);

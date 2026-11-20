@@ -236,6 +236,61 @@ private Q_SLOTS:
         QTRY_VERIFY(a.isNull() && b.isNull());
     }
 
+    // The program quitting (the system's quit command, or the updater) must not lose work in a window that is hidden: it comes back into view and asks as a closing window does, Cancel there
+    // cancels the quit and leaves the window shown, and a hidden window with nothing unsaved is not asked about.
+    void quittingAsksAboutAHiddenWindowsUnsavedWork()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.show();
+        w.act(QStringLiteral("win.new"))->trigger();
+        QTRY_COMPARE(CrunchWindow::crunchWindows().size(), 2);
+        CrunchWindow *second = nullptr;
+        for (CrunchWindow *c : CrunchWindow::crunchWindows())
+            if (c != &w) second = c;
+        QPointer<CrunchWindow> guard(second);
+        QTRY_VERIFY(second->hasWorkbook());
+        int asked = 0;
+        CrunchWindow::Answer answer = CrunchWindow::Answer::Cancel;
+        w.setAsker([&](const QString &, const QString &) {
+            ++asked;
+            return answer;
+        });
+        // (nothing unsaved: hidden, it is not asked about, and the quit goes on)
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!w.isVisible());
+        QVERIFY(AppWindow::hiddenWindowsReadyToQuit());
+        QCOMPARE(asked, 0);
+        QVERIFY(!w.isVisible());
+        // (a change made, then hidden: the window is hidden with it, as it always could be)
+        w.act(QStringLiteral("win.unhide"))->trigger();
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("5"));
+        QVERIFY(e.settle());
+        QVERIFY(w.session()->isModified());
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!w.isVisible());
+        // the quit command: the hidden window is shown and asks; Cancel cancels the quit
+        QEvent quit(QEvent::Quit);
+        QCoreApplication::sendEvent(qApp, &quit);
+        QVERIFY(!quit.isAccepted());
+        QCOMPARE(asked, 1);
+        QVERIFY(w.isVisible());
+        QVERIFY(w.session()->isModified());
+        QVERIFY(CrunchWindow::crunchWindows().contains(&w));
+        // (hidden again, and the answer is Discard: the quit may go on, and the window has closed)
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!w.isVisible());
+        answer = CrunchWindow::Answer::Discard;
+        QVERIFY(AppWindow::hiddenWindowsReadyToQuit());
+        QCOMPARE(asked, 2);
+        QVERIFY(!w.isVisible());
+        second->close();
+        QTRY_VERIFY(guard.isNull());
+    }
+
     // Allow Edit Ranges: a range with no password lets its cells be changed on a protected sheet; one with a password does once the password is given; the rest stay locked.
     void aProtectedSheetLeavesItsEditRangesOpen()
     {

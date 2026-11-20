@@ -76,6 +76,17 @@ void CrunchWindow::hideThisWindow()
     next->setStatus(tr("The window \"%1\" is hidden. Unhide Window on the View tab brings it back.").arg(windowTitle()));
 }
 
+// The program is quitting and this window is out of view: when it has work that is not saved it comes back into view and asks as a closing window does (Cancel there cancels the quit).
+bool CrunchWindow::readyToQuit()
+{
+    if (!m_hiddenOnPurpose || !m_session || (!m_session->isModified() && !m_saving && !m_protectionChanged)) return true;
+    m_hiddenOnPurpose = false;
+    show();
+    raise();
+    activateWindow();
+    return close();
+}
+
 void CrunchWindow::unhideAWindow()
 {
     const QList<CrunchWindow *> hidden = hiddenWindows();

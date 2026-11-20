@@ -362,6 +362,7 @@ void Updater::downloadAndRun(const QString &url, const QString &tag, const QStri
             return;
         }
         // Give every window a chance to save, then hand over to the installer.
+        if (!AppWindow::hiddenWindowsReadyToQuit()) return;
         for (AppWindow *w : AppWindow::windows())
             if (w->isVisible() && !w->close()) return;
         if (!QProcess::startDetached(dest, {})) {
