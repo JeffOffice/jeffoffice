@@ -38,7 +38,7 @@ You can also use **Page Layout > Margins > Custom Margins** for the margins and 
 
 ## The printer
 
-Pick a printer from the list, or **Save as PDF**. **Printer Properties** opens your system's own window for the printer, for choices such as paper trays. What you set there (the printer, the copies, collate, and color) is put on this page. The button is hidden when **Save as PDF** is chosen, or when your computer has no such window. **Print** sends the pages.
+Pick a printer from the list, or **Save as PDF**. **Printer Properties** opens your system's own window for the printer, for choices such as paper trays. What you set there (the printer, the copies, collate, and colour) is put on this page. The button is hidden when **Save as PDF** is chosen, or when your computer has no such window. **Print** sends the pages.
 
 With **Save as PDF** chosen, the box **Open the PDF after saving** opens the file in the program your computer uses for PDF files as soon as it is saved. It is off at first, and the choice is kept for the next time.
 

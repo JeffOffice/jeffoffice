@@ -22285,15 +22285,15 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+79"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+91"/>
         <location line="+1"/>
-        <location line="+105"/>
+        <location line="+106"/>
         <source>Print</source>
         <translation>Drucken</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+326"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+403"/>
         <source>Export</source>
         <translation type="unfinished">Exportieren</translation>
     </message>
@@ -22393,7 +22393,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Kostenlose Open-Source-Tabellenkalkulation für Windows, macOS und Linux. Dies ist eine Vorschau.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-422"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-500"/>
         <source>Printer</source>
         <translation>Drucker</translation>
     </message>
@@ -22403,12 +22403,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Als PDF speichern</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Printer settings…</source>
-        <translation type="unfinished">Druckereigenschaften…</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>What to print</source>
         <translation type="unfinished">Was gedruckt werden soll</translation>
     </message>
@@ -22527,12 +22522,12 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+40"/>
+        <location line="+42"/>
         <source>Margins</source>
         <translation>Seitenränder</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-40"/>
         <source>Standard</source>
         <translation type="unfinished">Normal</translation>
     </message>
@@ -22587,7 +22582,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Seitenränder, Kopf- und Fußzeilen, Drucktitel und mehr für das aktuelle Tabellenblatt.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Pages</source>
         <translation>Seiten</translation>
     </message>
@@ -22637,7 +22632,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Vorschau der gedruckten Seite</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Previous page</source>
         <translation type="unfinished">Vorherige Seite</translation>
     </message>
@@ -22662,7 +22657,37 @@ Quelle: %3</translation>
         <translation type="unfinished">Ganze Seite anzeigen</translation>
     </message>
     <message>
-        <location line="+112"/>
+        <location line="+123"/>
+        <source>Left margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Right margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Width of column %1, %2 of %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Column %1 is %2 wide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Nothing to print</source>
         <translation type="unfinished">Nichts zu drucken</translation>
     </message>
@@ -22687,7 +22712,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Die Zellen werden mit %1 % der vollen Größe gedruckt, daher ist die Schrift klein.</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+181"/>
         <source>Add document structure tags for accessibility to every PDF</source>
         <translation type="unfinished">Dokumentstrukturtags für Barrierefreiheit in jede PDF-Datei einfügen</translation>
     </message>
@@ -22697,7 +22722,7 @@ Quelle: %3</translation>
         <translation type="unfinished">Markiert die Zellen jedes Blatts als Tabelle, damit ein Bildschirmleseprogramm die PDF-Datei zeilenweise liest.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Export this sheet to PDF</source>
         <translation type="unfinished">Dieses Tabellenblatt als PDF exportieren</translation>
     </message>
@@ -25325,6 +25350,7 @@ Quelle: %3</translation>
     <message>
         <location line="-138"/>
         <location line="+46"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+164"/>
         <source>Changing column width</source>
         <translation type="unfinished">Spaltenbreite ändern</translation>
     </message>
@@ -25346,6 +25372,7 @@ Quelle: %3</translation>
         <location line="+18"/>
         <location line="+28"/>
         <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+1"/>
         <source>Column Width</source>
         <translation type="unfinished">Spaltenbreite</translation>
     </message>
@@ -26341,7 +26368,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="+229"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+37"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+41"/>
         <source>That can&apos;t be done on several ranges at once. Select one range, and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26633,7 +26660,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 gespeichert. Vor diesem Speichern gelöschte Zeilen, Spalten und Zellen sowie alle vorherigen Aktionen können jetzt nicht mehr rückgängig gemacht werden.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-10"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-13"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann gedruckt werden, sobald sie geöffnet ist.</translation>
     </message>
@@ -26641,7 +26668,7 @@ Die Datei ist nicht vorhanden.</translation>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-170"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
         <source>Cancel</source>
@@ -26649,12 +26676,12 @@ Die Datei ist nicht vorhanden.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
-        <location line="+65"/>
+        <location line="+73"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Diese Seitenzahlen gehören nicht zu diesem Auftrag. Der Auftrag hat %1 Seiten.</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-69"/>
         <location line="+14"/>
         <location line="+10"/>
         <location line="+10"/>
@@ -26663,23 +26690,23 @@ Die Datei ist nicht vorhanden.</translation>
     </message>
     <message>
         <location line="-34"/>
-        <location line="+72"/>
+        <location line="+80"/>
         <source>Making the pages...</source>
         <translation type="unfinished">Seiten werden erstellt...</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>The workbook is still being opened. It can be exported when it is open.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch geöffnet. Sie kann exportiert werden, sobald sie geöffnet ist.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+43"/>
+        <location line="+51"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-44"/>
         <source>Export was cancelled</source>
         <translation type="unfinished">Der Export wurde abgebrochen</translation>
     </message>
@@ -26696,7 +26723,12 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 exportiert</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+10"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
         <location line="+5"/>
         <location line="+5"/>
         <source>Save as PDF</source>
@@ -26715,7 +26747,7 @@ Die Datei ist nicht vorhanden.</translation>
 %3</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">Der Drucker &quot;%1&quot; ist nicht mehr vorhanden. Wählen Sie einen anderen Drucker.</translation>
     </message>
@@ -26769,7 +26801,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 hat „%2“ gespeichert, konnte die Datei aber nicht wieder einlesen: %3</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-43"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-45"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+31"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 gespeichert</translation>
@@ -26834,7 +26866,7 @@ Die vorhandene Datei bleibt unverändert.</translation>
         <translation type="unfinished">Objekt löschen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-137"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-302"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Seite einrichten…</translation>
     </message>
@@ -26852,11 +26884,12 @@ Die vorhandene Datei bleibt unverändert.</translation>
         <location line="+0"/>
         <location line="+1"/>
         <location line="+1"/>
+        <location line="+283"/>
         <source>Margins</source>
         <translation>Seitenränder</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="-284"/>
         <source>Wide</source>
         <translation type="unfinished">Breit</translation>
     </message>
@@ -26957,7 +26990,7 @@ Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+211"/>
+        <location line="+237"/>
         <location line="+3"/>
         <location line="+4"/>
         <location line="+12"/>
@@ -26966,7 +26999,7 @@ Die vorhandene Datei bleibt unverändert.</translation>
         <translation type="unfinished">Hintergrund</translation>
     </message>
     <message>
-        <location line="-232"/>
+        <location line="-258"/>
         <location line="+1"/>
         <source>Delete Background</source>
         <translation type="unfinished">Hintergrund löschen</translation>
@@ -27023,9 +27056,9 @@ Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-28"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-29"/>
         <location line="+11"/>
-        <location line="+31"/>
+        <location line="+34"/>
         <location line="+22"/>
         <location line="+7"/>
         <source>Print</source>
@@ -27092,7 +27125,8 @@ Die vorhandene Datei bleibt unverändert.</translation>
     </message>
     <message>
         <location line="+103"/>
-        <location line="+53"/>
+        <location line="+12"/>
+        <location line="+67"/>
         <location line="+18"/>
         <source>Page Setup</source>
         <translation type="unfinished">Seite einrichten</translation>
@@ -50854,6 +50888,14 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
 </context>
 <context>
+    <name>jp::PreviewHandles</name>
+    <message>
+        <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
+        <source>Drag, or press the arrow keys, to move it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::PrintHeaderFooterDialog</name>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="-176"/>
@@ -69256,18 +69298,37 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Es war nicht genug Platz, um die Seiten grau zu machen, daher sind einige in Farbe.</translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+834"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Es gibt keine Seiten für die Datei.</translation>
     </message>
     <message>
-        <location line="+97"/>
+        <location line="+29"/>
+        <location line="+99"/>
         <location line="+34"/>
         <source>It was cancelled, and no file was made.</source>
         <translation type="unfinished">Der Vorgang wurde abgebrochen, und es wurde keine Datei erstellt.</translation>
     </message>
+    <message numerus="yes">
+        <location line="-128"/>
+        <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-33"/>
+        <location line="+4"/>
+        <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <location line="+39"/>
         <source>The pages could not be put in the file.</source>
         <translation type="unfinished">Die Seiten konnten nicht in die Datei geschrieben werden.</translation>
@@ -69293,7 +69354,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die PDF-Datei ist nicht für Screenreader getaggt: %1.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+36"/>
         <location line="+6"/>
         <source>There are no pages to print.</source>
         <translation type="unfinished">Es gibt keine Seiten zum Drucken.</translation>

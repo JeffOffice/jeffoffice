@@ -22272,15 +22272,15 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+79"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+91"/>
         <location line="+1"/>
-        <location line="+105"/>
+        <location line="+106"/>
         <source>Print</source>
         <translation>Cetak</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+326"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+403"/>
         <source>Export</source>
         <translation type="unfinished">Ekspor</translation>
     </message>
@@ -22380,7 +22380,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Spreadsheet gratis dan open-source untuk Windows, macOS, dan Linux. Ini adalah Pratinjau.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-422"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-500"/>
         <source>Printer</source>
         <translation>Printer</translation>
     </message>
@@ -22390,12 +22390,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Simpan sebagai PDF</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Printer settings…</source>
-        <translation type="unfinished">Pengaturan printer…</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>What to print</source>
         <translation type="unfinished">Yang akan dicetak</translation>
     </message>
@@ -22514,12 +22509,12 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+40"/>
+        <location line="+42"/>
         <source>Margins</source>
         <translation>Margin</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-40"/>
         <source>Standard</source>
         <translation type="unfinished">Standar</translation>
     </message>
@@ -22574,7 +22569,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Margin, header dan footer, judul cetak, dan lainnya untuk lembar yang sedang Anda buka.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Pages</source>
         <translation>Halaman</translation>
     </message>
@@ -22624,7 +22619,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Pratinjau halaman yang dicetak</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Previous page</source>
         <translation type="unfinished">Halaman sebelumnya</translation>
     </message>
@@ -22649,7 +22644,37 @@ Sumber: %3</translation>
         <translation type="unfinished">Tampilkan Seluruh Halaman</translation>
     </message>
     <message>
-        <location line="+112"/>
+        <location line="+123"/>
+        <source>Left margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Right margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Width of column %1, %2 of %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Column %1 is %2 wide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Nothing to print</source>
         <translation type="unfinished">Tidak ada yang dicetak</translation>
     </message>
@@ -22674,7 +22699,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Sel dicetak pada %1% dari ukuran penuh, sehingga hurufnya kecil.</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+181"/>
         <source>Add document structure tags for accessibility to every PDF</source>
         <translation type="unfinished">Tambahkan tag struktur dokumen untuk aksesibilitas ke setiap PDF</translation>
     </message>
@@ -22684,7 +22709,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Memberi tag pada sel setiap lembar sebagai tabel, sehingga pembaca layar membaca PDF baris demi baris.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Export this sheet to PDF</source>
         <translation type="unfinished">Ekspor Lembar Ini ke PDF</translation>
     </message>
@@ -23839,6 +23864,7 @@ Sumber: %3</translation>
     <message>
         <location line="-138"/>
         <location line="+46"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+164"/>
         <source>Changing column width</source>
         <translation type="unfinished">Mengubah lebar kolom</translation>
     </message>
@@ -23860,6 +23886,7 @@ Sumber: %3</translation>
         <location line="+18"/>
         <location line="+28"/>
         <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+1"/>
         <source>Column Width</source>
         <translation type="unfinished">Lebar Kolom</translation>
     </message>
@@ -25039,7 +25066,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-170"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-373"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+52"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+56"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-126"/>
         <source>Cancel</source>
@@ -27652,7 +27679,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">%1 ini tidak berada dalam grup.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-137"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-302"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Pengaturan Halaman…</translation>
     </message>
@@ -27670,11 +27697,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+0"/>
         <location line="+1"/>
         <location line="+1"/>
+        <location line="+283"/>
         <source>Margins</source>
         <translation>Margin</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="-284"/>
         <source>Wide</source>
         <translation type="unfinished">Lebar</translation>
     </message>
@@ -27775,7 +27803,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+211"/>
+        <location line="+237"/>
         <location line="+3"/>
         <location line="+4"/>
         <location line="+12"/>
@@ -27784,7 +27812,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Latar Belakang</translation>
     </message>
     <message>
-        <location line="-232"/>
+        <location line="-258"/>
         <location line="+1"/>
         <source>Delete Background</source>
         <translation type="unfinished">Hapus Latar Belakang</translation>
@@ -27841,9 +27869,9 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+94"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+102"/>
         <location line="+11"/>
-        <location line="+31"/>
+        <location line="+34"/>
         <location line="+22"/>
         <location line="+7"/>
         <source>Print</source>
@@ -27910,7 +27938,8 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+103"/>
-        <location line="+53"/>
+        <location line="+12"/>
+        <location line="+67"/>
         <location line="+18"/>
         <source>Page Setup</source>
         <translation type="unfinished">Pengaturan Halaman</translation>
@@ -28758,18 +28787,18 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Titik</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-175"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-189"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">Buku kerja masih dibuka. Buku kerja dapat dicetak setelah terbuka.</translation>
     </message>
     <message>
-        <location line="+50"/>
-        <location line="+65"/>
+        <location line="+53"/>
+        <location line="+73"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Nomor halaman tersebut bukan halaman dari pekerjaan ini. Pekerjaan ini memiliki %1 halaman.</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-69"/>
         <location line="+14"/>
         <location line="+10"/>
         <location line="+10"/>
@@ -28778,23 +28807,23 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="-34"/>
-        <location line="+72"/>
+        <location line="+80"/>
         <source>Making the pages...</source>
         <translation type="unfinished">Membuat halaman...</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>The workbook is still being opened. It can be exported when it is open.</source>
         <translation type="unfinished">Buku kerja masih dibuka. Buku kerja dapat diekspor setelah terbuka.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+43"/>
+        <location line="+51"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-44"/>
         <source>Export was cancelled</source>
         <translation type="unfinished">Ekspor dibatalkan</translation>
     </message>
@@ -28811,7 +28840,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">%1 diekspor</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+10"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
         <location line="+5"/>
         <location line="+5"/>
         <source>Save as PDF</source>
@@ -28830,13 +28864,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
 %3</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+123"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 disimpan</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">Printer &quot;%1&quot; sudah tidak ada. Pilih printer lain.</translation>
     </message>
@@ -50818,6 +50852,14 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
 </context>
 <context>
+    <name>jp::PreviewHandles</name>
+    <message>
+        <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
+        <source>Drag, or press the arrow keys, to move it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::PrintHeaderFooterDialog</name>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="-176"/>
@@ -69212,18 +69254,36 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak cukup ruang untuk membuat halaman abu-abu, sehingga sebagian berwarna.</translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+834"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Tidak ada halaman untuk dimasukkan ke berkas.</translation>
     </message>
     <message>
-        <location line="+97"/>
+        <location line="+29"/>
+        <location line="+99"/>
         <location line="+34"/>
         <source>It was cancelled, and no file was made.</source>
         <translation type="unfinished">Pekerjaan dibatalkan, dan tidak ada berkas yang dibuat.</translation>
     </message>
+    <message numerus="yes">
+        <location line="-128"/>
+        <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-33"/>
+        <location line="+4"/>
+        <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <location line="+39"/>
         <source>The pages could not be put in the file.</source>
         <translation type="unfinished">Halaman tidak dapat dimasukkan ke berkas.</translation>
@@ -69249,7 +69309,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">PDF tidak diberi tag untuk pembaca layar: %1.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+36"/>
         <location line="+6"/>
         <source>There are no pages to print.</source>
         <translation type="unfinished">Tidak ada halaman untuk dicetak.</translation>

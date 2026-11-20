@@ -22285,15 +22285,15 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+79"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+91"/>
         <location line="+1"/>
-        <location line="+105"/>
+        <location line="+106"/>
         <source>Print</source>
         <translation>Afdrukken</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+326"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="+403"/>
         <source>Export</source>
         <translation type="unfinished">Exporteren</translation>
     </message>
@@ -22393,7 +22393,7 @@ Bron: %3</translation>
         <translation type="unfinished">Gratis opensource-spreadsheets voor Windows, macOS en Linux. Dit is een voorbeeld.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-422"/>
+        <location filename="../apps/crunch/app/crunchprintpage.cpp" line="-500"/>
         <source>Printer</source>
         <translation>Printer</translation>
     </message>
@@ -22403,12 +22403,7 @@ Bron: %3</translation>
         <translation type="unfinished">Opslaan als PDF</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Printer settings…</source>
-        <translation type="unfinished">Printerinstellingen…</translation>
-    </message>
-    <message>
-        <location line="+9"/>
+        <location line="+12"/>
         <source>What to print</source>
         <translation type="unfinished">Wat u wilt afdrukken</translation>
     </message>
@@ -22527,12 +22522,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+40"/>
+        <location line="+42"/>
         <source>Margins</source>
         <translation>Marges</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-40"/>
         <source>Standard</source>
         <translation type="unfinished">Standaard</translation>
     </message>
@@ -22587,7 +22582,7 @@ Bron: %3</translation>
         <translation type="unfinished">Marges, kop- en voetteksten, afdruktitels en meer voor het huidige blad.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+7"/>
         <source>Pages</source>
         <translation>Pagina&apos;s</translation>
     </message>
@@ -22637,7 +22632,7 @@ Bron: %3</translation>
         <translation type="unfinished">Voorbeeld van de afgedrukte pagina</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Previous page</source>
         <translation type="unfinished">Vorige pagina</translation>
     </message>
@@ -22662,7 +22657,37 @@ Bron: %3</translation>
         <translation type="unfinished">Hele pagina weergeven</translation>
     </message>
     <message>
-        <location line="+112"/>
+        <location line="+123"/>
+        <source>Left margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Right margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom margin, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Width of column %1, %2 of %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Column %1 is %2 wide</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Nothing to print</source>
         <translation type="unfinished">Niets om af te drukken</translation>
     </message>
@@ -22687,7 +22712,7 @@ Bron: %3</translation>
         <translation type="unfinished">De cellen worden afgedrukt op %1% van de ware grootte, dus de letters zijn klein.</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="+181"/>
         <source>Add document structure tags for accessibility to every PDF</source>
         <translation type="unfinished">Structuurtags voor toegankelijkheid van het document toevoegen aan elke PDF</translation>
     </message>
@@ -22697,7 +22722,7 @@ Bron: %3</translation>
         <translation type="unfinished">Labelt de cellen van elk werkblad als tabel, zodat een schermlezer de PDF rij voor rij leest.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>Export this sheet to PDF</source>
         <translation type="unfinished">Dit blad exporteren naar PDF</translation>
     </message>
@@ -25325,6 +25350,7 @@ Bron: %3</translation>
     <message>
         <location line="-138"/>
         <location line="+46"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+164"/>
         <source>Changing column width</source>
         <translation type="unfinished">Kolombreedte wijzigen</translation>
     </message>
@@ -25346,6 +25372,7 @@ Bron: %3</translation>
         <location line="+18"/>
         <location line="+28"/>
         <location line="+61"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+1"/>
         <source>Column Width</source>
         <translation type="unfinished">Kolombreedte</translation>
     </message>
@@ -26341,7 +26368,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+229"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+37"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+41"/>
         <source>That can&apos;t be done on several ranges at once. Select one range, and try again.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26633,7 +26660,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">%1 is opgeslagen. Rijen, kolommen en cellen die vóór deze opslag zijn verwijderd, kunnen nu niet meer ongedaan worden gemaakt, evenmin als wat u daarvoor hebt gedaan.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-10"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-13"/>
         <source>The workbook is still being opened. It can be printed when it is open.</source>
         <translation type="unfinished">De werkmap wordt nog geopend. U kunt deze afdrukken zodra deze geopend is.</translation>
     </message>
@@ -26641,7 +26668,7 @@ Het bestand bestaat niet.</translation>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-170"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-59"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-427"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_protect.cpp" line="+67"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="-122"/>
         <source>Cancel</source>
@@ -26649,12 +26676,12 @@ Het bestand bestaat niet.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="+25"/>
-        <location line="+65"/>
+        <location line="+73"/>
         <source>Those page numbers are not pages of this job. The job has %1 pages.</source>
         <translation type="unfinished">Die paginanummers horen niet bij deze afdruktaak. De taak heeft %1 pagina&apos;s.</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location line="-69"/>
         <location line="+14"/>
         <location line="+10"/>
         <location line="+10"/>
@@ -26663,23 +26690,23 @@ Het bestand bestaat niet.</translation>
     </message>
     <message>
         <location line="-34"/>
-        <location line="+72"/>
+        <location line="+80"/>
         <source>Making the pages...</source>
         <translation type="unfinished">Pagina&apos;s maken...</translation>
     </message>
     <message>
-        <location line="-58"/>
+        <location line="-66"/>
         <source>The workbook is still being opened. It can be exported when it is open.</source>
         <translation type="unfinished">De werkmap wordt nog geopend. U kunt deze exporteren zodra deze is geopend.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+43"/>
+        <location line="+51"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
     <message>
-        <location line="-36"/>
+        <location line="-44"/>
         <source>Export was cancelled</source>
         <translation type="unfinished">Exporteren is geannuleerd</translation>
     </message>
@@ -26696,7 +26723,12 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">%1 geëxporteerd</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+10"/>
+        <source>%1 is saved, but your computer would not open it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
         <location line="+5"/>
         <location line="+5"/>
         <source>Save as PDF</source>
@@ -26715,7 +26747,7 @@ Het bestand bestaat niet.</translation>
 %3</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <source>The printer &quot;%1&quot; is not there any more. Choose another printer.</source>
         <translation type="unfinished">De printer &quot;%1&quot; is er niet meer. Kies een andere printer.</translation>
     </message>
@@ -26769,7 +26801,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">%1 heeft &quot;%2&quot; opgeslagen, maar kan het bestand niet teruglezen: %3</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-43"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-45"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+31"/>
         <source>Saved %1</source>
         <translation type="unfinished">%1 opgeslagen</translation>
@@ -26834,7 +26866,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Object verwijderen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-137"/>
+        <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="-302"/>
         <source>Page Setup…</source>
         <translation type="unfinished">Pagina-instelling…</translation>
     </message>
@@ -26852,11 +26884,12 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <location line="+0"/>
         <location line="+1"/>
         <location line="+1"/>
+        <location line="+283"/>
         <source>Margins</source>
         <translation>Marges</translation>
     </message>
     <message>
-        <location line="-1"/>
+        <location line="-284"/>
         <source>Wide</source>
         <translation type="unfinished">Breed</translation>
     </message>
@@ -26957,7 +26990,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+211"/>
+        <location line="+237"/>
         <location line="+3"/>
         <location line="+4"/>
         <location line="+12"/>
@@ -26966,7 +26999,7 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
         <translation type="unfinished">Achtergrond</translation>
     </message>
     <message>
-        <location line="-232"/>
+        <location line="-258"/>
         <location line="+1"/>
         <source>Delete Background</source>
         <translation type="unfinished">Achtergrond verwijderen</translation>
@@ -27023,9 +27056,9 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-28"/>
+        <location filename="../apps/crunch/app/crunchwindow_print.cpp" line="-29"/>
         <location line="+11"/>
-        <location line="+31"/>
+        <location line="+34"/>
         <location line="+22"/>
         <location line="+7"/>
         <source>Print</source>
@@ -27092,7 +27125,8 @@ Het bestaande bestand is ongewijzigd gebleven.</translation>
     </message>
     <message>
         <location line="+103"/>
-        <location line="+53"/>
+        <location line="+12"/>
+        <location line="+67"/>
         <location line="+18"/>
         <source>Page Setup</source>
         <translation type="unfinished">Pagina-instelling</translation>
@@ -50854,6 +50888,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::PreviewHandles</name>
+    <message>
+        <location filename="../apps/crunch/app/previewhandles.cpp" line="+175"/>
+        <source>Drag, or press the arrow keys, to move it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::PrintHeaderFooterDialog</name>
     <message>
         <location filename="../apps/deck/app/deckdialogs.cpp" line="-176"/>
@@ -69256,18 +69298,37 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er was niet genoeg ruimte om de pagina&apos;s grijs te maken, dus sommige zijn in kleur.</translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+834"/>
         <source>There are no pages to put in the file.</source>
         <translation type="unfinished">Er zijn geen pagina&apos;s om in het bestand op te nemen.</translation>
     </message>
     <message>
-        <location line="+97"/>
+        <location line="+29"/>
+        <location line="+99"/>
         <location line="+34"/>
         <source>It was cancelled, and no file was made.</source>
         <translation type="unfinished">De bewerking is geannuleerd en er is geen bestand gemaakt.</translation>
     </message>
+    <message numerus="yes">
+        <location line="-128"/>
+        <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-33"/>
+        <location line="+4"/>
+        <source>A PDF holds at most %1 clickable links, so the rest can&apos;t be clicked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The PDF was saved, but its properties (title, author, and the rest) could not be put in it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+77"/>
         <location line="+39"/>
         <source>The pages could not be put in the file.</source>
         <translation type="unfinished">De pagina&apos;s konden niet in het bestand worden opgenomen.</translation>
@@ -69293,7 +69354,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De PDF is niet getagd voor schermlezers: %1.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+36"/>
         <location line="+6"/>
         <source>There are no pages to print.</source>
         <translation type="unfinished">Er zijn geen pagina&apos;s om af te drukken.</translation>
