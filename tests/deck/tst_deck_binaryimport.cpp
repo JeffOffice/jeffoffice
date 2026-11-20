@@ -892,7 +892,7 @@ private Q_SLOTS:
     void binaryPresentationCountsTheLayoutsCopiesInTheShapeBudget()
     {
         const QByteArray masters = slidePersist(3, 0, 0x80000001) + slidePersist(4, 0, 0x80000002);
-        const QByteArray titleMaster = pptBox(1016, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1) + pptDrawing(pptTinyShape().repeated(60000)));
+        const QByteArray titleMaster = pptBox(1006, slideAtom(3, QByteArray("\x03\x04\x07\x08\x09", 5), 0, 0, 1) + colorScheme(1) + pptDrawing(pptTinyShape().repeated(60000)));
         QVector<QPair<quint32, QByteArray>> records{{4, titleMaster}};
         QByteArray entries;
         int n = 0;
