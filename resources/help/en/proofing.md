@@ -11,7 +11,7 @@ To turn this off, click the arrow beside **Review > Proofing > Spelling** and cl
 
 ## Your own words
 
-Click **File > Options > Proofing > Custom Dictionary** to see the words you added, and to add, remove, find, import, or export them. The same dialog has a list of **Excluded Words**: words that are always marked as misspelled, even if a dictionary accepts them, and never offered as suggestions. Import and export use a plain text file with one word a line (UTF-8). Your lists are the same in every JeffOffice app and are never saved in a document.
+Click **File > Options > Proofing > Custom Dictionary** to see the words you added, and to add, remove, find, import, or export them. The same dialog has a list of **Excluded Words**: words that are always marked as misspelled, even if a dictionary accepts them, and never offered as suggestions. An excluded word is that exact word, not its other forms, and adding a word to the dictionary takes it off the excluded list. Import and export use a plain text file with one word a line (UTF-8). Your lists are the same in every JeffOffice app and are never saved in a document.
 
 ## Check grammar as you type
 
