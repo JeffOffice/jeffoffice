@@ -28,6 +28,7 @@
 #include "io/pdfspots.h"
 #include "app/pdfprotection.h"
 #include "io/crypto.h"
+#include "office/embeddedfonts.h"
 #include "office/officecrypt.h"
 #include "app/passworddialogs.h"
 #include "io/pdfx.h"
@@ -296,6 +297,7 @@ MainWindow::MainWindow(QWidget *parent) : AppWindow(parent)
 
 MainWindow::~MainWindow()
 {
+    office::EmbeddedFonts::release(m_fontsOf);
     // Children (the editor, panes, the ribbon) are destroyed after this body,
     // when only the QWidget part of this window is left: a signal they send
     // while going (the undo stack emits cleanChanged as it is destroyed)
@@ -662,6 +664,10 @@ bool MainWindow::openFile(const QString &path, OpenHow how)
     if (wasProtected) m_filePassword = openedWith;
     m_versions.reset(wasProtected ? openedWith : QString());
     crypto::wipe(openedWith);
+    // The fonts the file carries are the publication's own while it is open: they go with the window, or when another file is opened in it.
+    office::EmbeddedFonts::release(m_fontsOf);
+    m_fontsOf = doc.get();
+    doc->fontAliases = office::EmbeddedFonts::use(doc.get(), std::move(rep.embeddedFaces));
     if (how == OpenHow::Copy || repairing) {
         // The file's contents as a new publication that has no file yet (Save asks where); the file is never written.
         m_ed->setDocument(std::move(doc));

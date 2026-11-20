@@ -2240,3 +2240,61 @@ void WriteTests::aDocxThatFailsToOpenLeavesNoFontsRegistered()
     QVERIFY(!err.isEmpty());
     QCOMPARE(office::EmbeddedFonts::addedFontCount(), before);
 }
+
+namespace {
+int fontPartsIn(const QByteArray &docx)
+{
+    office::Package pkg;
+    if (!pkg.read(docx)) return -1;
+    int n = 0;
+    for (const QString &name : pkg.partNames()) n += name.startsWith(QLatin1String("/word/fonts/")) ? 1 : 0;
+    return n;
+}
+} // namespace
+
+// Options > Save, "Embed fonts in the file": the fonts the text uses (here the program's own Lato, which other computers may lack) are written into the .docx only when
+// asked, read back as the document's own fonts, and the saved file still opens as the document it was.
+void WriteTests::aSavedDocxCarriesTheFontsItsTextUsesOnlyWhenAsked()
+{
+    auto doc = open(docxCarrying(QStringLiteral("Lato"), {}));
+    QVERIFY(doc);
+    QString err;
+    QCOMPARE(fontPartsIn(doc->toDocx(&err)), 0);
+    WriteDoc::DocxFonts off;
+    QCOMPARE(fontPartsIn(doc->toDocx(&err, false, false, &off)), 0);
+    WriteDoc::DocxFonts on;
+    on.embed = true;
+    const QByteArray bytes = doc->toDocx(&err, false, false, &on);
+    QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+    QVERIFY2(on.notes.isEmpty(), qPrintable(on.notes.join(QLatin1Char('|'))));
+    const int parts = fontPartsIn(bytes);
+    QVERIFY(parts >= 1 && parts <= 4);   // (the styles the program ships Lato in)
+    QStringList notes;
+    auto again = WriteDoc::fromDocx(bytes, &err, &notes);
+    QVERIFY2(again, qPrintable(err));
+    const auto faces = office::EmbeddedFonts::facesOf(again.get());
+    QCOMPARE(int(faces.size()), parts);
+    QCOMPARE(faces[0].typeface, QStringLiteral("Lato"));
+    // Saved again with the option on: the faces it carries are not written twice.
+    on.notes.clear();
+    QCOMPARE(fontPartsIn(again->toDocx(&err, false, false, &on)), parts);
+}
+
+// A font whose own license bits forbid a copy in a file is never written, and the person is told which one was left out.
+void WriteTests::aSavedDocxLeavesOutAFontWhoseLicenseForbidsItAndSaysSo()
+{
+    auto doc = open(docxCarrying(QStringLiteral("Lato"), {}));
+    QVERIFY(doc);
+    QByteArray locked = bundledFontData(QStringLiteral("Lato"));
+    for (int i = 0, n = qFromBigEndian<quint16>(locked.constData() + 4); i < n; ++i)
+        if (locked.mid(12 + 16 * i, 4) == "OS/2") qToBigEndian<quint16>(0x0002, locked.data() + int(qFromBigEndian<quint32>(locked.constData() + 12 + 16 * i + 8)) + 8);
+    WriteDoc::DocxFonts on;
+    on.embed = true;
+    on.source = [&](const QString &family, bool, bool) { return family == QLatin1String("Lato") ? locked : QByteArray(); };
+    QString err;
+    const QByteArray bytes = doc->toDocx(&err, false, false, &on);
+    QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+    QCOMPARE(fontPartsIn(bytes), 0);
+    QCOMPARE(on.notes, QStringList{QStringLiteral("These fonts were not saved in the file, because their licenses do not allow it: Lato.")});
+    QVERIFY(WriteDoc::fromDocx(bytes, &err));
+}

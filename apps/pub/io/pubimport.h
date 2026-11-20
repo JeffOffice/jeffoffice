@@ -2,8 +2,10 @@
 // Imports .pub files through libmspub.
 
 #include "core/document.h"
+#include "office/embeddedfonts.h"
 
 #include <QStringList>
+#include <librevenge/librevenge.h>
 
 namespace jp {
 
@@ -15,7 +17,13 @@ struct PubImportReport {
     int inlineObjects = 0;  // objects set in text
     QStringList fontsUsed;
     QStringList warnings;
+    // The fonts the file carries (EmbeddedFonts::use makes them the publication's own while it is open); none unless the import succeeded.
+    QVector<office::EmbeddedFace> embeddedFaces;
 };
+
+// A font the file carries, as libmspub hands it over (the name, and the Embedded OpenType as base64 in "office:binary-data"): taken by `intake`
+// within its limits (a part is not even decoded from its text when it is larger than the limit allows).
+void takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::RVNGPropertyList &p);
 
 bool isPublisherFile(const QByteArray &head);
 std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error, PubImportReport *report = nullptr);

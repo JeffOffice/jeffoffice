@@ -137,4 +137,6 @@ private Q_SLOTS:
     void layoutFlowsAcrossFrames();
     void fieldsDisplay();
     void renderSmoke();
+    void aPublicationsEmbeddedFontsAreTakenWithinTheLimits();
+    void aHostilePublicationFontListIsBounded();
 };

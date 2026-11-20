@@ -297,6 +297,7 @@ private:
     QString m_recoveryCopy;         // this window's automatic recovery copy, if written
     QString m_recoveredFrom;        // a recovered document's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    const void *m_fontsOf = nullptr;   // the publication whose embedded fonts are added (office::EmbeddedFonts)
     LossyCache m_lossCache;   // what a .pub save would lose, until the publication changes
     bool m_fileProtected = false;   // the file is saved with a password (a .jpub file's package inside the encrypted container)
     QString m_filePassword;

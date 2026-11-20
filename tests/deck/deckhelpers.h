@@ -222,6 +222,8 @@ QByteArray le(quint64 v, int n);
 // A record: its header (version, instance, type, length), then its data.
 QByteArray pptRec(quint16 type, const QByteArray &data, quint16 inst = 0, quint8 ver = 0);
 QByteArray pptBox(quint16 type, const QByteArray &kids, quint16 inst = 0);
+// A font data blob of the presentation's font collection (record 4024; its instance is the style: 0 regular, 1 bold, 2 italic, 3 bold italic), holding `eot`.
+QByteArray pptFontBlob(int slot, const QByteArray &eot);
 QByteArray utf16(const QString &s);
 // A color as the format stores it: red, green, blue, and a scheme index (0xFE: the RGB values are the color).
 QByteArray raw(std::initializer_list<int> values);
@@ -277,7 +279,8 @@ QByteArray appendEdits(const QByteArray &file, const QByteArray &objects, const 
 QByteArray buildPpt(bool titleMaster = false, bool cycle = false, bool links = false, bool notesByAtom = false, const QByteArray &bodyGroup = QByteArray(),
                            const QByteArray &drawingGroup = QByteArray(), const QByteArray &firstSlideShapes = QByteArray(), const QByteArray &masterTitleProps = QByteArray(), const QByteArray &masterBackground = QByteArray(),
                            const QByteArray &masterExtra = QByteArray(), quint16 titleMasterRecord = 1016, const QByteArray &documentExtra = QByteArray(),
-                           const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray(), const QByteArray &linksTransition = QByteArray());
+                           const QByteArray &firstSlideExtra = QByteArray(), const QByteArray &titleMasterShapes = QByteArray(), const QByteArray &linksTransition = QByteArray(),
+                           const QByteArray &fontCollectionExtra = QByteArray());
 
 // The text of a slide's placeholders by role.
 QString placeholderText(const Document &d, const Page &slide, const QString &role);

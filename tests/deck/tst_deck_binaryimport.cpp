@@ -2,6 +2,10 @@
 #include "deckhelpers.h"
 #include "../timing.h"
 
+#include "core/embeddedfonts.h"
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
+#include "office/eot.h"
 #include "office/pptcrypt.h"
 #include "io/pptsalvage.h"
 
@@ -1172,6 +1176,83 @@ private Q_SLOTS:
             }
         }
         QVERIFY(opened > 0);
+    }
+
+    // A font data blob of the font collection is the presentation's own font while it is open: under a private name only its text is drawn with, not installed, gone with
+    // the presentation; and the part is kept as the file has it.
+    void anOldPresentationsEmbeddedFontIsUsedWhileItIsOpen()
+    {
+        QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(latoFile.open(QIODevice::ReadOnly));
+        const QByteArray font = jp::fontWithFamilyName(latoFile.readAll(), QStringLiteral("Zobster"));
+        QVERIFY(!font.isEmpty());
+        const QByteArray eot = office::makeEot(font);
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QString err;
+        const QByteArray extra = fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, eot);
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006, QByteArray(), QByteArray(), QByteArray(), QByteArray(), extra), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before + 1);
+        QVERIFY(d->fontAliases.contains(QStringLiteral("zobster")));
+        const QString own = d->fontAliases.value(QStringLiteral("zobster"));
+        QVERIFY2(own.startsWith(jp::kEmbeddedFamilyPrefix) && own.endsWith(QStringLiteral("-Zobster")), qPrintable(own));
+        QVERIFY(QFontDatabase::families().contains(own));
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        const auto kept = deck::EmbeddedFonts::facesOf(d.get());
+        QCOMPARE(int(kept.size()), 1);
+        QCOMPARE(kept[0].part, eot);
+        deck::EmbeddedFonts::release(d.get());
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
+        QVERIFY(!QFontDatabase::families().contains(own));
+        // The same file without the blob has none of it.
+        auto plain = deck::importBinaryPresentation(buildPpt(), &err);
+        QVERIFY(plain);
+        QVERIFY(plain->fontAliases.isEmpty());
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(plain.get()).size()), 0);
+    }
+
+    // Damaged and hostile font collections never stop the presentation opening: a cut-off blob, one whose lengths lie, a license that forbids it, and thousands of
+    // entries (at most the most a document carries are taken, and the person is told).
+    void aHostileOldFontCollectionStillOpensThePresentation()
+    {
+        QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
+        QVERIFY(latoFile.open(QIODevice::ReadOnly));
+        const QByteArray lato = latoFile.readAll();
+        const QByteArray eot = office::makeEot(lato);
+        const int before = deck::EmbeddedFonts::addedFontCount();
+        auto open = [&](const QByteArray &extra, QString *err) {
+            return deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1006, QByteArray(), QByteArray(), QByteArray(), QByteArray(), extra), err);
+        };
+        QString err;
+        // Cut off.
+        auto cut = open(fontEntity(QStringLiteral("Cut")) + pptFontBlob(0, eot.left(eot.size() / 3)), &err);
+        QVERIFY2(cut, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("can't be used")), qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(cut.get()).size()), 0);
+        // A blob whose record claims more than the file has.
+        QByteArray lying = fontEntity(QStringLiteral("Lies")) + pptFontBlob(0, eot);
+        qToLittleEndian<quint32>(0x7FFFFFF0u, lying.data() + lying.size() - eot.size() - 4);
+        auto liar = open(lying, &err);
+        QVERIFY2(liar, qPrintable(err));
+        // Restricted.
+        QByteArray locked = lato;
+        for (int i = 0, n = qFromBigEndian<quint16>(locked.constData() + 4); i < n; ++i)
+            if (locked.mid(12 + 16 * i, 4) == "OS/2") qToBigEndian<quint16>(0x0002, locked.data() + int(qFromBigEndian<quint32>(locked.constData() + 12 + 16 * i + 8)) + 8);
+        auto restricted = open(fontEntity(QStringLiteral("Locked")) + pptFontBlob(0, office::makeEot(locked)), &err);
+        QVERIFY2(restricted, qPrintable(err));
+        QVERIFY2(err.contains(QStringLiteral("because their licenses do not allow it")), qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(restricted.get()).size()), 0);
+        // Thousands of entries.
+        QByteArray many;
+        for (int i = 0; i < 3000; ++i) many += fontEntity(QStringLiteral("Many%1").arg(i)) + pptFontBlob(0, eot);
+        auto big = open(many, &err);
+        QVERIFY2(big, qPrintable(err));
+        QCOMPARE(int(deck::EmbeddedFonts::facesOf(big.get()).size()), jp::kMaxEmbeddedFonts);
+        QVERIFY2(err.contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(err));
+        for (auto *doc : {cut.get(), liar.get(), restricted.get(), big.get()}) deck::EmbeddedFonts::release(doc);
+        QCOMPARE(deck::EmbeddedFonts::addedFontCount(), before);
     }
 };
 

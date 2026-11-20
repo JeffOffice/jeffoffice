@@ -9,6 +9,9 @@
 #include "wml/wmlhtml.h"
 
 #include "core/editops.h"
+#include "core/fontops.h"
+#include "core/fontfiles.h"
+#include "core/fonts.h"
 #include "core/reviewops.h"
 #include "core/tablemodel.h"
 #include "core/wordformat.h"
@@ -16,6 +19,7 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QFile>
 #include <QSet>
 #include <limits>
 #include <QTextBlock>
@@ -442,10 +446,48 @@ bool WriteDoc::exportDocument(office::wml::Document *result, bool template_, boo
     return true;
 }
 
-QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros)
+// The faces the document's text uses, in the four styles each (what a font family has is for the source to say): the families named outright, and the theme's two fonts
+// when text follows them.
+static QVector<office::wml::FontToEmbed> facesUsedBy(WriteDoc &doc)
+{
+    QVector<office::wml::FontToEmbed> out;
+    QSet<QString> seen;
+    auto add = [&](const QString &name) {
+        const QString family = interchangeFontName(name.trimmed());   // (never the open font that stands for a standard one)
+        if (family.isEmpty() || seen.contains(family.toLower())) return;
+        seen.insert(family.toLower());
+        for (int style = 0; style < 4; ++style) out.push_back({family, bool(style & 1), bool(style & 2)});
+    };
+    const QVector<FontUse> used = fontsUsed(doc);
+    const office::Theme *theme = doc.theme();
+    for (const FontUse &u : used) {
+        if (!u.theme) add(u.key);
+        else if (theme) add(u.key == QLatin1String("+Heading") ? theme->majorLatin : theme->minorLatin);
+    }
+    return out;
+}
+
+static QByteArray bundledFontFileBytes(const QString &family, bool bold, bool italic)
+{
+    const BundledFontFile file = bundledFontFile(family, bold, italic);
+    if (file.path.isEmpty()) return QByteArray();
+    QFile f(file.path);
+    QByteArray font = f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+    if (italic) {
+        // Letters that slant under flags that say upright are embedded with the flags right.
+        if (const QByteArray fixed = fontWithItalicFlags(font); !fixed.isEmpty()) font = fixed;
+    }
+    return font;
+}
+
+QByteArray WriteDoc::toDocx(QString *error, bool template_, bool macros, DocxFonts *fonts)
 {
     office::wml::Document out;
     if (!exportDocument(&out, template_, macros)) return QByteArray();
+    if (fonts && fonts->embed) {
+        const office::wml::FontsEmbedded done = office::wml::embedFontsInDocx(&out, facesUsedBy(*this), fonts->source ? fonts->source : office::wml::FontFileSource(bundledFontFileBytes));
+        fonts->notes = done.notes;
+    }
     return writeDocx(out, error);
 }
 

@@ -1,7 +1,9 @@
 // Tests of libs/office: reading, inspecting, and embedding fonts.
 #include "officehelpers.h"
 #include "office/mtx.h"
+#include "office/pptfonts.h"
 #include "wml/wml.h"
+#include "wml/xmltree.h"
 
 namespace {
 
@@ -53,6 +55,43 @@ jp::office::wml::Document docWithFonts(const QVector<DocxFace> &faces)
     d.parts.push_back(wml::KeptPart{QStringLiteral("/word/fontTable.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.fontTable+xml"), table});
     d.partRelationships.insert(QStringLiteral("/word/fontTable.xml"), rels);
     return d;
+}
+
+// A record of an old binary presentation: its version and instance word, its type, its length, and its data.
+QByteArray pptRecord(quint16 verInst, quint16 type, const QByteArray &data, qint64 claimedLength = -1)
+{
+    QByteArray out(8, '\0');
+    qToLittleEndian<quint16>(verInst, out.data());
+    qToLittleEndian<quint16>(type, out.data() + 2);
+    qToLittleEndian<quint32>(quint32(claimedLength >= 0 ? claimedLength : data.size()), out.data() + 4);
+    return out + data;
+}
+
+// A font entity atom (the face name in the first 64 bytes as UTF-16) and a font data blob of style `slot`.
+QByteArray pptEntity(const QString &name)
+{
+    QByteArray data(68, '\0');
+    for (int i = 0; i < name.size() && i < 31; ++i) qToLittleEndian<quint16>(name[i].unicode(), data.data() + 2 * i);
+    return pptRecord(0, 4023, data);
+}
+QByteArray pptBlob(int slot, const QByteArray &eot, qint64 claimedLength = -1) { return pptRecord(quint16(slot << 4), 4024, eot, claimedLength); }
+
+// A font of the program's own with the OS/2 embedding bits set to `fsType`.
+QByteArray fontWithEmbeddingBits(QByteArray font, quint16 fsType)
+{
+    const int at = tableRecord(font, "OS/2");
+    if (at >= 0) qToBigEndian<quint16>(fsType, font.data() + int(qFromBigEndian<quint32>(font.constData() + at + 8)) + 8);
+    return font;
+}
+
+// The saved package's parts as {name: size}.
+QMap<QString, qint64> packageParts(const QByteArray &zip)
+{
+    QMap<QString, qint64> out;
+    jp::office::Package pkg;
+    if (!pkg.read(zip)) return out;
+    for (const QString &n : pkg.partNames()) out.insert(n, pkg.part(n).size());
+    return out;
 }
 
 const QString kTestKey = QStringLiteral("{0F1E2D3C-4B5A-6978-8796-A5B4C3D2E1F0}");
@@ -1615,6 +1654,303 @@ private Q_SLOTS:
         QVERIFY(own.isEmpty());
         QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before);
         jp::office::EmbeddedFonts::release(&a);
+    }
+
+    // ---- fonts carried inside an old binary presentation
+
+    // The collection's blobs belong to the entity before them and say their style by their record instance; what comes out is the font, usable, with the part kept.
+    void aPptFontCollectionGivesItsFacesByStyle()
+    {
+        const QByteArray regular = jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato")), QStringLiteral("Zobster"));
+        const QByteArray bold = jp::fontWithFamilyName(bundledFontBytes(QStringLiteral("Lato"), true), QStringLiteral("Zobster"));
+        QVERIFY(!regular.isEmpty() && !bold.isEmpty());
+        const QByteArray eotRegular = jp::office::makeEot(regular), eotBold = jp::office::makeEot(bold);
+        const QByteArray stream = pptRecord(0, 99, QByteArray(5, 'x')) + pptEntity(QStringLiteral("Zobster")) + pptBlob(0, eotRegular) + pptBlob(1, eotBold)
+                                  + pptEntity(QStringLiteral("Zother")) + pptBlob(3, eotBold);
+        QStringList notes;
+        const auto faces = jp::office::readPptFonts(stream, 0, stream.size(), &notes);
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(faces.size(), 3);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Zobster"));
+        QCOMPARE(int(faces[0].slot), int(jp::office::RegularSlot));
+        QCOMPARE(int(faces[1].slot), int(jp::office::BoldSlot));
+        QCOMPARE(faces[2].typeface, QStringLiteral("Zother"));
+        QCOMPARE(int(faces[2].slot), int(jp::office::BoldItalicSlot));
+        QCOMPARE(faces[0].part, eotRegular);
+        QVERIFY(!faces[0].font.isEmpty() && jp::inspectFont(faces[0].font));
+        // Used for one document only: added under a private name, gone with the document.
+        const int before = jp::office::EmbeddedFonts::addedFontCount();
+        int owner = 0;
+        const auto aliases = jp::office::EmbeddedFonts::use(&owner, faces);
+        QVERIFY(aliases.contains(QStringLiteral("zobster")));
+        QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+        QVERIFY(jp::office::EmbeddedFonts::addedFontCount() > before);
+        jp::office::EmbeddedFonts::release(&owner);
+        QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before);
+    }
+
+    // A font whose license forbids embedding is not used and not kept to be written back; the others next to it are read, and the person is told.
+    void aRestrictedPptFontIsLeftOut()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray stream = pptEntity(QStringLiteral("Locked")) + pptBlob(0, jp::office::makeEot(fontWithEmbeddingBits(lato, 0x0002))) + pptEntity(QStringLiteral("Open"))
+                                  + pptBlob(0, jp::office::makeEot(fontWithEmbeddingBits(lato, 0x0008)));
+        QStringList notes;
+        const auto faces = jp::office::readPptFonts(stream, 0, stream.size(), &notes);
+        QCOMPARE(faces.size(), 1);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Open"));
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("because their licenses do not allow it")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A record that claims more than is left ends the list (what came before it is kept); a blob that is cut off, or whose own header lies about its lengths, is one font lost.
+    void aDamagedPptFontCollectionFailsQuietly()
+    {
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QByteArray eot = jp::office::makeEot(lato);
+        // A claimed length past the end of the collection.
+        QByteArray stream = pptEntity(QStringLiteral("One")) + pptBlob(0, eot) + pptEntity(QStringLiteral("Two")) + pptBlob(0, eot, eot.size() + 5000);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size()).size(), 1);
+        // Cut off in the middle of a blob: the record's length is whatever is left, the EOT's own says it is longer.
+        stream = pptEntity(QStringLiteral("Cut")) + pptBlob(0, eot.left(eot.size() / 2));
+        QStringList notes;
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size(), &notes).size(), 0);
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].contains(QStringLiteral("can't be used")), qPrintable(notes[0]));
+        // The EOT's own sizes lie: a font size larger than the part, and one that overlaps its header.
+        QByteArray lying = eot;
+        qToLittleEndian<quint32>(0xFFFFFFF0u, lying.data() + 4);
+        stream = pptEntity(QStringLiteral("Lying")) + pptBlob(0, lying);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size()).size(), 0);
+        qToLittleEndian<quint32>(quint32(eot.size()), lying.data() + 4);
+        stream = pptEntity(QStringLiteral("Lying")) + pptBlob(0, lying);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size()).size(), 0);
+        // Empty, a header alone, a blob before any entity, a style that does not exist, and a range that is not inside the stream.
+        QCOMPARE(jp::office::readPptFonts(QByteArray(), 0, 0).size(), 0);
+        QCOMPARE(jp::office::readPptFonts(QByteArray(7, 'x'), 0, 7).size(), 0);
+        stream = pptBlob(0, eot);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size()).size(), 0);
+        stream = pptEntity(QStringLiteral("Five")) + pptBlob(5, eot);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size()).size(), 0);
+        QCOMPARE(jp::office::readPptFonts(stream, 0, stream.size() + 1000).size(), 0);
+        QCOMPARE(jp::office::readPptFonts(stream, -5, stream.size()).size(), 0);
+        // Garbage of every size.
+        for (int n = 0; n < 200; ++n) {
+            QByteArray junk;
+            for (int i = 0; i < n; ++i) junk.append(char((i * 37 + n) & 0xFF));
+            jp::office::readPptFonts(junk, 0, junk.size());
+        }
+    }
+
+    // A collection of thousands of entities: the records read are at most kMaxPptFontRecords (a lower count of unusable blobs than the file lists says it), and valid fonts
+    // are taken only up to the most a document carries.
+    void aPptFontCollectionOfThousandsOfEntriesIsBounded()
+    {
+        QByteArray junk;
+        for (int i = 0; i < 5000; ++i) junk += pptEntity(QStringLiteral("F%1").arg(i)) + pptBlob(0, QByteArray(100, 'j'));
+        QStringList notes;
+        QCOMPARE(jp::office::readPptFonts(junk, 0, junk.size(), &notes).size(), 0);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("%1 embedded fonts in the file can't be used").arg(jp::office::kMaxPptFontRecords / 2)), qPrintable(notes.join(QLatin1Char('|'))));
+        const QByteArray eot = jp::office::makeEot(bundledFontBytes(QStringLiteral("Lato")));
+        QByteArray many;
+        for (int i = 0; i < jp::kMaxEmbeddedFonts + 40; ++i) many += pptEntity(QStringLiteral("G%1").arg(i)) + pptBlob(0, eot);
+        notes.clear();
+        QCOMPARE(jp::office::readPptFonts(many, 0, many.size(), &notes).size(), jp::kMaxEmbeddedFonts);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // The intake's limits are the format's constants, and a part over the limit is never decoded: the count of parts decoded is what the limits allow.
+    void theFontIntakeHoldsAFileToItsLimits()
+    {
+        const jp::office::EmbeddedFontLimits defaults;
+        QCOMPARE(defaults.faces, jp::kMaxEmbeddedFonts);
+        QCOMPARE(defaults.totalBytes, jp::kMaxEmbeddedFontsTotal);
+        QCOMPARE(defaults.partBytes, jp::kMaxEmbeddedFontBytes + 65536);
+        jp::office::EmbeddedFontLimits small;
+        small.partBytes = 100;
+        small.totalBytes = 300;
+        jp::office::EmbeddedFaceIntake intake(small);
+        intake.add(QStringLiteral("A"), 0, QByteArray(101, 'x'));   // over one part's limit: not looked at
+        for (int i = 0; i < 6; ++i) intake.add(QStringLiteral("B%1").arg(i), 0, QByteArray(90, 'x'));   // 3 fit the total (270), the rest do not
+        QCOMPARE(intake.decodedCount(), 3);
+        QStringList notes;
+        QCOMPARE(intake.take(&notes).size(), 0);
+        QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("they are too large")), qPrintable(notes.join(QLatin1Char('|'))));
+        // A name is cut to the limit.
+        jp::office::EmbeddedFontLimits names;
+        names.nameChars = 8;
+        jp::office::EmbeddedFaceIntake named(names);
+        named.add(QString(500, QLatin1Char('N')), 0, jp::office::makeEot(bundledFontBytes(QStringLiteral("Lato"))));
+        const auto faces = named.take(nullptr);
+        QCOMPARE(faces.size(), 1);
+        QCOMPARE(faces[0].typeface, QString(8, QLatin1Char('N')));
+    }
+
+    // ---- fonts written into a saved .docx
+
+    // The faces asked for are written as scrambled parts listed in the font table (made when there is none), and read back as the fonts they were.
+    void aDocxIsSavedWithItsFontsAndTheyReadBack()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato")), latoBold = bundledFontBytes(QStringLiteral("Lato"), true);
+        const wml::FontFileSource source = [&](const QString &family, bool bold, bool italic) { return family == QLatin1String("Lato") && !italic ? (bold ? latoBold : lato) : QByteArray(); };
+        wml::Document d = wml::newDocument();
+        QVERIFY(d.partRelationships.isEmpty() || !d.partRelationships.contains(QStringLiteral("/word/fontTable.xml")));
+        const auto done = wml::embedFontsInDocx(&d, {{QStringLiteral("Lato"), false, false}, {QStringLiteral("Lato"), true, false}, {QStringLiteral("Lato"), false, true}, {QStringLiteral("Nothing"), false, false}}, source);
+        QCOMPARE(done.faces, 2);   // (no italic file, and none for "Nothing")
+        QVERIFY(done.leftOut.isEmpty() && done.notes.isEmpty());
+        QString err;
+        const QByteArray zip = wml::writeDocx(d, &err);
+        QVERIFY2(!zip.isEmpty(), qPrintable(err));
+        const QMap<QString, qint64> parts = packageParts(zip);
+        int fontParts = 0;
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) fontParts += it.key().startsWith(QLatin1String("/word/fonts/")) ? 1 : 0;
+        QCOMPARE(fontParts, 2);
+        QVERIFY(parts.contains(QStringLiteral("/word/fontTable.xml")));
+        wml::Document back;
+        QVERIFY(wml::readDocx(zip, &back, &err));
+        QStringList notes;
+        const auto faces = wml::readEmbeddedFonts(back, &notes);
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(faces.size(), 2);
+        QCOMPARE(faces[0].typeface, QStringLiteral("Lato"));
+        QCOMPARE(int(faces[0].slot), int(RegularSlot));
+        QCOMPARE(int(faces[1].slot), int(BoldSlot));
+        QCOMPARE(faces[0].font, lato);
+        QCOMPARE(faces[1].font, latoBold);
+    }
+
+    // A face the file already carries is left as it is; a new style of that family goes in the schema's order (regular, bold, italic, bold italic); a second call adds nothing.
+    void aDocxFontTableKeepsWhatItCarriesAndGainsTheNewStyle()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato")), italic = bundledFontBytes(QStringLiteral("Lato"), false, true);
+        QVERIFY(!italic.isEmpty());
+        wml::Document d = docWithFonts({{QStringLiteral("Lato"), QStringLiteral("Italic"), lato, kTestKey}});
+        const QByteArray carriedPart = d.parts.first().data;
+        const wml::FontFileSource source = [&](const QString &, bool, bool it) { return it ? italic : lato; };
+        auto done = wml::embedFontsInDocx(&d, {{QStringLiteral("Lato"), false, true}, {QStringLiteral("Lato"), false, false}, {QStringLiteral("LATO"), false, false}}, source);
+        QCOMPARE(done.faces, 1);   // the regular one only: the italic is the file's
+        QCOMPARE(d.parts.first().data, carriedPart);
+        QCOMPARE(d.parts.size(), 3);
+        QByteArray table;
+        for (const auto &p : d.parts)
+            if (p.name == QLatin1String("/word/fontTable.xml")) table = p.data;
+        const int regular = table.indexOf("embedRegular"), it = table.indexOf("embedItalic");
+        QVERIFY2(regular > 0 && it > regular, table.constData());
+        QCOMPARE(table.count("<w:font "), 1);
+        done = wml::embedFontsInDocx(&d, {{QStringLiteral("Lato"), false, true}, {QStringLiteral("Lato"), false, false}}, source);
+        QCOMPARE(done.faces, 0);
+        QCOMPARE(d.parts.size(), 3);
+        QCOMPARE(int(d.partRelationships.value(QStringLiteral("/word/fontTable.xml")).size()), 2);
+        QStringList notes;
+        QCOMPARE(wml::readEmbeddedFonts(d, &notes).size(), 2);
+    }
+
+    // A font whose own bits forbid embedding is never written (restricted, preview and print only, bitmap only), one that allows editing is; the families left out are named.
+    void aDocxIsNeverSavedWithAFontThatForbidsEmbedding()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const QHash<QString, quint16> bits{{QStringLiteral("Locked"), 0x0002}, {QStringLiteral("Viewer"), 0x0004}, {QStringLiteral("Bitmaps"), 0x0200}, {QStringLiteral("Editable"), 0x0008}, {QStringLiteral("Free"), 0x0000}};
+        const wml::FontFileSource source = [&](const QString &family, bool, bool) { return bits.contains(family) ? fontWithEmbeddingBits(lato, bits.value(family)) : QByteArray(); };
+        wml::Document d = wml::newDocument();
+        const auto before = d.parts.size();
+        QVector<wml::FontToEmbed> wanted;
+        for (const QString &f : {QStringLiteral("Locked"), QStringLiteral("Viewer"), QStringLiteral("Bitmaps"), QStringLiteral("Editable"), QStringLiteral("Free")})
+            for (int style = 0; style < 4; ++style) wanted.push_back({f, bool(style & 1), bool(style & 2)});
+        const auto done = wml::embedFontsInDocx(&d, wanted, source);
+        QCOMPARE(done.faces, 8);   // Editable and Free, four styles each (the same file stands in for every style)
+        QCOMPARE(done.leftOut, (QStringList{QStringLiteral("Locked"), QStringLiteral("Viewer"), QStringLiteral("Bitmaps")}));
+        QCOMPARE(done.notes, QStringList{QStringLiteral("These fonts were not saved in the file, because their licenses do not allow it: Locked, Viewer, Bitmaps.")});
+        QCOMPARE(int(d.parts.size()), int(before) + 9);   // the table and the 8 fonts
+        const auto faces = wml::readEmbeddedFonts(d);
+        QCOMPARE(faces.size(), 8);
+        for (const auto &f : faces) QVERIFY(f.typeface == QLatin1String("Editable") || f.typeface == QLatin1String("Free"));
+        // Only forbidden ones: nothing changes at all.
+        wml::Document untouched = wml::newDocument();
+        const auto none = wml::embedFontsInDocx(&untouched, {{QStringLiteral("Locked"), false, false}}, source);
+        QCOMPARE(none.faces, 0);
+        QCOMPARE(int(untouched.parts.size()), int(before));
+        QVERIFY(untouched.mainRelationships.size() == wml::newDocument().mainRelationships.size());
+    }
+
+    // No more faces than a document may carry (counting what it carries already), no more bytes, no name longer than the limit, and no font that is not sound.
+    void aDocxIsSavedWithAtMostTheMostFonts()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        int asked = 0;
+        const wml::FontFileSource source = [&](const QString &, bool, bool) { ++asked; return lato; };
+        QVector<wml::FontToEmbed> wanted;
+        for (int i = 0; i < 100; ++i) wanted.push_back({QStringLiteral("Family%1").arg(i), false, false});
+        wml::Document d = wml::newDocument();
+        auto done = wml::embedFontsInDocx(&d, wanted, source);
+        QCOMPARE(done.faces, jp::kMaxEmbeddedFonts);
+        QVERIFY2(done.notes.join(QLatin1Char('|')).contains(QStringLiteral("it may carry at most 64")), qPrintable(done.notes.join(QLatin1Char('|'))));
+        QCOMPARE(wml::readEmbeddedFonts(d).size(), jp::kMaxEmbeddedFonts);
+        // (counting what the file carries: 10 more asked of a document that has 64 write none)
+        QVector<wml::FontToEmbed> more;
+        for (int i = 0; i < 10; ++i) more.push_back({QStringLiteral("More%1").arg(i), false, false});
+        QCOMPARE(wml::embedFontsInDocx(&d, more, source).faces, 0);
+        // Bytes: a limit of two fonts' worth takes two.
+        EmbeddedFontLimits small;
+        small.totalBytes = lato.size() * 2 + 10;
+        wml::Document e = wml::newDocument();
+        done = wml::embedFontsInDocx(&e, wanted, source, small);
+        QCOMPARE(done.faces, 2);
+        QVERIFY2(done.notes.join(QLatin1Char('|')).contains(QStringLiteral("they are too large")), qPrintable(done.notes.join(QLatin1Char('|'))));
+        small.partBytes = lato.size() - 1;
+        wml::Document f = wml::newDocument();
+        QCOMPARE(wml::embedFontsInDocx(&f, wanted, source, small).faces, 0);
+        // A name of 300 characters, a font that is not a font, and a thousand names that have none: the work is the names asked, not more.
+        wml::Document g = wml::newDocument();
+        asked = 0;
+        QCOMPARE(wml::embedFontsInDocx(&g, {{QString(300, QLatin1Char('N')), false, false}}, source).faces, 0);
+        QCOMPARE(asked, 0);
+        const wml::FontFileSource junk = [&](const QString &, bool, bool) { ++asked; return QByteArray(5000, 'j'); };
+        QCOMPARE(wml::embedFontsInDocx(&g, wanted, junk).faces, 0);
+        QCOMPARE(asked, 100);
+        QVector<wml::FontToEmbed> thousands;
+        for (int i = 0; i < 20000; ++i) thousands.push_back({QStringLiteral("X%1").arg(i), false, false});
+        asked = 0;
+        QCOMPARE(wml::embedFontsInDocx(&g, thousands, junk).faces, 0);
+        QVERIFY2(asked <= 4096, qPrintable(QString::number(asked)));
+    }
+
+    // A font table of thousands of fonts is rewritten in work that grows with it, and a table that can't be (cut off, with a DOCTYPE, or not a font table) is left alone.
+    void aHostileDocxFontTableIsRewrittenInLinearWorkOrLeftAlone()
+    {
+        using namespace jp::office;
+        const QByteArray lato = bundledFontBytes(QStringLiteral("Lato"));
+        const wml::FontFileSource source = [&](const QString &, bool, bool) { return lato; };
+        const int n = 3000;
+        QVector<DocxFace> many;
+        for (int i = 0; i < n; ++i) many << DocxFace{QStringLiteral("F%1").arg(i), QStringLiteral("Regular"), QByteArray(40, 'x'), kTestKey};
+        wml::Document d = docWithFonts(many);
+        wml::treeStepsForTest();
+        EmbeddedFontLimits wide;   // (the table carries 3000 faces already, which the count of a document's fonts would have refused)
+        wide.faces = n + 10;
+        const auto done = wml::embedFontsInDocx(&d, {{QStringLiteral("F7"), true, false}, {QStringLiteral("Brand new"), false, false}}, source, wide);
+        QCOMPARE(done.faces, 2);
+        QVERIFY(wml::treeStepsForTest() <= 20 * n + 50);   // (a few steps a font; a scan of the fonts before each would be n squared)
+        QByteArray table;
+        for (const auto &p : d.parts)
+            if (p.name == QLatin1String("/word/fontTable.xml")) table = p.data;
+        QCOMPARE(table.count("<w:font "), n + 1);
+        QVERIFY(table.contains("w:name=\"Brand new\""));
+        // The font table that won't take it.
+        for (const QByteArray &bad : {QByteArray("<w:fonts xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:font w:name=\"A\">"),
+                                      QByteArray("<!DOCTYPE x [<!ENTITY a \"b\">]><w:fonts xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>"),
+                                      QByteArray("<w:other xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>"), QByteArray("not xml at all"), QByteArray()}) {
+            wml::Document h = docWithFonts({});
+            for (auto &p : h.parts)
+                if (p.name == QLatin1String("/word/fontTable.xml")) p.data = bad;
+            const auto before = h.parts;
+            const auto r = wml::embedFontsInDocx(&h, {{QStringLiteral("Lato"), false, false}}, source);
+            QCOMPARE(r.faces, 0);
+            QCOMPARE(h.parts.size(), before.size());
+            for (int i = 0; i < before.size(); ++i) QCOMPARE(h.parts[i].data, before[i].data);
+        }
     }
 };
 

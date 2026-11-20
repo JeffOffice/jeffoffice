@@ -1,10 +1,12 @@
 #include "office/embeddedfonts.h"
 
 #include "core/fonts.h"
+#include "office/eot.h"
 
 #include "core/fontfiles.h"
 #include "core/sfnt.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QFontDatabase>
 #include <QGuiApplication>
@@ -48,6 +50,57 @@ QSet<QString> computerFamilies()
 }
 
 } // namespace
+
+void EmbeddedFaceIntake::add(const QString &typeface, int slot, QByteArrayView part)
+{
+    if (m_faces.size() >= m_limits.faces) {
+        m_tooMany = true;
+        return;
+    }
+    if (part.size() > m_limits.partBytes || m_total + part.size() > m_limits.totalBytes) {
+        m_tooLarge = true;
+        return;
+    }
+    m_total += part.size();
+    ++m_decoded;
+    EmbeddedFace face;
+    QString why;
+    if (!readEmbeddedFont(QByteArray(part.data(), part.size()), &face.font, &face.info, &why)) {
+        ++m_unusable;
+        if (m_firstReason.isEmpty()) m_firstReason = why;
+        return;
+    }
+    if (!fontMayBeShown(face.info)) {
+        ++m_forbidden;
+        return;
+    }
+    if (m_whole + face.font.size() > m_limits.totalBytes) {   // (a compressed font is several times its part)
+        m_tooLarge = true;
+        return;
+    }
+    m_whole += face.font.size();
+    face.typeface = typeface.left(m_limits.nameChars).trimmed();
+    if (face.typeface.isEmpty()) face.typeface = face.info.family;
+    face.slot = slot >= 0 && slot < 4 ? FontSlot(slot) : fontSlot(face.info.bold, face.info.italic);
+    face.part = QByteArray(part.data(), part.size());
+    face.pitchFamily = face.info.pitchFamily();
+    face.charset = face.info.charset();
+    m_faces << std::move(face);
+}
+
+QVector<EmbeddedFace> EmbeddedFaceIntake::take(QStringList *notes)
+{
+    if (notes) {
+        if (m_unusable == 1) *notes << QCoreApplication::translate("jp::office::wml", "An embedded font in the file can't be used: %1").arg(m_firstReason);
+        else if (m_unusable > 1) *notes << QCoreApplication::translate("jp::office::wml", "%1 embedded fonts in the file can't be used: %2").arg(m_unusable).arg(m_firstReason);
+        if (m_forbidden > 0) *notes << QCoreApplication::translate("jp::office::wml", "Some embedded fonts in the file were not used, because their licenses do not allow it.");
+        if (m_tooMany) *notes << QCoreApplication::translate("jp::office::wml", "Only the first %1 embedded fonts are read.").arg(m_limits.faces);
+        if (m_tooLarge) *notes << QCoreApplication::translate("jp::office::wml", "Some embedded fonts are left out: they are too large.");
+    }
+    QVector<EmbeddedFace> out = std::move(m_faces);
+    m_faces.clear();
+    return out;
+}
 
 QHash<QString, QString> EmbeddedFonts::use(const void *doc, QVector<EmbeddedFace> faces)
 {

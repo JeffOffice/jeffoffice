@@ -375,6 +375,8 @@ QByteArray raw(std::initializer_list<int> values)
 
 QByteArray pptColor(int r, int g, int b, int index) { return raw({r, g, b, index}); }
 
+QByteArray pptFontBlob(int slot, const QByteArray &eot) { return pptRec(4024, eot, quint16(slot)); }
+
 QByteArray fontEntity(const QString &name)
 {
     QByteArray face = utf16(name);
@@ -445,10 +447,10 @@ QByteArray persistDirectory(const QVector<QPair<quint32, quint32>> &entries)
 QByteArray buildPpt(bool titleMaster, bool cycle, bool links, bool notesByAtom, const QByteArray &bodyGroup,
                            const QByteArray &drawingGroup, const QByteArray &firstSlideShapes, const QByteArray &masterTitleProps, const QByteArray &masterBackground,
                            const QByteArray &masterExtra, quint16 titleMasterRecord, const QByteArray &documentExtra,
-                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes, const QByteArray &linksTransition)
+                           const QByteArray &firstSlideExtra, const QByteArray &titleMasterShapes, const QByteArray &linksTransition, const QByteArray &fontCollectionExtra)
 {
     constexpr quint32 kMaster = 0x80000001, kTitleMaster = 0x80000002;
-    const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")));
+    const QByteArray fonts = pptBox(2005, fontEntity(QStringLiteral("Alpha Sans")) + fontEntity(QStringLiteral("Beta Serif")) + fontEntity(QStringLiteral("Symbol")) + fontEntity(QStringLiteral("Wingdings 2")) + fontEntity(QStringLiteral("Wingdings")) + fontCollectionExtra);
     // The default body text: bullets, 28 and 24 points, the first font, the text color.
     const QByteArray bodyStyle = le(2, 2)
         + le(0x593, 4) + le(3, 2) + le(0x2022, 2) + le(0, 2) + le(360, 2) + le(0, 2)

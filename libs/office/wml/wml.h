@@ -804,6 +804,28 @@ QVector<EmbeddedFace> readEmbeddedFonts(const Document &doc, QStringList *notes 
 QByteArray unscrambledFont(const QByteArray &part, const QString &fontKey);
 // For a test: how many relationship and link lookups readEmbeddedFonts has made since the last call (reset by the call).
 qint64 embeddedFontLookupsForTest();
+
+// ---- fonts into a saved document
+
+// A face the text uses, which the file may carry.
+struct FontToEmbed {
+    QString typeface;
+    bool bold = false, italic = false;
+};
+// The font file (TrueType or OpenType, not scrambled) of a face, or empty when there is none to give (the computer's own fonts are never read here).
+using FontFileSource = std::function<QByteArray(const QString &typeface, bool bold, bool italic)>;
+struct FontsEmbedded {
+    int faces = 0;             // parts written
+    qint64 bytes = 0;          // their size
+    QStringList leftOut;       // the families whose license (OS/2 fsType) forbids a copy in a file: none of their faces is written
+    QStringList notes;         // what to tell the person: the license list, and any limit that was reached
+};
+// Writes the faces of `wanted` into `doc` as obfuscated font parts (word/fonts/fontN.odttf, each with a key made from the font), listed in the font table (made if
+// there is none) by w:embedRegular, w:embedBold, w:embedItalic, and w:embedBoldItalic. A face the table already carries is left as it is. A font whose own license bits
+// forbid embedding is never written (it is named in leftOut). At most `limits.faces` faces and `limits.totalBytes` bytes are carried in all, counting what the file
+// already carries; a name longer than `limits.nameChars`, a font that is not sound (inspectFont), and a family `source` has no file for are skipped. The document is
+// changed only when the font table could be rewritten; the work is in step with the table and the faces asked for.
+FontsEmbedded embedFontsInDocx(Document *doc, const QVector<FontToEmbed> &wanted, const FontFileSource &source, const EmbeddedFontLimits &limits = EmbeddedFontLimits());
 // The package of a document. Empty, with a message, if it can't be made (an Id or a part name that can't be written).
 QByteArray writeDocx(const Document &doc, QString *error = nullptr);
 // A new document: Letter paper with one-inch margins, the styles of a new document (Normal, Heading 1 to 3, Title, ...), and a theme.

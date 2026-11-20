@@ -148,6 +148,8 @@ QString formatForMime(const QString &mime)
 class Collector : public librevenge::RVNGDrawingInterface {
 public:
     Collector(Document &d, PubImportReport &r) : m_doc(d), m_rep(r) {}
+    // The fonts the file carried, with what couldn't be taken added to the report's warnings.
+    QVector<office::EmbeddedFace> takeFonts() { return m_fontIntake.take(&m_rep.warnings); }
 
     void startDocument(const RVNGPropertyList &p) override
     {
@@ -164,7 +166,7 @@ public:
         m_doc.props.keywords = str(p["meta:keyword"]);
         m_doc.props.comments = str(p["dc:description"]);
     }
-    void defineEmbeddedFont(const RVNGPropertyList &p) override { m_rep.warnings << QCoreApplication::translate("Import", "Embedded font \"%1\" was not imported.").arg(str(p["librevenge:name"])); }
+    void defineEmbeddedFont(const RVNGPropertyList &p) override { takePubEmbeddedFont(m_fontIntake, p); }
 
     void startPage(const RVNGPropertyList &p) override
     {
@@ -1534,6 +1536,7 @@ private:
     QString m_fillOnlyKey;
     int m_fillOnlyCount = 0;
     PubImportReport &m_rep;
+    office::EmbeddedFaceIntake m_fontIntake;
     Page *m_page = nullptr;
     MasterPage *m_master = nullptr;       // set while a master page's objects arrive
     QHash<int, QString> m_masterIds;      // .pub master page sequence number -> master id
@@ -1632,7 +1635,22 @@ std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error
     doc->flatStylesToInherited();
     doc->inferDirectFormatting();
     doc->props.created = QDateTime::currentDateTime();
+    rep.embeddedFaces = c.takeFonts();
     return doc;
+}
+
+void takePubEmbeddedFont(office::EmbeddedFaceIntake &intake, const librevenge::RVNGPropertyList &p)
+{
+    const librevenge::RVNGProperty *data = p["office:binary-data"];
+    if (!data) return;
+    const librevenge::RVNGString text = data->getStr();
+    // Base64 is 4 characters for 3 bytes: a part over the limit is never decoded.
+    if (qint64(text.size()) / 4 * 3 > office::EmbeddedFontLimits().partBytes + 3) {
+        intake.refuseTooLarge();
+        return;
+    }
+    const QByteArray bytes = QByteArray::fromBase64(QByteArray::fromRawData(text.cstr(), qsizetype(text.size())));
+    intake.add(str(p["librevenge:name"]), -1, bytes);
 }
 
 std::unique_ptr<Document> importPublisherFile(const QString &path, QString *error, PubImportReport *report)

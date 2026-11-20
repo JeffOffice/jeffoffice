@@ -1,4 +1,7 @@
 #include "tst_pub_file.h"
+#include "core/fontfiles.h"
+#include "core/sfnt.h"
+#include "office/eot.h"
 
 
 // Two master pages: each page keeps its own master and its objects.
@@ -1607,4 +1610,72 @@ void PubFileTests::renderSmoke()
     QVERIFY(!img.isNull());
     const QString out = qEnvironmentVariable("JP_RENDER_OUT");
     if (!out.isEmpty()) img.save(out);
+}
+
+
+// What libmspub hands over for a font the .pub carries (its name and its Embedded OpenType, as base64): a font of the computer's own kind is taken as a face of the style
+// it says, and a part that is not a font is a note, not a failure. (The importer gives each carried font to this one function.)
+namespace {
+librevenge::RVNGPropertyList pubFontProps(const QString &name, const QByteArray &eot)
+{
+    librevenge::RVNGPropertyList p;
+    p.insert("librevenge:name", librevenge::RVNGString(name.toUtf8().constData()));
+    p.insert("office:binary-data", librevenge::RVNGBinaryData(reinterpret_cast<const unsigned char *>(eot.constData()), static_cast<unsigned long>(eot.size())));
+    return p;
+}
+QByteArray pubLatoFile(bool bold)
+{
+    QFile f(jp::bundledFontFile(QStringLiteral("Lato"), bold, false).path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+} // namespace
+
+void PubFileTests::aPublicationsEmbeddedFontsAreTakenWithinTheLimits()
+{
+    const QByteArray regular = jp::fontWithFamilyName(pubLatoFile(false), QStringLiteral("Zobster")), bold = jp::fontWithFamilyName(pubLatoFile(true), QStringLiteral("Zobster"));
+    QVERIFY(!regular.isEmpty() && !bold.isEmpty());
+    jp::office::EmbeddedFaceIntake intake;
+    jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("Zobster"), jp::office::makeEot(regular)));
+    jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("Zobster"), jp::office::makeEot(bold)));
+    jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("Junk"), QByteArray(3000, 'j')));
+    jp::takePubEmbeddedFont(intake, librevenge::RVNGPropertyList());   // (no data at all)
+    QStringList notes;
+    const auto faces = intake.take(&notes);
+    QCOMPARE(faces.size(), 2);
+    QCOMPARE(faces[0].typeface, QStringLiteral("Zobster"));
+    QCOMPARE(int(faces[0].slot), int(jp::office::RegularSlot));
+    QCOMPARE(int(faces[1].slot), int(jp::office::BoldSlot));
+    QCOMPARE(notes.size(), 1);
+    QVERIFY2(notes[0].contains(QStringLiteral("can't be used")), qPrintable(notes[0]));
+    // The publication's own while it is open: private name, never installed, gone when released.
+    const int before = jp::office::EmbeddedFonts::addedFontCount();
+    int owner = 0;
+    const auto aliases = jp::office::EmbeddedFonts::use(&owner, faces);
+    QVERIFY(aliases.contains(QStringLiteral("zobster")));
+    QVERIFY(!QFontDatabase::families().contains(QStringLiteral("Zobster")));
+    QVERIFY(QFontDatabase::families().contains(aliases.value(QStringLiteral("zobster"))));
+    jp::office::EmbeddedFonts::release(&owner);
+    QCOMPARE(jp::office::EmbeddedFonts::addedFontCount(), before);
+}
+
+// Thousands of fonts, and one whose text is larger than a font may be: at most the most are taken, and the oversize part is never decoded.
+void PubFileTests::aHostilePublicationFontListIsBounded()
+{
+    const QByteArray eot = jp::office::makeEot(pubLatoFile(false));
+    jp::office::EmbeddedFaceIntake intake;
+    for (int i = 0; i < 3000; ++i) jp::takePubEmbeddedFont(intake, pubFontProps(QStringLiteral("F%1").arg(i), eot));
+    // (a base64 text for more than a font may be: 4 characters a 3 bytes, over the limit)
+    librevenge::RVNGPropertyList big;
+    big.insert("librevenge:name", "Big");
+    big.insert("office:binary-data", librevenge::RVNGBinaryData(reinterpret_cast<const unsigned char *>(QByteArray(int(jp::kMaxEmbeddedFontBytes) + 200000, 'x').constData()), static_cast<unsigned long>(jp::kMaxEmbeddedFontBytes) + 200000));
+    jp::office::EmbeddedFaceIntake over;
+    jp::takePubEmbeddedFont(over, big);
+    QCOMPARE(over.decodedCount(), 0);
+    QStringList overNotes;
+    QCOMPARE(over.take(&overNotes).size(), 0);
+    QVERIFY2(overNotes.join(QLatin1Char('|')).contains(QStringLiteral("they are too large")), qPrintable(overNotes.join(QLatin1Char('|'))));
+    QCOMPARE(intake.decodedCount(), jp::kMaxEmbeddedFonts);
+    QStringList notes;
+    QCOMPARE(intake.take(&notes).size(), jp::kMaxEmbeddedFonts);
+    QVERIFY2(notes.join(QLatin1Char('|')).contains(QStringLiteral("Only the first 64 embedded fonts are read.")), qPrintable(notes.join(QLatin1Char('|'))));
 }

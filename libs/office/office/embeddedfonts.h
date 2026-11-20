@@ -21,6 +21,7 @@
 #include "core/sfnt.h"
 
 #include <QByteArray>
+#include <QByteArrayView>
 #include <QHash>
 #include <QString>
 #include <QVector>
@@ -45,6 +46,38 @@ struct EmbeddedFace {
     QByteArray part;              // the font part as the file has it (an EOT, usually compressed), kept to be written back
     QByteArray font;              // the font file inside it, when it could be read (empty after use() takes it)
     FontFileInfo info;
+};
+
+// What one document may carry in fonts (the defaults are the limits every reader holds a file to; a test may lower them).
+struct EmbeddedFontLimits {
+    int faces = kMaxEmbeddedFonts;                     // faces taken
+    qint64 partBytes = kMaxEmbeddedFontBytes + 65536;  // one part as the file has it (a wrapper's header comes on top of the font)
+    qint64 totalBytes = kMaxEmbeddedFontsTotal;        // the parts together, and the fonts made whole together
+    int nameChars = 255;                               // a typeface name is cut to this
+};
+
+// Takes the font parts of a file one at a time (an Embedded OpenType, compressed or not, or a bare font file), holding the file to the limits above: no part is
+// looked at once the count is used up, none is copied before its size is checked, and the work is the work of the parts taken. A part that can't be used is
+// left out, with the reason kept for the person; a font whose license forbids embedding is left out too, never drawn with and never kept to be written back.
+class EmbeddedFaceIntake {
+public:
+    explicit EmbeddedFaceIntake(const EmbeddedFontLimits &limits = EmbeddedFontLimits()) : m_limits(limits) {}
+    // `slot` is the style the file gives the part (0 to 3), or -1 to take it from the font itself.
+    void add(const QString &typeface, int slot, QByteArrayView part);
+    // A part the caller saw was over the limit and did not hand over.
+    void refuseTooLarge() { m_tooLarge = true; }
+    // The faces taken, with what couldn't be taken said in `notes`.
+    QVector<EmbeddedFace> take(QStringList *notes);
+    // For a test: how many parts were decoded (looked at past the limits).
+    int decodedCount() const { return m_decoded; }
+
+private:
+    EmbeddedFontLimits m_limits;
+    QVector<EmbeddedFace> m_faces;
+    qint64 m_total = 0, m_whole = 0;
+    int m_unusable = 0, m_forbidden = 0, m_decoded = 0;
+    bool m_tooMany = false, m_tooLarge = false;
+    QString m_firstReason;
 };
 
 // The fonts added for the documents that are open, by document (any address that is the document's own and stays while it is open).

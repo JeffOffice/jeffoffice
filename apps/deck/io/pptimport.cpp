@@ -10,6 +10,8 @@
 #include "core/transition.h"
 #include "io/cfb.h"
 #include "io/presentationfile.h"
+#include "core/embeddedfonts.h"
+#include "office/pptfonts.h"
 #include "office/drawingml.h"
 #include "office/drawingml_style.h"
 #include "office/odraw.h"
@@ -1008,6 +1010,7 @@ private:
 
     // What the document says.
     QStringList m_fonts;
+    QVector<EmbeddedFace> m_embedded;   // the fonts the file carries (see core/embeddedfonts.h)
     Pf m_defaultPf;
     Cf m_defaultCf;
     StyleSet m_styles;
@@ -1043,6 +1046,8 @@ public:
     qint64 persistRead() const { return m_persistRead; }
     qint64 shapesTaken() const { return kMaxTotalShapes - m_shapes.left; }
     qint64 writersXmlBytes() const { return m_writersXmlBytes; }
+    // The fonts the file carried, once, for EmbeddedFonts to take.
+    QVector<EmbeddedFace> takeFonts() { return std::exchange(m_embedded, QVector<EmbeddedFace>()); }
     QString notesText() const
     {
         QStringList lines = m_notes;
@@ -1224,6 +1229,12 @@ void Importer::readEnvironment(const Rec &r)
     const QByteArray &d = m_ppt.data();
     for (const Rec &k : m_ppt.in(r)) {
         if (k.type == RT_FontCollection) {
+            // (the first collection's fonts only: a file has one)
+            if (m_embedded.isEmpty()) {
+                QStringList fontNotes;
+                m_embedded = office::readPptFonts(d, k.off, k.end(), &fontNotes);
+                for (const QString &n : std::as_const(fontNotes)) note(n);
+            }
             for (const Rec &f : m_ppt.in(k)) {
                 if (f.type != RT_FontEntityAtom || m_fonts.size() >= 4096) continue;
                 // The face name: 32 characters of UTF-16, ended by a zero.
@@ -3097,6 +3108,8 @@ std::unique_ptr<Document> importBinaryPresentation(const QByteArray &bytes, QStr
         if (error) *error = why;
         return nullptr;
     }
+    // The presentation's own fonts are available for as long as it is open (see core/embeddedfonts.h).
+    EmbeddedFonts::use(doc.get(), importer.takeFonts());
     doc->fromFile = true;   // what the file names outside itself is read only from beside it
     if (error) *error = (QStringList{importer.notesText()} + leftOutNotes(doc->imagesLeftOut, 0)).join(QLatin1Char('\n')).trimmed();
     return doc;

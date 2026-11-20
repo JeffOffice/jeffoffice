@@ -168,7 +168,13 @@ public:
     static std::unique_ptr<WriteDoc> fromFile(const QByteArray &bytes, QString *error = nullptr, QStringList *notes = nullptr, const QString &baseDir = QString());
     // The story written back into a package (empty, with the reason, if it can't be made). `template_` saves it as a template.
     // `macros`: the macro project, its signature, and its data are kept as they were (for a .docm or .dotm); otherwise they are left out.
-    QByteArray toDocx(QString *error = nullptr, bool template_ = false, bool macros = false);
+    // `fonts` (Options > Save, "Embed fonts in the file"): the fonts the text uses are written into the package, where each font's own license allows it (office::wml::embedFontsInDocx).
+    struct DocxFonts {
+        bool embed = false;
+        office::wml::FontFileSource source;   // where a face's font file comes from; none: the fonts that ship with the program
+        QStringList notes;                    // what to tell the person (the families whose licenses forbid a copy, and any limit reached)
+    };
+    QByteArray toDocx(QString *error = nullptr, bool template_ = false, bool macros = false, DocxFonts *fonts = nullptr);
     // The story written as a Rich Text Format file (empty, with the reason, if it can't be made). `notes` get what the format has no place for here.
     QByteArray toRtf(QString *error = nullptr, QStringList *notes = nullptr);
     // The story written back as an OpenDocument text (empty, with the reason, if it can't be made). `notes` get what the format has no place for.
