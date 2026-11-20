@@ -1357,7 +1357,8 @@ void Importer::readFontLists(const QVector<Rec> &documentRecords)
             const QVector<Rec> parts = m_ppt.in(tag);
             const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
             if (!name || !data || readChars(d, *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT10")) continue;
-            if (const Rec *list = find(m_ppt.in(*data), RT_FontCollection10)) {
+            const QVector<Rec> inside = m_ppt.in(*data);   // (kept: the record found points into it)
+            if (const Rec *list = find(inside, RT_FontCollection10)) {
                 m_fontLists << qMakePair(list->off, list->end());
                 second = true;
             }
