@@ -957,6 +957,7 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
         if (chart) return;
         lo->thin = o->meta.kind == ObjectKind::Connector || hasLine(*o->item, 0);
         lo->margin = strokeReach(*o->item, 0);
+        lo->rotation = o->item->rotation;
         if (o->item->type() == jp::ItemType::Equation) {
             // printed and exported as outlines, not as a picture of them (the markup and the color are copied: it may be drawn on another thread)
             const auto &equation = static_cast<const jp::EquationItem &>(*o->item);

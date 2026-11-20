@@ -978,41 +978,58 @@ double ObjectLayer::snapToEdges(const std::vector<double> &edges, double at, dou
     return best;
 }
 
+// The box a person sees an object in: the box that holds its frame turned about the frame's center (the frame itself when it is not turned).
+static ObjectBox visibleBox(const ObjectBox &frame, double degrees)
+{
+    if (degrees == 0) return frame;
+    const double radians = degrees * 3.14159265358979323846 / 180, c = std::abs(std::cos(radians)), s = std::abs(std::sin(radians));
+    const double w = frame.w * c + frame.h * s, h = frame.w * s + frame.h * c;
+    return ObjectBox{frame.x + frame.w / 2 - w / 2, frame.y + frame.h / 2 - h / 2, w, h};
+}
+
 ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardModifiers modifiers, const Entry &e) const
 {
     const double zoom = std::max(1e-6, m_layout->zoom());
     const double dx = (point.x() - d.from.x()) / zoom, dy = (point.y() - d.from.y()) / zoom;
-    // (Alt takes the edges to cells for one drag, or, with Snap to Grid on, leaves them free)
-    const bool alt = bool(modifiers & Qt::AltModifier) != m_snapGrid, shift = modifiers & Qt::ShiftModifier;
-    // the edges of the other objects, when the edges are to go to them
+    // Which edges go where for this drag. With neither choice on, Alt takes the edges to cells for the one drag (as it always has). With one on, Alt turns the snapping off for the one drag, so it
+    // never switches to another kind. With both on, the edges of cells win (the objects are anchored to cells), and the other objects' edges are not looked at.
+    const bool alt = modifiers & Qt::AltModifier, shift = modifiers & Qt::ShiftModifier;
+    const bool anySnap = m_snapGrid || m_snapShapes;
+    const bool toCells = anySnap ? (m_snapGrid && !alt) : alt;
+    const bool toShapes = m_snapShapes && !m_snapGrid && !alt;
+    // (a turned object is snapped by its visible outline: a resize works on the unturned frame, so it is not snapped)
+    const bool turned = e.object.rotation != 0;
+    // the edges of the other objects (as they are seen), when the edges are to go to them
     std::vector<double> xs, ys;
     const double within = kSnapPixels / zoom;
-    if (m_snapShapes && !alt) {
+    if (toShapes && !(d.mode == DragMode::Resize && turned)) {
         ensureBoxes(*m_layout);
         for (size_t i = 0; i < m_entries.size() && xs.size() < 2 * kMaxSnapTargets; ++i) {
             const Entry &o = m_entries[i];
             if (i == d.entry || o.deleted || !o.placed) continue;
-            xs.push_back(o.box.x);
-            xs.push_back(o.box.x + o.box.w);
-            ys.push_back(o.box.y);
-            ys.push_back(o.box.y + o.box.h);
+            const ObjectBox seen = visibleBox(o.box, o.object.rotation);
+            xs.push_back(seen.x);
+            xs.push_back(seen.x + seen.w);
+            ys.push_back(seen.y);
+            ys.push_back(seen.y + seen.h);
         }
     }
     ObjectBox b = d.start;
     if (d.mode == DragMode::Move) {
         b.x = std::max(0.0, b.x + dx);
         b.y = std::max(0.0, b.y + dy);
-        if (alt) {
+        const ObjectBox v = visibleBox(b, e.object.rotation);
+        if (toCells) {
             // the edge of the object nearest an edge of a cell goes to it
-            const double l = snapAxis(m_layout->cols, b.x) - b.x, r = snapAxis(m_layout->cols, b.x + b.w) - (b.x + b.w);
+            const double l = snapAxis(m_layout->cols, v.x) - v.x, r = snapAxis(m_layout->cols, v.x + v.w) - (v.x + v.w);
             b.x += std::abs(l) <= std::abs(r) ? l : r;
-            const double t = snapAxis(m_layout->rows, b.y) - b.y, bo = snapAxis(m_layout->rows, b.y + b.h) - (b.y + b.h);
+            const double t = snapAxis(m_layout->rows, v.y) - v.y, bo = snapAxis(m_layout->rows, v.y + v.h) - (v.y + v.h);
             b.y += std::abs(t) <= std::abs(bo) ? t : bo;
         } else if (!xs.empty()) {
             // (the edge nearest an edge of another object goes to it, along each way)
-            const double l = snapToEdges(xs, b.x, within) - b.x, r = snapToEdges(xs, b.x + b.w, within) - (b.x + b.w);
+            const double l = snapToEdges(xs, v.x, within) - v.x, r = snapToEdges(xs, v.x + v.w, within) - (v.x + v.w);
             if (l != 0 || r != 0) b.x += l != 0 && (r == 0 || std::abs(l) <= std::abs(r)) ? l : r;
-            const double t = snapToEdges(ys, b.y, within) - b.y, bo = snapToEdges(ys, b.y + b.h, within) - (b.y + b.h);
+            const double t = snapToEdges(ys, v.y, within) - v.y, bo = snapToEdges(ys, v.y + v.h, within) - (v.y + v.h);
             if (t != 0 || bo != 0) b.y += t != 0 && (bo == 0 || std::abs(t) <= std::abs(bo)) ? t : bo;
         }
         return b;
@@ -1024,7 +1041,7 @@ ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardM
     if (right) x1 += dx;
     if (top) y0 += dy;
     if (bottom) y1 += dy;
-    if (alt) {
+    if (toCells && !turned) {
         if (left) x0 = snapAxis(m_layout->cols, x0);
         if (right) x1 = snapAxis(m_layout->cols, x1);
         if (top) y0 = snapAxis(m_layout->rows, y0);
@@ -1053,7 +1070,6 @@ ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardM
         if (top) y0 = y1 - hh;
         else y1 = y0 + hh;
     }
-    Q_UNUSED(e);
     b.x = std::max(0.0, x0);
     b.y = std::max(0.0, y0);
     b.w = std::max(kMinObject, x1 - std::max(0.0, x0));

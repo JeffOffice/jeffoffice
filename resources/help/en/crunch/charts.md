@@ -26,6 +26,9 @@ Pick a chart. Three small buttons show beside it. The one with a funnel is **Cha
 Click a chart, picture, or shape to pick it. Drag it to move it, or drag one of the eight squares on its edge to size it.
 
 - Hold **Alt** while you drag to make an edge line up with the edge of a cell.
+- **Snap to Grid** and **Snap to Shape** are on the **Shape Format** tab, and are kept for you, for every workbook. With **Snap to Grid** on, an edge that you drag goes to the nearest edge of a cell. With **Snap to Shape** on, an edge goes to the edge of another object when it is within 6 pixels of it. Only the first 2,000 other objects of a sheet count for **Snap to Shape**. With both on, the edges of cells win, because an object is anchored to cells, and the other objects' edges are not looked at. A change reaches every open window at once.
+- **Alt** reverses the snapping that is on for one drag: with **Snap to Grid** or **Snap to Shape** on, holding **Alt** turns snapping off for that drag (it never changes to the other kind), and with both off, **Alt** makes the edges go to cells, as above.
+- A turned object is snapped by the outline you see (the smallest box that holds it), not by its frame before it was turned, and so are the objects it snaps to.
 - Hold **Shift** while you drag a corner to keep the proportions.
 - The arrow keys move it a few pixels at a time. **Ctrl** with an arrow moves it one pixel, **Shift** with an arrow makes it larger or smaller, and **Alt** with an arrow goes to the next edge of a cell.
 - **Esc** while you drag puts it back.

@@ -94,6 +94,12 @@ SpellSettingNotifier &SpellSettingNotifier::get()
     return n;
 }
 
+ObjectSnapNotifier &ObjectSnapNotifier::get()
+{
+    static ObjectSnapNotifier n;
+    return n;
+}
+
 AutoRecoverNotifier &AutoRecoverNotifier::get()
 {
     static AutoRecoverNotifier n;

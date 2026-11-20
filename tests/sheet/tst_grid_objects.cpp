@@ -167,6 +167,13 @@ struct Scene {
     QRgb at(int x, int y) const { return canvas.pixel(int(std::lround(x * ratio)), int(std::lround(y * ratio))); }
 };
 
+// The middle of an object's box in the window: the scene's layout has no headers and is at 100%, so the box's places are the window's.
+QPoint middleOf(const Scene &s, int id)
+{
+    const ObjectBox b = s.objects.lastBox(id);
+    return QPoint(int(std::lround(b.x + b.w / 2)), int(std::lround(b.y + b.h / 2)));
+}
+
 } // namespace
 
 class GridObjectTests : public QObject {
@@ -1032,7 +1039,8 @@ private Q_SLOTS:
     }
 
     // Snap to Grid takes the edges to cells in every drag without Alt (Alt then leaves them free); Snap to Shape takes an edge to an edge of another object within a few pixels, and only
-    // within them; the cells' edges win when both are on.
+    // within them; Alt inverts whichever snapping is on for the one drag (with only Snap to Shape on it turns snapping off, never to the cells' edges); with neither on, Alt takes the edges to
+    // cells as it always did; the cells' edges win when both are on. Every place here is worked out from the layout and the objects' boxes.
     void snapToGridAndSnapToShape()
     {
         Scene s;
@@ -1040,36 +1048,95 @@ private Q_SLOTS:
         s.draw();
         QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
         s.objects.setSnapToGrid(true);
-        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::NoModifier));
-        s.objects.mouseMove(QPoint(130, 67), s.layout, Qt::LeftButton, Qt::NoModifier);
-        s.objects.mouseRelease(QPoint(130, 67), s.layout, Qt::NoModifier);
+        const QPoint from = middleOf(s, 1);
+        QVERIFY(s.objects.press(from, s.layout, Qt::NoModifier));
+        s.objects.mouseMove(from + QPoint(30, 7), s.layout, Qt::LeftButton, Qt::NoModifier);
+        s.objects.mouseRelease(from + QPoint(30, 7), s.layout, Qt::NoModifier);
         QCOMPARE(moved.size(), 1);
         DrawingAnchor a = moved.at(0).at(1).value<DrawingAnchor>();
         QCOMPARE(a.from.colOff, px(0));
         QCOMPARE(a.from.rowOff, px(0));
         moved.clear();
         // (with Alt the edges are left free)
-        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::AltModifier));
-        s.objects.mouseMove(QPoint(130, 67), s.layout, Qt::LeftButton, Qt::AltModifier);
-        s.objects.mouseRelease(QPoint(130, 67), s.layout, Qt::AltModifier);
+        QVERIFY(s.objects.press(from, s.layout, Qt::AltModifier));
+        s.objects.mouseMove(from + QPoint(30, 7), s.layout, Qt::LeftButton, Qt::AltModifier);
+        s.objects.mouseRelease(from + QPoint(30, 7), s.layout, Qt::AltModifier);
         QCOMPARE(moved.size(), 1);
         a = moved.at(0).at(1).value<DrawingAnchor>();
         QVERIFY(a.from.colOff != px(0) || a.from.rowOff != px(0));
-        // Snap to Shape
+        // Snap to Shape: object 1's right edge is 5 pixels into the cell its two-cell anchor ends in, which is no edge of a cell; object 2 is dragged by its middle, along the row
         Scene t;
-        t.objects.setObjects({colored(1, twoCell(1, 2, 3, 4), kRed), colored(2, twoCell(1, 6, 2, 8, px(10), px(5), px(10), px(5)), kRed)});
+        t.objects.setObjects({colored(1, twoCell(1, 2, 3, 4, 0, 0, px(5), 0), kRed), colored(2, twoCell(1, 6, 2, 8, px(10), px(5), px(10), px(5)), kRed)});
         t.draw();
-        auto leftAfterDrag = [&](int dx) {
-            t.objects.press(QPoint(100, 140), t.layout, Qt::NoModifier);
-            t.objects.mouseMove(QPoint(100 + dx, 140), t.layout, Qt::LeftButton, Qt::NoModifier);
+        const double edge = t.objects.lastBox(1).x + t.objects.lastBox(1).w;          // (the edge to go to)
+        const double start = t.objects.lastBox(2).x, cellEdge = double(t.layout.cols.position(3));
+        const QPoint grab = middleOf(t, 2);   // (where the object is taken, as it is before any drag: a drag that is let go leaves the object where its anchor says)
+        QVERIFY(std::abs(edge - cellEdge) > 1 && std::abs(edge - cellEdge) < 6);
+        auto leftAfterDrag = [&](double to, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            const QPoint at = grab, target(at.x() + int(std::lround(to - start)), at.y());
+            t.objects.press(at, t.layout, mods);
+            t.objects.mouseMove(target, t.layout, Qt::LeftButton, mods);
             const double x = t.objects.lastBox(2).x;
-            t.objects.mouseRelease(QPoint(100 + dx, 140), t.layout, Qt::NoModifier);
+            t.objects.mouseRelease(target, t.layout, mods);
             return x;
         };
-        QCOMPARE(leftAfterDrag(115), 189.0);   // (3 pixels short of the other object's right edge, at 192)
+        const double near = edge + 3;                         // (3 pixels past the edge)
+        QCOMPARE(leftAfterDrag(near), near);                  // (neither on: free)
+        QCOMPARE(leftAfterDrag(near, Qt::AltModifier), double(t.layout.cols.position(3)));   // (neither on: Alt goes to the cells, as it always has)
         t.objects.setSnapToShapes(true);
-        QCOMPARE(leftAfterDrag(115), 192.0);
-        QCOMPARE(leftAfterDrag(100), 174.0);   // (18 pixels away: not near enough)
+        QCOMPARE(leftAfterDrag(near), edge);
+        QCOMPARE(leftAfterDrag(edge - 18), edge - 18);        // (18 pixels away: not near enough)
+        QCOMPARE(leftAfterDrag(near, Qt::AltModifier), near); // (Alt turns the snapping off for the one drag, and does not go to the cells instead)
+        t.objects.setSnapToGrid(true);
+        QCOMPARE(leftAfterDrag(near), double(t.layout.cols.position(3)));   // (both on: the cells' edges win)
+        QCOMPARE(leftAfterDrag(near, Qt::AltModifier), near);               // (both on: Alt leaves every edge free)
+        t.objects.setSnapToShapes(false);
+        QCOMPARE(leftAfterDrag(near), double(t.layout.cols.position(3)));
+        QCOMPARE(leftAfterDrag(near, Qt::AltModifier), near);
+    }
+
+    // A turned object is snapped by the outline a person sees (the box that holds it turned), not by its unturned frame: to the edges of other objects and to the edges of cells.
+    void snapUsesTheVisibleOutlineOfATurnedObject()
+    {
+        auto scene = [](double degrees) {
+            auto s = std::make_unique<Scene>();
+            LayerObject turned = colored(1, twoCell(1, 2, 3, 3), kRed);   // (128 wide and 20 high; turned a quarter it is seen 20 wide and 128 high about the same middle)
+            turned.rotation = degrees;
+            s->objects.setObjects({turned, colored(2, twoCell(2, 8, 3, 10, px(22), 0, px(22), 0), kRed)});
+            s->draw();
+            return s;
+        };
+        auto leftAfterDrag = [](Scene &s, int dx) {
+            const QPoint at = middleOf(s, 1);
+            s.objects.press(at, s.layout, Qt::NoModifier);
+            s.objects.mouseMove(at + QPoint(dx, 0), s.layout, Qt::LeftButton, Qt::NoModifier);
+            const double x = s.objects.lastBox(1).x;
+            s.objects.mouseRelease(at + QPoint(dx, 0), s.layout, Qt::NoModifier);
+            return x;
+        };
+        // (to the left edge of the other object: 22 pixels into a cell, so no edge of a cell)
+        {
+            auto upright = scene(0), turned = scene(90);
+            upright->objects.setSnapToShapes(true);
+            turned->objects.setSnapToShapes(true);
+            const ObjectBox frame = turned->objects.lastBox(1);
+            const double otherLeft = turned->objects.lastBox(2).x;
+            const double seenRight = frame.x + frame.w / 2 + frame.h / 2;      // (the right edge of the turned outline)
+            const int dx = int(std::lround(otherLeft - seenRight)) - 2;        // (2 pixels short of the other object's left edge)
+            QCOMPARE(leftAfterDrag(*turned, dx), frame.x + dx + 2);             // (the seen edge goes to it)
+            QCOMPARE(leftAfterDrag(*upright, dx), frame.x + dx);                // (the same drag of an object not turned: no edge of its frame is near one)
+        }
+        // (to the cells: the turned outline's left edge is on a cell's edge after the drag, so nothing moves; the unturned frame would be taken 10 pixels to its nearest edges)
+        {
+            auto upright = scene(0), turned = scene(90);
+            upright->objects.setSnapToGrid(true);
+            turned->objects.setSnapToGrid(true);
+            const ObjectBox frame = turned->objects.lastBox(1);
+            const double seenLeft = frame.x + frame.w / 2 - frame.h / 2;
+            const int dx = int(std::lround(double(turned->layout.cols.position(2)) - seenLeft));
+            QCOMPARE(leftAfterDrag(*turned, dx), frame.x + dx);
+            QVERIFY(std::abs(leftAfterDrag(*upright, dx) - (frame.x + dx)) > 5);
+        }
     }
 
     // The arrow keys move the picked object a few pixels (one with Control), Shift sizes it, Alt goes to the next edge of a cell.

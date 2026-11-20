@@ -84,6 +84,15 @@ Q_SIGNALS:
     void changed(bool on);
 };
 
+// Snap to Grid and Snap to Shape (an app's commands for dragging objects, kept for the person): every open window of this app hears a change at once and shows the choices as they now are.
+class JO_COMMON_EXPORT ObjectSnapNotifier : public QObject {
+    Q_OBJECT
+public:
+    static ObjectSnapNotifier &get();
+Q_SIGNALS:
+    void changed();
+};
+
 // How often the automatic recovery information is saved (Options > Save): every window of every app hears a change at once (see recovery::followInterval).
 class JO_COMMON_EXPORT AutoRecoverNotifier : public QObject {
     Q_OBJECT

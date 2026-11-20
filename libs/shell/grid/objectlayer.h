@@ -81,6 +81,9 @@ struct LayerObject {
     std::function<bool(const QPointF &fraction, const QSizeF &units)> operate;
     bool fixed = false;
     QString tooltip;
+    // How far the object is turned about its center (degrees, clockwise), once it is known (see `settle`): `box` is its unturned frame, and the outline a person sees is the box that holds the
+    // turned frame, which is what snapping goes by.
+    double rotation = 0;
 };
 
 class JO_COMMON_EXPORT ObjectLayer : public QObject, public GridOverlay {

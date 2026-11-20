@@ -38,6 +38,15 @@ void CrunchWindow::createArrangeActions()
         QAction *a = mk(id, snap.second, id == QLatin1String("object.snapGrid") ? "grid-3x3" : "magnet", QKeySequence(), [this, id] { applySnapChoices(true, id); }, true);
         a->setChecked(Settings::get().value(QStringLiteral("crunch/") + id.mid(7), false).toBool());
     }
+    // (a choice made in any window is the choice of every window at once)
+    connect(&ObjectSnapNotifier::get(), &ObjectSnapNotifier::changed, this, [this] {
+        for (const char *id : {"object.snapGrid", "object.snapShape"}) {
+            QAction *a = act(QString::fromLatin1(id));
+            const QSignalBlocker block(a);
+            a->setChecked(Settings::get().value(QStringLiteral("crunch/") + QString::fromLatin1(id).mid(7), false).toBool());
+        }
+        applySnapChoices(false, QString());
+    });
     mk("object.selectObjects", tr("Select Objects"), "square-dashed-mouse-pointer", QKeySequence(), [this] { setSelectObjectsMode(!(m_picker && m_picker->boxMode())); }, true, false);
     m_opsActions << QStringLiteral("object.selectObjects");
     updateArrangeActions();
@@ -56,6 +65,7 @@ void CrunchWindow::applySnapChoices(bool save, const QString &changed)
     if (!save) return;
     const bool on = act(changed)->isChecked();
     Settings::get().setValue(QStringLiteral("crunch/") + changed.mid(7), on);
+    Q_EMIT ObjectSnapNotifier::get().changed();
     setStatus(changed == QLatin1String("object.snapGrid") ? (on ? tr("Snap to Grid is on: objects go to the edges of cells as you drag them.") : tr("Snap to Grid is off."))
                                                            : (on ? tr("Snap to Shape is on: objects go to the edges of other objects as you drag them.") : tr("Snap to Shape is off.")));
 }
