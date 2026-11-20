@@ -7,18 +7,44 @@ those the reader keeps when the document is read and saved again.
 Read-only: every file is only read; the saved copy of a file that has markup is made in a temporary folder
 that is removed. For each markup element (by local name) and each kind of part (body: word/document.xml;
 header or footer: word/header*.xml and footer*.xml; notes: word/footnotes.xml and endnotes.xml) the table has
-the documents that contain it, and the documents whose saved copy still has the same number of them (kept). Then, for each kind of part, the documents whose changes `review-list` lists.
+the documents that contain it (the word-processing namespace only: a drawing's path command moveTo is not a move), and the documents whose saved copy still has the same number of them (kept). Then, for each kind of part, the documents whose changes `review-list` lists.
 Documents are counted once each, by content hash, however many folders hold them.
 """
-import hashlib, os, re, subprocess, sys, tempfile, zipfile
+import hashlib, io, os, re, subprocess, sys, tempfile, zipfile
+import xml.etree.ElementTree as ET
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 
 NAMES = ["ins", "del", "moveFrom", "moveTo", "moveFromRangeStart", "moveToRangeStart", "rPrChange", "pPrChange", "sectPrChange",
          "tblPrChange", "tblGridChange", "trPrChange", "tcPrChange", "tblPrExChange", "numberingChange", "cellIns", "cellDel", "cellMerge"]
+# A cheap first look (any prefix); what is counted is only an element of the word-processing namespace, found with the parser (a drawing's path command is also called moveTo).
 TAG = re.compile(rb"<(?:[A-Za-z0-9]+:)?(" + "|".join(NAMES).encode() + rb")[\s/>]")
+WORD_NS = ("http://schemas.openxmlformats.org/wordprocessingml/2006/main", "http://purl.oclc.org/ooxml/wordprocessingml/main")
+WANTED = set(NAMES)
 PARTS = [("body", re.compile(r"^word/document\.xml$")), ("header/footer", re.compile(r"^word/(header|footer)\d*\.xml$")),
          ("notes", re.compile(r"^word/(footnotes|endnotes)\.xml$"))]
+
+
+def word_elements(data):
+    """The elements of one part that are in the word-processing namespace and are one of NAMES, as a Counter by local name."""
+    found = Counter()
+    try:
+        for _, el in ET.iterparse(io.BytesIO(data), events=("start",)):
+            tag = el.tag
+            if tag.startswith("{"):
+                ns, _, local = tag[1:].partition("}")
+                if ns in WORD_NS and local in WANTED:
+                    found[local] += 1
+    except ET.ParseError:
+        # A part that is not well formed: what the parser had read before the error is not counted, and the part is counted by the
+        # prefixes its own declarations bind to the namespace (an unparsable part is rare and the reader is as strict as the parser).
+        prefixes = {m.decode() for ns in WORD_NS for m in re.findall(rb'xmlns:([A-Za-z0-9_.-]+)="' + re.escape(ns.encode()) + rb'"', data)}
+        found = Counter()
+        for m in TAG.finditer(data):
+            pre = re.match(rb"<([A-Za-z0-9]+):", m.group(0))
+            if pre and pre.group(1).decode() in prefixes:
+                found[m.group(1).decode()] += 1
+    return found
 
 
 def count(path):
@@ -30,8 +56,11 @@ def count(path):
                     if rx.match(n):
                         if z.getinfo(n).file_size > 200_000_000:
                             continue
-                        for m in TAG.finditer(z.read(n)):
-                            c[(kind, m.group(1).decode())] += 1
+                        data = z.read(n)
+                        if not TAG.search(data):
+                            continue
+                        for local, k in word_elements(data).items():
+                            c[(kind, local)] += k
     except (zipfile.BadZipFile, OSError, KeyError, RuntimeError):
         return None
     return c
