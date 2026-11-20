@@ -674,6 +674,7 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("file.shrinkOnePage"), QStringLiteral("a document of one page has no page to take off, and it says so; shrinkByOnePageTakesOffAPageInOneStep and shrinkByOnePageRefusesWhenTheTextCannotFit try it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},
             {QStringLiteral("mail.check"), QStringLiteral("it only reports on the merge (here: no errors are found); the mail tests check what it says")},
