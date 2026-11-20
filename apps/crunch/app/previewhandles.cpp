@@ -2,10 +2,12 @@
 
 #include "app/plaintext.h"
 
+#include <QAccessible>
 #include <QCoreApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPainter>
+#include <QPointer>
 #include <QPalette>
 #include <QWidget>
 
@@ -86,7 +88,23 @@ protected:
         }
         const double next = std::clamp(spec.position + (e->key() == forward ? 1 : -1) * PreviewHandles::kKeyStep, spec.lowest, spec.highest);
         if (next == spec.position) return;
+        const double was = spec.position;
+        QPointer<PreviewHandle> self(this);
         if (m_owner->moved) m_owner->moved(spec.kind, spec.column, next);
+        // (a place that changed is said when the key is let go, not at each press a held key repeats)
+        if (self && spec.position != was) m_pending = true;
+    }
+    void keyReleaseEvent(QKeyEvent *e) override
+    {
+        const int back = vertical() ? Qt::Key_Left : Qt::Key_Up, forward = vertical() ? Qt::Key_Right : Qt::Key_Down;
+        if (e->isAutoRepeat() || !m_pending || (e->key() != back && e->key() != forward)) {
+            QWidget::keyReleaseEvent(e);
+            return;
+        }
+        m_pending = false;
+        if (spec.said.isEmpty()) return;
+        QAccessibleAnnouncementEvent say(this, spec.said);
+        QAccessible::updateAccessibility(&say);
     }
     void focusInEvent(QFocusEvent *e) override
     {
@@ -119,6 +137,7 @@ private:
     }
     PreviewHandles *m_owner;
     bool m_dragging = false;
+    bool m_pending = false;   // a key moved the handle, and what it says of it has not been said
     double m_pressAt = 0, m_startPx = 0, m_dragged = 0;
 };
 

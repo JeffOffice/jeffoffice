@@ -54,6 +54,13 @@ struct PrintState {
     // the page the handles on the preview are for: its sheet, scale, and the columns they stand at
     int handlePage = -1;
     crunch::PrintJob::PreviewGuides guides;
+    // The width a column's handle has been moved from, in the sheet's own units: the width the file gave, and the printer pixels it has been moved by since (so that a key pressed again and again
+    // is whole steps of those units from that width, and the keys back are the same steps the other way: the column is as it was, not as the page and its pixels make of it each time).
+    struct MovedWidth {
+        int sheet = -1;
+        qint64 column = -1;
+        double base = 0, last = 0, pixels = 0;
+    } movedWidth;
 };
 
 // The preview, which says when its box changed size so the page is drawn again to fit.
@@ -365,14 +372,26 @@ QWidget *CrunchFileScreen::buildPrint()
             if (setup && !state->job->marginsChosen()) {
                 const auto &m = setup->margins;
                 const double w = paperSize.width(), h = paperSize.height();
-                specs.push_back({PreviewHandles::Kind::MarginLeft, 0, m.left * 72, 0, h, 0, w - m.right * 72 - room, tr("Left margin")});
-                specs.push_back({PreviewHandles::Kind::MarginRight, 0, w - m.right * 72, 0, h, m.left * 72 + room, w, tr("Right margin")});
-                specs.push_back({PreviewHandles::Kind::MarginTop, 0, m.top * 72, 0, w, 0, h - m.bottom * 72 - room, tr("Top margin")});
-                specs.push_back({PreviewHandles::Kind::MarginBottom, 0, h - m.bottom * 72, 0, w, m.top * 72 + room, h, tr("Bottom margin")});
+                // (each is named for which margin it is and how much it is, in the program's units: that is what is said when it is moved, too)
+                auto margin = [&](PreviewHandles::Kind kind, double at, double from, double to, double lowest, double highest, const QString &name, double inches) {
+                    const QString words = name.arg(Settings::get().format(inches * 72, 2));
+                    specs.push_back({kind, 0, at, from, to, lowest, highest, words, words});
+                };
+                margin(PreviewHandles::Kind::MarginLeft, m.left * 72, 0, h, 0, w - m.right * 72 - room, tr("Left margin, %1"), m.left);
+                margin(PreviewHandles::Kind::MarginRight, w - m.right * 72, 0, h, m.left * 72 + room, w, tr("Right margin, %1"), m.right);
+                margin(PreviewHandles::Kind::MarginTop, m.top * 72, 0, w, 0, h - m.bottom * 72 - room, tr("Top margin, %1"), m.top);
+                margin(PreviewHandles::Kind::MarginBottom, h - m.bottom * 72, 0, w, m.top * 72 + room, h, tr("Bottom margin, %1"), m.bottom);
             }
-            for (const auto &edge : state->guides.columns)
-                specs.push_back({PreviewHandles::Kind::ColumnRight, edge.col, edge.right, state->guides.cells.top(), state->guides.cells.bottom(), edge.left + 3, paperSize.width(),
-                                 tr("Width of column %1").arg(jp::office::sheet::columnName(quint32(edge.col)))});
+            // (a column's handle is at its far edge: its right, or its left on a page that is mirrored, where dragging it away from the column makes the column wider)
+            const bool mirrored = state->guides.rightToLeft;
+            const int columnCount = int(state->guides.columns.size());
+            int place = 0;
+            for (const auto &edge : state->guides.columns) {
+                const QString letter = jp::office::sheet::columnName(quint32(edge.col));
+                specs.push_back({PreviewHandles::Kind::ColumnRight, edge.col, mirrored ? edge.left : edge.right, state->guides.cells.top(), state->guides.cells.bottom(), mirrored ? 0.0 : edge.left + 3,
+                                 mirrored ? edge.right - 3 : paperSize.width(), tr("Width of column %1, %2 of %3").arg(letter).arg(++place).arg(columnCount),
+                                 tr("Column %1 is %2 wide").arg(letter, Settings::get().format(edge.right - edge.left, 2))});
+            }
             handles->place(page, paperSize, specs);
         }
         if (!handled) {
@@ -439,7 +458,20 @@ QWidget *CrunchFileScreen::buildPrint()
         if (kind == PreviewHandles::Kind::ColumnRight) {
             for (const auto &edge : guides.columns) {
                 if (edge.col != column) continue;
-                const double chars = state->job->fileWidthForPoints(guides.sheet, guides.scalePercent, points - edge.left);
+                // (how much wider the column is to be, in the page's points: the handle was at the column's far edge)
+                const double wider = guides.rightToLeft ? edge.left - points : points - edge.right;
+                double chars = 0;
+                const double fileWidth = state->job->columnFileWidth(guides.sheet, column);
+                if (fileWidth > 0) {
+                    // (the width the file gives, moved by steps of the sheet's units: the same steps the other way give the same width back, to the digit)
+                    auto &moved = state->movedWidth;
+                    if (moved.sheet != guides.sheet || moved.column != column || std::abs(moved.last - fileWidth) > 1e-3) moved = {guides.sheet, column, fileWidth, fileWidth, 0};
+                    moved.pixels += crunch::PrintJob::printerPixelsFor(guides.scalePercent, wider);
+                    chars = std::abs(moved.pixels) < 1e-9 ? moved.base : state->job->fileWidthAtOffset(guides.sheet, moved.base, moved.pixels);
+                    moved.last = chars;
+                } else {
+                    chars = state->job->fileWidthForPoints(guides.sheet, guides.scalePercent, guides.rightToLeft ? edge.right - points : points - edge.left);
+                }
                 if (chars > 0) win->changeColumnWidthFromPreview(guides.sheet, quint32(column), chars);
             }
         } else if (setup) {

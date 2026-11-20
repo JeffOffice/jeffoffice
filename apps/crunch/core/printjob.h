@@ -25,6 +25,7 @@
 
 #include <functional>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include <vector>
 
@@ -207,8 +208,20 @@ public:
         int scalePercent = 100;
         QRectF cells;
         std::vector<ColumnEdge> columns;
+        bool rightToLeft = false;   // the page is mirrored: a column's far edge (the one a drag widens it by) is its left
     };
     bool guidesOf(int page, PreviewGuides *out);
+    // The edges of a column on a page (points from its top left), from the page's column axis (a merged cell over the column is wider, and is not what a column's width is).
+    bool columnEdges(int page, qint64 col, double *left, double *right);
+    // The width the file gives a column of a sheet (characters; -1 when it gives none), the width it has when it is `pixels` wider (printer pixels, whole or not: the sheet's own units, counted
+    // from the width the file has), and the printer pixels a width on a page printed at `scalePercent` comes to.
+    double columnFileWidth(int sheet, qint64 col) const;
+    double fileWidthAtOffset(int sheet, double fileWidth, double pixels) const;
+    static double printerPixelsFor(int scalePercent, double pagePoints);
+    // How many times the links of a PDF asked for the boxes of a range on a page (counted, for tests).
+    qint64 linkLookups() const { return m_linkLookups; }
+    // The test sets it to make the writing of a PDF's properties fail (a file that is made in a way this cannot extend), which the program never does.
+    static void failPropertiesForTest(bool on);
     // The width in characters a column of the sheet has when it is `pointsOnPage` wide on a page printed at `scalePercent`, and the points it is wide on such a page when it has this width.
     double fileWidthForPoints(int sheet, int scalePercent, double pointsOnPage) const;
     double pointsOnPageFor(int sheet, int scalePercent, double fileWidth) const;
@@ -302,8 +315,35 @@ private:
     // The links of the pages as the PDF holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF) and `places` where each page is put on its sheet. At most kMostPdfLinks.
     // The properties of a PDF file: the document's own when the job was given them, else the file's name, this program, and the time.
     jp::PdfInfo pdfInfoForFile() const;
-    QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places);
+    qint64 m_linkLookups = 0;
+    // What the links left out: past the most a PDF holds, or for an address longer than the longest, and whether the work was stopped (`keepGoing` says no).
+    struct PdfLinksLeftOut {
+        bool cut = false;
+        qint64 tooLong = 0;
+        bool cancelled = false;
+    };
+    QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places, const std::function<bool()> &keepGoing = nullptr, PdfLinksLeftOut *left = nullptr);
     int firstPdfPageOf(int sheet, const QVector<int> &pdfPageOf) const;
+    // The range with the merged cells it touches taken in whole (a merged cell is boxed over the whole of its area).
+    jp::office::sheet::CellRange withMerges(int info, jp::office::sheet::CellRange range);
+    // The pages of a sheet's print (a place in m_sheets) by the rows and columns they show, made once: a link is asked only of the pages that can show its cells.
+    struct PageIndex {
+        struct Band {
+            qint64 first = 0, last = -1;
+        };
+        struct Block {
+            std::vector<Band> rowBands, colBands;   // by band number (the pages' own lines)
+            qint64 titleRow1 = -1, titleRow2 = -1, titleCol1 = -1, titleCol2 = -1;
+            std::unordered_map<quint64, int> pages;   // (row band, column band) to the job's page
+        };
+        std::vector<Block> blocks;   // by block of the print
+        bool regular = true;         // the pages are a grid of bands, each band the same on every page it is on (when not, the pages are looked over one by one)
+    };
+    const PageIndex &pageIndexOf(int info) const;
+    // The job's pages of the print that can show a cell of the range (its own lines, and with `titles` the titles repeated on a page), in order; false if `tick` said to stop.
+    bool pagesShowing(int info, qint64 row1, qint64 col1, qint64 row2, qint64 col2, bool titles, const std::function<bool()> &tick, std::vector<int> *out) const;
+    mutable std::vector<PageIndex> m_pageIndex;
+    mutable bool m_indexed = false;
     bool shownRect(int page, qint64 r1, qint64 c1, qint64 r2, qint64 c2, QRectF *rect);
     Context &contextFor(int infoIndex);
     // The painters of a sheet (cells and, unless `forBackdrop`, objects).

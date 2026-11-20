@@ -12,11 +12,13 @@
 
 #include "app/crunchwindow.h"
 #include "app/pagesetupdialog.h"
+#include "app/pdfproperties.h"
 #include "core/editsession.h"
 #include "core/loader.h"
 #include "core/printjob.h"
 #include "grid/gridview.h"
 #include "office/package.h"
+#include "office/packageprops.h"
 #include "core/sheetobjects.h"
 #include "sheet/cellref.h"
 
@@ -70,6 +72,9 @@ struct Opened {
     {
         options.fileName = QFileInfo(path).fileName();
         options.folder = QFileInfo(path).absolutePath();
+        // (the workbook's own properties go into a PDF as they do from the program: the same function makes them, so "remove personal information" is honored too)
+        options.pdfInfo = pdfDocumentInfo(office::readPackageProps(book.book->package()), QFileInfo(path).completeBaseName(), false);
+        options.hasPdfInfo = true;
         // JP_NOW (an ISO 8601 date and time, say 2026-10-15T19:31:36-04:00) is the moment the date and time fields show, so a page can be drawn again as of the day a reference was made
         // (a tool's; the app does not read it).
         if (const QDateTime moment = QDateTime::fromString(qEnvironmentVariable("JP_NOW"), Qt::ISODate); moment.isValid()) options.now = moment;

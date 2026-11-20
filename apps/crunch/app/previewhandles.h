@@ -26,7 +26,8 @@ public:
         double position = 0;        // across the page for a vertical handle, down it for a horizontal one (points from the page's top left)
         double from = 0, to = 0;    // how far along the other way it reaches (points)
         double lowest = 0, highest = 0;   // the places it may be moved between (points)
-        QString name;
+        QString name;               // what a screen reader says of it: which it is, and where it is (a column: its letter and its place among those shown; a margin: how much it is)
+        QString said;               // what is said when a key has moved it
     };
     // The handles are made on `surface`, the widget the preview is drawn on.
     explicit PreviewHandles(QWidget *surface);

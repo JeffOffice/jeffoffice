@@ -831,16 +831,21 @@ bool PrintJob::rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64
 
 bool PrintJob::shownRect(int page, qint64 r1, qint64 c1, qint64 r2, qint64 c2, QRectF *rect)
 {
-    if (r1 > r2 || c1 > c2) return false;
-    QRectF a, b;
-    // (the first and last cells the page shows of it; a hidden row or column at an end has none, so the next one that is shown is looked for, a few steps)
-    auto shown = [&](qint64 row, qint64 col, int step, QRectF *out) {
-        for (int i = 0; i < 64; ++i) {
-            if (cellRect(page, std::clamp<qint64>(row + step * i, r1, r2), std::clamp<qint64>(col + step * i, c1, c2), out)) return true;
-        }
-        return false;
+    if (r1 > r2 || c1 > c2 || page < 0 || page >= pageCount()) return false;
+    const SheetInfo &info = m_sheets[size_t(m_pages[size_t(page)].info)];
+    // (the first and last row and column of the range that are shown, found from the axes: a hidden row or column at an end has no cell, however many there are)
+    auto firstShown = [](const jp::grid::Axis &axis, qint64 a, qint64 b) -> qint64 {
+        const qint64 i = axis.isHidden(a) ? axis.nextVisible(a) : a;
+        return i <= b ? i : -1;
     };
-    if (!shown(r1, c1, 1, &a) || !shown(r2, c2, -1, &b)) return false;
+    auto lastShown = [](const jp::grid::Axis &axis, qint64 a, qint64 b) -> qint64 {
+        const qint64 i = axis.isHidden(b) ? axis.previousVisible(b) : b;
+        return i >= a ? i : -1;
+    };
+    const qint64 firstRow = firstShown(info.rows, r1, r2), lastRow = lastShown(info.rows, r1, r2), firstCol = firstShown(info.cols, c1, c2), lastCol = lastShown(info.cols, c1, c2);
+    if (firstRow < 0 || lastRow < 0 || firstCol < 0 || lastCol < 0) return false;
+    QRectF a, b;
+    if (!cellRect(page, firstRow, firstCol, &a) || !cellRect(page, lastRow, lastCol, &b)) return false;
     *rect = a.united(b);
     return true;
 }
@@ -861,10 +866,15 @@ std::vector<QRectF> PrintJob::linkRects(int page, qint64 row1, qint64 col1, qint
         if (std::max(a, first) <= std::min(b, last)) v.push_back({std::max(a, first), std::min(b, last)});
         return v;
     };
+    // (a merged cell goes past the page it is on: the box is the part of it the page's cells show)
+    QRectF area;
+    const bool haveArea = contextFor(pg.info).painter->cellsArea(info.print, cut, info.setup, &area);
     for (const Span &r : spans(row1, row2, cut.row1, cut.row2, cut.titleRow1, cut.titleRow2))
         for (const Span &c : spans(col1, col2, cut.col1, cut.col2, cut.titleCol1, cut.titleCol2)) {
             QRectF box;
-            if (shownRect(page, r.first, c.first, r.second, c.second, &box)) out.push_back(box);
+            if (!shownRect(page, r.first, c.first, r.second, c.second, &box)) continue;
+            if (haveArea) box = box.intersected(area);
+            if (box.width() > 0 && box.height() > 0) out.push_back(box);
         }
     return out;
 }
@@ -878,26 +888,59 @@ bool PrintJob::guidesOf(int page, PreviewGuides *out)
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     PreviewGuides g;
     g.sheet = info.sheet;
+    g.rightToLeft = contextFor(pg.info).grid->rightToLeft();
     g.scalePercent = info.print.scalePercent;
     // (the cells' own area: the body and the titles repeated beside and above it)
     const qint64 row1 = cut.titleRow1 >= 0 && cut.titleRow2 < cut.row1 ? cut.titleRow1 : cut.row1, col1 = cut.titleCol1 >= 0 && cut.titleCol2 < cut.col1 ? cut.titleCol1 : cut.col1;
     for (const QRectF &r : linkRects(page, row1, col1, cut.row2, cut.col2)) g.cells = g.cells.united(r);
-    // (a column's own width is the narrowest the cells of its first rows have on the page: a merged cell is wider than the column)
+    // (a column's own edges: from the page's column axis, not from the cells over it, which a merged cell makes wider)
     auto add = [&](qint64 first, qint64 last) {
         for (qint64 col = first; col <= last && g.columns.size() < kMostColumnEdges; ++col) {
-            QRectF best;
-            for (qint64 row = row1; row <= cut.row2 && row < row1 + 24; ++row) {
-                QRectF r;
-                if (cellRect(page, row, col, &r) && (best.isNull() || r.width() < best.width())) best = r;
-            }
-            if (best.isNull()) continue;
-            g.columns.push_back({col, best.left(), best.right()});
+            double left = 0, right = 0;
+            if (!columnEdges(page, col, &left, &right)) continue;
+            g.columns.push_back({col, left, right});
         }
     };
     if (cut.titleCol1 >= 0 && cut.titleCol2 < cut.col1) add(cut.titleCol1, cut.titleCol2);
     add(cut.col1, cut.col2);
     *out = g;
     return !g.cells.isNull();
+}
+
+bool PrintJob::columnEdges(int page, qint64 col, double *left, double *right)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart || pg.note >= 0) return false;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    const bool colIn = (col >= cut.col1 && col <= cut.col2) || (cut.titleCol1 >= 0 && col >= cut.titleCol1 && col <= cut.titleCol2);
+    if (!colIn) return false;
+    return contextFor(pg.info).painter->columnEdges(info.print, cut, info.setup, col, left, right);
+}
+
+double PrintJob::columnFileWidth(int sheet, qint64 col) const
+{
+    const jp::grid::GridData data = m_source->data(sheet);
+    if (!data.sheet || col < 0) return -1;
+    for (const jp::office::sheet::ColumnSpan &run : data.sheet->columns)
+        if (col >= qint64(run.first) && col <= qint64(run.last)) return run.hidden ? -1 : run.width;
+    return -1;
+}
+
+double PrintJob::printerPixelsFor(int scalePercent, double pagePoints)
+{
+    // (the points on the page are the sheet's own points made smaller or larger by the scale)
+    return scalePercent > 0 ? pagePoints * 100.0 / scalePercent * jp::grid::kPrinterDpi / 72.0 : 0;
+}
+
+double PrintJob::fileWidthAtOffset(int sheet, double fileWidth, double pixels) const
+{
+    const jp::grid::GridData data = m_source->data(sheet);
+    if (!data.styles) return 0;
+    const int digit = jp::grid::printDigitPixels(*data.styles);
+    const double base = jp::grid::printColumnPoints(fileWidth, digit) * jp::grid::kPrinterDpi / 72.0;
+    return jp::grid::GridSheet::widthForPixels(std::max(1, int(std::lround(base + pixels))), digit);
 }
 
 double PrintJob::fileWidthForPoints(int sheet, int scalePercent, double pointsOnPage) const
@@ -919,13 +962,136 @@ double PrintJob::pointsOnPageFor(int sheet, int scalePercent, double fileWidth) 
 
 int PrintJob::pageOfCell(int sheet, qint64 row, qint64 col) const
 {
-    for (size_t i = 0; i < m_pages.size(); ++i) {
-        const SheetInfo &info = m_sheets[size_t(m_pages[i].info)];
-        if (info.sheet != sheet || m_pages[i].note >= 0) continue;
-        const jp::grid::PageCut &cut = info.print.pages[size_t(m_pages[i].index)];
-        if (row >= cut.row1 && row <= cut.row2 && col >= cut.col1 && col <= cut.col2) return int(i);
+    int first = -1;
+    for (size_t info = 0; info < m_sheets.size(); ++info) {
+        if (m_sheets[info].sheet != sheet || m_sheets[info].chart) continue;
+        std::vector<int> pages;
+        pagesShowing(int(info), row, col, row, col, false, nullptr, &pages);
+        if (!pages.empty() && (first < 0 || pages.front() < first)) first = pages.front();
     }
-    return -1;
+    return first;
+}
+
+const PrintJob::PageIndex &PrintJob::pageIndexOf(int info) const
+{
+    if (!m_indexed) {
+        m_indexed = true;
+        m_pageIndex.assign(m_sheets.size(), PageIndex());
+        for (size_t i = 0; i < m_pages.size(); ++i) {
+            const Page &pg = m_pages[i];
+            if (pg.note >= 0 || pg.info < 0 || size_t(pg.info) >= m_sheets.size()) continue;
+            const SheetInfo &si = m_sheets[size_t(pg.info)];
+            PageIndex &ix = m_pageIndex[size_t(pg.info)];
+            if (si.chart || !ix.regular) continue;
+            if (pg.index < 0 || size_t(pg.index) >= si.print.pages.size()) {
+                ix.regular = false;
+                continue;
+            }
+            const jp::grid::PageCut &cut = si.print.pages[size_t(pg.index)];
+            const int most = int(si.print.pages.size());
+            if (cut.area < 0 || size_t(cut.area) >= std::max<size_t>(1, si.print.areas.size()) || cut.rowBand < 0 || cut.colBand < 0 || cut.rowBand >= most || cut.colBand >= most) {
+                ix.regular = false;
+                continue;
+            }
+            if (ix.blocks.size() <= size_t(cut.area)) ix.blocks.resize(size_t(cut.area) + 1);
+            PageIndex::Block &block = ix.blocks[size_t(cut.area)];
+            auto band = [&](std::vector<PageIndex::Band> &bands, int n, qint64 first, qint64 last) {
+                if (bands.size() <= size_t(n)) bands.resize(size_t(n) + 1);
+                PageIndex::Band &x = bands[size_t(n)];
+                if (x.last < x.first) x = {first, last};
+                else if (x.first != first || x.last != last) ix.regular = false;
+            };
+            band(block.rowBands, cut.rowBand, cut.row1, cut.row2);
+            band(block.colBands, cut.colBand, cut.col1, cut.col2);
+            auto title = [&](qint64 &t1, qint64 &t2, qint64 a, qint64 b) {
+                if (a < 0) return;
+                if (t1 < 0) {
+                    t1 = a;
+                    t2 = b;
+                } else if (t1 != a || t2 != b) {
+                    ix.regular = false;
+                }
+            };
+            title(block.titleRow1, block.titleRow2, cut.titleRow1, cut.titleRow2);
+            title(block.titleCol1, block.titleCol2, cut.titleCol1, cut.titleCol2);
+            if (!block.pages.emplace((quint64(cut.rowBand) << 32) | quint32(cut.colBand), int(i)).second) ix.regular = false;
+        }
+        // (a band with no page, or bands out of order, are not a grid: such a print is looked over page by page)
+        for (PageIndex &ix : m_pageIndex)
+            for (const PageIndex::Block &block : ix.blocks)
+                for (const std::vector<PageIndex::Band> *bands : {&block.rowBands, &block.colBands})
+                    for (size_t k = 0; k < bands->size(); ++k)
+                        if ((*bands)[k].last < (*bands)[k].first || (k > 0 && (*bands)[k].first <= (*bands)[k - 1].last)) ix.regular = false;
+    }
+    return m_pageIndex[size_t(info)];
+}
+
+bool PrintJob::pagesShowing(int info, qint64 row1, qint64 col1, qint64 row2, qint64 col2, bool titles, const std::function<bool()> &tick, std::vector<int> *out) const
+{
+    const PageIndex &ix = pageIndexOf(info);
+    auto step = [&]() { return !tick || tick(); };
+    if (ix.regular) {
+        using Bands = std::vector<PageIndex::Band>;
+        // (the bands that have some of the lines: the titles are on every band's page)
+        auto bandsOf = [&](const Bands &bands, qint64 a, qint64 z, qint64 t1, qint64 t2) {
+            std::vector<int> found;
+            if (titles && t1 >= 0 && std::max(a, t1) <= std::min(z, t2)) {
+                for (size_t k = 0; k < bands.size(); ++k) found.push_back(int(k));
+                return found;
+            }
+            auto at = std::lower_bound(bands.begin(), bands.end(), a, [](const PageIndex::Band &x, qint64 value) { return x.last < value; });
+            for (; at != bands.end() && at->first <= z; ++at) found.push_back(int(at - bands.begin()));
+            return found;
+        };
+        for (const PageIndex::Block &block : ix.blocks) {
+            const std::vector<int> rowsOf = bandsOf(block.rowBands, row1, row2, block.titleRow1, block.titleRow2), colsOf = bandsOf(block.colBands, col1, col2, block.titleCol1, block.titleCol2);
+            for (const int rb : rowsOf)
+                for (const int cb : colsOf) {
+                    if (!step()) return false;
+                    const auto found = block.pages.find((quint64(rb) << 32) | quint32(cb));
+                    if (found != block.pages.end()) out->push_back(found->second);
+                }
+        }
+    } else {
+        for (size_t i = 0; i < m_pages.size(); ++i) {
+            if (m_pages[i].info != info || m_pages[i].note >= 0) continue;
+            if (!step()) return false;
+            const jp::grid::PageCut &cut = m_sheets[size_t(info)].print.pages[size_t(m_pages[i].index)];
+            auto touches = [&](qint64 a, qint64 z, qint64 first, qint64 last, qint64 t1, qint64 t2) {
+                return (std::max(a, first) <= std::min(z, last)) || (titles && t1 >= 0 && std::max(a, t1) <= std::min(z, t2));
+            };
+            if (touches(row1, row2, cut.row1, cut.row2, cut.titleRow1, cut.titleRow2) && touches(col1, col2, cut.col1, cut.col2, cut.titleCol1, cut.titleCol2)) out->push_back(int(i));
+        }
+    }
+    std::sort(out->begin(), out->end());
+    out->erase(std::unique(out->begin(), out->end()), out->end());
+    return true;
+}
+
+jp::office::sheet::CellRange PrintJob::withMerges(int info, jp::office::sheet::CellRange r)
+{
+    using jp::office::sheet::CellRange;
+    const auto &merges = contextFor(info).grid->layout().merges;
+    if (merges.count() == 0) return r;
+    const CellRange start = r;
+    auto take = [&](qint64 row, qint64 col) {
+        const int m = merges.at(quint32(row), quint32(col));
+        if (m < 0) return;
+        const CellRange &x = merges.range(m);
+        r.row1 = std::min(r.row1, x.row1);
+        r.col1 = std::min(r.col1, x.col1);
+        r.row2 = std::max(r.row2, x.row2);
+        r.col2 = std::max(r.col2, x.col2);
+    };
+    // (a few cells are each looked at; of a large range the corners are)
+    if ((qint64(start.row2) - start.row1 + 1) * (qint64(start.col2) - start.col1 + 1) <= 64) {
+        for (qint64 row = start.row1; row <= start.row2; ++row)
+            for (qint64 col = start.col1; col <= start.col2; ++col) take(row, col);
+    } else {
+        for (const qint64 row : {qint64(start.row1), qint64(start.row2)})
+            for (const qint64 col : {qint64(start.col1), qint64(start.col2)}) take(row, col);
+    }
+    return r;
 }
 
 jp::grid::PaperBox PrintJob::paperOf(int page) const
@@ -1101,9 +1267,11 @@ void PrintJob::placeOnSheet(const QVector<int> &group, const QSizeF &sheet, int 
     }
 }
 
-QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places)
+QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places, const std::function<bool()> &keepGoing, PdfLinksLeftOut *left)
 {
     using namespace jp::office::sheet;
+    PdfLinksLeftOut ignored;
+    if (!left) left = &ignored;
     QVector<jp::PdfLink> out;
     std::map<int, std::vector<PrintLink>> bySheet;
     auto linksOf = [&](int sheet) -> const std::vector<PrintLink> & {
@@ -1113,23 +1281,39 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf, const QVe
     };
     QHash<QString, int> sheetByName;
     for (int i = 0; i < m_source->sheetCount(); ++i) sheetByName.insert(m_source->sheetName(i).toLower(), i);
-    for (int page = 0; page < pageCount() && page < pdfPageOf.size(); ++page) {
-        if (pdfPageOf[page] < 0 || page >= places.size()) continue;
-        const Page &pg = m_pages[size_t(page)];
-        if (pg.note >= 0) continue;
-        const int sheet = m_sheets[size_t(pg.info)].sheet;
+    std::map<int, int> firstPdfPage;   // (the first page of a sheet that is in the PDF, found once)
+    // The work is counted: after every so many steps the job is asked whether to go on (the same Cancel as the pages have), so that a sheet of links and pages is not worked through
+    // without a way to stop it.
+    qint64 work = 0;
+    auto tick = [&]() {
+        if (++work % 256 == 0 && keepGoing && !keepGoing()) left->cancelled = true;
+        return !left->cancelled;
+    };
+    std::vector<int> pages;
+    for (size_t info = 0; info < m_sheets.size(); ++info) {
+        const SheetInfo &si = m_sheets[info];
+        if (si.chart) continue;
+        const int sheet = si.sheet;
         for (const PrintLink &l : linksOf(sheet)) {
+            if (!tick()) return out;
             if (!l.range.valid) continue;
-            // (the boxes first: most links are not on this page, and a link to a place in the workbook costs more to work out)
-            const std::vector<QRectF> boxes = linkRects(page, l.range.row1, l.range.col1, l.range.row2, l.range.col2);
-            if (boxes.empty()) continue;
+            // (a merged cell is boxed over the whole of its area; the pages that can show any of it are the ones asked, not every page)
+            const CellRange wide = withMerges(int(info), l.range);
+            pages.clear();
+            if (!pagesShowing(int(info), wide.row1, wide.col1, wide.row2, wide.col2, true, tick, &pages)) return out;
+            pages.erase(std::remove_if(pages.begin(), pages.end(), [&](int p) { return p >= pdfPageOf.size() || p >= places.size() || pdfPageOf[p] < 0; }), pages.end());
+            if (pages.empty()) continue;
             int toPage = -1;
             QString uri;
             bool hasSpot = false;
             QPointF spot;
             if (!l.target.isEmpty()) {
-                if (!jp::clickableAddress(l.target)) continue;
-                uri = l.target;
+                uri = l.target.trimmed();
+                if (!jp::clickableAddress(uri)) continue;
+                if (uri.size() > jp::kLongestPdfLinkAddress) {
+                    ++left->tooLong;
+                    continue;
+                }
             } else {
                 // a place in the workbook: "Sheet2!B5" (a defined name has no place to go to here)
                 QString place = l.location.trimmed();
@@ -1148,26 +1332,36 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf, const QVe
                     toPage = pdfPageOf[target];
                     if (cellRect(target, to.row1, to.col1, &cell) && target < places.size()) {
                         hasSpot = true;
-                        const PdfPlace &at = places[target];
-                        spot = QPointF(at.x + cell.left() * at.k, at.sheetHeight - (at.y + cell.top() * at.k));
+                        const PdfPlace &where = places[target];
+                        spot = QPointF(where.x + cell.left() * where.k, where.sheetHeight - (where.y + cell.top() * where.k));
                     }
                 } else {
                     // (the cell's page is not in the PDF: the sheet's first page that is, where there is one)
-                    toPage = firstPdfPageOf(at.value(), pdfPageOf);
+                    auto known = firstPdfPage.find(at.value());
+                    if (known == firstPdfPage.end()) known = firstPdfPage.emplace(at.value(), firstPdfPageOf(at.value(), pdfPageOf)).first;
+                    toPage = known->second;
                     if (toPage < 0) continue;
                 }
             }
-            for (const QRectF &r : boxes) {
-                jp::PdfLink k;
-                k.page = pdfPageOf[page];
-                const PdfPlace &at = places[page];
-                k.rect = QRectF(QPointF(at.x + r.left() * at.k, at.sheetHeight - (at.y + r.bottom() * at.k)), QPointF(at.x + r.right() * at.k, at.sheetHeight - (at.y + r.top() * at.k)));
-                k.uri = uri;
-                k.toPage = toPage;
-                k.hasSpot = hasSpot;
-                k.spot = spot;
-                out.push_back(k);
-                if (out.size() >= jp::kMostPdfLinks) return out;
+            for (const int page : pages) {
+                ++m_linkLookups;
+                const std::vector<QRectF> boxes = linkRects(page, wide.row1, wide.col1, wide.row2, wide.col2);
+                if (!tick()) return out;
+                for (const QRectF &r : boxes) {
+                    if (out.size() >= jp::kMostPdfLinks) {
+                        left->cut = true;
+                        return out;
+                    }
+                    jp::PdfLink k;
+                    k.page = pdfPageOf[page];
+                    const PdfPlace &at = places[page];
+                    k.rect = QRectF(QPointF(at.x + r.left() * at.k, at.sheetHeight - (at.y + r.bottom() * at.k)), QPointF(at.x + r.right() * at.k, at.sheetHeight - (at.y + r.top() * at.k)));
+                    k.uri = uri;
+                    k.toPage = toPage;
+                    k.hasSpot = hasSpot;
+                    k.spot = spot;
+                    out.push_back(k);
+                }
             }
         }
     }
@@ -1205,6 +1399,12 @@ jp::PdfInfo PrintJob::pdfInfoForFile() const
     return info;
 }
 
+namespace {
+bool g_failProperties = false;
+}
+
+void PrintJob::failPropertiesForTest(bool on) { g_failProperties = on; }
+
 bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString *error, const std::function<bool(int, int)> &progress, int perSheet, const jp::PdfProtection *protect,
                          const QVector<QVector<int>> *sheets)
 {
@@ -1239,7 +1439,22 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             placeOnSheet(group, sheetFor(group, perSheet), perSheet, &places);
         }
     }
-    const QVector<jp::PdfLink> links = pdfLinks(pdfPageOf, places);
+    PdfLinksLeftOut leftOut;
+    const QVector<jp::PdfLink> links = pdfLinks(pdfPageOf, places, [&] { return !progress || progress(0, std::max(1, int(groups.size()))); }, &leftOut);
+    if (leftOut.cancelled) {
+        m_cancelled = true;
+        return fail(QCoreApplication::translate("jp::crunch::PrintJob", "It was cancelled, and no file was made."));
+    }
+    // (what the links left out is said, once)
+    if (leftOut.tooLong > 0) {
+        const int count = int(std::min<qint64>(leftOut.tooLong, 1000000000));
+        const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "%n link(s) have an address longer than %1 characters, so they can't be clicked in the PDF.", nullptr, count).arg(jp::kLongestPdfLinkAddress);
+        if (!m_messages.contains(said)) m_messages << said;
+    }
+    if (leftOut.cut) {
+        const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "A PDF holds at most %1 clickable links, so the rest can't be clicked.").arg(jp::kMostPdfLinks);
+        if (!m_messages.contains(said)) m_messages << said;
+    }
     const QVector<jp::PdfBookmark> marks = pdfBookmarks(pdfPageOf);
     const bool tagging = m_options.pdfTags;
     const jp::PdfInfo info = pdfInfoForFile();
@@ -1250,6 +1465,10 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     const bool inMemory = encrypted || tagging || archiving || !links.isEmpty() || !marks.isEmpty();
     if (inMemory) memory.open(QIODevice::WriteOnly);
     else if (!file.open(QIODevice::WriteOnly)) return fail(file.errorString());
+    auto tellPropertiesMissing = [&] {
+        const QString said = QCoreApplication::translate("jp::crunch::PrintJob", "The PDF was saved, but its properties (title, author, and the rest) could not be put in it.");
+        if (!m_messages.contains(said)) m_messages << said;
+    };
     auto make = [&](jp::PdfTagger *tagger) {
         if (inMemory) {
             memory.close();
@@ -1376,7 +1595,12 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
         }
         if (!links.isEmpty()) bytes = jp::addPdfLinks(bytes, links);
         if (!marks.isEmpty()) bytes = jp::addPdfBookmarks(bytes, marks);
-        bytes = jp::setPdfInfo(bytes, info);
+        {
+            // (the properties are put on the finished file; one that cannot be extended is left as it was, and the person is told)
+            const QByteArray withInfo = g_failProperties ? bytes : jp::setPdfInfo(bytes, info);
+            if (withInfo.size() == bytes.size()) tellPropertiesMissing();
+            bytes = withInfo;
+        }
         if (encrypted) {
             QString why;
             bytes = jp::encryptPdf(bytes, *protect, &why);
@@ -1388,7 +1612,7 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
     if (!inMemory) {
         // (a PDF written straight to the file has its properties put on at its end, without reading it all)
         QFile written(path);
-        if (written.open(QIODevice::ReadWrite)) jp::appendPdfInfo(&written, info);
+        if (g_failProperties || !written.open(QIODevice::ReadWrite) || !jp::appendPdfInfo(&written, info)) tellPropertiesMissing();
     }
     return true;
 }
