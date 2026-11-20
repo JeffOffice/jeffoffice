@@ -174,7 +174,12 @@ void Reader::collectFonts(const Odf &o, int root)
 void Reader::collectProps(const Odf &o, int node, const QString &kind, Props *into)
 {
     const wml::XmlTree &t = o.tree();
-    for (const auto &a : t.attributes(node)) into->insert(kind + o.canonical(a.ns, a.local), a.value);
+    const int jo = t.namespaceId("urn:jeffoffice:odf-extension");
+    for (const auto &a : t.attributes(node)) {
+        // (the page breaks that are ours are kept apart by their namespace: an attribute of another namespace with the same name is not one)
+        if (jo >= 0 && a.ns == jo && a.local.startsWith("break-")) into->insert(kind + QStringLiteral("jo:") + QString::fromLatin1(a.local), a.value);
+        else into->insert(kind + o.canonical(a.ns, a.local), a.value);
+    }
 }
 
 QByteArray Reader::tabStopsXml(const Odf &o, int tabs) const

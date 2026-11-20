@@ -194,6 +194,9 @@ private:
     QHash<int, int> m_sectionOfPara;                   // the paragraph with a sectPr -> its section
     QString m_pendingMaster;
     bool m_pendingBreak = false;
+    // What the break that is pending came from (it is told on the paragraph that takes it, so that it reads back as it was): nothing the file may say, a paragraph of the body that ended with it, or one that was only it.
+    enum { kBreakNone, kBreakEnded, kBreakAlone };
+    int m_breakSource = kBreakNone;
     QHash<QString, QString> m_masterByKey;
     QVector<SectionInfo> m_masters;
     QHash<QString, QByteArray> m_headerCache;

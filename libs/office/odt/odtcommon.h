@@ -56,6 +56,8 @@ double clampPoints(double points);
 qint64 clampedInt(double v);
 // Text without the characters XML 1.0 has no place for (controls, U+FFFE and U+FFFF, a half of a surrogate pair).
 QString xmlSafeText(const QString &text);
+// Whether a code is one a symbol can have (one the writer writes and the reader takes): a 16-bit code, not a control (U+F000 to U+F0FF count as U+0000 to U+00FF), not half of a surrogate pair, not a noncharacter.
+bool symbolCodeFits(uint code);
 // Six hex digits in capitals, or empty.
 QString hexColorOrEmpty(const QString &text);
 // A name as an argument of a field's code: in quotes, with the quote and the backslash escaped, so it can't add a switch.

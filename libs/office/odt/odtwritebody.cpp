@@ -341,6 +341,14 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
     for (const auto &f : std::as_const(pc.fragments))
         if (!f.first.isEmpty()) anyContent = true;
     const bool carriesSection = atBody && m_sectionOfPara.contains(p);
+    // A paragraph that was only a page break gives its break to the next one (which says so, so that it reads back as the paragraph it was).
+    if (!anyContent && pc.fragments.size() == 1 && pc.fragments[0].second && !carriesSection) {
+        m_pendingBreak = true;
+        m_breakSource = atBody ? kBreakAlone : kBreakNone;
+        // (Closed lists and the table of contents are still as they were.)
+        if (openedToc || m_inToc) {
+        } else return;
+    }
     // Tracked changes of the paragraph itself: a change of its format spans its content, and a paragraph mark that was inserted or deleted spans the end of it to the start of the next.
     if (pPr >= 0 && !pc.fragments.isEmpty()) {
         QByteArray opening, closing;
@@ -374,7 +382,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
     bool first = true;
     int fragmentNumber = 0;
     for (const auto &frag : std::as_const(pc.fragments)) {
-        const bool carried = first && m_pendingBreak && !breakBefore && !frag.second;   // (its break is the one the paragraph before ended with)
+        const int carried = first && m_pendingBreak && !breakBefore && !frag.second && master.isEmpty() ? m_breakSource : kBreakNone;   // (its break is the one the paragraph before ended with, or gave it)
         const bool pageBreak = frag.second || (first && (breakBefore || m_pendingBreak));
         if (first && !master.isEmpty()) m_pendingBreak = false;
         QByteArray attrs = " style:parent-style-name=\"" + esc(odfStyle) + "\"";
@@ -383,7 +391,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         if (pageBreak && master.isEmpty()) pa += " fo:break-before=\"page\"";
         // (page breaks that were runs of the paragraph, and the page break of the paragraph before: ours, so the paragraphs read back as they were)
         if (frag.second) pa += fragmentNumber == 0 ? " jo:break-start=\"run\"" : " jo:break-start=\"join\"";
-        if (carried && master.isEmpty()) pa += " jo:break-carried=\"true\"";
+        if (carried != kBreakNone) pa += carried == kBreakAlone ? " jo:break-carried=\"alone\"" : " jo:break-carried=\"true\"";
         if (pc.trailingBreak && fragmentNumber == pc.fragments.size() - 1) pa += " jo:break-end=\"run\"";
         if (first && !master.isEmpty()) attrs += " style:master-page-name=\"" + master.toUtf8() + "\"";
         if (!pa.isEmpty() || !tabs.isEmpty()) inner = "<style:paragraph-properties" + pa + (tabs.isEmpty() ? "/>" : ">" + tabs + "</style:paragraph-properties>");
@@ -463,7 +471,10 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         first = false;
         ++fragmentNumber;
     }
-    if (pc.trailingBreak) m_pendingBreak = true;
+    if (pc.trailingBreak) {
+        m_pendingBreak = true;
+        m_breakSource = atBody ? kBreakEnded : kBreakNone;
+    }
     if (atBody) {
         if (!master.isEmpty()) m_pendingMaster.clear();
         if (m_inToc && !openedToc && m_tocDepth <= 0) {
@@ -1553,7 +1564,7 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
             const uint ch = t.attr(c, "char").toUInt(&ok, 16);
             const QString font = t.attr(c, "font");
             const uint low = ch >= 0xF000 && ch <= 0xF0FF ? ch - 0xF000 : ch;
-            if (ok && low > 0x1F && ch < 0xFFFE) {
+            if (ok && symbolCodeFits(ch)) {
                 const qsizetype symbolAt = pc->xml.size();
                 // A known symbol font's character is written as the picture it stands for; any other keeps its code and its font on a span of its own.
                 const QChar picture = font.isEmpty() ? QChar() : symbolPictureOf(font, ch);
@@ -2095,7 +2106,7 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
         m_pendingMaster.clear();
         m_pendingBreak = false;
     } else if (m_pendingBreak) {
-        tprops += " fo:break-before=\"page\" jo:break-carried=\"true\"";
+        tprops += m_breakSource == kBreakEnded && body && depth == 0 ? " fo:break-before=\"page\" jo:break-carried=\"true\"" : " fo:break-before=\"page\"";
         m_pendingBreak = false;
     }
     const QString tableStyle = m_sink->make("Table", "table", tattrs, "<style:table-properties" + tprops + " table:border-model=\"collapsing\"/>");

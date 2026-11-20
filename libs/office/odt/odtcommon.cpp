@@ -252,3 +252,14 @@ QByteArray esc(const QString &text, bool attribute)
 }
 
 } // namespace jp::office::odt
+
+namespace jp::office::odt {
+bool symbolCodeFits(uint code)
+{
+    if (code >= 0xFFFE) return false;
+    if (code >= 0xD800 && code <= 0xDFFF) return false;
+    if (code >= 0xFDD0 && code <= 0xFDEF) return false;
+    const uint low = code >= 0xF000 && code <= 0xF0FF ? code - 0xF000 : code;
+    return low > 0x1F;
+}
+}

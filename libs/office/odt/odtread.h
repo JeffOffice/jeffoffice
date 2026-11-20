@@ -249,6 +249,7 @@ private:
     // the section being made
     SectionState m_sect;
     bool m_pendingPageBreak = false;
+    bool m_trailingBreakMade = false;   // the paragraph just read ended with the page break its file says the next one carries
     QString m_firstMaster;
     const Odf *m_styleO = nullptr;
     QString m_owner;                                  // the part whose relationships a picture or link made now belongs to

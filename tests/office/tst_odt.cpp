@@ -164,6 +164,41 @@ QStringList paragraphsOf(const QString &documentXml)
     return out;
 }
 
+
+// The paragraphs of the .odt content.xml a program that knows nothing of ours reads: every jo: attribute taken out first, then each text:p and text:h in the order of the document (the ones in tables too) as
+// its text, with "^" in front when its style says it begins a page.
+QStringList standardParagraphsOf(const QString &bodyXmlOfDocx)
+{
+    QString c = odtStylesAndContentOf(bodyXmlOfDocx.toUtf8());
+    static const QRegularExpression ours(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\""));
+    c.remove(ours);
+    QStringList out;
+    QXmlStreamReader r(c.toUtf8());
+    QSet<QString> breaks;
+    QString styleName;
+    QString text, style;
+    int depth = 0;
+    bool inBody = false;
+    while (!r.atEnd()) {
+        r.readNext();
+        if (r.isStartElement()) {
+            const QString name = r.name().toString();
+            if (name == QLatin1String("style")) styleName = r.attributes().value(QStringLiteral("style:name")).toString();
+            else if (name == QLatin1String("paragraph-properties") && r.attributes().value(QStringLiteral("fo:break-before")) == QLatin1String("page")) breaks.insert(styleName);
+            else if (name == QLatin1String("text")) inBody = true;
+            else if ((name == QLatin1String("p") || name == QLatin1String("h")) && inBody && depth++ == 0) {
+                text.clear();
+                style = r.attributes().value(QStringLiteral("text:style-name")).toString();
+            }
+        } else if (r.isCharacters() && depth > 0) {
+            text += r.text().toString();
+        } else if (r.isEndElement() && (r.name() == QLatin1String("p") || r.name() == QLatin1String("h")) && inBody && depth > 0 && --depth == 0) {
+            out << (breaks.contains(style) ? QStringLiteral("^") : QString()) + text;
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 class OdtTests : public QObject {
@@ -830,6 +865,110 @@ private Q_SLOTS:
     {
         const QString c = odtStylesAndContentOf("<w:p><w:r><w:t>end</w:t></w:r><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p><w:r><w:t>next</w:t></w:r></w:p>");
         QCOMPARE(c.count(QLatin1String("fo:break-before=\"page\"")), 1);
+    }
+
+    // With every attribute of ours taken out, the file shows the paragraphs and page breaks it always did: a paragraph that is only a page break is not a paragraph of its own (nothing is an empty line at the top
+    // of the new page), the break is the one the next paragraph begins with, and a break at the end of a paragraph is the next one's once.
+    void aPageBreakIsTheStandardsAlsoWithOurAttributesIgnored()
+    {
+        const QByteArray br = "<w:r><w:br w:type=\"page\"/></w:r>";
+        const auto run = [](const char *text) { return QByteArray("<w:r><w:t>") + text + "</w:t></w:r>"; };
+        const QByteArray body = "<w:p>" + br + run("lead") + "</w:p>"
+                                "<w:p>" + run("one") + br + run("two") + "</w:p>"
+                                "<w:p>" + run("end") + br + "</w:p>"
+                                "<w:p>" + run("next") + "</w:p>"
+                                "<w:p>" + br + "</w:p>"
+                                "<w:p>" + run("after") + "</w:p>"
+                                "<w:p><w:pPr><w:pageBreakBefore/></w:pPr>" + run("asks") + "</w:p>"
+                                "<w:p>" + run("last") + "</w:p>";
+        QCOMPARE(standardParagraphsOf(QString::fromUtf8(body)), (QStringList{QStringLiteral("lead"), QStringLiteral("one"), QStringLiteral("^two"), QStringLiteral("end"), QStringLiteral("^next"), QStringLiteral("^after"),
+                                                                              QStringLiteral("^asks"), QStringLiteral("last")}));
+    }
+
+    // A page break at the end of a paragraph of a table's cell is not the break of the paragraph before the next one in the body: the next one is not marked as carrying it (it is not what it reads back as).
+    void aBreakInATableCellIsNotCarriedToTheBody()
+    {
+        const QByteArray br = "<w:r><w:br w:type=\"page\"/></w:r>";
+        const QByteArray body = "<w:p><w:r><w:t>before</w:t></w:r></w:p><w:tbl><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r>" + br
+                                + "</w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QString c = odtStylesAndContentOf(body);
+        QVERIFY2(!c.contains(QLatin1String("break-carried")), qPrintable(c));
+        const QStringList paragraphs = standardParagraphsOf(QString::fromUtf8(body));
+        QCOMPARE(paragraphs.first(), QStringLiteral("before"));
+        QString lastText = paragraphs.last();
+        QCOMPARE(lastText.remove(QLatin1Char('^')), QStringLiteral("after"));
+        // and a break that ended a paragraph of the body is told on the one that has it
+        const QString body2 = odtStylesAndContentOf("<w:p><w:r><w:t>end</w:t></w:r>" + br + "</w:p><w:p><w:r><w:t>next</w:t></w:r></w:p>");
+        QCOMPARE(body2.count(QLatin1String("jo:break-carried=\"true\"")), 1);
+    }
+
+    // The symbols in the standard's terms: with ours ignored, the span has the character and the symbol font's name (a symbol of no font is the character itself).
+    void aSymbolIsTheStandardsAlsoWithOurAttributesIgnored()
+    {
+        QString c = odtStylesAndContentOf("<w:p><w:r><w:sym w:font=\"Unlisted Font\" w:char=\"F041\"/></w:r><w:r><w:sym w:char=\"00E9\"/></w:r></w:p>");
+        QVERIFY2(c.contains(QLatin1String("jo:sym=\"F041\"")), qPrintable(c));
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QVERIFY2(!c.contains(QLatin1String("jo:")), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("style:font-name=\"Unlisted Font\"")), qPrintable(c));
+        const int span = c.indexOf(QLatin1String("<text:span"));
+        QVERIFY(span >= 0);
+        QVERIFY2(c.mid(span).contains(QString(QChar(0xF041))), qPrintable(c));
+        QVERIFY(c.contains(QString(QChar(0x00E9))));
+    }
+
+    // Attributes of ours that do not name our own namespace mean nothing: a page break named by another namespace's attribute of the same name is not a break.
+    void aPageBreakAttributeOfAnotherNamespaceIsIgnored()
+    {
+        Made m;
+        m.autoStyles = "<style:style style:name=\"Pb\" style:family=\"paragraph\"><style:paragraph-properties xmlns:other=\"urn:someone:else\" other:break-start=\"run\" other:break-end=\"run\" other:break-carried=\"alone\"/></style:style>";
+        m.body = "<text:p text:style-name=\"Pb\">one</text:p><text:p>two</text:p>";
+        QCOMPARE(paragraphsOf(document(m)), (QStringList{QStringLiteral("one"), QStringLiteral("two")}));
+        // (the same attributes in ours are read)
+        m.autoStyles = "<style:style style:name=\"Pb\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" jo:break-start=\"run\" jo:break-end=\"run\"/></style:style>";
+        QCOMPARE(paragraphsOf(document(m)), (QStringList{QStringLiteral("\fone\f"), QStringLiteral("two")}));
+    }
+
+    // A paragraph that says it goes on in the one before is not joined to it when it is a heading, a list item, or has a bookmark or a tracked change: it is read as the paragraph it is.
+    void aJoinedParagraphThatIsMoreThanTextIsNotJoined()
+    {
+        const QByteArray style = "<style:style style:name=\"Pj\" style:family=\"paragraph\"><style:paragraph-properties xmlns:jo=\"urn:jeffoffice:odf-extension\" fo:break-before=\"page\" jo:break-start=\"join\"/></style:style>";
+        const struct {
+            const char *name;
+            const char *joined;
+        } cases[] = {{"heading", "<text:h text:style-name=\"Pj\" text:outline-level=\"1\">b</text:h>"},
+                     {"list", "<text:list><text:list-item><text:p text:style-name=\"Pj\">b</text:p></text:list-item></text:list>"},
+                     {"bookmark", "<text:p text:style-name=\"Pj\"><text:bookmark-start text:name=\"bm\"/>b<text:bookmark-end text:name=\"bm\"/></text:p>"},
+                     {"tracked change", "<text:p text:style-name=\"Pj\"><text:change-start text:change-id=\"c2\"/>b<text:change-end text:change-id=\"c2\"/></text:p>"}};
+        for (const auto &c : cases) {
+            Made m;
+            m.autoStyles = style;
+            m.body = QByteArray(c.name == QByteArray("tracked change") ? "<text:tracked-changes><text:changed-region text:id=\"c2\"><text:insertion><office:change-info><dc:creator>Bob</dc:creator></office:change-info></text:insertion></text:changed-region></text:tracked-changes>" : "")
+                     + "<text:p>a</text:p>" + c.joined;
+            const QString doc = document(m);
+            QCOMPARE(paragraphsOf(doc).size(), 2);   // (a joined paragraph would be one)
+            QVERIFY2(!paragraphsOf(doc).first().contains(QLatin1Char('\f')), c.name);
+        }
+        // a plain one is joined
+        Made m;
+        m.autoStyles = style;
+        m.body = "<text:p>a</text:p><text:p text:style-name=\"Pj\">b</text:p>";
+        QCOMPARE(paragraphsOf(document(m)), (QStringList{QStringLiteral("a\fb")}));
+    }
+
+    // A symbol that names a code the writer cannot have written (a control, half of a surrogate pair, a noncharacter, no number) is not a symbol: the span's own text is kept.
+    void aSymbolOfACodeNoWriterMakesIsNotASymbol()
+    {
+        const struct {
+            const char *code;
+            bool symbol;
+        } cases[] = {{"F0B0", true}, {"00E9", true}, {"0", false}, {"1F", false}, {"F01F", false}, {"D800", false}, {"DFFF", false}, {"FFFE", false}, {"FFFF", false}, {"FDD0", false}, {"10000", false}, {"zz", false}};
+        for (const auto &c : cases) {
+            Made m;
+            m.body = QByteArray("<text:p>a<text:span xmlns:jo=\"urn:jeffoffice:odf-extension\" jo:sym=\"") + c.code + "\" jo:sym-font=\"Symbol\">kept</text:span>b</text:p>";
+            const QString doc = document(m);
+            QVERIFY2(doc.contains(QLatin1String("<w:sym")) == c.symbol, c.code);
+            if (!c.symbol) QVERIFY2(paragraphsOf(doc).first() == QLatin1String("akeptb"), c.code);
+        }
     }
 
     // A row of an .odt whose cells are all covered by merged cells that are not there still reads as a row (one empty cell as wide as the table), so the table stays a table and its text is not lost.
