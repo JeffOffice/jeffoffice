@@ -7,12 +7,12 @@
 #include "app/settings.h"
 #include "text/autocorrect.h"
 
+#include <QAccessible>
 #include <QAction>
 #include <QCoreApplication>
 #include <QLocale>
 #include <QMenu>
 #include <QScrollBar>
-#include <QShortcut>
 #include <QTextDocument>
 #include <QToolButton>
 #include <algorithm>
@@ -36,6 +36,7 @@ void PageView::noteAutoFix()
         } else {
             m_autoFixCaret = m_cursor.position();
             m_autoFixStory = m_doc->story();
+            m_autoFixTold = false;
         }
     }
     if (!m_autoFix.valid && !m_autoFixButton) return;
@@ -44,7 +45,6 @@ void PageView::noteAutoFix()
         m_autoFixButton->setObjectName(QStringLiteral("autoCorrectOptionsButton"));
         m_autoFixButton->setText(QCoreApplication::translate("jp::write::PageView", "AutoCorrect Options"));
         m_autoFixButton->setAccessibleName(QCoreApplication::translate("jp::write::PageView", "AutoCorrect Options"));
-        m_autoFixButton->setAccessibleDescription(QCoreApplication::translate("jp::write::PageView", "Choices for the change AutoCorrect just made. Press Alt+Shift+F10 to open them."));
         m_autoFixButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
         m_autoFixButton->setPopupMode(QToolButton::InstantPopup);
         m_autoFixButton->setFocusPolicy(Qt::NoFocus);
@@ -54,12 +54,6 @@ void PageView::noteAutoFix()
         m_autoFixButton->hide();
         connect(this, &PageView::caretChanged, this, [this] { updateAutoFixButton(); });
         connect(verticalScrollBar(), &QScrollBar::valueChanged, this, [this] { updateAutoFixButton(); });
-        // (The keyboard's way to the same choices, while they are offered.)
-        auto *key = new QShortcut(QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F10), this);
-        key->setContext(Qt::WidgetWithChildrenShortcut);
-        connect(key, &QShortcut::activated, this, [this] {
-            if (autoFixAvailable() && m_autoFixButton->isVisible()) m_autoFixButton->showMenu();
-        });
     }
     if (m_autoFixStory) connect(m_autoFixStory.data(), &QTextDocument::contentsChanged, this, &PageView::updateAutoFixButton, Qt::UniqueConnection);
 }
@@ -73,11 +67,39 @@ void PageView::updateAutoFixButton()
         m_autoFixButton->hide();
         return;
     }
+    // (The keyboard's way to the same choices is the command "AutoCorrect Options Menu": its key is said in the description, as the person has it now.)
+    const QString key = autoFixKeyText();
+    m_autoFixButton->setAccessibleDescription(key.isEmpty() ? QCoreApplication::translate("jp::write::PageView", "Choices for the change AutoCorrect just made.")
+                                                            : QCoreApplication::translate("jp::write::PageView", "Choices for the change AutoCorrect just made. Press %1 to open them.").arg(key));
+    if (!m_autoFixTold) {
+        // (Said once, as the button appears: a person who does not see it is told that there are choices, and how to get to them.)
+        m_autoFixTold = true;
+        QAccessibleAnnouncementEvent event(m_autoFixButton, key.isEmpty() ? QCoreApplication::translate("jp::write::PageView", "AutoCorrect changed a word. The AutoCorrect Options button has choices.")
+                                                                         : QCoreApplication::translate("jp::write::PageView", "AutoCorrect changed a word. Press %1 for choices.").arg(key));
+        QAccessible::updateAccessibility(&event);
+    }
     m_autoFixButton->adjustSize();
     const QSize size = m_autoFixButton->size();
     m_autoFixButton->move(std::clamp(r.right() + 6, 0, std::max(0, viewport()->width() - size.width())), std::clamp(r.bottom() + 4, 0, std::max(0, viewport()->height() - size.height())));
     m_autoFixButton->show();
     m_autoFixButton->raise();
+}
+
+// The key of the command that opens the menu as the person has it now (empty when it has none).
+QString PageView::autoFixKeyText()
+{
+    const QWidget *top = window();
+    const QAction *a = top ? top->findChild<QAction *>(QStringLiteral("review.autoCorrectOptions")) : nullptr;
+    return a && !a->shortcut().isEmpty() ? a->shortcut().toString(QKeySequence::NativeText) : QString();
+}
+
+bool PageView::openAutoFixMenu()
+{
+    if (!m_autoFixButton || !autoFixAvailable()) return false;
+    updateAutoFixButton();
+    if (!m_autoFixButton->isVisible()) return false;
+    m_autoFixButton->showMenu();
+    return true;
 }
 
 void PageView::fillAutoFixMenu()
@@ -104,9 +126,9 @@ void PageView::fillAutoFixMenu()
     case autotext::Fix::Kind::Replacement: stop = QCoreApplication::translate("jp::write::PageView", "Stop Replacing \"%1\"").arg(word(m_autoFix.entry)); break;
     case autotext::Fix::Kind::TwoInitials:
     case autotext::Fix::Kind::CapsLock: stop = QCoreApplication::translate("jp::write::PageView", "Keep \"%1\" As Typed").arg(word(m_autoFix.typed)); break;
-    case autotext::Fix::Kind::Day: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing Names of Days"); break;
-    case autotext::Fix::Kind::Sentence: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing First Letter of Sentences"); break;
-    case autotext::Fix::Kind::Cell: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing First Letter of Table Cells"); break;
+    case autotext::Fix::Kind::Day: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing Names of Days Everywhere"); break;
+    case autotext::Fix::Kind::Sentence: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing First Letter of Sentences Everywhere"); break;
+    case autotext::Fix::Kind::Cell: stop = QCoreApplication::translate("jp::write::PageView", "Stop Capitalizing First Letter of Table Cells Everywhere"); break;
     case autotext::Fix::Kind::None: break;
     }
     if (!stop.isEmpty()) add(stop, "autoFixStop", [this] { stopAutoFix(); });

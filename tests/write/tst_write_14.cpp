@@ -7,6 +7,8 @@
 #include "text/autocorrect.h"
 #include "app/autocorrectconfig.h"
 #include "app/autocorrectdialog.h"
+#include "app/keymap.h"
+#include <QAccessible>
 #include <QCheckBox>
 #include <QComboBox>
 #include <QLineEdit>
@@ -285,30 +287,104 @@ void WriteTests::stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThat
 }
 
 
-void WriteTests::theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSettings()
+namespace {
+// Counts the announcements an accessibility client would get (the update handler sees every event, whether or not a client is there).
+struct Said {
+    static inline QStringList words;
+    static void see(QAccessibleEvent *event)
+    {
+        if (event->type() == QAccessible::Announcement) words << static_cast<QAccessibleAnnouncementEvent *>(event)->message();
+    }
+    Said() { words.clear(); previous = QAccessible::installUpdateHandler(&see); }
+    ~Said() { QAccessible::installUpdateHandler(previous); }
+    QAccessible::UpdateHandler previous = nullptr;
+};
+const QKeySequence kAutoFixKey(Qt::ALT | Qt::SHIFT | Qt::Key_F10);
+} // namespace
+
+
+// The key that opens the AutoCorrect Options menu is a command of the window, in the keyboard map with the others, and a key another command has is refused for it as for any.
+void WriteTests::theAutoCorrectOptionsMenuIsACommandInTheKeyboardMapWithItsConflictCheck()
+{
+    WriteWindow w;
+    QAction *a = w.act("review.autoCorrectOptions");
+    QVERIFY(a);
+    QCOMPARE(a->shortcut().toString(QKeySequence::NativeText), kAutoFixKey.toString(QKeySequence::NativeText));
+    QVERIFY(w.actionIds().contains(QStringLiteral("review.autoCorrectOptions")));
+    KeyMap map(&w, false);
+    QVERIFY(map.command(QStringLiteral("review.autoCorrectOptions")));
+    QCOMPARE(map.owner(kAutoFixKey), QStringLiteral("review.autoCorrectOptions"));
+    const KeyMap::Result taken = map.check(QStringLiteral("review.spelling"), kAutoFixKey);
+    QCOMPARE(taken.status, KeyMap::Add::Taken);
+    QCOMPARE(taken.owner, QStringLiteral("review.autoCorrectOptions"));
+    QCOMPARE(map.add(QStringLiteral("review.autoCorrectOptions"), QKeySequence(QStringLiteral("Ctrl+Alt+Shift+J")), false).status, KeyMap::Add::Added);   // (it takes keys as the others do)
+}
+
+
+// After AutoCorrect changes a word the button is said to a screen reader, once, with the key that opens its menu (as the description says too), and the command opens the menu.
+void WriteTests::theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu()
 {
     const SettingGuard replace(QStringLiteral("proof/ac/replace/en"), QVariant(), QVariant());
-    Typer t;
-    t.type(QStringLiteral("Say teh "));
-    QVERIFY(t.view.autoFixAvailable());
-    QTRY_VERIFY(autoFixButton(t.view)->isVisible());
-    // Alt+Shift+F10 opens the choices (the test closes the menu that opens).
-    QShortcut *key = nullptr;
-    for (QShortcut *sc : t.view.findChildren<QShortcut *>())
-        if (sc->key() == QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F10)) key = sc;
-    QVERIFY(key && key->isEnabled());
-    QSignalSpy opened(autoFixButton(t.view)->menu(), &QMenu::aboutToShow);
+    WriteWindow w;
+    w.resize(1000, 800);
+    w.setDocument(open(makeDocx("<w:p><w:r><w:t></w:t></w:r></w:p>")), QString());
+    w.show();
+    PageView &view = *w.view();
+    view.paginateAll();
+    view.cursor().movePosition(QTextCursor::End);
+    const QString key = kAutoFixKey.toString(QKeySequence::NativeText);
+    Said said;
+    QTest::keyClicks(&view, QStringLiteral("Say the "));
+    QVERIFY(said.words.isEmpty());   // (nothing was changed: nothing is said)
+    QTest::keyClicks(&view, QStringLiteral("teh "));
+    QVERIFY(view.autoFixAvailable());
+    QTRY_VERIFY(autoFixButton(view)->isVisible());
+    QCOMPARE(said.words.size(), 1);
+    QVERIFY2(said.words.first().contains(key), qPrintable(said.words.first()));
+    QVERIFY(autoFixButton(view)->accessibleDescription().contains(key));
+    // The command opens the choices (the test closes the menu that opens).
+    QSignalSpy opened(autoFixButton(view)->menu(), &QMenu::aboutToShow);
     QTimer closer;
     closer.setInterval(20);
     QObject::connect(&closer, &QTimer::timeout, &closer, [] {
         if (QWidget *popup = QApplication::activePopupWidget()) popup->close();
     });
     closer.start();
-    Q_EMIT key->activated();
+    w.act("review.autoCorrectOptions")->trigger();
     QTRY_VERIFY(opened.count() >= 1);
     closer.stop();
     // The last choice opens the AutoCorrect dialog.
-    withDialog([&] { autoFixAction(t.view, "autoFixOptions")->trigger(); }, QStringLiteral("autoCorrectDialog"), [](QDialog *d) { QVERIFY(d->findChild<AutoCorrectPage *>()); }, false);
+    withDialog([&] { autoFixAction(view, "autoFixOptions")->trigger(); }, QStringLiteral("autoCorrectDialog"), [](QDialog *d) { QVERIFY(d->findChild<AutoCorrectPage *>()); }, false);
+    // Another change is said again; with none offered the command does nothing.
+    QTest::keyClicks(&view, QStringLiteral("x teh "));
+    QCOMPARE(said.words.size(), 2);
+    QTest::keyClicks(&view, QStringLiteral("y"));
+    QVERIFY(!view.openAutoFixMenu());
+}
+
+
+// The choices that turn off a kind of change for everywhere say so; the one that keeps a word as typed is about that word.
+void WriteTests::theChoicesThatStopAKindOfChangeEverywhereSaySo()
+{
+    WriteWindow w;
+    w.resize(1000, 800);
+    w.setDocument(open(makeDocx("<w:p><w:r><w:t></w:t></w:r></w:p>")), QString());
+    w.show();
+    PageView &view = *w.view();
+    view.paginateAll();
+    view.cursor().movePosition(QTextCursor::End);
+    QTest::keyClicks(&view, QStringLiteral("We met on monday "));
+    QVERIFY(view.autoFixAvailable());
+    QCOMPARE(view.autoFix().kind, autotext::Fix::Kind::Day);
+    QVERIFY2(autoFixAction(view, "autoFixStop")->text().contains(QStringLiteral("Everywhere")), qPrintable(autoFixAction(view, "autoFixStop")->text()));
+    QTest::keyClicks(&view, QStringLiteral("it rained. then "));
+    QVERIFY(view.autoFixAvailable());
+    QCOMPARE(view.autoFix().kind, autotext::Fix::Kind::Sentence);
+    QVERIFY2(autoFixAction(view, "autoFixStop")->text().contains(QStringLiteral("Everywhere")), qPrintable(autoFixAction(view, "autoFixStop")->text()));
+    QTest::keyClicks(&view, QStringLiteral("and THursday "));
+    QVERIFY(view.autoFixAvailable());
+    QCOMPARE(view.autoFix().kind, autotext::Fix::Kind::TwoInitials);
+    QVERIFY(!autoFixAction(view, "autoFixStop")->text().contains(QStringLiteral("Everywhere")));
 }
 
 

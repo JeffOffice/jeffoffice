@@ -230,6 +230,8 @@ public:
     bool undoAutoFix();
     bool stopAutoFix();
     void openAutoCorrectOptions();
+    // Opens the button's menu (the command "AutoCorrect Options Menu", Alt+Shift+F10 unless the person changed it); false when no change is offered.
+    bool openAutoFixMenu();
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
@@ -764,6 +766,8 @@ private:
     int m_autoFixCaret = -1;
     QPointer<QTextDocument> m_autoFixStory;
     QToolButton *m_autoFixButton = nullptr;
+    bool m_autoFixTold = false;   // the offer was said to a screen reader (once for each change)
+    QString autoFixKeyText();
     void noteAutoFix();
     void updateAutoFixButton();
     void fillAutoFixMenu();

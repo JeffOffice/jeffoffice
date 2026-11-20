@@ -12,6 +12,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
@@ -280,6 +281,28 @@ private Q_SLOTS:
         QVERIFY(s.check(kEn, QStringLiteral("DON\u2019T")));
         QVERIFY(s.add(QStringLiteral("don\u2019t")));
         QVERIFY(s.excludedWords().isEmpty());
+    }
+
+    void theMessagesAboutALongWordNameTheLimitThatIsKept()
+    {
+        OwnDictionary own;
+        UserDictionaryPage page;
+        auto *status = page.findChild<QLabel *>(QStringLiteral("userDictionaryStatus"));
+        QVERIFY(status);
+        page.findChild<QLineEdit *>(QStringLiteral("addedWordEdit"))->setText(QStringLiteral("two words"));
+        page.findChild<QPushButton *>(QStringLiteral("addedWordAdd"))->click();
+        QVERIFY2(status->text().contains(QString::number(kMaxWordLength)) && !status->text().contains(QLatin1String("%n")), qPrintable(status->text()));
+        const QString file = own.dir.filePath(QStringLiteral("in.txt"));
+        {
+            QFile f(file);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write("fine\nnot fine\n");
+        }
+        const QString said = page.importFile(false, file);
+        QVERIFY2(said.contains(QString::number(kMaxWordLength)) && !said.contains(QLatin1String("%n")) && !said.contains(QLatin1String("%1")), qPrintable(said));
+        QString error;
+        QVERIFY(!Speller::get().change({{QString(kMaxWordLength + 1, QLatin1Char('a'))}, {}, {}, {}}, &error));
+        QVERIFY2(error.contains(QString::number(kMaxWordLength)) && !error.contains(QLatin1String("%n")), qPrintable(error));
     }
 
     void aWordListMayEndItsLinesWithACarriageReturnAlone()

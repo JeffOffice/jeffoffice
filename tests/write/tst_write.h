@@ -1763,7 +1763,9 @@ private Q_SLOTS:
     void eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff();
     void theOptionsAfterAnAutoCorrectChangeUndoItAndGoAwayOnTheNextEdit();
     void stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThatMadeIt();
-    void theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSettings();
+    void theAutoCorrectOptionsMenuIsACommandInTheKeyboardMapWithItsConflictCheck();
+    void theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu();
+    void theChoicesThatStopAKindOfChangeEverywhereSaySo();
     void theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn();
     void quotesFollowTheLanguageOfTheText();
     void typingALetterAndAParenthesisAndASpaceStartsANumberedListAndTheSwitchesTurnTheRulesOff();
