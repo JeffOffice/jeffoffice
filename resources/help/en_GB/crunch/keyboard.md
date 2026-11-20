@@ -44,7 +44,8 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | {key:Save} | Save |
 | {key:Cut}, {key:Copy}, {key:Paste} | Cut, copy, paste (Esc takes away the border of the cells copied) |
 | Ctrl+Alt+V | Paste Special |
-| Ctrl and the plus key, Ctrl and the minus key | Insert, delete (rows or columns if whole ones are selected) |
+| Ctrl and the plus key, Ctrl+Shift and the plus key, Ctrl and the minus key | Insert, delete (rows or columns if whole ones are selected; the plus keys put in cells that are cut, or copied with nothing changed since, and otherwise blank cells) |
+| Arrow keys, Shift+arrow, Ctrl+arrow (Option+arrow on a Mac), Enter, Esc | After Move or Size Note: move the note's box, size it, make the steps 1 pixel, keep it, give it up |
 | Ctrl+D, Ctrl+R | Fill down, fill right |
 | Ctrl+E | Flash Fill |
 | Alt and the equals sign | Sum |
