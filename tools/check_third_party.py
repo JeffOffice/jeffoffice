@@ -11,6 +11,7 @@ It also writes docs/third-party.json, the list as data, for the website's Third-
     python3 tools/check_third_party.py --write
 and fails when the committed file differs from the list, so the website's copy follows the apps.
 """
+import hashlib
 import json
 import os
 import re
@@ -28,6 +29,7 @@ PARTS = {
     "third_party/libmspub": "libmspub", "third_party/librevenge": "librevenge", "third_party/compat": None,
     "third_party/ffmpeg": "FFmpeg", "third_party/pdfium": "PDFium",
     "third_party/bergamot": "Bergamot", "packaging/Apache-2.0": "SentencePiece",
+    "third_party/odf_schema": None,   # test data, never shipped (no row on the About pages)
     "third_party/qpdf": "qpdf", "third_party/qpdfwrap": None, "third_party/libjpeg_turbo": "libjpeg-turbo",
     "pdfium/abseil": "Abseil", "pdfium/agg23": "Anti-Grain Geometry", "pdfium/dragonbox-Apache2-LLVM": "dragonbox",
     "pdfium/dragonbox-Boost": "dragonbox", "pdfium/fast_float": "fast_float", "pdfium/freetype": "FreeType",
@@ -117,10 +119,26 @@ def listing():
     return out
 
 
+def odf_schema_problems():
+    """The vendored schema files must be the published bytes: the README names their hashes, and their notice forbids any change."""
+    folder = os.path.join(ROOT, "third_party/odf_schema")
+    with open(os.path.join(folder, "README.md"), encoding="utf-8") as f:
+        wanted = dict((m.group(1), m.group(2)) for m in re.finditer(r"`(\S+\.rng)` \| `([0-9a-f]{64})`", f.read()))
+    found = sorted(n for n in os.listdir(folder) if n.endswith(".rng"))
+    problems = []
+    if found != sorted(wanted):
+        problems.append("third_party/odf_schema: the .rng files %s are not the ones its README lists %s" % (found, sorted(wanted)))
+    for name in found:
+        with open(os.path.join(folder, name), "rb") as f:
+            if hashlib.sha256(f.read()).hexdigest() != wanted.get(name):
+                problems.append("third_party/odf_schema/%s differs from the published file (the notice forbids any change)" % name)
+    return problems
+
+
 def main():
     lst = listing()
     names = [r["name"] for r in lst]
-    problems = []
+    problems = odf_schema_problems()
     for key in carried():
         if key not in PARTS:
             problems.append("%s is new: add its row to the About list (%s, or the app's own) and to PARTS in this script" % (key, SHARED))

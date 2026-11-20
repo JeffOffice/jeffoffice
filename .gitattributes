@@ -8,3 +8,5 @@ tests/data/dict_golden.txt text eol=lf
 
 # Help pages keep LF in every checkout (headings are matched by "\n## Name\n").
 resources/help/** text eol=lf
+# OpenDocument schema files: the notice forbids any change, so no checkout converts their line endings.
+third_party/odf_schema/** -text
