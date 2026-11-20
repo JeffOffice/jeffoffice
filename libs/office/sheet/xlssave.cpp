@@ -887,7 +887,7 @@ private:
             put(&out, 0x000F, W().u16(1));
             put(&out, 0x0011, W().u16(info.iterate ? 1 : 0));
             put(&out, 0x0010, W().f64(info.iterate ? info.iterateDelta : 0.001));
-            put(&out, 0x005F, W().u16(1));
+            put(&out, 0x005F, W().u16(info.calcOnSave ? 1 : 0));
         }
         put(&out, 0x002A, W().u16(sheet.page.headings ? 1 : 0));
         put(&out, 0x002B, W().u16(sheet.page.gridLines ? 1 : 0));

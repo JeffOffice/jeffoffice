@@ -39,6 +39,9 @@ enum : quint16 {
     kDateMode = 0x0022,
     kCalcMode = 0x000D,
     kIteration = 0x0011,
+    kIterations = 0x000C,   // the most rounds of going round a circular formula
+    kDelta = 0x0010,        // and the change that stops it
+    kSaveRecalc = 0x005F,   // whether the formulas are worked out before the workbook is saved
     kWsBool = 0x0081,
     kUncalced = 0x005E,
     kFilePass = 0x002F,
@@ -455,6 +458,23 @@ public:
                 break;
             }
             case kUncalced: m_uncalced = true; break;
+            case kIterations: {
+                Bytes b(m_d, r.pos, r.pos + r.len);
+                m_iterateCount = std::clamp<int>(b.u16(), 1, 32767);
+                break;
+            }
+            case kDelta:
+                if (r.len >= 8) {
+                    Bytes b(m_d, r.pos, r.pos + r.len);
+                    const double v = b.f64();
+                    if (v >= 0 && v < 1e300) m_iterateDelta = v;
+                }
+                break;
+            case kSaveRecalc: {
+                Bytes b(m_d, r.pos, r.pos + r.len);
+                m_calcOnSave = b.u16() != 0;
+                break;
+            }
             case kIteration: {
                 Bytes b(m_d, r.pos, r.pos + r.len);
                 m_iterate = b.u16() == 1;
@@ -541,8 +561,12 @@ private:
     bool m_date1904 = false;
     bool m_uncalced = false;
     bool m_sheetCalcSeen = false, m_sheetIterSeen = false;
+    bool m_sheetRoundsSeen[3] = {false, false, false};
     CalcMode m_calcMode = CalcMode::Auto;
     bool m_iterate = false;
+    int m_iterateCount = 100;
+    double m_iterateDelta = 0.001;
+    bool m_calcOnSave = true;
     bool m_haveWindow = false;
     int m_activeTab = 0, m_firstTab = 0;
     bool m_drawings = false;
@@ -1120,6 +1144,20 @@ private:
                     break;
                 case kSxView: m_pivots = true; break;
                 case kUncalced: if (depth == 0) m_uncalced = true; break;   // (a sheet's own record, near its start)
+                case kIterations:
+                case kSaveRecalc:
+                case kDelta:
+                    if (depth == 0 && !m_sheetRoundsSeen[r.id == kIterations ? 0 : r.id == kDelta ? 1 : 2] && r.len >= 2) {
+                        Bytes b(m_d, r.pos, r.pos + r.len);
+                        m_sheetRoundsSeen[r.id == kIterations ? 0 : r.id == kDelta ? 1 : 2] = true;
+                        if (r.id == kIterations) m_iterateCount = std::clamp<int>(b.u16(), 1, 32767);
+                        else if (r.id == kSaveRecalc) m_calcOnSave = b.u16() != 0;
+                        else if (r.len >= 8) {
+                            const double v = b.f64();
+                            if (v >= 0 && v < 1e300) m_iterateDelta = v;
+                        }
+                    }
+                    break;
                 case kCalcMode:
                 case kIteration:
                     // (the settings of a workbook lie in its sheets' own records; the first sheet that has them gives them)
@@ -1170,6 +1208,9 @@ private:
         info->calcMode = m_calcMode;
         info->calcUnfinished = m_uncalced;
         info->iterate = m_iterate;
+        info->iterateCount = m_iterateCount;
+        info->iterateDelta = m_iterateDelta;
+        info->calcOnSave = m_calcOnSave;
         info->activeTab = m_activeTab < m_sheets.size() ? m_activeTab : 0;
         info->firstSheet = m_firstTab < m_sheets.size() ? m_firstTab : 0;
         info->definedNames.clear();

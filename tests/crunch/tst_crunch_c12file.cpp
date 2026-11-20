@@ -22,6 +22,7 @@
 #include <QCheckBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <QLineEdit>
 #include <QSpinBox>
 #include <QTimer>
 #include <QComboBox>
@@ -44,6 +45,22 @@ using namespace crunchtest;
 using jp::office::sheet::EditRange;
 
 namespace {
+// Opens File > Options, lets `change` work on the dialog once it is up (the Formulas page is the one that is looked for), and presses OK.
+void answerFormulasOptions(CrunchWindow &w, const std::function<void(QWidget *)> &change)
+{
+    auto *watch = new QTimer(&w);
+    watch->setInterval(10);
+    QObject::connect(watch, &QTimer::timeout, watch, [watch, change] {
+        QWidget *dialog = QApplication::activeModalWidget();
+        if (!dialog || dialog->findChildren<QComboBox *>(QStringLiteral("optionCalcMode")).isEmpty()) return;
+        watch->stop();
+        change(dialog);
+        if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
+    });
+    watch->start();
+    w.act(QStringLiteral("file.options"))->trigger();
+}
+
 // A1:C4 hold numbers, all locked; the sheet is protected, with an open range A1:A2 ("Open"), and one with the password "test" at C1:C2 ("Secret").
 QByteArray rangesBook()
 {
@@ -517,30 +534,17 @@ private Q_SLOTS:
         QVERIFY(e.open(editBook()));
         QVERIFY(e.settle());
         CrunchWindow &w = e.win.w;
-        auto answer = [&](const std::function<void(QWidget *)> &change) {
-            auto *watch = new QTimer(&w);
-            watch->setInterval(10);
-            connect(watch, &QTimer::timeout, watch, [watch, change] {
-                QWidget *dialog = QApplication::activeModalWidget();
-                if (!dialog || dialog->findChildren<QComboBox *>(QStringLiteral("optionCalcMode")).isEmpty()) return;
-                watch->stop();
-                change(dialog);
-                if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
-            });
-            watch->start();
-            w.act(QStringLiteral("file.options"))->trigger();
-        };
         // (nothing changed: no step of Undo)
         const int steps = w.undoStack()->count();
-        answer([](QWidget *) {});
+        answerFormulasOptions(w, [](QWidget *) {});
         QCOMPARE(w.undoStack()->count(), steps);
-        answer([](QWidget *dialog) {
+        answerFormulasOptions(w, [](QWidget *dialog) {
             auto *mode = dialog->findChild<QComboBox *>(QStringLiteral("optionCalcMode"));
             mode->setCurrentIndex(mode->findData(int(jp::office::sheet::CalcMode::Manual)));
             dialog->findChild<QCheckBox *>(QStringLiteral("optionCalcBeforeSave"))->setChecked(false);
             dialog->findChild<QCheckBox *>(QStringLiteral("optionIterate"))->setChecked(true);
             dialog->findChild<QSpinBox *>(QStringLiteral("optionIterations"))->setValue(50);
-            dialog->findChild<QDoubleSpinBox *>(QStringLiteral("optionIterationChange"))->setValue(0.01);
+            dialog->findChild<QLineEdit *>(QStringLiteral("optionIterationChange"))->setText(QLocale().toString(0.01));
         });
         QCOMPARE(w.undoStack()->count(), steps + 1);
         crunch::CalcSettings s = w.session()->calcSettings();
@@ -558,6 +562,95 @@ private Q_SLOTS:
         w.undoStack()->undo();
         QVERIFY(w.session()->calcSettings().mode == jp::office::sheet::CalcMode::Auto);
         QVERIFY(w.act(QStringLiteral("formulas.calcAuto"))->isChecked());
+    }
+
+    // A maximum change a workbook has that is smaller than the page's old six decimals (1e-7) is shown whole, and pressing OK with nothing changed writes nothing: no step of Undo, and the
+    // workbook is not marked as changed. The page says that the settings belong to the workbook.
+    void aSmallMaximumChangeIsShownWholeAndKeptWhenNothingIsChanged()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, QByteArray(), QString(), QStringLiteral("iterate=\"1\" iterateCount=\"20\" iterateDelta=\"1e-7\""))));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QCOMPARE(w.session()->calcSettings().delta, 1e-7);
+        const int steps = w.undoStack()->count();
+        QVERIFY(!w.session()->isModified());
+        double shown = -1;
+        bool belongs = false;
+        answerFormulasOptions(w, [&](QWidget *dialog) {
+            bool ok = false;
+            shown = QLocale().toDouble(dialog->findChild<QLineEdit *>(QStringLiteral("optionIterationChange"))->text(), &ok);
+            if (!ok) shown = -2;
+            for (QLabel *label : dialog->findChildren<QLabel *>())
+                if (label->text().contains(QLatin1String("belong to this workbook"))) belongs = true;
+        });
+        QCOMPARE(shown, 1e-7);
+        QVERIFY(belongs);
+        QCOMPARE(w.undoStack()->count(), steps);
+        QVERIFY(!w.session()->isModified());
+        QCOMPARE(w.session()->calcSettings().delta, 1e-7);
+        // (a change to another field leaves the small value as it is)
+        answerFormulasOptions(w, [](QWidget *dialog) { dialog->findChild<QSpinBox *>(QStringLiteral("optionIterations"))->setValue(30); });
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QCOMPARE(w.session()->calcSettings().count, 30);
+        QCOMPARE(w.session()->calcSettings().delta, 1e-7);
+        // (and a value typed in the scientific form is taken)
+        answerFormulasOptions(w, [](QWidget *dialog) { dialog->findChild<QLineEdit *>(QStringLiteral("optionIterationChange"))->setText(QLocale().toString(2.5e-9, 'g')); });
+        QCOMPARE(w.session()->calcSettings().delta, 2.5e-9);
+    }
+
+    // The settings are saved through every format the app writes, and read back by the app: the newer format and the old binary one keep all of them; the open-document one keeps the rounds and the
+    // change but has no place for calculating by hand, and the copy's report says so.
+    void theFormulasSettingsSurviveEveryFormatTheAppWrites()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        answerFormulasOptions(w, [](QWidget *dialog) {
+            auto *mode = dialog->findChild<QComboBox *>(QStringLiteral("optionCalcMode"));
+            mode->setCurrentIndex(mode->findData(int(jp::office::sheet::CalcMode::Manual)));
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionCalcBeforeSave"))->setChecked(false);
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionIterate"))->setChecked(true);
+            dialog->findChild<QSpinBox *>(QStringLiteral("optionIterations"))->setValue(50);
+            dialog->findChild<QLineEdit *>(QStringLiteral("optionIterationChange"))->setText(QLocale().toString(1e-7, 'g'));
+        });
+        const crunch::CalcSettings set = w.session()->calcSettings();
+        QVERIFY(set.mode == jp::office::sheet::CalcMode::Manual && !set.calcOnSave && set.iterate && set.count == 50 && set.delta == 1e-7);
+        // (a window that opens a file the app wrote: the settings it has)
+        auto reopened = [&](const QString &path) {
+            auto again = std::make_unique<Window>();
+            if (!again->open(path)) again.reset();
+            return again;
+        };
+        {
+            QSignalSpy saved(&w, &CrunchWindow::saved);
+            QVERIFY(w.save());
+            QVERIFY2(savedOk(saved), "the save failed");
+            const auto again = reopened(e.copyOfFile());
+            QVERIFY(again);
+            QVERIFY(again->w.session()->calcSettings() == set);
+        }
+        for (const QString &kind : {QStringLiteral("xls"), QStringLiteral("ods")}) {
+            e.win.told.clear();
+            const QString copy = e.folder.dir.filePath(QStringLiteral("copy.") + kind);
+            QSignalSpy exported(&w, &CrunchWindow::copyExported);
+            QVERIFY(w.saveAs(copy, true));
+            QVERIFY(exported.count() > 0 || exported.wait(20000));
+            QVERIFY2(exported.first().at(1).toBool(), qPrintable(e.win.told.join(QLatin1Char('|'))));
+            const auto again = reopened(copy);
+            QVERIFY(again);
+            const crunch::CalcSettings got = again->w.session()->calcSettings();
+            QVERIFY(got.iterate && got.count == 50 && got.delta == 1e-7);
+            const bool noteTold = e.win.told.join(QLatin1Char('|')).contains(QLatin1String("calculation set by hand or without data tables"));
+            if (kind == QLatin1String("xls")) {
+                QVERIFY(got.mode == jp::office::sheet::CalcMode::Manual && !got.calcOnSave);
+                QVERIFY2(!noteTold, qPrintable(e.win.told.join(QLatin1Char('|'))));
+            } else {
+                QVERIFY(got.mode == jp::office::sheet::CalcMode::Auto);
+                QVERIFY2(noteTold, qPrintable(e.win.told.join(QLatin1Char('|'))));
+            }
+        }
     }
 
     // Edit ranges move with inserted and deleted rows and columns, as one step of Undo with the edit; a range cut by a deleted column shrinks, one taken out whole is gone, and the file holds the new cells.

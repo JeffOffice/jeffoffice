@@ -1240,7 +1240,7 @@ bool patchCalcPr(const QByteArray &xml, CalcMode mode, bool iterate, int iterate
     if (iterate) {
         setAttribute(&tag, "iterate", "1");
         setAttribute(&tag, "iterateCount", QByteArray::number(iterateCount));
-        setAttribute(&tag, "iterateDelta", QByteArray::number(iterateDelta, 'g', 12));
+        setAttribute(&tag, "iterateDelta", QByteArray::number(iterateDelta, 'g', QLocale::FloatingPointShortest));
     } else {
         dropAttribute(&tag, "iterate");
     }

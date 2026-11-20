@@ -118,7 +118,11 @@ QString sheetNote(const QString &sheet, const QString &what)
     return QCoreApplication::translate("Sheet", "%1: %2").arg(sheet, what);
 }
 
-Features::Features(const Workbook &book, CopyKind kind) : m_book(book), m_kind(kind) {}
+Features::Features(const Workbook &book, CopyKind kind) : m_book(book), m_kind(kind)
+{
+    // (an OpenDocument spreadsheet has the rounds of going round a circular formula, but no way to say that the formulas are worked out by hand)
+    if (kind == CopyKind::Ods && book.info().calcMode != CalcMode::Auto) m_found.insert(QCoreApplication::translate("Sheet", "calculation set by hand or without data tables"));
+}
 
 void Features::noteDatesLost()
 {

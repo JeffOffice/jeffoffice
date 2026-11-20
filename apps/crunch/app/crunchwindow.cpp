@@ -62,6 +62,7 @@
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QMouseEvent>
+#include <QDoubleValidator>
 #include <QLabel>
 #include <QLineEdit>
 #include <QMenu>
@@ -556,13 +557,24 @@ void CrunchWindow::createActions()
         auto lists = std::make_shared<QPointer<QPlainTextEdit>>();
         QVector<OptionsPage> pages;
         pages << saveOptionsPage({{QStringLiteral("xlsx"), tr("Workbook (*.xlsx)")}});
-        // Formulas: how the open workbook works out its formulas (the Formulas tab's commands, in one place); they belong to the workbook and are saved with it.
-        auto calc = std::make_shared<std::array<QPointer<QWidget>, 5>>();
+        // Formulas: how the open workbook works out its formulas (the Formulas tab's commands, in one place). The settings belong to the workbook, not to the person: they are saved with the workbook
+        // and are not kept for others. What the person did not change is not written (the fields show the workbook's values as they are, and OK writes only the fields that were changed).
+        struct CalcPage {
+            std::array<QPointer<QWidget>, 5> fields;
+            crunch::CalcSettings shown;   // what the fields held when the page was made
+            int roundsShown = 0;
+        };
+        auto calc = std::make_shared<CalcPage>();
         pages << OptionsPage{tr("Formulas"), [this, calc] {
             auto *page = new QWidget;
             auto *layout = new QFormLayout(page);
             const bool open = m_session && m_loaded;
             const crunch::CalcSettings now = open ? m_session->calcSettings() : crunch::CalcSettings();
+            calc->shown = now;
+            auto *about = new QLabel(open ? tr("These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.") : tr("These settings belong to a workbook. Open one to change them."), page);
+            about->setWordWrap(true);
+            about->setTextFormat(Qt::PlainText);
+            layout->addRow(about);
             auto *mode = new QComboBox(page);
             mode->setObjectName(QStringLiteral("optionCalcMode"));
             mode->setAccessibleName(tr("Calculation"));
@@ -583,13 +595,16 @@ void CrunchWindow::createActions()
             rounds->setAccessibleName(tr("Most rounds"));
             rounds->setRange(1, jp::office::sheet::Calculation::kMaxIterations);
             rounds->setValue(now.count);
+            calc->roundsShown = rounds->value();
             layout->addRow(tr("Most rounds"), rounds);
-            auto *change = new QDoubleSpinBox(page);
+            // (a number as small as 0.0000001 is a setting a workbook has: a field of a few decimals would show it as 0 and write that; this one shows the whole number, and takes it written as 1e-7)
+            auto *change = new QLineEdit(page);
             change->setObjectName(QStringLiteral("optionIterationChange"));
             change->setAccessibleName(tr("Stop when no value changes by more than"));
-            change->setDecimals(6);
-            change->setRange(0, 1e9);
-            change->setValue(now.delta);
+            auto *check = new QDoubleValidator(0, 1e9, 17, change);
+            check->setNotation(QDoubleValidator::ScientificNotation);
+            change->setValidator(check);
+            change->setText(QLocale().toString(now.delta, 'g', QLocale::FloatingPointShortest));
             layout->addRow(tr("Stop when no value changes by more than"), change);
             rounds->setEnabled(open && now.iterate);
             change->setEnabled(open && now.iterate);
@@ -597,25 +612,25 @@ void CrunchWindow::createActions()
             connect(iterate, &QCheckBox::toggled, change, &QWidget::setEnabled);
             if (!open)
                 for (QWidget *w : {static_cast<QWidget *>(mode), static_cast<QWidget *>(beforeSave), static_cast<QWidget *>(iterate)}) w->setEnabled(false);
-            (*calc)[0] = mode;
-            (*calc)[1] = beforeSave;
-            (*calc)[2] = iterate;
-            (*calc)[3] = rounds;
-            (*calc)[4] = change;
+            calc->fields = {mode, beforeSave, iterate, rounds, change};
             return static_cast<QWidget *>(page);
         }, [this, calc] {
-            auto *mode = qobject_cast<QComboBox *>((*calc)[0].data());
-            auto *beforeSave = qobject_cast<QCheckBox *>((*calc)[1].data());
-            auto *iterate = qobject_cast<QCheckBox *>((*calc)[2].data());
-            auto *rounds = qobject_cast<QSpinBox *>((*calc)[3].data());
-            auto *change = qobject_cast<QDoubleSpinBox *>((*calc)[4].data());
+            auto *mode = qobject_cast<QComboBox *>(calc->fields[0].data());
+            auto *beforeSave = qobject_cast<QCheckBox *>(calc->fields[1].data());
+            auto *iterate = qobject_cast<QCheckBox *>(calc->fields[2].data());
+            auto *rounds = qobject_cast<QSpinBox *>(calc->fields[3].data());
+            auto *change = qobject_cast<QLineEdit *>(calc->fields[4].data());
             if (!mode || !beforeSave || !iterate || !rounds || !change || !m_session || !m_loaded) return;
+            // (only a field the person changed is written: a value the fields could not show as it is stays as the workbook has it)
             crunch::CalcSettings s = m_session->calcSettings();
-            s.mode = jp::office::sheet::CalcMode(mode->currentData().toInt());
-            s.calcOnSave = beforeSave->isChecked();
-            s.iterate = iterate->isChecked();
-            s.count = rounds->value();
-            s.delta = change->value();
+            const crunch::CalcSettings &was = calc->shown;
+            if (jp::office::sheet::CalcMode(mode->currentData().toInt()) != was.mode) s.mode = jp::office::sheet::CalcMode(mode->currentData().toInt());
+            if (beforeSave->isChecked() != was.calcOnSave) s.calcOnSave = beforeSave->isChecked();
+            if (iterate->isChecked() != was.iterate) s.iterate = iterate->isChecked();
+            if (rounds->value() != calc->roundsShown) s.count = rounds->value();
+            bool ok = false;
+            const double typed = QLocale().toDouble(change->text(), &ok);
+            if (ok && change->text() != QLocale().toString(was.delta, 'g', QLocale::FloatingPointShortest)) s.delta = typed;
             if (s == m_session->calcSettings()) return;   // (nothing changed: no step of Undo)
             const crunch::EditSession::Outcome o = m_session->setCalcSettings(s);
             if (!o.ok) notice(tr("Calculation"), o.problem);

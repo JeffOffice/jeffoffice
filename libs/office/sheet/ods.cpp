@@ -107,6 +107,8 @@ struct Found {
     bool charts = false, oleObjects = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
     QString nullDate = QStringLiteral("1899-12-30");
     bool iterate = false;
+    int iterateCount = 100;
+    double iterateDelta = 0.001;
     bool precisionAsShown = false;
     // What a style may have of one thing at the most (4,000 settings; 1,000 parts of a number format) and the document had more of: said in the notice, not dropped without a word.
     qint64 settingsLeftOut = 0, dataPartsLeftOut = 0;
@@ -225,6 +227,11 @@ private:
             if (!d.isEmpty()) m_f.nullDate = d;
         } else if (name == QLatin1String("iteration")) {
             m_f.iterate = attr(a, NS_TABLE, QLatin1String("status")) == QLatin1String("enable");
+            bool okCount = false, okDelta = false;
+            const int steps = attr(a, NS_TABLE, QLatin1String("steps")).toInt(&okCount);
+            const double difference = attr(a, NS_TABLE, QLatin1String("maximum-difference")).toDouble(&okDelta);
+            if (okCount) m_f.iterateCount = std::clamp(steps, 1, 32767);
+            if (okDelta && difference >= 0 && difference < 1e300) m_f.iterateDelta = difference;
         } else if (name == QLatin1String("content-validation") || name == QLatin1String("content-validations")) {
             m_f.validation = true;
         } else if (name == QLatin1String("data-pilot-table") || name == QLatin1String("data-pilot-tables")) {
@@ -1026,6 +1033,8 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
     }
     info->dateSystem = m.dateSystem;
     info->iterate = m.found.iterate;
+    info->iterateCount = m.found.iterateCount;
+    info->iterateDelta = m.found.iterateDelta;
     info->precisionAsShown = m.found.precisionAsShown;
     QSet<QString> usedNames;
     for (int i = 0; i < m.found.tables.size(); ++i) {
