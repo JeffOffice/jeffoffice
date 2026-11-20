@@ -1235,7 +1235,7 @@ bool Editor::regroupPossible(QString *why) const
             const auto loc = m_doc->find(id);
             if (!loc.item) return refuse(tr("The group can't be put back: one of its objects was deleted."));
             if (loc.parent) return refuse(tr("The group can't be put back: one of its objects is in another group now."));
-            if (loc.list != here) return refuse(tr("The group can't be put back: one of its objects is not on this %1 now.").arg(m_master.isEmpty() ? tr("page") : tr("master")));
+            if (loc.list != here) return refuse(m_master.isEmpty() ? tr("The group can't be put back: one of its objects is not on this page now.") : tr("The group can't be put back: one of its objects is not on this master now."));
         }
     return true;
 }
