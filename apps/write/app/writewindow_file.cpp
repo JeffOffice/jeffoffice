@@ -101,6 +101,7 @@ void WriteWindow::createFileActions()
     mk("file.save", tr("Save"), "save", QKeySequence::Save, [this] { save(); });
     mk("file.saveAs", tr("Save As"), "save-all", QKeySequence(Qt::Key_F12), [this] { saveAs(); });
     mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
+    mk("file.shrinkOnePage", tr("Shrink by One Page"), "shrink", QKeySequence(), [this] { shrinkByOnePage(); });
     mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
     mk("edit.lastPlace", tr("Go to Last Edit"), "", QKeySequence(Qt::SHIFT | Qt::Key_F5), [this] { goToLastPlace(); });
     act("edit.lastPlace")->setEnabled(false);

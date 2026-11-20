@@ -31,6 +31,7 @@
 #include <QListWidget>
 #include <QMenu>
 #include <QPainter>
+#include <QDoubleSpinBox>
 #include <QPrinterInfo>
 #include <QPushButton>
 #include <QRadioButton>
@@ -333,6 +334,14 @@ QWidget *WriteFileScreen::buildPrint()
     column.top(printBtn, copies);
     // The printer (a PDF file is one more), whether the copies come out a set at a time, and the paper the document's sections set.
     QComboBox *printer = makePrinterBox(w);
+    QPushButton *properties = makePrinterPropertiesButton(w);
+    auto *printerRow = new QWidget(w);
+    auto *printerLine = new QHBoxLayout(printerRow);
+    printerLine->setContentsMargins(0, 0, 0, 0);
+    printerLine->addWidget(printer, 1);
+    printerLine->addWidget(properties);
+    QCheckBox *openPdf = makeOpenPdfBox(w, QStringLiteral("printOpenPdf"));
+    const MarginBoxes margins = makeMarginBoxes(w);
     QCheckBox *collate = makeCollateBox(w, tr("Print each copy of the whole document in turn (1, 2, 3, 1, 2, 3), not each page's copies together (1, 1, 2, 2, 3, 3)."));
     // One side, or both sides by the printer or by hand (the odd pages, the stack turned over, then the even pages).
     auto *duplex = new QComboBox(w);
@@ -392,7 +401,8 @@ QWidget *WriteFileScreen::buildPrint()
     scaleTo->setToolTip(tr("Make each page fit the paper in the printer, whatever size the page is."));
     // the groups of the Print page (docs/design/STYLE.md)
     column.group(PrintColumn::printerHeading());
-    column.wide(printer);
+    column.wide(printerRow);
+    column.checks(openPdf);
     column.group(PrintColumn::pagesHeading());
     for (QRadioButton *r : {all, current, selection, some}) column.wide(r);
     column.wide(text);
@@ -400,8 +410,14 @@ QWidget *WriteFileScreen::buildPrint()
     column.checks(collate, reverse);
     column.group(PrintColumn::layoutHeading());
     column.pair(tr("Pages on a sheet"), perSheet, tr("Scale to paper"), scaleTo);
+    auto *shrink = new QPushButton(tr("Shrink by One Page"), w);
+    shrink->setObjectName(QStringLiteral("printShrink"));
+    shrink->setToolTip(tr("Makes the text a little smaller so that the document is one page shorter."));
+    column.link(shrink);
     column.group(PrintColumn::paperHeading(), tr("(as each section says unless changed)"));
     column.pair(tr("Turned"), orientation, tr("Paper"), paper);
+    column.pair(tr("Top margin"), margins.top, tr("Bottom margin"), margins.bottom);
+    column.pair(tr("Left margin"), margins.left, tr("Right margin"), margins.right);
     column.checks(gray);
     column.group(PrintColumn::whatPrintsHeading());
     column.field(tr("Markup"), markup);
@@ -480,6 +496,8 @@ QWidget *WriteFileScreen::buildPrint()
         o.scaleTo = scaleTo->currentData().toSizeF();
         o.grayscale = gray->isChecked();
         o.turn = PrintTurn(orientation->currentData().toInt());
+        o.margins = marginsOf(margins);
+        o.openAfter = openPdf->isChecked();
         o.markup = markup->currentData().toInt() != 0;
         o.hidden = hiddenText->isChecked();
         o.background = background->isChecked();
@@ -511,6 +529,8 @@ QWidget *WriteFileScreen::buildPrint()
         const PrinterChoice chosen = printerChoice(printer);
         const bool toFile = chosen.toFile;
         updateSidesBox(duplex, chosen.printer, toFile);
+        updatePrinterPropertiesButton(properties, printer);
+        openPdf->setVisible(toFile);
         const bool hand = sidesByHand(duplex);
         sides->setEnabled(!hand);
         reverse->setEnabled(!hand);
@@ -602,6 +622,20 @@ QWidget *WriteFileScreen::buildPrint()
         paint();
     });
     connect(orientation, &QComboBox::currentIndexChanged, w, [=] { paint(); });
+    connect(shrink, &QPushButton::clicked, w, [=] {
+        m_win->shrinkByOnePage();
+        restart();
+    });
+    for (QDoubleSpinBox *box : {margins.top, margins.bottom, margins.left, margins.right}) connect(box, &QDoubleSpinBox::valueChanged, w, [=] { paint(); });
+    // The system's print window, on the printer the job is printed on, so that what is chosen there is kept; what the page also has comes back to it.
+    connect(properties, &QPushButton::clicked, this, [=] {
+        PrinterControls controls;
+        controls.printer = printer;
+        controls.copies = copies;
+        controls.collate = collate;
+        controls.gray = gray;
+        showPrinterProperties(this, m_win->printer(), controls);
+    });
     connect(duplex, &QComboBox::currentIndexChanged, w, [=] {
         Settings::get().setValue(QStringLiteral("print/sides"), sidesWanted(duplex));
         restart();

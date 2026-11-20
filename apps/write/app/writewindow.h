@@ -30,6 +30,7 @@
 #include "app/objectsdialog.h"
 
 #include <QHash>
+#include <QMarginsF>
 #include <QImage>
 #include <QSizeF>
 #include <QPointer>
@@ -110,6 +111,8 @@ struct WriteOutputOptions {
     int perSheet = 1;           // pages on a sheet: 1, 2, 4, 6, 9, or 16 (each scaled to fit its place)
     QSizeF scaleTo;             // points, upright: each page is scaled to fit this paper (empty: the page's own)
     jp::PrintTurn turn = jp::PrintTurn::AsSet;   // the paper turned tall or wide, whichever way each page is (its page is scaled to fit); as set: each page's own way
+    QMarginsF margins;          // points: blank space round each sheet, the pages scaled to fit inside it (the Print page's Margins; none: the pages fill the sheet)
+    bool openAfter = false;     // a PDF file: opened in the system's viewer once saved (Open the PDF after saving)
     bool markup = true;         // tracked changes as the screen shows them, and the comments in the margin; else the text as it stands, with no comments
     bool hidden = false;        // text formatted as hidden is printed
     std::optional<bool> background;   // the page's color is on the paper (unset: a PDF has it, a printer is not sent it)
@@ -297,6 +300,8 @@ public:
     void goToLastPlace();
     // What a printer is made ready with after the window has set it up (tests: a printer that writes to a file stands in for a real one).
     void setPrinterPreparer(const std::function<void(QPrinter &)> &preparer) { m_printerPreparer = preparer; }
+    // The printer the jobs go to, kept between them so that what Printer Properties set on it is what prints.
+    QPrinter &printer();
     // Automatic recovery: a copy of unsaved work (the timer writes it at the interval Options sets), and the copies a run that crashed left.
     void autoRecover();
     QString recoveryCopy() const { return m_recoveryCopy; }
@@ -339,6 +344,9 @@ public:
     void hideFileScreen();
     bool printOutput(const WriteOutputOptions &options);
     bool exportPdf();
+    // Shrink by One Page: the text made a little smaller, step by step, until the document is one page shorter. It is tried on a copy first: when it can't be done, nothing is changed
+    // (and nothing is left to redo); when it can, the document is changed in one step of the history. False when nothing was changed.
+    bool shrinkByOnePage();
     // Save as Plain Text: asks for the encoding, the line ends, and the file; and the writing itself (an empty path asks nothing and writes nothing).
     bool exportTextAsk();
     bool exportText(const QString &path, write::TextEncoding encoding, write::LineEnds ends, int codePage = 1252);
@@ -591,6 +599,7 @@ private:
     // The sheets (pages by index, -1 for a blank one) of `source` as a PDF with the choices of `options`, in memory; empty, with the reason, when they can't be made.
     // What prints besides the text for these options (the marks over the pages are the window's own, for the document in the window).
     write::PrintLook printLook(const WriteOutputOptions &options, const write::WriteDoc &source) const;
+    QByteArray withPdfInfo(const QByteArray &pdf, bool properties) const;
     QByteArray pdfSheets(write::WriteDoc &source, int sourcePages, const QVector<int> &sheets, const write::SheetLayout &layout, bool grayscale, const WriteOutputOptions &options, QString *error, QString *notTagged);
     QString helpContext() const;
     HelpWindow *showHelpOver(const QString &topic);
@@ -711,6 +720,7 @@ private:
     std::function<bool(const QUrl &)> m_urlOpener;
     std::function<void(const QString &, const QString &)> m_notifier;
     std::function<void(QPrinter &)> m_printerPreparer;
+    std::unique_ptr<QPrinter> m_printer;
     std::function<FormatChoice(const QStringList &)> m_formatAsker;
     std::function<bool()> m_stackTurner;
     std::unique_ptr<write::WriteDoc> m_selectionDoc;   // the copy that the last count of the pages to print for the selection was made from

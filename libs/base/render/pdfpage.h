@@ -57,6 +57,8 @@ public:
         int page = -1;
     };
     QVector<OutlineEntry> outline() const;
+    // An entry of the document information ("Title", "Author", "Subject", "Keywords", "Creator", "Producer", "CreationDate", "ModDate"), or empty when the file has none.
+    QString meta(const QString &key) const;
     // Whether the file says it is tagged (its catalog's mark info), and the tags of a page: its structure elements in the order a screen reader reads them (depth first), each
     // with the words the page draws in its marked content.
     struct StructElement {

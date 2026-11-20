@@ -3,6 +3,7 @@
 // update appended at its end (the pages are not touched).
 
 #include <QByteArray>
+#include <QDateTime>
 #include <QRectF>
 #include <QString>
 #include <QVector>
@@ -41,5 +42,16 @@ bool clickableAddress(const QString &uri);
 // The document's properties as the metadata a PDF reader shows (title, author, subject, keywords, and the program that made it); with `archive`, the mark of PDF/A part
 // `archivePart` (1 or 2), conformance B.
 QByteArray pdfPropertiesXmp(const QString &title, const QString &author, const QString &subject, const QString &keywords, const QString &program, bool archive = false, int archivePart = 1);
+
+// The document information a PDF reader lists (File > Properties): what the PDF's information dictionary holds. Empty fields are left out.
+struct PdfInfo {
+    QString title, author, subject, keywords;
+    QString program;      // the program that made the file: written as both its creator and its producer
+    QDateTime created;    // when the file was made (invalid: left out)
+};
+
+// The PDF with its information dictionary set to `info` (an update appended at its end, as the bookmarks are, so the pages are not touched; the dictionary Qt wrote is replaced as a
+// whole, which is what takes its producer, the Qt version, out). The PDF as it was if it is made in a way this doesn't know how to extend.
+QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info);
 
 } // namespace jp

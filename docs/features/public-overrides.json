@@ -549,7 +549,7 @@
  {
   "app": "jeffwrite",
   "source_startswith": "Print preview with page navigation, zoom, one or many pages",
-  "works": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent.",
-  "soon": "A check that shrinks a document to fit on one page"
+  "works": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent, and Shrink by One Page makes the text a little smaller until the document is a page shorter.",
+  "soon": "drop"
  }
 ]

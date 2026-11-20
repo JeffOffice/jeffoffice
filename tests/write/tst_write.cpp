@@ -26,7 +26,7 @@ void WriteTests::theWindowHasItsTabsAndBuildsCleanly()
     QVERIFY(w.windowTitle().contains(QLatin1String("JeffWrite")));
     QVERIFY(w.windowTitle().startsWith(QLatin1String("Document")));
     // The commands a person looks for.
-    for (const char *id : {"file.new", "file.open", "file.save", "file.saveAs", "file.print", "file.exportPdf", "file.options", "edit.undo", "edit.redo", "fmt.bold", "para.bullets", "insert.pageBreak",
+    for (const char *id : {"file.new", "file.open", "file.save", "file.saveAs", "file.print", "file.exportPdf", "file.shrinkOnePage", "file.options", "edit.undo", "edit.redo", "fmt.bold", "para.bullets", "insert.pageBreak",
                            "layout.landscape", "zoom.pageWidth", "help.show", "review.spelling", "review.checkAsType"})
         QVERIFY2(w.act(QString::fromLatin1(id)), id);
 }

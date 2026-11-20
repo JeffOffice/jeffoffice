@@ -265,6 +265,18 @@ QVector<PdfDocument::OutlineEntry> PdfDocument::outline() const
     return out;
 }
 
+QString PdfDocument::meta(const QString &key) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    if (!d->doc) return {};
+    const QByteArray name = key.toLatin1();
+    const unsigned long need = FPDF_GetMetaText(d->doc, name.constData(), nullptr, 0);
+    if (need <= 2) return {};
+    QByteArray buffer(int(need), '\0');
+    FPDF_GetMetaText(d->doc, name.constData(), buffer.data(), need);
+    return QString::fromUtf16(reinterpret_cast<const char16_t *>(buffer.constData()), int(need / 2) - 1);
+}
+
 bool PdfDocument::isTagged() const
 {
     QMutexLocker lock(&pdfiumLock());

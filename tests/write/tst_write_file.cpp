@@ -8,6 +8,10 @@
 #include "app/filescreen.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
+#include "app/filedialogs.h"
+#include "app/help.h"
+#include "app/printpage.h"
+#include "app/privacy.h"
 #include "app/trust.h"
 #include "app/pageview.h"
 #include "app/writeinfo.h"
@@ -38,6 +42,9 @@
 #include "io/zip.h"
 
 #include <QAction>
+#include <QDoubleSpinBox>
+#include <QPrintDialog>
+#include <QTimeZone>
 #include <QLabel>
 #include <QToolButton>
 #include <QCheckBox>
@@ -228,6 +235,51 @@ static int farPixels(const QByteArray &a, const QByteArray &b, const QSize &size
     for (int j = 0; j < size.height(); ++j)
         for (int i = 0; i < size.width(); ++i) far += std::abs(qGray(x.pixel(i, j)) - qGray(y.pixel(i, j))) > 60;
     return far;
+}
+
+// A .docx of `count` paragraphs of 12-point text (each run says its size), then, with `breakAfter`, a hard page break and a last short paragraph.
+QByteArray sizedDocx(int count, bool breakAfter = false)
+{
+    QByteArray body;
+    for (int i = 0; i < count; ++i) body += "<w:p><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>Paragraph " + QByteArray::number(i) + " of the shrinking test.</w:t></w:r></w:p>";
+    if (breakAfter) body += QByteArray(kPageBreak) + "<w:p><w:r><w:rPr><w:sz w:val=\"24\"/></w:rPr><w:t>The last page.</w:t></w:r></w:p>";
+    body += "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    return headingsDocx(body);
+}
+
+// The sizes of the runs of a window's text, the smallest and the largest.
+QPair<double, double> runSizes(WriteWindow &w)
+{
+    double low = 1e9, high = 0;
+    for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const double size = it.fragment().charFormat().fontPointSize();
+            if (size <= 0) continue;
+            low = std::min(low, size);
+            high = std::max(high, size);
+        }
+    return {low, high};
+}
+
+int pagesOf(WriteWindow &w)
+{
+    w.view()->paginateAll();
+    return w.document()->pager().pageCount();
+}
+
+// The box round the dark pixels of a picture of a page.
+QRect inkBox(const QImage &image)
+{
+    int left = image.width(), top = image.height(), right = -1, bottom = -1;
+    for (int y = 0; y < image.height(); ++y)
+        for (int x = 0; x < image.width(); ++x)
+            if (qGray(image.pixel(x, y)) < 160) {
+                left = std::min(left, x);
+                top = std::min(top, y);
+                right = std::max(right, x);
+                bottom = std::max(bottom, y);
+            }
+    return right < 0 ? QRect() : QRect(left, top, right - left + 1, bottom - top + 1);
 }
 
 class FileTests : public QObject {
@@ -651,6 +703,363 @@ private Q_SLOTS:
         QVERIFY(pdf.contains(utf16Hex(QStringLiteral("First part"))));
         QVERIFY(pdf.contains("/StructTreeRoot"));
         QCOMPARE(pdfcheck::marksLeft(pdf), 0);
+    }
+
+    // The PDF carries the document's properties in its information dictionary (what a reader lists under Properties): the title, author, subject, and keywords the document holds, the date
+    // it was made, and this program as its creator and producer.
+    void thePdfCarriesTheDocumentProperties()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        office::PackageProps props = w.document()->packageProps();
+        props.title = QStringLiteral("Quarterly Plan");
+        props.creator = QStringLiteral("Zed Author");
+        props.subject = QStringLiteral("Budget");
+        props.keywords = QStringLiteral("plan, budget");
+        w.document()->setPackageProps(props);
+        const QString target = dir.filePath(QStringLiteral("props.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        const QDateTime before = QDateTime::currentDateTimeUtc().addSecs(-2);
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        const QDateTime after = QDateTime::currentDateTimeUtc().addSecs(2);
+        const PdfDocument pdf(fileBytes(target));
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.meta(QStringLiteral("Title")), QStringLiteral("Quarterly Plan"));
+        QCOMPARE(pdf.meta(QStringLiteral("Author")), QStringLiteral("Zed Author"));
+        QCOMPARE(pdf.meta(QStringLiteral("Subject")), QStringLiteral("Budget"));
+        QCOMPARE(pdf.meta(QStringLiteral("Keywords")), QStringLiteral("plan, budget"));
+        QCOMPARE(pdf.meta(QStringLiteral("Producer")), appInfo().name);
+        QCOMPARE(pdf.meta(QStringLiteral("Creator")), appInfo().name);
+        const QString date = pdf.meta(QStringLiteral("CreationDate"));
+        QVERIFY2(date.startsWith(QStringLiteral("D:")), qPrintable(date));
+        QDateTime made = QDateTime::fromString(date.mid(2, 14), QStringLiteral("yyyyMMddHHmmss"));
+        made.setTimeZone(QTimeZone::utc());
+        QVERIFY2(made.isValid() && made >= before && made <= after, qPrintable(date));
+        // with the properties switched off the document's words are not in it; the program still is
+        WriteOutputOptions bare;
+        bare.pdfProperties = false;
+        QVERIFY(w.exportPdfPages(bare));
+        const PdfDocument plain(fileBytes(target));
+        QCOMPARE(plain.meta(QStringLiteral("Author")), QString());
+        QCOMPARE(plain.meta(QStringLiteral("Subject")), QString());
+        QCOMPARE(plain.meta(QStringLiteral("Title")), QString());
+        QCOMPARE(plain.meta(QStringLiteral("Producer")), appInfo().name);
+    }
+
+    // Personal information that was removed, or is to be removed on saving, stays out of the PDF's author, in its information and in its metadata.
+    void thePdfKeepsRemovedPersonalInformationOut()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        office::PackageProps props = w.document()->packageProps();
+        props.title = QStringLiteral("Quarterly Plan");
+        props.creator = QStringLiteral("Zed Author");
+        w.document()->setPackageProps(props);
+        const QString target = dir.filePath(QStringLiteral("names.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        const bool was = privacy::removeOnSave();
+        const auto restore = qScopeGuard([was] { privacy::setRemoveOnSave(was); });
+        privacy::setRemoveOnSave(true);
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        QByteArray bytes = fileBytes(target);
+        QCOMPARE(PdfDocument(bytes).meta(QStringLiteral("Author")), QString());
+        QCOMPARE(PdfDocument(bytes).meta(QStringLiteral("Title")), QStringLiteral("Quarterly Plan"));
+        QVERIFY(!bytes.contains("Zed Author"));
+        privacy::setRemoveOnSave(false);
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        QCOMPARE(PdfDocument(fileBytes(target)).meta(QStringLiteral("Author")), QStringLiteral("Zed Author"));
+        // (Inspect > Remove personal information: the names are gone from the document itself)
+        w.removePersonalInformation();
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        bytes = fileBytes(target);
+        QCOMPARE(PdfDocument(bytes).meta(QStringLiteral("Author")), QString());
+        QVERIFY(!bytes.contains("Zed Author"));
+    }
+
+    // The PDF that Print makes to a file has the properties too.
+    void thePdfThatPrintMakesHasTheProperties()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        office::PackageProps props = w.document()->packageProps();
+        props.title = QStringLiteral("Printed Plan");
+        props.creator = QStringLiteral("Zed Author");
+        props.keywords = QStringLiteral("print, plan");
+        w.document()->setPackageProps(props);
+        const QString target = dir.filePath(QStringLiteral("printed-props.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        WriteOutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        const PdfDocument pdf(fileBytes(target));
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.meta(QStringLiteral("Title")), QStringLiteral("Printed Plan"));
+        QCOMPARE(pdf.meta(QStringLiteral("Author")), QStringLiteral("Zed Author"));
+        QCOMPARE(pdf.meta(QStringLiteral("Keywords")), QStringLiteral("print, plan"));
+        QCOMPARE(pdf.meta(QStringLiteral("Producer")), appInfo().name);
+        QVERIFY(pdf.outline().size() > 0);   // (the bookmarks added after it are still read)
+    }
+
+    // "Open the PDF after saving" is off until it is asked for, is remembered, and opens the file through the program's own opener; nothing is opened without it.
+    void aPdfIsOpenedAfterSavingOnlyWhenAskedFor()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        const QString target = dir.filePath(QStringLiteral("open.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        const auto openBefore = help::openUrl;
+        const auto restore = qScopeGuard([&] {
+            help::openUrl = openBefore;
+            setOpenPdfAfterSaving(false);
+        });
+        QList<QUrl> opened;
+        help::openUrl = [&](const QUrl &url) {
+            opened << url;
+            return true;
+        };
+        setOpenPdfAfterSaving(false);
+        QVERIFY(!openPdfAfterSaving());
+        QVERIFY(w.exportPdfPages(WriteOutputOptions()));
+        WriteOutputOptions toFile;
+        toFile.toFile = true;
+        QVERIFY(w.printOutput(toFile));
+        QVERIFY(opened.isEmpty());
+        WriteOutputOptions ask;
+        ask.openAfter = true;
+        QVERIFY(w.exportPdfPages(ask));
+        QCOMPARE(opened.size(), 1);
+        QCOMPARE(opened.first().toLocalFile(), target);
+        toFile.openAfter = true;
+        QVERIFY(w.printOutput(toFile));
+        QCOMPARE(opened.size(), 2);
+        // a PDF that was not made is not opened
+        w.setSavePathChooser([&](const QString &, const QString &) { return QString(); });
+        QVERIFY(!w.exportPdfPages(ask));
+        QCOMPARE(opened.size(), 2);
+        // the Export box has the switch, unchecked, and what it says is kept
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        bool seen = false, wasOn = true;
+        std::function<void(int)> answer = [&](int tries) {
+            QTimer::singleShot(20, [&, tries] {
+                auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                auto *box = d && d->objectName() == QLatin1String("pdfDialog") ? d->findChild<QCheckBox *>(QStringLiteral("pdfOpenAfter")) : nullptr;
+                if (!box) {
+                    if (tries > 0) answer(tries - 1);
+                    return;
+                }
+                seen = true;
+                wasOn = box->isChecked();
+                QVERIFY(!box->accessibleName().isEmpty() || !box->text().isEmpty());
+                box->setChecked(true);
+                d->accept();
+            });
+        };
+        answer(250);
+        QVERIFY(w.exportPdfAsk());
+        QVERIFY(seen);
+        QVERIFY(!wasOn);
+        QCOMPARE(opened.size(), 3);
+        QVERIFY(openPdfAfterSaving());
+    }
+
+    // Margins on the Print page leave blank space round each sheet, and the page is scaled to fit inside it: where the page's ink lands follows from the margins and the page's own.
+    void marginsLeaveBlankSpaceRoundTheSheet()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        const QString target = dir.filePath(QStringLiteral("margins.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+        auto ink = [&](const QMarginsF &margins, QSizeF *sheet) {
+            WriteOutputOptions o;
+            o.toFile = true;
+            o.margins = margins;
+            if (!w.printOutput(o)) return QRect();
+            const PdfDocument pdf(fileBytes(target));
+            *sheet = pdf.pageSize(0);
+            // (on white: the page's own picture has nothing behind it)
+            QImage page(int(sheet->width()), int(sheet->height()), QImage::Format_RGB32);
+            page.fill(Qt::white);
+            QPainter on(&page);
+            on.drawImage(0, 0, pdf.render(0, page.size()));
+            on.end();
+            return inkBox(page);
+        };
+        QSizeF sheet, sheetWith;
+        const QRect plain = ink(QMarginsF(), &sheet);
+        QVERIFY(!plain.isEmpty());
+        const QMarginsF margins(54, 36, 72, 90);
+        const QRect shrunk = ink(margins, &sheetWith);
+        QVERIFY(!shrunk.isEmpty());
+        QCOMPARE(sheetWith, sheet);   // (the paper is the same)
+        const QRectF inside = insideMargins(sheet, margins);
+        const double fit = std::min(inside.width() / sheet.width(), inside.height() / sheet.height());
+        const double x = inside.center().x() - fit * sheet.width() / 2, y = inside.center().y() - fit * sheet.height() / 2;
+        QVERIFY2(std::abs(shrunk.left() - (x + fit * plain.left())) <= 3, qPrintable(QStringLiteral("%1 | %2x%3 | %4,%5 %6x%7 | %8,%9 %10x%11").arg(shrunk.left()).arg(sheet.width()).arg(sheet.height()).arg(plain.left()).arg(plain.top()).arg(plain.width()).arg(plain.height()).arg(shrunk.left()).arg(shrunk.top()).arg(shrunk.width()).arg(shrunk.height())));
+        QVERIFY2(std::abs(shrunk.top() - (y + fit * plain.top())) <= 3, qPrintable(QString::number(shrunk.top())));
+        QVERIFY2(std::abs(shrunk.width() - fit * plain.width()) <= 4, qPrintable(QString::number(shrunk.width())));
+        // inside the margins, whatever they are
+        QVERIFY(shrunk.left() >= margins.left() - 1 && shrunk.top() >= margins.top() - 1);
+        QVERIFY(shrunk.right() <= sheet.width() - margins.right() + 1 && shrunk.bottom() <= sheet.height() - margins.bottom() + 1);
+    }
+
+    // The margins' geometry: none leaves the whole sheet, and margins that would leave nothing are cut back.
+    void theMarginsAreCutBackToLeaveRoom()
+    {
+        const QSizeF sheet(612, 792);
+        QCOMPARE(insideMargins(sheet, QMarginsF()), QRectF(QPointF(0, 0), sheet));
+        QCOMPARE(insideMargins(sheet, QMarginsF(36, 72, 36, 72)), QRectF(36, 72, 540, 648));
+        const QRectF cut = insideMargins(sheet, QMarginsF(500, 500, 500, 500));
+        QVERIFY(cut.width() >= sheet.width() * 0.25 - 0.01 && cut.height() >= sheet.height() * 0.25 - 0.01);
+        QVERIFY(cut.left() >= 0 && cut.right() <= sheet.width() && cut.top() >= 0 && cut.bottom() <= sheet.height());
+        // the boxes hold inches; the margins are in points
+        QWidget parent;
+        const MarginBoxes boxes = makeMarginBoxes(&parent);
+        boxes.left->setValue(0.5);
+        boxes.top->setValue(1.0);
+        boxes.right->setValue(0.25);
+        boxes.bottom->setValue(2.0);
+        QCOMPARE(marginsOf(boxes), QMarginsF(36, 72, 18, 144));
+        for (QDoubleSpinBox *box : {boxes.top, boxes.bottom, boxes.left, boxes.right}) QVERIFY(!box->accessibleName().isEmpty());
+    }
+
+    // The Print page has the margins, the shrink button, and Printer Properties, which is hidden (not disabled) where the platform has no window of its own and for a PDF file; it is
+    // there for a printer when the platform has one, and what that window says comes back to the page and is what the job is printed with.
+    void thePrintPageHasMarginsPropertiesAndTheOpenBox()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        Quiet quiet(w);
+        openRich(w, dir);
+        w.resize(1300, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        for (const char *name : {"printMarginTop", "printMarginBottom", "printMarginLeft", "printMarginRight", "printShrink", "printPrinterSettings", "printOpenPdf"}) QVERIFY2(screen->findChild<QWidget *>(QString::fromLatin1(name)), name);
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        auto *button = screen->findChild<QPushButton *>(QStringLiteral("printPrinterSettings"));
+        auto *openPdf = screen->findChild<QCheckBox *>(QStringLiteral("printOpenPdf"));
+        auto *copies = screen->findChild<QSpinBox *>(QStringLiteral("printCopies"));
+        QVERIFY(button && printer && openPdf && copies);
+        const auto restore = qScopeGuard([] {
+            setPrinterPropertiesStandIn({});
+            setPrintDialogStandIn({});
+            setPrinterNamesStandIn({});
+        });
+        // (the test display has no window of the system's)
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        QTRY_VERIFY(!button->isVisibleTo(screen));
+        QVERIFY(!openPdf->isVisibleTo(screen));   // (a printer is not a file)
+        setPrinterPropertiesStandIn([] { return true; });
+        printer->setCurrentIndex(printer->count() - 1);   // Save as PDF
+        QTRY_VERIFY(openPdf->isVisibleTo(screen));
+        QVERIFY(!button->isVisibleTo(screen));   // (a PDF file has no printer settings)
+        printer->setCurrentIndex(0);
+        QTRY_VERIFY(button->isVisibleTo(screen));
+        QVERIFY(button->isEnabled());
+        QVERIFY(!openPdf->isVisibleTo(screen));
+        const QPrinter *configured = nullptr;
+        setPrintDialogStandIn([&](QPrintDialog &dialog) {
+            configured = dialog.printer();
+            dialog.printer()->setCopyCount(4);
+            return int(QDialog::Accepted);
+        });
+        button->click();
+        QVERIFY(configured);
+        QCOMPARE(copies->value(), 4);
+        QCOMPARE(configured, &w.printer());   // (the very printer the jobs are printed on)
+    }
+
+    // Shrink by One Page makes the text a little smaller until the document is a page shorter. It is one step of the history, and it refuses without changing a thing.
+    void shrinkByOnePageTakesOffAPageInOneStep()
+    {
+        QTemporaryDir dir;
+        // a document that has a few lines on its second page (each try is a window of its own: a window that has a document opens the next in another)
+        std::unique_ptr<WriteWindow> window;
+        for (int count = 30; count < 120 && !window; ++count) {
+            auto w = std::make_unique<WriteWindow>();
+            const QString path = dir.filePath(QStringLiteral("shrink%1.docx").arg(count));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(sizedDocx(count));
+            f.close();
+            QVERIFY(w->openFile(path));
+            if (pagesOf(*w) == 2) window = std::move(w);
+        }
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        QVERIFY(w.act(QStringLiteral("file.shrinkOnePage")));
+        QCOMPARE(runSizes(w), qMakePair(12.0, 12.0));
+        const int revision = w.document()->story()->revision();
+        QVERIFY(w.shrinkByOnePage());
+        QCOMPARE(pagesOf(w), 1);
+        const QPair<double, double> sizes = runSizes(w);
+        QVERIFY2(sizes.second < 12.0 && sizes.first >= 6.0, qPrintable(QString::number(sizes.first) + " " + QString::number(sizes.second)));
+        QVERIFY(w.document()->story()->revision() != revision);
+        // one Undo takes all of it back, and one Redo does it again
+        w.view()->undo();
+        QCOMPARE(runSizes(w), qMakePair(12.0, 12.0));
+        QCOMPARE(pagesOf(w), 2);
+        w.view()->redo();
+        QCOMPARE(pagesOf(w), 1);
+        QCOMPARE(runSizes(w).second, sizes.second);
+    }
+
+    void shrinkByOnePageRefusesWhenTheTextCannotFit()
+    {
+        QTemporaryDir dir;
+        int opened = 0;
+        auto open = [&](const QByteArray &docx) -> std::unique_ptr<WriteWindow> {
+            auto w = std::make_unique<WriteWindow>();
+            const QString path = dir.filePath(QStringLiteral("refuse%1.docx").arg(++opened));
+            QFile f(path);
+            if (!f.open(QIODevice::WriteOnly)) return nullptr;
+            f.write(docx);
+            f.close();
+            return w->openFile(path) ? std::move(w) : nullptr;
+        };
+        // one page already
+        {
+            auto w = open(sizedDocx(3));
+            QVERIFY(w);
+            QStringList said;
+            w->setNotifier([&](const QString &, const QString &text) { said << text; });
+            QCOMPARE(pagesOf(*w), 1);
+            const int revision = w->document()->story()->revision();
+            QVERIFY(!w->shrinkByOnePage());
+            QCOMPARE(said.size(), 1);
+            QCOMPARE(w->document()->story()->revision(), revision);
+        }
+        // two pages that a page break keeps apart: smaller text can't bring them together
+        auto w = open(sizedDocx(3, true));
+        QVERIFY(w);
+        QStringList said;
+        w->setNotifier([&](const QString &, const QString &text) { said << text; });
+        QCOMPARE(pagesOf(*w), 2);
+        const QPair<double, double> sizesBefore = runSizes(*w);
+        const int revision = w->document()->story()->revision();
+        const bool couldUndo = w->document()->story()->isUndoAvailable();
+        QVERIFY(!w->shrinkByOnePage());
+        QCOMPARE(said.size(), 1);
+        QCOMPARE(pagesOf(*w), 2);
+        QCOMPARE(runSizes(*w), sizesBefore);
+        QCOMPARE(w->document()->story()->revision(), revision);
+        QCOMPARE(w->document()->story()->isUndoAvailable(), couldUndo);
+        QVERIFY(!w->document()->story()->isRedoAvailable());   // (a refused edit leaves nothing to redo)
+        QVERIFY(w->act(QStringLiteral("edit.redo")) && !w->act(QStringLiteral("edit.redo"))->isEnabled());
     }
 
     // A tagged PDF: the headings, paragraphs, a list, a table with a header row, and a picture with its alt text are in a structure tree in reading order, the marks are all gone, and the

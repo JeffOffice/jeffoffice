@@ -2,6 +2,7 @@
 
 #include "app/writewindow.h"
 #include "app/printsides.h"
+#include "app/pdfproperties.h"
 #include "app/printpage.h"
 #include "app/settings.h"
 
@@ -224,9 +225,11 @@ QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index
     const QSizeF page = ofSelection && m_selectionDoc ? m_selectionDoc->pager().page(index).size
                         : m_doc ? printedView(options).sizes.value(index) : QSizeF();
     const QSizeF sheet = turnedSheet(page, options.turn);
-    const bool turned = sheet != page;
+    // (on a sheet that is turned, or that has margins, the page is scaled to fit the part of it that is left)
+    const QRectF inner = insideMargins(sheet, options.margins);
+    const bool turned = sheet != page || hasMargins(options.margins);
     double fit = 1;
-    if (turned && page.width() > 0 && page.height() > 0) fit = std::min(sheet.width() / page.width(), sheet.height() / page.height());
+    if (turned && page.width() > 0 && page.height() > 0) fit = std::min(inner.width() / page.width(), inner.height() / page.height());
     const int pageWidth = turned && sheet.width() > 0 ? std::max(1, int(std::lround(width * fit * page.width() / sheet.width()))) : width;
     QImage image;
     if (!ofSelection) {
@@ -256,7 +259,8 @@ QImage WriteWindow::outputPageImage(const WriteOutputOptions &options, int index
         QImage onSheet(width, std::max(1, int(std::lround(width * sheet.height() / sheet.width()))), QImage::Format_RGB32);
         onSheet.fill(Qt::white);
         QPainter p(&onSheet);
-        p.drawImage((onSheet.width() - image.width()) / 2, (onSheet.height() - image.height()) / 2, image);
+        const double perPoint = onSheet.width() / sheet.width();
+        p.drawImage(int(std::lround(inner.center().x() * perPoint - image.width() / 2.0)), int(std::lround(inner.center().y() * perPoint - image.height() / 2.0)), image);
         image = onSheet;
     }
     if (options.grayscale) image = image.convertToFormat(QImage::Format_Grayscale8).convertToFormat(QImage::Format_RGB32);
@@ -309,7 +313,7 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
         if (options.pdfArchive) pdf.setPdfVersion(QPdfWriter::PdfVersion_A1b);
         if (options.pdfProperties) {
             pdf.setTitle(title);
-            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive, 1));
+            pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(title, m_personalInfoRemoved || privacy::removeOnSave() ? QString() : props.creator, props.subject, props.keywords, appInfo().name, options.pdfArchive, 1));
         } else if (options.pdfArchive) {
             pdf.setDocumentXmpMetadata(write::pdfPropertiesXmp(QString(), QString(), QString(), QString(), appInfo().name, true, 1));
         }
@@ -360,7 +364,18 @@ QByteArray WriteWindow::pdfSheets(write::WriteDoc &source, int sourcePages, cons
     }
     // The links are clickable: over the words on the sheet, where the page's place on its sheet puts them (several pages to a sheet, or scaled to a paper).
     bytes = addPdfLinks(bytes, write::sheetLinks(source, sheets, layout));
-    return bytes;
+    return withPdfInfo(bytes, options.pdfProperties);
+}
+
+QByteArray WriteWindow::withPdfInfo(const QByteArray &pdf, bool properties) const
+{
+    // (the document's own properties, as the Info page holds them; with them off, only the program and the date)
+    PdfInfo info = properties ? pdfDocumentInfo(m_doc->packageProps(), displayName(), m_personalInfoRemoved) : PdfInfo();
+    if (!properties) {
+        info.program = appInfo().name;
+        info.created = QDateTime::currentDateTimeUtc();
+    }
+    return setPdfInfo(pdf, info);
 }
 
 bool WriteWindow::exportPdf()
@@ -415,6 +430,8 @@ bool WriteWindow::exportPdfAsk()
     archive->setObjectName(QStringLiteral("pdfArchive"));
     archive->setToolTip(tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years."));
     layout->addWidget(archive);
+    auto *openAfter = makeOpenPdfBox(&dialog, QStringLiteral("pdfOpenAfter"));
+    layout->addWidget(openAfter);
     auto *protect = new jp::PdfProtectionRow(&dialog);
     protect->forbiddenBy({archive}, tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
     layout->addWidget(protect);
@@ -431,6 +448,7 @@ bool WriteWindow::exportPdfAsk()
     o.pdfProperties = properties->isChecked();
     o.pdfBookmarks = bookmarks->isChecked();
     o.pdfTags = tags->isChecked();
+    o.openAfter = openAfter->isChecked();
     o.range = static_cast<WriteOutputOptions::Range>(which->currentData().toInt());
     o.pages = text->text();
     if (o.range == WriteOutputOptions::Range::Pages && outputPages(o).isEmpty()) {
@@ -472,6 +490,7 @@ bool WriteWindow::exportPdfPages(const WriteOutputOptions &options)
         return false;
     }
     statusBar()->showMessage(tr("Exported %1").arg(QFileInfo(path).fileName()) + (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + tr("(not tagged for screen readers: %1)").arg(notTagged)), notTagged.isEmpty() ? 5000 : 8000);
+    if (options.openAfter) openSavedPdf(path);
     return true;
 }
 
@@ -839,6 +858,75 @@ QVector<WriteOutputOptions> WriteWindow::handDuplexRuns(const WriteOutputOptions
     return runs;
 }
 
+namespace {
+// Shrink by One Page makes the text this much smaller at each step (4 percent), to a tenth of a point, and never below 6 points: what is that small already is left as it is.
+constexpr int kMostShrinkSteps = 8;
+constexpr double kSmallestShrunkSize = 6.0;
+double smallerSize(double now) { return now <= kSmallestShrunkSize ? now : std::max(kSmallestShrunkSize, std::round(now * 0.96 * 10) / 10); }
+// `steps` steps in one change of the text, so that they are one step of the history.
+void shrinkSteps(write::WriteDoc &doc, int steps)
+{
+    QTextCursor all(doc.story());
+    all.select(QTextCursor::Document);
+    write::changeCharFormat(doc, all, [steps](QTextCharFormat &f) {
+        double size = f.fontPointSize();
+        if (size <= 0) return;
+        for (int i = 0; i < steps; ++i) size = smallerSize(size);
+        f.setFontPointSize(size);
+    });
+}
+}
+
+bool WriteWindow::shrinkByOnePage()
+{
+    if (!m_doc || refuseIfReadOnly() || !commitShapeText()) return false;
+    const QString title = tr("Shrink by One Page");
+    m_view->paginateAll();
+    const int pages = m_doc->pager().pageCount();
+    if (pages <= 1) {
+        notice(title, tr("The document is one page long already."));
+        return false;
+    }
+    if (m_doc->formattingLimited()) {
+        notice(title, tr("This document does not allow its text to be made smaller."), true);
+        return false;
+    }
+    // Tried on a copy: the document itself is not touched until the steps that take a page off are known.
+    int steps = 0;
+    {
+        QString err;
+        const QByteArray bytes = m_doc->toDocx(&err);
+        auto copy = bytes.isEmpty() ? nullptr : write::WriteDoc::fromDocx(bytes, &err, nullptr);
+        if (copy) {
+            for (int i = 1; i <= kMostShrinkSteps && !steps; ++i) {
+                shrinkSteps(*copy, 1);
+                if (copy->pager().pageCount() < pages) steps = i;
+            }
+        }
+    }
+    if (!steps) {
+        notice(title, tr("The text can't be made small enough to take a page off without being smaller than %1 points, so nothing was changed.").arg(int(kSmallestShrunkSize)), true);
+        return false;
+    }
+    shrinkSteps(*m_doc, steps);
+    m_view->paginateAll();
+    if (m_doc->pager().pageCount() >= pages) {
+        // (the copy was laid out differently from the document: the steps are taken back)
+        m_view->undo();
+        notice(title, tr("The text can't be made small enough to take a page off without being smaller than %1 points, so nothing was changed.").arg(int(kSmallestShrunkSize)), true);
+        return false;
+    }
+    m_view->viewport()->update();
+    statusBar()->showMessage(tr("Made the text a little smaller, so the document is one page shorter."), 6000);
+    return true;
+}
+
+QPrinter &WriteWindow::printer()
+{
+    if (!m_printer) m_printer = std::make_unique<QPrinter>(QPrinter::HighResolution);
+    return *m_printer;
+}
+
 bool WriteWindow::printOutput(const WriteOutputOptions &options)
 {
     if (!commitShapeText()) return false;
@@ -874,7 +962,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     // (the selection prints from the copy that holds it alone)
     write::WriteDoc *source = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc.get() : m_doc.get();
     const int sourcePages = options.range == WriteOutputOptions::Range::Selection ? m_selectionDoc->pager().pageCount() : m_view->pageCount();
-    QPrinter printer(QPrinter::HighResolution);
+    QPrinter &printer = this->printer();
     printer.setDocName(displayName());
     QString path;
     // A PDF file is made in a temporary file and put in place when it is whole, as the export does, so that a file that is there is not lost to one that fails.
@@ -890,13 +978,14 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         made->close();
         printer.setOutputFormat(QPrinter::PdfFormat);
         printer.setOutputFileName(made->fileName());
-    } else if (!options.printer.isEmpty()) {
-        printer.setPrinterName(options.printer);
+    } else {
+        printer.setOutputFormat(QPrinter::NativeFormat);
+        if (!options.printer.isEmpty() && printer.printerName() != options.printer) printer.setPrinterName(options.printer);
     }
     if (!options.toFile) setPrinterDuplex(&printer, options.duplex);
     printer.setCopyCount(std::max(1, options.copies));
     printer.setCollateCopies(options.collate);
-    if (options.grayscale) printer.setColorMode(QPrinter::GrayScale);
+    printer.setColorMode(options.grayscale ? QPrinter::GrayScale : QPrinter::Color);
     if (m_printerPreparer) m_printerPreparer(printer);
     // A printer that can't make copies is sent the pages again, in the order the copies are to come out.
     const bool again = !options.toFile && !printer.supportsMultipleCopies();
@@ -921,6 +1010,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
     layout.turn = options.turn;
+    layout.margins = options.margins;
     // (a PDF file is tagged as the export's is)
     write::WriteTagger tagger;
     const bool tagging = options.toFile;
@@ -946,6 +1036,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
             for (PdfBookmark &m : marks) m.page = m.page >= 0 && m.page < sheetOf.size() ? sheetOf[m.page] : -1;
             bytes = write::addPdfBookmarks(bytes, marks);
             bytes = addPdfLinks(bytes, write::sheetLinks(*source, sheets, layout));
+            bytes = withPdfInfo(bytes, true);
         }
         if (ok) {
             QSaveFile file(path);
@@ -962,6 +1053,7 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
         return false;
     }
     statusBar()->showMessage(options.toFile ? tr("Saved %1").arg(QFileInfo(path).fileName()) : tr("Sent %1 to the printer").arg(displayName()), 5000);
+    if (options.toFile && options.openAfter) openSavedPdf(path);
     return true;
 }
 

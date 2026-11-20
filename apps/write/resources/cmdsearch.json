@@ -62,6 +62,12 @@
    "printer",
    "paper"
   ],
+  "file.shrinkOnePage": [
+   "fit",
+   "fewer pages",
+   "one page",
+   "shrink to fit"
+  ],
   "file.exportPdf": [
    "pdf",
    "save as pdf"

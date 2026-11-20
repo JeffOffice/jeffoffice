@@ -236,6 +236,49 @@ QByteArray addPdfBookmarks(const QByteArray &pdf, const QVector<PdfBookmark> &ma
     return pdf + tail + x;
 }
 
+QByteArray setPdfInfo(const QByteArray &pdf, const PdfInfo &info)
+{
+    if (!pdf.startsWith("%PDF-")) return pdf;
+    const int sx = pdf.lastIndexOf("startxref");
+    if (sx < 0) return pdf;
+    const qint64 xref = pdf.mid(sx + 9, 24).trimmed().split('\n').value(0).trimmed().toLongLong();
+    if (xref <= 0 || xref >= pdf.size() || pdf.mid(xref, 4) != "xref") return pdf;
+    const int trailerAt = pdf.indexOf("trailer", xref);
+    if (trailerAt < 0 || trailerAt > sx) return pdf;
+    const int tOpen = pdf.indexOf("<<", trailerAt), tClose = pdf.lastIndexOf(">>", sx);
+    if (tOpen < 0 || tClose < tOpen) return pdf;
+    const QByteArray trailer = pdf.mid(tOpen + 2, tClose - tOpen - 2);
+    const int size = numberAfter(trailer, "/Size");
+    if (size < 3) return pdf;
+    int obj = numberAfter(trailer, "/Info");
+    const bool had = obj >= 1 && obj < size;
+    if (!had) obj = size;
+    QByteArray dict = "<<";
+    auto text = [&](const char *key, const QString &value) {
+        if (!value.trimmed().isEmpty()) dict += QByteArray(" /") + key + ' ' + pdfTitle(value.trimmed());
+    };
+    text("Title", info.title);
+    text("Author", info.author);
+    text("Subject", info.subject);
+    text("Keywords", info.keywords);
+    text("Creator", info.program);
+    text("Producer", info.program);
+    if (info.created.isValid()) dict += " /CreationDate (D:" + info.created.toUTC().toString(QStringLiteral("yyyyMMddHHmmss")).toLatin1() + "Z)";
+    dict += " >>";
+    QByteArray tail;
+    if (!pdf.endsWith('\n')) tail += '\n';
+    const qint64 objAt = pdf.size() + tail.size();
+    tail += QByteArray::number(obj) + " 0 obj\n" + dict + "\nendobj\n";
+    const qint64 newXref = pdf.size() + tail.size();
+    QByteArray x = "xref\n" + QByteArray::number(obj) + " 1\n" + QByteArray::number(objAt).rightJustified(10, '0') + " 00000 n \n";
+    QString t = QString::fromLatin1(trailer);
+    t.replace(QRegularExpression(QStringLiteral("/Size\\s+\\d+")), QString());
+    t.replace(QRegularExpression(QStringLiteral("/Prev\\s+\\d+")), QString());
+    if (!had) t += QStringLiteral(" /Info %1 0 R").arg(obj);
+    x += "trailer\n<<" + t.toLatin1() + " /Size " + QByteArray::number(had ? size : size + 1) + " /Prev " + QByteArray::number(xref) + " >>\nstartxref\n" + QByteArray::number(newXref) + "\n%%EOF\n";
+    return pdf + tail + x;
+}
+
 bool clickableAddress(const QString &uri)
 {
     const QString t = uri.trimmed();

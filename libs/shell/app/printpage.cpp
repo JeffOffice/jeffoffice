@@ -5,10 +5,18 @@
 #include <QCoreApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QDoubleSpinBox>
+#include <QGuiApplication>
+#include <QPrintDialog>
+#include <QPrinter>
 #include <QPrinterInfo>
 #include <QPushButton>
+#include <QUrl>
 #include <QVBoxLayout>
+#include "app/filedialogs.h"
+#include "app/help.h"
 #include "app/plaintext.h"
+#include "app/settings.h"
 #include "app/uistyle.h"
 #include "app/icons.h"
 #include <QSpinBox>
@@ -20,6 +28,7 @@ namespace {
 constexpr int kIsFileRole = Qt::UserRole + 1;   // set on the entry that makes a PDF file
 std::function<void(const QString &, const QString &)> g_noticeStandIn;
 std::function<QStringList()> g_printersStandIn;
+std::function<bool()> g_propertiesStandIn;
 }
 
 bool tooManyToSend(qint64 sheets, qint64 copies) { return sheets * std::max<qint64>(1, copies) > kMaxSentSheets; }
@@ -204,6 +213,126 @@ QSizeF paperChoiceSize(const QComboBox *box)
     const int id = box->currentData().toInt();
     return id < 0 ? QSizeF() : QPageSize(QPageSize::PageSizeId(id)).size(QPageSize::Point);
 }
+
+MarginBoxes makeMarginBoxes(QWidget *parent)
+{
+    MarginBoxes boxes;
+    auto make = [parent](const char *name, const QString &accessible) {
+        auto *box = new QDoubleSpinBox(parent);
+        box->setObjectName(QString::fromLatin1(name));
+        box->setRange(0.0, 2.0);
+        box->setSingleStep(0.05);
+        box->setDecimals(2);
+        box->setSuffix(QCoreApplication::translate("Print", " in"));
+        box->setAccessibleName(accessible);
+        return box;
+    };
+    boxes.top = make("printMarginTop", QCoreApplication::translate("Print", "Top margin"));
+    boxes.bottom = make("printMarginBottom", QCoreApplication::translate("Print", "Bottom margin"));
+    boxes.left = make("printMarginLeft", QCoreApplication::translate("Print", "Left margin"));
+    boxes.right = make("printMarginRight", QCoreApplication::translate("Print", "Right margin"));
+    return boxes;
+}
+
+QMarginsF marginsOf(const MarginBoxes &boxes)
+{
+    auto points = [](const QDoubleSpinBox *b) { return b ? b->value() * 72.0 : 0.0; };
+    return QMarginsF(points(boxes.left), points(boxes.top), points(boxes.right), points(boxes.bottom));
+}
+
+bool hasMargins(const QMarginsF &m) { return m.left() > 0 || m.top() > 0 || m.right() > 0 || m.bottom() > 0; }
+
+QRectF insideMargins(const QSizeF &sheet, const QMarginsF &margins)
+{
+    if (!hasMargins(margins)) return QRectF(QPointF(0, 0), sheet);
+    auto cut = [](double a, double b, double whole) {
+        a = std::max(0.0, a);
+        b = std::max(0.0, b);
+        const double most = whole * 0.75;
+        if (a + b > most) {
+            const double k = most / (a + b);
+            a *= k;
+            b *= k;
+        }
+        return std::pair<double, double>(a, b);
+    };
+    const auto across = cut(margins.left(), margins.right(), sheet.width());
+    const auto down = cut(margins.top(), margins.bottom(), sheet.height());
+    return QRectF(across.first, down.first, sheet.width() - across.first - across.second, sheet.height() - down.first - down.second);
+}
+
+QPushButton *makePrinterPropertiesButton(QWidget *parent)
+{
+    auto *button = new QPushButton(QCoreApplication::translate("Print", "Printer Properties…"), parent);
+    button->setObjectName(QStringLiteral("printPrinterSettings"));
+    button->setAccessibleName(QCoreApplication::translate("Print", "Printer Properties"));
+    button->setToolTip(QCoreApplication::translate("Print", "Opens the printer's own settings window."));
+    return button;
+}
+
+void setPrinterPropertiesStandIn(const std::function<bool()> &standIn) { g_propertiesStandIn = standIn; }
+
+bool printerPropertiesOffered(const PrinterChoice &choice)
+{
+    if (choice.toFile) return false;
+    if (g_propertiesStandIn) return g_propertiesStandIn();
+    // (the screens that have no window of the system's: the test display and the minimal one)
+    const QString platform = QGuiApplication::platformName();
+    if (platform == QLatin1String("offscreen") || platform == QLatin1String("minimal")) return false;
+    return !printerNames().isEmpty();
+}
+
+void updatePrinterPropertiesButton(QPushButton *button, const QComboBox *printerBox)
+{
+    if (button && printerBox) button->setVisible(printerPropertiesOffered(printerChoice(printerBox)));
+}
+
+bool showPrinterProperties(QWidget *parent, QPrinter &p, const PrinterControls &c)
+{
+    const PrinterChoice choice = printerChoice(c.printer);
+    if (!choice.toFile && !choice.printer.isEmpty()) {
+        p.setOutputFormat(QPrinter::NativeFormat);
+        p.setPrinterName(choice.printer);
+    }
+    p.setCopyCount(c.copies->value());
+    p.setCollateCopies(c.collate->isChecked());
+    const bool grayWanted = c.color ? c.color->currentData().toInt() != int(PrintColor::Color) : c.gray && c.gray->isChecked();
+    p.setColorMode(grayWanted ? QPrinter::GrayScale : QPrinter::Color);
+    const QString before = p.printerName();
+    QPrintDialog dialog(&p, parent);
+    if (execPrintDialog(dialog) != QDialog::Accepted) return false;
+    const int at = p.printerName() != before ? c.printer->findData(p.printerName(), Qt::UserRole) : -1;
+    if (at >= 0 && !p.printerName().isEmpty()) c.printer->setCurrentIndex(at);
+    c.copies->setValue(std::max(1, p.copyCount()));
+    c.collate->setChecked(p.collateCopies());
+    const bool gray = p.colorMode() == QPrinter::GrayScale;
+    if (c.color) {
+        // (the window has the two colors of a printer: a choice of black and white stays one while the printer is gray)
+        if (gray && c.color->currentData().toInt() == int(PrintColor::Color)) c.color->setCurrentIndex(c.color->findData(int(PrintColor::Grayscale)));
+        else if (!gray) c.color->setCurrentIndex(c.color->findData(int(PrintColor::Color)));
+    } else if (c.gray) {
+        c.gray->setChecked(gray);
+    }
+    if (c.paper) {
+        const int sized = c.paper->findData(int(p.pageLayout().pageSize().id()));
+        if (sized >= 0) c.paper->setCurrentIndex(sized);
+    }
+    return true;
+}
+
+QCheckBox *makeOpenPdfBox(QWidget *parent, const QString &objectName)
+{
+    auto *box = new QCheckBox(QCoreApplication::translate("Print", "Open the PDF after saving"), parent);
+    box->setObjectName(objectName);
+    box->setToolTip(QCoreApplication::translate("Print", "Opens the file in the program your computer uses for PDF files."));
+    box->setChecked(openPdfAfterSaving());
+    QObject::connect(box, &QCheckBox::toggled, box, [](bool on) { setOpenPdfAfterSaving(on); });
+    return box;
+}
+
+bool openPdfAfterSaving() { return Settings::get().value(QStringLiteral("pdf/openAfterSaving"), false).toBool(); }
+void setOpenPdfAfterSaving(bool on) { Settings::get().setValue(QStringLiteral("pdf/openAfterSaving"), on); }
+void openSavedPdf(const QString &path) { help::openUrl(QUrl::fromLocalFile(path)); }
 
 QComboBox *makeZoomBox(QWidget *parent)
 {
