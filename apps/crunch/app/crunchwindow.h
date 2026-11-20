@@ -590,6 +590,8 @@ public:
     // For tests: slows the calculation only (see WorkbookLoader::setCalcPace).
     void setCalcPace(int micros) { m_loader.setCalcPace(micros); }
     const crunch::LoadedBook *loaded() const { return m_loaded.get(); }
+    // The colors the pickers offer: the workbook's theme (and how its tints are made).
+    ColorScheme themeColors() const { return workbookColors(); }
     // The workbook as read so far, held by whoever keeps it (a test, after the window is gone).
     std::shared_ptr<crunch::LoadedBook> loadedBook() const { return m_loaded; }
 

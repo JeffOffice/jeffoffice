@@ -405,6 +405,9 @@ private Q_SLOTS:
         e.select(QStringLiteral("E2"));
         Q_EMIT fill->colorPicked(ColorRef::scheme(Accent3, 60));
         QCOMPARE(fillAt(e, QStringLiteral("E2")), tinted(ours.colors[Theme::Accent3], 0.6));
+        // (the swatch shows the color the cell comes to)
+        QCOMPARE(ColorRef::scheme(Accent3, 60).resolve(e.win.w.themeColors()), fillAt(e, QStringLiteral("E2")));
+        QCOMPARE(ColorRef::scheme(Accent3, 0, 30).resolve(e.win.w.themeColors()), tinted(ours.colors[Theme::Accent3], -0.3));
         e.select(QStringLiteral("F2"));
         Q_EMIT font->colorPicked(ColorRef::scheme(Accent4));
         QCOMPARE(QColor::fromRgb(lookAt(e, QStringLiteral("F2")).textColor), ours.colors[Theme::Accent4]);
@@ -421,6 +424,19 @@ private Q_SLOTS:
         QVERIFY(saveNow(e));
         const QByteArray styles = partsOf(e.path).value(QStringLiteral("xl/styles.xml"));
         QVERIFY2(styles.contains("theme=\"6\"") && styles.contains("tint=\"0.6\"") && styles.contains("theme=\"7\"") && styles.contains("FF123456"), styles.constData());
+    }
+
+    // A scheme can say how a tint is made (the shared color code): the picker of a workbook has its tints as a file does, and a scheme that says nothing mixes in white or black as before.
+    void aColorSchemeCanSayHowATintIsMade()
+    {
+        ColorScheme plain = builtinColorSchemes().first();
+        const QColor base = plain.c[Accent1];
+        QCOMPARE(ColorRef::scheme(Accent1, 40).resolve(plain), mix(base, Qt::white, 0.4));
+        ColorScheme own = plain;
+        own.shade = [](const QColor &, int lighten, int darken) { return QColor(lighten, darken, 7); };
+        QCOMPARE(ColorRef::scheme(Accent1, 40).resolve(own), QColor(40, 0, 7));
+        QCOMPARE(ColorRef::scheme(Accent1, 0, 30).resolve(own), QColor(0, 30, 7));
+        QCOMPARE(ColorRef::scheme(Accent1).resolve(own), base);   // (no tint: the color itself)
     }
 
     // The older open-document format has no theme: a save writes the colors as they are drawn.
