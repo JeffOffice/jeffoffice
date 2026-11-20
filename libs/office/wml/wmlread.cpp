@@ -1386,6 +1386,35 @@ SectionProps readSectionPropsXml(const QByteArray &xml)
     return Reader(t).sectPr(element);
 }
 
+bool readRecordedSectionProps(const QByteArray &record, SectionProps *out)
+{
+    // A record kept as written may use another prefix for the namespace, declared by its file on the root and so not on the record: a prefix an element of it uses and nothing in it declares is
+    // taken for the word-processing namespace (at most eight, so that a hostile record does not make a long list).
+    QByteArray declarations = kPropDeclarations;
+    QByteArrayList seen;
+    for (qsizetype at = record.indexOf('<'); at >= 0 && seen.size() < 8; at = record.indexOf('<', at + 1)) {
+        qsizetype b = at + 1;
+        if (b < record.size() && record[b] == '/') ++b;
+        qsizetype e = b;
+        while (e < record.size() && record[e] != ':' && record[e] != ' ' && record[e] != '>' && record[e] != '/' && record[e] != '\t' && record[e] != '\r' && record[e] != '\n') ++e;
+        if (e >= record.size() || record[e] != ':' || e == b) continue;
+        const QByteArray prefix = record.mid(b, e - b);
+        if (prefix == "w" || prefix == "r" || prefix == "xml" || seen.contains(prefix) || record.contains("xmlns:" + prefix + "=")) continue;
+        seen.push_back(prefix);
+        declarations += " xmlns:" + prefix + "=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"";
+    }
+    XmlTree t;
+    if (!t.parse("<w:keep" + declarations + ">" + record + "</w:keep>", nullptr)) return false;
+    const int element = t.firstChild(t.root());
+    if (element < 0) return false;
+    for (int c = t.firstChild(element); c >= 0; c = t.next(c))
+        if (t.ns(c) == NsW && t.is(c, "sectPr")) {
+            *out = Reader(t).sectPr(c);
+            return true;
+        }
+    return false;
+}
+
 bool readNotes(const QByteArray &xml, QVector<NotePart> *notes, int *highestId)
 {
     XmlTree tree;

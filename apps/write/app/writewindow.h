@@ -638,6 +638,8 @@ private:
     int m_lastCursorAnchor = -1, m_lastCursorPosition = -1;
     bool m_lastChangeShown = true;
     qint64 m_lastChangeStamp = 0;   // (what reviewStamp was when it was visited: an edit since, and Undo, make it no longer "the last one")
+    bool m_lastInBox = false;       // (it was visited in the words of a text box being typed in, whose caret is then part of where the visit left things)
+    int m_lastBoxAnchor = -1, m_lastBoxPosition = -1;
     const write::StoryRevision *lastVisitedChange() const;
     void rememberChange(const write::StoryRevision &r, bool shown);
     const void *m_reviewStateDoc = nullptr;

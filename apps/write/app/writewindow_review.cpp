@@ -23,6 +23,7 @@
 #include <QStatusBar>
 #include <QToolButton>
 #include <QTreeWidget>
+#include <limits>
 
 namespace jp {
 
@@ -407,12 +408,13 @@ void WriteWindow::newComment()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
-// What the status bar says after Accept All or Reject All: the changes done (a move once), and the changes of tables that were kept because taking them out would have broken the table.
+// What the status bar says after Accept All or Reject All: the changes done (a move once), and the changes that were kept as written because settling them would have damaged the document (a table
+// that would break, a list or a section whose old state can't be put back, a text box that can't be written back).
 QString WriteWindow::resolvedMessage(bool accept, int n, int kept, bool stopTracking) const
 {
     QString text = accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n));
     if (stopTracking) text = n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n);
-    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) kept as written because they can't be settled without breaking a table, a list, or a section.", "", kept);
+    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) were kept as written because settling them would damage the document.", "", kept);
     return text;
 }
 
@@ -483,6 +485,12 @@ void WriteWindow::rememberChange(const write::StoryRevision &r, bool shown)
     m_lastChange = r;
     m_lastChangeShown = shown;
     m_lastChangeStamp = write::reviewStamp(*m_doc);
+    m_lastInBox = m_view->editingShapeText() && m_view->shapeEditor();
+    if (m_lastInBox) {
+        const QTextCursor box = m_view->shapeEditor()->textCursor();
+        m_lastBoxAnchor = box.anchor();
+        m_lastBoxPosition = box.position();
+    }
     const QTextCursor &c = m_view->cursor();
     m_lastCursorStory = c.document();
     m_lastCursorAnchor = c.anchor();
@@ -493,6 +501,13 @@ void WriteWindow::rememberChange(const write::StoryRevision &r, bool shown)
 const write::StoryRevision *WriteWindow::lastVisitedChange() const
 {
     if (!m_lastChange || !m_doc || m_lastChangeStamp != write::reviewStamp(*m_doc)) return nullptr;
+    // (In the words of a text box the caret that moves is the box's, not the text's.)
+    const bool inBox = m_view->editingShapeText() && m_view->shapeEditor();
+    if (inBox != m_lastInBox) return nullptr;
+    if (inBox) {
+        const QTextCursor box = m_view->shapeEditor()->textCursor();
+        if (box.anchor() != m_lastBoxAnchor || box.position() != m_lastBoxPosition) return nullptr;
+    }
     const QTextCursor &c = m_view->cursor();
     if (c.document() != m_lastCursorStory || c.anchor() != m_lastCursorAnchor || c.position() != m_lastCursorPosition) return nullptr;
     return &*m_lastChange;
@@ -575,11 +590,23 @@ void WriteWindow::resolveInBox(bool accept)
 void WriteWindow::gotoChange(bool forward)
 {
     if (!m_doc) return;
-    const QTextCursor &cur = m_view->cursor();
     const write::StoryRevision *last = lastVisitedChange();
-    // (From the start of what is selected: a change that begins where the one selected ends is the next. After a change that was visited, the one after it in the order the changes are kept
-    // in, which reaches those that begin at one place too.)
-    const std::optional<write::StoryRevision> r = last ? write::nextDocumentRevision(*m_doc, last->story, last->revision.from, forward, last) : write::nextDocumentRevision(*m_doc, cur.document(), cur.selectionStart(), forward);
+    std::optional<write::StoryRevision> r;
+    if (!last && m_view->editingShapeText() && m_view->shapeEditor()) {
+        // The caret is in the words of a text box that is being typed in: from there, in those words (found in the box's listed story by kind and Id), then on to what is after (before) the box.
+        const int at = m_view->shapeEditorAt();
+        QTextDocument *typed = m_view->shapeEditor()->document();
+        const QTextCursor box = m_view->shapeEditor()->textCursor();
+        const int from = forward && !box.hasSelection() && box.position() == 0 ? -1 : box.selectionStart();
+        if (const std::optional<write::Revision> here = forward ? write::nextRevision(typed, from) : write::previousRevision(typed, from)) r = write::boxRevisionLike(*m_doc, at, typed, *here);
+        if (!r) r = write::nextDocumentRevisionIn(*m_doc, QStringLiteral("box:%1").arg(at), forward ? std::numeric_limits<int>::max() / 2 : 0, forward);
+    } else {
+        const QTextCursor &cur = m_view->cursor();
+        // (From the start of what is selected: a change that begins where the one selected ends is the next. A caret at the very start of a story is before a change that begins there. After a change
+        // that was visited, the one after it in the order the changes are kept in, which reaches those that begin at one place too.)
+        const int from = forward && !cur.hasSelection() && cur.position() == 0 ? -1 : cur.selectionStart();
+        r = last ? write::nextDocumentRevision(*m_doc, last->story, last->revision.from, forward, last) : write::nextDocumentRevision(*m_doc, cur.document(), from, forward);
+    }
     if (!r) {
         statusBar()->showMessage(tr("There are no more changes."), 4000);
         return;

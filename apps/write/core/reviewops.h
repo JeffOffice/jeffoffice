@@ -84,10 +84,15 @@ QVector<StoryRevision> documentRevisions(WriteDoc &doc, int most = kMostRevision
 int documentRevisionCount(WriteDoc &doc);
 // A number that is not the same after an edit of any story (the text, a header, a footer, or a note), for what keeps a list of the changes up to date.
 qint64 reviewStamp(const WriteDoc &doc);
-// How many changes are inside text boxes of the document's stories that are not listed: the words of a box in the text are a story of their own, with container "box:" and the place of its
-// drawing, which the lists, Next and Previous, and Accept and Reject reach; the changes in a box that can't be read as words (a group, a chain of linked boxes, a box in a header or a note) are
-// kept as the XML they are written in, so they are only counted, but Accept All and Reject All do them.
+// How many changes are inside text boxes of the document's stories that are not listed (a change counts once, whichever copies of its box hold it): the words of a box in the text are a story of
+// their own, with container "box:" and the place of its drawing, which the lists, Next and Previous, and Accept and Reject reach (the first kMostBoxStories of them); the changes in a box that can't be
+// read as words (a group, a chain of linked boxes, a box inside another box, a box in a header or a note, a box past that many) are kept as the XML they are written in, so they are only counted, but
+// Accept All and Reject All do them.
 int textBoxChangeCount(WriteDoc &doc);
+// The most text boxes of the text that are listed as words (the rest, past it, are counted by textBoxChangeCount and done by Accept All and Reject All).
+constexpr int kMostBoxStories = 200;
+// How many stories of text boxes have been made, a count for tests: a box whose drawing is as it was is not made again.
+qint64 boxStoriesBuiltForTest();
 // Whether there is a change anywhere in the document (the text is looked through first, the other stories only when it has none).
 bool documentHasRevisions(WriteDoc &doc);
 // The story a change's `container` names, or none where the document has no such story now.

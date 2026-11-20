@@ -141,7 +141,7 @@ MarkupCounts paintMarkupMarks(QPainter *p, flow::MaterializedPage &page, LayoutC
     QVector<Mark> comments, deletions;
     QVector<int> carets;
     for (const Revision &r : revisionsIn(doc.story(), lo, hi, 4000)) {
-        const bool formatting = r.kind == Revision::Format || r.kind == Revision::ParagraphFormat;
+        const bool formatting = r.isFormatting();
         (formatting ? formatSpans : spans).push_back({r.from, std::max(r.to, r.from + 1)});
         if (r.kind != Revision::Deletion && r.kind != Revision::MovedFrom) continue;
         if (marks.deletions) {

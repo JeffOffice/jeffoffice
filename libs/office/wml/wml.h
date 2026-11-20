@@ -895,6 +895,8 @@ RunProps readRunPropsXml(const QByteArray &xml);
 ParaProps readParaPropsXml(const QByteArray &xml);
 // The properties of a section from a w:sectPr element given as bytes (the old properties a tracked change of a section keeps, section 17.13.5.32); the defaults for what it does not state.
 SectionProps readSectionPropsXml(const QByteArray &xml);
+// The old properties a record of a change of a section keeps (the w:sectPr inside the kept w:sectPrChange, any prefix: it is found by its namespace). False where the record holds none; `out` is then not set.
+bool readRecordedSectionProps(const QByteArray &record, SectionProps *out);
 
 // The place the schema gives each child of pPr, rPr, and sectPr (children are written in this order; unknown ones sort last).
 int paraChildRank(const QByteArray &name);

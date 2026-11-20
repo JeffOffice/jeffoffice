@@ -7,7 +7,9 @@
 #include "core/threads.h"
 #include "app/writeinfo.h"
 #include "app/homedialogs.h"
+#include "app/pageoutput.h"
 #include "app/pageview.h"
+#include "core/printing.h"
 #include "app/settings.h"
 #include "app/theme.h"
 #include "app/reviewpane.h"
@@ -33,6 +35,7 @@
 #include <QComboBox>
 #include <QFile>
 #include <QImage>
+#include <QPainter>
 #include <QInputDialog>
 #include <QStatusBar>
 #include <QLabel>
@@ -124,6 +127,18 @@ QByteArray boxOf(const QByteArray &inner, bool group = false)
            "<wps:txbx><w:txbxContent>" + inner + "</w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp>" + QByteArray(group ? "</wpg:wgp>" : "") + "</a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>";
 }
 
+// A text box as a newer program writes it with a copy for older ones: the drawing is the choice that names the shape format, and a drawing in the older form, with its own copy of the words, is the
+// fallback.
+QByteArray boxWithFallback(const QByteArray &inner, const QByteArray &fallbackInner, bool group = false)
+{
+    const QByteArray drawing = boxOf(inner, group);
+    const QByteArray d = drawing.mid(5, drawing.size() - 5 - 6);   // (without the run around it)
+    return "<w:r><mc:AlternateContent xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\"><mc:Choice xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" "
+           "xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" Requires=\"" + QByteArray(group ? "wpg" : "wps") + "\">" + d + "</mc:Choice><mc:Fallback>"
+           "<w:pict xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:shape id=\"b1\" style=\"width:179pt;height:67pt\"><v:textbox><w:txbxContent>" + fallbackInner + "</w:txbxContent></v:textbox></v:shape></w:pict>"
+           "</mc:Fallback></mc:AlternateContent></w:r>";
+}
+
 // What a selection holds, without the one-character pieces that mark where a change begins and ends.
 QString plainSelection(const QTextCursor &c) { return c.selectedText().remove(QChar::ObjectReplacementCharacter); }
 
@@ -136,7 +151,7 @@ QByteArray savedBox(WriteDoc &doc)
 }
 
 // A package of a document whose body is `body`, with two numberings: 1 is a numbered list (three levels) and 2 is a bulleted one.
-QByteArray makeDocxNumbered(const QByteArray &body)
+QByteArray makeDocxNumbered(const QByteArray &body, const QByteArray &styles = QByteArray())
 {
     office::PackageWriter w;
     const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
@@ -155,6 +170,10 @@ QByteArray makeDocxNumbered(const QByteArray &body)
                   "<w:multiLevelType w:val=\"multilevel\"/>" + bullets + "</w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num><w:num w:numId=\"2\"><w:abstractNumId w:val=\"1\"/></w:num></w:numbering>"),
               QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"));
     w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("numbering"), QStringLiteral("/word/numbering.xml"));
+    if (!styles.isEmpty()) {
+        w.addPart(QStringLiteral("/word/styles.xml"), xml(QByteArray("<w:styles ") + kNs + ">" + styles + "</w:styles>"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    }
     return w.finish();
 }
 
@@ -182,6 +201,55 @@ QString listOf(const QString &paragraph)
     static const QRegularExpression re(QStringLiteral("<w:numPr><w:ilvl w:val=\"(\\d+)\"/><w:numId w:val=\"(\\d+)\"/>"));
     const QRegularExpressionMatch m = re.match(paragraph);
     return m.hasMatch() ? m.captured(2) + QLatin1Char('/') + m.captured(1) : QStringLiteral("-");
+}
+
+// What the window's own save writes (a copy of the document), as the package's bytes.
+QByteArray savedByWindow(WriteWindow &w)
+{
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("saved.docx"));
+    if (!w.saveTo(path, true)) return QByteArray();
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+    return f.readAll();
+}
+
+// The page sizes of the sections in a saved document, in order, as "width x height" in twentieths of a point.
+QStringList pageSizes(const QByteArray &x)
+{
+    static const QRegularExpression tag(QStringLiteral("<w:pgSz ([^>]*)/>")), wide(QStringLiteral("\\bw:w=\"(\\d+)\"")), high(QStringLiteral("\\bw:h=\"(\\d+)\""));
+    QStringList out;
+    const QString text = QString::fromUtf8(x);
+    for (QRegularExpressionMatchIterator it = tag.globalMatch(text); it.hasNext();) {
+        const QString attrs = it.next().captured(1);
+        out << wide.match(attrs).captured(1) + QLatin1Char('x') + high.match(attrs).captured(1);
+    }
+    return out;
+}
+
+// A section's properties of a page `w` by `h` (twentieths of a point), with `change` (a record of a change) last.
+QByteArray sectionProps(int w, int h, const QByteArray &change = QByteArray())
+{
+    return "<w:sectPr><w:pgSz w:w=\"" + QByteArray::number(w) + "\" w:h=\"" + QByteArray::number(h) + "\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>" + change + "</w:sectPr>";
+}
+
+// The record of a change of a section's properties that keeps a page `w` by `h`.
+QByteArray sectionChange(int id, int w, int h)
+{
+    return "<w:sectPrChange" + rev(id) + ">" + sectionProps(w, h) + "</w:sectPrChange>";
+}
+
+// A package like makeDocx's whose elements use the prefix x for the word-processing namespace (the body is given with w and is rewritten).
+QByteArray makeDocxPrefixed(QByteArray body)
+{
+    body.replace("w:", "x:");
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"),
+              xml("<x:document xmlns:x=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><x:body>" + body + "</x:body></x:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
 }
 
 // The look of a tracked change's run when changes are marked: its fragment's format as the text engine resolves it.
@@ -3883,7 +3951,9 @@ private Q_SLOTS:
         QCOMPARE(pane->changeList()->topLevelItemCount(), 3);
         QVERIFY2(pane->changeList()->topLevelItem(0)->text(0).startsWith(QStringLiteral("Numbered")), qPrintable(pane->changeList()->topLevelItem(0)->text(0)));
         QVERIFY2(pane->changeList()->topLevelItem(2)->text(0).startsWith(QStringLiteral("Numbering changed")), qPrintable(pane->changeList()->topLevelItem(2)->text(0)));
-        // (The caret is at the start of the first paragraph, where its change begins: the first Next goes past it.)
+        // (The caret is at the start of the first paragraph, where its change begins: the first Next is that change.)
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("a"));
         w.act(QStringLiteral("review.nextChange"))->trigger();
         QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("b"));
         w.act(QStringLiteral("review.nextChange"))->trigger();
@@ -3972,6 +4042,382 @@ private Q_SLOTS:
         QVERIFY(doc->undo());
         QCOMPARE(doc->sectionProps(0).pageW, 11906);
         QCOMPARE(documentRevisionCount(*doc), 1);
+    }
+
+    void sectionChangesAreSettledWhereTheyAreWhenTheSameBatchTakesASectionBreakOut()
+    {
+        // Three sections: the first break's paragraph mark is tracked (inserted, then deleted), and the second and last sections each have a change of their properties. Settling the mark takes the
+        // first break out, so the sections after it are not where they were when the batch began.
+        for (const bool accept : {false, true}) {
+            const QByteArray mark = accept ? "<w:rPr><w:del" + rev(1) + "/></w:rPr>" : "<w:rPr><w:ins" + rev(1) + "/></w:rPr>";
+            const QByteArray body = para(run("one"), mark + sectionProps(12240, 15840)) + para(run("two"), sectionProps(11906, 16838, sectionChange(2, 15840, 12240))) +
+                                    para(run("three")) + sectionProps(12240, 15840, sectionChange(3, 11906, 16838));
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(body)), QString());
+            QCOMPARE(w.document()->sectionCount(), 3);
+            QCOMPARE(documentRevisionCount(*w.document()), 3);
+            w.act(QString::fromLatin1(accept ? "review.acceptAll" : "review.rejectAll"))->trigger();
+            QCOMPARE(documentRevisionCount(*w.document()), 0);
+            const QByteArray x = documentXml(savedByWindow(w));
+            QVERIFY2(!x.contains("sectPrChange") && !x.contains("<w:ins ") && !x.contains("<w:del "), x.constData());
+            // The break is gone, and each section left has its own properties as the choice made them: the second section's (its old page, or the new) and the last's.
+            const QStringList expected = accept ? QStringList{QStringLiteral("11906x16838"), QStringLiteral("12240x15840")} : QStringList{QStringLiteral("15840x12240"), QStringLiteral("11906x16838")};
+            QCOMPARE(pageSizes(x), expected);
+            QCOMPARE(w.document()->sectionCount(), 2);
+        }
+    }
+
+    void aSectionChangeWhoseOldPropertiesAreWrittenWithAnotherPrefixIsRejectedAndOneThatCantBeReadIsKept()
+    {
+        const QByteArray body = para(run("one")) + sectionProps(11906, 16838, sectionChange(2, 15840, 12240));
+        {
+            // The same file with its elements under the prefix x: the old page comes back, not a default one.
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocxPrefixed(body)), QString());
+            QCOMPARE(documentRevisionCount(*w.document()), 1);
+            w.act(QStringLiteral("review.rejectAll"))->trigger();
+            QVERIFY2(w.statusBar()->currentMessage().startsWith(QStringLiteral("1 change rejected.")), qPrintable(w.statusBar()->currentMessage()));
+            const QByteArray x = documentXml(savedByWindow(w));
+            QCOMPARE(pageSizes(x), QStringList{QStringLiteral("15840x12240")});
+            QVERIFY2(!x.contains("sectPrChange"), x.constData());
+        }
+        // A record that holds no section properties: rejecting it changes nothing and keeps the change, which is said; accepting it settles it, as it needs nothing of the old.
+        const QByteArray damaged = para(run("one")) + "<w:sectPr><w:pgSz w:w=\"11906\" w:h=\"16838\"/><w:sectPrChange" + rev(2) + "><w:pgSz w:w=\"15840\" w:h=\"12240\"/></w:sectPrChange></w:sectPr>";
+        for (const bool accept : {false, true}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(damaged)), QString());
+            QCOMPARE(documentRevisionCount(*w.document()), 1);
+            w.act(QString::fromLatin1(accept ? "review.acceptAll" : "review.rejectAll"))->trigger();
+            const QString said = w.statusBar()->currentMessage();
+            const QByteArray x = documentXml(savedByWindow(w));
+            QCOMPARE(pageSizes(x).first(), QStringLiteral("11906x16838"));
+            if (accept) {
+                QVERIFY2(said.startsWith(QStringLiteral("1 change accepted.")), qPrintable(said));
+                QVERIFY2(!x.contains("sectPrChange"), x.constData());
+                QCOMPARE(documentRevisionCount(*w.document()), 0);
+            } else {
+                QVERIFY2(said.startsWith(QStringLiteral("0 changes rejected. 1 change")) && said.contains(QStringLiteral("kept as written because settling")) && said.contains(QStringLiteral("would damage the document.")), qPrintable(said));
+                QVERIFY2(x.contains("sectPrChange"), x.constData());
+                QCOMPARE(documentRevisionCount(*w.document()), 1);   // (the row is still there)
+            }
+        }
+    }
+
+    void rejectingAChangeWhoseOldListIsGoneChangesNothingAndKeepsTheRow()
+    {
+        auto changed = [](int id, const QByteArray &now, const QByteArray &before) {
+            return para(run("x"), now + "<w:pPrChange" + rev(id) + "><w:pPr>" + before + "</w:pPr></w:pPrChange>");
+        };
+        // The first was in a list the numbering part no longer has (and was indented, and left-aligned); the second was in list 1.
+        const QByteArray body = changed(1, "<w:jc w:val=\"center\"/>", numPr(9, 0) + "<w:ind w:left=\"1440\" w:hanging=\"360\"/><w:jc w:val=\"left\"/>") + changed(2, QByteArray(), numPr(1, 0));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocxNumbered(body)), QString());
+        QCOMPARE(documentRevisionCount(*w.document()), 2);
+        w.act(QStringLiteral("review.rejectAll"))->trigger();
+        const QString said = w.statusBar()->currentMessage();
+        QVERIFY2(said.startsWith(QStringLiteral("1 change rejected. 1 change")) && said.contains(QStringLiteral("kept as written because settling")) && said.contains(QStringLiteral("would damage the document.")), qPrintable(said));
+        QCOMPARE(documentRevisionCount(*w.document()), 1);   // (the kept row is still listed)
+        const QByteArray bytes = savedByWindow(w);
+        const QStringList paragraphs = savedParagraphs(*w.document());
+        QCOMPARE(paragraphs.size(), 2);
+        QVERIFY2(paragraphs[0].contains(QStringLiteral("pPrChange")) && paragraphs[0].contains(QStringLiteral("w:val=\"center\"")) && !paragraphs[0].contains(QStringLiteral("w:left=\"1440\"<")), qPrintable(paragraphs[0]));
+        const QString kept = QString::fromUtf8(documentXml(bytes));
+        QVERIFY2(kept.count(QStringLiteral("<w:pPrChange")) == 1 && !kept.contains(QStringLiteral("<w:ind w:left=\"1440\" w:hanging=\"360\"/><w:jc w:val=\"center\"")), qPrintable(kept));
+        QCOMPARE(listOf(paragraphs[1]), QStringLiteral("1/0"));
+    }
+
+    void rejectingANumberingGoesBackToWhatTheStyleGivesAndNoneOnlyWhereTheOldStateSaysSo()
+    {
+        const QByteArray styles = "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                  "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:basedOn w:val=\"Normal\"/><w:pPr>" + numPr(1, 0) + "</w:pPr></w:style>";
+        const QByteArray heading = "<w:pStyle w:val=\"Heading1\"/>";
+        const QByteArray body = para(run("a"), heading + numPr(1, 0, "<w:ins" + rev(31) + "/>")) +                                                    // a heading whose own numbering was inserted: the style's stays
+                                para(run("b"), numPr(1, 0, "<w:ins" + rev(32) + "/>")) +                                                            // a plain paragraph: none
+                                para(run("c"), heading + numPr(1, 0, "<w:numberingChange" + rev(33) + " w:original=\"\"/>"));                        // a heading that had none (the style's was turned off)
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocxNumbered(body, styles)), QString());
+        QCOMPARE(documentRevisionCount(*w.document()), 3);
+        w.act(QStringLiteral("review.rejectAll"))->trigger();
+        QCOMPARE(documentRevisionCount(*w.document()), 0);
+        // What the window saves, read again: the first paragraph is in the style's list, the plain one in none, the third in none by a "no numbering" of its own.
+        auto again = open(savedByWindow(w));
+        QVERIFY(again);
+        QTextBlock a = again->story()->begin(), b = a.next(), c = b.next();
+        QVERIFY(a.textList() && a.blockFormat().intProperty(prop::NumId) == 1);
+        QVERIFY(!b.textList() && !b.blockFormat().hasProperty(prop::NumId));
+        QVERIFY(!c.textList() && !c.blockFormat().hasProperty(prop::NumId));
+        QCOMPARE(a.blockFormat().stringProperty(tp::StyleName), QStringLiteral("Heading1"));
+        // The same in the open document, before it is saved.
+        QTextBlock a2 = w.document()->story()->begin();
+        QVERIFY(a2.textList() && a2.blockFormat().intProperty(prop::NumId) == 1);
+        QVERIFY(!a2.next().textList());
+        QVERIFY(!a2.next().next().textList());
+    }
+
+    void aTextBoxWithAFallbackCopyIsSettledInBothCopiesAndCountedOnce()
+    {
+        const QByteArray in = para(run("x") + inserted(301, "in "));
+        // A plain box: its words are listed from the drawing, and settling one by one writes the drawing back, as every edit of a box does, so the fallback copy goes with it and no copy keeps the change.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(para(run("a") + boxWithFallback(in, in)))), QString());
+            write::WriteDoc *doc = w.document();
+            QCOMPARE(documentRevisions(*doc).size(), 1);
+            QCOMPARE(textBoxChangeCount(*doc), 0);
+            QVERIFY(documentXml(savedByWindow(w)).contains("Fallback"));
+            w.act(QStringLiteral("review.nextChange"))->trigger();
+            QVERIFY(w.view()->editingShapeText());
+            w.act(QStringLiteral("review.accept"))->trigger();
+            const QByteArray x = documentXml(savedByWindow(w));
+            QVERIFY2(!x.contains("<w:ins ") && x.contains("xin "), x.constData());
+            QVERIFY2(!x.contains("Fallback"), x.constData());   // (the established behavior: an edited box has no fallback copy)
+        }
+        // Typing in a box that has one drops it as well (the behavior the settling above follows).
+        {
+            auto doc = open(makeDocx(para(run("a") + boxWithFallback(para(run("x")), para(run("x"))))));
+            const int at = doc->story()->toPlainText().indexOf(QChar::ObjectReplacementCharacter);
+            QVERIFY(at >= 0);
+            QVERIFY(setTextBoxText(*doc, at, QStringList{QStringLiteral("typed")}));
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY2(x.contains("typed") && !x.contains("Fallback"), x.constData());
+        }
+        // Accept All does the box by its XML, both copies together, and says one change for what is one change; a grouped box is only counted, once.
+        for (const bool group : {false, true}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(para(run("a") + boxWithFallback(in, in, group)))), QString());
+            write::WriteDoc *doc = w.document();
+            QCOMPARE(textBoxChangeCount(*doc), group ? 1 : 0);
+            QCOMPARE(documentRevisionCount(*doc), group ? 0 : 1);
+            w.act(QStringLiteral("review.acceptAll"))->trigger();
+            QVERIFY2(w.statusBar()->currentMessage().startsWith(QStringLiteral("1 change accepted.")), qPrintable(w.statusBar()->currentMessage()));
+            const QByteArray x = documentXml(savedByWindow(w));
+            QVERIFY2(!x.contains("<w:ins "), x.constData());
+            QCOMPARE(textBoxChangeCount(*doc), 0);
+        }
+    }
+
+    void aChangeInATextBoxInAnEndnoteIsCountedAndDoneAndEveryKindOfChangeInABoxIsFound()
+    {
+        {
+            StoryParts p;
+            p.body = para(run("plain"));
+            p.endnote = para(run("n") + boxOf(para(run("x") + inserted(301, "in "))));
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocxWithStories(p)), QString());
+            write::WriteDoc *doc = w.document();
+            QCOMPARE(textBoxChangeCount(*doc), 1);
+            QVERIFY(documentHasRevisions(*doc));
+            w.act(QStringLiteral("review.acceptAll"))->trigger();
+            QVERIFY2(w.statusBar()->currentMessage().startsWith(QStringLiteral("1 change accepted.")), qPrintable(w.statusBar()->currentMessage()));
+            QCOMPARE(textBoxChangeCount(*doc), 0);
+            QVERIFY2(!partOf(savedByWindow(w), "/word/endnotes.xml").contains("<w:ins "), "the endnote's box still holds the change");
+        }
+        // A box whose only change is the record of a numbering change: listed from a plain box, counted for a grouped one, and done by Accept All in both.
+        const QByteArray numbered = para(run("x"), numPr(1, 0, "<w:numberingChange" + rev(41) + " w:original=\"\"/>"));
+        {
+            auto doc = open(makeDocxNumbered(para(run("a") + boxOf(numbered))));
+            const QVector<StoryRevision> all = documentRevisions(*doc);
+            QCOMPARE(all.size(), 1);
+            QCOMPARE(all[0].revision.kind, Revision::NumberingChanged);
+            QVERIFY(all[0].container.startsWith(QStringLiteral("box:")));
+        }
+        for (const bool accept : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocxNumbered(para(run("a") + boxOf(numbered, true)))), QString());
+            write::WriteDoc *doc = w.document();
+            QCOMPARE(textBoxChangeCount(*doc), 1);
+            QVERIFY(w.act(QStringLiteral("review.acceptAll"))->isEnabled());
+            w.act(QString::fromLatin1(accept ? "review.acceptAll" : "review.rejectAll"))->trigger();
+            QVERIFY2(w.statusBar()->currentMessage().startsWith(accept ? QStringLiteral("1 change accepted.") : QStringLiteral("1 change rejected.")), qPrintable(w.statusBar()->currentMessage()));
+            QVERIFY2(!documentXml(savedByWindow(w)).contains("numberingChange"), "the record is still in the box");
+            QCOMPARE(textBoxChangeCount(*doc), 0);
+        }
+        // A box inside a box is counted, and the line of the pane says it is reached by Accept All and Reject All.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            w.setDocument(open(makeDocx(para(run("a") + boxOf(para(run("o") + boxOf(para(inserted(301, "deep")))))))), QString());
+            write::WriteDoc *doc = w.document();
+            QCOMPARE(textBoxChangeCount(*doc), 1);
+            w.act(QStringLiteral("review.reviewingPane"))->trigger();
+            ReviewPane *pane = w.reviewPane();
+            QVERIFY(pane);
+            pane->showPage(ReviewPane::Changes);
+            pane->refresh();
+            QLabel *line = pane->findChild<QLabel *>(QStringLiteral("textBoxLine"));
+            QVERIFY(line && !line->isHidden());
+            QVERIFY2(line->text().contains(QStringLiteral("Accept All")) && line->text().contains(QStringLiteral("Reject All")), qPrintable(line->text()));
+            w.act(QStringLiteral("review.acceptAll"))->trigger();
+            QVERIFY2(w.statusBar()->currentMessage().startsWith(QStringLiteral("1 change accepted.")), qPrintable(w.statusBar()->currentMessage()));
+            QVERIFY(!documentXml(savedByWindow(w)).contains("<w:ins "));
+        }
+    }
+
+    void nextAndPreviousInAnOpenTextBoxGoOnFromTheCaretAndNotFromTheChangeLastVisited()
+    {
+        const QByteArray body = para(run("a") + boxOf(para(run("x") + inserted(301, "aa") + run("y") + inserted(302, "bb") + run("z") + inserted(303, "cc"))));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        QCOMPARE(documentRevisions(*w.document()).size(), 3);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QVERIFY(w.view()->editingShapeText());
+        QCOMPARE(plainSelection(w.view()->shapeEditor()->textCursor()), QStringLiteral("aa"));
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(plainSelection(w.view()->shapeEditor()->textCursor()), QStringLiteral("bb"));
+        // The caret moved to the start of the words: Next is the first change, not the one after "bb".
+        QTextCursor c(w.view()->shapeEditor()->document());
+        c.setPosition(0);
+        w.view()->shapeEditor()->setTextCursor(c);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QVERIFY(w.view()->editingShapeText());
+        QCOMPARE(plainSelection(w.view()->shapeEditor()->textCursor()), QStringLiteral("aa"));
+        // With the caret left where the last visit put it, Next goes on to the next one.
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(plainSelection(w.view()->shapeEditor()->textCursor()), QStringLiteral("bb"));
+        // Moved to the end of the words, Previous is the last change.
+        c.movePosition(QTextCursor::End);
+        w.view()->shapeEditor()->setTextCursor(c);
+        w.act(QStringLiteral("review.previousChange"))->trigger();
+        QCOMPARE(plainSelection(w.view()->shapeEditor()->textCursor()), QStringLiteral("cc"));
+    }
+
+    void theFirstNextFromTheVeryStartOfAStoryDoesNotSkipAChangeThatBeginsThere()
+    {
+        StoryParts p;
+        p.body = para(inserted(1, "first ") + run("then ") + inserted(2, "second"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        QTextCursor start(w.document()->story());
+        start.setPosition(0);
+        w.view()->setCursor(start);
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(plainSelection(w.view()->cursor()), QStringLiteral("first "));
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QCOMPARE(plainSelection(w.view()->cursor()), QStringLiteral("second"));
+    }
+
+    void theFirstNextFromTheVeryStartOfAHeaderDoesNotSkipAChangeThatBeginsThere()
+    {
+        StoryParts p;
+        p.body = para(run("plain"));
+        p.header = para(inserted(33, "hd ") + run("mid ") + inserted(34, "hx"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocxWithStories(p)), QString());
+        QVERIFY(w.view()->enterHeaderFooter(0, false));
+        QTextCursor top(w.view()->cursor());
+        top.setPosition(0);
+        w.view()->setCursor(top);
+        QVERIFY(w.view()->inHeaderFooter());
+        w.act(QStringLiteral("review.nextChange"))->trigger();
+        QVERIFY(w.view()->inHeaderFooter());
+        QCOMPARE(plainSelection(w.view()->cursor()), QStringLiteral("hd "));
+    }
+
+    void thePagesDrawTheFormattingMarkForNumberingAndSectionChangesAndNoInsertionBar()
+    {
+        const MarkupGuard guard;
+        tp::revisionMarkup().bars = tp::RevisionMarkup::BarsLeft;
+        ++tp::revisionMarkup().generation;
+        const QByteArray body = para(run("numbered"), numPr(1, 0, "<w:ins" + rev(51) + "/>")) + para(run("tail")) + sectionProps(11906, 16838, sectionChange(52, 12240, 15840));
+        for (const int what : {0, 1, 2}) {
+            auto doc = open(makeDocxNumbered(what == 1 ? para(run("numbered"), numPr(1, 0, "<w:ins" + rev(51) + "/>")) : what == 2 ? para(run("tail")) + sectionProps(11906, 16838, sectionChange(52, 12240, 15840)) : body));
+            QVERIFY(doc);
+            doc->pager().paginate(0);
+            const auto page = doc->pager().materialize(0);
+            QVERIFY(page);
+            QImage image(612, 792, QImage::Format_RGB32);
+            image.fill(Qt::white);
+            QPainter painter(&image);
+            LayoutCache cache;
+            // Formatting bars only: the numbering and the section change are formatting, so they have the bar.
+            write::MarkupMarks formatOnly;
+            formatOnly.formatBars = true;
+            const write::MarkupCounts f = write::paintMarkupMarks(&painter, *page, &cache, *doc, formatOnly);
+            QVERIFY2(f.bars > 0, qPrintable(QStringLiteral("what %1: %2 bars").arg(what).arg(f.bars)));
+            // Insertion bars only: they are not insertions, so there is none.
+            write::MarkupMarks insertionsOnly;
+            insertionsOnly.changeBars = true;
+            QCOMPARE(write::paintMarkupMarks(&painter, *page, &cache, *doc, insertionsOnly).bars, 0);
+            painter.end();
+        }
+    }
+
+    void textBoxStoriesAreNotMadeAgainForEveryEditOfTheTextAndAreCapped()
+    {
+        {
+            const QByteArray box = boxOf(para(run("x") + inserted(301, "in ")));
+            auto doc = open(makeDocx(para(run("a") + box + run(" b") + box + run(" c") + box)));
+            QVERIFY(doc);
+            QStringList before;
+            for (const StoryRevision &sr : documentRevisions(*doc)) before << sr.container;
+            QCOMPARE(before.size(), 3);
+            const qint64 built = boxStoriesBuiltForTest();
+            // Typing in the text before the boxes moves them: the stories of boxes whose drawings are as they were are kept, and found at their new places.
+            for (int i = 0; i < 5; ++i) {
+                QTextCursor c(doc->story());
+                c.setPosition(0);
+                c.insertText(QStringLiteral("zz"));
+                QStringList now;
+                for (const StoryRevision &sr : documentRevisions(*doc)) now << sr.container;
+                QCOMPARE(now.size(), 3);
+                QCOMPARE(now[0].mid(4).toInt(), before[0].mid(4).toInt() + 2 * (i + 1));
+            }
+            QCOMPARE(boxStoriesBuiltForTest(), built);
+        }
+        // No more than kMostBoxStories boxes are listed as words; the rest are counted, and Accept All does all of them.
+        const int total = kMostBoxStories + 3;
+        QByteArray body;
+        for (int i = 0; i < total; ++i) body += para(run("p") + boxOf(para(run("x") + inserted(1000 + i, "in "))));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        write::WriteDoc *doc = w.document();
+        QVERIFY(doc);
+        QCOMPARE(documentRevisions(*doc).size(), kMostBoxStories);
+        QCOMPARE(textBoxChangeCount(*doc), 3);
+        w.act(QStringLiteral("review.acceptAll"))->trigger();
+        QVERIFY2(w.statusBar()->currentMessage().startsWith(QString::number(total) + QStringLiteral(" changes accepted.")), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY(!documentXml(savedByWindow(w)).contains("<w:ins "));
     }
 
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()

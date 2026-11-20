@@ -256,7 +256,7 @@ void ReviewPane::rebuild()
     // Reject All do them: the line says how many there are.
     {
         const int inBoxes = write::textBoxChangeCount(*doc);
-        m_boxLine->setText(tr("%n more change(s) are inside text boxes.", "", inBoxes));
+        m_boxLine->setText(tr("%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.", "", inBoxes));
         m_boxLine->setVisible(inBoxes > 0);
     }
     // The comments, replies under the comment they answer.

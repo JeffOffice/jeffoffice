@@ -380,12 +380,19 @@ public:
     // The mail merge of the document (core/mergeops.h): null for a document that is not merged.
     std::shared_ptr<mail::State> mailMerge;
 
-    // What core/reviewops.cpp keeps of the text boxes that hold changes: where they are in the text (found again when the text changes), and the words of each as a story that the changes are
-    // listed and settled in, with the drawing as it was when the story was made (a box that is written or goes is made again).
+    // What core/reviewops.cpp keeps of the text boxes that hold changes: where they are in the text (found again when the text changes, which moves them), what is known of each drawing by its bytes,
+    // and the words of each box as a story that the changes are listed and settled in, by its drawing's bytes and which of the drawings written so it is (a drawing that is as it was is not read
+    // again for every edit of the text).
     struct BoxReviewCache {
+        struct Hit {
+            int position = 0;
+            QByteArray bytes;
+            int nth = 0;
+        };
         qint64 stamp = -1;
-        QVector<std::pair<int, QByteArray>> hits;
-        std::map<int, std::pair<QByteArray, std::unique_ptr<QTextDocument>>> stories;
+        QVector<Hit> hits;
+        QHash<QByteArray, bool> holdsChanges;
+        std::map<std::pair<QByteArray, int>, std::unique_ptr<QTextDocument>> stories;
     };
     BoxReviewCache boxReview;
 

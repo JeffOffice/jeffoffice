@@ -77,6 +77,8 @@ private:
     {
         const QByteArray raw = m_t.raw(n);
         if (depth > kMostDepth || !marked(raw)) return carriedFirst(raw, carried);
+        if (is(n, "numPr")) return numbering(n);
+        if (is(n, "sectPr")) return section(n);
         const bool inserts = is(n, "ins") || is(n, "moveTo"), deletes = is(n, "del") || is(n, "moveFrom");
         if (inserts) return m_accept ? children(n, depth) : QByteArray();
         if (deletes) return m_accept ? QByteArray() : deletedWords(n, depth);
@@ -86,6 +88,40 @@ private:
     }
 
     QByteArray carriedFirst(const QByteArray &raw, QByteArray *) { return raw; }
+
+    // A paragraph's numbering: the marks of a change of it go (accepted); rejected, the numbering that was put on goes (w:ins, or a change whose old numbering was none: the paragraph had none of its own,
+    // section 17.13.5.19), and a change that names an old numbering is kept as it is, as it says no list to go back to.
+    QByteArray numbering(int n)
+    {
+        const int ins = m_t.child(n, "ins"), change = m_t.child(n, "numberingChange");
+        if (ins < 0 && change < 0) return m_t.raw(n);
+        const bool none = ins >= 0 || m_t.attr(change, "original").isEmpty();
+        if (!m_accept) return none ? QByteArray() : m_t.raw(n);
+        QByteArray out = m_t.startTag(n);
+        for (int c = m_t.firstChild(n); c >= 0; c = m_t.next(c))
+            if (c != ins && c != change) out += m_t.raw(c);
+        return out + m_t.endTag(n);
+    }
+
+    // A section's properties: the record of a change of them goes (accepted), or the old ones take their place (rejected; the headers and footers it names stay), and a record that holds none is kept.
+    QByteArray section(int n)
+    {
+        const int record = m_t.child(n, "sectPrChange");
+        if (record < 0) return m_t.raw(n);
+        QByteArray out = m_t.startTag(n);
+        if (m_accept) {
+            for (int c = m_t.firstChild(n); c >= 0; c = m_t.next(c))
+                if (c != record) out += m_t.raw(c);
+            return out + m_t.endTag(n);
+        }
+        const int old = m_t.child(record, "sectPr");
+        if (old < 0) return m_t.raw(n);
+        for (int c = m_t.firstChild(n); c >= 0; c = m_t.next(c))
+            if (is(c, "headerReference") || is(c, "footerReference")) out += m_t.raw(c);
+        for (int c = m_t.firstChild(old); c >= 0; c = m_t.next(c))
+            if (!is(c, "headerReference") && !is(c, "footerReference") && !is(c, "sectPrChange")) out += m_t.raw(c);
+        return out + m_t.endTag(n);
+    }
 
     // What a rejected deletion has: its words as words, and the code of a field as code.
     QByteArray deletedWords(int n, int depth)
@@ -113,7 +149,7 @@ private:
             for (int c = m_t.firstChild(n); c >= 0; c = m_t.next(c)) {
                 if (is(c, paragraphProps ? "pPrChange" : "rPrChange")) continue;
                 if (!paragraphProps && (is(c, "ins") || is(c, "del") || is(c, "moveFrom") || is(c, "moveTo"))) continue;   // (the marks of a paragraph mark)
-                out += is(c, "rPr") ? element(c, depth + 1) : m_t.raw(c);
+                out += is(c, "rPr") || is(c, "numPr") || is(c, "sectPr") ? element(c, depth + 1) : m_t.raw(c);
             }
         }
         return out + m_t.endTag(n);
@@ -136,22 +172,72 @@ bool xmlHasChanges(const QByteArray &xml)
             if (next == ' ' || next == '>' || next == '/' || next == '\t' || next == '\n' || next == '\r') return true;
         }
     }
-    return xml.contains("rPrChange") || xml.contains("pPrChange");
+    return xml.contains("rPrChange") || xml.contains("pPrChange") || xml.contains("numberingChange") || xml.contains("sectPrChange");
 }
+
+namespace {
+
+// The XML without the copies that are for older programs (the mc:Fallback elements, with whatever they hold): a change written in both copies of a box is one change.
+QByteArray withoutFallbacks(const QByteArray &xml)
+{
+    QByteArray out;
+    qsizetype from = 0;
+    for (qsizetype at = xml.indexOf("Fallback"); at >= 0; at = xml.indexOf("Fallback", from)) {
+        qsizetype open = at;
+        while (open > from && xml.at(open - 1) != '<' && at - open < 16) --open;
+        const char next = at + 8 < xml.size() ? xml.at(at + 8) : '\0';
+        if (open <= 0 || xml.at(open - 1) != '<' || !(next == ' ' || next == '>' || next == '/' || next == '\t' || next == '\n' || next == '\r')) {
+            from = at + 8;
+            continue;
+        }
+        const qsizetype start = open - 1;
+        const QByteArray name = xml.mid(open, at + 8 - open);   // (with its prefix)
+        const qsizetype gt = xml.indexOf('>', at);
+        if (gt < 0) break;
+        qsizetype end = gt + 1;
+        if (xml.at(gt - 1) != '/') {
+            // To the end tag that closes it: a fallback may hold another, so the ones opened inside are counted.
+            int depth = 1;
+            qsizetype q = gt + 1;
+            const QByteArray openTag = "<" + name, closeTag = "</" + name;
+            while (depth > 0) {
+                const qsizetype o = xml.indexOf(openTag, q), c = xml.indexOf(closeTag, q);
+                if (c < 0) {
+                    end = xml.size();
+                    break;
+                }
+                const char afterOpen = o >= 0 && o + openTag.size() < xml.size() ? xml.at(o + openTag.size()) : '\0';
+                if (o >= 0 && o < c && (afterOpen == ' ' || afterOpen == '>' || afterOpen == '/' || afterOpen == '\t' || afterOpen == '\n' || afterOpen == '\r')) {
+                    const qsizetype ogt = xml.indexOf('>', o);
+                    if (ogt >= 0 && xml.at(ogt - 1) != '/') ++depth;
+                    q = (ogt < 0 ? o : ogt) + 1;
+                } else {
+                    --depth;
+                    q = c + closeTag.size();
+                    end = xml.indexOf('>', c) + 1;
+                    if (end <= 0) end = xml.size();
+                }
+            }
+        }
+        out += xml.mid(from, start - from);
+        from = end;
+    }
+    return out + xml.mid(from);
+}
+
+} // namespace
 
 int xmlChangeCount(const QByteArray &xml)
 {
-    // (The marks that are changes: an element named so, not w:delText or w:instrText, and not the marks of a move's range.)
+    // (The marks that are changes: a word-processing element named so, not w:delText or w:instrText, nor a drawing's path command that is called moveTo, and not the marks of a move's range; once
+    // for a change that a box has in both its copies.)
+    const QByteArray main = xml.contains("Fallback") ? withoutFallbacks(xml) : xml;
     int n = 0;
-    for (const char *name : {"ins", "del", "moveFrom", "moveTo", "rPrChange", "pPrChange"}) {
-        const qsizetype len = qstrlen(name);
-        for (qsizetype at = xml.indexOf(name); at >= 0; at = xml.indexOf(name, at + len)) {
-            const char before = at > 0 ? xml.at(at - 1) : '\0', next = at + len < xml.size() ? xml.at(at + len) : '\0';
-            if (!(before == '<' || before == ':') || !(next == ' ' || next == '>' || next == '/' || next == '\t' || next == '\n' || next == '\r')) continue;
-            // (A start tag: the "<" before the prefix is not the "</" of an end tag.)
-            qsizetype q = at - 1;
-            while (q > 0 && xml.at(q) != '<' && qsizetype(at) - q < 16) --q;
-            if (xml.at(q) == '<' && !(q + 1 < xml.size() && xml.at(q + 1) == '/')) ++n;
+    for (const char *name : {"ins", "del", "moveFrom", "moveTo", "rPrChange", "pPrChange", "numberingChange", "sectPrChange"}) {
+        const QByteArray open = QByteArray("<w:") + name;
+        for (qsizetype at = main.indexOf(open); at >= 0; at = main.indexOf(open, at + open.size())) {
+            const char next = at + open.size() < main.size() ? main.at(at + open.size()) : '\0';
+            if (next == ' ' || next == '>' || next == '/' || next == '\t' || next == '\n' || next == '\r') ++n;
         }
     }
     return n;
