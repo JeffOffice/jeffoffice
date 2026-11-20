@@ -70493,34 +70493,34 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+1"/>
         <location line="+62"/>
-        <location line="+1037"/>
+        <location line="+1036"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Il file inizia con istruzioni non consentite da questo programma, quindi non può essere letto.</translation>
     </message>
     <message>
-        <location line="-1412"/>
+        <location line="-1411"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Il file è danneggiato: non è scritto come dovrebbe esserlo un file di foglio di calcolo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+819"/>
+        <location line="+818"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Il file è danneggiato oppure le sue parti superano quanto questo programma è in grado di leggere.</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+1454"/>
+        <location line="-794"/>
+        <location line="+1453"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lettura è stata interrotta.</translation>
     </message>
     <message>
-        <location line="-1451"/>
-        <location line="+1028"/>
+        <location line="-1450"/>
+        <location line="+1027"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70529,14 +70529,14 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file contiene elementi annidati più profondamente di quanto avvenga in qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="-1298"/>
-        <location line="+989"/>
+        <location line="-1297"/>
+        <location line="+988"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Il file è danneggiato.</translation>
     </message>
     <message>
-        <location line="-977"/>
+        <location line="-976"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70563,7 +70563,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il file cita più tipi di carattere di qualsiasi file reale.</translation>
     </message>
     <message>
-        <location line="+591"/>
+        <location line="+590"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">Il foglio di calcolo è più grande di quanto questo programma sia in grado di leggere.</translation>
     </message>
@@ -77007,7 +77007,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">una tabella con più celle ripetute del numero mantenuto</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+34"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">una tabella con più righe ripetute del numero mantenuto</translation>
     </message>
@@ -77078,7 +77078,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile leggere il testo del documento.</translation>
     </message>
     <message>
-        <location line="+722"/>
+        <location line="+749"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">colonne di larghezza diversa (salvate come colonne uguali)</translation>
     </message>

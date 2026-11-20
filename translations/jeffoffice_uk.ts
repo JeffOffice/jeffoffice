@@ -70537,34 +70537,34 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <location line="+62"/>
-        <location line="+1037"/>
+        <location line="+1036"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Файл починається з інструкцій, які ця програма не дозволяє, тому його не можна прочитати.</translation>
     </message>
     <message>
-        <location line="-1412"/>
+        <location line="-1411"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Файл пошкоджено: його структура не відповідає структурі файлу електронної таблиці.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+819"/>
+        <location line="+818"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Файл пошкоджено, або його частини перевищують обсяг, який читає ця програма.</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+1454"/>
+        <location line="-794"/>
+        <location line="+1453"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Читання було зупинено.</translation>
     </message>
     <message>
-        <location line="-1451"/>
-        <location line="+1028"/>
+        <location line="-1450"/>
+        <location line="+1027"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70573,14 +70573,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл має елементи всередині елементів глибше, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="-1298"/>
-        <location line="+989"/>
+        <location line="-1297"/>
+        <location line="+988"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Файл пошкоджено.</translation>
     </message>
     <message>
-        <location line="-977"/>
+        <location line="-976"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70607,7 +70607,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Файл називає більше шрифтів, ніж будь-який справжній файл.</translation>
     </message>
     <message>
-        <location line="+591"/>
+        <location line="+590"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">Електронна таблиця більша, ніж може прочитати ця програма.</translation>
     </message>
@@ -77061,7 +77061,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">таблиця з більшою кількістю повторюваних комірок, ніж зберігається</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+34"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">таблиця з більшою кількістю повторюваних рядків, ніж зберігається</translation>
     </message>
@@ -77132,7 +77132,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не вдалося прочитати текст документа.</translation>
     </message>
     <message>
-        <location line="+722"/>
+        <location line="+749"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">колонки різної ширини (збережено як однакові)</translation>
     </message>

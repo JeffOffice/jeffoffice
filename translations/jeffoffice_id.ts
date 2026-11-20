@@ -70449,34 +70449,34 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <location line="+62"/>
-        <location line="+1037"/>
+        <location line="+1036"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">Berkas diawali dengan instruksi yang tidak diizinkan program ini, sehingga tidak dapat dibaca.</translation>
     </message>
     <message>
-        <location line="-1412"/>
+        <location line="-1411"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Berkas rusak: tidak ditulis sebagaimana mestinya sebuah berkas lembar kerja.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+819"/>
+        <location line="+818"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Berkas rusak, atau bagiannya melebihi yang dapat dibaca program ini.</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+1454"/>
+        <location line="-794"/>
+        <location line="+1453"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Pembacaan dihentikan.</translation>
     </message>
     <message>
-        <location line="-1451"/>
-        <location line="+1028"/>
+        <location line="-1450"/>
+        <location line="+1027"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70485,14 +70485,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Berkas memiliki item di dalam item yang lebih dalam daripada berkas nyata mana pun.</translation>
     </message>
     <message>
-        <location line="-1298"/>
-        <location line="+989"/>
+        <location line="-1297"/>
+        <location line="+988"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Berkas rusak.</translation>
     </message>
     <message>
-        <location line="-977"/>
+        <location line="-976"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70519,7 +70519,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Berkas mencantumkan lebih banyak font daripada berkas nyata mana pun.</translation>
     </message>
     <message>
-        <location line="+591"/>
+        <location line="+590"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">Lembar kerja ini lebih besar daripada yang dapat dibaca program ini.</translation>
     </message>
@@ -76953,7 +76953,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">tabel dengan lebih banyak sel berulang daripada yang dapat dipertahankan</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+34"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">tabel dengan lebih banyak baris berulang daripada yang dapat dipertahankan</translation>
     </message>
@@ -77024,7 +77024,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Teks dokumen tidak dapat dibaca.</translation>
     </message>
     <message>
-        <location line="+722"/>
+        <location line="+749"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">kolom dengan lebar berbeda (disimpan sebagai kolom sama lebar)</translation>
     </message>

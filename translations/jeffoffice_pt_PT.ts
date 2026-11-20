@@ -70493,34 +70493,34 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <location line="+62"/>
-        <location line="+1037"/>
+        <location line="+1036"/>
         <location line="+43"/>
         <location line="+271"/>
         <source>The file begins with instructions that this program does not allow, so it can&apos;t be read.</source>
         <translation type="unfinished">O ficheiro começa com instruções que este programa não permite, pelo que não pode ser lido.</translation>
     </message>
     <message>
-        <location line="-1412"/>
+        <location line="-1411"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">O ficheiro está danificado: não está escrito como deve estar um ficheiro de folha de cálculo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+819"/>
+        <location line="+818"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">O ficheiro está danificado ou as suas partes excedem o que este programa consegue ler.</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+1454"/>
+        <location line="-794"/>
+        <location line="+1453"/>
         <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">A leitura foi interrompida.</translation>
     </message>
     <message>
-        <location line="-1451"/>
-        <location line="+1028"/>
+        <location line="-1450"/>
+        <location line="+1027"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+88"/>
@@ -70529,14 +70529,14 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">O ficheiro tem itens dentro de itens com mais níveis do que qualquer ficheiro real.</translation>
     </message>
     <message>
-        <location line="-1298"/>
-        <location line="+989"/>
+        <location line="-1297"/>
+        <location line="+988"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">O ficheiro está danificado.</translation>
     </message>
     <message>
-        <location line="-977"/>
+        <location line="-976"/>
         <location line="+118"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -70563,7 +70563,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">O ficheiro indica mais tipos de letra do que qualquer ficheiro real.</translation>
     </message>
     <message>
-        <location line="+591"/>
+        <location line="+590"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">A folha de cálculo é maior do que este programa consegue ler.</translation>
     </message>
@@ -77007,7 +77007,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">uma tabela com mais células repetidas do que as mantidas</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+34"/>
         <source>a table with more repeated rows than are kept</source>
         <translation type="unfinished">uma tabela com mais linhas repetidas do que as mantidas</translation>
     </message>
@@ -77078,7 +77078,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível ler o texto do documento.</translation>
     </message>
     <message>
-        <location line="+722"/>
+        <location line="+749"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">colunas de larguras diferentes (guardadas como iguais)</translation>
     </message>
