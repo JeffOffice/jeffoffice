@@ -3445,6 +3445,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     if (first < 2 || (whole > 0 && whole - first < 2)) cut.ok = false;
                 }
             }
+            // (A paragraph that keeps its lines together is not cut: the line that cites the note goes to the next page with the note, unless it begins the column.)
+            if (!force && cut.ok && env.wordLines && cut.rest >= 0) {
+                const QTextDocument *nd = notesDoc ? notesDoc->storyDoc(n.storyId) : nullptr;
+                const QTextBlock split = nd ? nd->findBlock(cut.rest) : QTextBlock();
+                if (split.isValid() && split.position() < cut.rest && split.blockFormat().boolProperty(tp::KeepTogether)) cut.ok = false;
+            }
             cut.used += cut.height + noteGap;
             break;
         }

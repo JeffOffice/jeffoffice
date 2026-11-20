@@ -276,6 +276,150 @@ void FlowTests::aRowOfOneLineCellsGoesWholeWhereItsSpaceAfterDoesNotFit()
 }
 
 
+// A story of one-line paragraphs, `before` of them, `kept` more that are kept with the next, a table of `rows` one-line rows, and `after` paragraphs; `keepRowsFrom` is the row
+// from which the paragraph of each row's cell is kept with the next (rows, to have none), `keptAfter` of the paragraphs after the table are kept with the next as well.
+namespace {
+struct KeepStory {
+    int before = 3, kept = 1, rows = 4, after = 3, keptAfter = 0, keepRowsFrom = -1;
+    std::shared_ptr<FlowDocument> fd;
+    TestTable table;
+    QVector<int> keptBlocks;   // the blocks kept with the next, before the table (their story positions)
+};
+
+KeepStory buildKeepStory(KeepStory k, double bodyHeight)
+{
+    k.fd = std::make_shared<FlowDocument>();
+    FlowDocument &fd = *k.fd;
+    fd.env.wordLines = true;
+    fd.sections[0].paper = QSizeF(300, bodyHeight + 80);
+    fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+    const int paragraphs = k.before + k.kept + k.after;
+    fillStory(fd.story(), paragraphs, 7, [&](int i, QTextBlockFormat &bf) {
+        bf.setBottomMargin(0);
+        if ((i >= k.before && i < k.before + k.kept) || (i >= k.before + k.kept && i < k.before + k.kept + k.keptAfter)) bf.setProperty(tp::KeepWithNext, true);
+    }, 2, 3);
+    TestTable spec;
+    spec.rows = k.rows;
+    spec.cols = 1;
+    spec.columnWidth = 200;
+    spec = addTableAfter(fd, k.before + k.kept - 1, spec);
+    for (int r = std::max(0, k.keepRowsFrom); k.keepRowsFrom >= 0 && r < k.rows; ++r) {
+        QTextCursor c(fd.story()->findBlock(spec.rowStarts[r]));
+        QTextBlockFormat bf;
+        bf.setProperty(tp::KeepWithNext, true);
+        c.mergeBlockFormat(bf);
+    }
+    k.table = spec;
+    return k;
+}
+
+// The block number of the first line on a page, counting a table's rows as the story's paragraphs they are.
+int firstBlockOnPage(Paginator &pg, FlowDocument &fd, int page)
+{
+    const auto lines = pg.lines(page);
+    return lines.isEmpty() ? -1 : fd.story()->findBlock(lines.first().pos).blockNumber();
+}
+}
+
+
+// Paragraphs kept with the next that come before a table go to the next page with it, the way a run of such paragraphs goes with the paragraph after them: where the table's first
+// row does not fit under them, the page ends before the first of them (one, or a run of two).
+void FlowTests::headingsKeptWithTheNextMoveWithATableToTheNextPage()
+{
+    for (const int kept : {1, 2}) {
+        KeepStory spec;
+        spec.kept = kept;
+        // A page that holds everything gives where the first row begins.
+        KeepStory tall = buildKeepStory(spec, 2000);
+        Paginator all(tall.fd.get());
+        const auto rows = rowLines(all, *tall.fd, 0);
+        QCOMPARE(rows.size(), spec.rows);
+        // Room for the paragraphs before the row, and half of it.
+        KeepStory fit = buildKeepStory(spec, rows[0].rect.top() + rows[0].rect.height() / 2);
+        Paginator pg(fit.fd.get());
+        QVERIFY(pg.pageCount() >= 2);
+        QCOMPARE(firstBlockOnPage(pg, *fit.fd, 1), spec.before);   // (the first block kept with the next)
+        QVERIFY(coverageProblem(pg, *fit.fd).isEmpty());
+        // A page with room for the row too has them all on the first.
+        KeepStory room = buildKeepStory(spec, rows[0].rect.bottom() + 1);
+        Paginator wide(room.fd.get());
+        QVERIFY(!rowLines(wide, *room.fd, 0).isEmpty());
+        QCOMPARE(firstBlockOnPage(wide, *room.fd, 0), 0);
+        QVERIFY(wide.lines(0).size() > spec.before + kept);
+    }
+}
+
+
+// A table whose last row is kept with the next, followed by paragraphs of which some are kept with the next as well: the row goes to the next page with the first lines of the
+// paragraph after it, where that does not fit under it, and with the chain of paragraphs it begins, as a run of kept paragraphs goes.
+void FlowTests::aTablesLastRowKeptWithTheNextMovesWithTheParagraphs()
+{
+    for (const int keptAfter : {0, 1}) {
+        KeepStory spec;
+        spec.kept = 0;
+        spec.keepRowsFrom = 3;
+        spec.keptAfter = keptAfter;
+        spec.after = 3;
+        KeepStory tall = buildKeepStory(spec, 2000);
+        Paginator all(tall.fd.get());
+        const auto rows = rowLines(all, *tall.fd, 0);
+        QCOMPARE(rows.size(), spec.rows);
+        const auto text = all.lines(0);
+        // The lines after the table: the paragraph after it and, kept with it, the one after that.
+        QVector<StoryLayout::LineBrief> below;
+        for (const auto &l : text)
+            if (l.rect.top() >= rows.last().rect.bottom() - 0.01 && !tall.fd->story()->findBlock(l.block).blockFormat().intProperty(fp::Cell)) below << l;
+        QVERIFY(below.size() >= 2);
+        // Room for the table and for the paragraphs after it but the last one that is kept with the next (all that follows it, where nothing is): they do not fit as a chain.
+        const double chainBottom = below[keptAfter].rect.bottom();
+        KeepStory fit = buildKeepStory(spec, chainBottom - below[keptAfter].rect.height() / 2);
+        Paginator pg(fit.fd.get());
+        QVERIFY(pg.pageCount() >= 2);
+        // The table's last row is on the second page, with the paragraph after it; the rows before it are on the first.
+        const auto first = rowLines(pg, *fit.fd, 0), second = rowLines(pg, *fit.fd, 1);
+        QCOMPARE(first.size(), spec.rows - 1);
+        QCOMPARE(second.size(), 1);
+        QCOMPARE(second.first().pos, rows.last().pos);
+        QVERIFY(coverageProblem(pg, *fit.fd).isEmpty());
+        // Where the chain fits the page, the table is whole on the first.
+        KeepStory room = buildKeepStory(spec, chainBottom + 1);
+        Paginator wide(room.fd.get());
+        QCOMPARE(rowLines(wide, *room.fd, 0).size(), spec.rows);
+    }
+}
+
+
+// A chain of rows kept with the next that is longer than the table layout keeps together (32 rows), ending the table where the paragraph after it does not fit, is no chain: the
+// rows stay where they are, as they would without the keeping, and no page is left empty by moving the whole chain. A shorter chain goes to the next page whole.
+void FlowTests::aLongKeptChainThroughATableIsBoundedAndLeavesNoEmptyPage()
+{
+    for (const int rows : {20, 40}) {
+        KeepStory spec;
+        spec.before = 5;
+        spec.kept = 0;
+        spec.rows = rows;
+        spec.after = 3;
+        spec.keepRowsFrom = 0;
+        KeepStory tall = buildKeepStory(spec, 3000);
+        Paginator all(tall.fd.get());
+        const auto lines = rowLines(all, *tall.fd, 0);
+        QCOMPARE(lines.size(), rows);
+        // Room for all the rows but not for the paragraph after them.
+        KeepStory fit = buildKeepStory(spec, lines.last().rect.bottom() + 3);
+        Paginator pg(fit.fd.get());
+        QVERIFY(pg.pageCount() >= 2);
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY2(!pg.lines(k).isEmpty(), qPrintable(QStringLiteral("page %1 is empty").arg(k)));
+        QVERIFY(coverageProblem(pg, *fit.fd).isEmpty());
+        if (rows == 20) {
+            QCOMPARE(rowLines(pg, *fit.fd, 0).size(), 0);   // (the chain and the paragraphs before it that are not kept stay: the whole table goes to the next page)
+            QCOMPARE(rowLines(pg, *fit.fd, 1).size(), rows);
+        } else {
+            QCOMPARE(rowLines(pg, *fit.fd, 0).size(), rows);   // (more than 32: no chain)
+        }
+    }
+}
+
+
 // A footer with the page's number and the document's page count, on every page of a document whose table spans pages, shows them right, and the pages made after an
 // edit that adds rows show the new count.
 void FlowTests::pageFieldsInAFooterKeepRightForATableThatSpansPages()

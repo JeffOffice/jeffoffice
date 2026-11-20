@@ -896,6 +896,21 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
         // has done what it does of this; this is for the paragraph that began pages before, and for more lines than it keeps.)
         // (Each time round the page ends earlier, so it ends: at most once for each line.)
         const int natural = c;
+        // A table's row kept with the next (a paragraph in its cells is) at the end of its table is kept with what follows the table, as a paragraph is: where the page would end after it, it
+        // goes to the next page, and the rows kept with the next before it go too. (Rows of a table that are not at its end are kept by the table's own layout, which knows where a page can end.)
+        // At most as many rows as the table layout keeps together are moved this way: a longer chain is no chain, and the page is cut where the text ran out of room.
+        constexpr int kMostKeptRows = 32;
+        int rowsMoved = 0, beforeRows = -1;   // (beforeRows: where the page ended before the first row of the chain was moved)
+        bool inRowChain = false;
+        auto rowKeepsWithNext = [&](const StoryLayout::LineBrief &ln) {
+            if (!m_tables->any() || !m_doc->story()->findBlock(ln.pos).blockFormat().intProperty(fp::Cell)) return false;
+            const int sp = m_tables->index().spanAt(ln.pos);
+            const std::shared_ptr<TableLayout> table = sp >= 0 ? m_tables->layout(sp) : nullptr;
+            if (!table) return false;
+            const int r = table->rowOfPosition(ln.pos);
+            if (r + 1 < table->rowCount() && !inRowChain) return false;
+            return table->keepsWithNext(r);
+        };
         while (c >= 1 && c < L.size()) {
             const StoryLayout::LineBrief &last = L[c - 1], &after = L[c];
             int begin = c - 1;
@@ -921,12 +936,20 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                 }
                 break;
             }
-            if (flags(last.block).keepNext && began) {
+            const bool lastIsRow = m_tables->any() && m_doc->story()->findBlock(last.pos).blockFormat().intProperty(fp::Cell);
+            if (!lastIsRow) inRowChain = false;
+            if ((flags(last.block).keepNext || (lastIsRow && rowKeepsWithNext(last))) && began) {
+                if (lastIsRow && beforeRows < 0) beforeRows = c;
+                if (lastIsRow && ++rowsMoved > kMostKeptRows) {
+                    c = beforeRows;   // (the paragraphs kept with the next after the rows still go with what follows them)
+                    break;
+                }
                 if (begin > 0) {
+                    inRowChain = lastIsRow;
                     c = begin;
                     continue;
                 }
-                c = natural;   // the paragraphs kept with the next begin the page and a page can't hold them: it's cut where the text ran out of room
+                c = lastIsRow ? beforeRows : natural;   // the paragraphs kept with the next begin the page and a page can't hold them: it's cut where the text ran out of room
             }
             break;
         }

@@ -1535,6 +1535,65 @@ void FlowTests::aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo()
 }
 
 
+// A note whose first paragraph keeps its lines together is not cut at the foot of a page, however many of its lines fit under the line that cites it: the line goes on to the next
+// page with the note whole (where the note is not cut, as before, its lines are kept the same).
+void FlowTests::aNoteOfLinesKeptTogetherIsNotCutAtTheFoot()
+{
+    auto layout = [&](double height, bool together) {
+        TestNotes notes;
+        auto note = std::make_unique<QTextDocument>();
+        {
+            QTextCursor nc(note.get());
+            QTextBlockFormat noteFormat;
+            noteFormat.setProperty(tp::WidowControl, true);
+            if (together) noteFormat.setProperty(tp::KeepTogether, true);
+            nc.setBlockFormat(noteFormat);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Times New Roman")});
+            cf.setFontPointSize(10);
+            QString text = QStringLiteral("one");
+            for (const char *w : {"two", "three", "four", "five", "six"}) text += QString(QChar::LineSeparator) + QLatin1String(w);
+            nc.insertText(text, cf);
+        }
+        notes.docs[QStringLiteral("n1")] = std::move(note);
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        c.setBlockFormat(QTextBlockFormat());
+        c.insertText(QStringLiteral("one") + QChar(QChar::LineSeparator) + QStringLiteral("two") + QChar(QChar::LineSeparator) + QStringLiteral("three") + QChar(QChar::LineSeparator) + QStringLiteral("four"), run);
+        QTextCharFormat ref = run;
+        ref.setProperty(tp::Field, QStringLiteral("footnote:n1"));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), ref);
+        LayoutEnv env;
+        env.wordLines = true;
+        auto frame = [&](double h) { FrameSpec fs = plainFrame(300, h); fs.ctx.doc = &notes; return fs; };
+        StoryLayout lay;
+        lay.build(&doc, {frame(height), frame(300)}, env);
+        const auto lines = lay.lineBriefs();
+        struct Out { int lastLineFrame = -9, noteFrame = -9; bool cut = false; };
+        Out out;
+        if (lines.size() == 4) out.lastLineFrame = lines.last().frame;
+        if (lay.notes().size() == 1) {
+            out.noteFrame = lay.notes().first().frame;
+            out.cut = !lay.notes().first().more.isEmpty();
+        }
+        return out;
+    };
+    // (Room for the four lines, and four or five of the note's six: it is cut when its lines may be cut.)
+    const auto free = layout(100, false), kept = layout(100, true), keptRoomy = layout(300, true);
+    QCOMPARE(free.lastLineFrame, 0);
+    QVERIFY2(free.cut, "a note whose lines are not kept together is cut at the foot");
+    QCOMPARE(kept.lastLineFrame, 1);
+    QCOMPARE(kept.noteFrame, 1);
+    QVERIFY(!kept.cut);
+    QCOMPARE(keptRoomy.lastLineFrame, 0);
+    QCOMPARE(keptRoomy.noteFrame, 0);
+    QVERIFY(!keptRoomy.cut);
+}
+
+
 // A line that cites a note whole at the foot of a page, in a file that asks for the older word processor's spacing (w:suppressTopSpacingWP, LayoutEnv::wordWholePointLines), is on
 // the page when the note's text fits, though the space after the note's last paragraph does not: that space hangs below the foot. (The least room for the line and its note is the
 // same with and without that space; a note before it that is not the last has its space. A file that does not ask has the space counted.)

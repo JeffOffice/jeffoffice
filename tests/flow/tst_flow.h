@@ -1556,6 +1556,9 @@ private Q_SLOTS:
     void aNoteLongerThanThePageCitedFromACellHasPagesOfItsOwn();
     void aTableIsNotShiftedByItsPlaceholderUnderProcessorLineHeights();
     void aRowOfOneLineCellsGoesWholeWhereItsSpaceAfterDoesNotFit();
+    void headingsKeptWithTheNextMoveWithATableToTheNextPage();
+    void aTablesLastRowKeptWithTheNextMovesWithTheParagraphs();
+    void aLongKeptChainThroughATableIsBoundedAndLeavesNoEmptyPage();
     void pageFieldsInAFooterKeepRightForATableThatSpansPages();
     void positionsInARowThatGoesOverPageBreaksAreOnThePagesThatShowThem();
     void marginsLargerThanThePageLeaveTheLeastTextArea();
@@ -1643,6 +1646,7 @@ private Q_SLOTS:
     void aLineOfDoubleSpacingFitsByItsTextNotItsRoomUnderIt();
     void anEmptyParagraphAfterAFramedParagraphWithAHiddenMarkKeepsItsLine();
     void aNoteThatDoesNotFitIsCutWhenThreeOfItsLinesDo();
+    void aNoteOfLinesKeptTogetherIsNotCutAtTheFoot();
     void theSpaceAfterTheLastNoteOnAPageMayHangBelowTheFoot();
     void aNoteWithAWidowControlIsCutAfterTwoLinesAndNeverLeavesOne();
     void aNoteIsCutByTheControlOfTheParagraphItIsCutIn();
