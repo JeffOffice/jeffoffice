@@ -84,6 +84,7 @@ private:
         int numId = 0, depth = 0;
         QByteArray *out = nullptr;
     };
+    bool m_tableJoined = false;   // the table about to be written follows another with no paragraph between (kept, so that it is read as it was)
     void emitBlocks(const T &t, int parent, QByteArray *out, int depth, bool body);
     void emitBlock(const T &t, int n, QByteArray *out, ListCtx *lc, int depth, bool body);
     void emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int depth, bool body);

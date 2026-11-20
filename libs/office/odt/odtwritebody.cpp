@@ -148,7 +148,13 @@ void Writer::emitBlocks(const T &t, int parent, QByteArray *out, int depth, bool
     }
     ListCtx lc;
     lc.out = out;
-    for (int c = t.firstChild(parent); c >= 0; c = t.next(c)) emitBlock(t, c, out, &lc, depth, body);
+    int previous = -1;
+    for (int c = t.firstChild(parent); c >= 0; c = t.next(c)) {
+        m_tableJoined = previous >= 0 && t.is(previous, "tbl") && t.is(c, "tbl");
+        emitBlock(t, c, out, &lc, depth, body);
+        previous = c;
+    }
+    m_tableJoined = false;
     closeLists(&lc);
 }
 
@@ -760,9 +766,13 @@ void Writer::fieldEnd(ParaCtx *pc)
     if (f.form != 0) {
         // A form field of the older kind: a check box is its sign, the others the text they show.
         QString text = f.form == 1 ? QString(QChar(f.checked ? 0x2611 : 0x2610)) : pc->plain;
-        if (f.form != 1 && f.result && text.trimmed().replace(QChar(0xA0), QString()).isEmpty()) text = f.formText;
-        else if (f.form != 1 && !f.result) text = f.formText;
+        // (A blank result shows the default text where there is one; with none, the blank space is what the field shows.)
+        if (f.form != 1 && f.result && text.trimmed().replace(QChar(0xA0), QString()).isEmpty()) {
+            if (!f.formText.isEmpty()) text = f.formText;
+        } else if (f.form != 1 && !f.result) text = f.formText;
         made = esc(xmlSafe(text), false);
+        // (A check box is its sign for other programs; ours says it is a check box, so that it is read as one.)
+        if (f.form == 1) made = QByteArray("<text:span jo:checkbox=\"") + (f.checked ? "checked" : "unchecked") + "\">" + made + "</text:span>";
         shown = text;
         left(QCoreApplication::translate("odt", "form fields (kept as the text they show)"));
     } else if (f.result || f.instr.isEmpty()) made = fieldXml(f.instr, pc->plain, pc->xml, pc, &known);
@@ -1700,6 +1710,9 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 if (text.startsWith(QLatin1Char(' '))) text = text.mid(1);
             }
             if (!text.isEmpty()) emitText(pc, text, span);
+        } else if (name == "footnoteRef" || name == "endnoteRef") {
+            // (The note's number is the citation's; the blank that follows it is made again where the note is read, so it is not written twice.)
+            if (m_inNote && m_stripMark.isEmpty()) m_stripBlank = true;
         } else if (name == "tab" || name == "ptab") {
             pc->xml += "<text:tab/>";
             pc->lastSpace = true;
@@ -2301,7 +2314,8 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
         m_pendingBreak = false;
     }
     const QString tableStyle = m_sink->make("Table", "table", tattrs, "<style:table-properties" + tprops + " table:border-model=\"collapsing\"/>");
-    QByteArray x = "<table:table table:name=\"Table" + num(++m_tableCount) + "\" table:style-name=\"" + esc(tableStyle) + "\">";
+    QByteArray x = "<table:table table:name=\"Table" + num(++m_tableCount) + "\" table:style-name=\"" + esc(tableStyle) + "\"" + (m_tableJoined ? " jo:adjacent=\"true\"" : "") + ">";
+    m_tableJoined = false;
     for (int i = 0; i < ncols; ++i) {
         const QString cs = m_sink->make("Col", "table-column", "", "<style:table-column-properties style:column-width=\"" + inchesFromTwips(double(cols[i])).toUtf8() + "\"/>");
         x += "<table:table-column table:style-name=\"" + esc(cs) + "\"/>";
@@ -2346,7 +2360,8 @@ void Writer::emitTable(const T &t, int tbl, QByteArray *out, int depth, bool bod
                 break;
             }
             if (!startAt.contains(col)) {
-                x += "<table:table-cell office:value-type=\"string\"><text:p text:style-name=\"Standard\"/></table:table-cell>";
+                // (A place in the grid the row has no cell for, before its first cell or after its last: an empty cell as the format needs, marked so that it is read as the place it is.)
+                x += "<table:table-cell jo:pad=\"true\" office:value-type=\"string\"><text:p text:style-name=\"Standard\"/></table:table-cell>";
                 ++col;
                 continue;
             }

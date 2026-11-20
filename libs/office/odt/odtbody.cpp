@@ -951,6 +951,16 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
                 return;
             }
         }
+        // A check box of ours (jo:checkbox: checked or unchecked; the sign inside is what other programs show) is the older form's check box, not a sign.
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0 && (t.attr(n, "checkbox", jo) == QLatin1String("checked") || t.attr(n, "checkbox", jo) == QLatin1String("unchecked"))) {
+            const bool on = t.attr(n, "checkbox", jo) == QLatin1String("checked");
+            addRun(pc, QByteArray("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:enabled/><w:checkBox><w:sizeAuto/><w:default w:val=\"") + (on ? "1" : "0") + "\"/></w:checkBox></w:ffData></w:fldChar>", f);
+            addRun(pc, "<w:instrText xml:space=\"preserve\"> FORMCHECKBOX </w:instrText>", f);
+            addRun(pc, "<w:fldChar w:fldCharType=\"separate\"/>", f);
+            addRun(pc, "<w:fldChar w:fldCharType=\"end\"/>", f);
+            pc->lastSpace = false;
+            return;
+        }
         inlineContent(o, n, pc, f, depth + 1);
     } else if (o.is(n, "text:s")) addSpaces(pc, o.at(n, "text:c"), fmt);
     else if (o.is(n, "text:tab")) {
@@ -1268,7 +1278,10 @@ QByteArray Reader::noteReference(const Odf &o, int note, ParaCtx *pc, const RunF
     const int citation = o.child(note, "text:note-citation");
     const QString label = citation >= 0 ? o.at(citation, "text:label").left(16) : QString();
     const QByteArray character = endnote ? "<w:rPr><w:rStyle w:val=\"EndnoteReference\"/></w:rPr>" : "<w:rPr><w:rStyle w:val=\"FootnoteReference\"/></w:rPr>";
-    blocks.first().content = (label.isEmpty() ? ref : "<w:r>" + character + "<w:t xml:space=\"preserve\">" + esc(label, false) + "</w:t></w:r>") + "<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>" + blocks.first().content;
+    // (The blank after the number is made when the text does not begin with a tab of its own: a note whose number is followed by a tab has that tab, not a blank and a tab.)
+    static const QRegularExpression startsWithTab(QStringLiteral("^<w:r>(?:<w:rPr>(?:(?!</w:rPr>).){0,2000}</w:rPr>)?<w:tab/>"));
+    const bool tabFirst = startsWithTab.match(QString::fromLatin1(blocks.first().content.left(2100))).hasMatch();
+    blocks.first().content = (label.isEmpty() ? ref : "<w:r>" + character + "<w:t xml:space=\"preserve\">" + esc(label, false) + "</w:t></w:r>") + (tabFirst ? QByteArray() : QByteArray("<w:r><w:t xml:space=\"preserve\"> </w:t></w:r>")) + blocks.first().content;
     const QByteArray tag = endnote ? "w:endnote" : "w:footnote";
     (endnote ? m_endnotesBody : m_footnotesBody) += "<" + tag + " w:id=\"" + num(id) + "\">" + bodyBlocksXml(blocks, true) + "</" + tag + ">";
     Q_UNUSED(t);
@@ -1292,7 +1305,7 @@ QByteArray Reader::bodyBlocksXml(const QVector<Block> &blocks, bool lastMustBePa
     bool prevTable = false;
     for (const Block &b : blocks) {
         // (Two tables with no paragraph between them would be one table.)
-        if (!b.para && prevTable) x += "<w:p/>";
+        if (!b.para && prevTable && !b.joined) x += "<w:p/>";
         x += blockXml(b);
         prevTable = !b.para;
     }
@@ -1757,13 +1770,24 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
             if (rr.header) trPr += "<w:tblHeader/>";
         }
         QByteArray cells;
-        int col = 0, pendingCover = 0;
+        int col = 0, pendingCover = 0, padBefore = 0, padAfter = 0;
+        qsizetype padAfterAt = -1;
+        const int padNs = t.namespaceId("urn:jeffoffice:odf-extension");
         // The cells of the row, with the repeats made.
         for (int c = t.firstChild(rr.node); c >= 0; c = t.next(c)) {
             const bool covered = o.is(c, "table:covered-table-cell");
             if (!covered && !o.is(c, "table:table-cell")) continue;
             int rep = std::max(1, std::min(o.at(c, "table:number-columns-repeated").isEmpty() ? 1 : o.at(c, "table:number-columns-repeated").toInt(), kMaxColumns));
             const bool hasContent = t.firstChild(c) >= 0;
+            // A place the row has no cell for (marked by the file's writer; only a cell with nothing in it is one): it is a place in the grid, not a cell.
+            if (!covered && padNs >= 0 && t.attr(c, "pad", padNs) == QLatin1String("true") && t.text(c).trimmed().isEmpty() && o.child(c, "table:table") < 0 && o.child(c, "draw:frame") < 0) {
+                for (int r = 0; r < rep && col < kMaxColumns && ++cellsMade <= kMaxTableCells; ++r, ++col) {
+                    if (cells.isEmpty()) ++padBefore;
+                    else ++padAfter;
+                }
+                padAfterAt = cells.size();
+                continue;
+            }
             if (!hasContent && rep > 1 && t.next(c) < 0 && col >= gridCols) break;   // (empty cells that run to the end of the row)
             QByteArray cellXml;
             bool built = false;
@@ -1856,6 +1880,9 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         gridCols = std::max(gridCols, col);
         // The row has cells to the end of the grid.
         const int hadCols = col;
+        if (padAfterAt != cells.size()) padAfter = 0;   // (a place with a cell after it is not the row's end)
+        if (padBefore > 0 && !cells.isEmpty()) trPr += "<w:gridBefore w:val=\"" + num(padBefore) + "\"/>";
+        if (padAfter > 0 && !cells.isEmpty()) trPr += "<w:gridAfter w:val=\"" + num(padAfter) + "\"/>";
         QByteArray row = "<w:tr>";
         if (!trPr.isEmpty()) row += "<w:trPr>" + trPr + "</w:trPr>";
         row += cells;
@@ -1905,6 +1932,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
     b.xml = "<w:tbl><w:tblPr>" + tblPr + "</w:tblPr>" + grid;
     for (const QByteArray &r : std::as_const(rowXmls)) b.xml += r;
     b.xml += "</w:tbl>";
+    if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0) b.joined = t.attr(n, "adjacent", jo) == QLatin1String("true");
     out->push_back(b);
     if (tg("fo:break-after") == QLatin1String("page")) m_pendingPageBreak = true;
 }

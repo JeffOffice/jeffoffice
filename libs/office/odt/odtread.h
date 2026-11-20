@@ -142,6 +142,7 @@ private:
         QByteArray pPr, content;   // a paragraph: its properties (without sectPr) and the runs
         QByteArray xml;            // anything else, whole
         QByteArray sect;           // for a paragraph that ends a section: its <w:sectPr>
+        bool joined = false;       // a table that follows a table with no paragraph between (as the file's writer says it was)
     };
     struct RunFmt {
         QString rStyle;

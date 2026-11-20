@@ -2154,6 +2154,108 @@ private Q_SLOTS:
         for (const QString &name : p.partNames()) kept = kept || name.endsWith(QLatin1String(".pct"));
         QVERIFY(kept);
     }
+
+    // A text form field that shows only blank space (the five en spaces a blank one is made of) keeps them; one with a default text and a blank result shows the default.
+    void aTextFormFieldKeepsItsBlankResult()
+    {
+        const QString blank(5, QChar(0x2002));
+        auto field = [&](const QString &defaultText, const QString &result) {
+            return QStringLiteral("<w:p><w:r><w:t>Name:</w:t></w:r><w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"T\"/><w:textInput>") +
+                   (defaultText.isEmpty() ? QString() : QStringLiteral("<w:default w:val=\"%1\"/>").arg(defaultText)) +
+                   QStringLiteral("</w:textInput></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMTEXT </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>%1</w:t></w:r>"
+                                  "<w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>").arg(result);
+        };
+        QVERIFY2(odtContentOf(field(QString(), blank).toUtf8()).contains(QStringLiteral("Name:") + blank + QLatin1String("</text:p>")), "blank result lost");
+        QVERIFY2(odtContentOf(field(QStringLiteral("Your name"), blank).toUtf8()).contains(QStringLiteral("Name:Your name</text:p>")), "default not shown");
+        QVERIFY2(odtContentOf(field(QStringLiteral("Your name"), QStringLiteral("Sam")).toUtf8()).contains(QStringLiteral("Name:Sam</text:p>")), "result not shown");
+    }
+
+    // The blank that follows the number of a note is the note's, not the text's: a note whose text begins with it keeps the one blank, not two, through the .odt and back.
+    void aNoteKeepsTheOneBlankAfterItsNumber()
+    {
+        // (and one whose number is followed by a tab has the tab, not a blank before it)
+        Made tabbed;
+        tabbed.body = "<text:p>a<text:note text:id=\"ftn1\" text:note-class=\"footnote\"><text:note-citation>1</text:note-citation><text:note-body><text:p><text:tab/>tabbed</text:p></text:note-body></text:note></text:p>";
+        const QString footnote = part(docxOf(tabbed.build()), QStringLiteral("/word/footnotes.xml"));
+        QVERIFY2(footnote.contains(QLatin1String("<w:footnoteRef/></w:r><w:r><w:tab/></w:r>")), qPrintable(footnote));
+        PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        w.addPart(QStringLiteral("/word/document.xml"), "<w:document " + ns + "><w:body><w:p><w:r><w:t>text</w:t></w:r><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p></w:body></w:document>", QStringLiteral("application/xml"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addPart(QStringLiteral("/word/footnotes.xml"), "<w:footnotes " + ns + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note text</w:t></w:r></w:p></w:footnote></w:footnotes>", QStringLiteral("application/xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdN"), rel + QStringLiteral("footnotes"), QStringLiteral("/word/footnotes.xml"));
+        const QByteArray odt = fromDocxPackage(w.finish());
+        QVERIFY(!odt.isEmpty());
+        const QString c = QString::fromUtf8(filesOf(odt).value(QStringLiteral("content.xml")));
+        QVERIFY2(c.contains(QRegularExpression(QStringLiteral("<text:note-body><text:p[^>]*>note text</text:p>"))), qPrintable(c));
+        wml::XmlTree t;
+        QVERIFY(t.parse(part(docxOf(odt), QStringLiteral("/word/footnotes.xml")).toUtf8(), nullptr));
+        QString text;
+        for (int i = findElement(t, "t"); i >= 0; i = findElement(t, "t", i)) text += t.text(i);
+        QCOMPARE(text, QStringLiteral(" note text"));
+    }
+
+    // A row with no cell for some places of the grid (a row that starts late or ends early) is a rectangle of cells in the file, as the format needs, and comes back as the row it was: no cell, no paragraph is made for a place.
+    void aRowThatDoesNotFillTheGridDoesNotGainParagraphs()
+    {
+        auto cell = [](const char *text) { return QByteArray("<w:tc><w:tcPr><w:tcW w:w=\"1000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>") + text + "</w:t></w:r></w:p></w:tc>"; };
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"3000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/><w:gridCol w:w=\"1000\"/></w:tblGrid>"
+                                 "<w:tr>" + cell("A") + cell("B") + cell("C") + "</w:tr>"
+                                 "<w:tr><w:trPr><w:gridBefore w:val=\"1\"/></w:trPr>" + cell("D") + cell("E") + "</w:tr>"
+                                 "<w:tr>" + cell("F") + "</w:tr></w:tbl><w:p><w:r><w:t>after</w:t></w:r></w:p>";
+        const QString c = odtContentOf(table);
+        wml::XmlTree t;
+        QVERIFY(t.parse(QString(c).remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\""))).toUtf8(), nullptr));
+        int rows = 0;
+        for (int r = findElement(t, "table-row"); r >= 0; r = findElement(t, "table-row", r)) {
+            ++rows;
+            int cells = 0;
+            for (int k = t.firstChild(r); k >= 0; k = t.next(k))
+                if (t.localName(k) == "table-cell" || t.localName(k) == "covered-table-cell") ++cells;
+            QCOMPARE(cells, 3);
+        }
+        QCOMPARE(rows, 3);
+        const QStringList paragraphs = paragraphsOf(roundTripBody(table));
+        QCOMPARE(paragraphs, (QStringList{QStringLiteral("A"), QStringLiteral("B"), QStringLiteral("C"), QStringLiteral("D"), QStringLiteral("E"), QStringLiteral("F"), QStringLiteral("after")}));
+    }
+
+    // Two tables with no paragraph between them are two tables in the file, and come back as they were, with no paragraph made between; with our attribute ignored they are still two tables.
+    void twoTablesWithNothingBetweenThemStayAdjacent()
+    {
+        const QByteArray one = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"1000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>one</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray two = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"1000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>two</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QString back = roundTripBody(one + two + "<w:p><w:r><w:t>end</w:t></w:r></w:p>");
+        QVERIFY2(back.contains(QLatin1String("</w:tbl><w:tbl>")), qPrintable(back));
+        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("one"), QStringLiteral("two"), QStringLiteral("end")}));
+        QString c = odtContentOf(one + two + "<w:p><w:r><w:t>end</w:t></w:r></w:p>");
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QCOMPARE(c.count(QLatin1String("<table:table ")), 2);
+        QVERIFY2(c.contains(QLatin1String("</table:table><table:table ")), qPrintable(c));
+        // A table after a paragraph says nothing by the attribute.
+        Made m;
+        m.body = "<text:p>a</text:p><table:table jo:adjacent=\"true\"><table:table-column/><table:table-row><table:table-cell><text:p>x</text:p></table:table-cell></table:table-row></table:table>";
+        const QString read = document(m);
+        QVERIFY2(!read.contains(QLatin1String("<w:p/><w:tbl>")), qPrintable(read));
+    }
+
+    // A check box is its sign for a program that knows nothing of ours; ours reads it as a check box again (a field, not text), checked or not.
+    void aCheckBoxComesBackAsACheckBox()
+    {
+        auto box = [](const char *on) {
+            return QByteArray("<w:r><w:fldChar w:fldCharType=\"begin\"><w:ffData><w:checkBox><w:default w:val=\"") + on + "\"/></w:checkBox></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r>"
+                   "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        };
+        const QByteArray body = "<w:p><w:r><w:t>a </w:t></w:r>" + box("0") + "<w:r><w:t> b </w:t></w:r>" + box("1") + "</w:p>";
+        QString c = odtContentOf(body);
+        QVERIFY2(c.contains(QLatin1String("jo:checkbox=\"checked\"")) && c.contains(QLatin1String("jo:checkbox=\"unchecked\"")), qPrintable(c));
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QVERIFY2(c.contains(QString(QChar(0x2610))) && c.contains(QString(QChar(0x2611))), qPrintable(c));
+        const QString back = roundTripBody(body);
+        QCOMPARE(back.count(QLatin1String("FORMCHECKBOX")), 2);
+        QVERIFY2(back.contains(QLatin1String("<w:default w:val=\"1\"/>")) && back.contains(QLatin1String("<w:default w:val=\"0\"/>")), qPrintable(back));
+        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("a  b ")}));
+    }
 };
 
 QTEST_MAIN(OdtTests)
