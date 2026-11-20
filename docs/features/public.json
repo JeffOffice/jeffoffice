@@ -5879,7 +5879,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "60e1e702de448d313028f918f062e9240425239102af242c1f2b731f3578c4b5"
+         "text": "1f304a8b7e473e5425d1d267e178eaf74e80164b90e01d18f7bc98002bf1517b"
         },
         {
          "status": "partly",
@@ -7507,7 +7507,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "0b105036aa91b99edfc01ea9395f3d2143edfdfe796da10ac75b8b4f4a820663"
+         "text": "eca92104562684cf4ccee6e46ed155e585149838e5df901227a6d381009bbac0"
         }
        ]
       },
@@ -8636,18 +8636,6 @@
     "en": "Table styles: borders, fonts, column stripes, corner cells, and changing or deleting a style",
     "es": "Estilos de tabla: bordes, fuentes, bandas de columnas, celdas de esquina, y cambiar o eliminar un estilo",
     "fr": "Styles de tableau : bordures, polices, bandes de colonnes, cellules d’angle, et modification ou suppression d’un style"
-   }
-  },
-  "0b105036aa91b99edfc01ea9395f3d2143edfdfe796da10ac75b8b4f4a820663": {
-   "drop": false,
-   "en": "Open password-protected `.doc` files. The app asks for the password until it is correct, and the document opens as a new `.docx` with the same password.",
-   "es": "Abra archivos `.doc` protegidos con contraseña. La aplicación solicita la contraseña hasta que sea correcta, y el documento se abre como un `.docx` nuevo con la misma contraseña.",
-   "fr": "Ouvrez des fichiers `.doc` protégés par mot de passe. L’application demande le mot de passe jusqu’à ce qu’il soit correct, et le document s’ouvre comme un nouveau `.docx` avec le même mot de passe.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
@@ -9992,6 +9980,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "1f304a8b7e473e5425d1d267e178eaf74e80164b90e01d18f7bc98002bf1517b": {
+   "drop": false,
+   "en": "Opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt`, and `.ott` files.",
+   "es": "Abre archivos `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt` y `.ott`.",
+   "fr": "Ouvre les fichiers `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt` et `.ott`.",
+   "soon": {
+    "drop": false,
+    "en": "Comments and form-field state when opening `.doc` files",
+    "es": "Comentarios y estado de los campos de formulario al abrir archivos `.doc`",
+    "fr": "Commentaires et état des champs de formulaire à l’ouverture des fichiers `.doc`"
    }
   },
   "1f6621d1c65ef7ca4bf1cdae0eadfcde755072917b38bbe052edccbdc76f4172": {
@@ -15212,18 +15212,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "60e1e702de448d313028f918f062e9240425239102af242c1f2b731f3578c4b5": {
-   "drop": false,
-   "en": "Opens `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt`, and `.ott` files.",
-   "es": "Abre archivos `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt` y `.ott`.",
-   "fr": "Ouvre les fichiers `.docx`, `.docm`, `.dotx`, `.dotm`, `.doc`, `.dot`, `.rtf`, `.odt`, `.fodt` et `.ott`.",
-   "soon": {
-    "drop": false,
-    "en": "Comments and form-field state when opening `.doc` files",
-    "es": "Comentarios y estado de los campos de formulario al abrir archivos `.doc`",
-    "fr": "Commentaires et état des champs de formulaire à l’ouverture des fichiers `.doc`"
    }
   },
   "60e5c8b0cdb46fc37e2ee3a9edcaee6b1224124d450fece0f8cf6d27fd77fd1a": {
@@ -24963,6 +24951,18 @@
    "en": "Insert tab",
    "es": "Pestaña Insertar",
    "fr": "Onglet Insertion",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "eca92104562684cf4ccee6e46ed155e585149838e5df901227a6d381009bbac0": {
+   "drop": false,
+   "en": "Open password-protected `.doc` files, including those encrypted with RC4 or the older XOR scheme. The app asks for the password, refuses a wrong one, and opens the document as a new `.docx` with the same password.",
+   "es": "Abra archivos `.doc` protegidos con contraseña, incluidos los cifrados con RC4 o con el esquema XOR más antiguo. La aplicación solicita la contraseña, rechaza una incorrecta y abre el documento como un nuevo `.docx` con la misma contraseña.",
+   "fr": "Ouvrez des fichiers `.doc` protégés par mot de passe, y compris ceux chiffrés avec RC4 ou avec l’ancien schéma XOR. L’application demande le mot de passe, refuse un mot de passe incorrect et ouvre le document comme un nouveau `.docx` avec le même mot de passe.",
    "soon": {
     "drop": true,
     "en": "",
