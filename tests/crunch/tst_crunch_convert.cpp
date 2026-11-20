@@ -10,6 +10,7 @@
 #include "app/otherformats.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
+#include "sheet/odsdraw.h"
 #include "core/fonts.h"
 #include "grid/gridview.h"
 
@@ -242,6 +243,44 @@ private Q_SLOTS:
         QVERIFY(o.open(odsBook(QStringLiteral("<draw:control draw:control=\"c1\"/><office:annotation><text:p>note</text:p></office:annotation>")), QStringLiteral("pictures.ods")));
         QCOMPARE(o.told.size(), 1);
         QVERIFY2(o.told.first().contains(QLatin1String("form controls, freehand shapes, and callouts")) && !o.told.first().contains(QLatin1String("comments")), qPrintable(o.told.first()));   // (notes are read now)
+        // (the note is there: its text is on its cell)
+        const jp::office::sheet::NoteInfo *note = o.w.session()->anchors().noteAt(0, 0, 2);
+        QVERIFY(note);
+        QCOMPARE(note->text, QStringLiteral("note"));
+    }
+
+    // An .ods whose cell text says "annotation" but has no note is read as many times as the same file without that word (the notes are gathered in the sheet's first read, which also finds the real
+    // ones); a file with a note is read as often too, and shows it.
+    void aSheetIsNotReadAgainForNotes()
+    {
+        auto book = [](const QString &cellInside) { return buildOds(contentXml(table(QStringLiteral("S"), columns(3) + row(stringCell(QStringLiteral("the annotation of it")) + cell(QString(), cellInside)))));
+        };
+        auto readsFor = [&](const QByteArray &bytes, QString *noteText = nullptr) {
+            const qint64 before = jp::office::sheet::odsdraw::testHooks().sheetReads.load();
+            Win o;
+            if (!o.open(bytes, QStringLiteral("a.ods"))) return qint64(-1);
+            if (noteText) {
+                const jp::office::sheet::NoteInfo *n = o.w.session()->anchors().noteAt(0, 0, 1);
+                *noteText = n ? n->text : QStringLiteral("(no note)");
+            }
+            return jp::office::sheet::odsdraw::testHooks().sheetReads.load() - before;
+        };
+        const qint64 plain = readsFor(buildOds(contentXml(table(QStringLiteral("S"), columns(3) + row(stringCell(QStringLiteral("a plain wording")) + emptyCell())))));
+        QVERIFY(plain > 0);
+        QCOMPARE(readsFor(book(QString())), plain);
+        QString text;
+        QCOMPARE(readsFor(book(QStringLiteral("<office:annotation><text:p>real</text:p></office:annotation>")), &text), plain);
+        QCOMPARE(text, QStringLiteral("real"));
+    }
+
+    // The notes of an .ods are shown and kept when it is saved as either form; asking to change them says so (and not that they are kept only as .xlsx).
+    void theRefusalToChangeNotesOfAnOdsSaysWhatIsTrue()
+    {
+        Win o;
+        QVERIFY(o.open(odsBook(QStringLiteral("<office:annotation><text:p>note</text:p></office:annotation>")), QStringLiteral("shown.ods")));
+        QString why;
+        QVERIFY(!o.w.session()->canEditNotes(0, &why));
+        QVERIFY2(why.contains(QStringLiteral(".ods")) && why.contains(QStringLiteral("shown")) && !why.contains(QStringLiteral("Save it as one")), qPrintable(why));
     }
 
     // A text file of values opens: numbers in the person's locale, the percent shown as typed, the first screen on at once.

@@ -3,6 +3,7 @@
 #include "sheethelpers.h"
 
 #include "drawinghelpers.h"
+#include "odshelpers.h"
 #include "io/zip.h"
 #include "sheet/notes.h"
 #include "sheet/notesave.h"
@@ -550,6 +551,33 @@ private Q_SLOTS:
         const qsizetype start = content.lastIndexOf("<office:annotation ", thread), end = content.indexOf("</office:annotation>", thread);
         QVERIFY(start >= 0 && end > thread);
         QVERIFY(content.mid(start, end - start).contains("Yes, final."));
+    }
+
+    // What happens today to a conversation of comments through .xlsx -> .ods -> .xlsx: it comes back as one plain note on its cell that holds all the words (no thread part), the other notes as they were.
+    void aThreadThroughOdsComesBackAsOnePlainNoteWithAllTheWords()
+    {
+        auto o = open(notesBook());
+        QVERIFY2(o->ok, qPrintable(o->why));
+        QByteArray ods;
+        CopyReport report;
+        QString why;
+        QVERIFY2(saveOds(o->book, &ods, &report, &why), qPrintable(why));
+        Workbook viaOds;
+        QVERIFY2(openBytes(ods, QStringLiteral("t.ods"), &viaOds, &why), qPrintable(why));
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(viaOds, SaveChanges(), &xlsx, &why), qPrintable(why));
+        const QMap<QString, QByteArray> parts = entriesOf(xlsx);
+        for (auto it = parts.begin(); it != parts.end(); ++it) QVERIFY2(!it.key().contains(QLatin1String("threadedComment")), qPrintable(it.key()));
+        auto back = open(xlsx);
+        QVERIFY2(back->ok, qPrintable(back->why));
+        const auto notes = readSheetNoteInfos(back->book, 0);
+        QCOMPARE(notes.size(), size_t(3));
+        const NoteInfo &thread = notes.at(noteKey(4, 1));
+        QVERIFY(!thread.threaded);
+        QVERIFY(thread.text.contains(QStringLiteral("Is this figure final?")));
+        QVERIFY(thread.text.contains(QStringLiteral("Yes, final.")));
+        QVERIFY(notes.at(noteKey(2, 2)).shown);
+        QCOMPARE(notes.at(noteKey(2, 2)).text, QStringLiteral("Bob says hi"));
     }
 
     void aThreadTakenAwayLeavesNeitherThreadNorNote()
