@@ -95,6 +95,8 @@ jobs:
           - name: x86_64
             os: macos-15
     # (the same machines as the build jobs below: the Linux build runs on our own, whose C library is the one ours must run on, and the Mac's on our own Mac)
+    # (the label jo-ryzen-tests is on one of the two runners only: each keeps its own build folder and precompiled headers, and a file built on one never
+    # hit the other's compiler cache, so each rebuilt what the other had built; with one runner it stays warm, and overlapping runs wait for it: Nov 20, 2026)
     runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 45
     steps:
@@ -282,7 +284,7 @@ jobs:
     # (self-hosted + jo-ryzen: 16 processors, its compiler cache on its own disk) while the repository variable JO_WINDOWS_SELF is 1; set it to 0 and they
     # are back on GitHub's with the next run. Not for a pull request, and not for a release's run (started by hand with mac_both on), which is built on
     # GitHub's machines throughout. The Windows checks jobs stay on GitHub's: one packages and signs the installer, and both take 8 to 13 minutes.
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen-tests"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       # Our own Windows machine and our own Mac keep the build folder from run to run (the next step), so the checkout does not sweep the folder clean there.
