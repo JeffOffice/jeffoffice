@@ -143,6 +143,72 @@ QString roundTripBody(const QByteArray &bodyXml)
     return part(docxOf(fromDocxPackage(w.finish())), QStringLiteral("/word/document.xml"));
 }
 
+// A .docx made of this body (the VML and drawing prefixes declared; `link`, if given, is the external target of rId9), written as an .odt.
+QByteArray odtOfDrawing(const QByteArray &bodyXml, const QString &link = QString(), QStringList *notes = nullptr)
+{
+    PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"),
+              QByteArray("<w:document xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" xmlns:v=\"urn:schemas-microsoft-com:vml\" "
+                         "xmlns:w10=\"urn:schemas-microsoft-com:office:word\" xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                         "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><w:body>") + bodyXml + "</w:body></w:document>",
+              QStringLiteral("application/xml"));
+    w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+    if (!link.isEmpty())
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rId9"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image"), link, true);
+    return fromDocxPackage(w.finish(), nullptr, notes);
+}
+
+QMap<QString, QByteArray> filesOf(const QByteArray &zip)
+{
+    QMap<QString, QByteArray> files;
+    if (!jp::readZip(zip, files)) files.clear();
+    return files;
+}
+
+// The content.xml a program that knows nothing of ours reads: every jo: attribute taken out first.
+QString standardContentOf(const QMap<QString, QByteArray> &files)
+{
+    QString c = QString::fromUtf8(files.value(QStringLiteral("content.xml")));
+    static const QRegularExpression ours(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\""));
+    c.remove(ours);
+    return c;
+}
+
+// A length of the file as inches (the files write them as "1.3889in").
+double inchesOf(const QString &length)
+{
+    return length.endsWith(QLatin1String("in")) ? length.chopped(2).toDouble() : -1e9;
+}
+
+// The graphic properties of the automatic style this name gives, as a map.
+QMap<QString, QString> graphicPropertiesOf(const wml::XmlTree &t, const QString &styleName)
+{
+    QMap<QString, QString> out;
+    for (int s = findElement(t, "style"); s >= 0; s = findElement(t, "style", s)) {
+        if (t.attrAny(s, "name") != styleName) continue;
+        for (int g = t.firstChild(s); g >= 0; g = t.next(g))
+            if (t.localName(g) == "graphic-properties") {
+                for (const auto &a : t.attributes(g)) out.insert(QString::fromLatin1(a.local), a.value);
+            }
+        break;
+    }
+    return out;
+}
+
+QByteArray linkedPictureBody()
+{
+    return "<w:p><w:r><w:drawing><wp:inline><wp:extent cx=\"914400\" cy=\"457200\"/><wp:docPr id=\"1\" name=\"Linked\"/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic>"
+           "<pic:nvPicPr><pic:cNvPr id=\"1\" name=\"Linked\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:link=\"rId9\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+           "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"914400\" cy=\"457200\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>";
+}
+
+const char kOlderShapes[] =
+    "<w:p><w:r><w:pict><v:rect id=\"r1\" style=\"position:absolute;margin-left:72pt;margin-top:36pt;width:144pt;height:72pt;z-index:251660288\" filled=\"t\" fillcolor=\"#ff0000\" stroked=\"t\" strokecolor=\"#0000ff\" strokeweight=\"2pt\"><w10:wrap type=\"square\"/></v:rect></w:pict></w:r>"
+    "<w:r><w:pict><v:oval id=\"o1\" style=\"position:absolute;margin-left:10pt;margin-top:20pt;width:50pt;height:40pt;z-index:-251657216\" filled=\"f\" stroked=\"f\"></v:oval></w:pict></w:r>"
+    "<w:r><w:pict><v:line id=\"l1\" style=\"position:absolute;margin-left:100pt;margin-top:200pt;width:150pt;height:0pt;z-index:251660288\" from=\"0pt,0pt\" to=\"150pt,0pt\" strokeweight=\"1pt\"/></w:pict></w:r>"
+    "<w:r><w:pict><v:shape type=\"#_x0000_t202\" id=\"t1\" style=\"position:absolute;margin-left:0pt;margin-top:0pt;width:100pt;height:50pt;z-index:251660288\" filled=\"f\" stroked=\"f\"><v:textbox inset=\"7.2pt,3.6pt,7.2pt,3.6pt\">"
+    "<w:txbxContent><w:p><w:r><w:t>Boxed words</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>";
+
 // The paragraphs of a document part, each as its runs' text with "\f" for a page break run (and "^" where the paragraph asks to begin a page).
 QStringList paragraphsOf(const QString &documentXml)
 {
@@ -1600,11 +1666,13 @@ private Q_SLOTS:
         for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
             if (r.external) targets << r.target;
         QStringList want = hrefs;
+        want << QStringLiteral("../Pictures/a.png");   // (a picture named by a path that climbs out is a link, and is not read)
         targets.sort();
         want.sort();
         QCOMPARE(targets, want);
         QCOMPARE(part(docx, QStringLiteral("/word/document.xml")).count(QLatin1String("<w:hyperlink ")), hrefs.size());
-        QVERIFY(!part(docx, QStringLiteral("/word/document.xml")).contains(QLatin1String("<wp:inline")));   // (a picture named by a path that climbs out is not read)
+        QVERIFY(part(docx, QStringLiteral("/word/document.xml")).contains(QLatin1String("r:link=")));
+        for (const QString &name : p.partNames()) QVERIFY2(!name.contains(QLatin1String("/media/")), qPrintable(name));
         // And back: the .odt holds each as it was.
         QMap<QString, QByteArray> files;
         QVERIFY(jp::readZip(fromDocxPackage(docx), files));
@@ -1930,6 +1998,161 @@ private Q_SLOTS:
                                        "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> MERGEFIELD \"Last Name\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>Smith</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>");
         QVERIFY2(c.contains(QRegularExpression(QStringLiteral("<text:database-display[^>]*text:column-name=\"FirstName\"[^>]*>\u00ABFirstName\u00BB</text:database-display>"))), qPrintable(c));
         QVERIFY2(c.contains(QRegularExpression(QStringLiteral("<text:database-display[^>]*text:column-name=\"Last Name\"[^>]*>Smith</text:database-display>"))), qPrintable(c));
+    }
+
+    // Shapes of the older drawing form (a rectangle, an oval, a line, a text box) are the standard's drawing shapes, with place, size, fill, line, wrap, and the words in a text box.
+    void shapesOfTheOlderFormAreTheStandardsDrawingShapes()
+    {
+        const QMap<QString, QByteArray> files = filesOf(odtOfDrawing(kOlderShapes));
+        QVERIFY(!files.isEmpty());
+        const QString c = standardContentOf(files);
+        QVERIFY(wellFormed(c.toUtf8()));
+        wml::XmlTree t;
+        QVERIFY(t.parse(c.toUtf8(), nullptr));
+        const int rect = findElement(t, "rect");
+        QVERIFY2(rect >= 0, qPrintable(c));
+        QCOMPARE(t.attrAny(rect, "anchor-type"), QStringLiteral("paragraph"));
+        QVERIFY(qAbs(inchesOf(t.attrAny(rect, "width")) - 2.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(rect, "height")) - 1.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(rect, "x")) - 1.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(rect, "y")) - 0.5) < 0.001);
+        const QMap<QString, QString> rp = graphicPropertiesOf(t, t.attrAny(rect, "style-name"));
+        QCOMPARE(rp.value(QStringLiteral("fill")), QStringLiteral("solid"));
+        QCOMPARE(rp.value(QStringLiteral("fill-color")).toLower(), QStringLiteral("#ff0000"));
+        QCOMPARE(rp.value(QStringLiteral("stroke")), QStringLiteral("solid"));
+        QCOMPARE(rp.value(QStringLiteral("stroke-color")).toLower(), QStringLiteral("#0000ff"));
+        QVERIFY(qAbs(inchesOf(rp.value(QStringLiteral("stroke-width"))) - 2.0 / 72.0) < 0.001);
+        QCOMPARE(rp.value(QStringLiteral("wrap")), QStringLiteral("parallel"));
+        const int oval = findElement(t, "ellipse");
+        QVERIFY2(oval >= 0, qPrintable(c));
+        QVERIFY(qAbs(inchesOf(t.attrAny(oval, "width")) - 50.0 / 72.0) < 0.001);
+        const QMap<QString, QString> op = graphicPropertiesOf(t, t.attrAny(oval, "style-name"));
+        QCOMPARE(op.value(QStringLiteral("fill")), QStringLiteral("none"));
+        QCOMPARE(op.value(QStringLiteral("stroke")), QStringLiteral("none"));
+        QCOMPARE(op.value(QStringLiteral("run-through")), QStringLiteral("background"));
+        const int line = findElement(t, "line");
+        QVERIFY2(line >= 0, qPrintable(c));
+        QVERIFY(qAbs(inchesOf(t.attrAny(line, "x1")) - 100.0 / 72.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(line, "y1")) - 200.0 / 72.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(line, "x2")) - 250.0 / 72.0) < 0.001);
+        QVERIFY(qAbs(inchesOf(t.attrAny(line, "y2")) - 200.0 / 72.0) < 0.001);
+        const int box = findElement(t, "text-box");
+        QVERIFY2(box >= 0, qPrintable(c));
+        QCOMPARE(t.localName(t.parent(box)), QByteArray("frame"));
+        QCOMPARE(t.text(box).trimmed(), QStringLiteral("Boxed words"));
+        const QMap<QString, QString> bp = graphicPropertiesOf(t, t.attrAny(t.parent(box), "style-name"));
+        QVERIFY(qAbs(inchesOf(bp.value(QStringLiteral("padding-left"))) - 0.1) < 0.001);
+    }
+
+    // And they come back as drawings of the same kinds, places, and sizes (the same count of drawn objects).
+    void shapesOfTheOlderFormComeBackAsTheSameDrawings()
+    {
+        const QString doc = part(docxOf(odtOfDrawing(kOlderShapes)), QStringLiteral("/word/document.xml"));
+        wml::XmlTree t;
+        QVERIFY(t.parse(doc.toUtf8(), nullptr));
+        int drawings = 0;
+        for (int i = findElement(t, "drawing"); i >= 0; i = findElement(t, "drawing", i)) ++drawings;
+        QCOMPARE(drawings, 4);
+        QStringList presets;
+        for (int i = findElement(t, "prstGeom"); i >= 0; i = findElement(t, "prstGeom", i)) presets << t.attr(i, "prst");
+        QCOMPARE(presets, (QStringList{QStringLiteral("rect"), QStringLiteral("ellipse"), QStringLiteral("line"), QStringLiteral("rect")}));
+        const int ext = findElement(t, "extent");
+        QVERIFY(ext >= 0);
+        QCOMPARE(t.attr(ext, "cx").toLongLong(), qint64(1828800));
+        QCOMPARE(t.attr(ext, "cy").toLongLong(), qint64(914400));
+        const int box = findElement(t, "txbxContent");
+        QVERIFY(box >= 0);
+        QCOMPARE(t.text(box).trimmed(), QStringLiteral("Boxed words"));
+        const int off = findElement(t, "posOffset");
+        QVERIFY(off >= 0);
+        QCOMPARE(t.text(off).toLongLong(), qint64(914400));
+    }
+
+    // A picture that the file links to and does not hold is the standard's image with the address as its reference; it comes back as a link, and nothing is opened or fetched on the way.
+    void aLinkedPictureIsAnImageThatNamesItsAddress()
+    {
+        const QString address = QStringLiteral("http://127.0.0.1:9/pictures/photo%201.png");
+        const QByteArray odt = odtOfDrawing(linkedPictureBody(), address);
+        const QMap<QString, QByteArray> files = filesOf(odt);
+        QVERIFY(!files.isEmpty());
+        const QString c = standardContentOf(files);
+        QVERIFY2(c.contains(QLatin1String("<draw:image xlink:href=\"") + address + QLatin1String("\"")), qPrintable(c));
+        for (auto it = files.cbegin(); it != files.cend(); ++it) QVERIFY2(!it.key().startsWith(QLatin1String("Pictures/")), qPrintable(it.key()));
+        const QByteArray docx = docxOf(odt);
+        Package p;
+        QVERIFY(p.read(docx));
+        const QString doc = QString::fromUtf8(p.part(QStringLiteral("/word/document.xml")));
+        QVERIFY2(doc.contains(QRegularExpression(QStringLiteral("<a:blip [^>]*r:link=\"rId\\d+\""))), qPrintable(doc));
+        QVERIFY2(!doc.contains(QLatin1String("r:embed")), qPrintable(doc));
+        int external = 0;
+        for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
+            if (r.external && r.target == address) ++external;
+        QCOMPARE(external, 1);
+        for (const QString &name : p.partNames()) QVERIFY2(!name.contains(QLatin1String("/media/")), qPrintable(name));
+    }
+
+    // An address that is not an address (control characters, a length no address has) is not made a link; each address is one relationship however many pictures name it; and links are bounded.
+    void aHostileLinkedPictureAddressIsNotFollowedOrKept()
+    {
+        auto image = [](const QString &href) { return QString(QStringLiteral("<text:p><draw:frame draw:name=\"p\" text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"%1\"/></draw:frame></text:p>").arg(href)).toUtf8(); };
+        auto linksOf = [](const Made &m) {
+            Package p;
+            if (!p.read(docxOf(m.build()))) return qsizetype(-1);
+            qsizetype n = 0;
+            for (const Relationship &r : p.relationships(QStringLiteral("/word/document.xml")))
+                if (r.external) ++n;
+            return n;
+        };
+        Made bad;
+        bad.body = image(QStringLiteral("http://a/%1").arg(QString(5000, QLatin1Char('x')))) + image(QStringLiteral("http://a/b&#10;c")) + image(QStringLiteral("http://a/b&#1;c"));
+        QCOMPARE(linksOf(bad), qsizetype(0));
+        Made same;
+        for (int i = 0; i < 50; ++i) same.body += image(QStringLiteral("http://example.invalid/one.png"));
+        QCOMPARE(linksOf(same), qsizetype(1));
+        Made many;
+        for (int i = 0; i < 6000; ++i) many.body += image(QStringLiteral("http://example.invalid/%1.png").arg(i));
+        QCOMPARE(linksOf(many), qsizetype(5000));
+    }
+
+    // A drawn line or shape whose numbers are absurd reads with a bounded size, and a document holds a bounded number of drawn shapes.
+    void hostileShapeNumbersAreBoundedAndShapesAreCounted()
+    {
+        Made m;
+        m.body = "<text:p><draw:line text:anchor-type=\"paragraph\" svg:x1=\"0in\" svg:y1=\"0in\" svg:x2=\"1e300in\" svg:y2=\"-99999999in\"/>"
+                 "<draw:line text:anchor-type=\"paragraph\" svg:x1=\"abc\" svg:y1=\"nan\" svg:x2=\"1in\" svg:y2=\"1in\"/>"
+                 "<draw:rect text:anchor-type=\"paragraph\" svg:x=\"-1e30in\" svg:y=\"1e30in\" svg:width=\"1e40in\" svg:height=\"-5in\"/></text:p>";
+        const QString doc = part(docxOf(m.build()), QStringLiteral("/word/document.xml"));
+        wml::XmlTree t;
+        QVERIFY(t.parse(doc.toUtf8(), nullptr));
+        int drawings = 0;
+        for (int i = findElement(t, "extent"); i >= 0; i = findElement(t, "extent", i)) {
+            ++drawings;
+            QVERIFY(t.attr(i, "cx").toLongLong() <= qint64(12700) * 3000);
+            QVERIFY(t.attr(i, "cy").toLongLong() <= qint64(12700) * 3000);
+            QVERIFY(t.attr(i, "cx").toLongLong() > 0 && t.attr(i, "cy").toLongLong() > 0);
+        }
+        QVERIFY(drawings >= 2);
+        for (int i = findElement(t, "posOffset"); i >= 0; i = findElement(t, "posOffset", i)) QVERIFY(qAbs(t.text(i).toLongLong()) <= qint64(12700) * 3000 * 40);
+        Made many;
+        for (int i = 0; i < 21000; ++i) many.body += "<text:p><draw:rect text:anchor-type=\"paragraph\" svg:width=\"1in\" svg:height=\"1in\"/></text:p>";
+        QStringList notes;
+        const QString big = part(docxOf(many.build(), &notes), QStringLiteral("/word/document.xml"));
+        QCOMPARE(big.count(QLatin1String("<w:drawing>")), 20000);
+    }
+
+    // A picture of the older Macintosh form (.pct) is kept as the picture it is: it is not drawn here, but it is one of the document's drawn objects and goes back out as it came.
+    void aPictPictureIsKeptAsAPicture()
+    {
+        Made m;
+        m.body = "<text:p><draw:frame text:anchor-type=\"as-char\" svg:width=\"1in\" svg:height=\"1in\"><draw:image xlink:href=\"Pictures/a.pct\"/></draw:frame></text:p>";
+        m.extra.insert(QStringLiteral("Pictures/a.pct"), QByteArray("\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0", 16));
+        const QByteArray docx = docxOf(m.build());
+        QCOMPARE(part(docx, QStringLiteral("/word/document.xml")).count(QLatin1String("<w:drawing>")), 1);
+        Package p;
+        QVERIFY(p.read(docx));
+        bool kept = false;
+        for (const QString &name : p.partNames()) kept = kept || name.endsWith(QLatin1String(".pct"));
+        QVERIFY(kept);
     }
 };
 

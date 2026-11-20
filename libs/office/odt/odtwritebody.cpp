@@ -13,6 +13,7 @@
 #include "office/mathobject.h"
 #include "wml/wmlmathpath.h"
 #include "sheet/odschart.h"
+#include "wml/wml.h"
 #include "wml/wmlwrap.h"
 
 #include <QColor>
@@ -1428,8 +1429,12 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
             if (barcodeSettings.isEmpty() && svgOk && !imagePart(svgRid, &svgHref).isEmpty() && svgHref.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive)) rid = svgRid;
         }
         if (imagePart(rid, &href).isEmpty()) {
-            left(QCoreApplication::translate("odt", "pictures that can't be read"));
-            return QByteArray();
+            // (A picture the file links to and does not hold: the image names its address, and the file holds no part for it.)
+            href = linkedImageAddress(t.attr(blip, "link", wml::NsR));
+            if (href.isEmpty()) {
+                left(QCoreApplication::translate("odt", "pictures that can't be read"));
+                return QByteArray();
+            }
         }
         x += " svg:height=\"" + emuLength(cy) + "\"><draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/>";
         if (!descr.isEmpty()) x += "<svg:desc>" + esc(descr, false) + "</svg:desc>";
@@ -1443,6 +1448,175 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth)
     x += "><draw:text-box fo:min-height=\"" + emuLength(cy) + "\">" + (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box>" + contour + "</draw:frame>";
     Q_UNUSED(depth);
     return x;
+}
+
+QString Writer::linkedImageAddress(const QString &rid) const
+{
+    if (rid.isEmpty()) return QString();
+    const Relationship r = m_pkg.relationship(m_source, rid);
+    if (r.id.isEmpty() || !r.external) return QString();
+    QString target = r.target.trimmed();
+    if (target.isEmpty() || target.size() > 2048) return QString();
+    for (const QChar c : target)
+        if (c.unicode() < 0x20 || c.unicode() == 0x7F) return QString();
+    // (the standard's reference is an address: a path's backslashes are slashes and its spaces are escaped; an address that has a scheme is kept as it is)
+    if (!target.contains(QLatin1String("://")) && !target.startsWith(QLatin1String("mailto:"))) target.replace(QLatin1Char('\\'), QLatin1Char('/')).replace(QLatin1Char(' '), QLatin1String("%20"));
+    return target;
+}
+
+namespace {
+
+qint64 pointsEmu(double points)
+{
+    return std::llround(std::clamp(points, -1.0e6, 1.0e6) * 12700.0);
+}
+
+QByteArray colorAttr(const QString &hex, const char *fallback)
+{
+    static const QRegularExpression six(QStringLiteral("^[0-9A-Fa-f]{6}$"));
+    return six.match(hex).hasMatch() ? "#" + hex.toLower().toLatin1() : QByteArray(fallback);
+}
+
+} // namespace
+
+QByteArray Writer::shapesXml(const T &t, int pict, ParaCtx *pc)
+{
+    const QByteArray raw = t.raw(pict);
+    if (raw.isEmpty() || raw.size() > (4 << 20)) return QByteArray();
+    const QVector<wml::Shape> shapes = wml::readShapes(raw);
+    QByteArray out;
+    int written = 0;
+    for (const wml::Shape &s : shapes) {
+        if (s.room || s.hidden) continue;
+        if (written >= 256) {
+            left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+            break;
+        }
+        // What a position is measured from, and how it is aligned.
+        auto relH = [](wml::Shape::Rel r) {
+            switch (r) {
+            case wml::Shape::Page: return "page";
+            case wml::Shape::Margin: case wml::Shape::InsideMargin: case wml::Shape::OutsideMargin: return "page-content";
+            case wml::Shape::LeftMargin: return "page-start-margin";
+            case wml::Shape::RightMargin: return "page-end-margin";
+            case wml::Shape::Character: return "char";
+            default: return "paragraph";
+            }
+        };
+        auto relV = [](wml::Shape::Rel r) {
+            switch (r) {
+            case wml::Shape::Page: return "page";
+            case wml::Shape::Margin: case wml::Shape::TopMargin: case wml::Shape::BottomMargin: return "page-content";
+            case wml::Shape::LineOf: return "line";
+            default: return "paragraph";
+            }
+        };
+        const char *hPos = "from-left", *vPos = "from-top";
+        switch (s.hAlign) {
+        case wml::Shape::Start: hPos = "left"; break;
+        case wml::Shape::Center: hPos = "center"; break;
+        case wml::Shape::End: hPos = "right"; break;
+        case wml::Shape::Inside: hPos = "inside"; break;
+        case wml::Shape::Outside: hPos = "outside"; break;
+        default: break;
+        }
+        switch (s.vAlign) {
+        case wml::Shape::Start: vPos = "top"; break;
+        case wml::Shape::Center: vPos = "middle"; break;
+        case wml::Shape::End: vPos = "bottom"; break;
+        default: break;
+        }
+        QByteArray gp;
+        QByteArray where = " draw:name=\"" + esc(QStringLiteral("Object%1").arg(++m_frameCount)) + "\"";
+        double left0 = s.left, top0 = s.top, width = s.width, height = s.height;
+        const bool isLine = s.kind == wml::Shape::Line;
+        double x1 = 0, y1 = 0, x2 = 0, y2 = 0;
+        if (isLine) {
+            x1 = s.left + s.x1;
+            y1 = s.top + s.y1;
+            x2 = s.left + s.x2;
+            y2 = s.top + s.y2;
+            left0 = std::min(x1, x2);
+            top0 = std::min(y1, y2);
+            width = std::abs(x2 - x1);
+            height = std::abs(y2 - y1);
+        }
+        if (!s.floating) {
+            gp = " style:vertical-pos=\"top\" style:vertical-rel=\"baseline\" style:horizontal-pos=\"center\" style:horizontal-rel=\"paragraph\" style:wrap=\"none\"";
+            where += " text:anchor-type=\"as-char\"";
+            if (isLine) where += " svg:x1=\"0in\" svg:y1=\"0in\" svg:x2=\"" + emuLength(pointsEmu(width)) + "\" svg:y2=\"" + emuLength(pointsEmu(height)) + "\"";
+        } else {
+            QByteArray wrap = "none", extra;
+            switch (s.wrap) {
+            case wml::Shape::Square:
+            case wml::Shape::Tight:
+                wrap = s.side == wml::Shape::SideLeft ? "left" : s.side == wml::Shape::SideRight ? "right" : s.side == wml::Shape::SideLargest ? "biggest" : "parallel";
+                break;
+            case wml::Shape::TopBottom: wrap = "none"; break;
+            default:
+                wrap = "run-through";
+                extra = s.behind ? " style:run-through=\"background\"" : " style:run-through=\"foreground\"";
+                break;
+            }
+            auto gap = [&](double v) { return emuLength(pointsEmu(std::clamp(v, 0.0, 1584.0))); };
+            gp = " style:vertical-pos=\"" + QByteArray(vPos) + "\" style:vertical-rel=\"" + relV(s.vRel) + "\" style:horizontal-pos=\"" + hPos + "\" style:horizontal-rel=\"" + relH(s.hRel) + "\" style:wrap=\"" + wrap + "\"" + extra +
+                 " fo:margin-left=\"" + gap(s.gapLeft) + "\" fo:margin-right=\"" + gap(s.gapRight) + "\" fo:margin-top=\"" + gap(s.gapTop) + "\" fo:margin-bottom=\"" + gap(s.gapBottom) + "\"";
+            where += " text:anchor-type=\"paragraph\"";
+            if (isLine) where += " svg:x1=\"" + emuLength(pointsEmu(x1)) + "\" svg:y1=\"" + emuLength(pointsEmu(y1)) + "\" svg:x2=\"" + emuLength(pointsEmu(x2)) + "\" svg:y2=\"" + emuLength(pointsEmu(y2)) + "\"";
+            else where += " svg:x=\"" + emuLength(pointsEmu(left0)) + "\" svg:y=\"" + emuLength(pointsEmu(top0)) + "\"";
+            const qint64 z = s.z >= 251658240 ? qint64(s.z) - 251658240 : std::max(0, s.z);
+            where += " draw:z-index=\"" + num(std::min<qint64>(z, 100000)) + "\"";
+        }
+        const qint64 cx = std::max<qint64>(0, pointsEmu(width)), cy = std::max<qint64>(0, pointsEmu(height));
+        // Fill and line.
+        QByteArray look = s.filled ? " draw:fill=\"solid\" draw:fill-color=\"" + colorAttr(s.fillColor, "#ffffff") + "\"" : QByteArray(" draw:fill=\"none\"");
+        look += s.stroked ? " draw:stroke=\"solid\" svg:stroke-color=\"" + colorAttr(s.strokeColor, "#000000") + "\" svg:stroke-width=\"" + emuLength(std::max<qint64>(1, pointsEmu(s.strokeWeight))) + "\"" : QByteArray(" draw:stroke=\"none\"");
+        QByteArray jo;
+        if (isLine && (s.arrowStart || s.arrowEnd)) {
+            // (a line's ends: the standard says them with marker styles; ours is the drawing format's name for the kind of end)
+            jo = " xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"";
+            if (s.arrowStart) jo += " jo:head-end=\"triangle\"";
+            if (s.arrowEnd) jo += " jo:tail-end=\"triangle\"";
+        }
+        if (s.kind == wml::Shape::Picture) {
+            QString href;
+            if (s.embed.isEmpty() || imagePart(s.embed, &href).isEmpty()) {
+                href = linkedImageAddress(s.embed);
+                if (href.isEmpty()) {
+                    left(QCoreApplication::translate("odt", "pictures that can't be read"));
+                    continue;
+                }
+            }
+            const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Graphics\"", "<style:graphic-properties" + gp + " fo:padding=\"0in\" fo:border=\"none\"/>");
+            out += "<draw:frame draw:style-name=\"" + esc(style) + "\"" + where + " svg:width=\"" + emuLength(std::max<qint64>(9525, cx)) + "\" svg:height=\"" + emuLength(std::max<qint64>(9525, cy)) +
+                   "\"><draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/></draw:frame>";
+            ++written;
+            continue;
+        }
+        if (s.kind == wml::Shape::TextBox) {
+            QByteArray inner;
+            if (!s.textBox.isEmpty() && pc->depth < kMaxNesting - 6) {
+                T box;
+                if (box.parse(s.textBox, nullptr)) {
+                    if (box.root() >= 0) emitBlocks(box, box.root(), &inner, pc->depth + 6, false);
+                }
+            }
+            auto ins = [&](int i) { return emuLength(pointsEmu(std::clamp(s.inset[i], 0.0, 1584.0))); };
+            const QString style = m_sink->make("fr", "graphic", " style:parent-style-name=\"Frame\"",
+                                               "<style:graphic-properties" + gp + look + " fo:padding-left=\"" + ins(0) + "\" fo:padding-top=\"" + ins(1) + "\" fo:padding-right=\"" + ins(2) + "\" fo:padding-bottom=\"" + ins(3) + "\" fo:border=\"none\"/>");
+            out += "<draw:frame draw:style-name=\"" + esc(style) + "\"" + where + " svg:width=\"" + emuLength(std::max<qint64>(9525, cx)) + "\"><draw:text-box fo:min-height=\"" + emuLength(std::max<qint64>(9525, cy)) + "\">" +
+                   (inner.isEmpty() ? QByteArray("<text:p text:style-name=\"Standard\"/>") : inner) + "</draw:text-box></draw:frame>";
+            ++written;
+            continue;
+        }
+        const QString style = m_sink->make("gr", "graphic", " style:parent-style-name=\"Frame\"", "<style:graphic-properties" + gp + look + " fo:padding=\"0in\" fo:border=\"none\"/>");
+        const QByteArray element = isLine ? "draw:line" : s.kind == wml::Shape::Oval ? "draw:ellipse" : "draw:rect";
+        const QByteArray size = isLine ? QByteArray() : " svg:width=\"" + emuLength(cx) + "\" svg:height=\"" + emuLength(cy) + "\"";
+        const QByteArray descr = s.alt.isEmpty() ? QByteArray() : "<svg:desc>" + esc(s.alt, false) + "</svg:desc>";
+        out += "<" + element + " draw:style-name=\"" + esc(style) + "\"" + where + size + jo + (descr.isEmpty() ? QByteArray("/>") : ">" + descr + "</" + element + ">");
+        ++written;
+    }
+    return out;
 }
 
 QByteArray Writer::noteXml(const T &t, int ref, bool endnote, int depth, const QString &mark)
@@ -1663,7 +1837,16 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 if (t.localName(n) == "imagedata" && image < 0) image = n;
                 for (int k = t.firstChild(n); k >= 0; k = t.next(k)) stack.push_back(k);
             }
-            if (image >= 0) {
+            const QVector<wml::Shape> drawn = wml::readShapes(t.raw(c));
+            const bool onlyPicture = drawn.size() == 1 && drawn[0].kind == wml::Shape::Picture;
+            if (image >= 0 && !onlyPicture && !drawn.isEmpty()) {
+                const QByteArray x = shapesXml(t, c, pc);
+                if (!x.isEmpty()) {
+                    pc->xml += x;
+                    pc->hasContent = true;
+                    pc->lastSpace = false;
+                } else left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+            } else if (image >= 0) {
                 QString href;
                 if (!imagePart(t.attr(image, "id", wml::NsR), &href).isEmpty()) {
                     // The size: the shape's style says it (width:...pt;height:...pt).
@@ -1684,7 +1867,14 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                                emuLength(cy) + "\"><draw:image xlink:href=\"" + esc(href) + "\" xlink:type=\"simple\" xlink:show=\"embed\" xlink:actuate=\"onLoad\"/></draw:frame>";
                     pc->hasContent = true;
                 }
-            } else left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+            } else {
+                const QByteArray x = shapesXml(t, c, pc);
+                if (!x.isEmpty()) {
+                    pc->xml += x;
+                    pc->hasContent = true;
+                    pc->lastSpace = false;
+                } else left(QCoreApplication::translate("odt", "drawings, shapes, and charts"));
+            }
         } else if (name == "object") {
             const QByteArray frame = objectFrame(t, c);
             if (!frame.isEmpty()) {

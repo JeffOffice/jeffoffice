@@ -97,6 +97,10 @@ private:
     void fieldEnd(ParaCtx *pc);
     QByteArray fieldXml(const QString &instr, const QString &resultText, const QByteArray &resultXml, ParaCtx *pc, bool *known);
     QByteArray drawingXml(const T &t, int drawing, ParaCtx *pc, int depth);
+    // The drawn shapes of a w:pict (the older drawing form): each as the standard's rectangle, ellipse, line, or text box in a frame; empty when there is none to write.
+    QByteArray shapesXml(const T &t, int pict, ParaCtx *pc);
+    // The address a picture is linked to (an external relationship), as the reference of an image; empty when it is not one to keep.
+    QString linkedImageAddress(const QString &rid) const;
     QByteArray pictureFrame(const T &t, int anchor, int blip, bool inlineOk, int depth);
     QByteArray frameStyle(const T &t, int anchor, bool inlineFrame, QString *anchorType, QString *extra);
     QByteArray imagePart(const QString &rid, QString *href);

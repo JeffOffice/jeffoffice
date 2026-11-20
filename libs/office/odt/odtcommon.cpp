@@ -230,6 +230,7 @@ const char *contentTypeOf(const QString &ext)
     if (ext == QLatin1String("svg")) return "image/svg+xml";
     if (ext == QLatin1String("emf")) return "image/x-emf";
     if (ext == QLatin1String("wmf")) return "image/x-wmf";
+    if (ext == QLatin1String("pct") || ext == QLatin1String("pict")) return "image/x-pict";
     return nullptr;
 }
 

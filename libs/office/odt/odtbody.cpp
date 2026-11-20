@@ -142,8 +142,14 @@ void Reader::addField(ParaCtx *pc, const QString &instr, const QString &result, 
 // ---- relationships of the parts that hold a link or a picture
 
 
-QString Reader::imageRelationship(const Odf &o, int image)
+namespace {
+// The most addresses of linked pictures one document keeps.
+constexpr int kMostLinkedImages = 5000;
+}
+
+QString Reader::imageRelationship(const Odf &o, int image, bool *linked)
 {
+    if (linked) *linked = false;
     QByteArray bytes;
     QString ext;
     QString key;
@@ -151,8 +157,34 @@ QString Reader::imageRelationship(const Odf &o, int image)
     const QString href = o.at(image, "xlink:href");
     if (!href.isEmpty()) {
         if (href.contains(QLatin1Char(':')) || href.startsWith(QLatin1Char('/')) || href.contains(QLatin1String(".."))) {
-            left(QCoreApplication::translate("odt", "pictures that the file only links to"));
-            return QString();
+            // A picture the file only links to: its address is kept as a link that leaves the file; it is not opened, read, or fetched.
+            if (!linked) {
+                left(QCoreApplication::translate("odt", "pictures that the file only links to"));
+                return QString();
+            }
+            const QString address = href.trimmed();
+            bool plain = !address.isEmpty() && address.size() <= 2048;
+            for (const QChar c : address) plain = plain && c.unicode() >= 0x20 && c.unicode() != 0x7F;
+            if (!plain) {
+                left(QCoreApplication::translate("odt", "pictures that the file only links to"));
+                return QString();
+            }
+            const QString linkKey = m_owner + QLatin1String("|link:") + address;
+            const auto known = m_imageRel.constFind(linkKey);
+            if (known != m_imageRel.constEnd()) {
+                *linked = !known.value().isEmpty();
+                return known.value();
+            }
+            if (m_linkedImages >= kMostLinkedImages) {
+                if (m_linkedImages == kMostLinkedImages) left(QCoreApplication::translate("odt", "links to pictures past the %1 a document may have").arg(kMostLinkedImages));
+                ++m_linkedImages;
+                return QString();
+            }
+            ++m_linkedImages;
+            const QString rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("image"), address, true);
+            m_imageRel.insert(linkKey, rid);
+            *linked = !rid.isEmpty();
+            return rid;
         }
         key = QStringLiteral("/") + href;
         const auto done = m_imageRel.constFind(m_owner + QLatin1Char('|') + key);
@@ -292,6 +324,13 @@ QByteArray Reader::anchorXml(const Odf &o, int frame, const QString &styleName, 
     }
     auto offset = [&](const char *attr) {
         bool ok = false;
+        if (o.is(frame, "draw:line")) {
+            // (a line is at the nearer of its two ends)
+            const bool across = QLatin1String(attr) == QLatin1String("svg:x");
+            bool ok2 = false;
+            const qint64 a = lengthToEmu(o.at(frame, across ? "svg:x1" : "svg:y1"), &ok), b = lengthToEmu(o.at(frame, across ? "svg:x2" : "svg:y2"), &ok2);
+            return std::min(ok ? a : 0, ok2 ? b : 0);
+        }
         const qint64 e = lengthToEmu(o.at(frame, attr), &ok);
         return ok ? e : 0;
     };
@@ -356,6 +395,7 @@ static QString presetOfOdfShape(const Odf &o, int shape)
 {
     if (o.is(shape, "draw:rect")) return QStringLiteral("rect");
     if (o.is(shape, "draw:ellipse")) return QStringLiteral("ellipse");
+    if (o.is(shape, "draw:line")) return QStringLiteral("line");
     if (!o.is(shape, "draw:custom-shape")) return QString();
     const int g = o.child(shape, "draw:enhanced-geometry");
     if (g < 0) return QString();
@@ -606,7 +646,9 @@ QByteArray Reader::objectRun(const Odf &o, int frame, qint64 cx, qint64 cy, int 
         rid = m_out.addRelationship(m_owner, QString::fromLatin1(kRelBase) + QStringLiteral("oleObject"), name);
         m_objectRel.insert(key, rid);
     }
-    const QString pictureRid = image >= 0 ? imageRelationship(o, image) : QString();
+    bool previewLinked = false;
+    QString pictureRid = image >= 0 ? imageRelationship(o, image, &previewLinked) : QString();
+    if (previewLinked) pictureRid.clear();
     const double w = double(cx) / 12700.0, h = double(cy) / 12700.0;
     const int id = nextDocPrId();
     QByteArray xml = "<w:object xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" "
@@ -627,9 +669,23 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
 {
     *ok = false;
     const wml::XmlTree &t = o.tree();
+    // (A shape that is not a frame counts against what one document may hold.)
+    if (!o.is(frame, "draw:frame") && ++m_shapesRead > kMaxMadeParts) {
+        if (m_shapesRead == kMaxMadeParts + 1) left(QCoreApplication::translate("odt", "drawing shapes past the %1 a document may have").arg(kMaxMadeParts));
+        return QByteArray();
+    }
     bool wOk = false, hOk = false;
     qint64 cx = lengthToEmu(o.at(frame, "svg:width"), &wOk), cy = lengthToEmu(o.at(frame, "svg:height"), &hOk);
     if (!hOk) cy = lengthToEmu(o.at(frame, "fo:min-height"), &hOk);
+    bool lineUp = false;   // a line that runs from its lower end to its upper end
+    if (o.is(frame, "draw:line")) {
+        // (a line is its two ends: its box is the one they span, and it is mirrored when it rises)
+        const qint64 ex1 = lengthToEmu(o.at(frame, "svg:x1"), nullptr), ey1 = lengthToEmu(o.at(frame, "svg:y1"), nullptr), ex2 = lengthToEmu(o.at(frame, "svg:x2"), nullptr), ey2 = lengthToEmu(o.at(frame, "svg:y2"), nullptr);
+        cx = std::abs(ex2 - ex1);
+        cy = std::abs(ey2 - ey1);
+        wOk = hOk = true;
+        lineUp = (ex2 - ex1 > 0 && ey2 - ey1 < 0) || (ex2 - ex1 < 0 && ey2 - ey1 > 0);
+    }
     double rel = 0;
     if (!wOk && percentOf(o.at(frame, "style:rel-width"), &rel)) {
         cx = qint64(m_pageTextWidth * 635.0 * rel / 100.0);
@@ -702,6 +758,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         }
         // The turn, the flips, and the adjustments.
         QByteArray xfrmAttrs;
+        if (lineUp) xfrmAttrs += " flipV=\"1\"";
         if (const double turn = joAttr("rotation").toDouble(); turn > 0 && turn < 360) xfrmAttrs += " rot=\"" + num(qint64(std::llround(turn * 60000.0))) + "\"";
         QByteArray adjust = "<a:avLst/>";
         if (const int geom = o.child(frame, "draw:enhanced-geometry"); geom >= 0) {
@@ -763,7 +820,8 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
         return anchorXml(o, frame, QString(), cx, cy, graphic, id);
     }
     if (image >= 0) {
-        const QString rid = imageRelationship(o, image);
+        bool linkedImage = false;
+        const QString rid = imageRelationship(o, image, &linkedImage);
         if (rid.isEmpty()) return QByteArray();
         // The picture's shape, border, and effects: as the writer kept them (in an attribute of ours: only the elements of a picture's look, none longer than a bounded size), else the border the
         // style gives.
@@ -799,7 +857,7 @@ QByteArray Reader::drawing(const Odf &o, int frame, ParaCtx *pc, bool *ok)
             }
         }
         const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"" + num(id) +
-                                   "\" name=\"Picture " + num(id) + "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"" + rid.toLatin1() +
+                                   "\" name=\"Picture " + num(id) + "\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:" + QByteArray(linkedImage ? "link" : "embed") + "=\"" + rid.toLatin1() +
                                    "\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + num(cx) + "\" cy=\"" + num(cy) +
                                    "\"/></a:xfrm>" + look + "</pic:spPr></pic:pic></a:graphicData></a:graphic>";
         *ok = true;
@@ -1282,7 +1340,7 @@ void Reader::convertBlock(const Odf &o, int n, QVector<Block> *out, int depth, i
     } else if (o.is(n, "office:annotation") || o.is(n, "office:annotation-end")) {
     } else if (o.is(n, "table:table-header-rows") || o.is(n, "table:table-rows") || o.is(n, "table:table-row-group") || o.is(n, "text:list-item") || o.is(n, "text:list-header")) {
         convertBlocks(o, n, out, depth, listLevel, listStyle, listNum);
-    } else if (o.is(n, "draw:g") || o.is(n, "draw:custom-shape") || o.is(n, "draw:rect") || o.is(n, "draw:ellipse") || o.is(n, "draw:path")) {
+    } else if (o.is(n, "draw:g") || o.is(n, "draw:custom-shape") || o.is(n, "draw:rect") || o.is(n, "draw:ellipse") || o.is(n, "draw:line") || o.is(n, "draw:path")) {
         ParaCtx pc;
         pc.depth = depth;
         pc.inNote = m_inNote;

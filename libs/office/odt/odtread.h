@@ -166,7 +166,8 @@ private:
     QByteArray drawing(const Odf &o, int frame, ParaCtx *pc, bool *inlineOk);
     QByteArray pictureDrawing(const Odf &o, int frame, int image, int docPrId, bool anchored, const QString &styleName);
     QByteArray textBoxDrawing(const Odf &o, int frame, int box, ParaCtx *pc, bool anchored, const QString &styleName);
-    QString imageRelationship(const Odf &o, int image);
+    // The relationship of an image: a picture the file holds is a part of the new file; one it links to (an address) is a relationship that leaves the file, `*linked` says which (the address is never opened).
+    QString imageRelationship(const Odf &o, int image, bool *linked = nullptr);
     // The chart an embedded object holds, as a chart part of the new package (its relationship Id); empty when it holds none that is read.
     QString chartRelationship(const Odf &o, int object);
     // The equation a frame holds as a formula object (its MathML document read as math markup), or empty (a frame of another kind, an object that is refused, or one past the limits).
@@ -229,6 +230,7 @@ private:
     QHash<QString, QString> m_imageRel;               // the picture's path in the package -> its relationship Id
     QHash<QString, QString> m_linkRel;                // address -> relationship Id
     qint64 m_chartBytes = 0, m_chartPoints = 0;       // what the charts made so far come to (a budget for the whole document)
+    int m_linkedImages = 0, m_shapesRead = 0;       // the addresses pictures link to (at most kMostLinkedImages), and the drawn shapes read (at most kMaxMadeParts)
     int m_chartCount = 0;                             // the chart parts made (at most kMostCharts)
     qint64 m_formulaBytes = 0;                        // the formula objects read so far: their documents' bytes (a budget for the whole file) and their number
     int m_formulaCount = 0;
