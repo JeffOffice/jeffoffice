@@ -41,6 +41,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Compare"),
     QT_TRANSLATE_NOOP("Ribbon", "Convert"),
     QT_TRANSLATE_NOOP("Ribbon", "Crop"),
+    QT_TRANSLATE_NOOP("Ribbon", "Current Selection"),
     QT_TRANSLATE_NOOP("Ribbon", "Custom Slide Show"),
     QT_TRANSLATE_NOOP("Ribbon", "Customize"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),

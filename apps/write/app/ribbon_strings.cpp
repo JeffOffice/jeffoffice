@@ -46,6 +46,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Corrections"),
     QT_TRANSLATE_NOOP("Ribbon", "Cover Page"),
     QT_TRANSLATE_NOOP("Ribbon", "Create"),
+    QT_TRANSLATE_NOOP("Ribbon", "Current Selection"),
     QT_TRANSLATE_NOOP("Ribbon", "Dashes"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),
     QT_TRANSLATE_NOOP("Ribbon", "Delete"),

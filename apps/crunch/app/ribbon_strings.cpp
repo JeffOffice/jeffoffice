@@ -36,6 +36,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Controls"),
     QT_TRANSLATE_NOOP("Ribbon", "Convert"),
     QT_TRANSLATE_NOOP("Ribbon", "Crop"),
+    QT_TRANSLATE_NOOP("Ribbon", "Current Selection"),
     QT_TRANSLATE_NOOP("Ribbon", "Data"),
     QT_TRANSLATE_NOOP("Ribbon", "Data Tools"),
     QT_TRANSLATE_NOOP("Ribbon", "Date && Time"),
