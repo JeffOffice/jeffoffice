@@ -1065,6 +1065,8 @@ private Q_SLOTS:
     {
         Spec spec;
         spec.png = drawtest::pngBytes(40, 30, Qt::red);
+        // (the baseline is taken before the window exists: the view asks for a picture of the object on the window's thread as soon as it paints, which may be before this test asks, and that one unpacking is the one)
+        const qint64 reads = crunch::SheetEmbeds::previewReads();
         EditWindow e;
         QVERIFY(ready(e, bookWith({spec})));
         crunch::SheetEmbeds *embeds = embedsOf(e);
@@ -1076,7 +1078,6 @@ private Q_SLOTS:
         q.pixels = QSize(80, 60);
         q.units = QSizeF(40, 30);
         q.inner = QRectF(0, 0, 80, 60);
-        const qint64 reads = crunch::SheetEmbeds::previewReads();
         std::function<QImage()> job = lo->prepare(q);
         std::function<QImage()> again = lo->prepare(q);
         std::function<QImage()> third = lo->prepare(q);
