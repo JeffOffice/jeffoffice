@@ -5645,7 +5645,7 @@
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "18",
+    "day": "20",
     "month": "November",
     "year": "2026"
    },
@@ -5688,8 +5688,9 @@
        "text": "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390"
       },
       {
-       "status": "partly",
-       "text": "178115e2f8e652252a4cb1208ccb866422b40fcb35bc21377050563c0cc69b5b"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ebe43737b6b9c462135944cab90c1410de661742c3b634bdbcadccc05bab3dc6"
       },
       {
        "status": "partly",
@@ -5734,7 +5735,7 @@
       },
       {
        "status": "partly",
-       "text": "ff403d4dd1d6fd2d877cd8b6c8200211a6bad1f2f8849c78a087ae3c777aa4a2"
+       "text": "f7649e5cdefe408f4134fb80e57748257f6e816ea8a00fb254262effaaaa150e"
       }
      ]
     },
@@ -6090,7 +6091,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "17b869d33a2ca37f8ee33af67281e61439c698bfe6acaa9872ba158a67daec48"
+         "text": "ed1abf4ad811fbe00a1c457dee2680f432186b39b98b432567c90eb01f6f92ca"
         },
         {
          "hide_soon": true,
@@ -6174,6 +6175,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "6c710968bd72d31adfc5d4545678ba085d8ae7da3ce18703050b2db3d4607f7f"
+        },
+        {
+         "status": "partly",
+         "text": "080856119f0d0f1923bb8c0d4bbe3daccf7bf499b3b8f6528a3b096a22412c23"
         }
        ]
       },
@@ -6387,6 +6392,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "525fcfe1070b1a8f66bb0eb38809ac895e801f499d81fa47b7bba3a7ebf9c2aa"
+        },
+        {
+         "status": "partly",
+         "text": "2576797911662eb86a790e90fe621a3d1b3323d7baad55dbae5d26f27deb42f9"
         }
        ]
       }
@@ -6503,7 +6512,7 @@
         },
         {
          "status": "partly",
-         "text": "a2b1ab10a9c0bc1bc8291361c1242815ce0aa696ed21397f97b0cfad28bf8a51"
+         "text": "41d88ef7db7f1aed5c9271cdce6fa6d5fff3bdb70777d0fbb7155d8bedadc718"
         },
         {
          "status": "todo",
@@ -6779,7 +6788,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "3afa6550cee8bc84c298d971be7f1e08f2981b0bdbce9e006aa5725886dc5662"
+         "text": "293e6a80184987a937d71571024648b64e743bd1817db27c5e5ac19eab4e5a39"
         },
         {
          "status": "partly",
@@ -7279,8 +7288,9 @@
          "text": "cab609f46d1c839c8594ef8c475069d1ab35cd626862bc9c9108bd4055c079c5"
         },
         {
-         "status": "todo",
-         "text": "61e4cb690ea92585dcb39082b68bff9ee7f3edb0b2e7088827a43922ac7ff856"
+         "hide_soon": true,
+         "status": "done",
+         "text": "26a0b8d9459d00c3d67644b2c9847d38eed97fb64155c9406e32745b4a0cc251"
         }
        ]
       },
@@ -8243,6 +8253,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "080856119f0d0f1923bb8c0d4bbe3daccf7bf499b3b8f6528a3b096a22412c23": {
+   "drop": false,
+   "en": "Number list items with zero-padded 01 and with numbering systems of other scripts, offered in the list number boxes.",
+   "es": "Numere los elementos de lista con ceros a la izquierda (01) y con sistemas de numeración de otras escrituras, disponibles en los cuadros de numeración de listas.",
+   "fr": "Numérotez les éléments de liste avec des zéros initiaux (01) et avec des systèmes de numération d’autres écritures, proposés dans les zones de numérotation des listes.",
+   "soon": {
+    "drop": false,
+    "en": "Zero-padded number styles: 001 and longer forms",
+    "es": "Estilos de numeración con ceros a la izquierda: 001 y formas más largas",
+    "fr": "Styles de numérotation avec zéros initiaux : 001 et formes plus longues"
    }
   },
   "081326f11e8060a36d8abd8d6b2075ee93e2f59898bd4dc36998e942eff58e5c": {
@@ -9373,35 +9395,11 @@
     "fr": ""
    }
   },
-  "178115e2f8e652252a4cb1208ccb866422b40fcb35bc21377050563c0cc69b5b": {
-   "drop": false,
-   "en": "Spelling works offline, in 31 languages and regional forms, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
-   "es": "La ortografía funciona sin conexión, en 31 idiomas y variantes regionales, mientras escribe y en el panel de ortografía. La separación silábica sigue la configuración del archivo.",
-   "fr": "L’orthographe fonctionne hors ligne, dans 31 langues et formes régionales, pendant la saisie et dans le volet Orthographe. La césure suit les réglages du fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Hyphenation: set from a menu or dialog",
-    "es": "Separación silábica: configurar desde un menú o cuadro de diálogo",
-    "fr": "Césure : réglage depuis un menu ou une boîte de dialogue"
-   }
-  },
   "17a53275e33109c410ee5b7acb6dddecff310380637803ec47669163e24314bd": {
    "drop": false,
    "en": "Keep a backup copy on every save.",
    "es": "Conserve una copia de seguridad en cada guardado.",
    "fr": "Conservez une copie de sauvegarde à chaque enregistrement.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "17b869d33a2ca37f8ee33af67281e61439c698bfe6acaa9872ba158a67daec48": {
-   "drop": false,
-   "en": "The Font dialog (`Ctrl+D`) sets font, style, size, color, underline and its color, and effects, with a live preview and character spacing. Set as Default makes the Normal style of the document use the chosen font, size, style, and color.",
-   "es": "El cuadro de diálogo Fuente (`Ctrl+D`) permite definir fuente, estilo, tamaño, color, subrayado y su color, y efectos, con vista previa en vivo y espaciado entre caracteres. Establecer como predeterminado hace que el estilo Normal del documento use la fuente, el tamaño, el estilo y el color elegidos.",
-   "fr": "La boîte de dialogue Police (`Ctrl+D`) permet de définir la police, le style, la taille, la couleur, le soulignement et sa couleur, ainsi que les effets, avec aperçu en direct et espacement des caractères. Définir par défaut fait que le style Normal du document utilise la police, la taille, le style et la couleur choisis.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10597,6 +10595,18 @@
     "fr": ""
    }
   },
+  "2576797911662eb86a790e90fe621a3d1b3323d7baad55dbae5d26f27deb42f9": {
+   "drop": false,
+   "en": "Insert the zero-width space and the word joiner from Insert > Symbol > Special Characters.",
+   "es": "Inserte el espacio de ancho cero y el unificador de palabras desde Insertar > Símbolo > Caracteres especiales.",
+   "fr": "Insérez l’espace de largeur nulle et le liant de mots depuis Insertion > Symbole > Caractères spéciaux.",
+   "soon": {
+    "drop": false,
+    "en": "Narrow no-break space and left-to-right and right-to-left marks, each with a key and a mark when formatting marks are shown",
+    "es": "Espacio fino de no separación y marcas de izquierda a derecha y de derecha a izquierda, cada uno con una tecla y una marca al mostrar las marcas de formato",
+    "fr": "Espace insécable étroite et marques gauche à droite et droite à gauche, chacune avec une touche et une marque lorsque les marques de mise en forme sont affichées"
+   }
+  },
   "2589f5bf2e193259952fdce52860b1771d5172ca88de8dbc1b2b6399591a4188": {
    "drop": false,
    "en": "Built-in format numbers 0 to 49, with 14 to 22, 27 to 36, and 50 to 58 standing for the system’s date and time formats, are read from `.xls` and `.xlsx` files and written back as they were. Custom formats are numbered from 164.",
@@ -10674,6 +10684,18 @@
    "en": "Add continued-on and continued-from notices to linked text.",
    "es": "Agregue avisos de continuación y de procedencia al texto enlazado.",
    "fr": "Ajoutez des mentions « suite page » et « suite de la page » au texte chaîné.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "26a0b8d9459d00c3d67644b2c9847d38eed97fb64155c9406e32745b4a0cc251": {
+   "drop": false,
+   "en": "Compare two documents and find moved text and formatting changes, not only insertions and deletions. Both are kept when saving as `.docx` and `.odt`.",
+   "es": "Compare dos documentos y encuentre texto movido y cambios de formato, no solo inserciones y eliminaciones. Ambos se conservan al guardar como `.docx` y `.odt`.",
+   "fr": "Comparez deux documents et repérez le texte déplacé et les changements de mise en forme, pas seulement les insertions et suppressions. Les deux sont conservés à l’enregistrement en `.docx` et `.odt`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -10907,6 +10929,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "293e6a80184987a937d71571024648b64e743bd1817db27c5e5ac19eab4e5a39": {
+   "drop": false,
+   "en": "Print Layout shows pages as they print. Draft runs the pages on without edges, shadows, headers, or footers, with a dotted line naming each page or section break. Outline is a view of its own, with the Outlining tab.",
+   "es": "La vista Diseño de impresión muestra las páginas tal como se imprimen. Borrador une las páginas sin bordes, sombras, encabezados ni pies de página, con una línea punteada que nombra cada salto de página o de sección. Esquema es una vista propia, con la pestaña Esquema.",
+   "fr": "La vue Mode Page affiche les pages telles qu’elles s’impriment. Brouillon enchaîne les pages sans bords, ombres, en-têtes ni pieds de page, avec une ligne pointillée nommant chaque saut de page ou de section. Plan est une vue à part, avec l’onglet Plan.",
+   "soon": {
+    "drop": false,
+    "en": "Draft view: style area",
+    "es": "Vista Borrador: área de estilos",
+    "fr": "Vue Brouillon : zone des styles"
    }
   },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
@@ -12157,18 +12191,6 @@
     "fr": ""
    }
   },
-  "3afa6550cee8bc84c298d971be7f1e08f2981b0bdbce9e006aa5725886dc5662": {
-   "drop": false,
-   "en": "Print Layout shows pages as they print. Draft runs the pages on without edges, shadows, headers, or footers, with a dotted line where each page ends. Outline is a view of its own, with the Outlining tab.",
-   "es": "Diseño de impresión muestra las páginas tal como se imprimen. Borrador continúa las páginas sin bordes, sombras, encabezados ni pies de página, con una línea de puntos donde termina cada página. Esquema es una vista propia, con la pestaña Esquema.",
-   "fr": "Mise en page imprimée montre les pages telles qu’elles s’impriment. Brouillon enchaîne les pages sans bords, ombres, en-têtes ni pieds de page, avec une ligne pointillée à la fin de chaque page. Le mode Plan est une vue à part, avec l’onglet Plan.",
-   "soon": {
-    "drop": false,
-    "en": "Web Layout view",
-    "es": "Vista Diseño web",
-    "fr": "Vue Mode Web"
-   }
-  },
   "3b2b239b4e477eba04e308b7f682df58375e1578c16676750a595cf4216c4730": {
    "drop": false,
    "en": "Opens damaged `.pub` files as far as it can.",
@@ -12743,6 +12765,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "41d88ef7db7f1aed5c9271cdce6fa6d5fff3bdb70777d0fbb7155d8bedadc718": {
+   "drop": false,
+   "en": "Move floating pictures forward or backward, to the front or back, and in front of or behind text. Align and distribute, group and ungroup (`Ctrl+Alt+G`), and rotate 90 degrees right or left, on pictures, shapes, and text boxes.",
+   "es": "Mueva las imágenes flotantes hacia delante o hacia atrás, al frente o al fondo, y delante o detrás del texto. Alinee y distribuya, agrupe y desagrupe (`Ctrl+Alt+G`) y gire 90 grados a la derecha o a la izquierda imágenes, formas y cuadros de texto.",
+   "fr": "Déplacez les images flottantes vers l’avant ou l’arrière, au premier plan ou à l’arrière-plan, et devant ou derrière le texte. Alignez et répartissez, groupez et dissociez (`Ctrl+Alt+G`), et pivotez de 90 degrés vers la droite ou la gauche les images, formes et zones de texte.",
+   "soon": {
+    "drop": false,
+    "en": "Regroup and Flip",
+    "es": "Reagrupar y Voltear",
+    "fr": "Regrouper et Retourner"
    }
   },
   "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
@@ -15179,18 +15213,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "61e4cb690ea92585dcb39082b68bff9ee7f3edb0b2e7088827a43922ac7ff856": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Document comparison that finds moves and formatting differences",
-    "es": "Comparación de documentos que detecta movimientos y diferencias de formato",
-    "fr": "Comparaison de documents qui détecte les déplacements et les différences de mise en forme"
    }
   },
   "622d1c654c62cfa2bd758ce273d6af09c1aeedba57a816dea759fb74429bf5d2": {
@@ -19619,18 +19641,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a2b1ab10a9c0bc1bc8291361c1242815ce0aa696ed21397f97b0cfad28bf8a51": {
-   "drop": false,
-   "en": "Floating pictures can be moved forward or backward among other floating pictures, to the front or back, and in front of or behind text.",
-   "es": "Las imágenes flotantes se pueden mover hacia delante o hacia atrás entre otras imágenes flotantes, al frente o al fondo, y delante o detrás del texto.",
-   "fr": "Les images flottantes peuvent être avancées ou reculées parmi les autres images flottantes, placées au premier plan ou à l’arrière-plan, et devant ou derrière le texte.",
-   "soon": {
-    "drop": false,
-    "en": "Align, Group, and Rotate or Flip, and arranging shapes and text boxes",
-    "es": "Alinear, agrupar y girar o voltear, y ordenar formas y cuadros de texto",
-    "fr": "Aligner, grouper, pivoter ou retourner, et organiser les formes et les zones de texte"
    }
   },
   "a2d68353d3e51d1937779783286eb2f4ab0c215e3e2b09bfb8c7f85f9a2c7401": {
@@ -24745,6 +24755,18 @@
     "fr": ""
    }
   },
+  "ebe43737b6b9c462135944cab90c1410de661742c3b634bdbcadccc05bab3dc6": {
+   "drop": false,
+   "en": "Spelling works offline, in 31 languages and regional forms, as you type and in the Spelling pane. Hyphenation follows a file's settings.",
+   "es": "La revisión ortográfica funciona sin conexión, en 31 idiomas y formas regionales, mientras usted escribe y en el panel de ortografía. La separación silábica sigue la configuración del archivo.",
+   "fr": "La vérification orthographique fonctionne hors ligne, dans 31 langues et formes régionales, pendant la saisie et dans le volet Orthographe. La césure suit les paramètres du fichier.",
+   "soon": {
+    "drop": false,
+    "en": "Hyphenation: set from a menu or dialog",
+    "es": "Separación silábica: configuración desde un menú o un cuadro de diálogo",
+    "fr": "Césure : réglage depuis un menu ou une boîte de dialogue"
+   }
+  },
   "ebe4f3edce8eb5ab501f0212342d58f019fce0e0a5db42a51fb18f2ba802b6ac": {
    "drop": false,
    "en": "Insert > Icons offers 1,539 vector icons from the open-source Lucide set, searched by name or keyword. Each becomes an editable shape that scales with its line weight and stays sharp in print and PDF.",
@@ -24887,6 +24909,18 @@
     "en": "Insert Picture: link to the file",
     "es": "Insertar imagen: vincular al fichero",
     "fr": "Insérer une image : lier au fichier"
+   }
+  },
+  "ed1abf4ad811fbe00a1c457dee2680f432186b39b98b432567c90eb01f6f92ca": {
+   "drop": false,
+   "en": "Open the Font dialog with `Ctrl+D`, the Font group's launcher, or the right-click menu to set font, style, size, color, underline and its color, effects, and character spacing, with a live preview. Set as Default applies the choices to the Normal style of the document or to all new documents.",
+   "es": "Abra el cuadro de diálogo Fuente con `Ctrl+D`, el iniciador del grupo Fuente o el menú contextual para definir fuente, estilo, tamaño, color, subrayado y su color, efectos y espaciado de caracteres, con vista previa en vivo. Establecer como predeterminado aplica las opciones al estilo Normal del documento o a todos los documentos nuevos.",
+   "fr": "Ouvrez la boîte de dialogue Police avec `Ctrl+D`, le lanceur du groupe Police ou le menu contextuel pour définir la police, le style, la taille, la couleur, le soulignement et sa couleur, les effets et l’espacement des caractères, avec un aperçu en direct. Définir par défaut applique les choix au style Normal du document ou à tous les nouveaux documents.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "ed281493944b96808deecc46c9e8010eb9cb44733282ba9ac11659d1f051ee69": {
@@ -25573,6 +25607,18 @@
     "fr": ""
    }
   },
+  "f7649e5cdefe408f4134fb80e57748257f6e816ea8a00fb254262effaaaa150e": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "f768061b2908aae23d9a7b5effcbf9718f6686d70a179f29247fa004878970b6": {
    "drop": false,
    "en": "Illustrations",
@@ -26190,18 +26236,6 @@
    "en": "Look up synonyms for a word with the thesaurus.",
    "es": "Busque sinónimos de una palabra con el diccionario de sinónimos.",
    "fr": "Recherchez des synonymes d’un mot avec le dictionnaire des synonymes.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "ff403d4dd1d6fd2d877cd8b6c8200211a6bad1f2f8849c78a087ae3c777aa4a2": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
    "soon": {
     "drop": true,
     "en": "",
