@@ -3,6 +3,8 @@
 // words and the words ignored for the session, and the misspelled ranges of
 // a story, for every app's checking as you type and its Spelling dialog.
 
+#include "core/export.h"
+
 #include <QByteArray>
 #include <QList>
 #include <QObject>
@@ -86,7 +88,7 @@ private:
 };
 
 // Tells that the words of the files have changed under the speller (another app saved them).
-class SpellingWatch : public QObject {
+class JO_COMMON_EXPORT SpellingWatch : public QObject {
     Q_OBJECT
 public:
     explicit SpellingWatch(Speller *speller);

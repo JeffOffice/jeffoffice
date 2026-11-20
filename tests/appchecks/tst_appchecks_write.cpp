@@ -674,6 +674,7 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
+            {QStringLiteral("review.autoCorrectOptions"), QStringLiteral("it opens the menu of the AutoCorrect Options button, which is there only after AutoCorrect changed a word as it was typed, and there is none; theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu types one and runs it")},
             {QStringLiteral("file.shrinkOnePage"), QStringLiteral("a document of one page has no page to take off, and it says so; shrinkByOnePageTakesOffAPageInOneStep and shrinkByOnePageRefusesForTheTrueReasonAndChangesNothing try it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
             {QStringLiteral("mail.highlight"), QStringLiteral("it chooses whether merge fields are shaded on the screen, which shows only where the document has them; the mail tests check the pixels")},

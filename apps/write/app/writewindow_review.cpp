@@ -2,7 +2,6 @@
 
 #include "app/writewindow.h"
 
-#include "app/keymap.h"
 #include "app/pageview.h"
 #include "app/reviewpane.h"
 #include "app/settings.h"
@@ -32,7 +31,7 @@ void WriteWindow::createReviewActions()
     Q_UNUSED(markupLoaded);
     mk("review.spelling", tr("Spelling"), "spell-check", QKeySequence(Qt::Key_F7), [this] { showSpelling(); });
     // (Not on the ribbon: the key opens the menu of the button AutoCorrect shows after it changes a word; the Keyboard page lists it with the others, and checks the key as for any.)
-    mk("review.autoCorrectOptions", tr("AutoCorrect Options Menu"), QString(), QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F10), [this] { m_view->openAutoFixMenu(); })->setProperty(KeyMap::kGroupProperty, tr("Review"));
+    mk("review.autoCorrectOptions", tr("AutoCorrect Options Menu"), QString(), QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F10), [this] { m_view->openAutoFixMenu(); });
     QAction *asType = mk("review.checkAsType", tr("Check Spelling as You Type"), "spell-check-2", QKeySequence(), [this] {
         const bool on = act("review.checkAsType")->isChecked();
         m_view->setSpellingEnabled(on);
