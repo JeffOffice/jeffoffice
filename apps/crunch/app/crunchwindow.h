@@ -628,6 +628,10 @@ public:
     bool printWith(const crunch::PrintChoices &choices);
     // What the Print screen has chosen (kept while the window is, so the screen comes back as it was left).
     crunch::PrintChoices &printChoices() { return *m_printChoices; }
+    // A margin or a column dragged (or moved by a key) on the Print screen's preview: the margins of a sheet, or the width in characters of one of its columns, as one step of Undo. False, with the
+    // reason shown, when the step is refused (a protected sheet, say).
+    bool changeMarginsFromPreview(int sheet, const jp::office::sheet::PageMargins &margins);
+    bool changeColumnWidthFromPreview(int sheet, quint32 column, double chars);
     // The printer the Print screen's dialog sets up and the pages go to (made when first asked for).
     QPrinter &printer();
     // For tests: given the printer before the pages are sent (to give it a file, say).

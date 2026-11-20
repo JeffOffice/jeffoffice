@@ -12,6 +12,7 @@
 #include "../emlpdf.h"
 #include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
+#include <QPointer>
 #include "io/qtpdf.h"
 #include "io/pdftransparency.h"
 #include "../pdftransparencyfixtures.h"
@@ -2757,6 +2758,328 @@ void CrunchPrintTests::aLinkToADefinedNameGoesToItsCellsSpot()
     QVERIFY2(m.hasMatch(), "no link to the cell of the name");
     // the eighth row is below the page's top margin by seven rows' height: the spot is under the top of the page (a point count under 792 less the margin)
     QVERIFY2(m.captured(2).toDouble() > 0 && m.captured(2).toDouble() < 700, qPrintable(m.captured(2)));
+}
+
+namespace {
+// Two sheets of 130 rows ("Links" and "Other", each row "<sheet> row <n>"), the first with its first row repeated at the top of every page; the links are set by the test.
+QByteArray tallBook()
+{
+    QString first, other;
+    for (int i = 1; i <= 130; ++i) {
+        first += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>Links row %1</t></is></c></row>").arg(i);
+        other += QStringLiteral("<row r=\"%1\"><c r=\"A%1\" t=\"inlineStr\"><is><t>Other row %1</t></is></c></row>").arg(i);
+    }
+    return buildXlsx({worksheet(first), worksheet(other)}, QByteArray(), QString(), QString(), budgetStyles(), QStringList({"Links", "Other"}),
+                     QStringLiteral("<definedName name=\"_xlnm.Print_Titles\" localSheetId=\"0\">Links!$1:$1</definedName>"));
+}
+void linkCell(crunch::EditSession *s, int sheet, const char *ref, const QString &target, const QString &location)
+{
+    jp::office::sheet::CellRange r;
+    jp::office::sheet::parseRangeRef(QString::fromLatin1(ref), &r);
+    jp::office::sheet::LinkSpec l;
+    l.target = target;
+    l.location = location;
+    QVERIFY(s->setLink(sheet, r, l, QStringLiteral("Link")).ok);
+}
+// The links of every page of a PDF file.
+QVector<QVector<jp::PdfDocument::LinkInfo>> pdfLinksOf(const QString &path, QStringList *texts = nullptr)
+{
+    QFile f(path);
+    QVector<QVector<jp::PdfDocument::LinkInfo>> out;
+    if (!f.open(QIODevice::ReadOnly)) return out;
+    const jp::PdfDocument doc(f.readAll());
+    for (int i = 0; doc.isValid() && i < doc.pageCount(); ++i) {
+        out << doc.links(i);
+        if (texts) *texts << doc.text(i);
+    }
+    return out;
+}
+} // namespace
+
+// A link is on every page that shows its cell, and a cell in a repeated title row has its link on every page the title is on, once to a page; a link to a place in the workbook goes to the
+// page that shows the place, and only a web address, a mail address, or a place in the workbook is a link at all.
+void CrunchPrintTests::aLinkIsOnEveryPageThatShowsItsCellTitleRowsIncluded()
+{
+    EditWindow e;
+    QVERIFY(e.open(tallBook()));
+    CrunchWindow &w = e.win.w;
+    crunch::EditSession *s = w.session();
+    linkCell(s, 0, "A1", QStringLiteral("https://example.org/title"), QString());
+    linkCell(s, 0, "A60", QStringLiteral("mailto:someone@example.org"), QString());
+    linkCell(s, 0, "A61", QStringLiteral("\\\\server\\share\\book.xlsx"), QString());
+    linkCell(s, 0, "A62", QStringLiteral("file://host/share/book.xlsx"), QString());
+    linkCell(s, 0, "A100", QString(), QStringLiteral("Other!A100"));
+    crunch::PrintJobOptions options;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
+    QVERIFY2(job, qPrintable(why));
+    QVector<int> pages;
+    int ofFirstSheet = 0;
+    for (int i = 0; i < job->pageCount(); ++i) {
+        pages << i;
+        if (job->sheetOf(i) == 0) ++ofFirstSheet;
+    }
+    QVERIFY(ofFirstSheet >= 3 && ofFirstSheet < job->pageCount());
+    const QString path = e.folder.dir.filePath(QStringLiteral("tall.pdf"));
+    QString error;
+    QVERIFY2(job->exportPdf(path, pages, &error), qPrintable(error));
+    QStringList texts;
+    const auto links = pdfLinksOf(path, &texts);
+    QCOMPARE(int(links.size()), job->pageCount());
+    int title = 0, mail = 0, toOther = 0, bad = 0;
+    QRectF firstTitle;
+    for (int page = 0; page < ofFirstSheet; ++page) {
+        int onThisPage = 0;
+        for (const auto &l : links[page]) {
+            if (l.uri == QLatin1String("https://example.org/title")) {
+                ++title;
+                ++onThisPage;
+                if (page == 0) firstTitle = l.rect;
+                // (the same box on every page: the repeated row is at the top of each)
+                QVERIFY2(qAbs(l.rect.top() - firstTitle.top()) < 0.5 && qAbs(l.rect.left() - firstTitle.left()) < 0.5, "the title row's link moves from page to page");
+            } else if (l.uri == QLatin1String("mailto:someone@example.org")) {
+                ++mail;
+                QVERIFY2(texts[page].contains(QStringLiteral("Links row 60")), "the mail link is not on the page of its cell");
+            } else if (l.page >= 0) {
+                ++toOther;
+                QVERIFY2(l.page >= ofFirstSheet && texts[l.page].contains(QStringLiteral("Other row 100")), "the link to the other sheet does not go to the page of its cell");
+                QVERIFY2(texts[page].contains(QStringLiteral("Links row 100")), "the link to the other sheet is not on the page of its cell");
+            } else {
+                ++bad;
+            }
+        }
+        QCOMPARE(onThisPage, 1);   // (the title once to a page)
+    }
+    QCOMPARE(title, ofFirstSheet);
+    QCOMPARE(mail, 1);
+    QCOMPARE(toOther, 1);
+    QCOMPARE(bad, 0);   // (no link for a file on another computer)
+    QVERIFY(firstTitle.height() > 0 && firstTitle.top() > 600);   // (a box at the top of a letter page, from the bottom)
+}
+
+// A link to a place on a page that is not in the PDF goes to the first page of that sheet that is in it; with no page of the sheet in it there is no link.
+void CrunchPrintTests::aLinkToAPageNotInThePdfGoesToTheSheetsFirstPageThatIs()
+{
+    EditWindow e;
+    QVERIFY(e.open(tallBook()));
+    CrunchWindow &w = e.win.w;
+    crunch::EditSession *s = w.session();
+    linkCell(s, 0, "A2", QString(), QStringLiteral("Other!A100"));
+    crunch::PrintJobOptions options;
+    options.what = crunch::PrintWhat::Workbook;
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(options, &why);
+    QVERIFY2(job, qPrintable(why));
+    int firstOfOther = -1, firstOfLinks = -1;
+    for (int i = 0; i < job->pageCount(); ++i) {
+        if (job->sheetOf(i) == 1 && firstOfOther < 0) firstOfOther = i;
+        if (job->sheetOf(i) == 0 && firstOfLinks < 0) firstOfLinks = i;
+    }
+    QVERIFY(firstOfOther > 0 && job->pageCount() > firstOfOther + 2);
+    // the first page of the first sheet, and the first page of the other: the page with row 100 of "Other" is not in the file
+    QString error;
+    QString path = e.folder.dir.filePath(QStringLiteral("partial.pdf"));
+    QVERIFY2(job->exportPdf(path, {firstOfLinks, firstOfOther}, &error), qPrintable(error));
+    auto links = pdfLinksOf(path);
+    QCOMPARE(int(links.size()), 2);
+    QCOMPARE(int(links[0].size()), 1);
+    QCOMPARE(links[0][0].page, 1);   // (the first page of "Other" is the second of the file)
+    QVERIFY(!links[0][0].hasSpot);
+    // with no page of the other sheet in the file there is nothing to go to, and no link
+    path = e.folder.dir.filePath(QStringLiteral("alone.pdf"));
+    QVERIFY2(job->exportPdf(path, {firstOfLinks}, &error), qPrintable(error));
+    links = pdfLinksOf(path);
+    QCOMPARE(int(links.size()), 1);
+    QCOMPARE(int(links[0].size()), 0);
+}
+
+// Pages placed two to a sheet of paper (smaller, side by side) keep their links, over the cells where they are now.
+void CrunchPrintTests::linksFollowPagesPlacedSeveralToASheet()
+{
+    EditWindow e;
+    QVERIFY(e.open(tallBook()));
+    CrunchWindow &w = e.win.w;
+    crunch::EditSession *s = w.session();
+    linkCell(s, 0, "A1", QStringLiteral("https://example.org/title"), QString());
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(job, qPrintable(why));
+    QVERIFY(job->pageCount() >= 2);
+    const QString path = e.folder.dir.filePath(QStringLiteral("twoup.pdf"));
+    QString error;
+    QVERIFY2(job->exportPdf(path, {0, 1}, &error, nullptr, 2), qPrintable(error));
+    const auto links = pdfLinksOf(path);
+    QCOMPARE(int(links.size()), 1);   // (one sheet of paper, wider than it is tall)
+    QCOMPARE(int(links[0].size()), 2);
+    QRectF left = links[0][0].rect, right = links[0][1].rect;
+    if (left.left() > right.left()) std::swap(left, right);
+    const QSizeF paper = job->sheetFor({0, 1}, 2);
+    QVERIFY(paper.width() > paper.height());
+    QVERIFY2(left.right() <= paper.width() / 2 + 0.5 && right.left() >= paper.width() / 2 - 0.5, "the links are not each over its own page");
+    // (the page is made smaller: the box is smaller than on a page of its own)
+    const QString alone = e.folder.dir.filePath(QStringLiteral("oneup.pdf"));
+    QVERIFY2(job->exportPdf(alone, {0}, &error), qPrintable(error));
+    const auto plain = pdfLinksOf(alone);
+    QCOMPARE(int(plain.size()), 1);
+    QCOMPARE(int(plain[0].size()), 1);
+    QVERIFY(left.width() < plain[0][0].rect.width() * 0.99 && left.width() > plain[0][0].rect.width() * 0.3);
+    QVERIFY(left.top() <= paper.height() && left.top() > paper.height() / 2);
+}
+
+namespace {
+int columnPx(EditWindow &e, int col) { return e.view()->sheet().layout().cols.size(col); }
+// The handle on the Print screen's preview that has this name (a control of its own, a child of the preview).
+QWidget *previewHandle(QWidget *window, const QString &name)
+{
+    QLabel *preview = window->findChild<QLabel *>(QStringLiteral("printPreview"));
+    if (!preview) return nullptr;
+    for (QWidget *child : preview->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly))
+        if (child->accessibleName() == name) return child;
+    return nullptr;
+}
+// A drag of a handle by `by` pixels along its own axis, with the mouse. The events go to the handle, with the places made right for where the handle is at each one (it moves under the pointer).
+void dragHandle(QWidget *handle, int by)
+{
+    const bool vertical = handle->height() > handle->width();
+    const QPoint startLocal = vertical ? QPoint(handle->width() / 2, handle->height() / 3) : QPoint(handle->width() / 3, handle->height() / 2);
+    const QPoint startGlobal = handle->mapToGlobal(startLocal);
+    const QPoint delta = vertical ? QPoint(by, 0) : QPoint(0, by);
+    auto local = [&](const QPoint &global) { return global - handle->mapToGlobal(QPoint(0, 0)); };
+    QTest::mousePress(handle, Qt::LeftButton, Qt::NoModifier, startLocal);
+    QTest::mouseMove(handle, local(startGlobal + delta / 2));
+    QTest::mouseMove(handle, local(startGlobal + delta));
+    QTest::mouseRelease(handle, Qt::LeftButton, Qt::NoModifier, local(startGlobal + delta));
+}
+} // namespace
+
+// A margin dragged on the print preview changes the sheet's margin, as one step of Undo, and the preview is made again with the new margin.
+void CrunchPrintTests::aMarginDraggedOnThePreviewIsOneStepOfUndo()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1500, 1000);
+    w.act(QStringLiteral("file.print"))->trigger();
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Left margin")));
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Right margin"))->geometry().center().x() - previewHandle(&w, QStringLiteral("Left margin"))->geometry().center().x() > 200);
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(job, qPrintable(why));
+    const double paperWidth = job->pageSize(0).width();
+    const jp::office::sheet::PageMargins before = w.session()->pages().sheet(0).margins;
+    QWidget *left = previewHandle(&w, QStringLiteral("Left margin")), *right = previewHandle(&w, QStringLiteral("Right margin"));
+    QVERIFY(right);
+    // (pixels to the point: the two guides are the width of the paper less the margins apart)
+    const double k = double(right->geometry().center().x() - left->geometry().center().x()) / (paperWidth - (before.left + before.right) * 72);
+    QVERIFY2(k > 0.2, qPrintable(QStringLiteral("%1 %2 %3").arg(k).arg(left->geometry().center().x()).arg(right->geometry().center().x())));
+    const int steps = w.undoStack()->count();
+    dragHandle(left, int(std::lround(36 * k)));   // half an inch to the right
+    QTRY_VERIFY(qAbs((w.session()->pages().sheet(0).margins.left) - (before.left + 0.5)) < 0.04);
+    QCOMPARE(w.undoStack()->count(), steps + 1);
+    QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Margins"));
+    QCOMPARE(w.session()->pages().sheet(0).margins.right, before.right);
+    // (the preview follows: the guide is where the margin is now)
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Left margin")) && previewHandle(&w, QStringLiteral("Left margin"))->geometry().center().x() > left->geometry().center().x() - 1);
+    w.undoStack()->undo();
+    QCOMPARE(w.session()->pages().sheet(0).margins.left, before.left);
+    // the bottom guide goes up with a drag up, and nothing is changed by a press and release in the same place
+    QWidget *bottom = previewHandle(&w, QStringLiteral("Bottom margin"));
+    QVERIFY(bottom);
+    const int stepsNow = w.undoStack()->count();
+    dragHandle(bottom, 0);
+    QCOMPARE(w.undoStack()->count(), stepsNow);
+    dragHandle(bottom, -int(std::lround(36 * k)));
+    QTRY_VERIFY(qAbs((w.session()->pages().sheet(0).margins.bottom) - (before.bottom + 0.5)) < 0.04);
+}
+
+// A column's right edge dragged on the print preview widens the column by what it was dragged, as one step of Undo.
+void CrunchPrintTests::aColumnDraggedOnThePreviewIsOneStepOfUndo()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1500, 1000);
+    w.act(QStringLiteral("file.print"))->trigger();
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Width of column B")));
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Right margin"))->geometry().center().x() - previewHandle(&w, QStringLiteral("Left margin"))->geometry().center().x() > 200);
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+    QVERIFY2(job, qPrintable(why));
+    QVERIFY(job->printOf(0) && job->printOf(0)->scalePercent == 100);
+    QWidget *handleA = previewHandle(&w, QStringLiteral("Width of column A"));
+    const int before = columnPx(e, 0), beforeB = columnPx(e, 1);
+    const int steps = w.undoStack()->count();
+    // (pixels of the preview to a point of the page: the two margin guides say)
+    const jp::office::sheet::PageMargins m = w.session()->pages().sheet(0).margins;
+    const double k = double(previewHandle(&w, QStringLiteral("Right margin"))->geometry().center().x() - previewHandle(&w, QStringLiteral("Left margin"))->geometry().center().x())
+                     / (job->pageSize(0).width() - (m.left + m.right) * 72);
+    QVERIFY2(k > 0.2, qPrintable(QString::number(k)));
+    dragHandle(handleA, int(std::lround(60 * 0.75 * k)));   // sixty more pixels of the sheet, which are forty-five points
+    QTRY_VERIFY(columnPx(e, 0) > before + 40);
+    QVERIFY2(qAbs(columnPx(e, 0) - (before + 60)) <= 8, qPrintable(QString::number(columnPx(e, 0) - before)));
+    QCOMPARE(columnPx(e, 1), beforeB);
+    QCOMPARE(w.undoStack()->count(), steps + 1);
+    QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Changing column width"));
+    w.undoStack()->undo();
+    QCOMPARE(columnPx(e, 0), before);
+}
+
+// Every handle has a name and can be moved by the arrow keys (the handle keeps its place in the tab order through the change); the margins and the widths are also in Page Setup and Column Width.
+void CrunchPrintTests::theHandlesOnThePreviewMoveWithTheArrowKeysAndHaveNames()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.resize(1500, 1000);
+    w.act(QStringLiteral("file.print"))->trigger();
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Top margin")));
+    QLabel *preview = w.findChild<QLabel *>(QStringLiteral("printPreview"));
+    int named = 0;
+    for (QWidget *child : preview->findChildren<QWidget *>(QString(), Qt::FindDirectChildrenOnly)) {
+        QVERIFY2(!child->accessibleName().isEmpty(), "a handle has no name");
+        QVERIFY(child->focusPolicy() == Qt::StrongFocus);
+        ++named;
+    }
+    QVERIFY(named >= 6);   // four margins and the columns
+    for (const char *name : {"Left margin", "Right margin", "Top margin", "Bottom margin", "Width of column A"}) QVERIFY2(previewHandle(&w, QString::fromLatin1(name)), name);
+    const jp::office::sheet::PageMargins before = w.session()->pages().sheet(0).margins;
+    QPointer<QWidget> top = previewHandle(&w, QStringLiteral("Top margin"));
+    top->setFocus();
+    QTest::keyClick(top, Qt::Key_Down);
+    QTRY_VERIFY(qAbs((w.session()->pages().sheet(0).margins.top) - (before.top + 0.05)) < 0.006);
+    QTest::keyClick(previewHandle(&w, QStringLiteral("Top margin")), Qt::Key_Up);
+    QTRY_VERIFY2(qAbs((w.session()->pages().sheet(0).margins.top) - (before.top)) < 0.006, qPrintable(QString::number(w.session()->pages().sheet(0).margins.top)));
+    QVERIFY(top);   // (the same control: it was moved, not made again)
+    QCOMPARE(previewHandle(&w, QStringLiteral("Top margin")), top.data());
+    // the column handle: the key widens the column
+    const int px = columnPx(e, 0);
+    QTest::keyClick(previewHandle(&w, QStringLiteral("Width of column A")), Qt::Key_Right);
+    QTRY_VERIFY(columnPx(e, 0) > px);
+    // the same changes without the mouse or the handles: the Page Setup dialog and the Column Width command
+    QVERIFY(w.act(QStringLiteral("margins.custom")));
+    QVERIFY(w.act(QStringLiteral("format.columnWidth")));
+}
+
+// With the margins chosen for the job (not the sheet's own) there are no guides for them, and on a sheet of paper that holds several pages there are no handles at all.
+void CrunchPrintTests::noHandlesWhereThePageIsNotTheSheetsOwn()
+{
+    EditWindow e;
+    QVERIFY(e.open(budgetWorkbook()));
+    CrunchWindow &w = e.win.w;
+    w.act(QStringLiteral("file.print"))->trigger();
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Left margin")));
+    QComboBox *margins = w.findChild<QComboBox *>(QStringLiteral("printMargins"));
+    QVERIFY(margins);
+    margins->setCurrentIndex(margins->findData(2));   // wide
+    QTRY_VERIFY(!previewHandle(&w, QStringLiteral("Left margin")));
+    QVERIFY(previewHandle(&w, QStringLiteral("Width of column A")));
+    margins->setCurrentIndex(0);
+    QTRY_VERIFY(previewHandle(&w, QStringLiteral("Left margin")));
+    QComboBox *perSheet = w.findChild<QComboBox *>(QStringLiteral("printPerSheet"));
+    QVERIFY(perSheet);
+    perSheet->setCurrentIndex(perSheet->findData(2));
+    QTRY_VERIFY(!previewHandle(&w, QStringLiteral("Left margin")) && !previewHandle(&w, QStringLiteral("Width of column A")));
 }
 
 // A PDF can be protected with a password: the file is encrypted (AES-256), opens with the password and not without, is not PDF/A, and the plain PDF is not left beside it.

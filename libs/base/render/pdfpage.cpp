@@ -2,6 +2,7 @@
 
 #include "io/crypto.h"
 
+#include <fpdf_annot.h>
 #include <fpdf_catalog.h>
 #include <fpdf_doc.h>
 #include <fpdf_edit.h>
@@ -275,6 +276,49 @@ QString PdfDocument::meta(const QString &key) const
     QByteArray buffer(int(need), '\0');
     FPDF_GetMetaText(d->doc, name.constData(), buffer.data(), need);
     return QString::fromUtf16(reinterpret_cast<const char16_t *>(buffer.constData()), int(need / 2) - 1);
+}
+
+QVector<PdfDocument::LinkInfo> PdfDocument::links(int page) const
+{
+    QMutexLocker lock(&pdfiumLock());
+    QVector<LinkInfo> out;
+    if (!d->doc || page < 0 || page >= FPDF_GetPageCount(d->doc)) return out;
+    FPDF_PAGE pg = FPDF_LoadPage(d->doc, page);
+    if (!pg) return out;
+    for (int i = 0, n = FPDFPage_GetAnnotCount(pg); i < n && i < 100000; ++i) {
+        FPDF_ANNOTATION annot = FPDFPage_GetAnnot(pg, i);
+        if (!annot) continue;
+        FS_RECTF r{};
+        FPDF_LINK link = FPDFAnnot_GetSubtype(annot) == FPDF_ANNOT_LINK ? FPDFAnnot_GetLink(annot) : nullptr;
+        if (link && FPDFAnnot_GetRect(annot, &r)) {
+            LinkInfo info;
+            info.rect = QRectF(QPointF(r.left, r.bottom), QPointF(r.right, r.top)).normalized();
+            FPDF_DEST dest = FPDFLink_GetDest(d->doc, link);
+            if (FPDF_ACTION action = FPDFLink_GetAction(link)) {
+                if (FPDFAction_GetType(action) == PDFACTION_URI) {
+                    const unsigned long len = FPDFAction_GetURIPath(d->doc, action, nullptr, 0);
+                    QByteArray bytes(int(len), '\0');
+                    if (len > 0) FPDFAction_GetURIPath(d->doc, action, bytes.data(), len);
+                    info.uri = QString::fromLatin1(bytes.constData());
+                } else if (!dest) {
+                    dest = FPDFAction_GetDest(d->doc, action);
+                }
+            }
+            if (info.uri.isEmpty() && dest) {
+                info.page = FPDFDest_GetDestPageIndex(d->doc, dest);
+                FPDF_BOOL hasX = 0, hasY = 0, hasZoom = 0;
+                FS_FLOAT x = 0, y = 0, zoom = 0;
+                if (FPDFDest_GetLocationInPage(dest, &hasX, &hasY, &hasZoom, &x, &y, &zoom) && hasX && hasY) {
+                    info.hasSpot = true;
+                    info.spot = QPointF(x, y);
+                }
+            }
+            out << info;
+        }
+        FPDFPage_CloseAnnot(annot);
+    }
+    FPDF_ClosePage(pg);
+    return out;
 }
 
 bool PdfDocument::isTagged() const

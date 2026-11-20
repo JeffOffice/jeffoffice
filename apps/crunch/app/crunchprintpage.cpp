@@ -10,7 +10,9 @@
 #include "app/settings.h"
 #include "app/printpage.h"
 #include "app/printsides.h"
+#include "app/previewhandles.h"
 #include "core/printjob.h"
+#include "sheet/cellref.h"
 #include "sheet/pagesetup.h"
 
 #include <QCheckBox>
@@ -49,6 +51,9 @@ struct PrintState {
     int page = 0;
     double zoom = 1;
     QString why;
+    // the page the handles on the preview are for: its sheet, scale, and the columns they stand at
+    int handlePage = -1;
+    crunch::PrintJob::PreviewGuides guides;
 };
 
 // The preview, which says when its box changed size so the page is drawn again to fit.
@@ -214,6 +219,7 @@ QWidget *CrunchFileScreen::buildPrint()
     preview->setAlignment(Qt::AlignCenter);
     preview->setAccessibleName(tr("Preview of the printed page"));
     scroll->setWidget(preview);
+    auto *handles = new PreviewHandles(preview);
     auto *nav = new QHBoxLayout();
     auto *previous = new QToolButton(w);
     previous->setObjectName(QStringLiteral("printPrevious"));
@@ -323,6 +329,8 @@ QWidget *CrunchFileScreen::buildPrint()
     *paintSelf = [=, weakSelf = std::weak_ptr<std::function<void()>>(paintSelf)]() {
         const QVector<int> pages = pagesToPrint();
         if (!state->job || pages.isEmpty()) {
+            handles->clear();
+            state->handlePage = -1;
             preview->clear();
             preview->resize(scroll->viewport()->size());
             return;
@@ -342,6 +350,34 @@ QWidget *CrunchFileScreen::buildPrint()
         const QSize box(int(std::ceil(paperSize.width() * scale)) + 16, int(std::ceil(paperSize.height() * scale)) + 18);
         preview->setPixmap(paperPixmap(img, box, dpr));
         preview->resize(box.expandedTo(scroll->viewport()->size()));
+        // (the margins and the columns can be dragged on a page; on a sheet of several pages, or of pages scaled to other paper, they are not the page's)
+        bool handled = false;
+        if (!sheets && state->job->guidesOf(index, &state->guides)) {
+            handled = true;
+            state->handlePage = index;
+            const QPoint origin((preview->width() - box.width()) / 2, (preview->height() - box.height()) / 2);
+            const QSizeF shown(paperSize.width() * scale, paperSize.height() * scale);
+            const QRectF page(QPointF(origin) + QPointF((box.width() - shown.width()) / 2.0, (box.height() - shown.height()) / 2.0 - 2), shown);
+            std::vector<PreviewHandles::Spec> specs;
+            const jp::office::sheet::PageSetup *setup = state->job->setupOfPage(index);
+            const double room = 36;   // (the margins keep half an inch of the page between them)
+            if (setup && !state->job->marginsChosen()) {
+                const auto &m = setup->margins;
+                const double w = paperSize.width(), h = paperSize.height();
+                specs.push_back({PreviewHandles::Kind::MarginLeft, 0, m.left * 72, 0, h, 0, w - m.right * 72 - room, tr("Left margin")});
+                specs.push_back({PreviewHandles::Kind::MarginRight, 0, w - m.right * 72, 0, h, m.left * 72 + room, w, tr("Right margin")});
+                specs.push_back({PreviewHandles::Kind::MarginTop, 0, m.top * 72, 0, w, 0, h - m.bottom * 72 - room, tr("Top margin")});
+                specs.push_back({PreviewHandles::Kind::MarginBottom, 0, h - m.bottom * 72, 0, w, m.top * 72 + room, h, tr("Bottom margin")});
+            }
+            for (const auto &edge : state->guides.columns)
+                specs.push_back({PreviewHandles::Kind::ColumnRight, edge.col, edge.right, state->guides.cells.top(), state->guides.cells.bottom(), edge.left + 3, paperSize.width(),
+                                 tr("Width of column %1").arg(jp::office::sheet::columnName(quint32(edge.col)))});
+            handles->place(page, paperSize, specs);
+        }
+        if (!handled) {
+            handles->clear();
+            state->handlePage = -1;
+        }
         if (state->job->lastPaintMissedPictures()) QTimer::singleShot(60, preview, [weakSelf] {
             if (const auto again = weakSelf.lock()) (*again)();
         });
@@ -378,7 +414,8 @@ QWidget *CrunchFileScreen::buildPrint()
         zoomOut->setEnabled(state->job && state->zoom > 1.01);
     };
     // the job is made again when a choice changes: the pages, the numbers, and what is in the preview all follow
-    auto rebuild = [=]() {
+    auto rebuild = [=](bool keepPage = false) {
+        const int at = state->page;
         crunch::PrintChoices c = read();
         QString why;
         state->job = win->makePrintJob(c.job, &why);
@@ -387,10 +424,33 @@ QWidget *CrunchFileScreen::buildPrint()
             state->job->prefetchPictures();
         }
         state->why = why;
-        state->page = 0;
+        state->page = keepPage ? at : 0;
         words();
         paint();
         words();   // (a job tells of what it could not do while it is drawn: gray pages with no room for them, say)
+    };
+    // a margin or a column moved on the preview: one step of Undo, and the pages are made again from the sheet as it is now
+    handles->moved = [=](PreviewHandles::Kind kind, qint64 column, double points) {
+        if (!state->job || state->handlePage < 0) return;
+        const jp::office::sheet::PageSetup *setup = state->job->setupOfPage(state->handlePage);
+        const crunch::PrintJob::PreviewGuides guides = state->guides;
+        const QSizeF paper = state->job->pageSize(state->handlePage);
+        if (kind == PreviewHandles::Kind::ColumnRight) {
+            for (const auto &edge : guides.columns) {
+                if (edge.col != column) continue;
+                const double chars = state->job->fileWidthForPoints(guides.sheet, guides.scalePercent, points - edge.left);
+                if (chars > 0) win->changeColumnWidthFromPreview(guides.sheet, quint32(column), chars);
+            }
+        } else if (setup) {
+            jp::office::sheet::PageMargins m = setup->margins;
+            auto inches = [](double pts) { return std::max(0.0, std::round(pts / 72.0 * 100.0) / 100.0); };
+            if (kind == PreviewHandles::Kind::MarginLeft) m.left = inches(points);
+            else if (kind == PreviewHandles::Kind::MarginRight) m.right = inches(paper.width() - points);
+            else if (kind == PreviewHandles::Kind::MarginTop) m.top = inches(points);
+            else m.bottom = inches(paper.height() - points);
+            win->changeMarginsFromPreview(guides.sheet, m);
+        }
+        rebuild(true);
     };
     auto choose = [=]() {
         win->printChoices() = read();

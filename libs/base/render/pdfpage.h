@@ -68,6 +68,15 @@ public:
         int depth = 0;
         int mcid = -1;    // its marked content on the page, or -1
     };
+    // The links a page has (its link annotations): the area to click in points from the page's bottom left, and where it goes: an address, or the page (from 0) and the spot on it.
+    struct LinkInfo {
+        QRectF rect;
+        QString uri;
+        int page = -1;
+        bool hasSpot = false;
+        QPointF spot;
+    };
+    QVector<LinkInfo> links(int page) const;
     bool isTagged() const;
     QVector<StructElement> structure(int page) const;
 

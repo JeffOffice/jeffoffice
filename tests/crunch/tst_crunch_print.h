@@ -255,6 +255,13 @@ private Q_SLOTS:
     void exportToPdfWritesTheSheetOrTheWorkbook();
     void aPdfHasClickableLinksOverLinkedCells();
     void aLinkToADefinedNameGoesToItsCellsSpot();
+    void aLinkIsOnEveryPageThatShowsItsCellTitleRowsIncluded();
+    void aLinkToAPageNotInThePdfGoesToTheSheetsFirstPageThatIs();
+    void linksFollowPagesPlacedSeveralToASheet();
+    void aMarginDraggedOnThePreviewIsOneStepOfUndo();
+    void aColumnDraggedOnThePreviewIsOneStepOfUndo();
+    void theHandlesOnThePreviewMoveWithTheArrowKeysAndHaveNames();
+    void noHandlesWhereThePageIsNotTheSheetsOwn();
     void exportToPdfCanBeProtectedWithAPassword();
     void anEmailedPdfCanHaveAPassword();
     void aCancelledExportKeepsThePasswordOnThePage();

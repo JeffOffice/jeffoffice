@@ -336,6 +336,32 @@ void CrunchWindow::changePage(const QString &text, const std::function<void(Page
     updatePageActions();
 }
 
+bool CrunchWindow::changeMarginsFromPreview(int sheet, const PageMargins &margins)
+{
+    if (!m_session || !commitEdit(CellEditor::Way::Stay) || !editingAllowed()) return false;
+    if (sheet < 0 || sheet >= m_session->pages().sheetCount()) return false;
+    PageSetup s = m_session->pages().sheet(sheet);
+    if (s.margins == margins) return true;
+    s.margins = margins;
+    const crunch::EditSession::Outcome o = m_session->setPageSetup(sheet, s, tr("Margins"));
+    if (!o.ok) notice(tr("Page Setup"), o.problem);
+    updatePageActions();
+    return o.ok;
+}
+
+bool CrunchWindow::changeColumnWidthFromPreview(int sheet, quint32 column, double chars)
+{
+    if (!m_session || !commitEdit(CellEditor::Way::Stay) || !editingAllowed()) return false;
+    crunch::EditSession::SizeChange by;
+    by.setSize = true;
+    by.size = chars;
+    by.setHidden = true;
+    by.hidden = false;
+    const crunch::EditSession::Outcome o = m_session->resizeColumns(sheet, column, column, by, tr("Changing column width"));
+    if (!o.ok) notice(tr("Column Width"), o.problem);
+    return o.ok;
+}
+
 // The bytes of the pictures of every sheet but the one in view (see workbookPictureBytes).
 qint64 CrunchWindow::picturesOfOtherSheets() const
 {

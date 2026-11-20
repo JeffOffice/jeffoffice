@@ -826,7 +826,11 @@ bool PrintJob::rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64
     if (info.chart || pg.note >= 0) return false;
     const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
     // (the part of the range among the page's own rows and columns)
-    const qint64 r1 = std::max(row1, cut.row1), r2 = std::min(row2, cut.row2), c1 = std::max(col1, cut.col1), c2 = std::min(col2, cut.col2);
+    return shownRect(page, std::max(row1, cut.row1), std::max(col1, cut.col1), std::min(row2, cut.row2), std::min(col2, cut.col2), rect);
+}
+
+bool PrintJob::shownRect(int page, qint64 r1, qint64 c1, qint64 r2, qint64 c2, QRectF *rect)
+{
     if (r1 > r2 || c1 > c2) return false;
     QRectF a, b;
     // (the first and last cells the page shows of it; a hidden row or column at an end has none, so the next one that is shown is looked for, a few steps)
@@ -839,6 +843,78 @@ bool PrintJob::rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64
     if (!shown(r1, c1, 1, &a) || !shown(r2, c2, -1, &b)) return false;
     *rect = a.united(b);
     return true;
+}
+
+std::vector<QRectF> PrintJob::linkRects(int page, qint64 row1, qint64 col1, qint64 row2, qint64 col2)
+{
+    std::vector<QRectF> out;
+    if (page < 0 || page >= pageCount()) return out;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart || pg.note >= 0) return out;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    // (the parts of the range among the page's own lines, and among the titles repeated above and to the left of them: each part a box)
+    using Span = std::pair<qint64, qint64>;
+    auto spans = [](qint64 a, qint64 b, qint64 first, qint64 last, qint64 titleFirst, qint64 titleLast) {
+        std::vector<Span> v;
+        if (titleFirst >= 0 && (titleLast < first || titleFirst > last) && std::max(a, titleFirst) <= std::min(b, titleLast)) v.push_back({std::max(a, titleFirst), std::min(b, titleLast)});
+        if (std::max(a, first) <= std::min(b, last)) v.push_back({std::max(a, first), std::min(b, last)});
+        return v;
+    };
+    for (const Span &r : spans(row1, row2, cut.row1, cut.row2, cut.titleRow1, cut.titleRow2))
+        for (const Span &c : spans(col1, col2, cut.col1, cut.col2, cut.titleCol1, cut.titleCol2)) {
+            QRectF box;
+            if (shownRect(page, r.first, c.first, r.second, c.second, &box)) out.push_back(box);
+        }
+    return out;
+}
+
+bool PrintJob::guidesOf(int page, PreviewGuides *out)
+{
+    if (page < 0 || page >= pageCount()) return false;
+    const Page &pg = m_pages[size_t(page)];
+    const SheetInfo &info = m_sheets[size_t(pg.info)];
+    if (info.chart || pg.note >= 0) return false;
+    const jp::grid::PageCut &cut = info.print.pages[size_t(pg.index)];
+    PreviewGuides g;
+    g.sheet = info.sheet;
+    g.scalePercent = info.print.scalePercent;
+    // (the cells' own area: the body and the titles repeated beside and above it)
+    const qint64 row1 = cut.titleRow1 >= 0 && cut.titleRow2 < cut.row1 ? cut.titleRow1 : cut.row1, col1 = cut.titleCol1 >= 0 && cut.titleCol2 < cut.col1 ? cut.titleCol1 : cut.col1;
+    for (const QRectF &r : linkRects(page, row1, col1, cut.row2, cut.col2)) g.cells = g.cells.united(r);
+    // (a column's own width is the narrowest the cells of its first rows have on the page: a merged cell is wider than the column)
+    auto add = [&](qint64 first, qint64 last) {
+        for (qint64 col = first; col <= last && g.columns.size() < kMostColumnEdges; ++col) {
+            QRectF best;
+            for (qint64 row = row1; row <= cut.row2 && row < row1 + 24; ++row) {
+                QRectF r;
+                if (cellRect(page, row, col, &r) && (best.isNull() || r.width() < best.width())) best = r;
+            }
+            if (best.isNull()) continue;
+            g.columns.push_back({col, best.left(), best.right()});
+        }
+    };
+    if (cut.titleCol1 >= 0 && cut.titleCol2 < cut.col1) add(cut.titleCol1, cut.titleCol2);
+    add(cut.col1, cut.col2);
+    *out = g;
+    return !g.cells.isNull();
+}
+
+double PrintJob::fileWidthForPoints(int sheet, int scalePercent, double pointsOnPage) const
+{
+    // (the points on the page are the sheet's own points made smaller or larger by the scale; the printer's pixels are what a column's width is counted in)
+    const jp::grid::GridData data = m_source->data(sheet);
+    if (!data.styles || scalePercent <= 0 || !(pointsOnPage > 0)) return 0;
+    const double own = pointsOnPage * 100.0 / scalePercent;
+    const int digit = jp::grid::printDigitPixels(*data.styles);
+    return jp::grid::GridSheet::widthForPixels(std::max(1, int(std::lround(own * jp::grid::kPrinterDpi / 72.0))), digit);
+}
+
+double PrintJob::pointsOnPageFor(int sheet, int scalePercent, double fileWidth) const
+{
+    const jp::grid::GridData data = m_source->data(sheet);
+    if (!data.styles) return 0;
+    return jp::grid::printColumnPoints(fileWidth, jp::grid::printDigitPixels(*data.styles)) * scalePercent / 100.0;
 }
 
 int PrintJob::pageOfCell(int sheet, qint64 row, qint64 col) const
@@ -998,7 +1074,34 @@ void PrintJob::paintGroup(QPainter *painter, const QVector<int> &group, const QS
     }
 }
 
-QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
+void PrintJob::placeOnSheet(const QVector<int> &group, const QSizeF &sheet, int perSheet, QVector<PdfPlace> *places) const
+{
+    // (where paintGroup puts each page of the group: the corner of its box on the sheet and its scale)
+    if (perSheet == 1) {
+        const QSizeF size = pageSize(group.first());
+        PdfPlace at{0, 0, 1, sheet.height()};
+        if (m_options.scaleToPaper > 0 && size.width() > 0 && size.height() > 0 && size != sheet) {
+            at.k = std::min(sheet.width() / size.width(), sheet.height() / size.height());
+            at.x = (sheet.width() - size.width() * at.k) / 2;
+            at.y = (sheet.height() - size.height() * at.k) / 2;
+        }
+        (*places)[group.first()] = at;
+        return;
+    }
+    int cols = 1, rows = 1;
+    gridOf(perSheet, &cols, &rows);
+    const double cw = sheet.width() / cols, ch = sheet.height() / rows;
+    for (int i = 0; i < group.size(); ++i) {
+        const int page = group[i];
+        if (page < 0 || page >= pageCount()) continue;
+        const QSizeF size = pageSize(page);
+        if (size.width() <= 0 || size.height() <= 0) continue;
+        const double k = std::min(cw / size.width(), ch / size.height()) * 0.96;
+        (*places)[page] = PdfPlace{(i % cols) * cw + (cw - size.width() * k) / 2, (i / cols) * ch + (ch - size.height() * k) / 2, k, sheet.height()};
+    }
+}
+
+QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places)
 {
     using namespace jp::office::sheet;
     QVector<jp::PdfLink> out;
@@ -1011,12 +1114,15 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
     QHash<QString, int> sheetByName;
     for (int i = 0; i < m_source->sheetCount(); ++i) sheetByName.insert(m_source->sheetName(i).toLower(), i);
     for (int page = 0; page < pageCount() && page < pdfPageOf.size(); ++page) {
-        if (pdfPageOf[page] < 0) continue;
+        if (pdfPageOf[page] < 0 || page >= places.size()) continue;
         const Page &pg = m_pages[size_t(page)];
         if (pg.note >= 0) continue;
         const int sheet = m_sheets[size_t(pg.info)].sheet;
         for (const PrintLink &l : linksOf(sheet)) {
             if (!l.range.valid) continue;
+            // (the boxes first: most links are not on this page, and a link to a place in the workbook costs more to work out)
+            const std::vector<QRectF> boxes = linkRects(page, l.range.row1, l.range.col1, l.range.row2, l.range.col2);
+            if (boxes.empty()) continue;
             int toPage = -1;
             QString uri;
             bool hasSpot = false;
@@ -1037,29 +1143,42 @@ QVector<jp::PdfLink> PrintJob::pdfLinks(const QVector<int> &pdfPageOf)
                 jp::office::sheet::CellRange to;
                 if (at == sheetByName.cend() || !parseRangeRef(QStringView(place).mid(bang + 1), &to)) continue;
                 const int target = pageOfCell(at.value(), to.row1, to.col1);
-                if (target < 0 || target >= pdfPageOf.size() || pdfPageOf[target] < 0) continue;
-                toPage = pdfPageOf[target];
                 QRectF cell;
-                if (cellRect(target, to.row1, to.col1, &cell)) {
-                    hasSpot = true;
-                    spot = QPointF(cell.left(), pageSize(target).height() - cell.top());
+                if (target >= 0 && target < pdfPageOf.size() && pdfPageOf[target] >= 0) {
+                    toPage = pdfPageOf[target];
+                    if (cellRect(target, to.row1, to.col1, &cell) && target < places.size()) {
+                        hasSpot = true;
+                        const PdfPlace &at = places[target];
+                        spot = QPointF(at.x + cell.left() * at.k, at.sheetHeight - (at.y + cell.top() * at.k));
+                    }
+                } else {
+                    // (the cell's page is not in the PDF: the sheet's first page that is, where there is one)
+                    toPage = firstPdfPageOf(at.value(), pdfPageOf);
+                    if (toPage < 0) continue;
                 }
             }
-            QRectF r;
-            if (!rangeRect(page, l.range.row1, l.range.col1, l.range.row2, l.range.col2, &r)) continue;
-            jp::PdfLink k;
-            k.page = pdfPageOf[page];
-            const double height = pageSize(page).height();
-            k.rect = QRectF(QPointF(r.left(), height - r.bottom()), QPointF(r.right(), height - r.top()));
-            k.uri = uri;
-            k.toPage = toPage;
-            k.hasSpot = hasSpot;
-            k.spot = spot;
-            out.push_back(k);
-            if (out.size() >= jp::kMostPdfLinks) return out;
+            for (const QRectF &r : boxes) {
+                jp::PdfLink k;
+                k.page = pdfPageOf[page];
+                const PdfPlace &at = places[page];
+                k.rect = QRectF(QPointF(at.x + r.left() * at.k, at.sheetHeight - (at.y + r.bottom() * at.k)), QPointF(at.x + r.right() * at.k, at.sheetHeight - (at.y + r.top() * at.k)));
+                k.uri = uri;
+                k.toPage = toPage;
+                k.hasSpot = hasSpot;
+                k.spot = spot;
+                out.push_back(k);
+                if (out.size() >= jp::kMostPdfLinks) return out;
+            }
         }
     }
     return out;
+}
+
+int PrintJob::firstPdfPageOf(int sheet, const QVector<int> &pdfPageOf) const
+{
+    for (size_t i = 0; i < m_pages.size() && int(i) < pdfPageOf.size(); ++i)
+        if (m_sheets[size_t(m_pages[i].info)].sheet == sheet && pdfPageOf[int(i)] >= 0) return pdfPageOf[int(i)];
+    return -1;
 }
 
 QVector<jp::PdfBookmark> PrintJob::pdfBookmarks(const QVector<int> &pdfPageOf)
@@ -1101,7 +1220,16 @@ bool PrintJob::exportPdf(const QString &path, const QVector<int> &pages, QString
             ++next;
         }
     }
-    const QVector<jp::PdfLink> links = perSheet == 1 && !sheets ? pdfLinks(pdfPageOf) : QVector<jp::PdfLink>();
+    QVector<PdfPlace> places(pageCount());
+    {
+        const int most = int(std::min<qint64>(groups.size(), kMaxSentPages));
+        for (int at = 0; at < most; ++at) {
+            const QVector<int> &group = groups[at];
+            if (group.isEmpty() || group.first() < 0 || group.first() >= pageCount()) continue;
+            placeOnSheet(group, sheetFor(group, perSheet), perSheet, &places);
+        }
+    }
+    const QVector<jp::PdfLink> links = pdfLinks(pdfPageOf, places);
     const QVector<jp::PdfBookmark> marks = pdfBookmarks(pdfPageOf);
     const bool tagging = m_options.pdfTags;
     // The PDF is made in memory (the bookmarks, the links, and the tags are added to the finished file; with a password the plain PDF is never on the disk).

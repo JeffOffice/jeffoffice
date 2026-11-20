@@ -190,7 +190,28 @@ public:
     bool cellRect(int page, qint64 row, qint64 col, QRectF *rect);
     bool cellAt(int page, const QPointF &point, qint64 *row, qint64 *col);
     bool rangeRect(int page, qint64 row1, qint64 col1, qint64 row2, qint64 col2, QRectF *rect);
+    // The boxes a range has on a page, in points from its top left: one for the part among the page's own cells and one for each part among the titles repeated on it.
+    std::vector<QRectF> linkRects(int page, qint64 row1, qint64 col1, qint64 row2, qint64 col2);
     int pageOfCell(int sheet, qint64 row, qint64 col) const;
+    // What the preview of a page lets a person drag: the area of its cells (points from the page's top left), the sheet it is of, the scale it prints at, and the right edge of each column it
+    // shows (at most kMostColumnEdges, the first ones). False for a page with no cells (a chart, the notes).
+    static constexpr int kMostColumnEdges = 64;
+    struct ColumnEdge {
+        qint64 col = 0;
+        double left = 0, right = 0;
+    };
+    struct PreviewGuides {
+        int sheet = -1;
+        int scalePercent = 100;
+        QRectF cells;
+        std::vector<ColumnEdge> columns;
+    };
+    bool guidesOf(int page, PreviewGuides *out);
+    // The width in characters a column of the sheet has when it is `pointsOnPage` wide on a page printed at `scalePercent`, and the points it is wide on such a page when it has this width.
+    double fileWidthForPoints(int sheet, int scalePercent, double pointsOnPage) const;
+    double pointsOnPageFor(int sheet, int scalePercent, double fileWidth) const;
+    // Whether the margins a page prints with are the ones chosen for this job (not the sheet's own, which a drag on the preview would change).
+    bool marginsChosen() const { return m_options.setMargins; }
     // The paper's box for the page (its margins and the header and footer distances), in points; the sheet's setup the page prints with.
     jp::grid::PaperBox paperOf(int page) const;
     const jp::office::sheet::PageSetup *setupOfPage(int page) const;
@@ -269,10 +290,17 @@ private:
         int note = -1;      // for a page of notes, its place among the sheet's pages of notes
     };
     struct Build;
+    // Where a page is on the sheet of the PDF: the corner of its box (points from the sheet's top left), its scale, and the sheet's height.
+    struct PdfPlace {
+        double x = 0, y = 0, k = 1, sheetHeight = 0;
+    };
+    void placeOnSheet(const QVector<int> &group, const QSizeF &sheet, int perSheet, QVector<PdfPlace> *places) const;
     // The bookmarks of a PDF of the pages: one for each sheet of the workbook that has a page in it, going to the PDF page its first page is on, at most jp::kMostPdfBookmarks.
     QVector<jp::PdfBookmark> pdfBookmarks(const QVector<int> &pdfPageOf);
-    // The links of the pages as a PDF with one page to a sheet holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF). At most kMostPdfLinks.
-    QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf);
+    // The links of the pages as the PDF holds them: `pdfPageOf` is the PDF's page for each page of the job (-1: not in the PDF) and `places` where each page is put on its sheet. At most kMostPdfLinks.
+    QVector<jp::PdfLink> pdfLinks(const QVector<int> &pdfPageOf, const QVector<PdfPlace> &places);
+    int firstPdfPageOf(int sheet, const QVector<int> &pdfPageOf) const;
+    bool shownRect(int page, qint64 r1, qint64 c1, qint64 r2, qint64 c2, QRectF *rect);
     Context &contextFor(int infoIndex);
     // The painters of a sheet (cells and, unless `forBackdrop`, objects).
     void fillContext(Context &c, const SheetInfo &info, bool forBackdrop);
