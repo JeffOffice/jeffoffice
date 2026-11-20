@@ -121,8 +121,10 @@ PageMetrics PagePainter::layoutPage(const SheetPrint &print, const PageCut &page
 bool PagePainter::cellRect(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 row, qint64 col, QRectF *out)
 {
     const PageMetrics m = layoutPage(print, page, setup);
-    const QRect r = m_sheet->layout().cellRect(row, col);
+    QRect r = m_sheet->layout().cellRect(row, col);
     if (r.isEmpty()) return false;
+    // (a sheet that reads right to left is painted mirrored in the width of its viewport: column A at the right edge)
+    if (m_sheet->rightToLeft()) r.moveLeft(m_sheet->layout().viewport().width() - r.x() - r.width());
     *out = QRectF(m.cells.left() + r.x() * m.unit, m.cells.top() + r.y() * m.unit, r.width() * m.unit, r.height() * m.unit);
     return true;
 }
@@ -131,11 +133,31 @@ bool PagePainter::cellAt(const SheetPrint &print, const PageCut &page, const Pag
 {
     const PageMetrics m = layoutPage(print, page, setup);
     if (!m.cells.contains(point) || m.unit <= 0) return false;
-    const QPoint units(int((point.x() - m.cells.left()) / m.unit), int((point.y() - m.cells.top()) / m.unit));
+    QPoint units(int((point.x() - m.cells.left()) / m.unit), int((point.y() - m.cells.top()) / m.unit));
+    if (m_sheet->rightToLeft()) units.setX(m_sheet->layout().viewport().width() - 1 - units.x());
     const Hit h = m_sheet->layout().hit(units);
     if (h.kind != Hit::Kind::Cell) return false;
     *row = h.row;
     *col = h.col;
+    return true;
+}
+
+bool PagePainter::cellsArea(const SheetPrint &print, const PageCut &page, const PageSetup &setup, QRectF *out)
+{
+    *out = layoutPage(print, page, setup).cells;
+    return !out->isEmpty();
+}
+
+bool PagePainter::columnEdges(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 col, double *left, double *right)
+{
+    const PageMetrics m = layoutPage(print, page, setup);
+    const GridLayout &L = m_sheet->layout();
+    // (from the column axis, not from a cell: a merged cell is as wide as the columns it spans; the first row's cell is one of the page's own, whatever merge is over it)
+    QRect r = L.rangeRect(page.row1, col, page.row1, col);
+    if (r.width() <= 0) return false;
+    if (m_sheet->rightToLeft()) r.moveLeft(L.viewport().width() - r.x() - r.width());
+    *left = m.cells.left() + r.x() * m.unit;
+    *right = m.cells.left() + (r.x() + r.width()) * m.unit;
     return true;
 }
 

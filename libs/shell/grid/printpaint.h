@@ -67,6 +67,10 @@ public:
     // laid out as paint() lays it out, without drawing it.
     bool cellRect(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 row, qint64 col, QRectF *out);
     bool cellAt(const SheetPrint &print, const PageCut &page, const PageSetup &setup, const QPointF &point, qint64 *row, qint64 *col);
+    // The area of all the cells the page shows (the titles and the body), and the edges of a column on the page, in points from the paper's corner: the column's own, as its axis has them (a
+    // merged cell over it is wider). Both as the page is drawn, mirrored for a sheet that reads right to left; false for a column the page does not show or that is hidden.
+    bool cellsArea(const SheetPrint &print, const PageCut &page, const PageSetup &setup, QRectF *out);
+    bool columnEdges(const SheetPrint &print, const PageCut &page, const PageSetup &setup, qint64 col, double *left, double *right);
     // The header and footer alone (the margins of the paper).
     void paintHeaderFooter(QPainter *painter, const PaperBox &paper, const PageSetup &setup, const jp::office::sheet::HfContext &labels, bool firstOfSheet, double scale);
 
