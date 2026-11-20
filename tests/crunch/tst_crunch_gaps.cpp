@@ -821,6 +821,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
         const jp::office::sheet::NoteBox before = s->anchors().noteAt(0, 2, 2)->box;
+        QVERIFY(before.set);
         QVERIFY(s->insertRows(0, 0, 2).ok);
         const jp::office::sheet::NoteInfo *moved = s->anchors().noteAt(0, 4, 2);
         QVERIFY(moved && moved->box == before);
