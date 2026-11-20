@@ -69,7 +69,8 @@ void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<
 // Accepts or rejects the changes of tables, which `which` has as tableChangesAt found them in the story as it is now: a record that is accepted (an inserted row, a deleted row that is gone)
 // or rejected (a deleted row that stays) is taken out, a row or cell that a rejected insertion or an accepted deletion removes goes (with its words), a rejected change of properties gives
 // the old ones back, and a rejected merge splits the cells again. A cell that cannot go (it is joined with others) keeps its change. One step; returns how many were done.
-int resolveTableChanges(WriteDoc &doc, const QVector<TableChange> &which, bool accept);
+// `story` is the one `which` is in (the text, or a header, footer, or note); `kept` gets how many were settled by keeping a cell or a grid that could not go (see resolveRevisions).
+int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<TableChange> &which, bool accept, int *kept = nullptr);
 
 // ---- Making and changing tables (each is one step that undoes, and is written to the file so that it opens the same)
 

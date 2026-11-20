@@ -19,6 +19,21 @@
 namespace jp::office::wml {
 
 namespace {
+
+// The columns of the grid a table's start lists (the ones the grid kept in a record of a change of it lists are not the table's).
+int gridColumnsOf(QByteArray raw)
+{
+    for (qsizetype a = raw.indexOf("<w:tblGridChange"); a >= 0; a = raw.indexOf("<w:tblGridChange")) {
+        const qsizetype e = raw.indexOf("</w:tblGridChange>", a);
+        if (e < 0) {
+            raw.truncate(a);
+            break;
+        }
+        raw.remove(a, e + 18 - a);
+    }
+    return int(raw.count("<w:gridCol"));
+}
+
 // Whether a note reference's element says its mark follows (w:customMarkFollows is a boolean: 1, true, or on).
 bool marksFollow(const QByteArray &element)
 {
@@ -432,7 +447,7 @@ public:
             if (!blk.isRaw || !m_blocks[b] || blk.role == Inline::Single) continue;
             const bool opens = blk.role == Inline::Open;
             if (blk.tag == QLatin1String("tbl")) {
-                if (opens) tables.push_back(Frame{int(blk.raw.count("<w:gridCol")), -1, 0, 0, 0});
+                if (opens) tables.push_back(Frame{gridColumnsOf(blk.raw), -1, 0, 0, 0});
                 else if (!tables.isEmpty()) tables.removeLast();
             } else if (blk.tag == QLatin1String("tr") && !tables.isEmpty()) {
                 Frame &t = tables.last();

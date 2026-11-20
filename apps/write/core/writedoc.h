@@ -398,6 +398,8 @@ public:
     // The stories besides the text that hold tracked changes: the headers and footers and the footnotes (each made editable if it was not), in a fixed order. The endnotes' words are in the text.
     // With `every`, the stories that hold no change too (the headers and footers the file names, and every footnote).
     QVector<QTextDocument *> storiesWithChanges(bool every = false);
+    // The stories besides the text that exist now (the headers and footers that were read, and the footnotes that were made), none made by asking.
+    QVector<QTextDocument *> sideStories() const;
 
     // ---- review (core/reviewops.h, core/commentops.h)
     // Whether edits are tracked as changes (Track Changes: the file's w:trackRevisions). A setting of the document that is written with it, not a step of the history.

@@ -8,6 +8,7 @@
 #include "office/barcodemarker.h"
 #include "core/fieldops.h"
 #include "core/writedoc.h"
+#include "core/tableops.h"
 #include "office/package.h"
 
 #include "core/drawnitems.h"
@@ -650,6 +651,7 @@ qint64 frameExpressionRunsForTest() { return s_frameExpressionRuns.load(); }
 // counts are live fields of the text engine, its tables and pictures are left out, and a paragraph in a frame is set aligned as the frame is.
 void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, bool header, const QString &part, bool headerFooter, bool append, int insertAt, bool editable)
 {
+    story->setProperty(kTableStoreProperty, QVariant::fromValue(quintptr(&m_flow->tables)));   // (the cells' records are the document's, whichever story the cells are in)
     if (story == this->story() && !m_refreshingCopies) m_endnoteSeqValid = false;   // (the story is made anew: the references are looked for again; a copy of a note set again alone has none)
     QVector<Block> prepared, overflow;
     // (A header's or footer's: the page shows, and the form it is edited in has, the same first part of it.)

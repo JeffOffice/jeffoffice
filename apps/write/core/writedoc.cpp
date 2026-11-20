@@ -937,7 +937,7 @@ std::shared_ptr<QTextDocument> WriteDoc::headerStory(const QString &relationship
     }
     HeaderPart &stored = m_headerParts.insert(rel.target, part).value();
     // (A part that holds tracked changes is in the form it is edited in from the first, which is the form that marks them.)
-    if (!stored.unreadable && !stored.missing && xmlHasChanges(partData(rel.target))) makeEditable(stored);
+    if (!stored.unreadable && !stored.missing && (xmlHasChanges(partData(rel.target)) || xmlHasTableChanges(partData(rel.target)))) makeEditable(stored);
     return doc;
 }
 

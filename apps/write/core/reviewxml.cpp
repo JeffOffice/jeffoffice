@@ -139,6 +139,11 @@ bool xmlHasChanges(const QByteArray &xml)
     return xml.contains("rPrChange") || xml.contains("pPrChange");
 }
 
+bool xmlHasTableChanges(const QByteArray &xml)
+{
+    return xml.contains("tblPrChange") || xml.contains("tcPrChange") || xml.contains("tblGridChange") || xml.contains("<w:cellIns") || xml.contains("<w:cellDel") || xml.contains("<w:cellMerge");
+}
+
 QByteArray resolveChangesInXml(const QByteArray &xml, bool accept)
 {
     if (!xmlHasChanges(xml)) return xml;

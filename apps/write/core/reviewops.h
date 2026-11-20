@@ -50,12 +50,13 @@ QString revisionText(const QTextDocument *story, const Revision &revision, int m
 QStringList revisionAuthors(const QTextDocument *story);
 
 // Accepts or rejects changes, all as one step of the history. Accepting a deletion takes the text out, and rejecting an insertion does; the other two keep it (and rejecting a change of properties gives
-// the properties it recorded back). A deleted paragraph mark joins the paragraph to the next when accepted. Returns how many were done.
-int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept);
+// the properties it recorded back). A deleted paragraph mark joins the paragraph to the next when accepted. Returns how many were done; `kept` (when given) gets how many changes of tables were
+// settled by keeping the row, cell, or grid because taking it out (or giving the old grid back) would have broken the table: their records are gone, or stay when a grid can't be given back.
+int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept, int *kept = nullptr);
 // The changes that touch [from, to] of the body of the text (the whole story with `to` below 0).
-int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept);
-int acceptAll(WriteDoc &doc);
-int rejectAll(WriteDoc &doc);
+int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept = nullptr);
+int acceptAll(WriteDoc &doc, int *kept = nullptr);
+int rejectAll(WriteDoc &doc, int *kept = nullptr);
 // The change at the cursor (or the selection: every change it touches), then the one after it. `c` is put where the next change is when there is one, which may be in another
 // story (a header, a footer, or a note): the cursor is the one of that story then. The cursor may be in the text, an endnote, a header, a footer, or a footnote.
 int resolveAtCursor(WriteDoc &doc, QTextCursor &c, bool accept);
@@ -80,7 +81,7 @@ std::optional<StoryRevision> findRevision(WriteDoc &doc, const QString &containe
 // The next change after `position` of `story` (or the one before it), going on into the stories after it (before it); none where there is none. Next and Previous Change use it.
 std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocument *story, int position, bool forward);
 // Accepts or rejects changes of any stories, as one step of the history (the same one step as one story's). Returns how many were done.
-int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept);
+int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept = nullptr);
 
 // ---- the marks that make a change
 // A format with the look of the tracked change it is in; the marks of a deletion hide the text as hidden text is.
@@ -130,6 +131,8 @@ QTextBlockFormat withParagraphRecord(WriteDoc &doc, const QTextBlockFormat &old,
 // The same for a piece of XML that is kept as written (the content of a text box): its changes accepted or rejected, the XML given back (as it was when it has none or can't be read).
 QByteArray resolveChangesInXml(const QByteArray &xml, bool accept);
 bool xmlHasChanges(const QByteArray &xml);
+// Whether the XML has a change of a table that xmlHasChanges does not name: of a table's, a row's, or a cell's properties, a grid, or a cell's insertion, deletion, or merge.
+bool xmlHasTableChanges(const QByteArray &xml);
 // The Ids of the marks of changes in blocks about to be written: every Id is used once, and none is the Id of a comment or a bookmark (the first mark that has an Id keeps it; the others, which
 // splitting a paragraph and pasting copies make, get new ones).
 void makeChangeIdsUnique(WriteDoc &doc, QVector<office::wml::Block> *blocks);

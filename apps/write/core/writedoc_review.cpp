@@ -112,6 +112,15 @@ int WriteDoc::nextRevisionId()
     return m_nextRevisionId++;
 }
 
+QVector<QTextDocument *> WriteDoc::sideStories() const
+{
+    QVector<QTextDocument *> out;
+    for (const HeaderPart &h : m_headerParts)
+        if (h.story) out.push_back(h.story.get());
+    for (auto it = m_noteIds.cbegin(); it != m_noteIds.cend(); ++it) out.push_back(const_cast<QTextDocument *>(it.key()));
+    return out;
+}
+
 QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
 {
     // (every story: the parts of headers and footers the file names are read now, if they were not)
@@ -119,7 +128,7 @@ QVector<QTextDocument *> WriteDoc::storiesWithChanges(bool every)
         for (const Relationship &r : std::as_const(m_wml.mainRelationships))
             if (!r.external && (r.type.endsWith(QLatin1String("/header")) || r.type.endsWith(QLatin1String("/footer")))) headerStory(r.id);
     auto marked = [](const QByteArray &x) {
-        static const char *const names[] = {"<w:ins", "<w:del", "<w:moveFrom", "<w:moveTo", "rPrChange", "pPrChange"};
+        static const char *const names[] = {"<w:ins", "<w:del", "<w:moveFrom", "<w:moveTo", "rPrChange", "pPrChange", "PrChange", "tblGridChange", "<w:cellIns", "<w:cellDel", "<w:cellMerge"};
         for (const char *n : names)
             if (x.contains(n)) return true;
         return false;

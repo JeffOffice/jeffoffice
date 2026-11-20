@@ -47,6 +47,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QXmlStreamReader>
 
 using namespace jp;
 using namespace jp::write;
@@ -461,6 +462,7 @@ QTextCharFormat storedFormatIn(QTextDocument *story, const QString &text)
     return QTextCharFormat();
 }
 int acceptAllOrReject(WriteDoc &doc, bool accept) { return accept ? acceptAll(doc) : rejectAll(doc); }
+int acceptAllOrRejectKept(WriteDoc &doc, bool accept, int *kept) { return accept ? acceptAll(doc, kept) : rejectAll(doc, kept); }
 
 // A table of `rows` (each a list of cell XML, with the row's properties), from the grid of `columns` columns of 2000 twentieths of a point; a paragraph follows it, as a table must be followed.
 struct TableRow {
@@ -486,6 +488,77 @@ QByteArray cellOf(const QByteArray &props, const QByteArray &content) { return p
 QByteArray revTag(const char *name, int id, const char *author = "Ann") { return "<w:" + QByteArray(name) + rev(id, author) + "/>"; }
 
 int count(const QByteArray &haystack, const char *needle) { return int(haystack.count(needle)); }
+
+// What a saved table says: the columns of its grid, and for each row the text of each cell and the columns the row takes (its cells' spans, and what the row leaves before and after).
+struct SavedTable {
+    int columns = 0;
+    QVector<QStringList> rows;
+    QVector<int> widths;
+    bool valid() const
+    {
+        for (int w : widths)
+            if (w != columns) return false;
+        return true;
+    }
+};
+QVector<SavedTable> savedTables(const QByteArray &xmlText)
+{
+    const QString w = QStringLiteral("http://schemas.openxmlformats.org/wordprocessingml/2006/main");
+    QVector<SavedTable> out;
+    QXmlStreamReader r(xmlText);
+    int depth = 0, change = 0, span = 1;
+    bool inRow = false, inCell = false;
+    QString text;
+    SavedTable cur;
+    while (!r.atEnd()) {
+        r.readNext();
+        const QString n = r.name().toString();
+        if (r.isStartElement()) {
+            if (n == QLatin1String("tbl")) {
+                if (++depth == 1) cur = SavedTable();
+            } else if (n.endsWith(QLatin1String("Change"))) {
+                ++change;
+            } else if (depth == 1 && n == QLatin1String("gridCol") && !change) {
+                ++cur.columns;
+            } else if (depth == 1 && n == QLatin1String("tr")) {
+                inRow = true;
+                cur.rows.push_back({});
+                cur.widths.push_back(0);
+            } else if (depth == 1 && inRow && !inCell && !change && (n == QLatin1String("gridBefore") || n == QLatin1String("gridAfter"))) {
+                cur.widths.last() += r.attributes().value(w, QStringLiteral("val")).toInt();
+            } else if (depth == 1 && n == QLatin1String("tc")) {
+                inCell = true;
+                span = 1;
+                text.clear();
+            } else if (depth == 1 && inCell && !change && n == QLatin1String("gridSpan")) {
+                span = r.attributes().value(w, QStringLiteral("val")).toInt();
+            } else if (inCell && (n == QLatin1String("t") || n == QLatin1String("delText"))) {
+                text += r.readElementText();
+            }
+        } else if (r.isEndElement()) {
+            if (n == QLatin1String("tbl")) {
+                if (depth == 1) out.push_back(cur);
+                --depth;
+            } else if (n.endsWith(QLatin1String("Change"))) {
+                --change;
+            } else if (depth == 1 && n == QLatin1String("tc")) {
+                inCell = false;
+                cur.rows.last() << text;
+                cur.widths.last() += span;
+            } else if (depth == 1 && n == QLatin1String("tr")) {
+                inRow = false;
+            }
+        }
+    }
+    return out;
+}
+
+QByteArray partXml(const QByteArray &zip, const char *name)
+{
+    office::Package p;
+    p.read(zip);
+    return p.part(QString::fromLatin1(name));
+}
 
 class ReviewTests : public QObject {
     Q_OBJECT
@@ -2918,6 +2991,199 @@ private Q_SLOTS:
             QVERIFY2(revisionBlocksScannedForTest() - before < qint64(rows) * 40, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
             const QByteArray saved = documentXml(doc->toDocx());
             QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), accept ? rows + 1 : 1);
+        }
+    }
+
+    // ---------------------------------------------------------------- Round B2 review fixes: the changes of tables
+    void cellsAndRowsOfOneTableAreResolvedByTheirPlacesNotByPlacesThatWentStale()
+    {
+        // Four rows of three cells: one cell and one row carry a change, in the same row or in different rows, the cell before the row or after it.
+        struct Case { int cellRow, rowGone; };
+        for (const Case c : {Case{0, 2}, Case{2, 0}, Case{1, 1}, Case{0, 3}, Case{3, 0}, Case{1, 2}, Case{2, 1}}) {
+            for (const bool accept : {true, false}) {
+                QVector<TableRow> rows;
+                QVector<QStringList> expected;
+                for (int r = 0; r < 4; ++r) {
+                    TableRow row;
+                    if (r == c.rowGone) row.props = revTag(accept ? "del" : "ins", 60 + r);
+                    QStringList kept;
+                    for (int k = 0; k < 3; ++k) {
+                        const QByteArray name = QByteArray(1, char('a' + r)) + char('1' + k);
+                        const bool marked = r == c.cellRow && k == 1, goes = marked || r == c.rowGone;
+                        const QByteArray content = para(run(name.constData()));   // (words that stay until the row or cell goes: a stale place would cut the wrong ones)
+                        row.cells.push_back(cellOf(marked ? revTag(accept ? "cellDel" : "cellIns", 80 + r) : QByteArray(), content));
+                        if (!goes) kept << QString::fromLatin1(name);
+                    }
+                    rows.push_back(row);
+                    if (r != c.rowGone) expected.push_back(kept);
+                }
+                auto doc = open(makeDocx(tableOf(rows, 3)));
+                QVERIFY(doc);
+                acceptAllOrReject(*doc, accept);
+                const QByteArray saved = documentXml(doc->toDocx());
+                const QVector<SavedTable> tables = savedTables(saved);
+                const QString where = QStringLiteral("cell in row %1, row %2 gone, accept %3").arg(c.cellRow).arg(c.rowGone).arg(accept);
+                QVERIFY2(tables.size() == 1, qPrintable(where));
+                QVERIFY2(tables[0].rows == expected, qPrintable(where));
+                QVERIFY2(tables[0].columns == 3 && tables[0].valid(), qPrintable(where));
+                QVERIFY2(!saved.contains("<w:ins ") && !saved.contains("<w:del ") && !saved.contains("cellDel") && !saved.contains("cellIns"), qPrintable(where));
+                QCOMPARE(revisionCount(doc->story()), 0);
+            }
+        }
+    }
+
+    void changesThatCannotBeTakenOutAreKeptCountedAndNothingIsLeftForASecondRun()
+    {
+        const QByteArray other = QByteArray();
+        for (const bool accept : {true, false}) {
+            const char *mark = accept ? "cellDel" : "cellIns";
+            auto words = [&](int id, const char *t) { return para(accept ? deleted(id, t) : inserted(id, t)); };
+            // A cell joined with the one below it (the mark on the first of them, or on the one that is joined)
+            for (const bool onFirst : {true, false}) {
+                const QByteArray body = tableOf({{other, {cellOf("<w:vMerge w:val=\"restart\"/>" + (onFirst ? revTag(mark, 80) : QByteArray()), words(90, "m1")), cellOf({}, para(run("x")))}},
+                                                 {other, {cellOf("<w:vMerge/>" + (onFirst ? QByteArray() : revTag(mark, 81)), words(91, "m2")), cellOf({}, para(run("y")))}},
+                                                 {other, {cellOf({}, para(run("p"))), cellOf({}, para(run("q")))}}}, 2);
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                int kept = 0;
+                const int done = acceptAllOrRejectKept(*doc, accept, &kept);
+                QCOMPARE(kept, 1);
+                QVERIFY(done >= 2);
+                const QByteArray saved = documentXml(doc->toDocx());
+                const QVector<SavedTable> tables = savedTables(saved);
+                QCOMPARE(tables.size(), 1);
+                QCOMPARE(tables[0].rows.size(), 3);
+                QVERIFY(tables[0].valid());
+                QVERIFY(tables[0].rows[0].size() == 2 && tables[0].rows[1].size() == 2 && tables[0].rows[2] == (QStringList{"p", "q"}));
+                QCOMPARE(tables[0].rows[0][1], QStringLiteral("x"));
+                QVERIFY(!saved.contains("cellDel") && !saved.contains("cellIns"));
+                QCOMPARE(documentRevisionCount(*doc), 0);
+                int again = -1;
+                QCOMPARE(acceptAllOrRejectKept(*doc, accept, &again), 0);
+                QCOMPARE(again, 0);
+            }
+            // A row written with the mark on every one of its cells is the row's change.
+            {
+                const QByteArray body = tableOf({{other, {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2"))), cellOf({}, para(run("a3")))}},
+                                                 {other, {cellOf(revTag(mark, 82), words(92, "b1")), cellOf(revTag(mark, 83), words(93, "b2")), cellOf(revTag(mark, 84), words(94, "b3"))}},
+                                                 {other, {cellOf({}, para(run("c1"))), cellOf({}, para(run("c2"))), cellOf({}, para(run("c3")))}}}, 3);
+                auto doc = open(makeDocx(body));
+                QVERIFY(doc);
+                int kept = -1;
+                acceptAllOrRejectKept(*doc, accept, &kept);
+                QCOMPARE(kept, 0);
+                const QVector<SavedTable> tables = savedTables(documentXml(doc->toDocx()));
+                QCOMPARE(tables.size(), 1);
+                QCOMPARE(tables[0].rows, (QVector<QStringList>{{"a1", "a2", "a3"}, {"c1", "c2", "c3"}}));
+                QVERIFY(tables[0].valid());
+                QCOMPARE(documentRevisionCount(*doc), 0);
+                int again = -1;
+                QCOMPARE(acceptAllOrRejectKept(*doc, accept, &again), 0);
+            }
+            // A table of one cell, which carries the mark: it is the table's only row, so the table goes.
+            {
+                auto doc = open(makeDocx(tableOf({{other, {cellOf(revTag(mark, 85), words(95, "only"))}}}, 1)));
+                QVERIFY(doc);
+                int kept = -1;
+                acceptAllOrRejectKept(*doc, accept, &kept);
+                QCOMPARE(kept, 0);
+                const QByteArray saved = documentXml(doc->toDocx());
+                QVERIFY2(!saved.contains("<w:tbl>") && !saved.contains("only") && saved.contains("after"), saved.constData());
+                QCOMPARE(documentRevisionCount(*doc), 0);
+                QVERIFY(open(doc->toDocx()));
+            }
+        }
+    }
+
+    void aGridChangeThatTheRowsCannotFollowIsKeptAndTheTableStaysValid()
+    {
+        auto withGridChange = [](int oldColumns, int oldWidth) {
+            QByteArray t = tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2"))), cellOf({}, para(run("a3")))}},
+                                    {QByteArray(), {cellOf({}, para(run("b1"))), cellOf({}, para(run("b2"))), cellOf({}, para(run("b3")))}}}, 3);
+            QByteArray old = "<w:tblGridChange" + rev(110) + "><w:tblGrid>";
+            for (int i = 0; i < oldColumns; ++i) old += "<w:gridCol w:w=\"" + QByteArray::number(oldWidth) + "\"/>";
+            old += "</w:tblGrid></w:tblGridChange></w:tblGrid>";
+            t.replace(t.indexOf("</w:tblGrid>"), 12, old);
+            return t;
+        };
+        // Fewer or more columns than the rows have cells: giving them back would break the table.
+        for (const int oldColumns : {2, 4}) {
+            auto doc = open(makeDocx(withGridChange(oldColumns, 3000)));
+            QVERIFY(doc);
+            QCOMPARE(revisionCount(doc->story()), 1);
+            int kept = 0;
+            QCOMPARE(rejectAll(*doc, &kept), 0);
+            QCOMPARE(kept, 1);
+            QByteArray saved = documentXml(doc->toDocx());
+            QVector<SavedTable> tables = savedTables(saved);
+            QCOMPARE(tables.size(), 1);
+            QVERIFY2(tables[0].columns == 3 && tables[0].valid(), saved.constData());
+            QCOMPARE(tables[0].rows, (QVector<QStringList>{{"a1", "a2", "a3"}, {"b1", "b2", "b3"}}));
+            QCOMPARE(revisionCount(doc->story()), 1);   // (the change is still there, to be accepted)
+            QCOMPARE(acceptAll(*doc), 1);
+            saved = documentXml(doc->toDocx());
+            tables = savedTables(saved);
+            QVERIFY2(tables[0].columns == 3 && tables[0].valid() && !saved.contains("tblGridChange"), saved.constData());
+        }
+        // The same number of columns, of other widths: they are given back.
+        {
+            auto doc = open(makeDocx(withGridChange(3, 1500)));
+            QVERIFY(doc);
+            int kept = 0;
+            QCOMPARE(rejectAll(*doc, &kept), 1);
+            QCOMPARE(kept, 0);
+            const QByteArray saved = documentXml(doc->toDocx());
+            const QVector<SavedTable> tables = savedTables(saved);
+            QVERIFY2(tables[0].columns == 3 && tables[0].valid() && !saved.contains("tblGridChange") && saved.contains("w:w=\"1500\""), saved.constData());
+        }
+    }
+
+    void tableChangesInHeadersFootersAndNotesAreListedAndResolvedLikeTheTextsOwn()
+    {
+        const QByteArray table = tableOf({{QByteArray(), {cellOf({}, para(run("h1")))}},
+                                          {revTag("ins", 60), {cellOf({}, para(inserted(70, "h2")))}},
+                                          {revTag("del", 61), {cellOf({}, para(deleted(72, "h3")))}}}, 1);
+        struct Where { QByteArray StoryParts::*field; const char *part, *container; };
+        for (const Where w : {Where{&StoryParts::header, "/word/header1.xml", "header:1:0"}, Where{&StoryParts::footer, "/word/footer1.xml", "footer:1:0"}}) {
+            for (const bool accept : {true, false}) {
+                StoryParts p;
+                p.body = para(run("body"));
+                p.*(w.field) = table;
+                auto doc = open(makeDocxWithStories(p));
+                QVERIFY(doc);
+                QStringList kinds;
+                for (const StoryRevision &sr : documentRevisions(*doc))
+                    if (sr.revision.inTable()) kinds << sr.container + QLatin1Char(':') + QString::number(int(sr.revision.kind));
+                const QString c = QString::fromLatin1(w.container);
+                QVERIFY2(kinds == (QStringList{c + QLatin1Char(':') + QString::number(int(Revision::RowInserted)), c + QLatin1Char(':') + QString::number(int(Revision::RowDeleted))}), qPrintable(kinds.join(QLatin1Char(' '))));
+                QCOMPARE(documentRevisionCount(*doc), 4);
+                QCOMPARE(acceptAllOrReject(*doc, accept), 4);
+                QCOMPARE(documentRevisionCount(*doc), 0);
+                const QByteArray saved = partXml(doc->toDocx(), w.part);
+                const QVector<SavedTable> tables = savedTables(saved);
+                QVERIFY2(tables.size() == 1, w.part);
+                QCOMPARE(tables[0].rows, (QVector<QStringList>{{"h1"}, {accept ? "h2" : "h3"}}));
+                QVERIFY2(!saved.contains("<w:ins ") && !saved.contains("<w:del "), saved.constData());
+                QCOMPARE(acceptAllOrReject(*doc, accept), 0);
+                QVERIFY(doc->undo());
+                QCOMPARE(documentRevisionCount(*doc), 4);
+            }
+        }
+        // A part whose only changes are a cell's and a table's properties is listed too (nothing else in it says there is a change).
+        {
+            StoryParts p;
+            p.body = para(run("body"));
+            p.header = tableOf({{QByteArray(), {cellOf({}, para(run("k1"))), cellOf(revTag("cellIns", 80), para(run("k2")))}}}, 2);
+            p.footer = tableOf({{QByteArray(), {cellOf({}, para(run("f1")))}}}, 1, "<w:tblW w:w=\"5000\" w:type=\"dxa\"/><w:tblPrChange" + rev(81) + "><w:tblPr/></w:tblPrChange>");
+            auto doc = open(makeDocxWithStories(p));
+            QVERIFY(doc);
+            QStringList found;
+            for (const StoryRevision &sr : documentRevisions(*doc)) found << QString::number(int(sr.revision.kind));
+            QCOMPARE(found, (QStringList{QString::number(int(Revision::CellInserted)), QString::number(int(Revision::TableFormat))}));
+            QCOMPARE(rejectAll(*doc), 2);
+            const QByteArray saved = doc->toDocx();
+            QCOMPARE(savedTables(partXml(saved, "/word/header1.xml"))[0].rows, (QVector<QStringList>{{"k1"}}));
+            QVERIFY(!partXml(saved, "/word/footer1.xml").contains("tblPrChange"));
         }
     }
 

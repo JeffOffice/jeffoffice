@@ -841,7 +841,7 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
 }
 
 // The changes the tables record, which `wanted` names, as they are in the story now (by kind and Id: the places they had may have moved), resolved together.
-static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &wanted, bool accept)
+static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &wanted, bool accept, int *kept)
 {
     const QVariant store = story->property(kTableStoreProperty);
     if (!store.isValid()) return 0;
@@ -861,10 +861,10 @@ static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVec
             chosen.push_back(c);
         }
     }
-    return resolveTableChanges(doc, chosen, accept);
+    return resolveTableChanges(doc, story, chosen, accept, kept);
 }
 
-int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &whichGiven, bool accept)
+int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &whichGiven, bool accept, int *kept)
 {
     if (whichGiven.isEmpty()) return 0;
     const QVector<Revision> which = withMovePairs(story, whichGiven);
@@ -968,13 +968,13 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         }
     }
     edit.endEditBlock();
-    if (!inTables.isEmpty()) done += resolveTableRevisions(doc, story, inTables, accept);
+    if (!inTables.isEmpty()) done += resolveTableRevisions(doc, story, inTables, accept, kept);
     return done;
 }
 
-int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept)
+int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept)
 {
-    return resolveRevisions(doc, story, revisionsIn(story, from, to), accept);
+    return resolveRevisions(doc, story, revisionsIn(story, from, to), accept, kept);
 }
 
 namespace {
@@ -1015,7 +1015,7 @@ int resolveTextBoxes(WriteDoc &doc, QTextDocument *story, bool accept)
 }
 
 // The words of the endnotes (each note that is edited in place): the changes in them, one note at a time.
-int resolveEndnotes(WriteDoc &doc, bool accept)
+int resolveEndnotes(WriteDoc &doc, bool accept, int *kept)
 {
     QTextDocument *story = doc.story();
     QMap<int, std::pair<int, int>> notes;   // by the note's serial: where its words begin and end
@@ -1033,20 +1033,21 @@ int resolveEndnotes(WriteDoc &doc, bool accept)
         QTextCursor c(story);
         c.setPosition(it->first);
         const NoteScopeGuard guard(doc, c);
-        done += resolveRevisionsIn(doc, story, it->first, it->second, accept);
+        done += resolveRevisionsIn(doc, story, it->first, it->second, accept, kept);
     }
     return done;
 }
 
 // Every change of the document, as a person expects: the text, the text boxes, the endnotes, and the headers, footers, and footnotes. One step of the history.
-int resolveEverywhere(WriteDoc &doc, bool accept)
+int resolveEverywhere(WriteDoc &doc, bool accept, int *kept)
 {
     WriteDoc::StepGroup group(doc);
-    int n = resolveRevisionsIn(doc, doc.story(), 0, -1, accept);
+    if (kept) *kept = 0;
+    int n = resolveRevisionsIn(doc, doc.story(), 0, -1, accept, kept);
     n += resolveTextBoxes(doc, doc.story(), accept);
-    n += resolveEndnotes(doc, accept);
+    n += resolveEndnotes(doc, accept, kept);
     for (QTextDocument *s : doc.storiesWithChanges()) {
-        n += resolveRevisionsIn(doc, s, 0, -1, accept);
+        n += resolveRevisionsIn(doc, s, 0, -1, accept, kept);
         n += resolveTextBoxes(doc, s, accept);
     }
     return n;
@@ -1054,8 +1055,8 @@ int resolveEverywhere(WriteDoc &doc, bool accept)
 
 } // namespace
 
-int acceptAll(WriteDoc &doc) { return resolveEverywhere(doc, true); }
-int rejectAll(WriteDoc &doc) { return resolveEverywhere(doc, false); }
+int acceptAll(WriteDoc &doc, int *kept) { return resolveEverywhere(doc, true, kept); }
+int rejectAll(WriteDoc &doc, int *kept) { return resolveEverywhere(doc, false, kept); }
 
 namespace {
 
@@ -1172,7 +1173,7 @@ std::optional<StoryRevision> nextDocumentRevision(WriteDoc &doc, const QTextDocu
     return std::nullopt;
 }
 
-int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept)
+int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which, bool accept, int *kept)
 {
     if (which.isEmpty()) return 0;
     const EndnoteScope scope;
@@ -1213,12 +1214,12 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
             if (note > 0) inNotes[note].push_back(r);
             else inText.push_back(r);
         }
-        done += resolveRevisions(doc, story, inText, accept);
+        done += resolveRevisions(doc, story, inText, accept, kept);
         for (auto it = inNotes.cbegin(); it != inNotes.cend(); ++it) {
             QTextCursor c(story);
             c.setPosition(it.value().first().from);
             const NoteScopeGuard guard(doc, c);
-            done += resolveRevisions(doc, story, it.value(), accept);
+            done += resolveRevisions(doc, story, it.value(), accept, kept);
         }
     }
     return done;
