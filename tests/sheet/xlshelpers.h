@@ -100,6 +100,14 @@ QByteArray selection(int pane, int row, int col);
 QByteArray defColWidth(int w);
 QByteArray defaultRowHeight(int flags, int twips);
 
+// ---- notes ----
+// The records of one note's object as the format has them: the shape (its anchor is the eight numbers column, across, row, down for each corner; none given: a drawing record with no place),
+// the object, the text box, the record that gives the count of characters, the records that hold the characters (one piece each, in the width each needs, an empty one allowed), and the
+// formatting runs (`runBytes` bytes that do not read as characters; none for 0).
+QByteArray noteObjects(int id, const QStringList &pieces, int count, const QList<int> &anchor = QList<int>(), int runBytes = 16, bool textBox = true);
+// The record near the end of the sheet that names the note's object.
+QByteArray noteRec(int row, int col, bool shown, int id, const QString &author);
+
 // ---- globals records ----
 // A font: the height in points, the weight, whether it is italic, struck out, the underline, the color index, and the name.
 QByteArray font(const QString &name, double points = 10, int weight = 400, bool italic = false, bool strike = false, int underline = 0, int color = 0x7FFF, int escapement = 0,

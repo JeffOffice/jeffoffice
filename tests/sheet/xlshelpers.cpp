@@ -253,6 +253,41 @@ QByteArray selection(int pane, int row, int col) { return rec(0x001D, W().u8(pan
 QByteArray defColWidth(int w) { return rec(0x0055, W().u16(w)); }
 QByteArray defaultRowHeight(int flags, int twips) { return rec(0x0225, W().u16(flags).u16(twips)); }
 
+QByteArray noteObjects(int id, const QStringList &pieces, int count, const QList<int> &anchor, int runBytes, bool textBox)
+{
+    QByteArray out;
+    {
+        QByteArray inside;
+        if (anchor.size() == 8) {
+            W a;
+            a.u16(3);
+            for (int v : anchor) a.u16(v);
+            inside = W().u16(0).u16(0xF010).u32(quint32(a.bytes().size())).raw(a.bytes());
+        }
+        out += rec(0x00EC, W().u16(0x000F).u16(0xF004).u32(quint32(inside.size())).raw(inside));
+    }
+    out += rec(0x005D, W().u16(0x15).u16(0x12).u16(0x19).u16(id).u16(0x4011).u32(0).u32(0).u32(0).u16(0x0D).u16(0x16).raw(QByteArray(22, '\0')).u16(0).u16(0));
+    if (textBox) out += rec(0x00EC, W().u16(0).u16(0xF00D).u32(0));
+    out += rec(0x01B6, W().u16(0x0212).u16(0).u32(0).u16(0).u16(count).u16(runBytes).u32(0));
+    for (const QString &piece : pieces) {
+        bool wide = false;
+        for (const QChar c : piece) wide = wide || c.unicode() > 0xFF;
+        W w;
+        if (!piece.isEmpty()) {
+            w.u8(wide ? 1 : 0);
+            for (const QChar c : piece) {
+                if (wide) w.u16(c.unicode());
+                else w.u8(c.unicode());
+            }
+        }
+        out += rec(0x003C, w);
+    }
+    if (runBytes > 0) out += rec(0x003C, QByteArray(runBytes, 'R'));
+    return out;
+}
+
+QByteArray noteRec(int row, int col, bool shown, int id, const QString &author) { return rec(0x001C, W().u16(row).u16(col).u16(shown ? 2 : 0).u16(id).str8(author, 2, true)); }
+
 // ---------------------------------------------------------------------------------------------------------------------------------------------------
 // globals
 

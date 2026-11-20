@@ -1,5 +1,8 @@
 #include "sheet/xls.h"
 
+#include <atomic>
+#include <unordered_set>
+
 #include "sheet/cellref.h"
 #include "sheet/notes.h"
 #include "sheet/xlsbytes.h"
@@ -112,6 +115,8 @@ bool holdsPictureStore(const QByteArray &data, qsizetype from, qsizetype to)
     }
     return false;
 }
+
+std::atomic<qint64> g_noteChecks{0}, g_noteShapeChars{0};
 
 struct Rec {
     quint16 id = 0;
@@ -1065,8 +1070,9 @@ private:
                         break;
                     }
                     if (afterNote) {
-                        afterNote = false;   // (the text box of a note: not a drawing of its own)
-                        break;
+                        afterNote = false;
+                        // (the text box of a note, which is not a drawing of its own: the record after the object, if it is one; a file without it goes on to the next drawing)
+                        if (r.len >= 4 && quint8(m_d[r.pos + 2]) == 0x0D && quint8(m_d[r.pos + 3]) == 0xF0) break;
                     }
                     if (pendingDrawing) m_drawingsInSheets = true;
                     pendingDrawing = true;
@@ -1443,10 +1449,10 @@ public:
         }
         if (ok && m_holding) ok = flushHeld();
         m_s.cells.finish();
-        if (m_notesOver) m_s.notKept << QCoreApplication::translate("Sheet", "Only the first %1 notes on a sheet are kept.").arg(QLocale().toString(kMaxNotes));
         if (ok) ok = resolveExpressions();
         if (m_haveWidth) m_format.defaultColWidth = m_standardWidth;
         m_s.format = m_format;
+        finishNotes();
         // (a split that is not frozen is not kept)
         if (m_view.frozen && m_pane.present && (m_pane.x > 0 || m_pane.y > 0)) {
             m_view.frozenCols = m_pane.x;
@@ -1544,8 +1550,41 @@ private:
     bool m_haveShape = false;
     bool m_objIsNote = false;
     quint16 m_objId = 0;
-    qint64 m_noteChars = 0;
-    bool m_notesOver = false;
+    qint64 m_noteChars = 0, m_shapeChars = 0, m_notesDropped = 0;
+    std::unordered_set<quint64> m_noteCells;                      // the cells that have a note
+    struct NoteAnchor {
+        size_t index;      // the note, in the sheet's list
+        XlsAnchor anchor;
+    };
+    std::vector<NoteAnchor> m_noteAnchors;
+
+    // A note record that is not made a note: counted (and said once, when the sheet is done).
+    bool noteLeftOut()
+    {
+        ++m_notesDropped;
+        return true;
+    }
+
+    // The boxes of the notes, in the sizes of the sheet's own columns and rows (the file gives a corner as a part of its cell), and what was left out said.
+    void finishNotes()
+    {
+        const NoteGrid grid(m_s);
+        for (const NoteAnchor &na : m_noteAnchors) {
+            ImportedNote &note = m_s.importedNotes[qsizetype(na.index)];
+            const XlsAnchor &a = na.anchor;
+            NoteBox &box = note.box;
+            box.row1 = int(a.row1) - int(note.row);
+            box.col1 = int(a.col1) - int(note.col);
+            box.y1 = NoteGrid::pixelsOf(a.dy1, grid.rowPixels(a.row1), 256);
+            box.x1 = NoteGrid::pixelsOf(a.dx1, grid.columnPixels(a.col1), 1024);
+            box.row2 = int(a.row2) - int(note.row);
+            box.col2 = int(a.col2) - int(note.col);
+            box.y2 = NoteGrid::pixelsOf(a.dy2, grid.rowPixels(a.row2), 256);
+            box.x2 = NoteGrid::pixelsOf(a.dx2, grid.columnPixels(a.col2), 1024);
+        }
+        m_noteAnchors.clear();
+        if (m_notesDropped > 0) m_s.notKept << QCoreApplication::translate("Sheet", "%n note(s) in the file could not be read, and were left out.", nullptr, int(std::min<qint64>(m_notesDropped, 0x7fffffff)));
+    }
 
     bool fail(const QString &why)
     {
@@ -1633,26 +1672,42 @@ private:
             return true;
         }
         case kTxo: {
-            // the words of the object just before it (a note's): in the records that continue this one, the first holding the characters (and the byte that says one or two bytes each)
+            // the words of the object just before it (a note's): in the records that continue this one, the first holding the characters (and the byte that says one or two bytes each), and the
+            // last the formatting runs (as many bytes as the record says; none if it says none)
             if (!m_b8 || !m_objIsNote) return true;
             b.skip(10);
             const quint32 count = b.u16();
+            const quint32 runBytes = b.u16();
             if (b.bad()) return true;
-            Logical lg;
+            std::vector<QByteArray> pieces;
             Rec c;
             while (sc.peek(&c) && c.id == kContinue) {
                 sc.next(&c);
-                lg.data += m_d.mid(c.pos, c.len);
+                if (c.len > 0) pieces.push_back(m_d.mid(c.pos, c.len));   // (a record with no bytes holds nothing, not even the byte for the width)
+            }
+            m_objIsNote = false;
+            qint64 tail = 0;
+            while (pieces.size() > 1 && tail < qint64(runBytes)) {
+                tail += pieces.back().size();
+                pieces.pop_back();
+            }
+            if (pieces.empty() || count == 0) return true;
+            Logical lg;
+            for (const QByteArray &piece : pieces) {
+                lg.data += piece;
                 lg.ends << lg.data.size();
             }
-            if (lg.ends.isEmpty() || count == 0) return true;
             Chars ch(lg, 0);
             const quint8 flags = ch.u8();
             const QString words = ch.chars(std::min<quint32>(count, 32767), flags & 1, [this](const char *p, int n) { return text(p, n); });
             NoteShape &n = m_noteShapes[m_objId];
+            // (what shapes hold that no note has named yet is bounded as the notes of a sheet are)
+            if (m_shapeChars + words.size() - n.words.size() > kMaxNoteChars) return true;
+            m_shapeChars += words.size() - n.words.size();
+            qint64 seen = g_noteShapeChars.load();
+            while (m_shapeChars > seen && !g_noteShapeChars.compare_exchange_weak(seen, m_shapeChars)) {}
             n.words = words;
             n.hasWords = ch.ok() || !words.isEmpty();
-            m_objIsNote = false;
             return true;
         }
         case kNote: {
@@ -1662,15 +1717,15 @@ private:
             const int n = b.u16();
             const quint8 wide = b.u8();
             const char *p = b.take(qint64(n) * ((wide & 1) ? 2 : 1));
-            if (b.bad() || !p) return true;
+            if (b.bad() || !p) return noteLeftOut();
+            // (past the format's last cell, or the program's)
+            if (row >= quint32(std::min<int>(65536, kMaxRows)) || col >= quint32(std::min<int>(256, kMaxColumns))) return noteLeftOut();
             const auto at = m_noteShapes.constFind(id);
-            if (at == m_noteShapes.cend() || !at->hasWords || at->words.isEmpty()) return true;
-            for (const ImportedNote &have : std::as_const(m_s.importedNotes))
-                if (have.row == row && have.col == col) return true;   // (the first note of a cell is the one kept)
-            if (qint64(m_s.importedNotes.size()) >= kMaxNotes || m_noteChars >= kMaxNoteChars) {
-                m_notesOver = true;
-                return true;
-            }
+            if (at == m_noteShapes.cend() || !at->hasWords || at->words.isEmpty()) return noteLeftOut();
+            g_noteChecks.fetch_add(1);
+            if (m_noteCells.count(noteKey(row, col))) return noteLeftOut();   // (the first note of a cell is the one kept)
+            if (qint64(m_s.importedNotes.size()) >= kMaxNotes || m_noteChars >= kMaxNoteChars) return noteLeftOut();
+            m_noteCells.insert(noteKey(row, col));
             ImportedNote note;
             note.row = row;
             note.col = col;
@@ -1678,19 +1733,9 @@ private:
             note.text = at->words;
             note.shown = flags & 2;
             if (at->hasAnchor) {
-                // (the box in the units the XML form has: whole cells from the note's own, and pixels into them, at the size of a cell that has no size of its own)
-                const XlsAnchor &a = at->anchor;
-                NoteBox box;
-                box.set = true;
-                box.row1 = int(a.row1) - int(row);
-                box.col1 = int(a.col1) - int(col);
-                box.y1 = int((a.dy1 * 20 + 128) / 256);
-                box.x1 = int((a.dx1 * 64 + 512) / 1024);
-                box.row2 = int(a.row2) - int(row);
-                box.col2 = int(a.col2) - int(col);
-                box.y2 = int((a.dy2 * 20 + 128) / 256);
-                box.x2 = int((a.dx2 * 64 + 512) / 1024);
-                note.box = box;
+                // (the box in the units the XML form has is worked out when the sheet's columns and rows are known: see finishNotes)
+                note.box.set = true;
+                m_noteAnchors.push_back({size_t(m_s.importedNotes.size()), at->anchor});
             }
             m_noteChars += note.text.size() + note.author.size();
             m_s.importedNotes.append(note);
@@ -2333,4 +2378,9 @@ bool XlsBook::readSheet(int index, const Limits &limits, const std::function<boo
     return reader.run(m_places[index]);
 }
 
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+qint64 xlsNoteChecksForTest() { return g_noteChecks.load(); }
+qint64 xlsNoteShapeCharsForTest() { return g_noteShapeChars.load(); }
 } // namespace jp::office::sheet

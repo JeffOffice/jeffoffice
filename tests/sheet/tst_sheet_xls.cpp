@@ -12,6 +12,7 @@
 #include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
 #include "sheet/xls.h"
+#include "sheet/notes.h"
 
 #include <QFile>
 #include <QTemporaryDir>
@@ -1384,7 +1385,7 @@ private Q_SLOTS:
         QByteArray cells = number(0, 0, 1) + rec(0x005D, QByteArray(20, '\0')) + rec(0x00EC, QByteArray(30, '\0'));
         // the chart: its records begin with a start of substream and end with its end, and may hold the records a sheet holds, which are not cells of this one
         cells += bof + number(5, 5, 99) + rec(0x0809, W().u16(0x0600).u16(0x0020).u16(1).u16(2).u32(0).u32(6)) + rec(0x000A) + rec(0x000A);
-        cells += rec(0x001C, QByteArray(20, '\0')) + rec(0x00B0, QByteArray(20, '\0')) + number(1, 0, 2);
+        cells += noteObjects(1, {QStringLiteral("first")}, 5) + noteRec(1, 1, false, 1, QStringLiteral("Ann")) + rec(0x001C, QByteArray(20, '\0')) + rec(0x00B0, QByteArray(20, '\0')) + number(1, 0, 2);
         Book b;
         b.sheet(QStringLiteral("S"), cells);
         Workbook wb;
@@ -1402,6 +1403,8 @@ private Q_SLOTS:
         QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("n:1"));
         QCOMPARE(shown(wb, s, QStringLiteral("A2")), QStringLiteral("n:2"));
         QCOMPARE(shown(wb, s, QStringLiteral("F6")), QStringLiteral("none"));   // (the cell inside the chart is the chart's)
+        QCOMPARE(s.importedNotes.size(), qsizetype(1));   // (the note is read, and the record that names no shape is not one)
+        QCOMPARE(s.importedNotes[0].text, QStringLiteral("first"));
         // a workbook with none of them says nothing
         Book plain;
         plain.sheet(QStringLiteral("S"), number(0, 0, 1));
@@ -1464,9 +1467,9 @@ private Q_SLOTS:
         QCOMPARE(one.text, QStringLiteral("hello"));
         QCOMPARE(one.author, QStringLiteral("Ann"));
         QVERIFY(one.shown);
-        // (the box: cells counted from the note's own, and pixels into them: 1/1024 of a column of 64 pixels, 1/256 of a row of 20)
+        // (the box: cells counted from the note's own, and pixels into them: 1/1024 of a column of 64 pixels, 1/256 of a row of 17: the form's usual row is 12.75 points)
         QVERIFY(one.box.set);
-        QCOMPARE(QList<int>({one.box.row1, one.box.col1, one.box.y1, one.box.x1, one.box.row2, one.box.col2, one.box.y2, one.box.x2}), (QList<int>{0, 2, 10, 32, 4, 4, 0, 16}));
+        QCOMPARE(QList<int>({one.box.row1, one.box.col1, one.box.y1, one.box.x1, one.box.row2, one.box.col2, one.box.y2, one.box.x2}), (QList<int>{0, 2, 9, 32, 4, 4, 0, 16}));
         QCOMPARE(two.text, wide);
         QCOMPARE(two.author, QString::fromUtf8("Zo\xC3\xAB"));
         QVERIFY(!two.shown);
@@ -1476,6 +1479,146 @@ private Q_SLOTS:
         QVERIFY(three.author.isEmpty());
         QCOMPARE(three.row, 4u);
         QVERIFY(wb.skippedFeatures().isEmpty());
+    }
+
+    // Finding whether a cell has a note already is a lookup, not a scan of the notes read: the work done is counted, and is about one step for each note (a scan would be thousands of times that).
+    void aThousandNotesAreCheckedByLookupNotByScan()
+    {
+        QByteArray cells = number(0, 0, 1);
+        const int count = 2000;
+        for (int i = 0; i < count; ++i) cells += noteObjects(i + 1, {QStringLiteral("n")}, 1);
+        for (int i = 0; i < count; ++i) cells += noteRec(i, 1, false, i + 1, QStringLiteral("A"));
+        cells += noteRec(5, 1, false, 7, QStringLiteral("again"));   // (a second note on a cell is checked too)
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        const qint64 before = xlsNoteChecksForTest();
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(count));
+        const qint64 work = xlsNoteChecksForTest() - before;
+        QVERIFY2(work <= qint64(count) * 4, qPrintable(QString::number(work)));
+    }
+
+    // The words of the shapes that no note names (yet) are held, and bounded by the characters a sheet's notes may have: a sheet of shapes with words and no notes holds no more than that; a note that
+    // names a shape that was not held is left out and counted.
+    void theWordsOfShapesNoNoteNamedAreBounded()
+    {
+        QByteArray cells = number(0, 0, 1);
+        const QString chunk(8000, QLatin1Char('x'));
+        const int shapes = 300;   // (of 32,767 characters each: more than the most characters a sheet's notes may have)
+        for (int i = 0; i < shapes; ++i) cells += noteObjects(i + 1, {chunk, chunk, chunk, QString(32767 - 3 * 8000, QLatin1Char('x'))}, 32767);
+        cells += noteRec(0, 0, false, 1, QStringLiteral("A")) + noteRec(1, 0, false, shapes, QStringLiteral("B"));
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QVERIFY(s.error.isEmpty());
+        QVERIFY2(xlsNoteShapeCharsForTest() <= jp::office::sheet::kMaxNoteChars, qPrintable(QString::number(xlsNoteShapeCharsForTest())));
+        QCOMPARE(s.importedNotes.size(), qsizetype(1));   // (the last shape was past the bound: its note is left out)
+        QCOMPARE(s.importedNotes[0].text.size(), 32767);
+        QCOMPARE(s.notKept.size(), qsizetype(1));
+        QVERIFY2(s.notKept[0].contains(QStringLiteral("1 note")), qPrintable(s.notKept.join(QLatin1Char('|'))));
+    }
+
+    // A count of characters that is more than the text records hold stops at the end of the text records: the record of formatting runs after them is never read as text, with or without one.
+    void aCountOfCharactersPastTheTextStopsAtTheEndOfTheTextRecords()
+    {
+        QByteArray cells = number(0, 0, 1);
+        cells += noteObjects(1, {QStringLiteral("hello")}, 100) + noteObjects(2, {QStringLiteral("abc")}, 50, QList<int>(), 0) + noteObjects(3, {QString::fromUtf8("w\xC3\xA9\xE2\x98\x83")}, 400);
+        cells += noteRec(0, 0, false, 1, QStringLiteral("A")) + noteRec(1, 0, false, 2, QStringLiteral("B")) + noteRec(2, 0, false, 3, QStringLiteral("C"));
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(3));
+        QCOMPARE(s.importedNotes[0].text, QStringLiteral("hello"));
+        QCOMPARE(s.importedNotes[1].text, QStringLiteral("abc"));
+        QCOMPARE(s.importedNotes[2].text, QString::fromUtf8("w\xC3\xA9\xE2\x98\x83"));
+    }
+
+    // A record with no bytes in the middle of the text is passed over, whichever piece it is between.
+    void anEmptyRecordInTheMiddleOfTheTextIsPassedOver()
+    {
+        QByteArray cells = number(0, 0, 1);
+        cells += noteObjects(1, {QStringLiteral("hel"), QString(), QStringLiteral("lo")}, 5) + noteObjects(2, {QString(), QStringLiteral("ab"), QString(), QString(), QStringLiteral("c")}, 3);
+        cells += noteRec(0, 0, false, 1, QStringLiteral("A")) + noteRec(1, 0, false, 2, QStringLiteral("B"));
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(2));
+        QCOMPARE(s.importedNotes[0].text, QStringLiteral("hello"));
+        QCOMPARE(s.importedNotes[1].text, QStringLiteral("abc"));
+    }
+
+    // A note record whose row or column is past the format's sheet (65,536 rows, 256 columns) is left out, as is one that names no shape, has no words, or is a second on its cell; all of them are
+    // counted and said once.
+    void notesTheReaderLeavesOutAreCountedAndSaidOnce()
+    {
+        QByteArray cells = number(0, 0, 1);
+        cells += noteObjects(1, {QStringLiteral("last cell")}, 9) + noteObjects(2, {QStringLiteral("far right")}, 9) + noteObjects(3, {QStringLiteral("second")}, 6) + noteObjects(4, {QString()}, 0);
+        cells += noteRec(65535, 255, false, 1, QStringLiteral("A"));   // (the format's last cell: kept)
+        cells += noteRec(0, 256, false, 2, QStringLiteral("B"));       // (past the last column)
+        cells += noteRec(65535, 255, false, 3, QStringLiteral("C"));   // (a second on a cell)
+        cells += noteRec(3, 3, false, 99, QStringLiteral("D"));        // (no shape)
+        cells += noteRec(4, 4, false, 4, QStringLiteral("E"));         // (no words)
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(1));
+        QCOMPARE(s.importedNotes[0].text, QStringLiteral("last cell"));
+        QCOMPARE(s.notKept.size(), qsizetype(1));
+        QVERIFY2(s.notKept[0].contains(QStringLiteral("4 note")), qPrintable(s.notKept.join(QLatin1Char('|'))));
+    }
+
+    // The record after a note's object that is not the text box (the file lacks it) is not swallowed: it is the next drawing's, and the sheet is said to have a drawing; with the text box there, it is not.
+    void aMissingTextBoxDoesNotHideTheNextDrawing()
+    {
+        const QByteArray lone = rec(0x00EC, W().u16(0x000F).u16(0xF004).u32(0));
+        for (const bool textBox : {true, false}) {
+            QByteArray cells = number(0, 0, 1) + noteObjects(1, {QStringLiteral("a")}, 1, QList<int>(), 16, textBox) + (textBox ? QByteArray() : lone) + noteRec(0, 0, false, 1, QStringLiteral("A"));
+            Book b;
+            b.sheet(QStringLiteral("S"), cells);
+            Workbook wb;
+            QVERIFY(openBook(b, &wb));
+            QCOMPARE(wb.skippedFeatures().contains(QStringLiteral("pictures and other drawing objects")), !textBox);
+            Sheet s;
+            QVERIFY(wb.readSheet(0, &s));
+            QCOMPARE(s.importedNotes.size(), qsizetype(1));
+        }
+    }
+
+    // The box of a note is read in the sizes of the sheet's own columns and rows: the file gives how far across and down a corner is as a part of its cell (1/1024 across, 1/256 down), so in a column
+    // 400 pixels wide and a row 90 high the numbers are worth more pixels than in a cell of the usual size.
+    void aBoxIsReadInTheSizesOfTheSheetsOwnCellsAndAWideColumnKeepsItsPlace()
+    {
+        QByteArray cells = colinfo(0, 0, 14629, 0, 0x02) + rowRec(0, 1350, 0x40) + number(0, 0, 1);
+        cells += noteObjects(1, {QStringLiteral("a")}, 1, {0, 384, 0, 85, 0, 640, 0, 199});
+        cells += noteRec(0, 0, true, 1, QStringLiteral("A"));
+        Book b;
+        b.sheet(QStringLiteral("S"), cells);
+        Workbook wb;
+        QVERIFY(openBook(b, &wb));
+        Sheet s;
+        QVERIFY(wb.readSheet(0, &s));
+        QCOMPARE(s.importedNotes.size(), qsizetype(1));
+        const NoteBox box = s.importedNotes[0].box;
+        QVERIFY(box.set);
+        auto within = [](int v, int want) { return std::abs(v - want) <= 1; };
+        QVERIFY2(within(box.x1, 150) && within(box.y1, 30) && within(box.x2, 250) && within(box.y2, 70), qPrintable(QStringLiteral("%1 %2 %3 %4").arg(box.x1).arg(box.y1).arg(box.x2).arg(box.y2)));
+        QCOMPARE(box.col1, 0);
+        QCOMPARE(box.row2, 0);
     }
 
     // The calculation works an old workbook's formulas out as it does a new one's: from the constants, shared formulas and 3-D references included.

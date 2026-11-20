@@ -12,6 +12,7 @@
 #include "app/settings.h"
 #include "app/sheettabs.h"
 #include "core/appinfo.h"
+#include "core/editsession.h"
 #include "core/fonts.h"
 #include "grid/gridview.h"
 
@@ -216,12 +217,17 @@ private Q_SLOTS:
         Folder folder;
         Window win;
         xlstest::Book b;
-        b.sheet(QStringLiteral("Data"), xlstest::number(0, 0, 2) + xlstest::rec(0x005D, QByteArray(20, '\0')) + xlstest::rec(0x001C, QByteArray(20, '\0')));
+        b.sheet(QStringLiteral("Data"), xlstest::number(0, 0, 2) + xlstest::rec(0x005D, QByteArray(20, '\0')) + xlstest::noteObjects(1, {QStringLiteral("a note")}, 6) + xlstest::noteRec(0, 0, false, 1, QStringLiteral("Ann"))
+                                           + xlstest::rec(0x001C, QByteArray(20, '\0')));
         QVERIFY(win.open(folder.write(QStringLiteral("pictures.xls"), b.file())));
         QCOMPARE(win.told.size(), 1);
         QVERIFY2(win.told.first().contains(QLatin1String("pictures and other drawing objects")), qPrintable(win.told.first()));
-        QVERIFY2(!win.told.first().contains(QLatin1String("comments")), qPrintable(win.told.first()));   // (notes are read; this note record names no shape, so there is none to show)
+        QVERIFY2(!win.told.first().contains(QLatin1String("comments")), qPrintable(win.told.first()));   // (notes are read)
         QVERIFY(win.w.hasWorkbook());
+        // (the note is read: one, with its words; the record that names no shape is none)
+        const auto notes = win.w.session()->anchors().notes(0);
+        QCOMPARE(notes.size(), size_t(1));
+        QCOMPARE(notes.begin()->second.text, QStringLiteral("a note"));
     }
 
     // A workbook that asks for a password: the window asks for it, and a person who cancels leaves nothing open and is told nothing.

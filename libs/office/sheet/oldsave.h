@@ -54,5 +54,11 @@ bool saveOds(const Workbook &book, QByteArray *out, CopyReport *report, QString 
 qint64 odsCoveredWorkForTest();
 // ... and how many times a column was asked about (a lookup costs about the base-2 logarithm of the stretches, not their number).
 qint64 odsCoveredLookupsForTest();
+// For tests: whether the .xls writer writes the notes of the sheets (it does; a test turns it off to see that a workbook with none is written as it was before notes were).
+void xlsWriteNotesForTest(bool on);
+// For tests of cost: how many cells the .xls reader has compared a note's cell with in all, to find whether a cell has a note already (one per note if it is a lookup), and the most characters of
+// shapes' words it held at once for one sheet (the shapes no note named yet).
+qint64 xlsNoteChecksForTest();
+qint64 xlsNoteShapeCharsForTest();
 
 } // namespace jp::office::sheet
