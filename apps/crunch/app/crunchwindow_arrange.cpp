@@ -2,6 +2,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/objectpicker.h"
+#include "app/settings.h"
 #include "core/editsession.h"
 #include "core/objectgroup.h"
 #include "core/objectstate.h"
@@ -31,9 +32,32 @@ void CrunchWindow::createArrangeActions()
     mkObject("object.alignBottom", tr("Align Bottom"), "align-vertical-justify-end", [this] { alignObjects(crunch::ObjectAlign::Bottom); });
     mkObject("object.distributeH", tr("Distribute Horizontally"), "align-horizontal-distribute-center", [this] { alignObjects(crunch::ObjectAlign::DistributeHorizontally); });
     mkObject("object.distributeV", tr("Distribute Vertically"), "align-vertical-distribute-center", [this] { alignObjects(crunch::ObjectAlign::DistributeVertically); });
+    // Snap to Grid and Snap to Shape are kept for the person (every workbook), not saved in a workbook; they act on the next drag of an object by the mouse.
+    for (const auto &snap : {std::pair<const char *, QString>{"object.snapGrid", tr("Snap to Grid")}, {"object.snapShape", tr("Snap to Shape")}}) {
+        const QString id = QString::fromLatin1(snap.first);
+        QAction *a = mk(id, snap.second, id == QLatin1String("object.snapGrid") ? "grid-3x3" : "magnet", QKeySequence(), [this, id] { applySnapChoices(true, id); }, true);
+        a->setChecked(Settings::get().value(QStringLiteral("crunch/") + id.mid(7), false).toBool());
+    }
     mk("object.selectObjects", tr("Select Objects"), "square-dashed-mouse-pointer", QKeySequence(), [this] { setSelectObjectsMode(!(m_picker && m_picker->boxMode())); }, true, false);
     m_opsActions << QStringLiteral("object.selectObjects");
     updateArrangeActions();
+}
+
+// The layer takes the two choices as the commands show them; `save` keeps the one that was just changed for the next time.
+void CrunchWindow::applySnapChoices(bool save, const QString &changed)
+{
+    QAction *gridAction = act(QStringLiteral("object.snapGrid")), *shapeAction = act(QStringLiteral("object.snapShape"));
+    if (!gridAction || !shapeAction) return;
+    const bool grid = gridAction->isChecked(), shapes = shapeAction->isChecked();
+    if (m_objects) {
+        m_objects->layer()->setSnapToGrid(grid);
+        m_objects->layer()->setSnapToShapes(shapes);
+    }
+    if (!save) return;
+    const bool on = act(changed)->isChecked();
+    Settings::get().setValue(QStringLiteral("crunch/") + changed.mid(7), on);
+    setStatus(changed == QLatin1String("object.snapGrid") ? (on ? tr("Snap to Grid is on: objects go to the edges of cells as you drag them.") : tr("Snap to Grid is off."))
+                                                           : (on ? tr("Snap to Shape is on: objects go to the edges of other objects as you drag them.") : tr("Snap to Shape is off.")));
 }
 
 std::vector<int> CrunchWindow::pickedObjects() const

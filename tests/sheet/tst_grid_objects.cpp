@@ -1031,6 +1031,47 @@ private Q_SLOTS:
         QCOMPARE(a.to.rowOff, px(0));
     }
 
+    // Snap to Grid takes the edges to cells in every drag without Alt (Alt then leaves them free); Snap to Shape takes an edge to an edge of another object within a few pixels, and only
+    // within them; the cells' edges win when both are on.
+    void snapToGridAndSnapToShape()
+    {
+        Scene s;
+        s.objects.setObjects({colored(1, twoCell(1, 2, 4, 6), kRed)});
+        s.draw();
+        QSignalSpy moved(&s.objects, &ObjectLayer::objectMoved);
+        s.objects.setSnapToGrid(true);
+        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::NoModifier));
+        s.objects.mouseMove(QPoint(130, 67), s.layout, Qt::LeftButton, Qt::NoModifier);
+        s.objects.mouseRelease(QPoint(130, 67), s.layout, Qt::NoModifier);
+        QCOMPARE(moved.size(), 1);
+        DrawingAnchor a = moved.at(0).at(1).value<DrawingAnchor>();
+        QCOMPARE(a.from.colOff, px(0));
+        QCOMPARE(a.from.rowOff, px(0));
+        moved.clear();
+        // (with Alt the edges are left free)
+        QVERIFY(s.objects.press(QPoint(100, 60), s.layout, Qt::AltModifier));
+        s.objects.mouseMove(QPoint(130, 67), s.layout, Qt::LeftButton, Qt::AltModifier);
+        s.objects.mouseRelease(QPoint(130, 67), s.layout, Qt::AltModifier);
+        QCOMPARE(moved.size(), 1);
+        a = moved.at(0).at(1).value<DrawingAnchor>();
+        QVERIFY(a.from.colOff != px(0) || a.from.rowOff != px(0));
+        // Snap to Shape
+        Scene t;
+        t.objects.setObjects({colored(1, twoCell(1, 2, 3, 4), kRed), colored(2, twoCell(1, 6, 2, 8, px(10), px(5), px(10), px(5)), kRed)});
+        t.draw();
+        auto leftAfterDrag = [&](int dx) {
+            t.objects.press(QPoint(100, 140), t.layout, Qt::NoModifier);
+            t.objects.mouseMove(QPoint(100 + dx, 140), t.layout, Qt::LeftButton, Qt::NoModifier);
+            const double x = t.objects.lastBox(2).x;
+            t.objects.mouseRelease(QPoint(100 + dx, 140), t.layout, Qt::NoModifier);
+            return x;
+        };
+        QCOMPARE(leftAfterDrag(115), 189.0);   // (3 pixels short of the other object's right edge, at 192)
+        t.objects.setSnapToShapes(true);
+        QCOMPARE(leftAfterDrag(115), 192.0);
+        QCOMPARE(leftAfterDrag(100), 174.0);   // (18 pixels away: not near enough)
+    }
+
     // The arrow keys move the picked object a few pixels (one with Control), Shift sizes it, Alt goes to the next edge of a cell.
     void arrowKeysMoveAndSize()
     {

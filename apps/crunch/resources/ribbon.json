@@ -416,6 +416,9 @@
             {"small": "outline.groupColumns", "keytip": "GC"},
             {"small": "outline.ungroupColumns", "keytip": "UC"},
             {"column": true},
+            {"small": "outline.auto", "keytip": "AO"},
+            {"small": "outline.clear", "keytip": "CO"},
+            {"column": true},
             {"small": "data.subtotal", "keytip": "ST"}
           ]
         },
@@ -548,6 +551,8 @@
             {"small": "view.sideBySide", "keytip": "VB"},
             {"small": "view.syncScroll", "keytip": "SS"},
             {"small": "view.resetWindowPosition", "keytip": "RW"},
+            {"small": "win.hide", "keytip": "HW"},
+            {"small": "win.unhide", "keytip": "UW"},
             {
               "small": {"id": "ribbon.switchWindows", "text": "Switch Windows", "icon": "app-window"},
               "keytip": "SW",
@@ -783,7 +788,10 @@
             {"small": "object.group", "keytip": "GP"},
             {"small": "object.ungroup", "keytip": "UG"},
             {"small": "object.selectObjects", "keytip": "OB"},
-            {"small": "object.selectionPane", "keytip": "SP"}
+            {"small": "object.selectionPane", "keytip": "SP"},
+            {"column": true},
+            {"small": "object.snapGrid", "keytip": "SG"},
+            {"small": "object.snapShape", "keytip": "SH"}
           ]
         },
         {

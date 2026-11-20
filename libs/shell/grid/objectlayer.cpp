@@ -963,13 +963,41 @@ double ObjectLayer::snapAxis(const Axis &axis, double at) const
 
 namespace {
 constexpr double kMinObject = 4;   // the smallest an object is made by hand, in the grid's units
+constexpr double kSnapPixels = 6;  // how near an edge has to be to another object's edge to go to it
+constexpr size_t kMaxSnapTargets = 2000;   // the other objects whose edges are looked at (a sheet with more is snapped to the first of them)
+}
+
+double ObjectLayer::snapToEdges(const std::vector<double> &edges, double at, double within)
+{
+    double best = at, bestDistance = within;
+    for (const double e : edges)
+        if (std::abs(e - at) <= bestDistance) {
+            bestDistance = std::abs(e - at);
+            best = e;
+        }
+    return best;
 }
 
 ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardModifiers modifiers, const Entry &e) const
 {
     const double zoom = std::max(1e-6, m_layout->zoom());
     const double dx = (point.x() - d.from.x()) / zoom, dy = (point.y() - d.from.y()) / zoom;
-    const bool alt = modifiers & Qt::AltModifier, shift = modifiers & Qt::ShiftModifier;
+    // (Alt takes the edges to cells for one drag, or, with Snap to Grid on, leaves them free)
+    const bool alt = bool(modifiers & Qt::AltModifier) != m_snapGrid, shift = modifiers & Qt::ShiftModifier;
+    // the edges of the other objects, when the edges are to go to them
+    std::vector<double> xs, ys;
+    const double within = kSnapPixels / zoom;
+    if (m_snapShapes && !alt) {
+        ensureBoxes(*m_layout);
+        for (size_t i = 0; i < m_entries.size() && xs.size() < 2 * kMaxSnapTargets; ++i) {
+            const Entry &o = m_entries[i];
+            if (i == d.entry || o.deleted || !o.placed) continue;
+            xs.push_back(o.box.x);
+            xs.push_back(o.box.x + o.box.w);
+            ys.push_back(o.box.y);
+            ys.push_back(o.box.y + o.box.h);
+        }
+    }
     ObjectBox b = d.start;
     if (d.mode == DragMode::Move) {
         b.x = std::max(0.0, b.x + dx);
@@ -980,6 +1008,12 @@ ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardM
             b.x += std::abs(l) <= std::abs(r) ? l : r;
             const double t = snapAxis(m_layout->rows, b.y) - b.y, bo = snapAxis(m_layout->rows, b.y + b.h) - (b.y + b.h);
             b.y += std::abs(t) <= std::abs(bo) ? t : bo;
+        } else if (!xs.empty()) {
+            // (the edge nearest an edge of another object goes to it, along each way)
+            const double l = snapToEdges(xs, b.x, within) - b.x, r = snapToEdges(xs, b.x + b.w, within) - (b.x + b.w);
+            if (l != 0 || r != 0) b.x += l != 0 && (r == 0 || std::abs(l) <= std::abs(r)) ? l : r;
+            const double t = snapToEdges(ys, b.y, within) - b.y, bo = snapToEdges(ys, b.y + b.h, within) - (b.y + b.h);
+            if (t != 0 || bo != 0) b.y += t != 0 && (bo == 0 || std::abs(t) <= std::abs(bo)) ? t : bo;
         }
         return b;
     }
@@ -995,6 +1029,11 @@ ObjectBox ObjectLayer::dragBox(const Drag &d, const QPoint &point, Qt::KeyboardM
         if (right) x1 = snapAxis(m_layout->cols, x1);
         if (top) y0 = snapAxis(m_layout->rows, y0);
         if (bottom) y1 = snapAxis(m_layout->rows, y1);
+    } else if (!xs.empty()) {
+        if (left) x0 = snapToEdges(xs, x0, within);
+        if (right) x1 = snapToEdges(xs, x1, within);
+        if (top) y0 = snapToEdges(ys, y0, within);
+        if (bottom) y1 = snapToEdges(ys, y1, within);
     }
     if (x1 - x0 < kMinObject) {
         if (left) x0 = x1 - kMinObject;

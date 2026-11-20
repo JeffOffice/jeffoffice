@@ -1,6 +1,8 @@
 // The width of columns and the height of rows: one step each, with the runs of columns (the specs of rows) as they were and as they are. See EditSession::resizeColumns.
 #include "core/editsession.h"
 
+#include "core/formularefs.h"
+
 #include <algorithm>
 #include <map>
 
@@ -226,6 +228,81 @@ EditSession::Outcome EditSession::changeOutline(int sheet, bool columns, const s
         }
     }
     return resize(e, text);
+}
+
+// Both outlines of a sheet changed as one step: when the second part is refused the first is taken back and the history keeps nothing of either.
+static EditSession::Outcome bothOutlines(EditSession *s, QUndoStack *undo, int sheet, const std::vector<OutlineChange> &rows, const std::vector<OutlineChange> &columns, const QString &text)
+{
+    EditSession::Outcome out;
+    if (rows.empty() && columns.empty()) return out;
+    const int start = undo->index();
+    undo->beginMacro(text);
+    EditSession::Outcome done = s->changeOutline(sheet, false, rows, text);
+    if (done.ok) done = s->changeOutline(sheet, true, columns, text);
+    undo->endMacro();
+    if (!done.ok) {
+        if (undo->index() > start) undo->undo();
+        auto *nothing = new QUndoCommand;
+        nothing->setObsolete(true);
+        undo->push(nothing);
+        out.ok = false;
+        out.problem = done.problem;
+    }
+    return out;
+}
+
+EditSession::Outcome EditSession::autoOutline(int sheet, qint64 maxFormulas)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    const Calculation *calc = m_book->calc.get();
+    const QString name = m_book->book->info().sheets[sheet].name;
+    std::vector<std::pair<quint32, quint32>> rowRuns, columnRuns;
+    qint64 seen = 0;
+    bool tooMany = false;
+    calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32 row, quint32 col, const Cell &) {
+        if (!calc->content(sheet, row, col).isFormula) return true;
+        if (++seen > maxFormulas) {
+            tooMany = true;
+            return false;
+        }
+        const QString text = editText(sheet, row, col);
+        for (const FormulaRef &r : findReferences(text)) {
+            if (r.kind != FormulaRef::Kind::Range || (!r.sheet.isEmpty() && r.sheet.compare(name, Qt::CaseInsensitive) != 0)) continue;
+            // (a run of a hundred thousand lines or more is not a group a person made: it is left out, which also bounds the lines changed)
+            if (r.row2 > r.row1 && r.row2 - r.row1 < kMaxRowsPerResize && (r.row2 < row || r.row1 > row)) rowRuns.emplace_back(r.row1, r.row2);
+            if (r.col2 > r.col1 && (r.col2 < col || r.col1 > col)) columnRuns.emplace_back(r.col1, r.col2);
+        }
+        return true;
+    });
+    if (tooMany) {
+        out.ok = false;
+        out.problem = tr("This sheet has more formulas than Auto Outline reads (%1).").arg(QLocale().toString(maxFormulas));
+        return out;
+    }
+    std::sort(rowRuns.begin(), rowRuns.end());
+    rowRuns.erase(std::unique(rowRuns.begin(), rowRuns.end()), rowRuns.end());
+    std::sort(columnRuns.begin(), columnRuns.end());
+    columnRuns.erase(std::unique(columnRuns.begin(), columnRuns.end()), columnRuns.end());
+    const auto rows = outlineOf(sheet, false).replaceWith(rowRuns), columns = outlineOf(sheet, true).replaceWith(columnRuns);
+    return bothOutlines(this, &m_undo, sheet, rows, columns, tr("Auto Outline"));
+}
+
+EditSession::Outcome EditSession::clearOutline(int sheet)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    return bothOutlines(this, &m_undo, sheet, outlineOf(sheet, false).clearAll(), outlineOf(sheet, true).clearAll(), tr("Clear Outline"));
 }
 
 Outline EditSession::outlineOf(int sheet, bool columns) const

@@ -77,6 +77,7 @@ void CrunchWindow::setupObjects()
         c->pivotButtons.dataNames.clear();
     });
     m_objects->layer()->attach(&m_view->sheet().layout());
+    applySnapChoices(false, QString());
     m_picker = new ObjectPicker(m_objects->layer(), this);
     m_view->setOverlay(m_picker);
     // (the layer asks for its own repaints: the view has set its hook on the picker)

@@ -6,6 +6,7 @@
 
 #include <QtGlobal>
 
+#include <utility>
 #include <vector>
 
 namespace jp::crunch {
@@ -58,6 +59,12 @@ public:
     // is gone is no longer marked collapsed.
     std::vector<OutlineChange> group(quint32 first, quint32 last) const;
     std::vector<OutlineChange> ungroup(quint32 first, quint32 last) const;
+
+    // The changes that make the outline the formulas call for: each of `runs` (first and last line, both in the lines) is a group, deeper where runs lie inside others (to the 7 levels), and
+    // whatever outline there is now is replaced; lines that were hidden by it are shown. No change at all when the outline is already that.
+    std::vector<OutlineChange> replaceWith(const std::vector<std::pair<quint32, quint32>> &runs) const;
+    // The changes that take the whole outline away (every level, every collapsed mark, and the lines it hid).
+    std::vector<OutlineChange> clearAll() const;
 
 private:
     const OutlineLine *find(quint32 index) const;

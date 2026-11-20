@@ -683,7 +683,7 @@ bool CrunchWindow::worksOnSeveralRanges(const QString &id)
     static const char *const exact[] = {"edit.undo", "edit.redo", "edit.selectAll", "edit.find", "edit.clear.contents", "find.find", "find.replace", "find.next", "find.goto", "find.replaceFonts",
                                         "printarea.clear", "format.defaultHeight", "format.defaultWidth", "comments.next", "comments.prev", "notes.next", "notes.prev", "notes.showAll",
                                         "insert.headerFooter", "insert.icons", "insert.object.chart", "insert.object.page", "insert.onlinePicture", "insert.picture", "insert.symbol", "insert.textBox",
-                                        "insert.textBox.draw", "review.accessibility", "review.statistics", "review.thesaurus",
+                                        "insert.textBox.draw", "outline.auto", "outline.clear", "review.accessibility", "review.statistics", "review.thesaurus",
                                         "formulas.calcAuto", "formulas.calcBeforeSave", "formulas.calcManual", "formulas.calcNoTables", "formulas.calculate", "formulas.calculateEverything",
                                         "formulas.calculateSheet", "formulas.circular", "formulas.errorChecking", "formulas.evaluate", "formulas.insertFunction", "formulas.iteration", "formulas.names",
                                         "formulas.nextError", "formulas.options", "formulas.precision", "formulas.previousError", "formulas.rebuildAndCalculate", "formulas.removeArrows",

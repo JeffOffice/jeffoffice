@@ -124,6 +124,31 @@
   "outline.groupRows": [
    "collapse rows"
   ],
+  "object.snapGrid": [
+   "align to cells",
+   "magnetic grid"
+  ],
+  "object.snapShape": [
+   "align to shapes",
+   "magnetic shapes"
+  ],
+  "win.hide": [
+   "hide workbook",
+   "put window away"
+  ],
+  "win.unhide": [
+   "show hidden window",
+   "bring back window"
+  ],
+  "outline.auto": [
+   "make groups",
+   "group from formulas",
+   "automatic groups"
+  ],
+  "outline.clear": [
+   "remove groups",
+   "ungroup all"
+  ],
   "data.form": [
    "data entry",
    "record",

@@ -8,6 +8,7 @@
 #include "grid/gridview.h"
 
 #include <QAction>
+#include <QInputDialog>
 #include <QMenu>
 #include <QScrollBar>
 #include <QStatusBar>
@@ -46,10 +47,66 @@ void CrunchWindow::createWindowActions()
     mk("view.sideBySide", tr("View Side by Side"), "columns-2", QKeySequence(), [this] { setSideBySide(act("view.sideBySide")->isChecked()); }, true);
     mk("view.syncScroll", tr("Synchronous Scrolling"), "arrow-down-up", QKeySequence(), [this] { setSynchronousScrolling(act("view.syncScroll")->isChecked()); }, true);
     act("view.syncScroll")->setChecked(true);
+    mk("win.hide", tr("Hide Window"), "eye-off", QKeySequence(), [this] { hideThisWindow(); });
+    mk("win.unhide", tr("Unhide Window…"), "eye", QKeySequence(), [this] { unhideAWindow(); });
     mk("view.resetWindowPosition", tr("Reset Window Position"), "layout-panel-left", QKeySequence(), [this] {
         if (m_sidePartner) AppWindow::placeSideBySide(this, m_sidePartner);
         else setStatus(tr("Turn on View Side by Side first: this puts the two windows back on the halves of the screen."));
     });
+}
+
+// Hide Window: the window leaves the screen and the lists of windows, with its workbook open; Unhide Window brings one back. At least one other window stays in view (a program with every
+// window hidden would be a program with nothing on the screen to ask for them), and a window tied to another side by side is let go first.
+void CrunchWindow::hideThisWindow()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active) return;
+    CrunchWindow *next = nullptr;
+    for (CrunchWindow *w : crunchWindows())
+        if (w != this && !next) next = w;
+    if (!next) {
+        notice(tr("Hide Window"), tr("This is the only window that is open. Open or create another workbook first: a hidden window is brought back with Unhide Window in another one."));
+        return;
+    }
+    if (m_sidePartner) setSideBySide(false);
+    m_hiddenOnPurpose = true;
+    hide();
+    next->raise();
+    next->activateWindow();
+    next->setStatus(tr("The window \"%1\" is hidden. Unhide Window on the View tab brings it back.").arg(windowTitle()));
+}
+
+void CrunchWindow::unhideAWindow()
+{
+    const QList<CrunchWindow *> hidden = hiddenWindows();
+    if (hidden.isEmpty()) {
+        setStatus(tr("No window is hidden."));
+        return;
+    }
+    // (two views of one file have one title: the second is numbered, so that each can be told from the other)
+    QStringList titles;
+    for (CrunchWindow *w : hidden) {
+        QString title = w->windowTitle();
+        for (int n = 2; titles.contains(title); ++n) title = tr("%1 (%2)").arg(w->windowTitle()).arg(n);
+        titles << title;
+    }
+    int pick = 0;
+    if (hidden.size() > 1) {
+        if (m_windowPicker) {
+            pick = m_windowPicker(titles);
+        } else {
+            bool ok = false;
+            const QString chosen = QInputDialog::getItem(this, tr("Unhide Window"), tr("Window to show"), titles, 0, false, &ok);
+            pick = ok ? int(titles.indexOf(chosen)) : -1;
+        }
+    }
+    if (pick < 0 || pick >= hidden.size()) return;
+    CrunchWindow *w = hidden[pick];
+    w->m_hiddenOnPurpose = false;
+    w->show();
+    w->raise();
+    w->activateWindow();
+    w->setStatus(tr("The window \"%1\" is shown again.").arg(w->windowTitle()));
 }
 
 void CrunchWindow::setSynchronousScrolling(bool on)

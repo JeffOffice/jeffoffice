@@ -2,6 +2,8 @@
 #include "app/uistyle.h"
 #include "app/crunchwindow.h"
 
+#include "app/sheettabs.h"
+
 #include "app/crunchinfo.h"
 #include "app/filldialogs.h"
 #include "app/icons.h"
@@ -54,6 +56,7 @@ void CrunchWindow::createOpsActions()
     connect(m_view, &grid::GridView::fillHandleDoubleClicked, this, [this](const grid::GridRange &source) { fillHandleDoubleClicked(source); });
     connect(m_view, &grid::GridView::moveRequested, this, [this](const grid::GridRange &source, const grid::GridRange &target, bool copy) { moveDragged(source, target, copy); });
     connect(m_view, &grid::GridView::moveInsertRequested, this, [this](const grid::GridRange &source, const grid::GridRange &target) { moveInsertDragged(source, target); });
+    m_view->setAltDropHandler([this](const grid::GridRange &source, bool copy, const QPoint &globalPos) { return dropOnSheetTab(source, copy, globalPos); });
     m_opsActions << QStringLiteral("edit.autosum") << QStringLiteral("edit.autosum.sum") << QStringLiteral("edit.autosum.average") << QStringLiteral("edit.autosum.count")
                  << QStringLiteral("edit.autosum.max") << QStringLiteral("edit.autosum.min");
     updateEditActions();
@@ -201,6 +204,44 @@ void CrunchWindow::moveDragged(const grid::GridRange &source, const grid::GridRa
     if (m_loader.changesMade() != before) m_calculating = true;
     widenForCells(m_sheet, to);
     m_view->selectRange(target.row1, target.col1, target.row2, target.col2);
+}
+
+bool CrunchWindow::dropOnSheetTab(const grid::GridRange &source, bool copy, const QPoint &globalPos)
+{
+    if (!m_tabs || !m_session || m_sheet < 0) return false;
+    const QPoint local = m_tabs->mapFromGlobal(globalPos);
+    if (!m_tabs->rect().contains(local)) return false;
+    const int tab = m_tabs->tabAt(local);
+    if (tab < 0 || tab >= m_tabSheets.size() || m_tabSheets[tab] == m_sheet) return false;
+    const int toSheet = m_tabSheets[tab];
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return true;
+    CellRange from;
+    from.valid = true;
+    from.row1 = quint32(source.row1);
+    from.col1 = quint32(source.col1);
+    from.row2 = quint32(source.row2);
+    from.col2 = quint32(source.col2);
+    const qint64 before = m_loader.changesMade();
+    crunch::EditSession::Outcome o;
+    if (copy) {
+        const crunch::ClipData clip = m_session->copyCells(m_sheet, from, false);
+        if (!clip.valid()) {
+            notice(tr("Copy"), tr("There are too many cells to copy."));
+            return true;
+        }
+        o = m_session->paste(toSheet, from, clip, crunch::EditSession::PasteOptions());
+    } else {
+        o = doStructural([&] { return m_session->moveCells(m_sheet, from, toSheet, from.row1, from.col1); });
+    }
+    if (!o.ok) {
+        if (!o.confirm) notice(copy ? tr("Copy") : tr("Move"), o.problem);
+        return true;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    const QString name = m_loaded->book->info().sheets[toSheet].name;
+    setStatus(copy ? tr("Copied the cells to the sheet \"%1\".").arg(name) : tr("Moved the cells to the sheet \"%1\".").arg(name));
+    return true;
 }
 
 void CrunchWindow::moveInsertDragged(const grid::GridRange &source, const grid::GridRange &target)

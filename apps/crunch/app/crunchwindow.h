@@ -521,6 +521,7 @@ public:
         int before = -1;
         bool copy = false;
     };
+    void setWindowPicker(const std::function<int(const QStringList &)> &picker) { m_windowPicker = picker; }
     void setMoveCopyAsker(const std::function<bool(MoveCopyRequest *)> &asker) { m_moveCopyAsker = asker; }
     // The sheets the tabs have picked (their places in the workbook), the one with the cursor among them.
     QVector<int> selectedSheets() const;
@@ -847,6 +848,8 @@ private:
     void outlineGroupClicked(bool columns, const crunch::Outline::Group &group);
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);
+    void autoOutlineSheet(bool make);
+    void applySnapChoices(bool save, const QString &changed);
     OutlineGutter *m_rowGutter = nullptr, *m_columnGutter = nullptr;
 public:
     OutlineGutter *rowGutter() const { return m_rowGutter; }
@@ -855,6 +858,8 @@ private:
     void fillHandleDoubleClicked(const grid::GridRange &source);
     void moveDragged(const grid::GridRange &source, const grid::GridRange &target, bool copy);
     void moveInsertDragged(const grid::GridRange &source, const grid::GridRange &target);
+    // A block let go with Alt over another sheet's tab: moved there to the same cells (copied with Ctrl). False when the pointer is not over such a tab.
+    bool dropOnSheetTab(const grid::GridRange &source, bool copy, const QPoint &globalPos);
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -1413,6 +1418,9 @@ private:
     // View > Window: a second window on the workbook's file, the windows set in columns or in a stack, two windows side by side whose scrolling goes together, and the list to switch
     // by (crunchwindow_windows.cpp)
     void createWindowActions();
+    void hideThisWindow();
+    void unhideAWindow();
+    static QList<CrunchWindow *> hiddenWindows();
     void windowRibbonParts(RibbonParts &parts);
     void setSideBySide(bool on);
     void setSynchronousScrolling(bool on);
@@ -1873,6 +1881,8 @@ private:
     qint64 m_tabOriginCol = -1, m_tabRow = -1;   // where a run of Tabs began (Enter then goes back to that column)
     // saving
     bool m_saving = false, m_closeAfterSave = false, m_closing = false;
+    bool m_hiddenOnPurpose = false;   // Hide Window took it off the screen (and Unhide Window will put it back)
+    std::function<int(const QStringList &)> m_windowPicker;   // Unhide Window with several hidden: which one (a test answers here)
     bool m_secondView = false;   // (View > New Window: this window opens the file another window has, for reading)
     QPointer<CrunchWindow> m_sidePartner;
     QMetaObject::Connection m_sideScroll[4];

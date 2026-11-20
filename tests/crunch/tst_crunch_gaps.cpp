@@ -9,6 +9,8 @@
 #include "core/editsession.h"
 #include "core/notebox.h"
 #include "core/printjob.h"
+#include "core/sheetobjects.h"
+#include "grid/objectlayer.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
@@ -786,6 +788,127 @@ private Q_SLOTS:
         QCOMPARE(s->editText(1, 1, 0), QStringLiteral("=Sheet1!A1"));
         QCOMPARE(s->nameTextOf(moved), QStringLiteral("=Sheet1!$A$3"));
         QCOMPARE(s->nameTextOf(pushed), QStringLiteral("=Sheet1!$A$1"));
+    }
+
+    // Alt with the drop of a dragged block over another sheet's tab moves the block there, to the same cells (Ctrl copies): one step of Undo, formulas that point at the cells follow, and a
+    // protected sheet refuses in words with nothing done. Without Alt, or off the tab, the drag is the ordinary one.
+    void altDropOnASheetTabMovesTheBlockThere()
+    {
+        auto drop = [](EditWindow &e, const QPoint &from, const QPoint &to, Qt::KeyboardModifiers atRelease, int tab) {
+            QWidget *vp = e.view()->viewport();
+            QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, from);
+            QTest::mouseMove(vp, to);
+            const QPoint over = tab < 0 ? to : vp->mapFromGlobal(e.win.w.sheetTabs()->mapToGlobal(e.win.w.sheetTabs()->tabRect(tab).center()));
+            QTest::mouseRelease(vp, Qt::LeftButton, atRelease, over);
+        };
+        const QString two = crunchtest::rowsOfSpecs({"C1==Sheet1!A1"});
+        const QByteArray bytes = buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2"})), worksheet(two)});
+        EditWindow e;
+        QVERIFY(e.open(bytes));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        e.view()->selectRange(0, 0, 1, 0);
+        const QPoint from = onLeftBorder(e, QStringLiteral("A1")), to = middleOf(e, QStringLiteral("D5"));
+        // (Alt but not over a tab: the ordinary move, to where the pointer is)
+        const int steps = e.win.w.undoStack()->index();
+        drop(e, from, to, Qt::AltModifier, -1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), steps + 1);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("-"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        // (over the tab without Alt: the pointer's place on the sheet is the drop, nothing goes to the other sheet)
+        e.view()->selectRange(0, 0, 1, 0);
+        drop(e, from, to, Qt::NoModifier, 1);
+        QVERIFY(e.settle());
+        QVERIFY(s->editText(1, 0, 0).isEmpty());
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        // (Alt over the tab)
+        e.view()->selectRange(0, 0, 1, 0);
+        const int before = e.win.w.undoStack()->index();
+        drop(e, from, to, Qt::AltModifier, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), before + 1);
+        QCOMPARE(s->editText(1, 0, 0), QStringLiteral("1"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("2"));
+        QVERIFY(s->editText(0, 0, 0).isEmpty());
+        QVERIFY(s->editText(0, 1, 0).isEmpty());
+        QCOMPARE(s->editText(1, 0, 2), QStringLiteral("=A1"));   // (what pointed at the cell follows it, and is now on its own sheet)
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 0, 0), QStringLiteral("1"));
+        QVERIFY(s->editText(1, 0, 0).isEmpty());
+        QCOMPARE(s->editText(1, 0, 2), QStringLiteral("=Sheet1!A1"));
+        // (Alt and Ctrl over the tab: a copy, the first sheet keeps its cells)
+        e.view()->selectRange(0, 0, 1, 0);
+        drop(e, from, to, Qt::AltModifier | Qt::ControlModifier, 1);
+        QVERIFY(e.settle());
+        QCOMPARE(s->editText(0, 0, 0), QStringLiteral("1"));
+        QCOMPARE(s->editText(1, 1, 0), QStringLiteral("2"));
+    }
+
+    void altDropOnAProtectedSheetsTabIsRefusedAndChangesNothing()
+    {
+        const QByteArray bytes = buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2"})), worksheet(crunchtest::rowsOfSpecs({"C1=5"}), QStringLiteral("<sheetProtection sheet=\"1\"/>"))});
+        EditWindow e;
+        QVERIFY(e.open(bytes));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        QStringList said;
+        e.win.w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        crunch::EditSession *s = e.win.w.session();
+        e.view()->selectRange(0, 0, 1, 0);
+        QWidget *vp = e.view()->viewport();
+        const int steps = e.win.w.undoStack()->count();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, onLeftBorder(e, QStringLiteral("A1")));
+        QTest::mouseMove(vp, middleOf(e, QStringLiteral("D5")));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::AltModifier, vp->mapFromGlobal(e.win.w.sheetTabs()->mapToGlobal(e.win.w.sheetTabs()->tabRect(1).center())));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(s->editText(0, 0, 0), QStringLiteral("1"));
+        QVERIFY(s->editText(1, 0, 0).isEmpty());
+        QCOMPARE(said.size(), 1);
+        QVERIFY(!said.first().isEmpty());
+    }
+
+    // Snap to Grid and Snap to Shape on the Shape Format tab are kept for the person (not in a workbook) and reach the objects' layer of every window made afterward.
+    void snapChoicesAreKeptAndReachTheObjectLayer()
+    {
+        const QVariant wasGrid = Settings::get().value(QStringLiteral("crunch/snapGrid")), wasShape = Settings::get().value(QStringLiteral("crunch/snapShape"));
+        Settings::get().remove(QStringLiteral("crunch/snapGrid"));
+        Settings::get().remove(QStringLiteral("crunch/snapShape"));
+        {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=1"})));
+            QVERIFY(e.settle());
+            auto *layer = e.win.w.objects()->layer();
+            QVERIFY(!layer->snapToGrid() && !layer->snapToShapes());
+            e.win.w.act(QStringLiteral("object.snapGrid"))->trigger();
+            QVERIFY(layer->snapToGrid() && !layer->snapToShapes());
+            QVERIFY(e.win.w.statusText().contains(QStringLiteral("Snap to Grid is on")));
+            e.win.w.act(QStringLiteral("object.snapShape"))->trigger();
+            QVERIFY(layer->snapToGrid() && layer->snapToShapes());
+            QVERIFY(Settings::get().value(QStringLiteral("crunch/snapShape")).toBool());
+        }
+        {
+            EditWindow f;
+            QVERIFY(f.open(sheetOf({"A1=1"})));
+            QVERIFY(f.settle());
+            QVERIFY(f.win.w.act(QStringLiteral("object.snapGrid"))->isChecked() && f.win.w.act(QStringLiteral("object.snapShape"))->isChecked());
+            QVERIFY(f.win.w.objects()->layer()->snapToGrid() && f.win.w.objects()->layer()->snapToShapes());
+            f.win.w.act(QStringLiteral("object.snapGrid"))->trigger();
+            QVERIFY(!f.win.w.objects()->layer()->snapToGrid());
+            QVERIFY(!Settings::get().value(QStringLiteral("crunch/snapGrid")).toBool());
+        }
+        for (const auto &kv : {std::pair<const char *, QVariant>{"crunch/snapGrid", wasGrid}, {"crunch/snapShape", wasShape}}) {
+            if (kv.second.isValid()) Settings::get().setValue(QString::fromLatin1(kv.first), kv.second);
+            else Settings::get().remove(QString::fromLatin1(kv.first));
+        }
     }
 
     // A shift-click on a selection's border is a click like any other (it extends the selection); only a move past the drag distance makes it an insert.

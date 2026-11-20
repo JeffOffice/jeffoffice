@@ -889,6 +889,12 @@ public:
     };
     // The outline of the rows or columns changed (see outline.h): the levels, which lines are hidden, and which summary lines say their group is collapsed; one step.
     Outcome changeOutline(int sheet, bool columns, const std::vector<OutlineChange> &changes, const QString &text);
+    // Auto Outline: the rows and the columns get the groups the formulas of the sheet call for (a formula that reads two lines or more of cells that lie wholly before or after its own line
+    // makes them a group), replacing the outline there is, as one step. At most `maxFormulas` formulas are read (more is refused, with nothing done). Clear Outline takes the outline of
+    // both away, as one step. Both leave the sheet as it was when either part is refused.
+    Outcome autoOutline(int sheet, qint64 maxFormulas = kMaxAutoOutlineFormulas);
+    Outcome clearOutline(int sheet);
+    static constexpr qint64 kMaxAutoOutlineFormulas = 200000;
     // The outline the rows (or the columns) of a sheet have now.
     Outline outlineOf(int sheet, bool columns) const;
     // How many outlines have been made so far (counted, for tests), and a number that changes whenever the rows' or columns' sizes, hiding, or outline, or their places, may have (a step

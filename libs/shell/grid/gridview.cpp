@@ -1685,6 +1685,10 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         viewport()->update();
         const bool insert = m_moveInsert && !copy;
         m_moveInsert = false;
+        if (!insert && e && (e->modifiers() & Qt::AltModifier) && m_altDrop && m_altDrop(source, copy, e->globalPosition().toPoint())) {
+            m_pressRow = m_pressCol = -1;
+            return;
+        }
         if (!(target == source)) {
             if (insert) Q_EMIT moveInsertRequested(source, target);
             else Q_EMIT moveRequested(source, target, copy);

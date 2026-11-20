@@ -1,6 +1,7 @@
 #include "core/outline.h"
 
 #include <algorithm>
+#include <iterator>
 #include <map>
 
 namespace jp::crunch {
@@ -165,6 +166,47 @@ std::vector<OutlineChange> Outline::ungroup(quint32 first, quint32 last) const
     // (and the lines of a group that is gone while it was collapsed are shown, which the level of 0 above does for those that left every group)
     std::sort(out.begin(), out.end(), [](const OutlineChange &a, const OutlineChange &b) { return a.index < b.index; });
     return out;
+}
+
+std::vector<OutlineChange> Outline::replaceWith(const std::vector<std::pair<quint32, quint32>> &runs) const
+{
+    std::map<quint32, int> edges;   // where the number of runs over a line changes
+    for (const auto &r : runs) {
+        if (r.second < r.first || r.second >= m_count) continue;
+        ++edges[r.first];
+        --edges[r.second + 1];
+    }
+    std::map<quint32, OutlineChange> out;
+    std::vector<std::pair<quint32, quint32>> covered;   // the lines that are in a group, as stretches (first, after the last)
+    int depth = 0;
+    quint32 at = 0;
+    for (auto it = edges.begin(); it != edges.end(); ++it) {
+        const int level = std::min(depth, kMaxOutlineLevel);
+        if (level > 0) covered.emplace_back(at, it->first);
+        if (level > 0)
+            for (quint32 i = at; i < it->first; ++i) {
+                const OutlineLine *now = find(i);
+                if (now && now->level == level && !now->hidden && !now->collapsed) continue;
+                out[i] = OutlineChange{i, level, now && now->level > 0 ? 0 : -1, 0};
+            }
+        depth += it->second;
+        at = it->first;
+    }
+    for (const OutlineLine &l : m_lines) {
+        // (a line the formulas leave out of any group: its level and mark go, and it is shown if the outline hid it)
+        const auto after = std::upper_bound(covered.begin(), covered.end(), l.index, [](quint32 i, const std::pair<quint32, quint32> &c) { return i < c.first; });
+        if ((after != covered.begin() && l.index < std::prev(after)->second) || (l.level == 0 && !l.collapsed)) continue;
+        out[l.index] = OutlineChange{l.index, 0, l.level > 0 ? 0 : -1, 0};
+    }
+    std::vector<OutlineChange> list;
+    list.reserve(out.size());
+    for (const auto &kv : out) list.push_back(kv.second);
+    return list;
+}
+
+std::vector<OutlineChange> Outline::clearAll() const
+{
+    return replaceWith({});
 }
 
 } // namespace jp::crunch

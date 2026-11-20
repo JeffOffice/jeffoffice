@@ -140,6 +140,12 @@ public:
     bool anchorAtBox(const ObjectBox &box, jp::office::sheet::AnchorKind editAs, jp::office::sheet::DrawingAnchor *out) const;
     // The picked object moved (or sized, with `resize`) by keys: by `step` units, or to the next edge of a cell with `snap`. The new place is told by objectMoved. False if none is picked or it can't be.
     bool nudge(int dx, int dy, bool resize, bool snap, double step = 6);
+    // Snap to Grid: a move or a size by the mouse takes the edges to the edges of cells; Alt does that for one drag, and with this on it keeps the edges free for one drag instead.
+    // Snap to Shape: the edges that move go to an edge of another object that is within a few pixels (when the cells' edges are not taking them).
+    void setSnapToGrid(bool on) { m_snapGrid = on; }
+    bool snapToGrid() const { return m_snapGrid; }
+    void setSnapToShapes(bool on) { m_snapShapes = on; }
+    bool snapToShapes() const { return m_snapShapes; }
     // An object is being dragged (a press on it, or on a handle of the one picked, and the mouse moved); the drag ends at the button's release, or is given up (Escape).
     bool dragging() const { return m_drag.mode == DragMode::Move || m_drag.mode == DragMode::Resize; }
     void cancelDrag();
@@ -262,6 +268,8 @@ private:
     };
     ObjectBox dragBox(const Drag &d, const QPoint &point, Qt::KeyboardModifiers modifiers, const Entry &e) const;
     double snapAxis(const Axis &axis, double at) const;
+    // The place nearest `at` among the edges of the other objects (`xs`: their left and right edges, else top and bottom) when it is within the snap distance; else `at`.
+    static double snapToEdges(const std::vector<double> &edges, double at, double within);
     void finishDrag(bool commit);
     void ensureBoxes(const GridLayout &layout) const;
     // The objects (their places in the list, in order) that may be in `area` of the pane (device pixels): those the index finds by where the area is on the sheet, and the few that are
@@ -328,6 +336,7 @@ private:
     std::function<bool(int, const QString &)> m_textEditHook;
     Drag m_drag;
     int m_tipId = -1;                         // the object whose tooltip is shown
+    bool m_snapGrid = false, m_snapShapes = false;
     mutable size_t m_dragEntry = size_t(-1);   // the entry being dragged: always drawn, wherever the index puts it
 };
 

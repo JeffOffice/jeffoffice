@@ -110,6 +110,14 @@ QList<CrunchWindow *> CrunchWindow::crunchWindows()
     return out;
 }
 
+QList<CrunchWindow *> CrunchWindow::hiddenWindows()
+{
+    QList<CrunchWindow *> out;
+    for (CrunchWindow *w : openWindows())
+        if (w->m_hiddenOnPurpose && !w->isVisible()) out << w;
+    return out;
+}
+
 CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 {
     openWindows().append(this);
@@ -547,6 +555,71 @@ void CrunchWindow::createActions()
         auto lists = std::make_shared<QPointer<QPlainTextEdit>>();
         QVector<OptionsPage> pages;
         pages << saveOptionsPage({{QStringLiteral("xlsx"), tr("Workbook (*.xlsx)")}});
+        // Formulas: how the open workbook works out its formulas (the Formulas tab's commands, in one place); they belong to the workbook and are saved with it.
+        auto calc = std::make_shared<std::array<QPointer<QWidget>, 5>>();
+        pages << OptionsPage{tr("Formulas"), [this, calc] {
+            auto *page = new QWidget;
+            auto *layout = new QFormLayout(page);
+            const bool open = m_session && m_loaded;
+            const crunch::CalcSettings now = open ? m_session->calcSettings() : crunch::CalcSettings();
+            auto *mode = new QComboBox(page);
+            mode->setObjectName(QStringLiteral("optionCalcMode"));
+            mode->setAccessibleName(tr("Calculation"));
+            for (const auto &item : {std::pair<QString, jp::office::sheet::CalcMode>{tr("Automatic"), jp::office::sheet::CalcMode::Auto}, {tr("Automatic Except Data Tables"), jp::office::sheet::CalcMode::AutoNoTable}, {tr("Manual"), jp::office::sheet::CalcMode::Manual}})
+                mode->addItem(item.first, int(item.second));
+            mode->setCurrentIndex(mode->findData(int(now.mode)));
+            layout->addRow(tr("Calculation"), mode);
+            auto *beforeSave = new QCheckBox(tr("Work the formulas out before the workbook is saved (when calculating by hand)"), page);
+            beforeSave->setObjectName(QStringLiteral("optionCalcBeforeSave"));
+            beforeSave->setChecked(now.calcOnSave);
+            layout->addRow(beforeSave);
+            auto *iterate = new QCheckBox(tr("Work out a formula that reads itself by going round it"), page);
+            iterate->setObjectName(QStringLiteral("optionIterate"));
+            iterate->setChecked(now.iterate);
+            layout->addRow(iterate);
+            auto *rounds = new QSpinBox(page);
+            rounds->setObjectName(QStringLiteral("optionIterations"));
+            rounds->setAccessibleName(tr("Most rounds"));
+            rounds->setRange(1, jp::office::sheet::Calculation::kMaxIterations);
+            rounds->setValue(now.count);
+            layout->addRow(tr("Most rounds"), rounds);
+            auto *change = new QDoubleSpinBox(page);
+            change->setObjectName(QStringLiteral("optionIterationChange"));
+            change->setAccessibleName(tr("Stop when no value changes by more than"));
+            change->setDecimals(6);
+            change->setRange(0, 1e9);
+            change->setValue(now.delta);
+            layout->addRow(tr("Stop when no value changes by more than"), change);
+            rounds->setEnabled(open && now.iterate);
+            change->setEnabled(open && now.iterate);
+            connect(iterate, &QCheckBox::toggled, rounds, &QWidget::setEnabled);
+            connect(iterate, &QCheckBox::toggled, change, &QWidget::setEnabled);
+            if (!open)
+                for (QWidget *w : {static_cast<QWidget *>(mode), static_cast<QWidget *>(beforeSave), static_cast<QWidget *>(iterate)}) w->setEnabled(false);
+            (*calc)[0] = mode;
+            (*calc)[1] = beforeSave;
+            (*calc)[2] = iterate;
+            (*calc)[3] = rounds;
+            (*calc)[4] = change;
+            return static_cast<QWidget *>(page);
+        }, [this, calc] {
+            auto *mode = qobject_cast<QComboBox *>((*calc)[0].data());
+            auto *beforeSave = qobject_cast<QCheckBox *>((*calc)[1].data());
+            auto *iterate = qobject_cast<QCheckBox *>((*calc)[2].data());
+            auto *rounds = qobject_cast<QSpinBox *>((*calc)[3].data());
+            auto *change = qobject_cast<QDoubleSpinBox *>((*calc)[4].data());
+            if (!mode || !beforeSave || !iterate || !rounds || !change || !m_session || !m_loaded) return;
+            crunch::CalcSettings s = m_session->calcSettings();
+            s.mode = jp::office::sheet::CalcMode(mode->currentData().toInt());
+            s.calcOnSave = beforeSave->isChecked();
+            s.iterate = iterate->isChecked();
+            s.count = rounds->value();
+            s.delta = change->value();
+            if (s == m_session->calcSettings()) return;   // (nothing changed: no step of Undo)
+            const crunch::EditSession::Outcome o = m_session->setCalcSettings(s);
+            if (!o.ok) notice(tr("Calculation"), o.problem);
+            sendCalcSettings();
+        }};
         pages << OptionsPage{tr("Editing"), [this, choice] {
             auto *page = new QWidget;
             auto *layout = new QFormLayout(page);
@@ -1205,6 +1278,15 @@ void CrunchWindow::closeEvent(QCloseEvent *e)
     cancelRecovery();
     invalidateRecovery();   // (closed: the work was saved, or given up on purpose)
     if (m_recoveredCopy) recovery::discard(*std::exchange(m_recoveredCopy, std::nullopt));
+    // (the last window in view going while others are hidden: they come back, so that the program does not end with workbooks still open that nothing on the screen can reach)
+    bool otherInView = false;
+    for (CrunchWindow *w : crunchWindows())
+        if (w != this) otherInView = true;
+    if (!otherInView)
+        for (CrunchWindow *w : hiddenWindows()) {
+            w->m_hiddenOnPurpose = false;
+            w->show();
+        }
     e->accept();
 }
 

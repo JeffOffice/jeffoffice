@@ -22,8 +22,10 @@ void CrunchWindow::createOutlineActions()
     mk("outline.ungroupRows", tr("Ungroup Rows"), "list-x", QKeySequence(), [this] { groupSelected(false, false); }, false, false);
     mk("outline.groupColumns", tr("Group Columns"), "list-tree", QKeySequence(), [this] { groupSelected(true, true); }, false, false);
     mk("outline.ungroupColumns", tr("Ungroup Columns"), "list-x", QKeySequence(), [this] { groupSelected(true, false); }, false, false);
+    mk("outline.auto", tr("Auto Outline"), "list-tree", QKeySequence(), [this] { autoOutlineSheet(true); }, false, false);
+    mk("outline.clear", tr("Clear Outline"), "list-x", QKeySequence(), [this] { autoOutlineSheet(false); }, false, false);
     mk("view.outline", tr("Outline Symbols"), "list-tree", QKeySequence(), [this] { refreshOutline(true); }, true)->setChecked(true);
-    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns", "outline.auto", "outline.clear"}) m_opsActions << QString::fromLatin1(id);
 }
 
 // The widgets beside the rows and above the columns, with the grid in the middle of them.
@@ -117,6 +119,25 @@ void CrunchWindow::groupSelected(bool columns, bool group)
     }
     const crunch::EditSession::Outcome o = m_session->changeOutline(m_sheet, columns, changes, group ? (columns ? tr("Group Columns") : tr("Group Rows")) : (columns ? tr("Ungroup Columns") : tr("Ungroup Rows")));
     if (!o.ok) notice(tr("Outline"), o.problem);
+}
+
+// Auto Outline (the groups the sheet's formulas call for) or Clear Outline (all of the sheet's groups taken away), for rows and columns together, as one step.
+void CrunchWindow::autoOutlineSheet(bool make)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const int steps = m_session->undoStack()->count();
+    const crunch::EditSession::Outcome o = make ? m_session->autoOutline(m_sheet) : m_session->clearOutline(m_sheet);
+    if (!o.ok) {
+        notice(tr("Outline"), o.problem);
+        return;
+    }
+    if (m_session->undoStack()->count() == steps) {
+        notice(tr("Outline"), make ? tr("No outline to make: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it, or the sheet's outline is already that.")
+                                   : tr("This sheet has no outline to clear."));
+        return;
+    }
+    setStatus(make ? tr("Outline made from the formulas.") : tr("Outline cleared."));
 }
 
 } // namespace jp

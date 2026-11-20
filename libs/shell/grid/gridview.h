@@ -322,6 +322,9 @@ public:
     // The fill handle at the corner of the selection and the drag of the selection's border (move or copy cells) are on; off, a drag only selects.
     void setDragEditing(bool on) { m_dragEditing = on; viewport()->update(); }
     bool dragEditing() const { return m_dragEditing; }
+    // A dragged block let go with Alt held, with the pointer's place on the screen: the window says whether the pointer is over something that takes the block (another sheet's tab) and
+    // does it (true), else the block is moved as any other drag.
+    void setAltDropHandler(std::function<bool(const GridRange &source, bool copy, const QPoint &globalPos)> handler) { m_altDrop = std::move(handler); }
     // A hook asked before a click changes the selection: false, and the click is ignored (the window finishes an entry first, and does not go on when it can't).
     void setClickGuard(std::function<bool()> guard) { m_clickGuard = std::move(guard); }
     // A double click on a cell asks this first; true says it was taken (the cell is not edited).
@@ -587,6 +590,7 @@ private:
     void moveSplitBar(const QPoint &lp);
     void addingPress(bool add, const std::function<void()> &select);
     bool m_dragEditing = true;
+    std::function<bool(const GridRange &, bool, const QPoint &)> m_altDrop;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
     bool m_breakView = false, m_breakEditable = true;
     std::vector<GridRange> m_breakAreas;

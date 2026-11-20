@@ -7,6 +7,7 @@
 #include "core/fonts.h"
 #include "core/outline.h"
 #include "editwindow.h"
+#include "findbooks.h"
 #include "grid/gridview.h"
 #include "office/package.h"
 #include "savedok.h"
@@ -360,6 +361,96 @@ private Q_SLOTS:
         // Undo takes the margin away
         for (int i = 0; i < steps; ++i) e.win.w.undoStack()->undo();
         QTRY_VERIFY(e.win.w.columnGutter()->isHidden());
+    }
+
+    // Auto Outline makes the groups the formulas call for (a formula that adds up lines wholly before or after its own), nested where the sums nest, for rows and columns together as one
+    // step; the file keeps the levels. Clear Outline takes them all away as one step. Nothing to make or clear is told in words, and a protected sheet is refused.
+    void autoOutlineMakesGroupsFromFormulasAndClearOutlineTakesThemAway()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4==SUM(A1:A3)", "A5=10", "A6==SUM(A1:A5)", "C8=1", "D8=2", "E8==SUM(C8:D8)"})));
+        QVERIFY(e.settle());
+        auto colLevel = [&](quint32 c) {
+            for (const auto &s : e.win.w.session()->calculation()->columnRuns(0, c, c))
+                if (s.first <= c && c <= s.last) return int(s.outline);
+            return 0;
+        };
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Auto Outline"));
+        for (quint32 r = 0; r < 3; ++r) QCOMPARE(rowState(e, r).level, 2);
+        QCOMPARE(rowState(e, 3).level, 1);
+        QCOMPARE(rowState(e, 4).level, 1);
+        QCOMPARE(rowState(e, 5).level, 0);
+        QCOMPARE(colLevel(1), 0);
+        QCOMPARE(colLevel(2), 1);
+        QCOMPARE(colLevel(3), 1);
+        QCOMPARE(colLevel(4), 0);
+        QVERIFY(e.win.told.isEmpty());
+        // (a second time changes nothing and says so)
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QVERIFY(!e.win.told.isEmpty());
+        // (the file keeps the levels, through the window's own save)
+        const QByteArray xml = savedSheet(e);
+        QVERIFY2(xml.contains("outlineLevel=\"2\""), xml.left(300).constData());
+        QVERIFY(xml.contains("outlineLevel=\"1\""));
+        e.win.told.clear();
+        e.win.w.act(QStringLiteral("outline.clear"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        for (quint32 r = 0; r < 6; ++r) QCOMPARE(rowState(e, r).level, 0);
+        QCOMPARE(colLevel(2), 0);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(rowState(e, 0).level, 2);
+        QCOMPARE(colLevel(3), 1);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(rowState(e, 0).level, 0);
+        QCOMPARE(colLevel(3), 0);
+        e.win.w.act(QStringLiteral("outline.clear"))->trigger();   // (nothing to clear: told)
+        QVERIFY(!e.win.told.isEmpty());
+    }
+
+    // A group that was collapsed is shown again, and what the formulas do not call for is no longer in a group.
+    void autoOutlineReplacesTheOutlineThereIs()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)", "A6=1", "A7=2"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(5, 6), QStringLiteral("Group")).ok);
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).collapse(s->outlineOf(0, false).groups(5, 6).front()), QStringLiteral("Hide")).ok);
+        QVERIFY(rowState(e, 5).hidden);
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(rowState(e, 0).level, 1);
+        QCOMPARE(rowState(e, 1).level, 1);
+        for (quint32 r = 2; r < 8; ++r) {
+            QCOMPARE(rowState(e, r).level, 0);
+            QVERIFY(!rowState(e, r).hidden);
+            QVERIFY(!rowState(e, r).collapsed);
+        }
+    }
+
+    // A protected sheet refuses both, in words, with nothing done; a sheet with more formulas than the limit is refused whole, not outlined in part.
+    void autoOutlineRefusesAProtectedSheetAndTooManyFormulas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(crunchtest::rowsOfSpecs({"A1=1", "A2=2", "A3==SUM(A1:A2)"}), QStringLiteral("<sheetProtection sheet=\"1\"/>"))})));
+        QVERIFY(e.settle());
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(rowState(e, 0).level, 0);
+        EditWindow f;
+        QVERIFY(f.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)", "A4==A3+1", "A5==A4+1"})));
+        QVERIFY(f.settle());
+        crunch::EditSession *s = f.win.w.session();
+        const auto refused = s->autoOutline(0, 2);
+        QVERIFY(!refused.ok && !refused.problem.isEmpty());
+        QCOMPARE(f.win.w.undoStack()->count(), steps);
+        QVERIFY(s->autoOutline(0, 3).ok);
+        QCOMPARE(rowState(f, 0).level, 1);
     }
 
     // Recalculate All counts as a change the window has seen to the end: a step after it that leaves the workbook's values alone (a group) must not leave the window "calculating" for good, which

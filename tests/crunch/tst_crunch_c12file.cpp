@@ -11,6 +11,7 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "office/package.h"
 #include "savedok.h"
 #include "sheet/protection.h"
 #include "sheet/sheetreader.h"
@@ -151,6 +152,88 @@ private Q_SLOTS:
         QVERIFY(!second->sideBySidePartner());
         second->close();
         QTRY_VERIFY(guard.isNull());
+    }
+
+    // Hide Window takes a window off the screen with its workbook open (never the only one in view), and Unhide Window brings it back; the last window in view closing brings the hidden ones
+    // back too, so no workbook is left that nothing on the screen can reach.
+    void hideAndUnhideWindowWork()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.show();
+        QVERIFY(w.isVisible());
+        // (the only window: refused in words)
+        const int told = e.win.told.size();
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(w.isVisible());
+        QCOMPARE(e.win.told.size(), told + 1);
+        w.act(QStringLiteral("win.unhide"))->trigger();   // (and nothing is hidden: said in the status bar)
+        QVERIFY(w.statusText().contains(QStringLiteral("No window is hidden")));
+        w.act(QStringLiteral("win.new"))->trigger();
+        CrunchWindow *second = nullptr;
+        QTRY_VERIFY((second = [&] {
+            for (CrunchWindow *c : CrunchWindow::crunchWindows())
+                if (c != &w) return c;
+            return static_cast<CrunchWindow *>(nullptr);
+        }()) != nullptr);
+        QPointer<CrunchWindow> guard(second);
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!w.isVisible());
+        QVERIFY(!CrunchWindow::crunchWindows().contains(&w));
+        QVERIFY(second->statusText().contains(QStringLiteral("is hidden")));
+        // (the workbook is still open in it)
+        QVERIFY(w.hasWorkbook());
+        second->act(QStringLiteral("win.unhide"))->trigger();
+        QVERIFY(w.isVisible());
+        QVERIFY(CrunchWindow::crunchWindows().contains(&w));
+        // (hide again, and close the window in view: the hidden one comes back)
+        w.act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!w.isVisible());
+        second->close();
+        QTRY_VERIFY(guard.isNull());
+        QVERIFY(w.isVisible());
+    }
+
+    // With several windows hidden, Unhide Window asks which one, and brings back that one only.
+    void unhideWindowAsksWhichOfSeveral()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.show();
+        w.act(QStringLiteral("win.new"))->trigger();
+        w.act(QStringLiteral("win.new"))->trigger();
+        QTRY_COMPARE(CrunchWindow::crunchWindows().size(), 3);
+        QList<CrunchWindow *> others;
+        for (CrunchWindow *c : CrunchWindow::crunchWindows())
+            if (c != &w) others << c;
+        QPointer<CrunchWindow> a(others[0]), b(others[1]);
+        QTRY_VERIFY(a->hasWorkbook() && b->hasWorkbook());
+        a->act(QStringLiteral("win.hide"))->trigger();
+        b->act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!a->isVisible() && !b->isVisible());
+        QStringList offered;
+        w.setWindowPicker([&](const QStringList &titles) {
+            offered = titles;
+            return int(titles.size()) - 1;
+        });
+        w.act(QStringLiteral("win.unhide"))->trigger();
+        QCOMPARE(offered.size(), 2);
+        QVERIFY(offered[0] != offered[1]);   // (two views of one file: each can be told from the other)
+        QVERIFY(!a->isVisible());
+        QVERIFY(b->isVisible());
+        w.setWindowPicker([](const QStringList &) { return -1; });
+        // (a window shown again by hand is not offered)
+        b->act(QStringLiteral("win.hide"))->trigger();
+        QVERIFY(!b->isVisible());
+        w.act(QStringLiteral("win.unhide"))->trigger();   // (the picker is cancelled: nothing comes back)
+        QVERIFY(!a->isVisible() && !b->isVisible());
+        a->close();
+        b->close();
+        QTRY_VERIFY(a.isNull() && b.isNull());
     }
 
     // Allow Edit Ranges: a range with no password lets its cells be changed on a protected sheet; one with a password does once the password is given; the rest stay locked.
@@ -369,6 +452,57 @@ private Q_SLOTS:
         QCOMPARE(int(std::lround(fresh.view()->zoom() * 100)), 150);
         w.setEditInCell(true);
         w.setRemovePersonalOnSave(false);
+    }
+
+    // Options > Formulas sets how the open workbook works out its formulas (calculation by hand, the rounds of going round a circular formula): one step of Undo, nothing when nothing was
+    // changed, and the file the window saves holds it and opens with it.
+    void theFormulasOptionsSetTheCalculationOfTheWorkbookAndAreSaved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto answer = [&](const std::function<void(QWidget *)> &change) {
+            auto *watch = new QTimer(&w);
+            watch->setInterval(10);
+            connect(watch, &QTimer::timeout, watch, [watch, change] {
+                QWidget *dialog = QApplication::activeModalWidget();
+                if (!dialog || dialog->findChildren<QComboBox *>(QStringLiteral("optionCalcMode")).isEmpty()) return;
+                watch->stop();
+                change(dialog);
+                if (auto *buttons = dialog->findChild<QDialogButtonBox *>()) buttons->button(QDialogButtonBox::Ok)->click();
+            });
+            watch->start();
+            w.act(QStringLiteral("file.options"))->trigger();
+        };
+        // (nothing changed: no step of Undo)
+        const int steps = w.undoStack()->count();
+        answer([](QWidget *) {});
+        QCOMPARE(w.undoStack()->count(), steps);
+        answer([](QWidget *dialog) {
+            auto *mode = dialog->findChild<QComboBox *>(QStringLiteral("optionCalcMode"));
+            mode->setCurrentIndex(mode->findData(int(jp::office::sheet::CalcMode::Manual)));
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionCalcBeforeSave"))->setChecked(false);
+            dialog->findChild<QCheckBox *>(QStringLiteral("optionIterate"))->setChecked(true);
+            dialog->findChild<QSpinBox *>(QStringLiteral("optionIterations"))->setValue(50);
+            dialog->findChild<QDoubleSpinBox *>(QStringLiteral("optionIterationChange"))->setValue(0.01);
+        });
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        crunch::CalcSettings s = w.session()->calcSettings();
+        QVERIFY(s.mode == jp::office::sheet::CalcMode::Manual && !s.calcOnSave && s.iterate && s.count == 50 && s.delta == 0.01);
+        QVERIFY(w.act(QStringLiteral("formulas.calcManual"))->isChecked());
+        // (the file the window saves holds it, and a window that opens the file has it)
+        QSignalSpy saved(&w, &CrunchWindow::saved);
+        QVERIFY(w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        jp::office::Package pk;
+        QString why;
+        QVERIFY(pk.readLazyFile(e.path, &why));
+        const QByteArray book = pk.part(QStringLiteral("xl/workbook.xml"));
+        QVERIFY2(book.contains("calcMode=\"manual\"") && book.contains("iterate=\"1\"") && book.contains("iterateCount=\"50\""), book.constData());
+        w.undoStack()->undo();
+        QVERIFY(w.session()->calcSettings().mode == jp::office::sheet::CalcMode::Auto);
+        QVERIFY(w.act(QStringLiteral("formulas.calcAuto"))->isChecked());
     }
 
     // Edit ranges move with inserted and deleted rows and columns, as one step of Undo with the edit; a range cut by a deleted column shrinks, one taken out whole is gone, and the file holds the new cells.
