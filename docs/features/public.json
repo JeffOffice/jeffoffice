@@ -1215,7 +1215,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "1237d1c0e24df12cf675178c308ba1c02bdfd6dbb826ca08c7ec618b2c3b563a"
+         "text": "5dd8a9262ebd1dc8ebec1b9858848ec2d36628bcde6e2b0bf6e41f4dc9a6b2f4"
         },
         {
          "hide_soon": true,
@@ -2018,7 +2018,7 @@
         },
         {
          "status": "partly",
-         "text": "51f0ffa8abee9c40fffc65aaaf41fa849eacc63a3c6b3f916188c0f56cc22418"
+         "text": "a854169a46d6d35f7af6e447f93e5ef28e78e2212100f49c62ea11aff894e6e6"
         },
         {
          "status": "partly",
@@ -9058,18 +9058,6 @@
     "fr": ""
    }
   },
-  "1237d1c0e24df12cf675178c308ba1c02bdfd6dbb826ca08c7ec618b2c3b563a": {
-   "drop": false,
-   "en": "Add, edit, and delete notes on cells, and move between them with Previous and Next. Show or hide one note or every note, see the red mark and the note on hover, and keep the author name. A shown note has a box that you click to select, drag to move, and resize with its eight handles, each as one step of Undo. Notes move with their rows, columns, and sorts, are saved in `.xlsx` files, and are refused on a protected sheet. Page Setup can print notes after the last page or where they are on the sheet.",
-   "es": "Agregue, edite y elimine notas en las celdas, y desplácese entre ellas con Anterior y Siguiente. Muestre u oculte una nota o todas las notas, vea la marca roja y la nota al pasar el puntero, y conserve el nombre del autor. Una nota mostrada tiene un cuadro que se selecciona con un clic, se mueve arrastrándolo y se cambia de tamaño con sus ocho controladores, cada acción como un paso de Deshacer. Las notas se mueven con sus filas, columnas y ordenaciones, se guardan en archivos `.xlsx` y se rechazan en una hoja protegida. Configurar página puede imprimir las notas después de la última página o donde están en la hoja.",
-   "fr": "Ajoutez, modifiez et supprimez des notes sur les cellules, et passez de l’une à l’autre avec Précédent et Suivant. Affichez ou masquez une note ou toutes les notes, voyez le repère rouge et la note au survol, et conservez le nom de l’auteur. Une note affichée a un cadre que l’on sélectionne d’un clic, déplace en le faisant glisser et redimensionne avec ses huit poignées, chaque action étant une étape d’Annuler. Les notes suivent leurs lignes, colonnes et tris, sont enregistrées dans des fichiers `.xlsx` et sont refusées sur une feuille protégée. La mise en page peut imprimer les notes après la dernière page ou là où elles se trouvent sur la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Notes in `.ods` files: open and save",
-    "es": "Notas en archivos `.ods`: abrir y guardar",
-    "fr": "Notes dans les fichiers `.ods` : ouvrir et enregistrer"
-   }
-  },
   "1280f78a70aaede490888b30b43e87095bee9375c293470c7554f8f330ddaec3": {
    "drop": true,
    "en": "",
@@ -13918,18 +13906,6 @@
     "fr": ""
    }
   },
-  "51f0ffa8abee9c40fffc65aaaf41fa849eacc63a3c6b3f916188c0f56cc22418": {
-   "drop": false,
-   "en": "Drag the fill handle to fill a series.",
-   "es": "Arrastre el controlador de relleno para rellenar una serie.",
-   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
-   "soon": {
-    "drop": false,
-    "en": "Move or copy a selection by dragging its border",
-    "es": "Mover o copiar una selección arrastrando su borde",
-    "fr": "Déplacer ou copier une sélection en faisant glisser sa bordure"
-   }
-  },
   "522ff1d68902f0a45e3d39002084501d430dbaff6ca22340872d1f66c94dd29a": {
    "drop": false,
    "en": "Save a document as a single `.html` file that contains the text, its formatting (font, size, color, highlight, alignment, and spacing), and the pictures. Hidden text and tracked deletions are left out.",
@@ -14876,6 +14852,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5dd8a9262ebd1dc8ebec1b9858848ec2d36628bcde6e2b0bf6e41f4dc9a6b2f4": {
+   "drop": false,
+   "en": "Add, edit, and delete notes (older-style comments shown in a box when you hover over a cell), step through them with Previous and Next, show or hide one note or every note, and keep the author name. Shown notes can be moved and resized by mouse or keyboard, and Reset Note Size restores the default size. Notes are saved in `.xlsx` files and can be printed at the end or where they are on the sheet.",
+   "es": "Agregue, edite y elimine notas (comentarios de estilo anterior que se muestran en un cuadro al pasar el puntero sobre una celda), recórralas con Anterior y Siguiente, muestre u oculte una nota o todas las notas, y conserve el nombre del autor. Las notas mostradas se pueden mover y cambiar de tamaño con el mouse o el teclado, y Restablecer tamaño de nota devuelve el tamaño predeterminado. Las notas se guardan en archivos `.xlsx` y se pueden imprimir al final o donde están en la hoja.",
+   "fr": "Ajoutez, modifiez et supprimez des notes (commentaires d’ancien style affichés dans une zone au survol d’une cellule), parcourez-les avec Précédent et Suivant, affichez ou masquez une note ou toutes les notes, et conservez le nom de l’auteur. Les notes affichées peuvent être déplacées et redimensionnées à la souris ou au clavier, et Rétablir la taille de la note rend la taille par défaut. Les notes sont enregistrées dans les fichiers `.xlsx` et peuvent être imprimées à la fin ou à leur emplacement sur la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Notes in `.ods` files",
+    "es": "Notas en archivos `.ods`",
+    "fr": "Notes dans les fichiers `.ods`"
    }
   },
   "5ddc52e9a1aaf8f5ef9c4096b64b7f75339a8c21e013bc79efb16532e1a9e6a8": {
@@ -20012,6 +20000,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "a854169a46d6d35f7af6e447f93e5ef28e78e2212100f49c62ea11aff894e6e6": {
+   "drop": false,
+   "en": "Drag the fill handle to fill a series.",
+   "es": "Arrastre el controlador de relleno para rellenar una serie.",
+   "fr": "Faites glisser la poignée de recopie pour remplir une série.",
+   "soon": {
+    "drop": false,
+    "en": "Move or copy a selection by dragging its border",
+    "es": "Mover o copiar una selección arrastrando su borde",
+    "fr": "Déplacer ou copier une sélection en faisant glisser sa bordure"
    }
   },
   "a8554254f5f837308c961675a672b6e8c443a45f770798837c017582721edd44": {
