@@ -755,17 +755,15 @@ private:
             if (!n.second.date.isEmpty()) dated = true;
             notes.push_back({n.first, &n.second});
         }
-        auto said = [&](qint64 count, const char *what, bool withNumber, qint64 number) {
-            if (count <= 0) return;
-            const int n = int(std::min<qint64>(count, 0x7fffffff));
-            const QString text = QCoreApplication::translate("Sheet", what, nullptr, n);
-            trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(QLocale().toString(number)) : text));
+        const auto counted = [](qint64 count) { return int(std::min<qint64>(count, 0x7fffffff)); };
+        auto said = [&](qint64 count, const QString &text, bool withNumber, qint64 number) {
+            if (count > 0) trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(QLocale().toString(number)) : text));
         };
-        said(outside, QT_TRANSLATE_NOOP("Sheet", "%n note(s) outside the old format's sheet size (past row 65,536 or column IV), which were left out"), false, 0);
-        said(empty, QT_TRANSLATE_NOOP("Sheet", "%n note(s) with no words, which were left out"), false, 0);
-        said(over, QT_TRANSLATE_NOOP("Sheet", "%n note(s) past the first %1 of a sheet, which were left out"), true, kMaxXlsNotes);
-        said(textCut, QT_TRANSLATE_NOOP("Sheet", "%n note(s) cut to %1 characters"), true, kMaxXlsNoteChars);
-        said(authorCut, QT_TRANSLATE_NOOP("Sheet", "%n author name(s) cut to %1 characters"), true, kMaxXlsAuthorChars);
+        said(outside, QCoreApplication::translate("Sheet", "%n note(s) outside the old format's sheet size (past row 65,536 or column IV), which were left out", nullptr, counted(outside)), false, 0);
+        said(empty, QCoreApplication::translate("Sheet", "%n note(s) with no words, which were left out", nullptr, counted(empty)), false, 0);
+        said(over, QCoreApplication::translate("Sheet", "%n note(s) past the first %1 of a sheet, which were left out", nullptr, counted(over)), true, kMaxXlsNotes);
+        said(textCut, QCoreApplication::translate("Sheet", "%n note(s) cut to %1 characters", nullptr, counted(textCut)), true, kMaxXlsNoteChars);
+        said(authorCut, QCoreApplication::translate("Sheet", "%n author name(s) cut to %1 characters", nullptr, counted(authorCut)), true, kMaxXlsAuthorChars);
         if (dated) m_features.noteDatesLost();
         if (notes.empty()) return;
         const NoteGrid grid(sheet);
