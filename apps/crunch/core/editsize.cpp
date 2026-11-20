@@ -17,6 +17,11 @@ void change(ColumnSpan *c, const EditSession::SizeChange &by)
         c->customWidth = by.custom;
     }
     if (by.setHidden) c->hidden = by.hidden;
+    // (a column that was hidden by a width of nothing, shown, is a column of the sheet's usual width: not one of no width, which shows nothing)
+    if (by.setHidden && !by.hidden && !by.setSize && c->width == 0) {
+        c->width = -1;
+        c->customWidth = false;
+    }
 }
 
 void change(RowSpec *r, const EditSession::SizeChange &by)
@@ -199,6 +204,10 @@ EditSession::Outcome EditSession::changeOutline(int sheet, bool columns, const s
             if (it != by.end()) {
                 if (it->second.level >= 0) s.outline = quint8(std::min(it->second.level, kMaxOutlineLevel));
                 if (it->second.hidden >= 0) s.hidden = it->second.hidden != 0;
+                if (it->second.hidden == 0 && s.width == 0) {
+                    s.width = -1;
+                    s.customWidth = false;
+                }
                 if (it->second.collapsed >= 0) s.collapsed = it->second.collapsed != 0;
             }
             if (had || s.width >= 0 || s.hidden || s.style != 0 || s.outline != 0 || s.collapsed) each.push_back(s);

@@ -256,6 +256,22 @@ private Q_SLOTS:
         QVERIFY(again.win.w.session()->customViews()[0] == s->customViews()[0]);
     }
 
+    // A column that the file hides with a width of nothing (a copy made as an .ods keeps that width) is shown at the sheet's usual width when it is shown: not at no width, which shows nothing.
+    void aColumnHiddenWithNoWidthIsShownAtTheUsualWidth()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QString(), QStringLiteral("<cols><col min=\"2\" max=\"2\" width=\"0\" hidden=\"1\" customWidth=\"1\"/></cols>"))})));
+        crunch::EditSession *s = e.win.w.session();
+        const auto before = s->calculation()->columnRuns(0, 1, 1);
+        QVERIFY(!before.empty() && before.front().hidden && before.front().width == 0);
+        crunch::EditSession::SizeChange show;
+        show.setHidden = true;
+        show.hidden = false;
+        QVERIFY(s->resizeColumns(0, 1, 1, show, QStringLiteral("show")).ok);
+        const auto after = s->calculation()->columnRuns(0, 1, 1);
+        QVERIFY(after.empty() || (!after.front().hidden && after.front().width != 0));
+    }
+
     void aViewKeepsTheLookOfTheWorkbookAndShowsItAgain()
     {
         EditWindow e;
