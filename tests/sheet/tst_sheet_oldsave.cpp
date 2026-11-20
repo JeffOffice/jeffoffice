@@ -614,7 +614,7 @@ private Q_SLOTS:
         QByteArray old;
         QVERIFY2(saveXls(broken, &old, &report, &c.why), qPrintable(c.why));
         QCOMPARE(report.formulasAsValues, qint64(1));
-        QVERIFY(report.formulaReasons.join(QLatin1Char(' ')).contains(QLatin1String("has no link")));
+        QVERIFY(report.formulaReasons.join(QLatin1Char(' ')).contains(QLatin1String("no link with an address")));
     }
 
     // Links made in the session, and one whose address was changed there, are in the file the copy is made from (the save puts them in): the copy has them in the order the formulas number them.
@@ -855,7 +855,7 @@ private Q_SLOTS:
             Copies c;
             QVERIFY2(c.make(withOneLink(row(1, fnum(QStringLiteral("A1"), QStringLiteral("[3]Sheet1!A1"), 9)), QStringLiteral("C:\\data\\Costs.xlsx"), {QStringLiteral("Sheet1")}), false), qPrintable(c.why));
             QCOMPARE(c.xlsReport.formulasAsValues, qint64(1));
-            QVERIFY2(joined(c).contains(QLatin1String("has no link")), qPrintable(joined(c)));
+            QVERIFY2(joined(c).contains(QLatin1String("no link with an address")), qPrintable(joined(c)));
         }
         // a function that is not in the format is refused where there is no way to call it by name (a context without the add-in's list)
         XlsCompileContext cx;

@@ -504,7 +504,7 @@ private:
             return -1;
         };
         if (!m_links || book < 1 || book > m_links->count() || m_links->target(book).isEmpty())
-            return refuse(QCoreApplication::translate("Sheet", "The formula reads another workbook that the workbook has no link to."));
+            return refuse(QCoreApplication::translate("Sheet", "The formula reads another workbook that has no link with an address in the workbook."));
         if (book > kMaxLinks) return refuse(QCoreApplication::translate("Sheet", "The workbook has more than 250 links to other workbooks, which the old format can't hold."));
         if (m_links->target(book).size() > kMaxLinkTarget) return refuse(QCoreApplication::translate("Sheet", "A link's address is longer than 1,000 characters, which the old format can't hold."));
         if (sheet.size() > 255) return refuse(QCoreApplication::translate("Sheet", "The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can't hold."));
