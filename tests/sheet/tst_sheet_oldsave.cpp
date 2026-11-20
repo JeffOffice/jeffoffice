@@ -4,6 +4,7 @@
 #include "odshelpers.h"
 
 #include "io/cfb.h"
+#include "io/zip.h"
 #include "xlsvalidate.h"
 #include "sheet/oldsave.h"
 #include "sheet/notes.h"
@@ -67,6 +68,13 @@ QString formula(const Sheet &sheet, const QString &ref)
 QString annotated(const QString &inside, const QString &attrs = QString())
 {
     return cell(QString(), QStringLiteral("<office:annotation %1>%2</office:annotation>").arg(attrs, inside));
+}
+
+QByteArray zipOf(const QMap<QString, QByteArray> &parts)
+{
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
 }
 
 QByteArray notedOds(const QString &rows, int cols = 12) { return buildOds(contentXml(table(QStringLiteral("S"), columns(cols) + rows))); }
@@ -1493,7 +1501,306 @@ private Q_SLOTS:
         const auto now = readSheetNoteInfos(back, 0);
         QCOMPARE(now.size(), size_t(1));
         QCOMPARE(now.begin()->second.text, QStringLiteral("kept"));
-        QVERIFY2(report.trimmed.join(QLatin1Char('|')).contains(QLatin1String("2 notes past row 65,536 or column IV")), qPrintable(report.trimmed.join(QLatin1Char('|'))));
+        QVERIFY2(report.trimmed.join(QLatin1Char('|')).contains(QLatin1String("2 note")) && report.trimmed.join(QLatin1Char('|')).contains(QLatin1String("sheet size")), qPrintable(report.trimmed.join(QLatin1Char('|'))));
+    }
+
+    // What the copy leaves out of the notes is counted for each reason on its own, and said: the notes outside the old form's grid, the ones with no words, and the ones past the most a sheet of the
+    // copy has (the counts are true: a note is counted once, for the first reason that fits).
+    void eachReasonANoteIsLeftOutOfAnXlsCopyIsCountedOnItsOwn()
+    {
+        {
+            const QString rows = row(annotated(QStringLiteral("<text:p>kept</text:p>")) + emptyCell() + annotated(QString()) + emptyCell(QStringLiteral("table:number-columns-repeated=\"296\"")) + annotated(QStringLiteral("<text:p>far right</text:p>")))
+                                 + row(emptyCell(), QStringLiteral("table:number-rows-repeated=\"70000\"")) + row(annotated(QStringLiteral("<text:p>far down</text:p>")));
+            Workbook source;
+            QString why;
+            QVERIFY(openBytes(notedOds(rows, 301), QStringLiteral("n.ods"), &source, &why));
+            QCOMPARE(readSheetNoteInfos(source, 0).size(), size_t(4));
+            QByteArray xls;
+            CopyReport report;
+            QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+            const QStringList said = report.trimmed;
+            auto find = [&](const char *word) {
+                QStringList found;
+                for (const QString &m : said)
+                    if (m.contains(QLatin1String(word))) found << m;
+                return found;
+            };
+            QCOMPARE(find("sheet size").size(), qsizetype(1));
+            QVERIFY2(find("sheet size")[0].contains(QStringLiteral("2 note")), qPrintable(said.join(QLatin1Char('|'))));
+            QCOMPARE(find("no words").size(), qsizetype(1));
+            QVERIFY2(find("no words")[0].contains(QStringLiteral("1 note")), qPrintable(said.join(QLatin1Char('|'))));
+            QVERIFY2(find("past the first").isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+            Workbook back;
+            QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+            QCOMPARE(readSheetNoteInfos(back, 0).size(), size_t(1));
+        }
+        {
+            // more than a sheet of the copy keeps (30,000): those are counted on their own, and the one outside the grid is not among them
+            QString rows;
+            for (int r = 0; r < 300; ++r) {
+                QString cells;
+                for (int c = 0; c < 100; ++c) cells += annotated(QStringLiteral("<text:p>n</text:p>"));
+                rows += row(cells);
+            }
+            rows += row(annotated(QStringLiteral("<text:p>n</text:p>")) + annotated(QStringLiteral("<text:p>n</text:p>")) + annotated(QStringLiteral("<text:p>n</text:p>")) + emptyCell(QStringLiteral("table:number-columns-repeated=\"296\""))
+                        + annotated(QStringLiteral("<text:p>far</text:p>")));
+            Workbook source;
+            QString why;
+            QVERIFY(openBytes(notedOds(rows, 300), QStringLiteral("n.ods"), &source, &why));
+            QCOMPARE(readSheetNoteInfos(source, 0).size(), size_t(30004));
+            QByteArray xls;
+            CopyReport report;
+            QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+            const QString said = report.trimmed.join(QLatin1Char('|'));
+            QStringList sizeMsg, capMsg;
+            for (const QString &m : std::as_const(report.trimmed)) {
+                if (m.contains(QLatin1String("sheet size"))) sizeMsg << m;
+                if (m.contains(QLatin1String("past the first"))) capMsg << m;
+            }
+            QCOMPARE(sizeMsg.size(), qsizetype(1));
+            QVERIFY2(sizeMsg[0].contains(QStringLiteral("1 note")), qPrintable(said));
+            QCOMPARE(capMsg.size(), qsizetype(1));
+            QVERIFY2(capMsg[0].contains(QStringLiteral("3 note")), qPrintable(said));
+            int objects = 0;
+            for (const RawRecord &r : rawRecords(xls))
+                if (r.id == 0x005D) ++objects;
+            QCOMPARE(objects, 30000);
+        }
+    }
+
+    // A note of more than 32,767 characters and an author of more than 255 are cut to what the format holds, and the copy says how many of each.
+    void textAndAuthorsPastTheOldFormsLimitsAreCutAndCounted()
+    {
+        const QString rows = row(annotated(QStringLiteral("<dc:creator>%1</dc:creator><text:p>%2</text:p>").arg(QString(300, QLatin1Char('a')), QString(40000, QLatin1Char('t'))))
+                                 + annotated(QStringLiteral("<dc:creator>%1</dc:creator><text:p>short</text:p>").arg(QString(256, QLatin1Char('b')))) + annotated(QStringLiteral("<dc:creator>ok</dc:creator><text:p>fine</text:p>")));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        QStringList textMsg, authorMsg;
+        for (const QString &m : std::as_const(report.trimmed)) {
+            if (m.contains(QLatin1String("32,767"))) textMsg << m;
+            if (m.contains(QLatin1String("author"))) authorMsg << m;
+        }
+        const QString said = report.trimmed.join(QLatin1Char('|'));
+        QCOMPARE(textMsg.size(), qsizetype(1));
+        QVERIFY2(textMsg[0].contains(QStringLiteral("1 note")), qPrintable(said));
+        QCOMPARE(authorMsg.size(), qsizetype(1));
+        QVERIFY2(authorMsg[0].contains(QStringLiteral("2 author")), qPrintable(said));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        const auto now = readSheetNoteInfos(back, 0);
+        QCOMPARE(now.size(), size_t(3));
+        QCOMPARE(now.at(noteKey(0, 0)).text.size(), 32767);
+        QCOMPARE(now.at(noteKey(0, 0)).author.size(), 255);
+        QCOMPARE(now.at(noteKey(0, 1)).author.size(), 255);
+        QCOMPARE(now.at(noteKey(0, 2)).text, QStringLiteral("fine"));
+    }
+
+    // A wide text is split over records that each begin with their own byte for the width of the characters, none cut in the middle of a character; the records are decoded here from the layout of the
+    // format.
+    void aWideNoteTextIsSplitOverRecordsAtWholeCharacters()
+    {
+        const QString wide = QString(9000, QChar(0x4E2D)) + QString::fromUtf8("\xF0\x9F\x98\x80") + QString(2000, QChar(0x4E2D));   // (a pair of surrogates among them)
+        const QString rows = row(annotated(QStringLiteral("<text:p>%1</text:p>").arg(wide)));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        const QList<RawRecord> records = rawRecords(xls);
+        int at = -1;
+        for (int i = 0; i < records.size(); ++i)
+            if (records[i].id == 0x01B6) at = i;
+        QVERIFY(at >= 0);
+        QString text;
+        int pieces = 0;
+        for (int i = at + 1; i < records.size() && records[i].id == 0x003C; ++i) {
+            const QByteArray &d = records[i].data;
+            if (i + 1 < records.size() && records[i + 1].id != 0x003C) break;   // (the last record after the words is the runs)
+            QVERIFY(d.size() >= 1);
+            QCOMPARE(int(quint8(d[0])), 1);   // (the width byte of every piece)
+            QVERIFY2((d.size() - 1) % 2 == 0 && d.size() <= 8224, "whole characters in a record");
+            for (qsizetype k = 1; k + 1 < d.size() + 0; k += 2) text += QChar(quint16(quint8(d[k]) | (quint8(d[k + 1]) << 8)));
+            ++pieces;
+        }
+        QVERIFY2(pieces >= 3, qPrintable(QString::number(pieces)));
+        QVERIFY(text.startsWith(wide.left(100)));
+        QCOMPARE(text.size(), wide.size() + 0);
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        QCOMPARE(readSheetNoteInfos(back, 0).at(noteKey(0, 0)).text, wide);
+    }
+
+    // The notes of two sheets: each sheet has a drawing of its own, the objects are numbered from 1 in each, and the shape numbers (of all the sheets) never repeat; the drawing group in the globals counts
+    // the shapes, the drawings, and the blocks of numbers, decoded here.
+    void notesOnTwoSheetsHaveUniqueShapeNumbersAndTheGroupCountsThemRight()
+    {
+        const QString one = row(annotated(QStringLiteral("<text:p>a</text:p>")) + annotated(QStringLiteral("<text:p>b</text:p>")));
+        const QString two = row(annotated(QStringLiteral("<text:p>c</text:p>")) + annotated(QStringLiteral("<text:p>d</text:p>")) + annotated(QStringLiteral("<text:p>e</text:p>")));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(buildOds(contentXml(table(QStringLiteral("S1"), columns(4) + one) + table(QStringLiteral("S2"), columns(4) + two))), QStringLiteral("n.ods"), &source, &why));
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        QCOMPARE(readSheetNoteInfos(back, 0).size(), size_t(2));
+        QCOMPARE(readSheetNoteInfos(back, 1).size(), size_t(3));
+        const QList<RawRecord> records = rawRecords(xls);
+        QList<QList<int>> objectIds, noteIds;   // (by sheet)
+        QByteArray drawings, group;
+        int bofs = 0;
+        for (const RawRecord &r : records) {
+            if (r.id == 0x0809 && ++bofs > 1) {
+                objectIds.append(QList<int>());
+                noteIds.append(QList<int>());
+            }
+            if (r.id == 0x00EB) group = r.data;
+            if (r.id == 0x00EC) drawings += r.data;
+            if (r.id == 0x005D && !objectIds.isEmpty()) objectIds.last().append(quint8(r.data[6]) | (quint8(r.data[7]) << 8));
+            if (r.id == 0x001C && !noteIds.isEmpty()) noteIds.last().append(quint8(r.data[6]) | (quint8(r.data[7]) << 8));
+        }
+        QCOMPARE(objectIds, (QList<QList<int>>{{1, 2}, {1, 2, 3}}));
+        QCOMPARE(noteIds, objectIds);
+        QSet<quint32> spids;
+        QList<int> drawingNumbers;
+        for (const Atom &a : atomsOf(drawings)) {
+            if (a.kind == 0xF008) drawingNumbers << a.instance;
+            if (a.kind != 0xF00A) continue;
+            const quint32 id = quint32(quint8(a.data[0]) | (quint8(a.data[1]) << 8) | (quint8(a.data[2]) << 16) | (quint32(quint8(a.data[3])) << 24));
+            QVERIFY2(!spids.contains(id), "a shape number twice");
+            spids.insert(id);
+        }
+        QCOMPARE(drawingNumbers, (QList<int>{1, 2}));
+        QCOMPARE(spids.size(), 7);   // (five notes, and the group of each sheet's drawing)
+        const QList<Atom> atoms = atomsOf(group);
+        QVERIFY(atoms.size() >= 2 && atoms[1].kind == 0xF006);
+        const QByteArray &d = atoms[1].data;
+        auto word = [&](int at) { return quint32(quint8(d[at]) | (quint8(d[at + 1]) << 8) | (quint8(d[at + 2]) << 16) | (quint32(quint8(d[at + 3])) << 24)); };
+        QCOMPARE(word(4), 3u);    // (two blocks of numbers, and the one the format keeps for itself)
+        QCOMPARE(word(8), 7u);    // (shapes saved)
+        QCOMPARE(word(12), 2u);   // (drawings saved)
+        for (const quint32 id : spids) QVERIFY(id < word(0));
+    }
+
+    // A workbook with no notes is written to the byte as it was before notes were written: the same file with the writing of notes turned off. (And with notes the two differ, so that the switch is real.)
+    void aWorkbookWithNoNotesIsWrittenAsItWasBeforeNotes()
+    {
+        const QString plain = row(floatCell(1) + stringCell(QStringLiteral("x"))) + row(floatCell(2) + emptyCell());
+        const QString noted = row(floatCell(1) + annotated(QStringLiteral("<text:p>n</text:p>")));
+        auto write = [](const QString &rows, bool notes) {
+            Workbook wb;
+            QString why;
+            if (!openBytes(notedOds(rows), QStringLiteral("n.ods"), &wb, &why)) return QByteArray();
+            xlsWriteNotesForTest(notes);
+            QByteArray xls;
+            CopyReport report;
+            const bool ok = saveXls(wb, &xls, &report, &why);
+            xlsWriteNotesForTest(true);
+            return ok ? xls : QByteArray();
+        };
+        const QByteArray on = write(plain, true), off = write(plain, false);
+        QVERIFY(!on.isEmpty());
+        QCOMPARE(on, off);
+        QVERIFY(write(noted, true) != write(noted, false));
+    }
+
+    // A box in a column 400 pixels wide and a row 90 tall: the anchor's numbers (a fraction of the cell: 1/1024 across, 1/256 down) are worked out from the cell's real size, so the box lands where it
+    // was; read back, and through .xlsx, .xls, and .xlsx again, it is within two pixels.
+    void aBoxInAWideColumnAndATallRowKeepsItsPlaceInAnXlsCopy()
+    {
+        const QString styles = QStringLiteral("<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"300pt\"/></style:style>"
+                                              "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"67.5pt\" style:use-optimal-row-height=\"false\"/></style:style>");
+        const QString box = QStringLiteral("office:display=\"true\" svg:x=\"112.5pt\" svg:y=\"22.5pt\" svg:width=\"75pt\" svg:height=\"30pt\"");
+        const QString rows = row(annotated(QStringLiteral("<text:p>wide</text:p>"), box) + emptyCell(), QStringLiteral("table:style-name=\"ro1\""));
+        Workbook source;
+        QString why;
+        QVERIFY(openBytes(buildOds(contentXml(table(QStringLiteral("S"), columns(1, QStringLiteral("table:style-name=\"co1\"")) + columns(3) + rows), styles)), QStringLiteral("n.ods"), &source, &why));
+        const NoteBox was = readSheetNoteInfos(source, 0).at(noteKey(0, 0)).box;
+        QVERIFY(was.set);
+        QCOMPARE(was.x1, 150);
+        QCOMPARE(was.y1, 30);
+        QByteArray xls;
+        CopyReport report;
+        QVERIFY2(saveXls(source, &xls, &report, &why), qPrintable(why));
+        // the anchor in the record: across 150 of 400 is 384/1024, 250 of 400 is 640/1024; down 30 of 90 is 85/256, 70 of 90 is 199/256
+        QList<int> anchor;
+        QByteArray drawing;
+        for (const RawRecord &r : rawRecords(xls))
+            if (r.id == 0x00EC) drawing += r.data;
+        for (const Atom &a : atomsOf(drawing))
+            if (a.kind == 0xF010 && a.data.size() >= 18)
+                for (int k = 0; k < 9; ++k) anchor << (quint8(a.data[2 * k]) | (quint8(a.data[2 * k + 1]) << 8));
+        QCOMPARE(anchor.size(), 9);
+        auto near = [](int v, int want) { return std::abs(v - want) <= 1; };
+        QVERIFY2(anchor[1] == 0 && near(anchor[2], 384) && anchor[3] == 0 && near(anchor[4], 85) && anchor[5] == 0 && near(anchor[6], 640) && anchor[7] == 0 && near(anchor[8], 199), qPrintable(QStringLiteral("%1 %2 %3 %4 %5 %6 %7 %8").arg(anchor[1]).arg(anchor[2]).arg(anchor[3]).arg(anchor[4]).arg(anchor[5]).arg(anchor[6]).arg(anchor[7]).arg(anchor[8])));
+        Workbook back;
+        QVERIFY2(back.openBinary(xls, &why), qPrintable(why));
+        const NoteBox now = readSheetNoteInfos(back, 0).at(noteKey(0, 0)).box;
+        QVERIFY(now.set);
+        auto within = [](int v, int want) { return std::abs(v - want) <= 2; };
+        QVERIFY2(within(now.x1, was.x1) && within(now.y1, was.y1) && within(now.x2, was.x2) && within(now.y2, was.y2) && now.col1 == was.col1 && now.row2 == was.row2,
+                 qPrintable(QStringLiteral("%1 %2 %3 %4").arg(now.x1).arg(now.y1).arg(now.x2).arg(now.y2)));
+        // .xlsx -> .xls -> .xlsx
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(source, SaveChanges(), &xlsx, &why, nullptr), qPrintable(why));
+        Workbook first;
+        QVERIFY2(openXlsx(xlsx, &first, &why), qPrintable(why));
+        const NoteBox inXlsx = readSheetNoteInfos(first, 0).at(noteKey(0, 0)).box;
+        QByteArray old;
+        QVERIFY2(saveXls(first, &old, &report, &why), qPrintable(why));
+        Workbook oldBook;
+        QVERIFY2(oldBook.openBinary(old, &why), qPrintable(why));
+        QByteArray again;
+        QVERIFY2(saveXlsx(oldBook, SaveChanges(), &again, &why, nullptr), qPrintable(why));
+        Workbook last;
+        QVERIFY2(openXlsx(again, &last, &why), qPrintable(why));
+        const NoteBox end = readSheetNoteInfos(last, 0).at(noteKey(0, 0)).box;
+        QVERIFY(end.set && inXlsx.set);
+        QVERIFY2(within(end.x1, inXlsx.x1) && within(end.y1, inXlsx.y1) && within(end.x2, inXlsx.x2) && within(end.y2, inXlsx.y2) && end.col1 == inXlsx.col1 && end.col2 == inXlsx.col2 && end.row2 == inXlsx.row2,
+                 qPrintable(QStringLiteral("%1 %2 %3 %4 / %5 %6 %7 %8").arg(inXlsx.x1).arg(inXlsx.y1).arg(inXlsx.x2).arg(inXlsx.y2).arg(end.x1).arg(end.y1).arg(end.x2).arg(end.y2)));
+    }
+
+    // The copy report names what an .xls or .ods copy truly loses of notes now: a conversation of comments (kept as a plain note), formatting inside the words of a note, and, for an .xls copy, the date an
+    // .ods note has. A plain note, its author, its box, and whether it shows are kept, so the report says nothing of them.
+    void theCopyReportSaysWhatIsTrulyLostOfNotes()
+    {
+        // an .ods with a dated note: an .ods copy keeps the date, an .xls copy does not
+        const QString rows = row(annotated(QStringLiteral("<dc:creator>Ann</dc:creator><dc:date>2026-01-02T03:04:05</dc:date><text:p>x</text:p>"), QStringLiteral("office:display=\"true\"")));
+        Workbook ods;
+        QString why;
+        QVERIFY(openBytes(notedOds(rows), QStringLiteral("n.ods"), &ods, &why));
+        const QStringList forXls = featuresNotInCopy(ods, CopyKind::Xls), forOds = featuresNotInCopy(ods, CopyKind::Ods);
+        QVERIFY2(forXls.join(QLatin1Char('|')).contains(QStringLiteral("dates of notes")), qPrintable(forXls.join(QLatin1Char('|'))));
+        QVERIFY2(!forOds.join(QLatin1Char('|')).contains(QStringLiteral("note")), qPrintable(forOds.join(QLatin1Char('|'))));
+        // a plain note of an .xlsx (no rich text, no conversation): nothing is lost
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(ods, SaveChanges(), &xlsx, &why, nullptr), qPrintable(why));
+        Workbook plain;
+        QVERIFY2(openXlsx(xlsx, &plain, &why), qPrintable(why));
+        for (const CopyKind kind : {CopyKind::Xls, CopyKind::Ods}) QVERIFY2(!featuresNotInCopy(plain, kind).join(QLatin1Char('|')).contains(QStringLiteral("note")), "plain notes are kept");
+        // formatting inside a note's words and a conversation of comments are lost
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(xlsx, parts));
+        const QString comments = QStringLiteral("xl/comments1.xml");
+        QVERIFY(parts.contains(comments));
+        QByteArray rich = parts[comments];
+        rich.replace("<text><t xml:space=\"preserve\">x</t></text>", "<text><r><rPr><b/></rPr><t xml:space=\"preserve\">x</t></r></text>");
+        QVERIFY(rich != parts[comments]);
+        parts[comments] = rich;
+        QByteArray withRuns = zipOf(parts);
+        Workbook formatted;
+        QVERIFY2(openXlsx(withRuns, &formatted, &why), qPrintable(why));
+        for (const CopyKind kind : {CopyKind::Xls, CopyKind::Ods}) QVERIFY2(featuresNotInCopy(formatted, kind).join(QLatin1Char('|')).contains(QStringLiteral("inside the words of a note")), "rich notes lose their formatting");
+        parts[QStringLiteral("xl/threadedComments/threadedComment1.xml")] = "<ThreadedComments xmlns=\"http://schemas.microsoft.com/office/spreadsheetml/2018/threadedcomments\"/>";
+        Workbook threaded;
+        QVERIFY2(openXlsx(zipOf(parts), &threaded, &why), qPrintable(why));
+        for (const CopyKind kind : {CopyKind::Xls, CopyKind::Ods}) QVERIFY2(featuresNotInCopy(threaded, kind).join(QLatin1Char('|')).contains(QStringLiteral("conversations")), "threads are flattened");
     }
 
     // ---- hostile models

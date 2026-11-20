@@ -7,6 +7,8 @@
 
 #include "sheet/oldsave.h"
 
+#include <atomic>
+
 #include "io/cfb.h"
 #include "sheet/entry.h"
 #include "sheet/externalbooks.h"
@@ -33,8 +35,11 @@ namespace {
 
 using oldsave::Written;
 
+std::atomic<bool> g_writeNotes{true};
+
 constexpr int kFormulaHead = 22;   // the bytes of a formula record before its tokens
 constexpr int kMaxXlsNotes = 30000;   // the most notes a sheet of a copy has
+constexpr int kMaxXlsNoteChars = 32767, kMaxXlsAuthorChars = 255;   // the most characters of a note's words and of its author
 constexpr int kMaxRecord = 8224;   // the bytes a record may hold; more go in CONTINUE records where the format allows
 
 class W {
@@ -725,19 +730,44 @@ private:
 
     // The notes of a sheet: each note is a shape (a text box) with its own object and words, and a record for the note itself after them all. The drawing's first record holds the drawing's and
     // the group's heads, whose lengths cover the shapes that follow in records of their own. Those the format cannot place (past row 65,536 or column IV) are left out, and said.
-    void writeNotes(QByteArray *out, const std::map<quint64, NoteInfo> &all, const QString &sheetName)
+    void writeNotes(QByteArray *out, const std::map<quint64, NoteInfo> &all, const QString &sheetName, const Sheet &sheet)
     {
+        if (!g_writeNotes.load()) return;
         std::vector<std::pair<quint64, const NoteInfo *>> notes;
-        qint64 cut = 0;
+        // each reason a note is left out, or cut, is counted on its own (a note is counted once, for the first reason that fits)
+        qint64 outside = 0, empty = 0, over = 0, textCut = 0, authorCut = 0;
+        bool dated = false;
         for (const auto &n : all) {
-            if (quint32(n.first >> 32) >= quint32(kXlsMaxRows) || quint32(n.first & 0xFFFFFFFFu) >= quint32(kXlsMaxCols) || n.second.text.isEmpty() || int(notes.size()) >= kMaxXlsNotes) {
-                ++cut;
+            if (quint32(n.first >> 32) >= quint32(kXlsMaxRows) || quint32(n.first & 0xFFFFFFFFu) >= quint32(kXlsMaxCols)) {
+                ++outside;
                 continue;
             }
+            if (n.second.text.isEmpty()) {
+                ++empty;
+                continue;
+            }
+            if (int(notes.size()) >= kMaxXlsNotes) {
+                ++over;
+                continue;
+            }
+            if (n.second.text.size() > kMaxXlsNoteChars) ++textCut;
+            if (n.second.author.size() > kMaxXlsAuthorChars) ++authorCut;
+            if (!n.second.date.isEmpty()) dated = true;
             notes.push_back({n.first, &n.second});
         }
-        if (cut > 0) trim(oldsave::sheetNote(sheetName, QCoreApplication::translate("Sheet", "%1 notes past row 65,536 or column IV (the format's last)").arg(cut)));
+        auto said = [&](qint64 count, const char *what, bool withNumber, qint64 number) {
+            if (count <= 0) return;
+            const QString text = QCoreApplication::translate("Sheet", what, nullptr, int(std::min<qint64>(count, 0x7fffffff)));
+            trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(QLocale().toString(number)) : text));
+        };
+        said(outside, QT_TRANSLATE_NOOP("Sheet", "%n note(s) outside the old format's sheet size (past row 65,536 or column IV), which were left out"), false, 0);
+        said(empty, QT_TRANSLATE_NOOP("Sheet", "%n note(s) with no words, which were left out"), false, 0);
+        said(over, QT_TRANSLATE_NOOP("Sheet", "%n note(s) past the first %1 of a sheet, which were left out"), true, kMaxXlsNotes);
+        said(textCut, QT_TRANSLATE_NOOP("Sheet", "%n note(s) cut to %1 characters"), true, kMaxXlsNoteChars);
+        said(authorCut, QT_TRANSLATE_NOOP("Sheet", "%n author name(s) cut to %1 characters"), true, kMaxXlsAuthorChars);
+        if (dated) m_features.noteDatesLost();
         if (notes.empty()) return;
+        const NoteGrid grid(sheet);
         const int drawing = ++m_drawings;
         const qint64 shapes = qint64(notes.size()) + 1;   // (the group's own is the first)
         const int firstCluster = int(m_clusters.size()) + 1;
@@ -765,10 +795,10 @@ private:
             }
             b = noteBoxInsideSheet(b, row, col);
             auto cell = [](qint64 v, qint64 most) { return quint32(std::max<qint64>(0, std::min<qint64>(v, most))); };
-            auto across = [](int px) { return quint32(std::max(0, std::min(px * 16, 1023))); };
-            auto down = [](int px) { return quint32(std::max(0, std::min((px * 256 + 10) / 20, 255))); };
-            QByteArray anchor = W().u16(3).u16(int(cell(qint64(col) + b.col1, kXlsMaxCols - 1))).u16(int(across(b.x1))).u16(int(cell(qint64(row) + b.row1, kXlsMaxRows - 1))).u16(int(down(b.y1)))
-                                    .u16(int(cell(qint64(col) + b.col2, kXlsMaxCols - 1))).u16(int(across(b.x2))).u16(int(cell(qint64(row) + b.row2, kXlsMaxRows - 1))).u16(int(down(b.y2))).bytes();
+            // (a corner's distance into its cell is written as a part of the cell's real size: 1/1024 across, 1/256 down)
+            const quint32 col1 = cell(qint64(col) + b.col1, kXlsMaxCols - 1), row1 = cell(qint64(row) + b.row1, kXlsMaxRows - 1), col2 = cell(qint64(col) + b.col2, kXlsMaxCols - 1), row2 = cell(qint64(row) + b.row2, kXlsMaxRows - 1);
+            QByteArray anchor = W().u16(3).u16(int(col1)).u16(int(NoteGrid::partOf(b.x1, grid.columnPixels(col1), 1024))).u16(int(row1)).u16(int(NoteGrid::partOf(b.y1, grid.rowPixels(row1), 256)))
+                                    .u16(int(col2)).u16(int(NoteGrid::partOf(b.x2, grid.columnPixels(col2), 1024))).u16(int(row2)).u16(int(NoteGrid::partOf(b.y2, grid.rowPixels(row2), 256))).bytes();
             // (the look of a note: no text of its own to hold, a pale yellow box with a thin line, and hidden unless the note is shown)
             const std::pair<int, quint32> look[] = {{0x0080, 0}, {0x0085, 2}, {0x0087, 1}, {0x00BF, 0x00080008}, {0x0158, 0}, {0x0181, 0x00C0FFFF}, {0x0183, 0x003F0000}, {0x01BF, 0x00100010},
                                                     {0x01C0, 0x00A46534}, {0x01C1, 0x00010000}, {0x01C2, 0x005B9ACB}, {0x01D0, 1}, {0x01D2, 1}, {0x01D3, 1}, {0x01D6, 2}, {0x01D7, 2},
@@ -798,7 +828,7 @@ private:
             putRecord(out, 0x005D, obj.bytes());
             putRecord(out, 0x00EC, escherHead(0, 0, 0xF00D, 0));
             // the words: a record that gives their count, then the characters (in records of their own, each beginning with the byte that says one or two bytes for each), then the runs of formatting
-            const QString words = note.text.left(32767);
+            const QString words = note.text.left(kMaxXlsNoteChars);
             putRecord(out, 0x01B6, W().u16(0x0212).u16(0).u32(0).u16(0).u16(int(words.size())).u16(16).u32(0).bytes());
             const bool wide = isWide(words);
             const qsizetype per = wide ? 4111 : 8223;
@@ -813,7 +843,7 @@ private:
             }
             putRecord(out, 0x003C, W().u16(0).u16(0).u32(0).u16(int(words.size())).u16(0).u32(0).bytes());
             W who;
-            who.u16(int(row)).u16(int(col)).u16(note.shown ? 2 : 0).u16(id).str8(note.author.left(255), 2);
+            who.u16(int(row)).u16(int(col)).u16(note.shown ? 2 : 0).u16(id).str8(note.author.left(kMaxXlsAuthorChars), 2);
             who.u8(0);   // (the byte the record ends with)
             noteRecords.push_back(who.bytes());
         }
@@ -1024,7 +1054,7 @@ private:
             bool leftOut = false;
             const std::map<quint64, NoteInfo> notes = m_book.isConverted() ? noteInfosOf(sheet, kMaxNotes, &leftOut, &m_noteContext) : readSheetNoteInfos(m_book, w.place, &leftOut, kMaxNotes, &m_noteContext);
             if (leftOut && m_noteContext.exhausted) trim(noteBookLimitMessage());
-            writeNotes(&out, notes, w.name);
+            writeNotes(&out, notes, w.name, sheet);
         }
         // the view
         {
@@ -1579,4 +1609,8 @@ bool saveXls(const Workbook &book, QByteArray *out, CopyReport *report, QString 
     return ok && message.isEmpty();
 }
 
+} // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+void xlsWriteNotesForTest(bool on) { g_writeNotes.store(on); }
 } // namespace jp::office::sheet

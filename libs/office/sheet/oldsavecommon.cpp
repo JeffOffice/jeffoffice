@@ -1,6 +1,7 @@
 #include "sheet/oldsavecommon.h"
 
 #include "sheet/drawing.h"
+#include "sheet/notes.h"
 #include "sheet/tables.h"
 
 #include <QCoreApplication>
@@ -119,6 +120,11 @@ QString sheetNote(const QString &sheet, const QString &what)
 
 Features::Features(const Workbook &book, CopyKind kind) : m_book(book), m_kind(kind) {}
 
+void Features::noteDatesLost()
+{
+    if (m_kind == CopyKind::Xls) m_found.insert(QCoreApplication::translate("Sheet", "the dates of notes"));
+}
+
 void Features::note(const Sheet &sheet)
 {
     auto add = [&](const char *what) { m_found.insert(QCoreApplication::translate("Sheet", what)); };
@@ -133,6 +139,11 @@ void Features::note(const Sheet &sheet)
     if (m_kind == CopyKind::Ods && (sheet.page.titles.hasRows || sheet.page.titles.hasCols || !sheet.page.colBreaks.isEmpty())) add(QT_TRANSLATE_NOOP("Sheet", "print titles and page breaks between columns"));
     if (!sheet.importedCharts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (read from the older form, and written only to an .xlsx)
     for (const QString &s : sheet.notKept) m_found.insert(s);
+    for (const ImportedNote &n : sheet.importedNotes)
+        if (!n.date.isEmpty()) {
+            noteDatesLost();
+            break;
+        }
     if (!sheet.richTexts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside a text"));
     // formulas that spill into the cells beside them, and LET (the older forms have neither: the copy keeps the values, and the formula as an array formula where it has the functions)
     bool spills = false;
@@ -153,14 +164,15 @@ QStringList Features::result() const
     auto add = [&](const char *what) { found.insert(QCoreApplication::translate("Sheet", what)); };
     const Package &p = m_book.package();
     if (!m_book.isConverted()) {
-        bool charts = false, drawings = false, pivots = false, notes = false, macros = false, links = false, slicers = false, controls = false, media = false;
+        bool charts = false, drawings = false, pivots = false, threads = false, richNotes = false, macros = false, links = false, slicers = false, controls = false, media = false;
         for (const QString &part : p.partNames()) {
             const QString l = part.toLower();
             if (l.contains(QLatin1String("/charts/chart")) || l.contains(QLatin1String("/chartsheets/"))) charts = true;
             else if (l.contains(QLatin1String("/drawings/drawing")) && !l.contains(QLatin1String("vmldrawing"))) drawings = true;
             else if (l.contains(QLatin1String("/media/"))) media = true;
             else if (l.contains(QLatin1String("pivottable")) || l.contains(QLatin1String("pivotcache"))) pivots = true;
-            else if (l.contains(QLatin1String("/comments")) || l.contains(QLatin1String("threadedcomment"))) notes = true;
+            else if (l.contains(QLatin1String("threadedcomment"))) threads = true;
+            else if (l.contains(QLatin1String("/comments")) && !l.endsWith(QLatin1String(".rels")) && p.partSize(part) <= kMaxNotesPartBytes && p.part(part).contains("rPr")) richNotes = true;
             else if (l.contains(QLatin1String("vbaproject"))) macros = true;
             else if (l.contains(QLatin1String("externallink"))) links = true;
             else if (l.contains(QLatin1String("slicer")) || l.contains(QLatin1String("timeline"))) slicers = true;
@@ -180,7 +192,9 @@ QStringList Features::result() const
         if (charts && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (an .ods copy writes them: odschart.h)
         if ((drawings || media) && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "pictures and other drawing objects"));   // (an .ods copy writes them: odsdraw.h)
         if (pivots) add(QT_TRANSLATE_NOOP("Sheet", "pivot tables"));
-        (void)notes;   // (an .xls copy writes them: see xlssave.cpp)
+        // (the notes themselves are written by both copies, with their authors, boxes, and shown states; what they cannot hold is said)
+        if (threads) add(QT_TRANSLATE_NOOP("Sheet", "conversations of comments (each is kept as a plain note)"));
+        if (richNotes) add(QT_TRANSLATE_NOOP("Sheet", "formatting inside the words of a note"));
         if (macros) add(QT_TRANSLATE_NOOP("Sheet", "macros"));
         if (links && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)"));
         else if (links) add(QT_TRANSLATE_NOOP("Sheet", "links to other workbooks (their formulas keep the values they had)"));

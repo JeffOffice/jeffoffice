@@ -38,6 +38,8 @@ class Features {
 public:
     Features(const Workbook &book, CopyKind kind);
     void note(const Sheet &sheet);
+    // The notes have dates (an .ods note has one) that an .xls copy has no place for.
+    void noteDatesLost();
     QStringList result() const;
 
 private:
