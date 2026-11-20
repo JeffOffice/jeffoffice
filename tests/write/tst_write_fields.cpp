@@ -31,7 +31,7 @@
 
 using namespace jp;
 using namespace jp::write;
-using namespace jp::write::fields;
+using namespace jp::fields;
 
 namespace {
 

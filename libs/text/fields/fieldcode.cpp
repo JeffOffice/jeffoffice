@@ -12,7 +12,7 @@
 #include <cmath>
 #include <limits>
 
-namespace jp::write::fields {
+namespace jp::fields {
 
 namespace {
 
@@ -1151,4 +1151,4 @@ std::optional<QString> compute(const Code &code, Env &env)
     return std::nullopt;
 }
 
-} // namespace jp::write::fields
+} // namespace jp::fields

@@ -12,7 +12,7 @@
 #include <functional>
 #include <optional>
 
-namespace jp::write::fields {
+namespace jp::fields {
 
 // The most characters of a code that are read, the most words in it, and the deepest nesting the formulas and the conditions are followed (a hostile file can say more).
 constexpr int kMostCodeChars = 4096;
@@ -129,4 +129,4 @@ QString bookmarkNotDefined();
 // The text a style reference shows when no paragraph has the style.
 QString styleTextNotFound();
 
-} // namespace jp::write::fields
+} // namespace jp::fields
