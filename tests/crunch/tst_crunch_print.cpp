@@ -391,8 +391,8 @@ void CrunchPrintTests::aPdfCanBeExportedAsPdfA()
     QVERIFY(plain.startsWith("%PDF-") && archive.startsWith("%PDF-"));
     QVERIFY(!plain.contains("/OutputIntents"));
     QVERIFY(archive.contains("/OutputIntents"));
-    QVERIFY(archive.contains("pdfaid:part=\"1\""));
-    QVERIFY(!archive.contains("pdfaid:part=\"2\""));
+    QVERIFY(archive.contains("pdfaid:part=\"1\"") || archive.contains("<pdfaid:part>1</pdfaid:part>"));   // (as Qt writes it, or as the program's own metadata does)
+    QVERIFY(!archive.contains("pdfaid:part=\"2\"") && !archive.contains("<pdfaid:part>2</pdfaid:part>"));
 }
 
 
@@ -787,7 +787,7 @@ void CrunchPrintTests::aTaggedPdfHasTheCellsAsATable()
         QCOMPARE(types.value(QStringLiteral("Table")), 1);
         QCOMPARE(types.value(QStringLiteral("TR")), 3);
         QCOMPARE(types.value(QStringLiteral("TD")), 5);
-        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\""));
+        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\"") || pdf.contains("<pdfaid:part>1</pdfaid:part>"));
     }
 }
 
@@ -2719,7 +2719,7 @@ void CrunchPrintTests::aPdfHasClickableLinksOverLinkedCells()
         QVERIFY2(toOther == 1, "no link to the page of the other sheet");
         QVERIFY(!pdf.contains("server") && !pdf.contains("host/share"));
         QCOMPARE(int(pdf.count("/Subtype /Link")), 3);
-        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\""));
+        if (archival) QVERIFY(pdf.contains("pdfaid:part=\"1\"") || pdf.contains("<pdfaid:part>1</pdfaid:part>"));
     }
 }
 
