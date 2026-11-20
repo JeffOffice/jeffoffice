@@ -7,7 +7,7 @@ These choices belong to all the JeffOffice apps: change one in one app and it ch
 
 ## Macros
 
-Macros are small programs kept inside a file. JeffPub keeps them in the file, so they are still there when you save, and it **never runs them**. There is no setting that runs them.
+Macros are small programs kept inside a file. JeffPub **never runs them**, and there is no setting that runs them. JeffPub does not keep a publication's macros either: when you save a `.pub` file you opened, the copy has none, so keep the original if you still need them.
 
 ## Linked files and workbook links
 

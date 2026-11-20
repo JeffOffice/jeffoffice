@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+514"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+534"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>

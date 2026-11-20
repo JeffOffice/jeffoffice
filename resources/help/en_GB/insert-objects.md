@@ -39,7 +39,7 @@ Click **Insert > Text > Business Information** and choose a detail, such as Orga
 
 ## Text, links, and other items
 
-- **Insert > Text > Insert File** brings in text from a .txt, .rtf, .html, .docx, or .md file.
+- **Insert > Text > Insert File** brings in text from a .txt, .rtf, .html, .docx, or .md file, up to 64 MB. It puts the text where the cursor is, or in a new text box when no text is being edited, in one step you can undo. A file that is too large, can't be opened, or isn't the kind of document its name says is not inserted: JeffPub says so, and the publication is left as it was. Dropping text files on the page works the same way, and the others you dropped still come in.
 - **Symbol** inserts a special character, such as © or é. Click in a text box first.
 - **Date & Time**: click in a text box first, pick a **Language** for the names of the days and months, choose a format, and check **Update automatically** to keep it current. The field keeps its language. A `.pub` file keeps the format but not the language, so a date saved there shows in the language of the computer when it is opened again.
 - **Insert > Links > Link** (Ctrl+K) makes a hyperlink to a web page, a page in your publication, or an email address. Select text or an object first. Choose **Remove Link** to take it off.

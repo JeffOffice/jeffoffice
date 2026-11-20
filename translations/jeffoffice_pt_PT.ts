@@ -5682,7 +5682,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">Todos os Ficheiros (*)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+10"/>
         <source>Insert File</source>
         <translation type="unfinished">Inserir Ficheiro</translation>
     </message>
@@ -5770,7 +5770,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+26"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+28"/>
         <source>Recipients</source>
         <translation type="unfinished">Destinatários</translation>
     </message>
@@ -5861,7 +5861,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">Escrever substitui o texto selecionado</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-519"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-528"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="+4"/>
         <source>Use the Insert key to turn overtype mode on and off</source>
         <translation type="unfinished">Use a tecla Inserir para ativar e desativar o modo de substituição</translation>
@@ -7949,12 +7949,17 @@ Guardar sem cópia de segurança?</translation>
         <translation type="unfinished">O ficheiro não tem folhas.</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+81"/>
+        <source>The file is too large to read as a list of recipients.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <source>The file has no rows.</source>
         <translation type="unfinished">O ficheiro não tem linhas.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+456"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+476"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (unido)</translation>
     </message>
@@ -8001,7 +8006,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         </translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+26"/>
         <source>Cyan</source>
         <translation>Ciano</translation>
     </message>
@@ -8026,7 +8031,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <translation type="unfinished">%1  ·  Página %2 de %3  ·  %4</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/jpubfile.cpp" line="+109"/>
+        <location filename="../apps/pub/io/jpubfile.cpp" line="+110"/>
         <source>The file couldn&apos;t be protected with the password.</source>
         <translation type="unfinished">Não foi possível proteger o ficheiro com a palavra-passe.</translation>
     </message>
@@ -8104,6 +8109,25 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <location line="+5"/>
         <source>The publication is damaged.</source>
         <translation type="unfinished">A publicação está danificada.</translation>
+    </message>
+</context>
+<context>
+    <name>Importers</name>
+    <message>
+        <location filename="../apps/pub/io/importers.cpp" line="-614"/>
+        <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -43641,7 +43665,7 @@ Origem: %3</translation>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1670"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+608"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+611"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -43674,7 +43698,7 @@ Origem: %3</translation>
         <location line="+4"/>
         <location line="+1"/>
         <location line="+247"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-490"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-493"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
@@ -43907,7 +43931,7 @@ Origem: %3</translation>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+551"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+554"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Eliminar</translation>
@@ -43952,7 +43976,7 @@ Origem: %3</translation>
         <location line="+21"/>
         <location line="+52"/>
         <location line="+15"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-547"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-550"/>
         <source>Create PDF</source>
         <translation type="unfinished">Criar PDF</translation>
     </message>
@@ -44069,7 +44093,7 @@ Origem: %3</translation>
     <message>
         <location line="-580"/>
         <location line="+580"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+568"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+571"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos os ficheiros (*)</translation>
     </message>
@@ -44208,8 +44232,8 @@ Origem: %3</translation>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1274"/>
-        <location line="+1147"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1277"/>
+        <location line="+1150"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Guardar como Imagem</translation>
     </message>
@@ -44320,7 +44344,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1146"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1149"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Guardar como Página Web</translation>
     </message>
@@ -44342,7 +44366,7 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1035"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1038"/>
         <source>Change Picture</source>
         <translation type="unfinished">Alterar Imagem</translation>
     </message>
@@ -44352,12 +44376,12 @@ Origem: %3</translation>
         <translation type="unfinished">Alterar Ligação</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+72"/>
         <source>%1 pictures are on the scratch area beside the page. Drag them onto the page, or onto a picture to swap.</source>
         <translation type="unfinished">Estão %1 imagens na área de rascunho junto à página. Arraste-as para a página ou para uma imagem para as trocar.</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+27"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Inserir Equação</translation>
     </message>
@@ -44405,7 +44429,7 @@ Origem: %3</translation>
         <translation>Zoom</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-401"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-404"/>
         <source>New</source>
         <translation type="unfinished">Novo</translation>
     </message>
@@ -44415,7 +44439,7 @@ Origem: %3</translation>
         <translation type="unfinished">Nova Publicação em Branco</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1666"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1678"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+179"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicações (*.jpub *.pub)</translation>
@@ -44483,12 +44507,12 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+518"/>
+        <location line="+521"/>
         <source>Duplicate</source>
         <translation type="unfinished">Duplicar</translation>
     </message>
     <message>
-        <location line="-517"/>
+        <location line="-520"/>
         <source>Delete Object</source>
         <translation type="unfinished">Eliminar Objeto</translation>
     </message>
@@ -44643,12 +44667,12 @@ Origem: %3</translation>
     <message>
         <location line="+1"/>
         <location line="+3"/>
-        <location line="+934"/>
+        <location line="+937"/>
         <source>Small Caps</source>
         <translation type="unfinished">Versaletes</translation>
     </message>
     <message>
-        <location line="-932"/>
+        <location line="-935"/>
         <location line="+3"/>
         <source>All Caps</source>
         <translation type="unfinished">Tudo em maiúsculas</translation>
@@ -44685,38 +44709,38 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+1116"/>
+        <location line="+1119"/>
         <source>Very Tight</source>
         <translation type="unfinished">Muito justo</translation>
     </message>
     <message>
-        <location line="-1116"/>
-        <location line="+280"/>
+        <location line="-1119"/>
+        <location line="+283"/>
         <location line="+836"/>
         <source>Tight</source>
         <translation type="unfinished">Justo</translation>
     </message>
     <message>
-        <location line="-1116"/>
-        <location line="+422"/>
+        <location line="-1119"/>
+        <location line="+425"/>
         <location line="+694"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
     </message>
     <message>
-        <location line="-1116"/>
-        <location line="+1116"/>
+        <location line="-1119"/>
+        <location line="+1119"/>
         <source>Loose</source>
         <translation type="unfinished">Largo</translation>
     </message>
     <message>
-        <location line="-1116"/>
-        <location line="+1116"/>
+        <location line="-1119"/>
+        <location line="+1119"/>
         <source>Very Loose</source>
         <translation type="unfinished">Muito largo</translation>
     </message>
     <message>
-        <location line="-1110"/>
+        <location line="-1113"/>
         <source>Character Spacing</source>
         <translation type="unfinished">Espaçamento de carateres</translation>
     </message>
@@ -44741,7 +44765,7 @@ Origem: %3</translation>
         <translation>Numeração</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+264"/>
         <location line="+88"/>
         <location line="+80"/>
         <location line="+402"/>
@@ -44750,7 +44774,7 @@ Origem: %3</translation>
         <translation type="unfinished">Nenhum</translation>
     </message>
     <message>
-        <location line="-828"/>
+        <location line="-831"/>
         <source>Bullets and Numbering…</source>
         <translation type="unfinished">Marcas e numeração…</translation>
     </message>
@@ -44781,24 +44805,24 @@ Origem: %3</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+231"/>
+        <location line="+234"/>
         <source>Align Left</source>
         <translation type="unfinished">Alinhar à esquerda</translation>
     </message>
     <message>
-        <location line="-230"/>
-        <location line="+1100"/>
+        <location line="-233"/>
+        <location line="+1103"/>
         <source>Center</source>
         <translation type="unfinished">Centrar</translation>
     </message>
     <message>
-        <location line="-1099"/>
-        <location line="+231"/>
+        <location line="-1102"/>
+        <location line="+234"/>
         <source>Align Right</source>
         <translation type="unfinished">Alinhar à direita</translation>
     </message>
     <message>
-        <location line="-230"/>
+        <location line="-233"/>
         <source>Justify</source>
         <translation type="unfinished">Justificar</translation>
     </message>
@@ -44917,12 +44941,14 @@ Origem: %3</translation>
         <translation type="unfinished">Editar informações comerciais…</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1556"/>
+        <location line="+6"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1"/>
         <source>Insert File</source>
         <translation type="unfinished">Inserir ficheiro</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+4"/>
         <source>Symbol</source>
         <translation type="unfinished">Símbolo</translation>
     </message>
@@ -45554,7 +45580,7 @@ Origem: %3</translation>
         <translation type="unfinished">Inserir Data</translation>
     </message>
     <message>
-        <location line="-332"/>
+        <location line="-335"/>
         <source>Click in text where the page number goes, then choose the design.</source>
         <translation type="unfinished">Clique no texto onde deve ficar o número de página e, depois, escolha a estrutura.</translation>
     </message>
@@ -45591,7 +45617,7 @@ Origem: %3</translation>
         <translation type="unfinished">Substituir Tipos de Letra…</translation>
     </message>
     <message>
-        <location line="+151"/>
+        <location line="+154"/>
         <source>Nonbreaking Space</source>
         <translation type="unfinished">Espaço Não Separável</translation>
     </message>
@@ -47138,7 +47164,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Automático</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-373"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1935"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+2"/>
         <source>Tints…</source>
         <translation type="unfinished">Tonalidades…</translation>
@@ -47796,7 +47822,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Voltou a &quot;%1&quot;. Guarde a publicação para o manter.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1255"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1258"/>
         <source>Info</source>
         <translation type="unfinished">Informações</translation>
     </message>
