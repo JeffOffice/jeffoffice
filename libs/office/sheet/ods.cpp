@@ -54,6 +54,16 @@ constexpr qint64 kMaxOdsTokenBytes = qint64(64) << 20;
 // The most characters of one note's text that are read (a note in a real file is a few hundred; the most another program lets one have is 32,767).
 constexpr qint64 kMaxOdsNoteChars = 100000;
 
+// A note's date as the file wrote it (the standard's date and time), or nothing for text that is not one (only what such a date is made of, at most 64 characters).
+QString odsDateText(const QString &text)
+{
+    const QString s = text.trimmed();
+    if (s.isEmpty() || s.size() > 64 || !s[0].isDigit()) return QString();
+    for (const QChar c : s)
+        if (!(c.isDigit() || c == QLatin1Char('-') || c == QLatin1Char(':') || c == QLatin1Char('T') || c == QLatin1Char('.') || c == QLatin1Char('+') || c == QLatin1Char('Z'))) return QString();
+    return s;
+}
+
 const char kMimeSpreadsheet[] = "application/vnd.oasis.opendocument.spreadsheet";
 
 QString attr(const QXmlStreamAttributes &a, QLatin1String ns, QLatin1String name) { return a.value(ns, name).toString(); }
@@ -810,6 +820,7 @@ struct OdsBook::Impl {
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
     mutable QVector<qint64> unconverted;       // by sheet: the formulas that could not be converted, when the sheet has been read whole (else -1)
     mutable QVector<qint64> mergesLeftOut;     // by sheet: the merged ranges past the most a sheet keeps, when the sheet has been read whole (else 0)
+    mutable QVector<signed char> hasNotes;     // by sheet: 1 if the sheet read whole has a note, 0 if it has none, -1 if it is not known (not read whole yet)
     mutable QVector<qint64> drawnObjects, drawnBytes, drawnCharts, drawnFormulas, drawnFormulaBytes, drawnOle, drawnOleBytes, drawnOleBinary;   // by sheet: the drawing objects and the picture bytes it holds, when it has been read whole (a sheet read again is counted once)
     std::shared_ptr<Package> package;          // (the pictures of the sheets' drawings are in it)
     QHash<QString, QString> manifestTypes;     // the media types the package's manifest gives its parts (the other embedded objects are told apart by them)
@@ -1038,6 +1049,7 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         e.sheetId = i + 1;
         m.unconverted.append(-1);
         m.mergesLeftOut.append(0);
+        m.hasNotes.append(-1);
         m.drawnObjects.append(0);
         m.drawnBytes.append(0);
         m.drawnCharts.append(0);
@@ -1301,9 +1313,9 @@ private:
             raw.w = w;
             raw.h = h;
         }
-        QString text, author;
-        int depth = 1, paragraphs = 0, paragraphDepth = 0, authorDepth = 0;
-        bool inParagraph = false, inAuthor = false, cut = false;
+        QString text, author, date;
+        int depth = 1, paragraphs = 0, paragraphDepth = 0, authorDepth = 0, dateDepth = 0;
+        bool inParagraph = false, inAuthor = false, inDate = false, cut = false;
         // (what fits is kept, and the rest of the note's characters are left out: the text is never longer than a note may be, however many characters the file stands for)
         auto room = [&] { return std::min<qint64>(kMaxOdsNoteChars - text.size(), kMaxNoteChars - m_noteChars - text.size()); };
         auto add = [&](QStringView part) {
@@ -1338,15 +1350,21 @@ private:
                 } else if (ns == NS_DC && name == QLatin1String("creator")) {
                     inAuthor = true;
                     authorDepth = depth;
+                } else if (ns == NS_DC && name == QLatin1String("date")) {
+                    inDate = true;
+                    dateDepth = depth;
                 }
             } else if (t == QXmlStreamReader::EndElement) {
                 --m_depth;
                 if (--depth == 0) break;
                 if (inParagraph && depth == paragraphDepth - 1) inParagraph = false;
                 if (inAuthor && depth == authorDepth - 1) inAuthor = false;
+                if (inDate && depth == dateDepth - 1) inDate = false;
             } else if (t == QXmlStreamReader::Characters) {
                 if (inAuthor) {
                     if (author.size() < kMaxPersonChars * 5) author += xml.text();
+                } else if (inDate) {
+                    if (date.size() < 64) date += xml.text();
                 } else if (inParagraph) {
                     add(xml.text());
                 }
@@ -1357,6 +1375,7 @@ private:
         if (cut) ++m_notesCut;
         n.text = text;
         n.author = author.trimmed();
+        n.date = odsDateText(date);
         m_noteChars += text.size() + n.author.size();
         m_s.importedNotes.append(n);
         m_noteRaw.push_back(raw);
@@ -1946,7 +1965,8 @@ private:
     // The boxes of the notes read, now that the sizes of the columns and rows are known, and what was left out of them said.
     void notes()
     {
-        if (!m_s.importedNotes.isEmpty()) {
+        // (a sheet read only as far as a row has its notes but no boxes: its row heights are not all known)
+        if (!m_s.importedNotes.isEmpty() && !m_s.partial) {
             const odsdraw::Grid grid = gridNow();
             for (qsizetype i = 0; i < m_s.importedNotes.size(); ++i) {
                 ImportedNote &n = m_s.importedNotes[i];
@@ -1954,8 +1974,8 @@ private:
                 if (raw.ok) n.box = noteBoxFromOds(raw.x, raw.y, raw.w, raw.h, n.row, n.col, grid);
             }
         }
-        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "notes past the %1 a sheet may have").arg(kMaxNotes);
-        if (m_notesCut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "notes cut to %1 characters").arg(kMaxOdsNoteChars);
+        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 note(s) on a sheet are kept.", nullptr, int(kMaxNotes)).arg(QLocale().toString(kMaxNotes));
+        if (m_notesCut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, int(std::min<qint64>(m_notesCut, 1000000000))).arg(QLocale().toString(kMaxOdsNoteChars));
     }
 
     // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).
@@ -2178,6 +2198,7 @@ bool OdsBook::readSheet(int index, const Limits &limits, const std::function<boo
         QMutexLocker locker(&m->lock);
         if (index < m->unconverted.size()) m->unconverted[index] = out->stats.unreadFormulas;
         if (index < m->mergesLeftOut.size()) m->mergesLeftOut[index] = std::max<qint64>(0, out->mergeCount - qint64(out->merges.size()));
+        if (index < m->hasNotes.size()) m->hasNotes[index] = out->importedNotes.isEmpty() ? 0 : 1;
     }
     return done;
 }
@@ -2204,6 +2225,11 @@ bool OdsBook::mayHaveDrawings(int index) const
 bool OdsBook::mayHaveNotes(int index) const
 {
     if (index < 0 || index >= m->slices.size()) return false;
+    {
+        // (a sheet that has been read whole knows: its annotations were found as it was read, and a cell's text that says the word is not one)
+        QMutexLocker locker(&m->lock);
+        if (index < m->hasNotes.size() && m->hasNotes[index] >= 0) return m->hasNotes[index] > 0;
+    }
     const Range r = m->slices[index];
     return QByteArrayView(m->content).mid(r.from, r.to - r.from).indexOf(QByteArrayView("annotation")) >= 0;
 }

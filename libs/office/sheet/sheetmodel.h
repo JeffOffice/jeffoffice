@@ -1500,6 +1500,7 @@ struct ImportedDrawing {
 struct ImportedNote {
     quint32 row = 0, col = 0;
     QString author, text;
+    QString date;   // as the file has it (the standard's date and time), or nothing
     bool shown = false;
     NoteBox box;
 };

@@ -355,7 +355,10 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
         if (out->book->info().sheets[i].kind != SheetKind::Chartsheet) out->geometry[size_t(i)] = jp::grid::GridSheet::makeGeometry(calc->sheet(i), out->book->styles());
         if (out->book->info().sheets[i].kind == SheetKind::Worksheet) {
             bool truncated = false;
-            out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes, &notesContext);
+            // (a workbook from an OpenDocument file has its notes in the sheets just read: they are taken from them, and the sheets are not read again)
+            const jp::office::sheet::Sheet &model = calc->sheet(i);
+            if (out->book->foreignBook() && !model.partial) out->notes[size_t(i)] = jp::office::sheet::noteInfosOf(model, jp::office::sheet::kMaxModelNotes, &truncated, &notesContext);
+            else out->notes[size_t(i)] = readSheetNoteInfos(*out->book, i, &truncated, jp::office::sheet::kMaxModelNotes, &notesContext);
             out->notesTruncated[size_t(i)] = truncated;
         }
     }

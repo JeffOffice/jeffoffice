@@ -1026,9 +1026,12 @@ private:
         const QString shapes = shapesOf(sheet, w, index, w.place);
         // the notes of the sheet, by cell (a workbook read from an OpenDocument file has them in the model of its sheet, any other in its package)
         std::map<quint64, NoteInfo> noteMap;
-        if (w.place >= 0) noteMap = m_book.foreignBook() ? noteInfosOf(sheet) : readSheetNoteInfos(m_book, w.place, nullptr, kMaxNotes, &m_noteContext);
+        if (w.place >= 0) {
+            bool leftOut = false;
+            noteMap = m_book.foreignBook() ? noteInfosOf(sheet, kMaxNotes, &leftOut, &m_noteContext) : readSheetNoteInfos(m_book, w.place, &leftOut, kMaxNotes, &m_noteContext);
+            if (leftOut && m_noteContext.exhausted) m_drawingNotes << noteBookLimitMessage();   // (the notes of all the sheets together are bounded as those of one workbook are)
+        }
         std::optional<odsdraw::Grid> noteGrid;
-        qint64 notesCovered = 0;
         m_views.append({w.name, sheet.view, w.place});
         const SheetEntry entry = m_book.info().sheets.value(w.place);
         QString tableStyle = QStringLiteral("ta%1").arg(index + 1);
@@ -1261,6 +1264,7 @@ private:
                 };
                 std::vector<Item> items;
                 std::vector<std::pair<quint32, quint32>> covered;   // columns covered in this row
+                std::map<quint32, const NoteInfo *> coveredNotes;   // the notes on covered cells of this row, by column
                 for (size_t k : active) {
                     const CellRange &m = merges[k];
                     if (row == m.row1) {
@@ -1316,7 +1320,7 @@ private:
                             const quint32 noteCol = quint32(from->first & 0xffffffffu);
                             if (noteCol > 16383) continue;
                             if (isCovered(noteCol)) {
-                                ++notesCovered;
+                                coveredNotes[noteCol] = &from->second;   // (a covered cell may hold content: it is written on its own, out of the run that covers it)
                                 continue;
                             }
                             const auto at = itemAt.find(noteCol);
@@ -1325,7 +1329,15 @@ private:
                         }
                     }
                 }
-                for (const auto &c : covered) items.push_back({c.first, nullptr, 0, 0, c.second - c.first + 1, false});
+                for (const auto &c : covered) {
+                    quint32 from = c.first;
+                    for (auto at = coveredNotes.lower_bound(c.first); at != coveredNotes.end() && at->first <= c.second; ++at) {
+                        if (at->first > from) items.push_back({from, nullptr, 0, 0, at->first - from, false});
+                        items.push_back({at->first, nullptr, 0, 0, 1, false, at->second});
+                        from = at->first + 1;
+                    }
+                    if (from <= c.second) items.push_back({from, nullptr, 0, 0, c.second - from + 1, false});
+                }
                 std::sort(items.begin(), items.end(), [](const Item &a, const Item &b) { return a.col < b.col; });
                 // the row
                 QString rx = QStringLiteral("<table:table-row");
@@ -1345,6 +1357,13 @@ private:
                     if (it.col > col) {
                         rx += it.col - col == 1 ? QStringLiteral("<table:table-cell/>") : QStringLiteral("<table:table-cell table:number-columns-repeated=\"%1\"/>").arg(it.col - col);
                         col = it.col;
+                    }
+                    if (!it.cell && it.span == 0 && it.note) {
+                        // (a covered cell with a note)
+                        if (!noteGrid) noteGrid.emplace(gridOf(sheet));
+                        rx += QStringLiteral("<table:covered-table-cell>") + annotationXml(*it.note, row, it.col, *noteGrid) + QStringLiteral("</table:covered-table-cell>");
+                        col += 1;
+                        continue;
                     }
                     if (!it.cell && it.span == 0) {
                         rx += it.colSpan == 1 ? QStringLiteral("<table:covered-table-cell/>") : QStringLiteral("<table:covered-table-cell table:number-columns-repeated=\"%1\"/>").arg(it.colSpan);
@@ -1368,7 +1387,6 @@ private:
         QString tail;
         const QString localNames = m_localNames.value(index);
         if (!localNames.isEmpty()) tail += QStringLiteral("<table:named-expressions>") + localNames + QStringLiteral("</table:named-expressions>");
-        if (notesCovered > 0) trim(oldsave::sheetNote(w.name, QCoreApplication::translate("Sheet", "%1 notes on cells covered by merged cells").arg(notesCovered)));
         spool->add(tail.toUtf8() + "</table:table>");
         return true;
     }
@@ -1444,6 +1462,7 @@ private:
             x += QStringLiteral(" svg:width=\"%1pt\" svg:height=\"%2pt\" svg:x=\"%3pt\" svg:y=\"%4pt\"").arg(bw, 0, 'f', 2).arg(bh, 0, 'f', 2).arg(bx, 0, 'f', 2).arg(by, 0, 'f', 2);
         x += QStringLiteral(">");
         if (!note.author.isEmpty()) x += QStringLiteral("<dc:creator>") + esc(note.author) + QStringLiteral("</dc:creator>");
+        if (!note.date.isEmpty()) x += QStringLiteral("<dc:date>") + esc(note.date) + QStringLiteral("</dc:date>");
         return x + textParagraphs(note.text) + QStringLiteral("</office:annotation>");
     }
 

@@ -1030,7 +1030,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     QSet<QString> mediaExtensions;
     std::vector<bool> hasNotes(size_t(info.sheets.size()), false);   // the sheets that have notes of an OpenDocument file to write
     qint64 noteChars = 0;
-    const QString notesLeftOut = QCoreApplication::translate("jp::office::sheet::Save", "notes past the limit on the notes of a workbook");
+    const QString notesLeftOut = noteBookLimitMessage();
     if (const ForeignBook *foreign = book.foreignBook()) {
         for (int i = 0; i < info.sheets.size(); ++i) {
             if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));

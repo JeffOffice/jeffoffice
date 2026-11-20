@@ -235,7 +235,7 @@ QByteArray anchorText(const NoteOp &op)
     const qint64 row = op.row, col = op.col;
     auto at = [](qint64 v) { return QByteArray::number(std::max<qint64>(0, v)); };
     auto px = [](int v) { return QByteArray::number(std::max(0, v)); };
-    const NoteBox &b = op.box;
+    const NoteBox b = noteBoxInsideSheet(op.box, op.row, op.col);
     return at(col + b.col1) + ", " + px(b.x1) + ", " + at(row + b.row1) + ", " + px(b.y1) + ", " + at(col + b.col2) + ", " + px(b.x2) + ", " + at(row + b.row2) + ", " + px(b.y2);
 }
 

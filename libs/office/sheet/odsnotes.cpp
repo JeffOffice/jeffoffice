@@ -62,9 +62,10 @@ NoteBox noteBoxFromOds(double x, double y, double width, double height, quint32 
     return box;
 }
 
-bool noteBoxToOds(const NoteBox &box, quint32 row, quint32 col, const odsdraw::Grid &grid, double *x, double *y, double *width, double *height)
+bool noteBoxToOds(const NoteBox &placed, quint32 row, quint32 col, const odsdraw::Grid &grid, double *x, double *y, double *width, double *height)
 {
-    if (!box.set) return false;
+    if (!placed.set) return false;
+    const NoteBox box = noteBoxInsideSheet(placed, row, col);
     auto corner = [&](int dRow, int dCol, int offY, int offX, double *px, double *py) {
         const qint64 c = std::clamp<qint64>(qint64(col) + dCol, 0, kMaxColumns - 1), r = std::clamp<qint64>(qint64(row) + dRow, 0, kMaxRows - 1);
         *px = double(grid.columnStart(quint32(c))) / kEmuPerPoint + double(std::max(0, offX)) * kEmuPerPx / kEmuPerPoint;

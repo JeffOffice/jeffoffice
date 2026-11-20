@@ -4,6 +4,7 @@
 #include "sheet/foreignbook.h"
 #include "sheet/xmlscan.h"
 
+#include <QCoreApplication>
 #include <QIODevice>
 #include <QXmlStreamReader>
 
@@ -509,20 +510,35 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
     return out;
 }
 
-std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most, bool *truncated)
+QString noteBookLimitMessage() { return QCoreApplication::translate("jp::office::sheet::Save", "The workbook has more note text than this program keeps; the rest was left out."); }
+
+std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most, bool *truncated, NoteReadContext *context)
 {
     std::map<quint64, NoteInfo> out;
     if (truncated) *truncated = false;
+    qint64 chars = 0;
     for (const ImportedNote &n : sheet.importedNotes) {
         if (qint64(out.size()) >= most) {
             if (truncated) *truncated = true;
             break;
         }
+        chars += n.text.size() + n.author.size();
         NoteInfo &info = out[noteKey(n.row, n.col)];
         info.author = n.author;
         info.text = n.text;
+        info.date = n.date;
         info.shown = n.shown;
         info.box = n.box;
+    }
+    if (context && !out.empty()) {
+        if (context->exhausted || context->chars + chars > kMaxNoteCharsPerBook) {
+            // (the sheet's notes go whole or not at all, as a save writes them)
+            context->exhausted = true;
+            if (truncated) *truncated = true;
+            out.clear();
+        } else {
+            context->chars += chars;
+        }
     }
     return out;
 }
@@ -537,7 +553,7 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
     if (sheet >= 0 && sheet < info.sheets.size() && !info.sheets[sheet].deleted && !info.sheets[sheet].isNew && book.foreignBook() && book.foreignBook()->mayHaveNotes(sheet)) {
         // (a workbook read from an OpenDocument file has its notes in the sheet's model, and is read again to have them)
         Sheet read;
-        if (book.readSheet(sheet, &read)) out = noteInfosOf(read, std::min(most, kMaxNotes), truncated);
+        if (book.readSheet(sheet, &read)) out = noteInfosOf(read, std::min(most, kMaxNotes), truncated, &c);
         return out;
     }
     if (sheet < 0 || sheet >= info.sheets.size() || info.sheets[sheet].deleted || info.sheets[sheet].isNew || info.sheets[sheet].part.isEmpty()) return out;

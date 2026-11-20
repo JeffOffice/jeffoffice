@@ -38,6 +38,7 @@ struct NoteReadContext;
 struct NoteInfo {
     QString author;
     QString text;
+    QString date;            // the date of a note of an OpenDocument file, as it has it (the other forms have none for a note)
     NoteBox box;             // where the box is, if the file says
     bool shown = false;      // the file shows the note all the time (not only when the pointer is on its cell)
     bool threaded = false;   // the text is that of a thread of comments (`thread` holds them)
@@ -78,7 +79,10 @@ qint64 noteReads();
 // How many thread parts have been parsed since the program began (a part that many sheets name is parsed once for a workbook).
 qint64 threadPartReads();
 // The notes of a sheet read from an OpenDocument file, as the model has them (at most `most`; `truncated`, if given, is told whether that stopped it).
-std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most = kMaxNotes, bool *truncated = nullptr);
+// With a `context`, the characters are counted for the workbook: the notes of a sheet that would take them past kMaxNoteCharsPerBook are all left out (and `truncated` is set).
+std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most = kMaxNotes, bool *truncated = nullptr, NoteReadContext *context = nullptr);
+// What is said when the notes of a workbook are left out for their characters (a read says it by `truncated`, a save in its report).
+QString noteBookLimitMessage();
 // Just the texts (what Find looks in).
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated = nullptr);
 
