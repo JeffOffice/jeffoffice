@@ -5724,7 +5724,7 @@
       },
       {
        "status": "partly",
-       "text": "0619b72ca63634df943f14006b4362811b5ec447f40a882b452cbe30f17ed726"
+       "text": "8d7d9ddcef72d3bea902d4ec1316aef7ead5ba51403cc0e3bfef33c838873273"
       },
       {
        "hide_soon": true,
@@ -7208,7 +7208,7 @@
         },
         {
          "status": "partly",
-         "text": "16b73cb77accbde6eb0425c028692ff364ff991d5215ebb4963f21721d87b791"
+         "text": "803b9f0a6b03750b181c7b00605e96b17ac576ec2dadc40af8876d463e52672e"
         },
         {
          "status": "partly",
@@ -8058,18 +8058,6 @@
     "en": "3-D models: keep as saved, with the picture they show",
     "es": "Modelos 3D: conservar como se guardaron, con la imagen que muestran",
     "fr": "Modèles 3D : conserver tels qu’enregistrés, avec l’image qu’ils affichent"
-   }
-  },
-  "0619b72ca63634df943f14006b4362811b5ec447f40a882b452cbe30f17ed726": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Line and page breaks that match the reference layout more closely",
-    "es": "Saltos de línea y de página que coinciden con mayor precisión con el diseño de referencia",
-    "fr": "Sauts de ligne et de page plus fidèles à la mise en page de référence"
    }
   },
   "063f9908ef35fd8ce6ff8f930881f62576e68316be1533a2bfccfcb7226f2a87": {
@@ -9354,18 +9342,6 @@
     "en": "Chart Format tab: current selection, shape styles, text art styles, shapes, text boxes, pictures, size, and arrange",
     "es": "Pestaña Formato de gráfico: selección actual, estilos de forma, estilos de texto artístico, formas, cuadros de texto, imágenes, tamaño y organización",
     "fr": "Onglet Format du graphique : sélection active, styles de forme, styles de texte artistique, formes, zones de texte, images, taille et organisation"
-   }
-  },
-  "16b73cb77accbde6eb0425c028692ff364ff991d5215ebb4963f21721d87b791": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "170abbe3fda5186dc803a541603034e8e85e1daeff0c7ba0e064e9b210f263fb": {
@@ -17552,6 +17528,18 @@
     "fr": ""
    }
   },
+  "803b9f0a6b03750b181c7b00605e96b17ac576ec2dadc40af8876d463e52672e": {
+   "drop": false,
+   "en": "Line and page breaks follow the same fonts or stand-ins with the same letter widths, and most pages break as expected.",
+   "es": "Los saltos de línea y de página siguen las mismas fuentes o sustitutas con el mismo ancho de letras, y la mayoría de las páginas se cortan como se espera.",
+   "fr": "Les sauts de ligne et de page suivent les mêmes polices ou des polices de remplacement aux largeurs de lettres identiques, et la plupart des pages se coupent comme prévu.",
+   "soon": {
+    "drop": false,
+    "en": "Line and page breaks that match in every case",
+    "es": "Saltos de línea y de página que coinciden en todos los casos",
+    "fr": "Sauts de ligne et de page identiques dans tous les cas"
+   }
+  },
   "80432fae3a5e2e69c3ef4c381c93f1682b9b57b1bee8b5a5a1dd0782644b3dd0": {
    "drop": false,
    "en": "Show or hide boundaries, guides, fields, rulers, page navigation, the scratch area, baselines, and the graphics manager.",
@@ -18318,6 +18306,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "8d7d9ddcef72d3bea902d4ec1316aef7ead5ba51403cc0e3bfef33c838873273": {
+   "drop": false,
+   "en": "Lines and pages break at mostly the same places as in the reference pages for sample documents.",
+   "es": "Las líneas y las páginas se cortan en su mayoría en los mismos lugares que en las páginas de referencia de los documentos de muestra.",
+   "fr": "Les lignes et les pages se coupent le plus souvent aux mêmes endroits que dans les pages de référence des documents d’exemple.",
+   "soon": {
+    "drop": false,
+    "en": "Line and page breaks that match in every document",
+    "es": "Saltos de línea y de página que coinciden en todos los documentos",
+    "fr": "Sauts de ligne et de page identiques dans tous les documents"
    }
   },
   "8d9710d620cda6360c0f460bc42ab6cbd47e084a89cb63c8f4d58899881696a9": {
