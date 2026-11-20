@@ -852,6 +852,8 @@ private Q_SLOTS:
     void thePropertiesOfAnOldFileAreWhereRemovingPersonalInformationLooks();
     void theFormFieldsOfAnOldFileShowTheirChoices();
     void anEmbeddedObjectOfAnOldFileIsShownAsAPictureAndSaid();
+    void anOldFileSavedAsTheNewerFormatKeepsItsCommentsPropertiesAndFormFields();
+    void removingPersonalInformationFromAnOldFileLeavesNoneOfItInTheSavedFile();
     void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates();
     void anOldTemplateOpensAsANewDocumentMadeFromIt();
     void aFileThatIsNotADocumentSaysSoAndOpensNothing();

@@ -77,6 +77,8 @@ struct CommentSpec {
     QString author, initials, text;
     quint32 date = 0;                  // a DTTM (0: the file keeps no date, as the files of before 2002)
     int from = -1, to = -1;
+    int ownerIndex = -1;               // the author's place in the list of authors, where not -1 (a hostile file may name one past the list)
+    int endIndex = -1;                 // the place of the range's end in the table of ends, where not -1 (a hostile file may name one that is not an end)
 };
 struct SectionSpec {
     int end;                           // the character after the section's last

@@ -393,6 +393,86 @@ DocWriter withFormField(const QString &kind, const QByteArray &ff, const QString
     return w;
 }
 
+// The numbers in the `w:id` of each element `<tag w:id="N"/>` in some XML, in order.
+QList<int> idsOf(const QByteArray &xml, const QByteArray &tag)
+{
+    QList<int> out;
+    const QByteArray key = "<" + tag + " w:id=\"";
+    for (qsizetype at = xml.indexOf(key); at >= 0; at = xml.indexOf(key, at + key.size())) out << xml.mid(at + key.size(), xml.indexOf('"', at + key.size()) - (at + key.size())).toInt();
+    return out;
+}
+
+// The marks of comments in a body, and the comments of the part, agree: each comment has its reference, each reference its comment, and each range its start and its end (the start first).
+void checkCommentMarks(const QByteArray &body, const QByteArray &comments, QString *problem)
+{
+    const QList<int> refs = idsOf(body, "w:commentReference"), starts = idsOf(body, "w:commentRangeStart"), ends = idsOf(body, "w:commentRangeEnd"), have = idsOf(comments, "w:comment");
+    auto same = [](QList<int> a, QList<int> b) {
+        std::sort(a.begin(), a.end());
+        std::sort(b.begin(), b.end());
+        return a == b;
+    };
+    if (!same(refs, have)) *problem = QStringLiteral("references and comments differ");
+    else if (!same(starts, ends)) *problem = QStringLiteral("starts and ends differ");
+    for (const int id : starts)
+        if (!refs.contains(id)) *problem = QStringLiteral("a range of a comment with no reference");
+    for (const int id : starts)
+        if (body.indexOf("<w:commentRangeStart w:id=\"" + QByteArray::number(id) + "\"/>") > body.indexOf("<w:commentRangeEnd w:id=\"" + QByteArray::number(id) + "\"/>")) *problem = QStringLiteral("an end before its start");
+}
+
+// A property set by hand (the bytes of the set alone): the given properties, each a number and its value as stored (the type, two bytes of padding, and the value), after the code page
+// property; the table says it holds `declared` properties (more than there are: the rest of the table is zeros).
+QByteArray rawPropertySet(const QVector<QPair<quint32, QByteArray>> &props, quint32 declared, int codePage = 1252)
+{
+    auto le = [](quint64 v, int bytes) {
+        QByteArray b(bytes, 0);
+        for (int i = 0; i < bytes; ++i) b[i] = char((v >> (8 * i)) & 0xFF);
+        return b;
+    };
+    QVector<QPair<quint32, QByteArray>> all = props;
+    all.prepend({1, le(2, 2) + le(0, 2) + le(quint16(codePage), 2) + le(0, 2)});
+    const quint32 places = std::max<quint32>(declared, quint32(all.size()));
+    const int table = 8 + 8 * int(places);
+    QByteArray head, body;
+    for (const auto &p : std::as_const(all)) {
+        head += le(p.first, 4) + le(quint32(table + body.size()), 4);
+        body += p.second;
+    }
+    head += QByteArray(int(8 * (places - quint32(all.size()))), '\0');
+    return le(quint32(table + body.size()), 4) + le(declared, 4) + head + body;
+}
+// A property set stream of the given sets (the first of the summary kind, the second of the document summary kind).
+QByteArray rawPropertyStreamOf(const QVector<QByteArray> &sets)
+{
+    auto le = [](quint64 v, int bytes) {
+        QByteArray b(bytes, 0);
+        for (int i = 0; i < bytes; ++i) b[i] = char((v >> (8 * i)) & 0xFF);
+        return b;
+    };
+    QByteArray out = le(0xFFFE, 2) + le(0, 2) + le(0x00020006, 4) + QByteArray(16, '\0') + le(quint32(sets.size()), 4);
+    quint32 at = quint32(28 + 20 * sets.size());
+    for (int i = 0; i < sets.size(); ++i) {
+        out += (i == 0 ? summaryFormat() : documentSummaryFormat()) + le(at, 4);
+        at += quint32(sets[i].size());
+    }
+    for (const QByteArray &set : sets) out += set;
+    return out;
+}
+QByteArray rawPropertyStream(const QVector<QPair<quint32, QByteArray>> &props, quint32 declared, int codePage = 1252)
+{
+    return rawPropertyStreamOf({rawPropertySet(props, declared, codePage)});
+}
+// A text value as stored (type 0x1E, size with its null, the bytes, padding).
+QByteArray storedText(const QByteArray &bytes)
+{
+    QByteArray v(8, '\0');
+    v[0] = 0x1E;
+    const quint32 n = quint32(bytes.size() + 1);
+    for (int i = 0; i < 4; ++i) v[4 + i] = char((n >> (8 * i)) & 0xFF);
+    v += bytes + QByteArray(1, '\0');
+    while (v.size() % 4) v.append('\0');
+    return v;
+}
+
 // ---- Open and Repair of a damaged file
 
 // A document of 400 paragraphs (its streams are long enough to fill many sectors), and its paragraphs.
@@ -1077,6 +1157,157 @@ private Q_SLOTS:
         QCOMPARE(notes.size(), 1);
     }
 
+    // The text of the notices of a read, as one string.
+    static QString allOf(const QStringList &notes) { return notes.join(QLatin1Char('|')); }
+
+    void theMarksOfCommentsInTruncatedOutputAreOnlyThoseOfCommentsWritten()
+    {
+        // More paragraphs than the output may hold, with comments near the start and near the end, and one whose range runs past where the text is cut.
+        const int paragraphs = doc::kMaxParagraphs + 2000;
+        QString text;
+        QVector<int> at;
+        for (int i = 0; i < paragraphs; ++i) {
+            if (i == 5 || i == 10 || i == paragraphs - 5) at << int(text.size()) + 1;   // (the mark is the second character)
+            text += (i == 5 || i == 10 || i == paragraphs - 5) ? QStringLiteral("x\x05\r") : QStringLiteral("x\r");
+        }
+        DocWriter w = simple(text);
+        const int ref = at[0], ref2 = at[1], far = at[2];
+        w.comments = {{ref, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("Near the start."), 0, ref - 3, ref + 4},
+                      {ref2, QStringLiteral("Bob"), QStringLiteral("B"), QStringLiteral("Its range runs on."), 0, ref2 - 1, int(text.size()) - 2},
+                      {far, QStringLiteral("Cy"), QStringLiteral("C"), QStringLiteral("Past the cut."), 0, far - 2, far + 1}};
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        const QByteArray x = bodyXml(w);
+        QVERIFY2(allOf(notes).contains(QLatin1String("longer than this program")), qPrintable(allOf(notes)));   // (the text was cut)
+        QVERIFY2(!c.isEmpty(), qPrintable(allOf(notes) + QStringLiteral(" refs=%1 starts=%2").arg(x.count("<w:commentReference")).arg(x.count("<w:commentRangeStart"))));
+        QCOMPARE(idsOf(c, "w:comment"), (QList<int>{0, 1}));
+        QCOMPARE(idsOf(x, "w:commentReference"), (QList<int>{0, 1}));
+        QCOMPARE(idsOf(x, "w:commentRangeStart"), (QList<int>{0}));   // (the second one's range has no end in what is kept: it is a point)
+        QCOMPARE(idsOf(x, "w:commentRangeEnd"), (QList<int>{0}));
+        QString problem;
+        checkCommentMarks(x, c, &problem);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        // The comment past the cut is said to be left out.
+        QVERIFY2(allOf(notes).contains(QLatin1String("1 comment")), qPrintable(allOf(notes)));
+    }
+
+    void commentsPastTheirOwnBudgetAreLeftOutWithTheirMarksAndTheTextIsNotCut()
+    {
+        // Thirty comments of ten thousand paragraphs each are more than the comments may hold; the text above them is whole, and what was left out is counted.
+        QString text;
+        QVector<int> at;
+        for (int i = 0; i < 30; ++i) {
+            at << int(text.size()) + 1;
+            text += QStringLiteral("x\x05\r");
+        }
+        DocWriter w = simple(text);
+        QString body;
+        for (int i = 0; i < 10000; ++i) body += QStringLiteral("a\r");
+        for (int i = 0; i < 30; ++i) w.comments.push_back({at[i], QStringLiteral("Ann"), QStringLiteral("A"), body, 0, at[i] - 1, at[i] + 1});
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        const QByteArray x = bodyXml(w);
+        const int written = int(idsOf(c, "w:comment").size());
+        QVERIFY2(written >= 1 && written < 30, qPrintable(QString::number(written)));
+        QCOMPARE(int(idsOf(x, "w:commentReference").size()), written);
+        QCOMPARE(int(idsOf(x, "w:commentRangeStart").size()), written);
+        QString problem;
+        checkCommentMarks(x, c, &problem);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+        QCOMPARE(x.count("<w:t xml:space=\"preserve\">x</w:t>"), 30);   // (the whole text)
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QString::number(30 - written) + QLatin1String(" comment")) && notes[0].contains(QLatin1String("could not be read")), qPrintable(notes[0]));
+    }
+
+    void aCommentRangeEndingWhereTheTextEndsHasBothMarks()
+    {
+        DocWriter w = simple(QStringLiteral("Hello brave\x05 new world.\r"));
+        // (The range runs to the end of the text, past the last paragraph mark, as the file's table of ends has it.)
+        w.comments = {{11, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("To the end."), 0, 6, int(w.text.size())}};
+        const QByteArray x = bodyXml(w);
+        const int from = int(x.indexOf("<w:commentRangeStart w:id=\"0\"/>")), to = int(x.indexOf("<w:commentRangeEnd w:id=\"0\"/>"));
+        QVERIFY2(from > 0 && to > from, x.constData());
+        QVERIFY2(x.indexOf("world.") < to, x.constData());   // (the end is after all the text)
+        QString problem;
+        checkCommentMarks(x, partXml(w, QStringLiteral("/word/comments.xml")), &problem);
+        QVERIFY2(problem.isEmpty(), qPrintable(problem));
+    }
+
+    void aCommentRangeThatEndsBeforeItStartsIsNoRangeAndTheCommentStays()
+    {
+        // (Section 2.8.10: a start is not after its limit; the file that has it so is damaged, and the comment keeps its place.)
+        DocWriter w = simple(QStringLiteral("Hello brave\x05 new world.\r"));
+        w.comments = {{11, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("Backwards."), 0, 9, 4}};
+        const QByteArray x = bodyXml(w);
+        QCOMPARE(x.count("<w:commentRangeStart"), 0);
+        QCOMPARE(x.count("<w:commentRangeEnd"), 0);
+        QCOMPARE(x.count("<w:commentReference"), 1);
+        QVERIFY(partXml(w, QStringLiteral("/word/comments.xml")).contains("Backwards."));
+    }
+
+    void aRangeWhoseEndIsNotInTheTableOfEndsIsNoRange()
+    {
+        // The range's start names the table's last position (which is no end, section 2.8.10) as its end: a start with no end.
+        DocWriter w = simple(QStringLiteral("Hello brave\x05 new world.\r"));
+        w.comments = {{11, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("No end."), 0, 6, 11}};
+        w.comments[0].endIndex = 1;   // (the table has one end, at place 0; place 1 is the position that is ignored)
+        const QByteArray x = bodyXml(w);
+        QCOMPARE(x.count("<w:commentRangeStart"), 0);
+        QCOMPARE(x.count("<w:commentRangeEnd"), 0);
+        QCOMPARE(x.count("<w:commentReference"), 1);
+        QVERIFY(partXml(w, QStringLiteral("/word/comments.xml")).contains("No end."));
+    }
+
+    void anAuthorPastTheTableOfAuthorsIsNoAuthorAndTheCommentStays()
+    {
+        DocWriter w = simple(QStringLiteral("One\x05 two.\r"));
+        w.comments = {{3, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("Whose?"), 0, -1, -1}};
+        w.comments[0].ownerIndex = 7;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"));
+        QVERIFY2(c.contains("Whose?") && !c.contains("Ann"), c.constData());
+        QCOMPARE(idsOf(bodyXml(w), "w:commentReference"), (QList<int>{0}));
+    }
+
+    void referencesThatDoNotIncreaseAreSkippedAndCounted()
+    {
+        // The table of references gives 3, 9, 9, 6, 14: the second 9 and the 6 do not follow the 9 (section 2.8.7), so are skipped, with their texts; the 14 is kept.
+        DocWriter w = simple(QStringLiteral("abc\x05" "def\x05" "g\x05" "h\x05" "ijklm\x05 end.\r"));
+        QVector<int> marks;
+        for (int i = 0; i < w.text.size(); ++i)
+            if (w.text[i] == QChar(5)) marks << i;
+        QCOMPARE(marks.size(), 5);
+        w.comments = {{marks[0], QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("first"), 0, -1, -1},
+                      {marks[1], QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("second"), 0, -1, -1},
+                      {marks[1], QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("repeats the second"), 0, -1, -1},
+                      {marks[0] + 1, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("goes back"), 0, -1, -1},
+                      {marks[4], QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("last"), 0, -1, -1}};
+        QStringList notes;
+        const QByteArray c = partXml(w, QStringLiteral("/word/comments.xml"), &notes);
+        QCOMPARE(idsOf(c, "w:comment"), (QList<int>{0, 1, 2}));   // (numbered as they are kept)
+        QVERIFY(c.contains("first") && c.contains("second") && c.contains("last") && !c.contains("repeats") && !c.contains("goes back"));
+        QCOMPARE(idsOf(bodyXml(w), "w:commentReference"), (QList<int>{0, 1, 2}));
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QLatin1String("2 comment")) && notes[0].contains(QLatin1String("could not be read")), qPrintable(notes[0]));
+    }
+
+    void commentsThatCannotBeReadAtAllAreSaid()
+    {
+        // The document has comment text, but the table of references is cut to nothing: no comment can be found, and the notice says so.
+        DocWriter w = simple(QStringLiteral("One\x05 two.\r"));
+        w.comments = {{3, QStringLiteral("Ann"), QStringLiteral("A"), QStringLiteral("Lost."), 0, -1, -1}};
+        const QByteArray file = withSlotSize(w.build(), 4, 0);   // (the slot of the table of references: its size is none)
+        QString why;
+        wml::ReadNotes rn;
+        const QByteArray zip = doc::toDocxPackage(file, &why, &rn);
+        QVERIFY2(!zip.isEmpty(), qPrintable(why));
+        Package pkg;
+        QVERIFY(pkg.read(zip));
+        QVERIFY(pkg.part(QStringLiteral("/word/comments.xml")).isEmpty());
+        QCOMPARE(rn.notes.size(), 1);
+        QVERIFY2(rn.notes[0].contains(QLatin1String("comments in the document could not be read")), qPrintable(rn.notes[0]));
+        QCOMPARE(pkg.part(QStringLiteral("/word/document.xml")).count("<w:commentReference"), 0);
+    }
+
     // ---- the document's properties (the property set format, sections 2.5, 2.8, 2.20, 2.21, 2.25.1)
 
     void thePropertiesOfTheDocumentAreRead()
@@ -1134,32 +1365,152 @@ private Q_SLOTS:
         const QByteArray good = propertySetStream(summaryFormat(), 1252, {{2, 0x1E, QString(), "Title", 0}, {4, 0x1E, QString(), "Author", 0}});
         QCOMPARE(readOlePropertySets(good).size(), 1);
         QCOMPARE(readOlePropertySets(good)[0].values.value(2).text, QStringLiteral("Title"));
-        // A string whose size runs past the stream, a count of properties far past it, a set that begins past its end, a size of zero, and a stream too large to take.
+        // The whole set, and what each damage leaves of it, exactly.
+        auto titleAndAuthor = [](const QByteArray &b, int sets, int values, const QString &title, const QString &author) {
+            const QVector<OlePropertySet> read = readOlePropertySets(b);
+            if (read.size() != sets) return false;
+            if (sets == 0) return true;
+            return read[0].values.size() == values && read[0].values.value(2).text == title && read[0].values.value(4).text == author;
+        };
+        QVERIFY(titleAndAuthor(good, 1, 2, QStringLiteral("Title"), QStringLiteral("Author")));
+        // The stream cut before the end of the last string: that string is empty, the other is whole.
         QByteArray cut = good;
         cut.resize(good.size() - 8);
-        for (const QByteArray &b : {cut, good.left(47), good.left(60), QByteArray(good).replace(4, 4, QByteArray("\xFF\xFF\xFF\xFF", 4)), QByteArray(2000000, '\xFF')}) {
-            const QVector<OlePropertySet> sets = readOlePropertySets(b);
-            for (const OlePropertySet &set : sets) QVERIFY(set.values.size() <= kMaxOleProperties);
-        }
+        QVERIFY(titleAndAuthor(cut, 1, 2, QStringLiteral("Title"), QString()));
+        // A stream with less than a header has no sets; one with a header and a set that has no room for a property has a set of none.
+        QVERIFY(titleAndAuthor(good.left(47), 0, 0, QString(), QString()));
+        QCOMPARE(readOlePropertySets(good.left(60)).size(), 1);
+        QCOMPARE(readOlePropertySets(good.left(60))[0].values.size(), 0);
+        // Not a property stream at all.
+        QVERIFY(titleAndAuthor(QByteArray(2000000, '\xFF'), 0, 0, QString(), QString()));
+        // A set that says it has two billion properties: the table is taken to be as long as the set has room for, so its values (which begin after the three places it really has) are
+        // inside it, not past it, and none is taken.
         QByteArray many = good;
-        many.replace(28 + 16 + 4 + 4, 4, QByteArray("\xFF\xFF\xFF\x7F", 4));   // (a set that says it has 2 billion properties)
-        QVERIFY(readOlePropertySets(many).value(0).values.size() <= 2);
-        // A stream larger than the limit is not taken, though it is made as a sound one is.
+        many.replace(28 + 20 + 4, 4, QByteArray("\xFF\xFF\xFF\x7F", 4));
+        QVERIFY(titleAndAuthor(many, 1, 0, QString(), QString()));
+        // Its size claiming more than the stream holds is held to the stream.
+        QByteArray big = good;
+        big.replace(28 + 20, 4, QByteArray("\xFF\xFF\xFF\x7F", 4));
+        QVERIFY(titleAndAuthor(big, 1, 2, QStringLiteral("Title"), QStringLiteral("Author")));
+        // A property whose number is the code page's own place taken (a locale number) is no value; the others stay.
+        QByteArray renumbered = good;
+        renumbered.replace(28 + 20 + 8, 4, QByteArray("\xFF\xFF\xFF\xFF", 4));
+        QVERIFY(titleAndAuthor(renumbered, 1, 2, QStringLiteral("Title"), QStringLiteral("Author")));
+        // A stream larger than any limit once was is read as a sound one: its size is no bound.
         QByteArray large = good;
-        large.append(QByteArray(kMaxOlePropertyStream, '\0'));
-        QVERIFY(readOlePropertySets(large).isEmpty());
-        // A set of more properties than are taken: the first kMaxOleProperties (the code page is one of them, and is no value).
+        large.append(QByteArray(3 * 1024 * 1024, '\0'));
+        QVERIFY(titleAndAuthor(large, 1, 2, QStringLiteral("Title"), QStringLiteral("Author")));
+        // A set of more properties than are taken: the first kMaxOleProperties places (the code page is one of them, and is no value).
         QVector<PropSpec> thousands;
         for (int i = 0; i < kMaxOleProperties + 900; ++i) thousands.push_back({quint32(100 + i), 3, QString(), QByteArray(), i});
         QCOMPARE(readOlePropertySets(propertySetStream(summaryFormat(), 1252, thousands)).value(0).values.size(), kMaxOleProperties - 1);
-        // No set holds a count that makes more work than the stream has bytes.
-        QByteArray huge = good;
-        huge.replace(52 + 4, 4, QByteArray("\xFF\xFF\xFF\xFF", 4));
-        QVERIFY(readOlePropertySets(huge).value(0).values.size() <= 4);
-        // And a document with such a stream still opens.
+        // And a document with such a stream still opens, with the title that is whole.
         DocWriter w = simple(QStringLiteral("body\r"));
         w.summaryInformation = cut;
         QVERIFY(!doc::toDocxPackage(w.build()).isEmpty());
+        QCOMPARE(propertiesOf(w).title, QStringLiteral("Title"));
+        QVERIFY(propertiesOf(w).creator.isEmpty());
+    }
+
+    void aCountOverTheCapDoesNotLetOffsetsReadTheTableAsValues()
+    {
+        // The set declares 5,000 properties (past what is read); a property at place 1 points into the part of the table that is not read, where bytes that look like a text are put.
+        QByteArray stream = rawPropertyStream({}, 5000);
+        const int set = 48;
+        const int hidden = 8 + 8 * 4200;   // (in the part of the table past the 4,096 places read)
+        QByteArray value = storedText("Hidden");
+        stream.replace(set + hidden, int(value.size()), value);
+        stream.replace(set + 8 + 8 * 1, 8, QByteArray("\x02\x00\x00\x00", 4) + QByteArray("\x00\x00\x00\x00", 4));
+        stream[set + 8 + 8 * 1 + 4] = char(hidden & 0xFF);
+        stream[set + 8 + 8 * 1 + 5] = char((hidden >> 8) & 0xFF);
+        const QVector<OlePropertySet> read = readOlePropertySets(stream);
+        QCOMPARE(read.size(), 1);
+        QVERIFY2(!read[0].values.contains(2), qPrintable(read[0].values.value(2).text));
+        // The same place beyond the table the set declares is a value, as the offset floor is the table's whole size.
+        QByteArray fine = rawPropertyStream({{2, storedText("Real")}}, 5000);
+        QCOMPARE(readOlePropertySets(fine).value(0).values.value(2).text, QStringLiteral("Real"));
+    }
+
+    void aStringIsHeldToItsOwnSetNotTheStream()
+    {
+        // The title is the last value of the first set, with no null and a size that runs on past the end of its own set into the second set, still inside the stream: it is empty.
+        QByteArray runsOn(8, '\0');
+        runsOn[0] = 0x1E;
+        runsOn[4] = 12;
+        runsOn += QByteArray("ABCDEFGH");
+        const QByteArray first = rawPropertySet({{2, runsOn}}, 2), second = rawPropertySet({{2, storedText("Second")}}, 2);
+        const QVector<OlePropertySet> read = readOlePropertySets(rawPropertyStreamOf({first, second}));
+        QCOMPARE(read.size(), 2);
+        QVERIFY2(read[0].values.value(2).text.isEmpty(), qPrintable(read[0].values.value(2).text));
+        QCOMPARE(read[1].values.value(2).text, QStringLiteral("Second"));
+        // The same text that stays inside its set is read.
+        runsOn[4] = 8;
+        QCOMPARE(readOlePropertySets(rawPropertyStreamOf({rawPropertySet({{2, runsOn}}, 2), second}))[0].values.value(2).text, QStringLiteral("ABCDEFGH"));
+    }
+
+    void aLargeThumbnailStillLeavesTheTitleAndTheOtherTexts()
+    {
+        // A summary with a 3 MB thumbnail (a clipboard value, type 0x47) and a title: the title is read; the thumbnail is passed over by its declared size.
+        QByteArray thumbnail(8, '\0');
+        thumbnail[0] = 0x47;
+        const quint32 n = 3 * 1024 * 1024;
+        for (int i = 0; i < 4; ++i) thumbnail[4 + i] = char((n >> (8 * i)) & 0xFF);
+        thumbnail += QByteArray(int(n), 'z');
+        const QByteArray stream = rawPropertyStream({{2, storedText("The Title")}, {17, thumbnail}, {4, storedText("The Author")}}, 4);
+        QVERIFY(stream.size() > 3 * 1024 * 1024);
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = stream;
+        const PackageProps p = propertiesOf(w);
+        QCOMPARE(p.title, QStringLiteral("The Title"));
+        QCOMPARE(p.creator, QStringLiteral("The Author"));
+    }
+
+    void aCodePageOf1201IsBigEndianAndAnUnknownOneIsLatin1()
+    {
+        // 1201: the same sixteen-bit characters with the high byte first; an unknown number reads the bytes as Latin-1.
+        const QByteArray bigEndian("\x04\x16\x00\x41", 4);   // U+0416, then "A"
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = rawPropertyStream({{2, storedText(bigEndian + QByteArray(1, '\0'))}}, 2, 1201);
+        QCOMPARE(propertiesOf(w).title, QString(QChar(0x0416)) + QLatin1Char('A'));
+        w.summaryInformation = rawPropertyStream({{2, storedText("Caf\xE9")}}, 2, 31999);
+        QCOMPARE(propertiesOf(w).title, QString::fromLatin1("Caf\xE9"));
+    }
+
+    void datesOutOfRangeAreNoDates()
+    {
+        // The largest time, a time before 1970, and one past the year 9999: none is a date; the title beside them is read; a date of 2003 beside them is.
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252,
+            {{2, 0x1E, QString(), "T", 0}, {12, 0x40, QString(), QByteArray(), qint64(0x7FFFFFFFFFFFFFFFLL)}, {13, 0x40, QString(), QByteArray(), fileTime(1969, 5, 1, 0, 0)}});
+        const PackageProps p = propertiesOf(w);
+        QCOMPARE(p.title, QStringLiteral("T"));
+        QVERIFY(!p.created.isValid());
+        QVERIFY(!p.modified.isValid());
+        const OlePropertySet set = readOlePropertySets(w.summaryInformation).value(0);
+        QVERIFY(!set.values.value(12).time.isValid());   // (the number is kept, as an amount of time would be)
+        QVERIFY(set.values.value(12).number > 0);
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252, {{12, 0x40, QString(), QByteArray(), fileTime(2003, 4, 7, 9, 30)}, {13, 0x40, QString(), QByteArray(), fileTime(9999, 12, 31, 0, 0) + qint64(900) * 10000000 * 3600 * 24 * 400}});
+        QCOMPARE(propertiesOf(w).created, QDateTime(QDate(2003, 4, 7), QTime(9, 30), QTimeZone::UTC));
+        QVERIFY(!propertiesOf(w).modified.isValid());
+    }
+
+    void textsThatShowAsAFileNameOrASubjectHaveNoInvisibleFormattingAndAreCapped()
+    {
+        // The marks that turn the direction of text, the characters of no width, and control characters are taken out; the length is held.
+        const QString dirty = QStringLiteral("Re") + QChar(0x202E) + QStringLiteral("port") + QChar(0x200B) + QChar(0x2066) + QStringLiteral(" 1") + QChar(0x200F) + QChar(0xFEFF) + QChar(0x00AD) + QChar(0x2028) + QChar(0x7F) + QStringLiteral("!");
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252, {{2, 0x1F, dirty, QByteArray(), 0}, {3, 0x1F, QString(600, QChar('s')), QByteArray(), 0}, {5, 0x1F, QString(3000, QChar('k')), QByteArray(), 0}});
+        PackageProps p = propertiesOf(w);
+        QCOMPARE(p.title, QStringLiteral("Report 1!"));
+        QCOMPARE(p.subject.size(), 255);
+        QCOMPARE(p.keywords.size(), 1024);
+        // A pair of surrogates is one character: 300 of them are cut to 255, never between the halves.
+        QString pairs;
+        for (int i = 0; i < 300; ++i) pairs += QString::fromUcs4(U"\U0001F600");
+        w.summaryInformation = propertySetStream(summaryFormat(), 1252, {{2, 0x1F, pairs, QByteArray(), 0}});
+        p = propertiesOf(w);
+        QCOMPARE(p.title.size(), 255 * 2);
+        QVERIFY(p.title.endsWith(QString::fromUcs4(U"\U0001F600")));
     }
 
     // ---- legacy form fields (sections 2.9.78, 2.9.79, 2.9.158)
@@ -1220,6 +1571,41 @@ private Q_SLOTS:
         for (int i = 0; i < 200; ++i) f.entries << QString::number(i);
         const QByteArray x = bodyXml(withFormField(QStringLiteral("FORMDROPDOWN"), formFieldData(f), QString()));
         QCOMPARE(x.count("<w:listEntry "), doc::kMaxFormFieldEntries);
+    }
+
+    void aSecondDataMarkInOneFieldIsIgnoredAndNotGivenToAFieldThatBeganAfterTheFirst()
+    {
+        // The first field's instruction holds a mark with data, a field of its own (not a form field), and another mark with data. The begin mark takes the first data only: the second
+        // is not given to the begin mark of the field in between.
+        DocWriter w = simple(QStringLiteral("A \x13 FORMTEXT \x01\x13 X \x14y\x15\x01\x14r\x15 B\r"));
+        FormFieldSpec one, two;
+        one.name = QStringLiteral("One");
+        two.name = QStringLiteral("Two");
+        const int first = int(w.text.indexOf(QChar(1))), second = int(w.text.indexOf(QChar(1), first + 1));
+        const int onePlace = w.addFormFieldData(formFieldData(one)), twoPlace = w.addFormFieldData(formFieldData(two));
+        w.chars = {{first, first + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(onePlace))},
+                   {second, second + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(twoPlace))}};
+        const QByteArray x = bodyXml(w);
+        QCOMPARE(x.count("<w:ffData>"), 1);
+        QVERIFY2(x.contains("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"One\"/>"), x.constData());
+        QVERIFY2(!x.contains("w:val=\"Two\""), x.constData());
+        QCOMPARE(x.count("<w:fldChar w:fldCharType=\"begin\"/>"), 1);   // (the field in between, plain)
+    }
+
+    void aFormFieldAtAHostilePlaceInTheDataStreamIsLeftOutAndTheFieldStays()
+    {
+        // Places at the top of the 32-bit range: nothing added to them may wrap and land on data.
+        for (const quint32 place : {0x7FFFFFFFu, 0x7FFFFFFEu, 0x7FFFFFFCu, 0x7FFFFFF0u}) {
+            DocWriter w = simple(QStringLiteral("A \x13 FORMTEXT \x01\x14r\x15 B\r"));
+            FormFieldSpec f;
+            f.name = QStringLiteral("Fine");
+            w.addFormFieldData(formFieldData(f));   // (the stream holds a real one, at its start)
+            const int at = int(w.text.indexOf(QChar(1)));
+            w.chars = {{at, at + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, place)}};
+            const QByteArray x = bodyXml(w);
+            QVERIFY2(x.contains("<w:fldChar w:fldCharType=\"begin\"/>") && x.contains(">r<"), x.constData());
+            QCOMPARE(x.count("<w:ffData>"), 0);
+        }
     }
 
     void formFieldDataThatIsDamagedIsLeftOutAndTheFieldStays()
@@ -1294,6 +1680,54 @@ private Q_SLOTS:
         QCOMPARE(notes.size(), 1);
     }
 
+    void aStoredPreviewOfAnObjectIsKeptAsItIsAndNoPlainPictureIsMade()
+    {
+        DocWriter w = simple(QStringLiteral("A\x13 EMBED X \x14\x01\x15 B\r"));
+        const QByteArray png = tinyPng(12, 9);
+        const int pic = w.addPicture(png, 2880, 1440);
+        const int sep = int(w.text.indexOf(QChar(0x14)));
+        w.chars = {{sep, sep + 1, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 7)}, {sep + 1, sep + 2, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(pic))}};
+        QStringList notes;
+        const QByteArray x = partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QCOMPARE(x.count("<w:drawing>"), 1);
+        QVERIFY2(x.contains("<wp:extent cx=\"1828800\" cy=\"914400\"/>"), x.constData());   // (two inches by one, from the preview's own header)
+        QCOMPARE(partXml(w, QStringLiteral("/word/media/image1.png")), png);   // (the picture itself, byte for byte)
+        QVERIFY(partXml(w, QStringLiteral("/word/media/image2.png")).isEmpty());   // (and no plain picture beside it)
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].startsWith(QLatin1Char('1')) && notes[0].contains(QLatin1String("embedded object")), qPrintable(notes[0]));
+    }
+
+    void aPreviewOfAbsurdPixelSizeIsLeftAndAPlainPictureStandsInItsPlace()
+    {
+        // A picture whose header says 60,000 by 60,000 pixels (3.6 billion; the data itself is small and would not decode): past what a picture may be, so a plain picture of an inch is
+        // made, and nothing is said of a picture left out (the object is said to be shown as a picture).
+        QByteArray png = tinyPng(8, 6);
+        auto put32 = [&](int at, quint32 v) {
+            for (int i = 0; i < 4; ++i) png[at + i] = char((v >> (24 - 8 * i)) & 0xFF);
+        };
+        put32(16, 60000);
+        put32(20, 60000);
+        quint32 crc = 0xFFFFFFFFu;
+        for (int i = 12; i < 29; ++i) {
+            crc ^= quint8(png[i]);
+            for (int k = 0; k < 8; ++k) crc = (crc >> 1) ^ (0xEDB88320u & (0u - (crc & 1)));
+        }
+        put32(29, ~crc);
+        QVERIFY(png.size() > 33);
+        DocWriter w = simple(QStringLiteral("A\x13 EMBED X \x14\x01\x15 B\r"));
+        const int pic = w.addPicture(png, 1440, 720);
+        const int sep = int(w.text.indexOf(QChar(0x14)));
+        w.chars = {{sep, sep + 1, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 7)}, {sep + 1, sep + 2, sprm1(sprm::special, 1) + sprm4(sprm::picture, quint32(pic))}};
+        QStringList notes;
+        const QByteArray x = partXml(w, QStringLiteral("/word/document.xml"), &notes);
+        QCOMPARE(x.count("<w:drawing>"), 1);
+        QVERIFY2(x.contains("<wp:extent cx=\"914400\" cy=\"914400\"/>"), x.constData());   // (the inch of the plain picture, not the preview's)
+        const QByteArray media = partXml(w, QStringLiteral("/word/media/image1.png"));
+        QVERIFY(!media.isEmpty() && media != png);
+        QCOMPARE(notes.size(), 1);
+        QVERIFY2(notes[0].contains(QLatin1String("embedded object")) && !notes[0].contains(QLatin1String("left out")), qPrintable(notes[0]));
+    }
+
     void anEmbeddedObjectOfTheOlderKindIsItsOwnPicture()
     {
         // The mark itself is the object's place and holds its picture; with the picture not there, a plain one of the object's size or an inch.
@@ -1319,9 +1753,12 @@ private Q_SLOTS:
 
     // ---- hostile input (the bounds of what a file declares)
 
-    void theNumberingCountsAgainstWhatTheOutputMayHold()
+    void theNumberingDoesNotCrowdOutTheText()
     {
-        DocWriter w = simple(QStringLiteral("body\r"));
+        // The numbering is more than the output may hold of text (the most lists, of nine levels each); the text of the document is all there, and nothing is said to be left out.
+        QString text;
+        for (int i = 0; i < 300; ++i) text += QStringLiteral("Paragraph %1 of the body.\r").arg(i);
+        DocWriter w = simple(text);
         ListLevelSpec level;
         level.text = QString(QChar(0)) + QLatin1Char('.');
         level.paragraph = sprm2(sprm::left, 720) + sprm2(sprm::firstLine, 0xFE98) + sprm2(sprm::before, 120) + sprm2(sprm::after, 240) + sprm1(sprm::align, 1) + sprm1(sprm::keepNext, 1);
@@ -1330,9 +1767,14 @@ private Q_SLOTS:
         w.lists = QVector<QVector<ListLevelSpec>>(doc::kMaxLists, nine);
         QStringList notes;
         const QByteArray numbering = partXml(w, QStringLiteral("/word/numbering.xml"), &notes);
-        QVERIFY2(numbering.size() <= doc::kMaxOutputBytes, qPrintable(QString::number(numbering.size())));
-        QVERIFY(!notes.isEmpty());   // (the document is said to be longer than can be opened)
-        QVERIFY(doc::readWorkForTest().outputBytes > doc::kMaxOutputBytes);
+        QVERIFY2(numbering.size() > doc::kMaxOutputBytes || numbering.count('<') > doc::kMaxOutputElements, qPrintable(QString::number(numbering.size())));   // (more than the text may have)
+        QVERIFY(numbering.size() <= doc::kMaxListBytes);
+        const QByteArray body = bodyXml(w);
+        QCOMPARE(body.count("<w:p>") + body.count("<w:p/>"), 300);
+        QVERIFY2(body.contains("Paragraph 299 of the body."), "the last paragraph is missing");
+        QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        // The work counted for the text is the text's: the numbering is not in it.
+        QVERIFY(doc::readWorkForTest().outputBytes < doc::kMaxOutputBytes / 4);
     }
 
     void theDefinitionsOfListsAreReadOnlyAsFarAsTheHeaderSaysTheyGo()

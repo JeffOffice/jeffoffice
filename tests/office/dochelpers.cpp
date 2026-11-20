@@ -702,7 +702,7 @@ QByteArray DocWriter::build() const
             add16(r, int(std::min<qsizetype>(cm.initials.size(), 9)));
             r.append(utf16(cm.initials.left(9)));
             r.append(QByteArray(20 - r.size(), '\0'));
-            add16(r, int(names.indexOf(cm.author)));
+            add16(r, cm.ownerIndex >= 0 ? cm.ownerIndex : int(names.indexOf(cm.author)));
             add16(r, 0);
             add16(r, 0);
             add32(r, cm.from >= 0 ? quint32(i + 1) : 0xFFFFFFFFu);
@@ -745,7 +745,7 @@ QByteArray DocWriter::build() const
             for (int i : covering) add32(starts, quint32(comments[i].from));
             add32(starts, quint32(ccpText));
             for (int k = 0; k < covering.size(); ++k) {
-                add16(starts, k);
+                add16(starts, comments[covering[k]].endIndex >= 0 ? comments[covering[k]].endIndex : k);
                 add16(starts, 0);
             }
             for (int i : covering) add32(ends, quint32(comments[i].to));

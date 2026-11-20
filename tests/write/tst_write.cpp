@@ -889,6 +889,104 @@ void WriteTests::anEmbeddedObjectOfAnOldFileIsShownAsAPictureAndSaid()
 }
 
 
+// The parts of a saved package, by name, and whether every XML one is well formed (the first that is not is named in `bad`).
+static QMap<QString, QByteArray> savedParts(const QString &path, QString *bad)
+{
+    QMap<QString, QByteArray> parts;
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), parts)) {
+        *bad = QStringLiteral("not a package");
+        return {};
+    }
+    for (auto it = parts.constBegin(); it != parts.constEnd(); ++it) {
+        if (!it.key().endsWith(QLatin1String(".xml")) && !it.key().endsWith(QLatin1String(".rels"))) continue;
+        QXmlStreamReader xml(it.value());
+        while (!xml.atEnd()) xml.readNext();
+        if (xml.hasError() && bad->isEmpty()) *bad = it.key() + QLatin1String(": ") + xml.errorString();
+    }
+    return parts;
+}
+
+void WriteTests::anOldFileSavedAsTheNewerFormatKeepsItsCommentsPropertiesAndFormFields()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("Hello brave\x05 new \x13 FORMTEXT \x01\x14" "fill\x15 world.\r");
+    const int ref = int(doc.text.indexOf(QChar(5))), mark = int(doc.text.indexOf(QChar(1)));
+    doc.comments = {{ref, QStringLiteral("Ann Author"), QStringLiteral("AA"), QStringLiteral("Is this the right word?"), dttm(2003, 4, 7, 9, 30), 6, ref}};
+    FormFieldSpec field;
+    field.name = QStringLiteral("Fld1");
+    field.text = QStringLiteral("Dflt");
+    doc.chars = {{mark, mark + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(doc.addFormFieldData(formFieldData(field))))}};
+    doc.summaryInformation = propertySetStream(summaryFormat(), 1252, {{2, 0x1E, QString(), "The Title", 0}, {4, 0x1E, QString(), "Ann Author", 0}, {8, 0x1E, QString(), "Bob Editor", 0}});
+    doc.documentSummaryInformation = propertySetStream(documentSummaryFormat(), 1252, {{14, 0x1E, QString(), "Carol Chief", 0}, {15, 0x1E, QString(), "Example Works", 0}}, true);
+    auto w = openOldFile(dir, doc, nullptr);
+    QVERIFY(w);
+    const QString saved = dir.filePath(QStringLiteral("saved.docx"));
+    w->setSavePathChooser([&](const QString &, const QString &) { return saved; });
+    QVERIFY(w->save());
+    QString bad;
+    const QMap<QString, QByteArray> parts = savedParts(saved, &bad);
+    QVERIFY2(bad.isEmpty() && !parts.isEmpty(), qPrintable(bad));
+    // The comments part and the marks in the body agree, and the comment has its author, initials, date, and words.
+    const QByteArray commentsPart = parts.value(QStringLiteral("word/comments.xml")), body = parts.value(QStringLiteral("word/document.xml"));
+    QVERIFY2(commentsPart.contains("w:author=\"Ann Author\"") && commentsPart.contains("w:initials=\"AA\"") && commentsPart.contains("2003-04-07T09:30:00Z") && commentsPart.contains("Is this the right word?"), commentsPart.constData());
+    QCOMPARE(body.count("<w:commentReference"), 1);
+    QCOMPARE(body.count("<w:commentRangeStart"), 1);
+    QCOMPARE(body.count("<w:commentRangeEnd"), 1);
+    QCOMPARE(commentsPart.count("<w:comment "), 1);
+    const int idAt = int(commentsPart.indexOf("w:id=\"")) + 6;
+    const QByteArray id = commentsPart.mid(idAt, commentsPart.indexOf('"', idAt) - idAt);
+    QVERIFY2(body.contains("<w:commentReference w:id=\"" + id + "\"/>"), body.constData());
+    QVERIFY2(parts.value(QStringLiteral("[Content_Types].xml")).contains("comments+xml"), "the comments part has no content type");
+    QVERIFY2(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("relationships/comments"), "the body has no relationship to the comments");
+    // The form field's data is on its begin mark.
+    QVERIFY2(body.contains("<w:fldChar w:fldCharType=\"begin\"><w:ffData><w:name w:val=\"Fld1\"/>"), body.constData());
+    // The core and the extended properties parts hold the properties.
+    const QByteArray core = parts.value(QStringLiteral("docProps/core.xml")), app = parts.value(QStringLiteral("docProps/app.xml"));
+    QVERIFY2(core.contains("The Title") && core.contains("Ann Author") && core.contains("Bob Editor"), core.constData());
+    QVERIFY2(app.contains("Carol Chief") && app.contains("Example Works"), app.constData());
+    // Opened again, all three are there.
+    WriteWindow b;
+    b.setNotifier([](const QString &, const QString &) {});
+    QVERIFY(b.openFile(saved));
+    const QVector<Comment> again = comments(*b.document());
+    QCOMPARE(again.size(), 1);
+    QCOMPARE(again[0].author, QStringLiteral("Ann Author"));
+    QCOMPARE(again[0].text, QStringLiteral("Is this the right word?"));
+    QCOMPARE(again[0].date, QDateTime(QDate(2003, 4, 7), QTime(9, 30), QTimeZone::UTC));
+    QCOMPARE(b.document()->packageProps().title, QStringLiteral("The Title"));
+    QCOMPARE(b.document()->packageProps().creator, QStringLiteral("Ann Author"));
+    QCOMPARE(b.document()->packageProps().company, QStringLiteral("Example Works"));
+    QVERIFY2(boxLines(*b.document()).join(QLatin1Char('|')).contains(QLatin1String("fill")), "the form field's text");
+}
+
+void WriteTests::removingPersonalInformationFromAnOldFileLeavesNoneOfItInTheSavedFile()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("body\r");
+    doc.summaryInformation = propertySetStream(summaryFormat(), 1252, {{2, 0x1E, QString(), "The Title", 0}, {4, 0x1E, QString(), "Ann Author", 0}, {8, 0x1E, QString(), "Bob Editor", 0}});
+    doc.documentSummaryInformation = propertySetStream(documentSummaryFormat(), 1252, {{14, 0x1E, QString(), "Carol Chief", 0}, {15, 0x1E, QString(), "Example Works", 0}}, true);
+    auto w = openOldFile(dir, doc, nullptr);
+    QVERIFY(w);
+    QCOMPARE(w->removePersonalInformation(), 4);
+    const QString saved = dir.filePath(QStringLiteral("clean.docx"));
+    w->setSavePathChooser([&](const QString &, const QString &) { return saved; });
+    QVERIFY(w->save());
+    QString bad;
+    const QMap<QString, QByteArray> parts = savedParts(saved, &bad);
+    QVERIFY2(bad.isEmpty() && !parts.isEmpty(), qPrintable(bad));
+    for (const QByteArray &gone : {QByteArray("Ann Author"), QByteArray("Bob Editor"), QByteArray("Carol Chief"), QByteArray("Example Works")})
+        for (auto it = parts.constBegin(); it != parts.constEnd(); ++it) QVERIFY2(!it.value().contains(gone), qPrintable(it.key() + QLatin1String(" still holds ") + QString::fromLatin1(gone)));
+    QVERIFY(parts.value(QStringLiteral("docProps/core.xml")).contains("The Title"));
+}
+
+
 void WriteTests::trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates()
 {
     QTemporaryDir dir;
