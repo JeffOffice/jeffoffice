@@ -12,6 +12,7 @@
 #include "core/notebox.h"
 
 #include <QAction>
+#include <QAccessible>
 #include <QApplication>
 #include <QDesktopServices>
 #include <QDir>
@@ -68,6 +69,8 @@ void CrunchWindow::createNoteActions()
     mk("notes.edit", tr("New Note"), "message-square-plus", QKeySequence(Qt::SHIFT | Qt::Key_F2), [this] { editNote(); }, false, false);
     mk("notes.delete", tr("Delete Note"), "message-square-x", QKeySequence(), [this] { deleteSelectedNotes(); }, false, false);
     mk("notes.showHide", tr("Show or Hide Note"), "eye", QKeySequence(), [this] { toggleNoteShown(); }, true, false);
+    mk("notes.moveSize", tr("Move or Size Note"), "move", QKeySequence(), [this] { moveSizeNote(); }, false, false);
+    mk("notes.resetSize", tr("Reset Note Size"), "rotate-ccw", QKeySequence(), [this] { resetNoteSize(); }, false, false);
     mk("notes.showAll", tr("Show Every Note"), "sticky-note", QKeySequence(), [this] { showAllNotes(); }, false, false);
     mk("notes.prev", tr("Previous Note"), "chevron-left", QKeySequence(), [this] { goToNote(false); }, false, false);
     mk("notes.next", tr("Next Note"), "chevron-right", QKeySequence(), [this] { goToNote(true); }, false, false);
@@ -83,6 +86,7 @@ void CrunchWindow::createNoteActions()
     connect(m_view, &grid::GridView::hoverCellChanged, this, &CrunchWindow::hoverCell);
     connect(m_view, &grid::GridView::cellClicked, this, &CrunchWindow::cellClicked);
     connect(m_view, &grid::GridView::noteBoxRequested, this, [this](qint64 row, qint64 col, const QRect &box) { noteBoxDragged(row, col, box); });
+    connect(m_view, &grid::GridView::noteKeysChanged, this, [this] { noteKeysChanged(); });
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateNoteActions);
     connect(m_view, &grid::GridView::viewChanged, this, [this] { hideHoverTip(); });
 }
@@ -136,6 +140,60 @@ void CrunchWindow::noteBoxDragged(qint64 row, qint64 col, const QRect &box)
     }
 }
 
+// The keys move or size a shown note's box (Move or Size Note): the sheet says so to a screen reader (its name and description, and each step said aloud) and in the status bar.
+void CrunchWindow::noteKeysChanged()
+{
+    if (!m_view->inNoteKeys()) {
+        m_view->setAccessibleName(tr("Sheet"));
+        m_view->setAccessibleDescription(tr("The cells of the sheet. The arrow keys move the selection; Ctrl and an arrow go to the edge of the data."));
+        QAccessibleEvent name(m_view, QAccessible::NameChanged), description(m_view, QAccessible::DescriptionChanged);
+        QAccessible::updateAccessibility(&name);
+        QAccessible::updateAccessibility(&description);
+        if (!m_calculating && !m_loading) setStatus(tr("Ready"));
+        return;
+    }
+    const QRect box = m_view->noteKeysBox();
+    const QString where = jp::office::sheet::cellName(quint32(std::max<qint64>(0, m_view->pickedNoteRow())), quint32(std::max<qint64>(0, m_view->pickedNoteCol())));
+    const QString place = tr("%1 across, %2 down, %3 wide, %4 high").arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height());
+    m_view->setAccessibleName(tr("Sheet, moving the box of the note on %1").arg(where));
+    m_view->setAccessibleDescription(tr("Box of the note on %1, from the cell's top left corner: %2. The arrow keys move it, Shift with an arrow sizes it, Ctrl makes finer steps, Enter keeps it, and Escape gives it up.").arg(where, place));
+    setStatus(tr("Moving a note's box. Enter keeps it, and Escape gives it up."));
+    QAccessibleEvent name(m_view, QAccessible::NameChanged), description(m_view, QAccessible::DescriptionChanged);
+    QAccessible::updateAccessibility(&name);
+    QAccessible::updateAccessibility(&description);
+    QAccessibleAnnouncementEvent say(m_view, place);
+    QAccessible::updateAccessibility(&say);
+}
+
+// Move or Size Note: the box of the shown note on the cell with the cursor is taken by the keys (the arrow keys move it, Shift with an arrow sizes it, Ctrl makes the steps fine, Enter keeps it
+// as one step of Undo, Escape gives it up).
+void CrunchWindow::moveSizeNote()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || m_sheet < 0) return;
+    const grid::Selection &sel = m_view->selection();
+    const qint64 row = std::max<qint64>(0, sel.activeRow), col = std::max<qint64>(0, sel.activeCol);
+    const NoteInfo *n = m_session->anchors().noteAt(m_sheet, quint32(row), quint32(col));
+    if (!n || n->threaded) return;
+    if (!n->shown) {
+        notice(tr("Note"), tr("Show the note first. Only a note that is shown has a box to move."));
+        return;
+    }
+    m_view->ensureVisible(row, col);
+    m_view->setFocus();
+    if (!m_view->beginNoteKeys(row, col)) notice(tr("Note"), tr("The note's box can't be reached from here. Scroll to its cell, and try again."));
+}
+
+// Reset Note Size: the box of the note on the cell with the cursor goes back to the default, beside the cell and as large as its words need. One step.
+void CrunchWindow::resetNoteSize()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || m_sheet < 0) return;
+    const grid::Selection &sel = m_view->selection();
+    const crunch::EditSession::Outcome o = m_session->resetNoteBox(m_sheet, quint32(std::max<qint64>(0, sel.activeRow)), quint32(std::max<qint64>(0, sel.activeCol)), tr("Reset Note Size"));
+    if (!o.ok) notice(tr("Note"), o.problem);
+}
+
 void CrunchWindow::updateNoteActions()
 {
     const bool open = m_session && !m_saving && m_sheet >= 0 && !m_chartSheetShown && m_loaded && m_loaded->calc;
@@ -159,6 +217,8 @@ void CrunchWindow::updateNoteActions()
             (it->second.shown ? anyShown : anyHidden) = true;
         }
     }
+    act("notes.moveSize")->setEnabled(can && here && here->shown && !here->threaded);
+    act("notes.resetSize")->setEnabled(can && here && here->box.set && !here->threaded);
     act("notes.delete")->setEnabled(can && anyInSelection);
     act("edit.clear.notes")->setEnabled(can && anyInSelection);
     QAction *showHide = act("notes.showHide");

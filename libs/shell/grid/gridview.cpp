@@ -1273,6 +1273,7 @@ void GridView::focusInEvent(QFocusEvent *e)
 void GridView::focusOutEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusOutEvent(e);
+    if (m_noteKeys && e->reason() != Qt::PopupFocusReason && e->reason() != Qt::MenuBarFocusReason) endNoteKeys(false);   // (a box being moved with the keys is let go of when the keys go elsewhere)
 }
 
 // ---- the mouse
@@ -1903,6 +1904,10 @@ void GridView::keyPressEvent(QKeyEvent *e)
     }
     if (!m_cellsEnabled) {
         e->ignore();
+        return;
+    }
+    if (m_noteKeys && noteKeyPress(e)) {
+        e->accept();
         return;
     }
     const bool shift = e->modifiers() & Qt::ShiftModifier, ctrl = e->modifiers() & Qt::ControlModifier;

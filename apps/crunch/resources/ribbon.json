@@ -101,7 +101,7 @@
           "name": "Cells",
           "keytip": "ZL",
           "items": [
-            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns", "sheet.insert"]},
+            {"large": "cells.insert", "keytip": "I", "split": true, "menu": ["cells.insert.cells", "cells.insert.rows", "cells.insert.columns", "sheet.insert", "-", "edit.insertClip"]},
             {"large": "cells.delete", "keytip": "D", "split": true, "menu": ["cells.delete.cells", "cells.delete.rows", "cells.delete.columns", "sheet.delete"]},
             {
               "large": "cells.format",
@@ -462,6 +462,8 @@
             {"small": "notes.prev", "keytip": "V"},
             {"small": "notes.next", "keytip": "X"},
             {"small": "notes.showHide", "keytip": "S"},
+            {"small": "notes.moveSize", "keytip": "M"},
+            {"small": "notes.resetSize", "keytip": "R"},
             {"small": "notes.showAll", "keytip": "A"}
           ]
         },

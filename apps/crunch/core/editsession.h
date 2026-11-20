@@ -647,6 +647,8 @@ public:
     // Puts a note's box (where it sits and how large it is, as the file's anchor has it) somewhere else: one step. Not ok, with the reason, for a sheet whose notes can't be changed, a cell with no note,
     // and a note of a conversation of comments.
     Outcome setNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText);
+    // The box put back to the default (no place of its own: beside the cell, as large as its words need). Refused as setNoteBox is; nothing is done if it has none.
+    Outcome resetNoteBox(int sheet, quint32 row, quint32 col, const QString &stepText);
     Outcome showNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, bool shown, const QString &stepText);
     // ---- comments: threads on cells (editcomments.cpp); each is one step. `author` is the name of the person who writes (a person of that name in the workbook's threads is reused).
     // New Comment starts a thread on a cell that has no note and no thread; Reply adds to the thread; Edit changes the words of comment `index` (0 is the first); Resolve marks the thread
@@ -870,6 +872,9 @@ public:
     // the cells follows. Not ok, and nothing changed, if either part is refused (a protected sheet, a merged range or an array that would be cut, a pivot table), or the block is in its own way
     // (some of its cells would be shifted and some would not).
     Outcome moveCellsInserting(int sheet, const jp::office::sheet::CellRange &source, quint32 toRow, quint32 toCol, bool shiftDown);
+    // Copied cells put between others: room is made at the place for a block of the clip's size (the cells there move down, or right), and the clip is pasted in it. One step; not ok, and
+    // nothing changed, if either part is refused.
+    Outcome insertCellsPasting(int sheet, quint32 row, quint32 col, const ClipData &clip, bool shiftDown);
     // For a test: called between the two parts of the one above, to change something the second part would then refuse.
     void setBetweenStepsHook(const std::function<void()> &hook) { m_betweenStepsHook = hook; }
 
@@ -1525,6 +1530,8 @@ private:
     int m_opSeq = 0;                   // the order renames of columns and tables are made in
     bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
     int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
+    Outcome changeNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText, bool reset);
+    Outcome pairedWithRoom(const jp::office::sheet::StructEdit &room, const jp::office::sheet::StructEdit *alsoHeld, const std::function<Outcome()> &second, const QString &macroText);
     bool m_pairing = false;            // moveCellsInserting is between its two parts: they were asked about together, and the history is not let go of until both are done
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     std::shared_ptr<LineDrops> m_lineDrops = std::make_shared<LineDrops>();

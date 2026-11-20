@@ -39,6 +39,8 @@ void CrunchWindow::createClipboardActions()
 {
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this] { copySelection(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this] { cutSelection(); });
+    // (no key of its own: Ctrl+Plus, Ctrl+Shift+Plus, and Insert do this when cells are cut or copied, see insertCommand)
+    mk("edit.insertClip", tr("Insert Cut or Copied Cells"), "", QKeySequence(), [this] { insertClipCells(); }, false, false);
     using Options = crunch::EditSession::PasteOptions;
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this] {
         Options o;
@@ -168,6 +170,7 @@ void CrunchWindow::forgetClip()
         }
     }
     m_clip = ClipData();
+    updateInsertClipAction();
 }
 
 // An edit made while cells are cut (typing, anything that moves or sizes cells, an Undo) ends the cut, as in the programs people know: its border goes, and the cells are no longer ready to
@@ -186,6 +189,7 @@ void CrunchWindow::cancelCut()
         forgetClip();
         m_view->clearCopyBorder();
     }
+    updateInsertClipAction();
 }
 
 void CrunchWindow::copySelection() { copyOrCut(false); }
@@ -328,6 +332,7 @@ void CrunchWindow::publishClipboard(const QString &text)
     QApplication::clipboard()->setMimeData(md);
     m_settingClipboard = false;
     m_clip = m_pendingClip;
+    updateInsertClipAction();
     if (!m_clip.valid()) m_view->clearCopyBorder();
     m_pendingClip = ClipData();
     m_pendingHtml.clear();
@@ -628,6 +633,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
                 QApplication::clipboard()->clear();
                 m_settingClipboard = false;
                 m_clip = ClipData();
+                updateInsertClipAction();
                 m_view->clearCopyBorder();
             }
             return result;
@@ -644,6 +650,71 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     if (o.range.valid) {
         widenForCells(m_sheet, o.range);
         m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+    }
+}
+
+// The command that puts the cut or copied cells between others: on when this window holds cells to put (it says which, in its name).
+void CrunchWindow::updateInsertClipAction()
+{
+    QAction *a = act(QStringLiteral("edit.insertClip"));
+    if (!a) return;
+    const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog && m_loaded && m_loaded->problem.isEmpty() && !m_chartSheetShown;
+    a->setText(!m_clip.valid() ? tr("Insert Cut or Copied Cells") : m_clip.cut ? tr("Insert Cut Cells") : tr("Insert Copied Cells"));
+    a->setEnabled(open && m_clip.valid());
+}
+
+// Insert Cut Cells and Insert Copied Cells: the cells that were cut or copied here go in at the selected cell, and the cells that were there move down, or right (asked in the small box
+// Insert has). A cut moves its cells as a Shift drag does (all or nothing); a copy makes room and pastes, as one step.
+void CrunchWindow::insertClipCells()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || m_sheet < 0) return;
+    if (!m_clip.valid()) {
+        notice(tr("Insert"), tr("Cut or copy some cells first."));
+        return;
+    }
+    const ClipData clip = m_clip;
+    if (clip.cut && clip.sheet != m_sheet) {
+        notice(tr("Insert"), tr("Cut cells can be put between others only on the sheet they came from. To move them to another sheet, use Paste."));
+        return;
+    }
+    ShiftRequest request;
+    request.inserting = true;
+    request.cellsOnly = true;
+    request.way = ShiftRequest::Way::Down;
+    if (!askShift(&request)) return;
+    const bool down = request.way != ShiftRequest::Way::Right;
+    const CellRange at = selectedRange();
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = doStructural([&] {
+        return clip.cut ? m_session->moveCellsInserting(m_sheet, clip.source, at.row1, at.col1, down) : m_session->insertCellsPasting(m_sheet, at.row1, at.col1, clip, down);
+    });
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Insert"), o.problem);
+        return;
+    }
+    if (!o.problem.isEmpty()) notice(tr("Insert"), o.problem);
+    if (m_loader.changesMade() != before) m_calculating = true;
+    CellRange placed;
+    if (clip.cut) {
+        // (the cut is used up, as a Paste of it uses it up)
+        placed.valid = true;
+        placed.row1 = at.row1;
+        placed.col1 = at.col1;
+        placed.row2 = at.row1 + (clip.source.row2 - clip.source.row1);
+        placed.col2 = at.col1 + (clip.source.col2 - clip.source.col1);
+        m_settingClipboard = true;
+        QApplication::clipboard()->clear();
+        m_settingClipboard = false;
+        m_clip = ClipData();
+        updateInsertClipAction();
+        m_view->clearCopyBorder();
+    } else {
+        placed = o.range;
+    }
+    if (placed.valid) {
+        widenForCells(m_sheet, placed);
+        m_view->selectRange(placed.row1, placed.col1, placed.row2, placed.col2);
     }
 }
 
