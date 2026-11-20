@@ -20,6 +20,8 @@ void fontDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // Alignment, indents, spacing, and line spacing of the paragraphs the cursor selects (those it changes, and only those the person changed).
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
+// Borders and Shading of paragraphs: which sides have a line, its style, width, color, and distance from the text, and the fill; false when canceled. One step of the history.
+bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor);
 // The Page Setup dialog for the section `section`: margins and gutter, orientation, paper size, and layout (how the section starts, a different first page, different odd and even
 // pages, and the header and footer distances), applied to the section or to the whole document when it is accepted, as one step that undoes. Only what the person changed is applied.
 // With a cursor the choice "This point forward" is offered too (a continuous section break goes in at the cursor). Returns whether anything was applied.

@@ -238,6 +238,30 @@
                 {
                   "icon": "fmt.justify",
                   "keytip": "AJ"
+                },
+                {
+                  "widget": "paraShading",
+                  "keytip": "PD"
+                },
+                {
+                  "icon": {
+                    "id": "ribbon.paraBorders",
+                    "text": "Borders",
+                    "icon": "square-dashed"
+                  },
+                  "keytip": "PB",
+                  "menu": [
+                    "para.border.bottom",
+                    "para.border.top",
+                    "para.border.left",
+                    "para.border.right",
+                    "-",
+                    "para.border.none",
+                    "para.border.all",
+                    "-",
+                    "para.horizontalLine",
+                    "para.bordersShading"
+                  ]
                 }
               ]
             }

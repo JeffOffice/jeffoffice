@@ -11,6 +11,7 @@
 #include "app/writefilescreen.h"
 #include "app/pageview.h"
 #include "app/writefilescreen.h"
+#include "app/writedialogs.h"
 #include "core/editops.h"
 #include "core/tableops.h"
 #include "core/homeops.h"
@@ -156,6 +157,29 @@ void WriteWindow::createHomeActions()
         }
         if (!write::sortDialog(this, &m_sortOptions, table)) return;
         sortSelection(m_sortOptions);
+    });
+    // Borders on one side or all of the paragraphs selected: a single line of half a point, a point from the text (the dialog has the rest).
+    struct ParaBorder { const char *id; const char *text; const char *iconName; int parts; bool none; };
+    static const ParaBorder paraBorders[] = {{"bottom", QT_TR_NOOP("Bottom Border"), "panel-bottom", write::boxpart::Bottom, false}, {"top", QT_TR_NOOP("Top Border"), "panel-top", write::boxpart::Top, false},
+                                             {"left", QT_TR_NOOP("Left Border"), "panel-left", write::boxpart::Left, false}, {"right", QT_TR_NOOP("Right Border"), "panel-right", write::boxpart::Right, false},
+                                             {"none", QT_TR_NOOP("No Border"), "square-dashed", write::boxpart::Sides, true}, {"all", QT_TR_NOOP("All Borders"), "square", write::boxpart::Sides, false}};
+    for (const ParaBorder &b : paraBorders) {
+        const int parts = b.parts;
+        const bool none = b.none;
+        mk(QStringLiteral("para.border.") + QLatin1String(b.id), tr(b.text), b.iconName, QKeySequence(), [this, parts, none] {
+            if (!m_doc || refuseIfReadOnly()) return;
+            tp::BoxSide line;
+            if (!none) line = tp::BoxSide{QStringLiteral("single"), 4, 1, QColor()};
+            tp::ParaBox box;
+            box.top = box.left = box.bottom = box.right = line;
+            write::setParagraphBox(*m_doc, m_view->cursor(), box, parts);
+            m_view->setFocus(Qt::OtherFocusReason);
+        });
+    }
+    mk("para.bordersShading", tr("Borders and Shading…"), "paint-bucket", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        write::paragraphBordersDialog(this, m_doc.get(), &m_view->cursor());
+        m_view->setFocus(Qt::OtherFocusReason);
     });
     mk("para.horizontalLine", tr("Horizontal Line"), "minus", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;

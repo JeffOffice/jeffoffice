@@ -1,6 +1,7 @@
 #include "app/writedialogs.h"
 
 #include "app/icons.h"
+#include "app/uistyle.h"
 #include "app/pageview.h"
 #include "app/settings.h"
 #include "core/homeops.h"
@@ -752,6 +753,98 @@ void tabsDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     if (dlg.exec() != QDialog::Accepted) return;
     if (stops != tabStopsOf(cursor->block().blockFormat())) setTabStops(*doc, *cursor, stops);
     if (std::abs(defaultStops->value() - doc->defaultTabStop() / 20.0) > 0.01) doc->setDefaultTabStop(defaultStops->value());
+}
+
+bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
+{
+    if (!doc || !cursor) return false;
+    const tp::ParaBox before = paragraphBoxAt(*cursor);
+    QDialog dlg(parent);
+    dlg.setObjectName(QStringLiteral("paragraphBordersDialog"));
+    dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Borders and Shading"));
+    auto *v = new QVBoxLayout(&dlg);
+    auto *sides = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Borders"), &dlg);
+    auto *sv = new QHBoxLayout(sides);
+    const tp::BoxSide *firstSide = nullptr;
+    for (const tp::BoxSide *s : {&before.top, &before.left, &before.bottom, &before.right})
+        if (!firstSide && s->visible()) firstSide = s;
+    const tp::BoxSide shown = firstSide ? *firstSide : tp::BoxSide{QStringLiteral("single"), 4, 1, QColor()};
+    auto side = [&](const char *name, const QString &text, const tp::BoxSide &now) {
+        auto *c = new QCheckBox(text, sides);
+        c->setObjectName(QString::fromLatin1(name));
+        c->setChecked(now.visible());
+        sv->addWidget(c);
+        return c;
+    };
+    QCheckBox *top = side("top", QCoreApplication::translate("jp::write::Dialogs", "Top"), before.top), *left = side("left", QCoreApplication::translate("jp::write::Dialogs", "Left"), before.left),
+              *bottom = side("bottom", QCoreApplication::translate("jp::write::Dialogs", "Bottom"), before.bottom), *right = side("right", QCoreApplication::translate("jp::write::Dialogs", "Right"), before.right);
+    auto *box = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Box"), sides);
+    box->setObjectName(QStringLiteral("box"));
+    auto *none = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "None"), sides);
+    none->setObjectName(QStringLiteral("none"));
+    sv->addWidget(box);
+    sv->addWidget(none);
+    QObject::connect(box, &QPushButton::clicked, &dlg, [=] { for (QCheckBox *c : {top, left, bottom, right}) c->setChecked(true); });
+    QObject::connect(none, &QPushButton::clicked, &dlg, [=] { for (QCheckBox *c : {top, left, bottom, right}) c->setChecked(false); });
+    v->addWidget(sides);
+    auto *form = new QFormLayout;
+    auto *style = new QComboBox(&dlg);
+    style->setObjectName(QStringLiteral("style"));
+    const QList<QPair<QString, QString>> styles = {{QCoreApplication::translate("jp::write::Dialogs", "Single line"), QStringLiteral("single")}, {QCoreApplication::translate("jp::write::Dialogs", "Double line"), QStringLiteral("double")},
+                                                   {QCoreApplication::translate("jp::write::Dialogs", "Thick line"), QStringLiteral("thick")}, {QCoreApplication::translate("jp::write::Dialogs", "Dotted"), QStringLiteral("dotted")},
+                                                   {QCoreApplication::translate("jp::write::Dialogs", "Dashed"), QStringLiteral("dashed")}};
+    for (const auto &s : styles) style->addItem(s.first, s.second);
+    style->setCurrentIndex(std::max(0, style->findData(shown.style)));
+    // The widths a line can have, in eighths of a point as the file counts them.
+    auto *width = new QComboBox(&dlg);
+    width->setObjectName(QStringLiteral("width"));
+    for (const int eighths : {2, 4, 6, 8, 12, 18, 24, 36, 48}) width->addItem(QCoreApplication::translate("jp::write::Dialogs", "%1 pt").arg(eighths / 8.0), eighths);
+    int widthAt = 0;
+    for (int i = 0; i < width->count(); ++i)
+        if (width->itemData(i).toInt() <= std::max(2, shown.eighths)) widthAt = i;
+    width->setCurrentIndex(widthAt);
+    auto *color = new ColorButton(QStringLiteral("square"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "Automatic"), &dlg);
+    color->setObjectName(QStringLiteral("color"));
+    color->setScheme(doc->flow().env.colors);
+    color->setPopupMode(QToolButton::InstantPopup);
+    color->setWell(true);
+    color->setCurrent(shown.color.isValid() ? ColorRef::rgb(shown.color) : ColorRef::none());
+    auto *space = new QSpinBox(&dlg);
+    space->setObjectName(QStringLiteral("space"));
+    space->setRange(0, 31);
+    space->setSuffix(QStringLiteral(" pt"));
+    space->setValue(std::clamp(shown.space, 0, 31));
+    auto *fill = new ColorButton(QStringLiteral("paint-bucket"), QString(), true, QCoreApplication::translate("jp::write::Dialogs", "No Color"), &dlg);
+    fill->setObjectName(QStringLiteral("shading"));
+    fill->setScheme(doc->flow().env.colors);
+    fill->setPopupMode(QToolButton::InstantPopup);
+    fill->setWell(true);
+    fill->setCurrent(before.fill.isValid() ? ColorRef::rgb(before.fill) : ColorRef::none());
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Style"), style);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Width"), width);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Color"), color);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Distance from text"), space);
+    form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Shading"), fill);
+    v->addLayout(form);
+    auto *bb = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    v->addWidget(bb);
+    QObject::connect(bb, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    QObject::connect(bb, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    const ColorRef lineColor = color->current(), fillColor = fill->current();
+    tp::BoxSide line;
+    line.style = style->currentData().toString();
+    line.eighths = width->currentData().toInt();
+    line.space = space->value();
+    line.color = lineColor.isNone() ? QColor() : lineColor.resolve(doc->flow().env.colors);
+    tp::ParaBox after;
+    if (top->isChecked()) after.top = line;
+    if (left->isChecked()) after.left = line;
+    if (bottom->isChecked()) after.bottom = line;
+    if (right->isChecked()) after.right = line;
+    after.fill = fillColor.isNone() ? QColor() : fillColor.resolve(doc->flow().env.colors);
+    setParagraphBox(*doc, *cursor, after, boxpart::Sides | boxpart::Fill);
+    return true;
 }
 
 void paragraphDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)

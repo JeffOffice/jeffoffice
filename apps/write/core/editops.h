@@ -194,6 +194,15 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color);       // 
 // A color picked from the palette: one of the theme's (with a tint or shade) is kept as the file writes a theme color, w:themeColor with w:themeTint or w:themeShade (ECMA-376 Part 1
 // section 17.3.2.6), so that a change of theme recolors it; any other color, or a document with no theme, gets the plain color the palette shows.
 void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &color);
+// The borders and shading of paragraphs (ECMA-376 Part 1 sections 17.3.1.24 and 17.3.1.31): the parts of the box that a command sets, as bits.
+namespace boxpart {
+enum { Top = 1, Left = 2, Bottom = 4, Right = 8, Between = 16, Fill = 32, Sides = Top | Left | Bottom | Right, Lines = Sides | Between };
+}
+// The box (borders and fill) of the paragraph the selection starts in, as the paragraph has it now.
+tp::ParaBox paragraphBoxAt(const QTextCursor &c);
+// Every paragraph of the selection (or the one the caret is in) takes the parts of `box` named in `parts`, and keeps the rest of its own box; one step of the history. The border or
+// shading the file gave a paragraph is replaced where a part is set, so what is saved is what is shown.
+void setParagraphBox(WriteDoc &doc, QTextCursor &c, const tp::ParaBox &box, int parts);
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name);       // empty: none
 void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color);   // invalid: none; the shading of the letters (w:shd), not the highlight
 void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on);                  // a thin line round the letters (w:bdr)

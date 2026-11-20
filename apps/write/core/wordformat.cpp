@@ -913,6 +913,20 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
             p.extra.insert(at, c);
         }
     }
+    // The fill the program gave (or the file's, when it kept no w:shd of its own): a plain fill (ECMA-376 Part 1 section 17.3.1.31).
+    if (f.hasProperty(tp::Borders)) {
+        bool keptShd = false;
+        for (const RawChild &c : std::as_const(p.extra)) keptShd = keptShd || c.xml.startsWith("<w:shd");
+        const tp::ParaBox box = tp::ParaBox::parse(f.stringProperty(tp::Borders));
+        if (!keptShd && box.fill.isValid()) {
+            RawChild c;
+            c.rank = office::wml::paraChildRank("shd");
+            c.xml = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + box.fill.name().mid(1).toUpper().toLatin1() + "\"/>";
+            int at = 0;
+            while (at < p.extra.size() && p.extra.at(at).rank <= c.rank) ++at;
+            p.extra.insert(at, c);
+        }
+    }
     if (f.hasProperty(prop::SpacingAttrs)) p.spacingAttrs = storedBytes(f, prop::SpacingAttrs);
     if (f.hasProperty(prop::IndAttrs)) p.indAttrs = storedBytes(f, prop::IndAttrs);
     if (f.hasProperty(prop::NumExtra)) p.numExtra = storedBytes(f, prop::NumExtra);

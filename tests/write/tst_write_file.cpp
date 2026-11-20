@@ -694,6 +694,142 @@ private Q_SLOTS:
         Settings::get().setValue(QStringLiteral("save/autoRecoverMinutes"), 10);
     }
 
+    // Borders and Shading: the paragraphs selected take the sides, line, color, distance, and fill the box sets, as one step; the page shows them; the saved .docx has w:pBdr and w:shd
+    // (ECMA-376 Part 1 sections 17.3.1.24 and 17.3.1.31); a file opened again through the window has them; Undo takes them back; the quick commands set one side or none.
+    void paragraphBordersAndShadingAreSetByTheBoxAndSurviveSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        w.resize(900, 700);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("first\nsecond\nthird"));
+        auto boxOf = [](WriteWindow &win, int block) {
+            QTextCursor c(win.document()->story()->findBlockByNumber(block));
+            return write::paragraphBoxAt(c);
+        };
+        QTextCursor &sel = w.view()->cursor();
+        sel.setPosition(1);
+        sel.setPosition(9, QTextCursor::KeepAnchor);   // (the first two paragraphs)
+        const quint64 serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("para.bordersShading"))->trigger(); }, QStringLiteral("paragraphBordersDialog"), [](QDialog *d) {
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("top")) && d->findChild<QCheckBox *>(QStringLiteral("bottom")));
+            d->findChild<QCheckBox *>(QStringLiteral("top"))->setChecked(true);
+            d->findChild<QCheckBox *>(QStringLiteral("bottom"))->setChecked(true);
+            auto *style = d->findChild<QComboBox *>(QStringLiteral("style"));
+            style->setCurrentIndex(style->findData(QStringLiteral("double")));
+            auto *width = d->findChild<QComboBox *>(QStringLiteral("width"));
+            width->setCurrentIndex(width->findData(12));
+            d->findChild<QSpinBox *>(QStringLiteral("space"))->setValue(3);
+            d->findChild<ColorButton *>(QStringLiteral("color"))->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
+            d->findChild<ColorButton *>(QStringLiteral("shading"))->setCurrent(ColorRef::rgb(QColor(0xFF, 0xF2, 0xCC)));
+        });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        for (int block : {0, 1}) {
+            const tp::ParaBox box = boxOf(w, block);
+            QCOMPARE(box.top.style, QStringLiteral("double"));
+            QCOMPARE(box.top.eighths, 12);
+            QCOMPARE(box.bottom.space, 3);
+            QCOMPARE(box.bottom.color, QColor(0xC0, 0, 0));
+            QVERIFY(!box.left.visible() && !box.right.visible());
+            QCOMPARE(box.fill, QColor(0xFF, 0xF2, 0xCC));
+        }
+        QVERIFY(!boxOf(w, 2).any());
+        // the page shows the fill
+        auto fillPixels = [](WriteWindow &win) {
+            const QImage page = win.view()->pageImage(0, 600);
+            int n = 0;
+            for (int y = 0; y < page.height(); ++y)
+                for (int x = 0; x < page.width(); ++x) n += QColor(page.pixel(x, y)) == QColor(0xFF, 0xF2, 0xCC);
+            return n;
+        };
+        QVERIFY(fillPixels(w) > 200);
+        // saved and opened again through the window
+        QVERIFY(saveInto(w, dir, QStringLiteral("boxes.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("boxes.docx"))));
+        const QByteArray xml = package.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(xml.count("<w:pBdr>"), 2);
+        QCOMPARE(xml.count("<w:top w:val=\"double\" w:sz=\"12\" w:space=\"3\" w:color=\"C00000\"/>"), 2);
+        QCOMPARE(xml.count("<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFF2CC\"/>"), 2);
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("boxes.docx"))));
+        QCOMPARE(boxOf(v, 1).bottom.color, QColor(0xC0, 0, 0));
+        QCOMPARE(boxOf(v, 0).fill, QColor(0xFF, 0xF2, 0xCC));
+        QVERIFY(!boxOf(v, 2).any());
+        // a border the file gave is replaced by the box's, not kept beside it
+        QTextCursor &again = v.view()->cursor();
+        again.setPosition(1);
+        v.act(QStringLiteral("para.border.none"))->trigger();
+        QVERIFY(!boxOf(v, 0).top.visible());
+        QCOMPARE(boxOf(v, 0).fill, QColor(0xFF, 0xF2, 0xCC));   // (the fill stays)
+        QVERIFY(saveInto(v, dir, QStringLiteral("boxes2.docx")));
+        office::Package second;
+        second.read(fileBytes(dir.filePath(QStringLiteral("boxes2.docx"))));
+        QCOMPARE(second.part(QStringLiteral("/word/document.xml")).count("<w:pBdr>"), 1);
+        // the quick commands: one side only, the others as they were
+        again.setPosition(v.document()->story()->findBlockByNumber(2).position() + 1);
+        v.act(QStringLiteral("para.border.bottom"))->trigger();
+        QVERIFY(boxOf(v, 2).bottom.visible() && !boxOf(v, 2).top.visible());
+        QCOMPARE(boxOf(v, 2).bottom.eighths, 4);
+        v.act(QStringLiteral("para.border.all"))->trigger();
+        QVERIFY(boxOf(v, 2).top.visible() && boxOf(v, 2).left.visible() && boxOf(v, 2).right.visible());
+        // Undo takes the first box back in one step
+        QVERIFY(w.document()->undo());
+        QVERIFY(!boxOf(w, 0).any() && !boxOf(w, 1).any());
+        QVERIFY(w.document()->redo());
+        QVERIFY(boxOf(w, 1).any());
+    }
+
+    // Line spacing: the Paragraph box's at least, exactly, and multiple kinds, and "don't add space between paragraphs of the same style", are written as the file writes them
+    // (ECMA-376 Part 1 sections 17.3.1.33 and 17.3.1.9), and a file opened again through the window has the same kinds.
+    void lineSpacingKindsAndTheSameStyleBoxSurviveSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("one\ntwo\nthree"));
+        auto setSpacing = [&](int block, int kind, double value, bool sameStyle) {
+            QTextCursor &c = w.view()->cursor();
+            c.setPosition(w.document()->story()->findBlockByNumber(block).position() + 1);
+            withDialog([&] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [&](QDialog *d) {
+                auto *type = d->findChild<QComboBox *>(QStringLiteral("lineSpacing"));
+                QVERIFY(type);
+                type->setCurrentIndex(kind);
+                if (kind == 5) d->findChild<QDoubleSpinBox *>(QStringLiteral("multiple"))->setValue(value);
+                else if (kind >= 3) d->findChild<MeasureSpin *>(QStringLiteral("at"))->setPoints(value);
+                d->findChild<QCheckBox *>(QStringLiteral("contextualSpacing"))->setChecked(sameStyle);
+            });
+        };
+        setSpacing(0, 3, 20, false);   // at least 20 pt
+        setSpacing(1, 4, 18, true);    // exactly 18 pt, and no space between paragraphs of the same style
+        setSpacing(2, 5, 1.15, false);   // multiple 1.15
+        QVERIFY(saveInto(w, dir, QStringLiteral("spacing.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("spacing.docx"))));
+        const QByteArray xml = package.part(QStringLiteral("/word/document.xml"));
+        QVERIFY2(xml.contains("w:line=\"400\" w:lineRule=\"atLeast\""), xml.left(1500).constData());
+        QVERIFY2(xml.contains("w:line=\"360\" w:lineRule=\"exact\""), xml.left(1500).constData());
+        QVERIFY2(xml.contains("w:line=\"276\" w:lineRule=\"auto\""), xml.left(1500).constData());
+        QCOMPARE(xml.count("<w:contextualSpacing"), 1);
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("spacing.docx"))));
+        const QTextBlockFormat a = v.document()->story()->findBlockByNumber(0).blockFormat(), b = v.document()->story()->findBlockByNumber(1).blockFormat(),
+                               c = v.document()->story()->findBlockByNumber(2).blockFormat();
+        QCOMPARE(int(a.lineHeightType()), int(QTextBlockFormat::MinimumHeight));
+        QCOMPARE(a.lineHeight(), 20.0);
+        QCOMPARE(int(b.lineHeightType()), int(QTextBlockFormat::FixedHeight));
+        QCOMPARE(b.lineHeight(), 18.0);
+        QVERIFY(b.boolProperty(tp::ContextualSpacing) && !a.boolProperty(tp::ContextualSpacing));
+        QCOMPARE(int(c.lineHeightType()), int(QTextBlockFormat::ProportionalHeight));
+        QVERIFY(std::abs(c.lineHeight() - 115.0) < 0.5);
+    }
+
     // Save As lists every kind JeffWrite writes, a new document starts on .docx, and each kind saves and opens again through the window's own Save As and Open.
     void saveAsListsEveryKindAndEachSavesAndOpensAgain()
     {

@@ -2558,6 +2558,41 @@ void dropKeptRunProperty(QTextCharFormat &f, const char *tag)
 
 } // namespace
 
+// The kept properties of a paragraph (as the file wrote them), less those that begin with `tag` (w:pBdr, w:shd).
+static void dropKeptParagraphProperty(QTextBlockFormat &f, const char *tag)
+{
+    if (!f.hasProperty(prop::RawPPr)) return;
+    QVector<office::wml::RawChild> kept = unpackRaw(storedBytes(f, prop::RawPPr));
+    for (int i = int(kept.size()) - 1; i >= 0; --i)
+        if (kept.at(i).xml.startsWith(tag)) kept.removeAt(i);
+    if (kept.isEmpty()) f.clearProperty(prop::RawPPr);
+    else setStored(f, prop::RawPPr, packRaw(kept));
+}
+
+tp::ParaBox paragraphBoxAt(const QTextCursor &c)
+{
+    QTextCursor at(c);
+    if (c.hasSelection()) at.setPosition(c.selectionStart());
+    return tp::ParaBox::parse(at.blockFormat().stringProperty(tp::Borders));
+}
+
+void setParagraphBox(WriteDoc &doc, QTextCursor &c, const tp::ParaBox &box, int parts)
+{
+    changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
+        tp::ParaBox now = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
+        if (parts & boxpart::Top) now.top = box.top;
+        if (parts & boxpart::Left) now.left = box.left;
+        if (parts & boxpart::Bottom) now.bottom = box.bottom;
+        if (parts & boxpart::Right) now.right = box.right;
+        if (parts & boxpart::Between) now.between = box.between;
+        if (parts & boxpart::Fill) now.fill = box.fill;
+        if (now.any()) bf.setProperty(tp::Borders, now.spec());
+        else bf.clearProperty(tp::Borders);
+        if (parts & boxpart::Lines) dropKeptParagraphProperty(bf, "<w:pBdr");
+        if (parts & boxpart::Fill) dropKeptParagraphProperty(bf, "<w:shd");
+    });
+}
+
 void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color)
 {
     const NoteScopeGuard scopeGuard(doc, c);

@@ -162,6 +162,20 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         m_colorButtons << b;
         return b;
     };
+    // Shading of the paragraphs selected: a color of the palette, or none.
+    parts.widgets[QStringLiteral("paraShading")] = [this]() -> QWidget * {
+        auto *b = new ColorButton(QStringLiteral("paint-bucket"), tr("Shading"), true, tr("No Color"));
+        b->setCurrent(ColorRef::rgb(QColor(0xFF, 0xF2, 0x99)));
+        connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
+            if (!m_doc || refuseIfReadOnly()) return;
+            tp::ParaBox box;
+            box.fill = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+            write::setParagraphBox(*m_doc, m_view->cursor(), box, write::boxpart::Fill);
+            m_view->focusText();
+        });
+        m_colorButtons << b;
+        return b;
+    };
     parts.menus[QStringLiteral("highlightColors")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
         for (const QString &name : write::highlightNames()) {
