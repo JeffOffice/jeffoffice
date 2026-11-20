@@ -1617,6 +1617,7 @@ private Q_SLOTS:
     void anObjectAnchoredAtTheEndOfAParagraphIsOnItsLastLine();
     void topAndBottomWrapLeavesNoTextBesideTheObject();
     void wrapSidesPutTheTextOnTheSidesAsked();
+    void aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff();
     void objectsBehindAndOverTheTextMoveNoLine();
     void tightWrapIsSquareWrapForNow();
     void aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits();

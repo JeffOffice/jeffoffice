@@ -196,8 +196,9 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         const Wrap &w = o->wrap;
         ++g_wrapWork;
         QPainterPath pagePath;
-        bool covers = false;
+        bool covers = false, rectPath = false;
         if (w.mode == Wrap::Square || w.mode == Wrap::TopBottom) {
+            rectPath = true;
             QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
             covers = b.contains(fb);
             if (w.mode == Wrap::TopBottom) { b.setLeft(-1e5); b.setRight(1e5); }
@@ -208,6 +209,7 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
                 QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
                 covers = b.contains(fb);
                 pagePath.addRect(b);
+                rectPath = true;
             } else {
             --g_wrapShapesLeft;
             QPainterPath local;
@@ -227,6 +229,15 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         // box's text then sits at its top, whatever its vertical alignment.
         if (covers) {
             if (covered) *covered = true;
+            return;
+        }
+        // (A rectangle's wall is the one rectangle: the join of two that share three edges came out as a sliver for some places, and the text went under the object.)
+        if (rectPath && w.side != Wrap::Both && w.mode != Wrap::TopBottom) {
+            const bool left = w.side == Wrap::LeftOnly || (w.side == Wrap::Largest && pb.left() - fb.left() >= fb.right() - pb.right());
+            QRectF wall;
+            if (left) wall.setCoords(pb.left(), pb.top(), 1e5, pb.bottom());
+            else wall.setCoords(-1e5, pb.top(), pb.right(), pb.bottom());
+            out << inv.map(QPolygonF(wall));
             return;
         }
         if (w.side == Wrap::LeftOnly) { QPainterPath r; r.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height())); pagePath = pagePath.united(r); }

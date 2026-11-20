@@ -262,13 +262,11 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
             // The side asked for is the room beside it: the other side is a wall as well. (The page layer makes the wall of a path and joins the two, as here, so that the
             // edges of the polygons are the same numbers: a line that touches one has the page layer put it where the paginator did.)
             const bool leftOnly = o.side == FloatingObject::Side::Left || (o.side == FloatingObject::Side::Largest && b.left() - column.left() >= column.right() - b.right());
-            QPainterPath path;
-            path.addRect(b);
-            QPainterPath beyond;
-            if (leftOnly) beyond.addRect(QRectF(b.left(), b.top(), 1e5, b.height()));
-            else beyond.addRect(QRectF(-1e5, b.top(), b.right() + 1e5, b.height()));
-            path = path.united(beyond);
-            out << path.toFillPolygon().translated(-column.left(), -column.top());
+            // (The wall is the one rectangle, not the room joined to a second one: the join of two rectangles that share three edges came out as a sliver for some places, and the text went under the object.)
+            QRectF wall;
+            if (leftOnly) wall.setCoords(b.left(), b.top(), 1e5, b.bottom());
+            else wall.setCoords(-1e5, b.top(), b.right(), b.bottom());
+            out << QPolygonF(wall.translated(-column.left(), -column.top()));
             continue;
         }
         out << QPolygonF(b.translated(-column.left(), -column.top()));

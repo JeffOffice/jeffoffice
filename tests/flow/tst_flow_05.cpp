@@ -524,6 +524,33 @@ void FlowTests::wrapSidesPutTheTextOnTheSidesAsked()
 }
 
 
+// An object that reaches past the column's left edge, with the text on its right only (or on the larger side, which is the right): no line is over it.
+void FlowTests::aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff()
+{
+    using Side = FloatingObject::Side;
+    for (const Side side : {Side::Right, Side::Largest}) {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 24, 23, {}, 25, 45);
+        // 271.1 wide, 3.45 points out of the column's left (with the 9 points of room, 12.45 points past the column), 25.05 points below its paragraph's top.
+        addWrapped(&fd, 271.1, 200, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Square, -3.45, 25.05, QMarginsF(9, 0, 9, 0), side);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 271.1, 200);
+        QVERIFY(obj);
+        const QRectF wall = obj->rect.adjusted(-9, 0, 9, 0);
+        int beside = 0;
+        for (const PageLine &l : pageLines(pg, fd, 0)) {
+            if (!(l.rect.top() < wall.bottom() - 0.05 && l.rect.bottom() > wall.top() + 0.05)) continue;
+            QVERIFY2(l.rect.left() >= wall.right() - 0.05, qPrintable(QStringLiteral("side %1: a line beside the object is at %2, over it (%3)").arg(int(side)).arg(audit::rectText(l.rect), audit::rectText(wall))));
+            ++beside;
+        }
+        QVERIFY2(beside > 3, qPrintable(QStringLiteral("side %1: %2 lines beside the object").arg(int(side)).arg(beside)));
+    }
+}
+
+
 // An object behind the text or over it, and one with no wrap, move no line: the pages' lines are those of a document without them.
 void FlowTests::objectsBehindAndOverTheTextMoveNoLine()
 {
