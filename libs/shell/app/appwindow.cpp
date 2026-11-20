@@ -207,8 +207,6 @@ void AppWindow::cascade(const QList<AppWindow *> &wins)
         int k = 0;
         for (AppWindow *w : group.second) {
             w->showNormal();
-            // With others to stack, a window larger than three quarters of the area is made that size, so that the stack has room to show (a window alone keeps its size).
-            if (group.second.size() > 1 && (w->width() > area.width() * 3 / 4 || w->height() > area.height() * 3 / 4)) w->resize(std::min(w->width(), area.width() * 3 / 4), std::min(w->height(), area.height() * 3 / 4));
             const QSize size = w->frameGeometry().size();
             auto at = [&](int step) { return QPoint(area.left() + kInset + step * kStep, area.top() + kInset + step * kStep); };
             // A window that would run off the area starts the stack again from the corner; one bigger than the area is as far in as it fits.

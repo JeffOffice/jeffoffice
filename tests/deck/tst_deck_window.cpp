@@ -1843,6 +1843,9 @@ private Q_SLOTS:
         w.act(QStringLiteral("win.arrange"))->trigger();
         // Each window has a column of its own: they start half the screen's width apart (a window may be wider than its column when its least width says so).
         QCOMPARE(qAbs(w.pos().x() - second->pos().x()), w.screen()->availableGeometry().width() / 2);
+        // (the columns are as tall as the screen's free area: windows that leave room below them stack)
+        w.resize(w.width(), w.screen()->availableGeometry().height() / 2);
+        second->resize(second->width(), w.screen()->availableGeometry().height() / 2);
         w.act(QStringLiteral("win.cascade"))->trigger();
         QCOMPARE(qAbs(w.pos().x() - second->pos().x()), 30);
         QCOMPARE(qAbs(w.pos().y() - second->pos().y()), 30);

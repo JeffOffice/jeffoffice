@@ -44,7 +44,7 @@ public:
     virtual bool readyToQuit() { return true; }
     // The View > Window group's placing, for the windows an app lists (its own kind): side by side in columns across the screen, stacked with each a little down and right from the one
     // before, and two windows each filling half of the screen. Each window is placed on the screen it is on, in that screen's free area; one that is placed is shown normal (not maximized),
-    // a minimized window stays minimized, and a full screen one is left alone. With others to stack, a window larger than three quarters of the area is made that size; the stack wraps to the corner of the area when the next window would run off it.
+    // a minimized window stays minimized, and a full screen one is left alone. The windows keep their sizes; the stack wraps to the corner of the area when the next window would run off it.
     // Nothing is done where the window system places the windows itself: the commands are off there, with windowPlacementNote() as their tooltip.
     static void arrangeInColumns(const QList<AppWindow *> &wins);
     static void cascade(const QList<AppWindow *> &wins);
