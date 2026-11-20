@@ -951,6 +951,12 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
                 return;
             }
         }
+        // A column break of ours (kept where it stood, the format having one only as a property of a paragraph).
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0 && t.attr(n, "column-break", jo) == QLatin1String("true")) {
+            addRun(pc, "<w:br w:type=\"column\"/>", f);
+            pc->lastSpace = true;
+            return;
+        }
         // A check box of ours (jo:checkbox: checked or unchecked; the sign inside is what other programs show) is the older form's check box, not a sign.
         if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0 && (t.attr(n, "checkbox", jo) == QLatin1String("checked") || t.attr(n, "checkbox", jo) == QLatin1String("unchecked"))) {
             const bool on = t.attr(n, "checkbox", jo) == QLatin1String("checked");
@@ -967,7 +973,13 @@ void Reader::inlineElement(const Odf &o, int n, ParaCtx *pc, const RunFmt &fmt, 
         addRun(pc, "<w:tab/>", fmt);
         pc->lastSpace = true;
     } else if (o.is(n, "text:line-break")) {
-        addRun(pc, "<w:br/>", fmt);
+        // (A break that clears the wrapping of a drawing beside it says so in our attribute: left, right, or all.)
+        QByteArray clear;
+        if (const int jo = t.namespaceId("urn:jeffoffice:odf-extension"); jo >= 0) {
+            const QString how = t.attr(n, "clear", jo);
+            if (how == QLatin1String("left") || how == QLatin1String("right") || how == QLatin1String("all") || how == QLatin1String("none")) clear = " w:clear=\"" + how.toLatin1() + "\"";
+        }
+        addRun(pc, "<w:br" + clear + "/>", fmt);
         pc->lastSpace = true;
     } else if (o.is(n, "text:soft-page-break")) {
     } else if (o.is(n, "text:a")) {

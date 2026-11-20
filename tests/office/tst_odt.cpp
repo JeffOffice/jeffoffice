@@ -2256,6 +2256,42 @@ private Q_SLOTS:
         QVERIFY2(back.contains(QLatin1String("<w:default w:val=\"1\"/>")) && back.contains(QLatin1String("<w:default w:val=\"0\"/>")), qPrintable(back));
         QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("a  b ")}));
     }
+
+    // A blank that ends a paragraph is still there after the .odt (the format drops a plain one at the end), also when a span or a link closes after it.
+    void aBlankAtTheEndOfAParagraphIsKept()
+    {
+        const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">None </w:t></w:r></w:p><w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space=\"preserve\">Bold </w:t></w:r></w:p>";
+        QCOMPARE(paragraphsOf(roundTripBody(body)), (QStringList{QStringLiteral("None "), QStringLiteral("Bold ")}));
+        QString c = odtContentOf(body);
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QVERIFY2(c.contains(QLatin1String("None<text:s/></text:p>")), qPrintable(c));
+    }
+
+    // A line break that clears the wrapping of a drawing beside it is a line break for any program, and ours reads it as the break that clears (a break of another kind than the plain one).
+    void aLineBreakThatClearsKeepsWhatItClears()
+    {
+        const QByteArray body = "<w:p><w:r><w:t>a</w:t></w:r><w:r><w:br w:type=\"textWrapping\" w:clear=\"all\"/></w:r><w:r><w:t>b</w:t></w:r><w:r><w:br/></w:r><w:r><w:t>c</w:t></w:r></w:p>";
+        QString c = odtContentOf(body);
+        QVERIFY2(c.contains(QLatin1String("<text:line-break jo:clear=\"all\"/>")), qPrintable(c));
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QCOMPARE(c.count(QLatin1String("<text:line-break/>")), 2);
+        const QString back = roundTripBody(body);
+        QVERIFY2(back.contains(QLatin1String("<w:br w:clear=\"all\"/>")), qPrintable(back));
+        QCOMPARE(back.count(QLatin1String("<w:br")), 2);
+    }
+
+    // A column break inside a paragraph is kept where it stands (the format has the break only as a paragraph's property); it adds nothing the standard cannot hold, and ours reads it back.
+    void aColumnBreakInAParagraphIsKept()
+    {
+        const QByteArray body = "<w:p><w:r><w:br w:type=\"column\"/><w:t>after</w:t></w:r></w:p>";
+        QString c = odtContentOf(body);
+        QVERIFY2(c.contains(QLatin1String("<text:span jo:column-break=\"true\"/>")), qPrintable(c));
+        c.remove(QRegularExpression(QStringLiteral(" jo:[A-Za-z-]+=\"[^\"]*\"")));
+        QVERIFY2(c.contains(QLatin1String("<text:span/>after</text:p>")) || c.contains(QLatin1String("after</text:p>")), qPrintable(c));
+        const QString back = roundTripBody(body);
+        QVERIFY2(back.contains(QLatin1String("<w:br w:type=\"column\"/>")), qPrintable(back));
+        QCOMPARE(paragraphsOf(back), (QStringList{QStringLiteral("after")}));
+    }
 };
 
 QTEST_MAIN(OdtTests)

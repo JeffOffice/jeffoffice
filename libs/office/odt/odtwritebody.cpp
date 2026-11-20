@@ -262,6 +262,22 @@ int Writer::numLevelOf(const T &t, int pPr, int *numId, QString pStyle) const
     return level < 0 ? 0 : std::min(level, 8);
 }
 
+namespace {
+
+// A blank that ends a paragraph is a counted blank: the format drops a plain one there, as it drops one at the start.
+void keepTrailingBlank(QByteArray *xml)
+{
+    qsizetype i = xml->size();
+    while (i > 0 && (*xml)[i - 1] == '>') {
+        const qsizetype open = xml->lastIndexOf('<', i - 1);
+        if (open < 0 || open + 1 >= i || (*xml)[open + 1] != '/') break;   // (only closing tags are stepped over)
+        i = open;
+    }
+    if (i > 0 && (*xml)[i - 1] == ' ') xml->replace(i - 1, 1, "<text:s/>");
+}
+
+} // namespace
+
 void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int depth, bool body)
 {
     const int pPr = t.child(p, "pPr");
@@ -339,6 +355,7 @@ void Writer::emitParagraph(const T &t, int p, QByteArray *out, ListCtx *lc, int 
         pc.xml = f.savedXml + pc.xml;
         pc.plain = f.savedPlain + pc.plain;
     }
+    keepTrailingBlank(&pc.xml);
     if (pc.fragments.isEmpty() || !pc.xml.isEmpty()) pc.fragments.push_back({pc.xml, pc.pageBreak});
     else if (pc.pageBreak) {
         // (the break ends this paragraph: what follows begins a page, and the paragraph says it ends with a break so it reads back as it was)
@@ -1735,8 +1752,15 @@ void Writer::emitRun(const T &t, int run, ParaCtx *pc, int depth)
                 spanned = false;
                 // (the span is applied to what is left of the run)
             } else if (type == QLatin1String("column")) {
+                // (The format has a column break only as a property of a paragraph that begins a column: ours is kept where it stands, in a span of its own that other programs show as nothing.)
+                if (!t.has(c, "clear")) {
+                    pc->xml += "<text:span jo:column-break=\"true\"/>";
+                    pc->hasContent = true;
+                }
             } else {
-                pc->xml += "<text:line-break/>";
+                const QString clear = t.attr(c, "clear");
+                const bool clears = clear == QLatin1String("left") || clear == QLatin1String("right") || clear == QLatin1String("all") || clear == QLatin1String("none");
+                pc->xml += clears ? "<text:line-break jo:clear=\"" + clear.toLatin1() + "\"/>" : QByteArray("<text:line-break/>");
                 pc->lastSpace = true;
                 pc->plain += QLatin1Char('\n');
                 pc->hasContent = true;
