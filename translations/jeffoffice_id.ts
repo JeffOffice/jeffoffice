@@ -51889,6 +51889,21 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+1"/>
+        <source>Numbered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Inserted paragraph</source>
         <translation type="unfinished">Paragraf disisipkan</translation>
     </message>
@@ -51956,12 +51971,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+2"/>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Resolve</source>
         <translation type="unfinished">Selesaikan</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="-224"/>
         <source>Delete</source>
         <translation type="unfinished">Hapus</translation>
     </message>
@@ -52029,11 +52044,16 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <source>All Reviewers</source>
         <translation type="unfinished">Semua Peninjau</translation>
     </message>
+    <message>
+        <location line="+27"/>
+        <source>In a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+31"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location line="+6"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform>%n perubahan lainnya ada di dalam kotak teks.</numerusform>
+            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -58249,7 +58269,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_info.cpp" line="+13"/>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+132"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+142"/>
         <source>Comments</source>
         <translation>Komentar</translation>
     </message>
@@ -59793,7 +59813,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Letakkan kursor di dalam daftar rujukan terlebih dahulu.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="-97"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="-94"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Periksa Ejaan saat Anda Mengetik</translation>
     </message>
@@ -59844,7 +59864,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Terima Semua Perubahan</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+329"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 perubahan diterima.</translation>
     </message>
@@ -59854,12 +59874,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 perubahan diterima.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-319"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Terima Semua Perubahan dan Hentikan Pelacakan</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+320"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 perubahan diterima. Lacak Perubahan nonaktif.</translation>
     </message>
@@ -59884,7 +59904,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 perubahan ditolak.</translation>
     </message>
     <message>
-        <location line="-298"/>
+        <location line="-299"/>
         <source>Next Change</source>
         <translation type="unfinished">Perubahan Berikutnya</translation>
     </message>
@@ -59996,19 +60016,26 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <source>Resolve Comment</source>
         <translation type="unfinished">Tandai Komentar Selesai</translation>
     </message>
+    <message numerus="yes">
+        <location line="+223"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-152"/>
-        <location line="+171"/>
+        <location line="-372"/>
+        <location line="+168"/>
         <source>Spelling</source>
         <translation type="unfinished">Ejaan</translation>
     </message>
     <message>
-        <location line="-169"/>
+        <location line="-166"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menu Opsi Koreksi Otomatis</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+184"/>
         <source>Reviewing</source>
         <translation type="unfinished">Tinjauan</translation>
     </message>
@@ -60033,20 +60060,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Komentar tidak dapat ditambahkan di sini.</translation>
     </message>
-    <message numerus="yes">
-        <location line="+14"/>
-        <source>%n change(s) kept because the table would break.</source>
-        <translation type="unfinished">
-            <numerusform>%n perubahan dipertahankan karena tabel akan terpotong.</numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+15"/>
+        <location line="+35"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Perubahan ini ada di bagian dokumen yang tidak ditampilkan di halaman mana pun.</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+25"/>
+        <source>This change is in a text box that can&apos;t be opened here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Tidak ada perubahan lagi.</translation>
     </message>
@@ -72437,7 +72462,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">[Tabel: %1 baris x %2 kolom]</translation>
     </message>
     <message>
-        <location line="+555"/>
+        <location line="+593"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Berkas tidak memiliki dokumen di dalamnya.</translation>
     </message>
@@ -77432,7 +77457,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="-6"/>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Formatted</source>
         <translation type="unfinished">Diformat</translation>
     </message>
@@ -77887,7 +77912,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada gaya yang dapat diperbarui di sini.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+900"/>
+        <location filename="../apps/write/core/editops.cpp" line="+909"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Dokumen memiliki terlalu banyak gaya daftar.</translation>
     </message>

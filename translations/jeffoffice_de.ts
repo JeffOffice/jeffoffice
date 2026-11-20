@@ -51931,6 +51931,21 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+1"/>
+        <source>Numbered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Inserted paragraph</source>
         <translation type="unfinished">Eingefügter Absatz</translation>
     </message>
@@ -51998,12 +52013,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+2"/>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Resolve</source>
         <translation type="unfinished">Auflösen</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="-224"/>
         <source>Delete</source>
         <translation type="unfinished">Löschen</translation>
     </message>
@@ -52071,12 +52086,17 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <source>All Reviewers</source>
         <translation type="unfinished">Alle Bearbeiter</translation>
     </message>
+    <message>
+        <location line="+27"/>
+        <source>In a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+31"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location line="+6"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform>%n weitere Änderung ist in Textfeldern.</numerusform>
-            <numerusform>%n weitere Änderungen sind in Textfeldern.</numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -59643,7 +59663,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Es wurden keine Schriftarten ersetzt.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+35"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+48"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Rechtschreibung während der Eingabe prüfen</translation>
     </message>
@@ -59694,7 +59714,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Alle Änderungen annehmen</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+329"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 Änderung angenommen.</translation>
     </message>
@@ -59704,12 +59724,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 Änderungen angenommen.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-319"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Alle Änderungen annehmen und Nachverfolgung beenden</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+320"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 Änderung angenommen. „Änderungen nachverfolgen“ ist deaktiviert.</translation>
     </message>
@@ -59734,7 +59754,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">%1 Änderungen abgelehnt.</translation>
     </message>
     <message>
-        <location line="-298"/>
+        <location line="-299"/>
         <source>Next Change</source>
         <translation type="unfinished">Nächste Änderung</translation>
     </message>
@@ -60042,19 +60062,27 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>Resolve Comment</source>
         <translation type="unfinished">Kommentar auflösen</translation>
     </message>
+    <message numerus="yes">
+        <location line="+223"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-152"/>
-        <location line="+171"/>
+        <location line="-372"/>
+        <location line="+168"/>
         <source>Spelling</source>
         <translation type="unfinished">Rechtschreibung</translation>
     </message>
     <message>
-        <location line="-169"/>
+        <location line="-166"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menü der AutoKorrektur-Optionen</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+184"/>
         <source>Reviewing</source>
         <translation type="unfinished">Überprüfung</translation>
     </message>
@@ -60079,21 +60107,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Hier kann kein Kommentar eingefügt werden.</translation>
     </message>
-    <message numerus="yes">
-        <location line="+14"/>
-        <source>%n change(s) kept because the table would break.</source>
-        <translation type="unfinished">
-            <numerusform>%n Änderung blieb erhalten, weil die Tabelle umbrechen würde.</numerusform>
-            <numerusform>%n Änderungen blieben erhalten, weil die Tabelle umbrechen würde.</numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+15"/>
+        <location line="+35"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Diese Änderung befindet sich in einem Teil des Dokuments, der auf keiner Seite angezeigt wird.</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+25"/>
+        <source>This change is in a text box that can&apos;t be opened here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Es sind keine weiteren Änderungen vorhanden.</translation>
     </message>
@@ -72505,7 +72530,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">[Tabelle: %1 Zeilen mal %2 Spalten]</translation>
     </message>
     <message>
-        <location line="+555"/>
+        <location line="+593"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Die Datei enthält kein Dokument.</translation>
     </message>
@@ -77506,7 +77531,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="-6"/>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Formatted</source>
         <translation type="unfinished">Formatiert</translation>
     </message>
@@ -77963,7 +77988,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Hier gibt es keine Formatvorlage zum Aktualisieren.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+900"/>
+        <location filename="../apps/write/core/editops.cpp" line="+909"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Das Dokument enthält zu viele Listenformatvorlagen.</translation>
     </message>

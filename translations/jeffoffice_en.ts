@@ -397,11 +397,11 @@
 <context>
     <name>jp::ReviewPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/reviewpane.cpp" line="+254"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location filename="../apps/write/app/reviewpane.cpp" line="+259"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation>
-            <numerusform>1 more change is inside text boxes.</numerusform>
-            <numerusform>%n more changes are inside text boxes.</numerusform>
+            <numerusform>%n more change is inside a text box that is not listed here, and is done only by Accept All Changes and Reject All Changes.</numerusform>
+            <numerusform>%n more changes are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</numerusform>
         </translation>
     </message>
 </context>
@@ -456,11 +456,11 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+406"/>
-        <source>%n change(s) kept because the table would break.</source>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+417"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation>
-            <numerusform>1 change kept because the table would break.</numerusform>
-            <numerusform>%n changes kept because the table would break.</numerusform>
+            <numerusform>%n change was kept as written because settling it would damage the document.</numerusform>
+            <numerusform>%n changes were kept as written because settling them would damage the document.</numerusform>
         </translation>
     </message>
 </context>
@@ -635,7 +635,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../libs/office/wml/wmlread.cpp" line="+1580"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+1618"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>

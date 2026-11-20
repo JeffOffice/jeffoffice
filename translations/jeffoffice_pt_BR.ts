@@ -51931,6 +51931,21 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
+        <source>Numbered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Inserted paragraph</source>
         <translation type="unfinished">Parágrafo inserido</translation>
     </message>
@@ -51998,12 +52013,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+2"/>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Resolve</source>
         <translation type="unfinished">Resolver</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="-224"/>
         <source>Delete</source>
         <translation type="unfinished">Excluir</translation>
     </message>
@@ -52071,12 +52086,17 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <source>All Reviewers</source>
         <translation type="unfinished">Todos os Revisores</translation>
     </message>
+    <message>
+        <location line="+27"/>
+        <source>In a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+31"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location line="+6"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform>%n alteração adicional está dentro de caixas de texto.</numerusform>
-            <numerusform>%n alterações adicionais estão dentro de caixas de texto.</numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -59643,7 +59663,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Nenhuma fonte foi substituída.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+35"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+48"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Verificar Ortografia ao Digitar</translation>
     </message>
@@ -59694,7 +59714,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Aceitar Todas as Alterações</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+329"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 alteração aceita.</translation>
     </message>
@@ -59704,12 +59724,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">%1 alterações aceitas.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-319"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Aceitar Todas as Alterações e Parar o Controle</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+320"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 alteração aceita. Controlar Alterações está desativado.</translation>
     </message>
@@ -59734,7 +59754,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">%1 alterações rejeitadas.</translation>
     </message>
     <message>
-        <location line="-298"/>
+        <location line="-299"/>
         <source>Next Change</source>
         <translation type="unfinished">Próxima Alteração</translation>
     </message>
@@ -60042,19 +60062,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <source>Resolve Comment</source>
         <translation type="unfinished">Resolver Comentário</translation>
     </message>
+    <message numerus="yes">
+        <location line="+223"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-152"/>
-        <location line="+171"/>
+        <location line="-372"/>
+        <location line="+168"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografia</translation>
     </message>
     <message>
-        <location line="-169"/>
+        <location line="-166"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menu de Opções de Autocorreção</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+184"/>
         <source>Reviewing</source>
         <translation type="unfinished">Revisando</translation>
     </message>
@@ -60079,21 +60107,18 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Não é possível adicionar um comentário aqui.</translation>
     </message>
-    <message numerus="yes">
-        <location line="+14"/>
-        <source>%n change(s) kept because the table would break.</source>
-        <translation type="unfinished">
-            <numerusform>%n alteração mantida porque a tabela quebraria.</numerusform>
-            <numerusform>%n alterações mantidas porque a tabela quebraria.</numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+15"/>
+        <location line="+35"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Esta alteração está em uma parte do documento que nenhuma página mostra.</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+25"/>
+        <source>This change is in a text box that can&apos;t be opened here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Não há mais alterações.</translation>
     </message>
@@ -72505,7 +72530,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">[Tabela: %1 linhas por %2 colunas]</translation>
     </message>
     <message>
-        <location line="+555"/>
+        <location line="+593"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">O arquivo não contém nenhum documento.</translation>
     </message>
@@ -77506,7 +77531,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     </message>
     <message>
         <location line="-6"/>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Formatted</source>
         <translation type="unfinished">Formatado</translation>
     </message>
@@ -77963,7 +77988,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">Não há estilo para atualizar aqui.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+900"/>
+        <location filename="../apps/write/core/editops.cpp" line="+909"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">O documento tem estilos de lista demais.</translation>
     </message>

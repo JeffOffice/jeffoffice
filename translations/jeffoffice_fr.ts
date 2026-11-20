@@ -51931,6 +51931,21 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+1"/>
+        <source>Numbered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Inserted paragraph</source>
         <translation type="unfinished">Paragraphe inséré</translation>
     </message>
@@ -51998,12 +52013,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+2"/>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Resolve</source>
         <translation type="unfinished">Résoudre</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="-224"/>
         <source>Delete</source>
         <translation type="unfinished">Supprimer</translation>
     </message>
@@ -52071,12 +52086,17 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <source>All Reviewers</source>
         <translation type="unfinished">Tous les réviseurs</translation>
     </message>
+    <message>
+        <location line="+27"/>
+        <source>In a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+31"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location line="+6"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform>%n autre modification se trouve dans des zones de texte.</numerusform>
-            <numerusform>%n autres modifications se trouvent dans des zones de texte.</numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -59643,7 +59663,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Aucune police n&apos;a été remplacée.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+35"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+48"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Vérifier l&apos;orthographe au cours de la frappe</translation>
     </message>
@@ -59694,7 +59714,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Accepter toutes les modifications</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+329"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 modification acceptée.</translation>
     </message>
@@ -59704,12 +59724,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">%1 modifications acceptées.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-319"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Accepter toutes les modifications et arrêter le suivi</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+320"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 modification acceptée. Le suivi des modifications est désactivé.</translation>
     </message>
@@ -59734,7 +59754,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">%1 modifications refusées.</translation>
     </message>
     <message>
-        <location line="-298"/>
+        <location line="-299"/>
         <source>Next Change</source>
         <translation type="unfinished">Modification suivante</translation>
     </message>
@@ -60042,19 +60062,27 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <source>Resolve Comment</source>
         <translation type="unfinished">Résoudre le commentaire</translation>
     </message>
+    <message numerus="yes">
+        <location line="+223"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-152"/>
-        <location line="+171"/>
+        <location line="-372"/>
+        <location line="+168"/>
         <source>Spelling</source>
         <translation type="unfinished">Orthographe</translation>
     </message>
     <message>
-        <location line="-169"/>
+        <location line="-166"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menu des options de correction automatique</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+184"/>
         <source>Reviewing</source>
         <translation type="unfinished">Révision</translation>
     </message>
@@ -60079,21 +60107,18 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Impossible d&apos;ajouter un commentaire ici.</translation>
     </message>
-    <message numerus="yes">
-        <location line="+14"/>
-        <source>%n change(s) kept because the table would break.</source>
-        <translation type="unfinished">
-            <numerusform>%n modification conservée car le tableau serait coupé.</numerusform>
-            <numerusform>%n modifications conservées car le tableau serait coupé.</numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+15"/>
+        <location line="+35"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Cette modification se trouve dans une partie du document qu&apos;aucune page n&apos;affiche.</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+25"/>
+        <source>This change is in a text box that can&apos;t be opened here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Il n&apos;y a plus de modifications.</translation>
     </message>
@@ -72505,7 +72530,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">[Tableau : %1 lignes sur %2 colonnes]</translation>
     </message>
     <message>
-        <location line="+555"/>
+        <location line="+593"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Le fichier ne contient aucun document.</translation>
     </message>
@@ -77506,7 +77531,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="-6"/>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Formatted</source>
         <translation type="unfinished">Mis en forme</translation>
     </message>
@@ -77963,7 +77988,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Il n&apos;y a aucun style à mettre à jour ici.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+900"/>
+        <location filename="../apps/write/core/editops.cpp" line="+909"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Le document contient trop de styles de liste.</translation>
     </message>

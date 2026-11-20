@@ -51931,6 +51931,21 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+1"/>
+        <source>Numbered</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Numbering changed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formatted section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Inserted paragraph</source>
         <translation type="unfinished">Ingevoegde alinea</translation>
     </message>
@@ -51998,12 +52013,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location line="+2"/>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Resolve</source>
         <translation type="unfinished">Oplossen</translation>
     </message>
     <message>
-        <location line="-222"/>
+        <location line="-224"/>
         <source>Delete</source>
         <translation type="unfinished">Verwijderen</translation>
     </message>
@@ -52071,12 +52086,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <source>All Reviewers</source>
         <translation type="unfinished">Alle revisoren</translation>
     </message>
+    <message>
+        <location line="+27"/>
+        <source>In a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+31"/>
-        <source>%n more change(s) are inside text boxes.</source>
+        <location line="+6"/>
+        <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform>%n extra wijziging staat in tekstvakken.</numerusform>
-            <numerusform>%n extra wijzigingen staan in tekstvakken.</numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
         </translation>
     </message>
     <message>
@@ -59643,7 +59663,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er zijn geen lettertypen vervangen.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+35"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+48"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Spelling controleren tijdens typen</translation>
     </message>
@@ -59694,7 +59714,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Alle wijzigingen accepteren</translation>
     </message>
     <message>
-        <location line="+331"/>
+        <location line="+329"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 wijziging geaccepteerd.</translation>
     </message>
@@ -59704,12 +59724,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 wijzigingen geaccepteerd.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-319"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Alle wijzigingen accepteren en bijhouden stoppen</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+320"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 wijziging geaccepteerd. Wijzigingen bijhouden is uitgeschakeld.</translation>
     </message>
@@ -59734,7 +59754,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">%1 wijzigingen geweigerd.</translation>
     </message>
     <message>
-        <location line="-298"/>
+        <location line="-299"/>
         <source>Next Change</source>
         <translation type="unfinished">Volgende wijziging</translation>
     </message>
@@ -60042,19 +60062,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <source>Resolve Comment</source>
         <translation type="unfinished">Opmerking oplossen</translation>
     </message>
+    <message numerus="yes">
+        <location line="+223"/>
+        <source>%n change(s) were kept as written because settling them would damage the document.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="-152"/>
-        <location line="+171"/>
+        <location line="-372"/>
+        <location line="+168"/>
         <source>Spelling</source>
         <translation type="unfinished">Spelling</translation>
     </message>
     <message>
-        <location line="-169"/>
+        <location line="-166"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menu met opties voor automatische correctie</translation>
     </message>
     <message>
-        <location line="+187"/>
+        <location line="+184"/>
         <source>Reviewing</source>
         <translation type="unfinished">Controleren</translation>
     </message>
@@ -60079,21 +60107,18 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <source>A comment can&apos;t be added here.</source>
         <translation type="unfinished">Hier kan geen opmerking worden toegevoegd.</translation>
     </message>
-    <message numerus="yes">
-        <location line="+14"/>
-        <source>%n change(s) kept because the table would break.</source>
-        <translation type="unfinished">
-            <numerusform>%n wijziging behouden omdat de tabel anders zou breken.</numerusform>
-            <numerusform>%n wijzigingen behouden omdat de tabel anders zou breken.</numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+15"/>
+        <location line="+35"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Deze wijziging staat in een deel van het document dat op geen enkele pagina zichtbaar is.</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+25"/>
+        <source>This change is in a text box that can&apos;t be opened here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+149"/>
         <source>There are no more changes.</source>
         <translation type="unfinished">Er zijn geen wijzigingen meer.</translation>
     </message>
@@ -72505,7 +72530,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">[Tabel: %1 rijen bij %2 kolommen]</translation>
     </message>
     <message>
-        <location line="+555"/>
+        <location line="+593"/>
         <source>The file has no document in it.</source>
         <translation type="unfinished">Het bestand bevat geen document.</translation>
     </message>
@@ -77506,7 +77531,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="-6"/>
-        <location line="+8"/>
+        <location line="+11"/>
         <source>Formatted</source>
         <translation type="unfinished">Opgemaakt</translation>
     </message>
@@ -77963,7 +77988,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is hier geen stijl om bij te werken.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+900"/>
+        <location filename="../apps/write/core/editops.cpp" line="+909"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Het document heeft te veel lijststijlen.</translation>
     </message>
