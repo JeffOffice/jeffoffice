@@ -2562,11 +2562,12 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "82108849b906771532159e5adbcb6aa06b52340d45a813775eb7bc15d84b8191"
+         "text": "d737e3f3ff949ecab50bfc13baf6da985744a4e77ecea381037be2ecece9756d"
         },
         {
-         "status": "partly",
-         "text": "26ac2b8acfb462b4e6c8854f6b12d0f2b05e5add1c5035cc1ae32cf6285802a7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "e2a361c47d10b000dbd2c4444d8539d2a57bc90e2c68fd2a75de24121042461d"
         },
         {
          "hide_soon": true,
@@ -5883,12 +5884,14 @@
        "heading": "3aca49d32ac50564d77d80df9ac35fc67b56641bb61333593b17ebbbf8f7ef18",
        "items": [
         {
-         "status": "partly",
-         "text": "857057bb9e27a6ca5f3b390f72a7cf17db11e922a25f4cf248816716751a2345"
+         "hide_soon": true,
+         "status": "done",
+         "text": "401c1f8f6a2312c79b800b55828c971e674b740b6b4abffc405507f29f5dffc5"
         },
         {
-         "status": "partly",
-         "text": "483268cd5aea74760a119bb2448adf789c8c792421e826282313bf5f5a18a18d"
+         "hide_soon": true,
+         "status": "done",
+         "text": "f1f7bf37aa6c7b127524e1185793bcd0f45fe4685a53a53f44733a3ec7c7bf23"
         },
         {
          "hide_soon": true,
@@ -5916,7 +5919,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "5aa712aee584c1d625431ae200996af56a5a22964943f9b5a1739fba8e6a7151"
+         "text": "f1ff346d0814bdc57481f75c42e4eaf3393de9f19460181fedb30364ee87f926"
         },
         {
          "status": "partly",
@@ -10678,18 +10681,6 @@
     "fr": ""
    }
   },
-  "26ac2b8acfb462b4e6c8854f6b12d0f2b05e5add1c5035cc1ae32cf6285802a7": {
-   "drop": false,
-   "en": "Print in color, grayscale, or pure black and white, and scale slides to fit the paper.",
-   "es": "Imprima en color, en escala de grises o en blanco y negro puro, y ajuste las diapositivas al tamaño del papel.",
-   "fr": "Imprimez en couleur, en niveaux de gris ou en noir et blanc pur, et mettez les diapositives à l’échelle du papier.",
-   "soon": {
-    "drop": false,
-    "en": "High quality printing, and printing comments and ink",
-    "es": "Impresión de alta calidad, e impresión de comentarios y tinta",
-    "fr": "Impression en haute qualité, et impression des commentaires et de l’encre"
-   }
-  },
   "26c00adf5945f13a765deb4e1b2e468fed318f6cd9a10ec8a1219c84e3550d73": {
    "drop": false,
    "en": "Preset shapes with adjust values, freeform paths, and connectors with elbow and curved routes.",
@@ -12574,6 +12565,18 @@
     "fr": ""
    }
   },
+  "401c1f8f6a2312c79b800b55828c971e674b740b6b4abffc405507f29f5dffc5": {
+   "drop": false,
+   "en": "Print to a printer or a PDF file with copies, collate, page ranges (all, current page, selection, or custom such as `1-3, 5` and `p2s3`), one or two sides, grayscale, paper orientation, margins, and printer properties.",
+   "es": "Imprima en una impresora o en un archivo PDF con copias, intercalación, intervalos de páginas (todas, página actual, selección o personalizado, como `1-3, 5` y `p2s3`), una o dos caras, escala de grises, orientación del papel, márgenes y propiedades de la impresora.",
+   "fr": "Imprimez sur une imprimante ou dans un fichier PDF avec copies, assemblage, plages de pages (toutes, page actuelle, sélection ou personnalisée, comme `1-3, 5` et `p2s3`), recto seul ou recto verso, niveaux de gris, orientation du papier, marges et propriétés de l’imprimante.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "402588756b078fcb1bfbdebde6a20838a694ff75198073bea155c589b287c29c": {
    "drop": false,
    "en": "Insert the date and time in one of ten formats, as a field that updates or as fixed text. Choose a language to show the formats and the day and month names in that language.",
@@ -13208,18 +13211,6 @@
     "en": "Manual hyphenation",
     "es": "Separación silábica manual",
     "fr": "Césure manuelle"
-   }
-  },
-  "483268cd5aea74760a119bb2448adf789c8c792421e826282313bf5f5a18a18d": {
-   "drop": false,
-   "en": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent.",
-   "es": "La vista previa de impresión muestra cada página tal como se imprime, con flechas de página, una, dos o cuatro páginas a la vez, gris para la impresión en escala de grises, la hoja girada cuando se gira el papel y zoom al 150, 200 o 300 por ciento.",
-   "fr": "L’aperçu avant impression affiche chaque page telle qu’elle sera imprimée, avec des flèches de page, une, deux ou quatre pages à la fois, du gris pour l’impression en niveaux de gris, la feuille pivotée lorsque le papier est pivoté, et un zoom à 150, 200 ou 300 pour cent.",
-   "soon": {
-    "drop": false,
-    "en": "A check that shrinks a document to fit on one page",
-    "es": "Una comprobación que reduce un documento para que quepa en una página",
-    "fr": "Une vérification qui réduit un document pour qu’il tienne sur une page"
    }
   },
   "48357db3355b5d549d7e0515a958e145d91968fb1c5bfdd687b2c524fb743a38": {
@@ -14552,18 +14543,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5aa712aee584c1d625431ae200996af56a5a22964943f9b5a1739fba8e6a7151": {
-   "drop": false,
-   "en": "Export to PDF from the File screen, choosing all pages, the current page, or a range, Standard or Minimum size, document properties, and bookmarks from headings. A PDF file also works as a printer in Print.",
-   "es": "Exporte a PDF desde la pantalla Archivo, eligiendo todas las páginas, la página actual o un intervalo, tamaño estándar o mínimo, propiedades del documento y marcadores a partir de los encabezados. Un archivo PDF también funciona como impresora en Imprimir.",
-   "fr": "Exportez en PDF depuis l’écran Fichier en choisissant toutes les pages, la page actuelle ou une plage, la taille standard ou minimale, les propriétés du document et les signets issus des titres. Un fichier PDF fonctionne aussi comme imprimante dans Imprimer.",
-   "soon": {
-    "drop": false,
-    "en": "Document properties in PDFs made by Print, a PDF opened after saving, and size and property switches on the Print page",
-    "es": "Propiedades del documento en los PDF creados con Imprimir, un PDF que se abre tras guardar y opciones de tamaño y propiedades en la página Imprimir",
-    "fr": "Propriétés du document dans les PDF créés par Imprimer, un PDF ouvert après l’enregistrement et des options de taille et de propriétés dans la page Imprimer"
    }
   },
   "5ad92e0cb0846a0077b6036caca12b6fbfcf8b3f76887a278a18d160c68c4e0d": {
@@ -17590,18 +17569,6 @@
     "fr": ""
    }
   },
-  "82108849b906771532159e5adbcb6aa06b52340d45a813775eb7bc15d84b8191": {
-   "drop": false,
-   "en": "Choose the printer or Save as PDF, set the number of copies, collate, and print on one side or both sides. Open printer properties and set the paper. A printer that can't make copies is sent the pages again, and a PDF file is made once. Your choices are remembered.",
-   "es": "Elija la impresora o Guardar como PDF, defina el número de copias, el intercalado e imprima por una cara o por ambas. Abra las propiedades de la impresora y defina el papel. A una impresora que no puede hacer copias se le envían las páginas de nuevo, y un archivo PDF se crea una sola vez. Sus opciones se recuerdan.",
-   "fr": "Choisissez l’imprimante ou Enregistrer au format PDF, définissez le nombre de copies, l’assemblage et imprimez sur un côté ou sur les deux. Ouvrez les propriétés de l’imprimante et réglez le papier. Une imprimante qui ne peut pas faire de copies reçoit les pages de nouveau, et un fichier PDF n’est créé qu’une fois. Vos choix sont mémorisés.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "822b42ba14744d836796758434b90b25f62c4d9a73056f4936728429defd355b": {
    "drop": false,
    "en": "Put a range or chart of a saved JeffCrunch workbook on a slide as an object, shown as its picture and opened in JeffCrunch by a double-click.",
@@ -17804,18 +17771,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "857057bb9e27a6ca5f3b390f72a7cf17db11e922a25f4cf248816716751a2345": {
-   "drop": false,
-   "en": "Print to a printer or a PDF file with copies, collate, and page ranges (all, current page, selection, or custom such as 1-3, 5, 8-, and -2, with section syntax such as `p2s3` and `s3`). Print on one side or both sides, in grayscale, with the paper turned and each page scaled to fit the sheet.",
-   "es": "Imprima en una impresora o en un archivo PDF con copias, intercalado e intervalos de páginas (todas, página actual, selección o personalizado como 1-3, 5, 8- y -2, con sintaxis de sección como `p2s3` y `s3`). Imprima por una cara o por ambas, en escala de grises, con el papel girado y cada página ajustada a la hoja.",
-   "fr": "Imprimez sur une imprimante ou dans un fichier PDF avec copies, assemblage et plages de pages (toutes, page actuelle, sélection ou personnalisée comme 1-3, 5, 8- et -2, avec une syntaxe de section comme `p2s3` et `s3`). Imprimez sur un côté ou sur les deux, en niveaux de gris, avec le papier pivoté et chaque page ajustée à la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Print margins and printer properties",
-    "es": "Márgenes de impresión y propiedades de la impresora",
-    "fr": "Marges d’impression et propriétés de l’imprimante"
    }
   },
   "8582a88993db5c74269927ee5f9f76b7d32c278cf48f64956db39966bf6a56fd": {
@@ -23242,6 +23197,18 @@
     "fr": ""
    }
   },
+  "d737e3f3ff949ecab50bfc13baf6da985744a4e77ecea381037be2ecece9756d": {
+   "drop": false,
+   "en": "Choose the printer or Save as PDF, set the number of copies and collation, and print on one side or both sides, flipped on the long or short edge or by hand.",
+   "es": "Elija la impresora o Guardar como PDF, defina el número de copias y la intercalación, e imprima por una cara o por ambas, volteando por el borde largo o el corto, o a mano.",
+   "fr": "Choisissez l’imprimante ou Enregistrer au format PDF, réglez le nombre de copies et l’assemblage, et imprimez en recto seul ou en recto verso, avec retournement sur le bord long ou court, ou manuellement.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d74eff852a078b352e0c03f813faddefefd4ba5626faf7779a380fee8e6c8347": {
    "drop": false,
    "en": "Tracked changes in a file are shown and kept: insertions, deletions, moves, and formatting changes. Changes in `.rtf` and `.odt` files are read and kept when you save as `.docx` or `.odt`.",
@@ -23979,6 +23946,18 @@
    "en": "Table Design tab (while a table is selected)",
    "es": "Pestaña Diseño de tabla (con una tabla seleccionada)",
    "fr": "Onglet Création de tableau (tableau sélectionné)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "e2a361c47d10b000dbd2c4444d8539d2a57bc90e2c68fd2a75de24121042461d": {
+   "drop": false,
+   "en": "Print in color, grayscale, or pure black and white, scale slides to fit the paper, choose high quality, and print review comments after each slide that has them.",
+   "es": "Imprima en color, en escala de grises o en blanco y negro puro, ajuste las diapositivas al papel, elija alta calidad e imprima los comentarios de revisión después de cada diapositiva que los tenga.",
+   "fr": "Imprimez en couleur, en niveaux de gris ou en noir et blanc pur, adaptez les diapositives au papier, choisissez la haute qualité et imprimez les commentaires de révision après chaque diapositive qui en contient.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25220,6 +25199,30 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "f1f7bf37aa6c7b127524e1185793bcd0f45fe4685a53a53f44733a3ec7c7bf23": {
+   "drop": false,
+   "en": "Print preview shows each page as it prints, with page arrows, one, two, or four pages at once, gray for grayscale printing, the turned sheet when the paper is turned, and zoom to 150, 200, or 300 percent, and Shrink by One Page makes the text a little smaller until the document is a page shorter.",
+   "es": "La vista previa de impresión muestra cada página tal como se imprimirá, con flechas de página, una, dos o cuatro páginas a la vez, gris para la impresión en escala de grises, la hoja girada cuando el papel está girado y zoom al 150, 200 o 300 por ciento, y Reducir una página hace el texto algo más pequeño hasta que el documento tiene una página menos.",
+   "fr": "L’aperçu avant impression montre chaque page telle qu’elle sera imprimée, avec des flèches de page, une, deux ou quatre pages à la fois, du gris pour l’impression en niveaux de gris, la feuille pivotée lorsque le papier est pivoté, et un zoom à 150, 200 ou 300 pour cent, et Réduire d’une page rend le texte un peu plus petit jusqu’à ce que le document compte une page de moins.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f1ff346d0814bdc57481f75c42e4eaf3393de9f19460181fedb30364ee87f926": {
+   "drop": false,
+   "en": "Save as PDF with all pages, the current page, or a range, standard or minimum size, document properties, bookmarks from headings, and the option to open the PDF after saving.",
+   "es": "Guarde como PDF con todas las páginas, la página actual o un intervalo, tamaño estándar o mínimo, propiedades del documento, marcadores a partir de los encabezados y la opción de abrir el PDF después de guardar.",
+   "fr": "Enregistrez au format PDF avec toutes les pages, la page actuelle ou une plage, une taille standard ou minimale, les propriétés du document, des signets issus des titres et l’option d’ouvrir le PDF après l’enregistrement.",
+   "soon": {
+    "drop": false,
+    "en": "Size and property switches on the Print page",
+    "es": "Interruptores de tamaño y propiedades en la página de impresión",
+    "fr": "Commutateurs de taille et de propriétés sur la page d’impression"
    }
   },
   "f22257931b26b16267c72887e4fad2737b83cee31da7c1e9139dd38bc68f25e5": {
