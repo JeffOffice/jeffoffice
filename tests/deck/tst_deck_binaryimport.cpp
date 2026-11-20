@@ -1281,8 +1281,9 @@ private Q_SLOTS:
         QFile latoFile(jp::bundledFontFile(QStringLiteral("Lato"), false, false).path);
         QVERIFY(latoFile.open(QIODevice::ReadOnly));
         const QByteArray lato = latoFile.readAll();
-        const QByteArray one = office::makeEot(jp::fontWithFamilyName(lato, QStringLiteral("Zobster"))), two = office::makeEot(jp::fontWithFamilyName(lato, QStringLiteral("Zebstor")));
-        QVERIFY(!one.isEmpty() && !two.isEmpty());
+        // (One font under two names: the faces the reader takes are named by the file's own records, so nothing here depends on how a platform reads a font's names.)
+        const QByteArray one = office::makeEot(jp::fontWithFamilyName(lato, QStringLiteral("Zobster"))), two = one;
+        QVERIFY(!one.isEmpty());
         const QByteArray second = pptBox(2006, fontEntity(QStringLiteral("Zobster")) + pptFontBlob(0, one) + fontEntity(QStringLiteral("Zebstor")) + pptFontBlob(0, two));
         const QByteArray tag = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT10")), 0) + pptBox(5003, second)));
         auto open = [&](const QByteArray &first, const QByteArray &documentExtra, QString *err) {
@@ -1296,7 +1297,7 @@ private Q_SLOTS:
         QStringList names;
         for (const auto &f : deck::EmbeddedFonts::facesOf(both.get())) names << f.typeface;
         names.sort();
-        QCOMPARE(names, (QStringList{QStringLiteral("Zebstor"), QStringLiteral("Zobster")}));   // two faces: Zobster once, and the one only the second list holds
+        QVERIFY2(names == (QStringList{QStringLiteral("Zebstor"), QStringLiteral("Zobster")}), qPrintable(names.join(QLatin1Char(',')) + QLatin1Char(' ') + err));   // two faces: Zobster once, and the one only the second list holds
         // Without the tag the second list's own face is not there.
         auto onlyFirst = open(firstList, QByteArray(), &err);
         QVERIFY2(onlyFirst, qPrintable(err));
