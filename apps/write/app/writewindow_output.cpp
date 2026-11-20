@@ -929,7 +929,7 @@ bool WriteWindow::shrinkByOnePage()
         return false;
     }
     m_view->viewport()->update();
-    statusBar()->showMessage(droppedPages > 1 ? tr("Made the text a little smaller, so the document is %n page(s) shorter.", nullptr, droppedPages) : tr("Made the text a little smaller, so the document is one page shorter."), 6000);
+    statusBar()->showMessage(droppedPages > 1 ? tr("Made the text a little smaller, so the document is %1 pages shorter.").arg(droppedPages) : tr("Made the text a little smaller, so the document is one page shorter."), 6000);
     return true;
 }
 
