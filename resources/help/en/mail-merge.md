@@ -34,7 +34,7 @@ A merge field shows the value just as your list holds it. To change that, click 
 - **Date**, in a **Style** such as Short, Long, Year, month, day, Month and day, or Month and year.
 - **Time**, in a Short, 12-hour, or 24-hour **Style**.
 
-The **Sample** line shows what your choice makes. The separators and names follow your language and region. A value that is not a number, a date, or a time, such as a word, shows as it is in your list, and so does an empty one. The preview and the finished merge both show the formatted value. The choice is one step of Undo, and it is saved with the publication.
+The **Sample** line shows what your choice makes. The values are read and shown in the language of the text at the field (US English where none is set), not the language of your computer. In US English 03/04/2026 is March 4, and in a day-first language such as German or British English it is April 3; in German, 1.234,5 is a number with a decimal comma. A year of two digits is read as 2000 to 2029 for 00 to 29, and 1930 to 1999 for 30 to 99. A number in parentheses, such as (500), is negative. A value that is not a number, a date, or a time of the kind you chose shows exactly as it is in your list: a word, "nan" or "inf" (a person may be named Nan), an empty value, a time with a date format, and a date with a time format. The preview and the finished merge both show the formatted value. The choice is one step of Undo, and it is saved with the publication.
 
 ## Preview the results
 
