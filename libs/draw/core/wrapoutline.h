@@ -39,6 +39,10 @@ QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
 // The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone, its inside solid: an outline that crosses itself has no holes). The page layer
 // and the paginator both take this, so that a line meets the same edge in both.
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance);
+// The wall of a rectangular room (the object and its distances) that keeps the text to one side: the one rectangle from the room's edge on the side the text is not on, out to
+// 1e5 points that way, as tall as the room (never a join of two, which came out as a sliver for some places). The text is on the left only (`textLeft`), on the right only, or on the
+// larger side of the room within `frame` (`largest`: the left when it is as wide as the right). The page layer and the paginator both take this.
+QRectF wrapSideWall(const QRectF &room, const QRectF &frame, bool textLeft, bool largest);
 // A wrap distance as the layers use it: 0 for a number that is not one or is below 0, at most kMostWrapDistance.
 double boundedWrapDistance(double distance);
 

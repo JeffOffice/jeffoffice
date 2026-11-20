@@ -551,44 +551,206 @@ void FlowTests::aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff()
 }
 
 
-// A tight wrap that has no outline of its own (a picture's rectangle) and is as wide as the column: nothing fits beside it, and the text below it keeps off by its widest distance.
+// The tops of the lines in a column of the page's first text box row, as the page has them (page coordinates): from the boxes of the made page, the one of `frame`.
+static QVector<double> columnLineTops(Paginator &pg, int frame)
+{
+    QVector<double> tops;
+    const auto page = pg.materialize(0);
+    if (!page || frame >= page->boxes.size()) return tops;
+    const auto *box = dynamic_cast<const TextItem *>(page->doc->item(page->boxes[frame]));
+    if (!box) return tops;
+    for (const auto &l : pg.lines(0))
+        if (l.frame == frame) tops << box->rect.top() + box->insets.top() + l.rect.top();
+    std::sort(tops.begin(), tops.end());
+    tops.erase(std::unique(tops.begin(), tops.end(), [](double a, double b) { return std::abs(a - b) < 0.01; }), tops.end());
+    return tops;
+}
+
+// The wall the page layer has for an object (the page's shape that is the room it takes), nothing if the page has none.
+static const Item *wallOf(const MaterializedPage &page)
+{
+    for (const auto &it : page.doc->pages[0]->items)
+        if (it->id.contains(QStringLiteral("flow-wall-"))) return it.get();
+    return nullptr;
+}
+
+// A tight wrap with no outline of its own (a picture's rectangle), as wide as the column: nothing fits beside it, and the text below it keeps off by its widest distance. The object
+// ends a point above the top of a line of the text set without it, so that a line the distance moves is the line below it.
 void FlowTests::aTightWrapWithNoOutlineAsWideAsTheColumnKeepsItsWidestDistanceBelow()
 {
+    FlowDocument plain;
+    plain.env.wordLines = true;
+    fillStory(plain.story(), 24, 23, {}, 25, 45);
+    Paginator before(&plain);
+    const QVector<double> tops = columnLineTops(before, 0);
+    QVERIFY(tops.size() > 8);
+    const double columnWidth = plain.sections[0].columnWidth();
+    const double lineTop = tops[5], height = 40, wide = 12;
     FlowDocument fd;
     fd.env.wordLines = true;
     fillStory(fd.story(), 24, 23, {}, 25, 45);
-    addWrapped(&fd, 468, 120, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 0, 30, QMarginsF(9, 0, 9, 0), FloatingObject::Side::Both);
+    // (Distances beside it of 9 and 12 points, none below: the widest is 12.)
+    addWrapped(&fd, columnWidth, height, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 0, lineTop - 1 - height - tops[0], QMarginsF(9, 0, wide, 0), FloatingObject::Side::Both);
     Paginator pg(&fd);
     const auto page = pg.materialize(0);
     QVERIFY(page);
-    const Item *obj = objectOfSize(*page, 468, 120);
+    const Item *obj = objectOfSize(*page, columnWidth, height);
     QVERIFY(obj);
+    QVERIFY2(std::abs(obj->rect.bottom() - (lineTop - 1)) < 0.05, qPrintable(QStringLiteral("the object ends at %1, the line at %2").arg(obj->rect.bottom()).arg(lineTop)));
     double firstBelow = 1e9;
     for (const PageLine &l : pageLines(pg, fd, 0)) {
         QVERIFY2(l.rect.bottom() <= obj->rect.top() + 0.05 || l.rect.top() >= obj->rect.bottom() - 0.05, qPrintable(QStringLiteral("a line at %1 is over the object %2").arg(audit::rectText(l.rect), audit::rectText(obj->rect))));
         if (l.rect.top() >= obj->rect.bottom() - 0.05) firstBelow = std::min(firstBelow, l.rect.top());
     }
     QVERIFY(firstBelow < 1e8);
-    QVERIFY2(firstBelow >= obj->rect.bottom() + 9 - 0.05, qPrintable(QStringLiteral("the first line below begins at %1, the object ends at %2").arg(firstBelow).arg(obj->rect.bottom())));
+    QVERIFY2(firstBelow >= obj->rect.bottom() + wide - 0.05, qPrintable(QStringLiteral("the first line below begins at %1, the object ends at %2").arg(firstBelow).arg(obj->rect.bottom())));
+    // (The wall the page layer has for it is as tall.)
+    const Item *wall = wallOf(*page);
+    QVERIFY(wall);
+    QVERIFY2(std::abs(wall->rect.bottom() - (obj->rect.bottom() + wide)) < 0.05, qPrintable(QStringLiteral("the wall ends at %1, the object at %2").arg(wall->rect.bottom()).arg(obj->rect.bottom())));
 }
 
-// The same with room beside it: the text goes on below it where it ends.
+// The same with room beside it: the text goes on below it where it ends, and the line a point under it is a whole line.
 void FlowTests::aTightWrapWithNoOutlineWithRoomBesideItLetsTheTextOnBelowIt()
 {
+    FlowDocument plain;
+    plain.env.wordLines = true;
+    fillStory(plain.story(), 24, 23, {}, 25, 45);
+    Paginator before(&plain);
+    const QVector<double> tops = columnLineTops(before, 0);
+    QVERIFY(tops.size() > 8);
+    const double lineTop = tops[5], height = 40;
     FlowDocument fd;
     fd.env.wordLines = true;
     fillStory(fd.story(), 24, 23, {}, 25, 45);
-    addWrapped(&fd, 100, 120, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 150, 30, QMarginsF(9, 0, 9, 0), FloatingObject::Side::Both);
+    addWrapped(&fd, 100, height, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 150, lineTop - 1 - height - tops[0], QMarginsF(9, 0, 12, 0), FloatingObject::Side::Both);
     Paginator pg(&fd);
     const auto page = pg.materialize(0);
     QVERIFY(page);
-    const Item *obj = objectOfSize(*page, 100, 120);
+    const Item *obj = objectOfSize(*page, 100, height);
     QVERIFY(obj);
+    QVERIFY2(std::abs(obj->rect.bottom() - (lineTop - 1)) < 0.05, qPrintable(QStringLiteral("the object ends at %1, the line at %2").arg(obj->rect.bottom()).arg(lineTop)));
     double firstBelow = 1e9;
     for (const PageLine &l : pageLines(pg, fd, 0))
         if (l.rect.top() >= obj->rect.bottom() - 0.05 && l.rect.left() < obj->rect.left() && l.rect.right() > obj->rect.right()) firstBelow = std::min(firstBelow, l.rect.top());
     QVERIFY(firstBelow < 1e8);
-    QVERIFY2(firstBelow < obj->rect.bottom() + 8, qPrintable(QStringLiteral("the first line below begins at %1, the object ends at %2").arg(firstBelow).arg(obj->rect.bottom())));
+    QVERIFY2(std::abs(firstBelow - lineTop) < 0.05, qPrintable(QStringLiteral("the first whole line below begins at %1, the object ends at %2, the line is at %3").arg(firstBelow).arg(obj->rect.bottom()).arg(lineTop)));
+    const Item *wall = wallOf(*page);
+    QVERIFY(wall);
+    QVERIFY2(std::abs(wall->rect.bottom() - obj->rect.bottom()) < 0.05, qPrintable(QStringLiteral("the wall ends at %1, the object at %2").arg(wall->rect.bottom()).arg(obj->rect.bottom())));
+}
+
+// A page of a section of one column and then one of two: the rule for a picture as wide as its column is decided from the column the picture is in, in the paginator's lines and in
+// the page layer's wall alike. `inTwo`: the picture is in the second section's (half as wide) column, else the first's.
+static void mixedColumnsPage(bool inTwo, double *distance, double *wallDistance, double *columnWidth)
+{
+    auto make = [&](FlowDocument *fd) {
+        fd->env.wordLines = true;
+        fillStory(fd->story(), 12, 23, [](int i, QTextBlockFormat &bf) { if (i == 2) bf.setProperty(fp::SectionBreakAfter, true); }, 30, 50);
+        Section second = fd->sections[0];
+        second.continuous = true;
+        second.columns = 2;
+        second.columnGap = 20;
+        fd->sections << second;
+    };
+    FlowDocument plain;
+    make(&plain);
+    Paginator before(&plain);
+    const int frame = inTwo ? 1 : 0;
+    const QVector<double> tops = columnLineTops(before, frame);
+    QVERIFY2(tops.size() > 6, qPrintable(QString::number(tops.size())));
+    const double width = plain.sections[inTwo ? 1 : 0].columnRect(0).width(), lineTop = tops[5], height = 20;
+    *columnWidth = width;
+    FlowDocument fd;
+    make(&fd);
+    const int block = inTwo ? 3 : 0;
+    addWrapped(&fd, width, height, fd.story()->findBlockByNumber(block).position(), FloatingObject::Wrap::Tight, 0, lineTop - 1 - height - tops[0], QMarginsF(9, 0, 12, 0), FloatingObject::Side::Both);
+    Paginator pg(&fd);
+    const auto page = pg.materialize(0);
+    QVERIFY(page);
+    const Item *obj = objectOfSize(*page, width, height);
+    QVERIFY(obj);
+    const QVector<double> now = columnLineTops(pg, frame);
+    double first = 1e9;
+    for (double t : now)
+        if (t >= obj->rect.bottom() - 0.05) { first = t; break; }
+    QVERIFY(first < 1e8);
+    *distance = first - obj->rect.bottom();
+    const Item *wall = wallOf(*page);
+    QVERIFY(wall);
+    *wallDistance = wall->rect.bottom() - obj->rect.bottom();
+}
+
+void FlowTests::aPictureAsWideAsAColumnOfTwoColumnsOnAMixedPageKeepsItsOwnDistanceBelow()
+{
+    double distance = -1, wallDistance = -1, width = 0;
+    mixedColumnsPage(true, &distance, &wallDistance, &width);
+    if (QTest::currentTestFailed()) return;
+    // (Not the one-column rule: the row the wall moves lands at its foot, which is the picture's foot, and the wall ends with the picture.)
+    QVERIFY2(std::abs(distance) < 0.05, qPrintable(QStringLiteral("the first line below is %1 points below the picture").arg(distance)));
+    QVERIFY2(std::abs(wallDistance) < 0.05, qPrintable(QStringLiteral("the wall ends %1 points below the picture").arg(wallDistance)));
+}
+
+void FlowTests::aPictureAsWideAsTheOneColumnSectionOnAMixedPageKeepsItsWidestDistanceBelow()
+{
+    double distance = -1, wallDistance = -1, width = 0;
+    mixedColumnsPage(false, &distance, &wallDistance, &width);
+    if (QTest::currentTestFailed()) return;
+    QVERIFY2(distance >= 12 - 0.05, qPrintable(QStringLiteral("the first line below is %1 points below the picture").arg(distance)));
+    QVERIFY2(std::abs(wallDistance - 12) < 0.05, qPrintable(QStringLiteral("the wall ends %1 points below the picture").arg(wallDistance)));
+}
+
+// The text above an object that sets its row down moves the anchor's paragraph down as well: the object is set from where its paragraph would be without the walls, with the
+// room as wide as the wall has it (the widest distance below it too), so a row the wall pushed is counted whatever the distance.
+void FlowTests::anObjectSetFromAParagraphBelowWhatItPushedIsWhereItWasAskedFor()
+{
+    for (const double wide : {12.0, 40.0}) {
+        FlowDocument plain;
+        plain.env.wordLines = true;
+        fillStory(plain.story(), 24, 23, {}, 25, 45);
+        Paginator before(&plain);
+        const double second = paragraphTopOn(before, plain, 0, plain.story()->findBlockByNumber(1).position());
+        const QVector<double> tops = columnLineTops(before, 0);
+        QVERIFY(second > 0 && tops.size() > 4);
+        const double columnWidth = plain.sections[0].columnWidth(), height = 30;
+        // (It is set above its paragraph, over the lines of the paragraph before it, and as wide as the column: those lines go below it.)
+        const double dy = tops[1] - second;
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 24, 23, {}, 25, 45);
+        addWrapped(&fd, columnWidth, height, fd.story()->findBlockByNumber(1).position(), FloatingObject::Wrap::Tight, 0, dy, QMarginsF(9, 0, wide, 0), FloatingObject::Side::Both);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, columnWidth, height);
+        QVERIFY2(obj, qPrintable(QStringLiteral("dy %1 second %2 items %3 pages %4").arg(dy).arg(second).arg(page->doc->pages[0]->items.size()).arg(pg.pageCount())));
+        QVERIFY2(std::abs(obj->rect.top() - (second + dy)) < 0.05, qPrintable(QStringLiteral("distance %1: the object is at %2, its paragraph would be at %3 and it is set %4 above it").arg(wide).arg(obj->rect.top()).arg(second).arg(-dy)));
+    }
+}
+
+// A picture as wide as the column and almost as tall, with wide distances all round, leaves no room on its page: the layout ends, no page is empty, and every word of the text is on
+// a page (the text goes on below the picture, on the page after it).
+void FlowTests::aFullWidthTightPictureAlmostAsTallAsTheColumnLeavesNoPageEmptyAndNoWordOut()
+{
+    FlowDocument plain;
+    plain.env.wordLines = true;
+    fillStory(plain.story(), 24, 23, {}, 25, 45);
+    Paginator before(&plain);
+    const int plainPages = before.pageCount();
+    for (const double distance : {9.0, 72.0, 300.0}) {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 24, 23, {}, 25, 45);
+        const Section &sec = fd.sections[0];
+        const double columnHeight = sec.pageSize().height() - sec.margins.top() - sec.margins.bottom();
+        addWrapped(&fd, sec.columnWidth(), columnHeight - 2, fd.story()->findBlockByNumber(0).position(), FloatingObject::Wrap::Tight, 0, 0, QMarginsF(distance, distance, distance, distance), FloatingObject::Side::Both);
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY2(pages >= plainPages && pages <= plainPages + 2, qPrintable(QStringLiteral("distance %1: %2 pages, %3 without the picture").arg(distance).arg(pages).arg(plainPages)));
+        for (int k = 0; k < pages; ++k) QVERIFY2(!pg.lines(k).isEmpty(), qPrintable(QStringLiteral("distance %1: page %2 is empty").arg(distance).arg(k)));
+        const QString whole = textIsWholeOnThePages(pg, fd);
+        QVERIFY2(whole.isEmpty(), qPrintable(whole));
+    }
 }
 
 

@@ -166,6 +166,15 @@ double boundedWrapDistance(double distance)
     return std::isfinite(distance) ? std::clamp(distance, 0.0, kMostWrapDistance) : (distance > 0 ? kMostWrapDistance : 0.0);
 }
 
+QRectF wrapSideWall(const QRectF &room, const QRectF &frame, bool textLeft, bool largest)
+{
+    const bool onLeft = textLeft || (largest && room.left() - frame.left() >= frame.right() - room.right());
+    QRectF wall;
+    if (onLeft) wall.setCoords(room.left(), room.top(), 1e5, room.bottom());
+    else wall.setCoords(-1e5, room.top(), room.right(), room.bottom());
+    return wall;
+}
+
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance)
 {
     // (Filled by winding, so that the middle of a star is inside it as the stroke's band is: odd-even leaves it a hole.)

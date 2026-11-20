@@ -2190,6 +2190,90 @@ private Q_SLOTS:
         QCOMPARE(jp::Renderer::frameSpec(*doc, *t, 1, opt).valign, VAlign::Middle);
     }
 
+    // A wrap that keeps the text to one side of a rectangle is one rectangle to that side's edge (the text box's frame is 400 wide here, the object reaches past its left
+    // edge): never the sliver that joining the room with a second rectangle gave for some places. Left, right, and largest.
+    void aOneSidedWrapIsOneRectangleWholeFromTheObjectsEdgeOn()
+    {
+        auto areaOf = [](const QPolygonF &p) {
+            double a = 0;
+            for (int i = 0; i < p.size(); ++i) {
+                const QPointF &u = p[i], &v = p[(i + 1) % p.size()];
+                a += u.x() * v.y() - v.x() * u.y();
+            }
+            return std::abs(a) / 2;
+        };
+        int checked = 0;
+        for (const Wrap::Side side : {Wrap::LeftOnly, Wrap::RightOnly, Wrap::Largest})
+            for (const Wrap::Mode mode : {Wrap::Square})
+                for (int step = 0; step < 40; ++step) {
+                    auto doc = Document::blank(QSizeF(612, 792));
+                    auto t = std::make_shared<TextItem>();
+                    t->id = QStringLiteral("box");
+                    t->rect = QRectF(72, 72, 400, 300);
+                    t->storyId = doc->createStory(QString("Text flows around the picture. ").repeated(60));
+                    doc->pages[0]->items.push_back(t);
+                    auto pic = std::make_shared<ShapeItem>();
+                    pic->id = QStringLiteral("pic");
+                    pic->shape = QStringLiteral("rect");
+                    pic->fill = Fill::none();
+                    // Places a hundredth of a point apart, 271.1 wide, past the box's left edge for the right side and the larger side, past its right for the left side.
+                    const double dx = (side == Wrap::LeftOnly ? 400 - 271.1 + 3.45 : -3.45) + step * 0.013, dy = 25.05 + step * 0.0371;
+                    pic->rect = QRectF(72 + dx, 72 + dy, 271.1, 200);
+                    pic->wrap.mode = mode;
+                    pic->wrap.side = side;
+                    pic->wrap.left = pic->wrap.right = 9;
+                    pic->wrap.top = pic->wrap.bottom = 0;
+                    doc->pages[0]->items.push_back(pic);
+                    const auto walls = jp::Renderer::wrapObstacles(*doc, *t);
+                    QCOMPARE(walls.size(), 1);
+                    const QRectF room = pic->bounds().adjusted(-9, 0, 9, 0).translated(-t->rect.topLeft());
+                    const bool textLeft = side == Wrap::LeftOnly || (side == Wrap::Largest && room.left() >= 400 - room.right());
+                    const QRectF want = textLeft ? QRectF(QPointF(room.left(), room.top()), QPointF(1e5, room.bottom())) : QRectF(QPointF(-1e5 - t->rect.left(), room.top()), QPointF(room.right(), room.bottom()));
+                    const QRectF got = walls[0].boundingRect();
+                    const QString what = QStringLiteral("side %1 mode %2 step %3: %4").arg(int(side)).arg(int(mode)).arg(step).arg(walls[0].size());
+                    QVERIFY2(std::abs(got.top() - want.top()) < 0.01 && std::abs(got.bottom() - want.bottom()) < 0.01, qPrintable(what + QStringLiteral(" got %1,%2 want %3,%4").arg(got.top()).arg(got.bottom()).arg(want.top()).arg(want.bottom())));
+                    QVERIFY2(textLeft ? std::abs(got.left() - want.left()) < 0.01 && got.right() > 1e4 : std::abs(got.right() - want.right()) < 0.01 && got.left() < -1e4, qPrintable(what));
+                    QVERIFY2(std::abs(areaOf(walls[0]) - got.width() * got.height()) < 1e-3 * got.width() * got.height(), qPrintable(what));
+                    ++checked;
+                }
+        QCOMPARE(checked, 3 * 40);
+    }
+
+    // The same in a text frame laid out: a line beside an object that reaches the frame's left edge, with the text asked for on its right, begins at the object's right edge
+    // and not under it.
+    void textBesideAnObjectAtAFrameEdgeKeepsOffItOnTheSideAsked()
+    {
+        for (const Wrap::Side side : {Wrap::RightOnly, Wrap::Largest}) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto t = std::make_shared<TextItem>();
+            t->id = QStringLiteral("box");
+            t->rect = QRectF(72, 72, 400, 300);
+            t->storyId = doc->createStory(QString("Text flows around the picture. ").repeated(60));
+            doc->pages[0]->items.push_back(t);
+            auto pic = std::make_shared<ShapeItem>();
+            pic->id = QStringLiteral("pic");
+            pic->shape = QStringLiteral("rect");
+            pic->fill = Fill::none();
+            pic->rect = QRectF(72 - 3.45, 72 + 25.05, 271.1, 200);
+            pic->wrap.mode = Wrap::Square;
+            pic->wrap.side = side;
+            pic->wrap.left = pic->wrap.right = 9;
+                    pic->wrap.top = pic->wrap.bottom = 0;
+            doc->pages[0]->items.push_back(pic);
+            LayoutCache cache;
+            RenderOptions opt;
+            const auto lines = cache.textFrame(*doc, *t, 1, opt).layout->lineInfo(0);
+            const double wallLeft = pic->rect.left() - 9 - t->rect.left(), wallRight = pic->rect.right() + 9 - t->rect.left(), wallTop = pic->rect.top() - t->rect.top(), wallBottom = pic->rect.bottom() - t->rect.top();
+            int beside = 0;
+            for (const auto &l : lines) {
+                if (!(l.rect.top() < wallBottom - 0.05 && l.rect.bottom() > wallTop + 0.05)) continue;
+                QVERIFY2(l.rect.left() >= wallRight - 0.05, qPrintable(QStringLiteral("side %1: a line at %2 to %3 is over the wall %4 to %5").arg(int(side)).arg(l.rect.left()).arg(l.rect.right()).arg(wallLeft).arg(wallRight)));
+                ++beside;
+            }
+            QVERIFY2(beside > 3, qPrintable(QStringLiteral("side %1: %2 lines beside the object").arg(int(side)).arg(beside)));
+        }
+    }
+
     void editWrapPoints()
     {
         jp::MainWindow w;

@@ -231,13 +231,9 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             if (covered) *covered = true;
             return;
         }
-        // (A rectangle's wall is the one rectangle: the join of two that share three edges came out as a sliver for some places, and the text went under the object.)
+        // (A rectangle's wall is the one rectangle, as the paginator's is: jp::wrapSideWall.)
         if (rectPath && w.side != Wrap::Both && w.mode != Wrap::TopBottom) {
-            const bool left = w.side == Wrap::LeftOnly || (w.side == Wrap::Largest && pb.left() - fb.left() >= fb.right() - pb.right());
-            QRectF wall;
-            if (left) wall.setCoords(pb.left(), pb.top(), 1e5, pb.bottom());
-            else wall.setCoords(-1e5, pb.top(), pb.right(), pb.bottom());
-            out << inv.map(QPolygonF(wall));
+            out << inv.map(QPolygonF(wrapSideWall(pb, fb, w.side == Wrap::LeftOnly, w.side == Wrap::Largest)));
             return;
         }
         if (w.side == Wrap::LeftOnly) { QPainterPath r; r.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height())); pagePath = pagePath.united(r); }

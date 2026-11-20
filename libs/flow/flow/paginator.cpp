@@ -88,6 +88,18 @@ struct Paginator::Run {
     LineTally tally;           // what its counted lines do to the line numbers (noted for a document with numbers that go on)
 };
 
+QVector<QRectF> Paginator::pageColumnsOf(const Run &run, const QRectF &body)
+{
+    QVector<QRectF> columns;
+    for (const QRectF &col : run.cols) {
+        double height = col.height();
+        for (const QRectF &other : run.cols)
+            if (other.top() > col.top() + 0.01) height = std::min(height, other.top() - col.top());
+        columns << QRectF(col.left(), body.top() + col.top(), col.width(), height);
+    }
+    return columns;
+}
+
 Paginator::Paginator(FlowDocument *doc) : m_doc(doc), m_tables(std::make_unique<TableFlow>(doc)), m_watch(std::make_unique<QObject>())
 {
     m_starts << PageStart();
@@ -335,8 +347,8 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     };
     // A frame that is a column of the page (`column`: where, in page coordinates) has the objects the page's text goes round as places it keeps out of.
     QVector<QRectF> advanceWalls;   // (page coordinates: the room above a paragraph that asked for a place lower on the page, in its column)
-    auto walled = [&](FrameSpec fs, const QRectF &column) {
-        if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column, sec.columnCount() <= 1);
+    auto walled = [&](FrameSpec fs, const QRectF &column, const QVector<QRectF> &part) {
+        if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column, part);
         for (const QRectF &w : advanceWalls)
             if (w.intersects(column)) fs.obstacles << QPolygonF(QRectF(-1e5, w.top() - column.top(), 2e5, w.height()));
         return fs;
@@ -459,8 +471,10 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                 }
             }
         } else {
+            QVector<QRectF> part;
+            for (int c = 0; c < sec.columnCount(); ++c) part << QRectF(sec.columnRect(c).left(), body.top(), sec.columnRect(c).width(), colH);
             for (int c = 0; c < sec.columnCount(); ++c) {
-                frames << walled(frame(sec.columnRect(c).width(), colH), QRectF(sec.columnRect(c).left(), body.top(), sec.columnRect(c).width(), colH));
+                frames << walled(frame(sec.columnRect(c).width(), colH), part[c], part);
                 run.cols << QRectF(sec.columnRect(c).left(), 0, sec.columnRect(c).width(), colH);
                 run.lineAfter << (sec.columnLine && c + 1 < sec.columnCount());
             }
@@ -557,7 +571,9 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
                         auto framesFor = [&](double height) {
                             QVector<FrameSpec> f;
                             if (k == 0 && run.firstFrame > 0) f << frames[0];
-                            for (int c = 0; c < columns; ++c) f << walled(frame(here.columnRect(c).width(), height), QRectF(here.columnRect(c).left(), body.top() + top, here.columnRect(c).width(), height));
+                            QVector<QRectF> part;
+                            for (int c = 0; c < columns; ++c) part << QRectF(here.columnRect(c).left(), body.top() + top, here.columnRect(c).width(), height);
+                            for (int c = 0; c < columns; ++c) f << walled(frame(here.columnRect(c).width(), height), part[c], part);
                             f << frame(colW, kTall);
                             return f;
                         };
@@ -1953,7 +1969,8 @@ QVector<Paginator::Wrapped> Paginator::wrappersOf(const Run &run, int index, con
         }
         if (par < 0) return;
         if (line < 0) line = par;
-        const QRectF room = roomOf(o, w);
+        const QVector<QRectF> pageColumns = pageColumnsOf(run, body);
+        const QRectF room = roomOf(o, w, &pageColumns);
         // The columns of the part of the page that the anchor's column is in, in order (a section that begins below another on the page has the columns of its own).
         auto partOf = [&](int column) {
             QVector<int> part;
@@ -2249,14 +2266,7 @@ std::unique_ptr<MaterializedPage> Paginator::materialize(int index)
                 });
             }
             const QVector<Anchor> anchors = anchorsOfLines(held, firstLines, sec.columnWidth());
-            QVector<QRectF> columns;
-            // (The columns of a section that another begins below on the page end where that one begins: a wall across the columns it is in does not reach the ones below.)
-            for (const QRectF &col : run.cols) {
-                double height = col.height();
-                for (const QRectF &other : run.cols)
-                    if (other.top() > col.top() + 0.01) height = std::min(height, other.top() - col.top());
-                columns << QRectF(col.left(), furniture.body.top() + col.top(), col.width(), height);
-            }
+            const QVector<QRectF> columns = pageColumnsOf(run, furniture.body);
             if (!anchors.isEmpty()) addObjects(d.get(), anchors, sec, out->number, run.wrapped, columns, out.get(), front);
             // (The rows of the tables set at a place, which the objects made, hold pictures as the rows of the others do.)
             if (!m_doc->images.isEmpty() && std::any_of(out->tables.begin(), out->tables.end(), [](const auto &t) { return t->floating; })) resolveCellImages(out.get(), d.get());

@@ -1620,6 +1620,10 @@ private Q_SLOTS:
     void aWrapSideAskedForAnObjectOverTheColumnsEdgeKeepsTheTextOff();
     void aTightWrapWithNoOutlineAsWideAsTheColumnKeepsItsWidestDistanceBelow();
     void aTightWrapWithNoOutlineWithRoomBesideItLetsTheTextOnBelowIt();
+    void aPictureAsWideAsAColumnOfTwoColumnsOnAMixedPageKeepsItsOwnDistanceBelow();
+    void aPictureAsWideAsTheOneColumnSectionOnAMixedPageKeepsItsWidestDistanceBelow();
+    void anObjectSetFromAParagraphBelowWhatItPushedIsWhereItWasAskedFor();
+    void aFullWidthTightPictureAlmostAsTallAsTheColumnLeavesNoPageEmptyAndNoWordOut();
     void objectsBehindAndOverTheTextMoveNoLine();
     void tightWrapIsSquareWrapForNow();
     void aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits();
