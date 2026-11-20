@@ -1455,6 +1455,21 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::PageView</name>
+    <message>
+        <source>Stop Capitalizing Names of Days Everywhere</source>
+        <translation>Stop Capitalising Names of Days Everywhere</translation>
+    </message>
+    <message>
+        <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
+        <translation>Stop Capitalising First Letter of Sentences Everywhere</translation>
+    </message>
+    <message>
+        <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
+        <translation>Stop Capitalising First Letter of Table Cells Everywhere</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Pictures</name>
     <message>
         <source>The colors of this graphic can't be changed: it is too large, too deeply nested, or refers outside itself.</source>

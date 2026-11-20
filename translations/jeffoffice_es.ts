@@ -5059,7 +5059,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">&lt;b&gt;Publicación&lt;/b&gt;&lt;br&gt;Páginas: %1&lt;br&gt;Palabras: %2&lt;br&gt;Caracteres (sin espacios): %3&lt;br&gt;Caracteres (con espacios): %4&lt;br&gt;Párrafos: %5&lt;br&gt;Cuadros de texto: %6&lt;br&gt;Imágenes: %7%8</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+71"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+72"/>
         <source>Grammar</source>
         <translation type="unfinished">Gramática</translation>
     </message>
@@ -5209,7 +5209,12 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Mostrar minibarra de herramientas al seleccionar</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+37"/>
+        <source>Custom Dictionary...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Opciones de autocorrección...</translation>
     </message>
@@ -5220,7 +5225,7 @@ Artículo de contraportada	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-47"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-51"/>
         <source>General</source>
         <translation type="unfinished">General</translation>
     </message>
@@ -5271,7 +5276,7 @@ Artículo de contraportada	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+18"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+22"/>
         <source>Proofing</source>
         <translation type="unfinished">Revisión</translation>
     </message>
@@ -5305,7 +5310,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished"> minutos</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-122"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-126"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Crear siempre una copia de seguridad</translation>
     </message>
@@ -5372,7 +5377,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Avanzado</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+147"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+151"/>
         <source>Display Language</source>
         <translation type="unfinished">Idioma de presentación</translation>
     </message>
@@ -10973,7 +10978,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+0"/>
         <location line="+294"/>
         <location line="+39"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="+79"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+86"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+155"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
@@ -11056,17 +11061,46 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">(No hay sugerencias ortográficas)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+109"/>
-        <source>A word to add can&apos;t be empty or run over more than one line.</source>
-        <translation type="unfinished">La palabra que se va a agregar no puede estar vacía ni ocupar más de una línea.</translation>
+        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location line="+147"/>
+        <source>The file is read-only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="-10"/>
+        <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+6"/>
+        <source>Another program is saving words just now. Try again in a moment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The folder of the dictionary can&apos;t be written to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The list of words is too long to change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The list of words is too long to add to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>The word couldn&apos;t be saved.</source>
         <translation type="unfinished">No se pudo guardar la palabra.</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+102"/>
         <location filename="../libs/page/app/proofingdialogs.cpp" line="+2"/>
         <location filename="../apps/write/app/spellpane.cpp" line="+5"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+5"/>
@@ -18779,6 +18813,157 @@ Autoedición</translation>
         <location line="+3"/>
         <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
         <translation type="unfinished">Una película o sonido que una diapositiva vincula a un archivo en lugar de contenerlo. Solo se reproduce un archivo de película o sonido cuyo nombre esté en este equipo; nunca una dirección web, un archivo de otro equipo ni un programa. Una unidad de red que parece local se lee como un archivo local.</translation>
+    </message>
+</context>
+<context>
+    <name>UserDictionary</name>
+    <message>
+        <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
+        <source>Added Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Excluded Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Words you added: the spelling check accepts them in every language.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Find</source>
+        <translation>Buscar</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Find a word in the list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Excluded words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Added words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Word to add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add</source>
+        <translation>Agregar</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Remove</source>
+        <translation type="unfinished">Quitar</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Import...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Export...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+56"/>
+        <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>It is not a regular file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file can&apos;t be read: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Words read from the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file is longer than a word list can be, so the rest was left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Import a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Word lists (*.txt *.dic);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Export a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Word lists (*.txt);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Words written to the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file can&apos;t be written: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+12"/>
+        <source>Custom Dictionary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The words can&apos;t be saved.
+%1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -37569,7 +37754,7 @@ No se puede leer el archivo.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+155"/>
+        <location filename="../libs/page/app/editor.cpp" line="+157"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicación1</translation>
     </message>
@@ -59092,7 +59277,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se reemplazó ninguna fuente.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+33"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+35"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Comprobar ortografía mientras escribe</translation>
     </message>
@@ -59144,18 +59329,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+378"/>
+        <location line="+376"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">Se aceptó 1 cambio.</translation>
     </message>
     <message>
-        <location line="-378"/>
-        <location line="+378"/>
+        <location line="-376"/>
+        <location line="+376"/>
         <source>%1 changes accepted.</source>
         <translation type="unfinished">Se aceptaron %1 cambios.</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-373"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Aceptar todos los cambios y detener el seguimiento</translation>
     </message>
@@ -59176,18 +59361,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+360"/>
+        <location line="+358"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">Se rechazó 1 cambio.</translation>
     </message>
     <message>
-        <location line="-360"/>
-        <location line="+360"/>
+        <location line="-358"/>
+        <location line="+358"/>
         <source>%1 changes rejected.</source>
         <translation type="unfinished">Se rechazaron %1 cambios.</translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-355"/>
         <source>Next Change</source>
         <translation type="unfinished">Cambio siguiente</translation>
     </message>
@@ -59444,12 +59629,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+236"/>
+        <location line="+234"/>
         <source>New Comment</source>
         <translation type="unfinished">Nuevo comentario</translation>
     </message>
     <message>
-        <location line="-235"/>
+        <location line="-233"/>
         <source>Delete Comment</source>
         <translation type="unfinished">Eliminar comentario</translation>
     </message>
@@ -59496,13 +59681,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Resolver comentario</translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-161"/>
         <location line="+180"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografía</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="-178"/>
+        <source>AutoCorrect Options Menu</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+196"/>
         <source>Reviewing</source>
         <translation type="unfinished">Revisión</translation>
     </message>
@@ -76318,7 +76508,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+200"/>
+        <location line="+202"/>
         <source>Control</source>
         <translation type="unfinished"></translation>
     </message>
@@ -76423,11 +76613,72 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <source>This text box can&apos;t hold that many words (at most 50,000 letters in 2,000 paragraphs), so they are not put in it yet. Take some out, and press Esc again.</source>
         <translation type="unfinished">Este cuadro de texto no puede contener tantas palabras (como máximo 50.000 letras en 2.000 párrafos), así que todavía no se han colocado en él. Quite algunas y pulse Esc de nuevo.</translation>
     </message>
+    <message>
+        <location filename="../apps/write/app/pageview_autofix.cpp" line="+46"/>
+        <location line="+1"/>
+        <source>AutoCorrect Options</source>
+        <translation type="unfinished">Opciones de autocorrección</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Choices for the change AutoCorrect just made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>AutoCorrect changed a word. Press %1 for choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Undo Automatic Correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Stop Replacing &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Keep &quot;%1&quot; As Typed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing Names of Days Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>AutoCorrect Options...</source>
+        <translation type="unfinished">Opciones de autocorrección...</translation>
+    </message>
 </context>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location line="-399"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-399"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">JeffWrite no puede leer esa imagen.</translation>
@@ -76893,7 +77144,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::write::SpellPane</name>
     <message>
-        <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+40"/>
         <location line="+3"/>
         <source>Suggestions</source>
         <translation>Sugerencias</translation>
@@ -76924,7 +77175,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Agregar al diccionario</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+317"/>
         <source>Grammar: %1</source>
         <translation type="unfinished">Gramática: %1</translation>
     </message>
@@ -76944,12 +77195,32 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Comprobando gramática…</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+39"/>
+        <source>Not in dictionary, in a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Not in dictionary</source>
         <translation>No se encuentra en el diccionario</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+1"/>
+        <source>Not in dictionary, in a footer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Not in dictionary, in a header</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Not in dictionary, in a note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
         <source>The spelling check is complete.</source>
         <translation type="unfinished">Se ha completado la revisión ortográfica.</translation>
     </message>
@@ -76957,6 +77228,22 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+0"/>
         <source>The spelling and grammar check is complete.</source>
         <translation type="unfinished">La comprobación de ortografía y gramática se ha completado.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+95"/>
+        <source>%n word changed.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Found in %n place.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -77392,7 +77679,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas cuyas celdas no están en las mismas columnas no se pueden ordenar.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-868"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

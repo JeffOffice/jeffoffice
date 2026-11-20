@@ -2719,7 +2719,7 @@ Back page story	4</source>
         <translation type="unfinished">CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+71"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+72"/>
         <source>Grammar</source>
         <translation type="unfinished">Граматика</translation>
     </message>
@@ -2874,7 +2874,12 @@ Back page story	4</source>
         <translation type="unfinished">Показувати міні-панель інструментів під час вибору</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+37"/>
+        <source>Custom Dictionary...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Параметри автовиправлення...</translation>
     </message>
@@ -2885,7 +2890,7 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-47"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-51"/>
         <source>General</source>
         <translation type="unfinished">Загальні</translation>
     </message>
@@ -2936,7 +2941,7 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+18"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+22"/>
         <source>Proofing</source>
         <translation type="unfinished">Перевірка</translation>
     </message>
@@ -10950,19 +10955,49 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Proofing</name>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+109"/>
-        <source>A word to add can&apos;t be empty or run over more than one line.</source>
-        <translation type="unfinished">Слово для додавання не може бути порожнім або займати більше одного рядка.</translation>
+        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location line="+147"/>
+        <source>The file is read-only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="-10"/>
+        <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+6"/>
+        <source>Another program is saving words just now. Try again in a moment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The folder of the dictionary can&apos;t be written to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The list of words is too long to change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The list of words is too long to add to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>The word couldn&apos;t be saved.</source>
         <translation type="unfinished">Не вдалося зберегти слово.</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+102"/>
         <location filename="../libs/page/app/proofingdialogs.cpp" line="+383"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="+83"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+90"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+159"/>
         <source>Add to Dictionary</source>
         <translation type="unfinished">Додати до словника</translation>
@@ -18789,6 +18824,159 @@ Desktop publishing</source>
         <location line="+3"/>
         <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
         <translation type="unfinished">Відео або звук, які слайд пов&apos;язує з файлом замість того, щоб зберігати його. Відтворюється лише відео- або звуковий файл, чия назва знаходиться на цьому комп&apos;ютері; веб-адреса, файл на іншому комп&apos;ютері та програма ніколи не відтворюються. Мережевий диск, який схожий на локальний, читається як локальний файл.</translation>
+    </message>
+</context>
+<context>
+    <name>UserDictionary</name>
+    <message>
+        <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
+        <source>Added Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Excluded Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Words you added: the spelling check accepts them in every language.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Find</source>
+        <translation>Знайти</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Find a word in the list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Excluded words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Added words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Word to add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add</source>
+        <translation type="unfinished">Додати</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Remove</source>
+        <translation type="unfinished">Видалити</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Import...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Export...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+56"/>
+        <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>It is not a regular file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file can&apos;t be read: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Words read from the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file is longer than a word list can be, so the rest was left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Import a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Word lists (*.txt *.dic);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Export a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Word lists (*.txt);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Words written to the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file can&apos;t be written: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+12"/>
+        <source>Custom Dictionary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The words can&apos;t be saved.
+%1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -37594,7 +37782,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+155"/>
+        <location filename="../libs/page/app/editor.cpp" line="+157"/>
         <source>Publication1</source>
         <translation type="unfinished">Публікація1</translation>
     </message>
@@ -57821,7 +58009,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+139"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+141"/>
         <source>Comments</source>
         <translation>Коментарі</translation>
     </message>
@@ -59512,13 +59700,18 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Спершу поставте курсор у таблицю джерел.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="-107"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="-109"/>
         <location line="+180"/>
         <source>Spelling</source>
         <translation type="unfinished">Правопис</translation>
     </message>
     <message>
-        <location line="-179"/>
+        <location line="-178"/>
+        <source>AutoCorrect Options Menu</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Check Spelling as You Type</source>
         <translation type="unfinished">Перевіряти правопис під час введення</translation>
     </message>
@@ -59570,18 +59763,18 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+378"/>
+        <location line="+376"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">Прийнято 1 зміну.</translation>
     </message>
     <message>
-        <location line="-378"/>
-        <location line="+378"/>
+        <location line="-376"/>
+        <location line="+376"/>
         <source>%1 changes accepted.</source>
         <translation type="unfinished">Прийнято змін: %1.</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-373"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Прийняти всі зміни та зупинити відстеження</translation>
     </message>
@@ -59602,18 +59795,18 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+360"/>
+        <location line="+358"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">Відхилено 1 зміну.</translation>
     </message>
     <message>
-        <location line="-360"/>
-        <location line="+360"/>
+        <location line="-358"/>
+        <location line="+358"/>
         <source>%1 changes rejected.</source>
         <translation type="unfinished">Відхилено змін: %1.</translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-355"/>
         <source>Next Change</source>
         <translation type="unfinished">Наступна зміна</translation>
     </message>
@@ -59674,12 +59867,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+236"/>
+        <location line="+234"/>
         <source>New Comment</source>
         <translation type="unfinished">Новий коментар</translation>
     </message>
     <message>
-        <location line="-235"/>
+        <location line="-233"/>
         <source>Delete Comment</source>
         <translation type="unfinished">Видалити коментар</translation>
     </message>
@@ -59726,7 +59919,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Позначити коментар як вирішений</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+37"/>
         <source>Reviewing</source>
         <translation type="unfinished">Рецензування</translation>
     </message>
@@ -76377,7 +76570,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+200"/>
+        <location line="+202"/>
         <source>Control</source>
         <translation type="unfinished"></translation>
     </message>
@@ -76481,6 +76674,67 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+29"/>
         <source>This text box can&apos;t hold that many words (at most 50,000 letters in 2,000 paragraphs), so they are not put in it yet. Take some out, and press Esc again.</source>
         <translation type="unfinished">Це текстове поле не може вмістити стільки слів (щонайбільше 50 000 літер у 2 000 абзацах), тому їх поки що не вставлено. Вилучіть частину тексту й натисніть Esc ще раз.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/pageview_autofix.cpp" line="+46"/>
+        <location line="+1"/>
+        <source>AutoCorrect Options</source>
+        <translation type="unfinished">Параметри автовиправлення</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Choices for the change AutoCorrect just made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>AutoCorrect changed a word. Press %1 for choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Undo Automatic Correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Stop Replacing &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Keep &quot;%1&quot; As Typed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing Names of Days Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>AutoCorrect Options...</source>
+        <translation type="unfinished">Параметри автовиправлення...</translation>
     </message>
 </context>
 <context>
@@ -76952,7 +77206,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::SpellPane</name>
     <message>
-        <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+40"/>
         <location line="+3"/>
         <source>Suggestions</source>
         <translation>Пропозиції</translation>
@@ -76983,7 +77237,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Додати до словника</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+317"/>
         <source>Grammar: %1</source>
         <translation type="unfinished">Граматика: %1</translation>
     </message>
@@ -77003,12 +77257,32 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Перевірка граматики…</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+39"/>
+        <source>Not in dictionary, in a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Not in dictionary</source>
         <translation>Немає в словнику</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+1"/>
+        <source>Not in dictionary, in a footer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Not in dictionary, in a header</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Not in dictionary, in a note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
         <source>The spelling check is complete.</source>
         <translation type="unfinished">Перевірку правопису завершено.</translation>
     </message>
@@ -77016,6 +77290,24 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+0"/>
         <source>The spelling and grammar check is complete.</source>
         <translation type="unfinished">Перевірку правопису та граматики завершено.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+95"/>
+        <source>%n word changed.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Found in %n place.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -77451,7 +77743,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рядки, комірки яких розташовані не в тих самих стовпцях, не можна сортувати.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-868"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

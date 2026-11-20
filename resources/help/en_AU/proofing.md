@@ -9,6 +9,10 @@ JeffPub puts a red wavy line under a word it does not know. Right-click the word
 
 To turn this off, click the arrow beside **Review > Proofing > Spelling** and click **Check Spelling as You Type**. The same choice is in **File > Options > Proofing**. It is one choice for all the JeffOffice apps and every window, and JeffPub remembers it for the next time you start.
 
+## Your own words
+
+Click **File > Options > Proofing > Custom Dictionary** to see the words you added, and to add, remove, find, import, or export them. The same dialog has a list of **Excluded Words**: words that are always marked as misspelled, even if a dictionary accepts them, and never offered as suggestions. An excluded word is that exact word, not its other forms, and adding a word to the dictionary takes it off the excluded list. Import and export use a plain text file with one word a line (UTF-8). Your lists are the same in every JeffOffice app and are never saved in a document.
+
 ## Check grammar as you type
 
 JeffPub also looks for clear grammar and style mistakes in text, in text boxes, shapes, and tables. An issue gets a blue dotted line under it, and a misspelled word keeps its red wavy line. Right-click the issue to see what is wrong and to pick a suggestion, or choose **Ignore This Issue** or **Ignore All**. Text in a language that is not checked, and text marked "do not check", is skipped. To turn it off, click **File > Options > Proofing** and clear **Check grammar as you type**. It is one choice for all the JeffOffice apps.

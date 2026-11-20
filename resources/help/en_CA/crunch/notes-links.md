@@ -69,7 +69,7 @@ The window shows the word that is not in the dictionary, a box named **Change to
 
 **File > Options > Proofing** decides whether words in capital letters and words with numbers in them are checked. JeffCrunch checks in the language it is shown in, if it has a dictionary for it, and in American English if not.
 
-While you type in a cell, a word that is not in the dictionary gets a red wavy line under it. Right-click the word to pick a correction, or to choose **Ignore All** or **Add to Dictionary**. The cells in the grid are not underlined, and an entry that starts with an equals sign is never checked.
+While you type in a cell, a word that is not in the dictionary gets a red wavy line under it. Right-click the word to pick a correction, or to choose **Ignore All** or **Add to Dictionary**. The cells in the grid are not underlined, and an entry that starts with an equals sign is never checked. To see, edit, import, or export your list of added words, and to list words that are always marked as misspelled, click **File > Options > Proofing > Custom Dictionary**. Your lists are the same in every JeffOffice app.
 
 ## Set the language of some cells
 

@@ -5058,7 +5058,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">&lt;b&gt;Publikasi&lt;/b&gt;&lt;br&gt;Halaman: %1&lt;br&gt;Kata: %2&lt;br&gt;Karakter (tanpa spasi): %3&lt;br&gt;Karakter (dengan spasi): %4&lt;br&gt;Paragraf: %5&lt;br&gt;Kotak teks: %6&lt;br&gt;Gambar: %7%8</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+71"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+72"/>
         <source>Grammar</source>
         <translation type="unfinished">Tata Bahasa</translation>
     </message>
@@ -5208,7 +5208,12 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Tampilkan Bilah Alat Mini saat Memilih</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+37"/>
+        <source>Custom Dictionary...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>AutoCorrect Options...</source>
         <translation type="unfinished">Opsi Koreksi Otomatis...</translation>
     </message>
@@ -5219,7 +5224,7 @@ Berita halaman belakang	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="-15"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-47"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-51"/>
         <source>General</source>
         <translation type="unfinished">Umum</translation>
     </message>
@@ -5270,7 +5275,7 @@ Berita halaman belakang	4</translation>
     </message>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+1"/>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+18"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+22"/>
         <source>Proofing</source>
         <translation type="unfinished">Pemeriksaan</translation>
     </message>
@@ -5304,7 +5309,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished"> menit</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="-122"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="-126"/>
         <source>Always create backup copy</source>
         <translation type="unfinished">Selalu buat salinan cadangan</translation>
     </message>
@@ -5371,7 +5376,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Lanjutan</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/optionsdialog.cpp" line="+147"/>
+        <location filename="../libs/page/app/optionsdialog.cpp" line="+151"/>
         <source>Display Language</source>
         <translation type="unfinished">Bahasa Tampilan</translation>
     </message>
@@ -10965,7 +10970,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+0"/>
         <location line="+294"/>
         <location line="+39"/>
-        <location filename="../apps/write/app/spellpane.cpp" line="+79"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+86"/>
         <location line="+44"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+155"/>
         <location filename="../apps/crunch/app/spellingdialog.cpp" line="+1"/>
@@ -11048,17 +11053,45 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">(Tidak ada saran ejaan)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+109"/>
-        <source>A word to add can&apos;t be empty or run over more than one line.</source>
-        <translation type="unfinished">Kata yang akan ditambahkan tidak boleh kosong atau melebihi satu baris.</translation>
+        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location line="+147"/>
+        <source>The file is read-only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="-10"/>
+        <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+6"/>
+        <source>Another program is saving words just now. Try again in a moment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The folder of the dictionary can&apos;t be written to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The list of words is too long to change.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>The list of words is too long to add to.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
         <source>The word couldn&apos;t be saved.</source>
         <translation type="unfinished">Kata tidak dapat disimpan.</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+102"/>
         <location filename="../libs/page/app/proofingdialogs.cpp" line="+2"/>
         <location filename="../apps/write/app/spellpane.cpp" line="+5"/>
         <location filename="../apps/crunch/app/celleditor.cpp" line="+5"/>
@@ -18769,6 +18802,155 @@ Penerbitan desktop</translation>
         <location line="+3"/>
         <source>A movie or sound that a slide links to a file instead of holding. Only a movie or sound file whose name is on this computer is played; a web address, a file on another computer, and a program never are. A network drive that looks like a local one is read like a local file.</source>
         <translation type="unfinished">Film atau suara yang ditautkan slaid ke berkas, bukan disimpan di dalamnya. Hanya berkas film atau suara yang namanya ada di komputer ini yang diputar; alamat web, berkas di komputer lain, dan program tidak pernah diputar. Drive jaringan yang tampak seperti drive lokal dibaca seperti berkas lokal.</translation>
+    </message>
+</context>
+<context>
+    <name>UserDictionary</name>
+    <message>
+        <location filename="../libs/page/app/userdictionarydialog.cpp" line="+45"/>
+        <source>Added Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Excluded Words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Result</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Words that are always marked as misspelled, even when a dictionary accepts them, and never suggested. A word is excluded just as it is written, not its other forms (&quot;house&quot; does not exclude &quot;houses&quot;). Adding a word to the dictionary takes it off this list.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Words you added: the spelling check accepts them in every language.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Find</source>
+        <translation>Temukan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Find a word in the list</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Excluded words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Added words</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Word to add</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add</source>
+        <translation type="unfinished">Tambah</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Remove</source>
+        <translation type="unfinished">Hapus</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Import...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Export...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+56"/>
+        <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>It is not a regular file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file can&apos;t be read: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Words read from the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file is longer than a word list can be, so the rest was left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Import a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Word lists (*.txt *.dic);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Export a Word List</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Word lists (*.txt);;All Files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Words written to the file: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file can&apos;t be written: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <location line="+12"/>
+        <source>Custom Dictionary</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The words can&apos;t be saved.
+%1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -37544,7 +37726,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+155"/>
+        <location filename="../libs/page/app/editor.cpp" line="+157"/>
         <source>Publication1</source>
         <translation type="unfinished">Publikasi1</translation>
     </message>
@@ -57708,7 +57890,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_info.cpp" line="+13"/>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+139"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+141"/>
         <source>Comments</source>
         <translation>Komentar</translation>
     </message>
@@ -59304,18 +59486,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+378"/>
+        <location line="+376"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 perubahan diterima.</translation>
     </message>
     <message>
-        <location line="-378"/>
-        <location line="+378"/>
+        <location line="-376"/>
+        <location line="+376"/>
         <source>%1 changes accepted.</source>
         <translation type="unfinished">%1 perubahan diterima.</translation>
     </message>
     <message>
-        <location line="-375"/>
+        <location line="-373"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Terima Semua Perubahan dan Hentikan Pelacakan</translation>
     </message>
@@ -59336,18 +59518,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+360"/>
+        <location line="+358"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">1 perubahan ditolak.</translation>
     </message>
     <message>
-        <location line="-360"/>
-        <location line="+360"/>
+        <location line="-358"/>
+        <location line="+358"/>
         <source>%1 changes rejected.</source>
         <translation type="unfinished">%1 perubahan ditolak.</translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-355"/>
         <source>Next Change</source>
         <translation type="unfinished">Perubahan Berikutnya</translation>
     </message>
@@ -59408,12 +59590,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location line="+236"/>
+        <location line="+234"/>
         <source>New Comment</source>
         <translation type="unfinished">Komentar Baru</translation>
     </message>
     <message>
-        <location line="-235"/>
+        <location line="-233"/>
         <source>Delete Comment</source>
         <translation type="unfinished">Hapus Komentar</translation>
     </message>
@@ -59460,13 +59642,18 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tandai Komentar Selesai</translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-161"/>
         <location line="+180"/>
         <source>Spelling</source>
         <translation type="unfinished">Ejaan</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="-178"/>
+        <source>AutoCorrect Options Menu</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+196"/>
         <source>Reviewing</source>
         <translation type="unfinished">Tinjauan</translation>
     </message>
@@ -76259,7 +76446,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+200"/>
+        <location line="+202"/>
         <source>Control</source>
         <translation type="unfinished"></translation>
     </message>
@@ -76364,11 +76551,72 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <source>This text box can&apos;t hold that many words (at most 50,000 letters in 2,000 paragraphs), so they are not put in it yet. Take some out, and press Esc again.</source>
         <translation type="unfinished">Kotak teks ini tidak dapat memuat kata sebanyak itu (paling banyak 50.000 huruf dalam 2.000 paragraf), sehingga belum dimasukkan. Kurangi sebagian, lalu tekan Esc lagi.</translation>
     </message>
+    <message>
+        <location filename="../apps/write/app/pageview_autofix.cpp" line="+46"/>
+        <location line="+1"/>
+        <source>AutoCorrect Options</source>
+        <translation type="unfinished">Opsi Koreksi Otomatis</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Choices for the change AutoCorrect just made.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Choices for the change AutoCorrect just made. Press %1 to open them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>AutoCorrect changed a word. The AutoCorrect Options button has choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>AutoCorrect changed a word. Press %1 for choices.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>Undo Automatic Correction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Stop Replacing &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Keep &quot;%1&quot; As Typed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing Names of Days Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Sentences Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop Capitalizing First Letter of Table Cells Everywhere</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>AutoCorrect Options...</source>
+        <translation type="unfinished">Opsi Koreksi Otomatis...</translation>
+    </message>
 </context>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location line="-399"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-399"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Itu bukan gambar yang dapat dibaca JeffWrite.</translation>
@@ -76834,7 +77082,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::SpellPane</name>
     <message>
-        <location filename="../apps/write/app/spellpane.cpp" line="+35"/>
+        <location filename="../apps/write/app/spellpane.cpp" line="+40"/>
         <location line="+3"/>
         <source>Suggestions</source>
         <translation>Saran</translation>
@@ -76865,7 +77113,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tambahkan ke Kamus</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+317"/>
         <source>Grammar: %1</source>
         <translation type="unfinished">Tata bahasa: %1</translation>
     </message>
@@ -76885,12 +77133,32 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Memeriksa tata bahasa…</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+39"/>
+        <source>Not in dictionary, in a text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Not in dictionary</source>
         <translation>Tidak ada dalam kamus</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+1"/>
+        <source>Not in dictionary, in a footer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Not in dictionary, in a header</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Not in dictionary, in a note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
         <source>The spelling check is complete.</source>
         <translation type="unfinished">Pemeriksaan ejaan selesai.</translation>
     </message>
@@ -76898,6 +77166,20 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+0"/>
         <source>The spelling and grammar check is complete.</source>
         <translation type="unfinished">Pemeriksaan ejaan dan tata bahasa selesai.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+95"/>
+        <source>%n word changed.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Found in %n place.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -77333,7 +77615,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-866"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-868"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

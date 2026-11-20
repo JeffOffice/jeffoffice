@@ -81,6 +81,17 @@
     </message>
 </context>
 <context>
+    <name>Proofing</name>
+    <message numerus="yes">
+        <location filename="../libs/shell/app/spelling.cpp" line="+319"/>
+        <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
+        <translation>
+            <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letter.</numerusform>
+            <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>Sharing</name>
     <message numerus="yes">
         <location filename="../apps/pub/app/sharing.cpp" line="+183"/>
@@ -96,6 +107,25 @@
         <translation>
             <numerusform>Saved %n picture at 300 dpi.</numerusform>
             <numerusform>Saved %n pictures at 300 dpi.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>UserDictionary</name>
+    <message numerus="yes">
+        <location filename="../libs/page/app/userdictionarydialog.cpp" line="+151"/>
+        <source>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation>
+            <numerusform>A word can&apos;t have a space or a control character in it, or be longer than %n letter.</numerusform>
+            <numerusform>A word can&apos;t have a space or a control character in it, or be longer than %n letters.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+43"/>
+        <source>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</source>
+        <translation>
+            <numerusform>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letter.</numerusform>
+            <numerusform>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</numerusform>
         </translation>
     </message>
 </context>
@@ -543,6 +573,25 @@
         <translation>
             <numerusform>%n problem found. Click it to go to it.</numerusform>
             <numerusform>%n problems found. Click one to go to it.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::SpellPane</name>
+    <message numerus="yes">
+        <location filename="../apps/write/app/spellpane.cpp" line="+698"/>
+        <source>%n word changed.</source>
+        <translation>
+            <numerusform>%n word changed.</numerusform>
+            <numerusform>%n words changed.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Found in %n place.</source>
+        <translation>
+            <numerusform>Found in %n place.</numerusform>
+            <numerusform>Found in %n places.</numerusform>
         </translation>
     </message>
 </context>
