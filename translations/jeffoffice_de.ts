@@ -77916,7 +77916,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>odt</name>
     <message>
-        <location filename="../libs/office/odt/odtbody.cpp" line="+228"/>
+        <location filename="../libs/office/odt/odtbody.cpp" line="+274"/>
         <source>more spaces than are kept</source>
         <translation type="unfinished">mehr Leerzeichen als beibehalten werden</translation>
     </message>
@@ -77953,7 +77953,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+837"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+859"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">Diagramme, die die Anzahl von %1 überschreiten, die ein Dokument haben darf</translation>
     </message>
@@ -77961,7 +77961,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+580"/>
+        <location line="+624"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">Diagramme, die nicht gelesen werden konnten</translation>
     </message>
@@ -77971,13 +77971,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Diagramme, die die Anzahl der Punkte überschreiten, die alle Diagramme eines Dokuments zusammen haben dürfen</translation>
     </message>
     <message>
-        <location line="+333"/>
+        <location line="+47"/>
+        <source>shapes that are slanted or stretched (kept without that)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+301"/>
         <source>equations past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">Formeln über dem Maximum von %1, das ein Dokument haben darf, oder über der Größe, die sie zusammen erreichen dürfen (als ihre Bilder beibehalten)</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-471"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-515"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">eingebettete Objekte über die %1 hinaus, die ein Dokument haben darf, oder über die Größe, die sie zusammen erreichen dürfen (als ihre Bilder beibehalten)</translation>
     </message>
@@ -77988,7 +77993,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+52"/>
-        <location line="+72"/>
+        <location line="+83"/>
         <location line="+7"/>
         <location line="+368"/>
         <location line="+216"/>
@@ -78003,13 +78008,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+433"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-811"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-815"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">zu tief verschachtelter Inhalt</translation>
     </message>
     <message>
         <location line="+342"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2059"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2178"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">zu tief verschachtelte Tabellen</translation>
     </message>
@@ -78070,7 +78075,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">styles.xml kann nicht gelesen werden: %1</translation>
     </message>
     <message>
-        <location line="+668"/>
+        <location line="+670"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Die Datei enthält keinen Text.</translation>
     </message>
@@ -78090,7 +78095,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Text des Dokuments kann nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="+760"/>
+        <location line="+770"/>
         <source>columns of different widths (saved as equal ones)</source>
         <translation type="unfinished">Spalten unterschiedlicher Breite (werden als gleich breite gespeichert)</translation>
     </message>
@@ -78140,58 +78145,58 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Markierungen „Rechtschreibung nicht prüfen“</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1409"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1524"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">Formularfelder (als angezeigter Text beibehalten)</translation>
     </message>
     <message>
-        <location line="+414"/>
+        <location line="+445"/>
         <location line="+4"/>
-        <location line="+166"/>
-        <location line="+191"/>
+        <location line="+179"/>
+        <location line="+226"/>
         <location line="+12"/>
-        <location line="+5"/>
-        <location line="+20"/>
-        <location line="+390"/>
+        <location line="+13"/>
+        <location line="+24"/>
+        <location line="+401"/>
         <location line="+28"/>
         <source>drawings, shapes, and charts</source>
         <translation type="unfinished">Zeichnungen, Formen und Diagramme</translation>
     </message>
     <message>
-        <location line="-608"/>
-        <location line="+22"/>
+        <location line="-666"/>
+        <location line="+24"/>
         <source>edited wrap points on shapes</source>
         <translation type="unfinished">bearbeitete Umbruchpunkte bei Formen</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location line="+256"/>
+        <location line="+310"/>
         <source>pictures that can&apos;t be read</source>
         <translation type="unfinished">Bilder, die nicht gelesen werden können</translation>
     </message>
     <message>
-        <location line="-105"/>
+        <location line="-114"/>
         <source>pictures that fill text boxes (the boxes are kept without them)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+417"/>
+        <location line="+428"/>
         <source>embedded objects</source>
         <translation type="unfinished">eingebettete Objekte</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+125"/>
+        <location line="+138"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">nachverfolgte Änderungen in Kopf- und Fußzeilen sowie Notizen (im aktuellen Zustand gespeichert)</translation>
     </message>
     <message>
-        <location line="-86"/>
+        <location line="-99"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">Formeln, die nicht als Formeln beibehalten werden können (als reiner Text beibehalten)</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+418"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">eine Tabelle mit mehr Zellen als beibehalten werden</translation>
     </message>
