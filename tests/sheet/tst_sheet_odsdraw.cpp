@@ -174,6 +174,22 @@ class SheetOdsDrawTests : public QObject {
 
 private Q_SLOTS:
     // A picture between two cells, turned, cut, named, and described: it is a frame with an image in the .ods, with its bytes in the package, and comes back the same.
+    // A drawing that moves and sizes with cells, on a sheet whose name has an ampersand or angle brackets, is written with the name escaped in the address of its far cell: content.xml stays well-formed XML (another program refuses a document that is not).
+    void aDrawingOnASheetNamedWithAnAmpersandIsWellFormed()
+    {
+        const QByteArray png = pngBytes(8, 4, QColor(200, 30, 30));
+        const QString anchors = twoCell(1, 2, 4, 6, pictureXml(2, QStringLiteral("rId1"), QStringLiteral("Logo"), QStringLiteral("a logo"), 1800000, QString()), QString(), 100000, 50000, 200000, 30000);
+        const QByteArray book = bookWithDrawing({sheettest::worksheet(QString())}, drawingPart(anchors), {imageTarget(QStringLiteral("rId1"), 1, png)}, {QStringLiteral("R&D <1>")});
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(book, &s, &why), qPrintable(why));
+        const QByteArray content = s.parts.value(QStringLiteral("content.xml"));
+        QVERIFY(content.contains("table:end-cell-address=\"'R&amp;D &lt;1&gt;'."));
+        QDomDocument dom;
+        const auto parsed = dom.setContent(content);
+        QVERIFY2(bool(parsed), qPrintable(parsed.errorMessage));
+    }
+
     void aPictureSurvivesSaveAsOds()
     {
         const QByteArray png = pngBytes(8, 4, QColor(200, 30, 30));

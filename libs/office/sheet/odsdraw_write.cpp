@@ -439,7 +439,7 @@ private:
         if (!a) return QString();
         if (a->kind == AnchorKind::TwoCell)
             return QStringLiteral(" draw:anchor-type=\"cell\" table:end-cell-address=\"%1.%2\" table:end-x=\"%3\" table:end-y=\"%4\"")
-                .arg(m_sheetRef, cellName(a->to.row, a->to.col), lengthText(a->to.colOff), lengthText(a->to.rowOff));
+                .arg(xmlText(m_sheetRef), cellName(a->to.row, a->to.col), lengthText(a->to.colOff), lengthText(a->to.rowOff));   // (a sheet's name may hold & and <, which an attribute escapes)
         if (a->kind == AnchorKind::OneCell) return QStringLiteral(" draw:anchor-type=\"cell\"");
         return QString();
     }
