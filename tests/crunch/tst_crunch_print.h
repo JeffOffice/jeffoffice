@@ -189,6 +189,12 @@ private Q_SLOTS:
     void aSavedFileHasTheSetupAndNothingElseChanges();
     void aJobCutsTheSheetsIntoPages();
     void textThatRunsPastTheLastColumnHasAPageOfItsOwn();
+    void aFormulaWithNoResultEndsTheRowForSpilledText();
+    void textThatAFormulaMakesSpillsWhateverItsStoredType();
+    void aNumberInTheLastCellDoesNotSpill();
+    void centeredTextSpillsToTheRightByTheHalfThatOverhangs();
+    void aDraftHasNoPagesForSpilledText();
+    void aShownNoteKeepsTheBlankPageItIsOn();
     void theWholeWorkbookPrintsTheShownSheets();
     void theSelectedSheetsPrintTogether();
     void aSelectionPrintsAlone();

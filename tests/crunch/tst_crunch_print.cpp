@@ -332,6 +332,93 @@ void CrunchPrintTests::textThatRunsPastTheLastColumnHasAPageOfItsOwn()
 }
 
 
+namespace {
+
+// The pages of the first sheet of a workbook the job makes (-1 if it does not open, -2 if there is no job); `setup` is applied to the sheet first, and `notes` adds a note to each cell: (row, column, shown).
+int pagesOfBook(const QByteArray &book, const std::function<void(jp::office::sheet::PageSetup *)> &setup = nullptr, const QVector<std::array<int, 3>> &notes = QVector<std::array<int, 3>>())
+{
+    EditWindow e;
+    if (!e.open(book)) return -1;
+    crunch::EditSession *s = e.win.w.session();
+    for (const std::array<int, 3> &n : notes)
+        if (!s->setNote(0, n[0], n[1], QStringLiteral("A note"), QStringLiteral("Ann"), n[2] != 0, QStringLiteral("Add Note")).ok) return -3;
+    if (setup) {
+        jp::office::sheet::PageSetup p = s->pages().sheet(0);
+        setup(&p);
+        if (!s->setPageSetup(0, p, QStringLiteral("Setup")).ok) return -4;
+    }
+    QString why;
+    std::unique_ptr<crunch::PrintJob> job = e.win.w.makePrintJob(crunch::PrintJobOptions(), &why);
+    return job ? job->pageCount() : -2;
+}
+
+QByteArray oneRow(const QString &cells)
+{
+    return buildXlsx({worksheet(QStringLiteral("<row r=\"1\">%1</row>").arg(cells))}, QByteArray(), QString(), QString(), budgetStyles());
+}
+
+QString longText(const QString &ref, int style)
+{
+    return QStringLiteral("<c r=\"%1\" s=\"%2\" t=\"inlineStr\"><is><t>%3</t></is></c>").arg(ref).arg(style).arg(QString(300, QLatin1Char('x')));
+}
+
+} // namespace
+
+// A long text in A1 with a formula in B1: the formula is the last cell of the row (a formula with no stored result is something, as in the extent of the used cells), so the text does not spill past it.
+void CrunchPrintTests::aFormulaWithNoResultEndsTheRowForSpilledText()
+{
+    QCOMPARE(pagesOfBook(oneRow(longText(QStringLiteral("A1"), 0))) >= 3, true);
+    QCOMPARE(pagesOfBook(oneRow(longText(QStringLiteral("A1"), 0) + QStringLiteral("<c r=\"B1\"><f>1+1</f></c>"))), 1);
+}
+
+// What a formula shows is measured, whatever type its stored result has: a text made by a formula and stored as a number spills.
+void CrunchPrintTests::textThatAFormulaMakesSpillsWhateverItsStoredType()
+{
+    QCOMPARE(pagesOfBook(oneRow(QStringLiteral("<c r=\"A1\"><f>REPT(\"x\",300)</f><v>0</v></c>"))) >= 3, true);
+    QCOMPARE(pagesOfBook(oneRow(QStringLiteral("<c r=\"A1\" t=\"str\"><f>REPT(\"x\",300)</f><v>%1</v></c>").arg(QString(300, QLatin1Char('x'))))) >= 3, true);
+}
+
+// A number in the last cell shows as itself (or as "#" when it is too wide) and does not spill.
+void CrunchPrintTests::aNumberInTheLastCellDoesNotSpill()
+{
+    QCOMPARE(pagesOfBook(oneRow(QStringLiteral("<c r=\"A1\"><v>%1</v></c>").arg(QString(300, QLatin1Char('9'))))), 1);
+}
+
+// Centered text spills both ways: the half that overhangs on the right is printed (the half on the left is inside the range), and a right-aligned text spills to the left only: nothing more.
+void CrunchPrintTests::centeredTextSpillsToTheRightByTheHalfThatOverhangs()
+{
+    const int left = pagesOfBook(oneRow(longText(QStringLiteral("A1"), 0)));
+    const int centered = pagesOfBook(oneRow(longText(QStringLiteral("A1"), 2)));
+    const int right = pagesOfBook(oneRow(longText(QStringLiteral("A1"), 8)));
+    QCOMPARE(right, 1);
+    QVERIFY2(centered > 1 && centered < left, qPrintable(QStringLiteral("left %1 centered %2").arg(left).arg(centered)));
+    // (the text is as wide as 300 letters: the overhang of a centered one is half of it, so it has about half the pages)
+    QVERIFY2(2 * centered >= left - 2 && 2 * centered <= left + 2, qPrintable(QStringLiteral("left %1 centered %2").arg(left).arg(centered)));
+}
+
+// A draft is printed without the spilled text's pages (the job looks for none: a draft leaves out what a page is made of besides its cells).
+void CrunchPrintTests::aDraftHasNoPagesForSpilledText()
+{
+    const QByteArray book = oneRow(longText(QStringLiteral("A1"), 0));
+    QVERIFY(pagesOfBook(book) >= 3);
+    QCOMPARE(pagesOfBook(book, [](jp::office::sheet::PageSetup *p) { p->draft = true; }), 1);
+}
+
+// A note that prints as displayed, on a cell of the last page, keeps that page though the page has no cell with a value (a note that is not shown does not).
+void CrunchPrintTests::aShownNoteKeepsTheBlankPageItIsOn()
+{
+    // A100 and W1 hold numbers: the pages of the columns past J and of the rows past the first screen are blank at the end, until a note is on one
+    const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"W1\"><v>1</v></c></row><row r=\"100\"><c r=\"A100\"><v>1</v></c></row>"))}, QByteArray(), QString(), QString(), budgetStyles());
+    auto asDisplayed = [](jp::office::sheet::PageSetup *p) { p->comments = jp::office::sheet::PrintComments::AsDisplayed; };
+    const int plain = pagesOfBook(book, asDisplayed);
+    QVERIFY(plain > 1);
+    QCOMPARE(pagesOfBook(book, asDisplayed, {{99, 22, 0}}), plain);
+    QVERIFY(pagesOfBook(book, asDisplayed, {{99, 22, 1}}) > plain);
+    // (the notes of a sheet that prints them at the end do not make the cell's page)
+    QCOMPARE(pagesOfBook(book, [](jp::office::sheet::PageSetup *p) { p->comments = jp::office::sheet::PrintComments::None; }, {{99, 22, 1}}), plain);
+}
+
+
 void CrunchPrintTests::theWholeWorkbookPrintsTheShownSheets()
 {
     EditWindow e;

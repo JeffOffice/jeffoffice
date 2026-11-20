@@ -60,6 +60,35 @@ QString colsOf(const SheetPrint &p)
     return l.join(QLatin1Char(' '));
 }
 
+// The formats of the tests of the pages at the end: 1 has a border that shows, 2 a fill that shows, and 3 a number format only (nothing the page shows).
+void withFormats(Fixture *f)
+{
+    f->styles.formats = {CellFormat(), CellFormat(), CellFormat(), CellFormat()};
+    f->styles.cellXfs = {0, 0, 0, 0};
+    BorderSpec bordered;
+    bordered.bottom.style = jp::office::sheet::BorderStyle::Thin;
+    f->styles.borders = {BorderSpec(), bordered};
+    FillSpec solid;
+    solid.pattern = jp::office::sheet::PatternKind::Solid;
+    f->styles.fills = {FillSpec(), FillSpec(), solid};
+    f->styles.formats[1].border = 1;
+    f->styles.formats[2].fill = 2;
+    f->styles.formats[3].numFmtId = 10;
+}
+
+// A fixture (99, 2) with a number at M1 also: the pages of the columns K to M below the first (rows 45-89 and 90-99) are blank and at the end (A to J has three pages of rows 0-44, 45-89, 90-99, then
+// K to M the same). With `extra`, a cell of no value in the style `style` at M96, on the last page.
+void endOf(Fixture *f, quint32 style = 0, bool extra = false)
+{
+    f->sheet.cells.add(numberAt(0, 12));
+    if (extra) {
+        PlacedCell c = numberAt(95, 12, style);
+        c.cell.type = CellType::Empty;
+        f->sheet.cells.add(c);
+    }
+    f->sheet.cells.finish();
+}
+
 } // namespace
 
 class GridPrintTests : public QObject {
@@ -1042,6 +1071,175 @@ private Q_SLOTS:
         run.col2 = 25;
         hidden.request.spills = {run};
         QVERIFY(hidden.run().pages.empty());
+    }
+
+    // The pages at the end are looked at as the used range is: the same answer for "has something". A format that shows (a fill or a border) keeps its page, an empty bordered cell too; one that does
+    // not (a number format, a font) leaves it blank; and so for the formats of a column and of a row.
+    void aFormatThatDoesNotShowLeavesAPageAtTheEndBlank()
+    {
+        Fixture none(99, 2);
+        endOf(&none);
+        withFormats(&none);
+        QCOMPARE(none.run().pages.size(), size_t(4));
+        for (quint32 style : {1u, 2u}) {
+            Fixture f(99, 2);
+            endOf(&f, style, true);
+            withFormats(&f);
+            QCOMPARE(f.run().pages.size(), size_t(6));
+        }
+        Fixture plain(99, 2);
+        endOf(&plain, 3, true);
+        withFormats(&plain);
+        QCOMPARE(plain.run().pages.size(), size_t(4));
+        // a column and a row
+        for (quint32 style : {2u, 3u}) {
+            Fixture col(99, 2);
+            endOf(&col);
+            withFormats(&col);
+            jp::office::sheet::ColumnSpan span;
+            span.first = 10;
+            span.last = 12;
+            span.style = style;
+            col.sheet.columns.append(span);
+            QCOMPARE(col.run().pages.size(), size_t(style == 2 ? 6 : 4));
+            Fixture row(99, 2);
+            endOf(&row);
+            withFormats(&row);
+            jp::office::sheet::RowSpec rs;
+            rs.row = 95;
+            rs.customFormat = true;
+            rs.style = style;
+            row.sheet.rowSpecs.append(rs);
+            QCOMPARE(row.run().pages.size(), size_t(style == 2 ? 6 : 4));
+        }
+    }
+
+    void aBorderedEmptyCellKeepsTheLastPage()
+    {
+        Fixture f(99, 2);
+        endOf(&f, 1, true);
+        withFormats(&f);
+        const SheetPrint p = f.run();
+        QCOMPARE(p.pages.size(), size_t(6));
+        QCOMPARE(p.pages.back().row1, qint64(90));
+        QCOMPARE(p.pages.back().col1, qint64(10));
+    }
+
+    // Gridlines and headings are printed on every page of the used range, blank or not (a draft prints no gridlines).
+    void gridlinesAndHeadingsKeepTheBlankPagesAtTheEnd()
+    {
+        Fixture base(99, 2);
+        endOf(&base);
+        QCOMPARE(base.run().pages.size(), size_t(4));
+        Fixture grid(99, 2);
+        endOf(&grid);
+        grid.request.setup.gridLines = true;
+        QCOMPARE(grid.run().pages.size(), size_t(6));
+        Fixture heads(99, 2);
+        endOf(&heads);
+        heads.request.setup.headings = true;
+        QCOMPARE(heads.run().pages.size(), size_t(6));
+        Fixture draft(99, 2);
+        endOf(&draft);
+        draft.request.setup.gridLines = true;
+        draft.request.setup.draft = true;
+        QCOMPARE(draft.run().pages.size(), size_t(4));
+    }
+
+    // A break the person put in begins its page whether or not the page has anything on it (the person asked for the page).
+    void aManualBreakKeepsTheBlankPageItBegins()
+    {
+        Fixture f(99, 2);
+        endOf(&f);
+        jp::office::sheet::PageBreak b;
+        b.before = 95;
+        f.request.setup.rowBreaks.append(b);
+        QCOMPARE(rowsOf(f.run()), QStringLiteral("0-44 45-89 90-94 95-99 0-44 45-89 90-94 95-99"));
+        // a break between columns: the pages of the columns it begins (and the pages before them) are kept
+        Fixture g(99, 2);
+        endOf(&g);
+        jp::office::sheet::PageBreak c;
+        c.before = 12;
+        g.request.setup.colBreaks.append(c);
+        QCOMPARE(colsOf(g.run()), QStringLiteral("0-9 0-9 0-9 10-11 10-11 10-11 12-12 12-12 12-12"));
+        // a break in the middle of the blank pages: the last page that begins at a break (rows 50-94) is the end, the page after it is not kept
+        Fixture h(99, 2);
+        endOf(&h);
+        b.before = 50;
+        h.request.setup.rowBreaks.append(b);
+        QCOMPARE(rowsOf(h.run()), QStringLiteral("0-44 45-49 50-94 95-99 0-44 45-49 50-94"));
+    }
+
+    // A note that prints with the cells is on the page of its cell.
+    void aShownNoteKeepsTheBlankPageItIsOn()
+    {
+        Fixture f(99, 2);
+        endOf(&f);
+        f.request.shownNotes = {{95, 11}};
+        QCOMPARE(f.run().pages.size(), size_t(6));
+        Fixture g(99, 2);
+        endOf(&g);
+        g.request.shownNotes = {{60, 11}};   // (on the middle page of the three: that page is kept, the one after it is not)
+        QCOMPARE(g.run().pages.size(), size_t(5));
+    }
+
+    // Rules of conditional formatting, validation, and links on cells with nothing in them print nothing: their pages at the end are blank.
+    void conditionalFormatsValidationsAndLinksPrintNothingOnEmptyCells()
+    {
+        Fixture f(99, 2);
+        endOf(&f);
+        CellRange r;
+        r.valid = true;
+        r.row1 = 45;
+        r.row2 = 99;
+        r.col1 = 10;
+        r.col2 = 12;
+        jp::office::sheet::CondRule rule;
+        rule.ranges.append(r);
+        f.sheet.conditionalFormats.append(rule);
+        jp::office::sheet::Validation validation;
+        validation.ranges.append(r);
+        f.sheet.validations.append(validation);
+        jp::office::sheet::LinkSpec link;
+        link.range = r;
+        link.target = QStringLiteral("https://example.org/");
+        f.sheet.links.append(link);
+        QCOMPARE(f.run().pages.size(), size_t(4));
+    }
+
+    // The work of looking at the blank pages at the end does not grow with the pages times the runs of spilled text: each run is looked at once, not once for each page.
+    void theBlankPagesAtTheEndCostTheirRunsOnlyOnce()
+    {
+        auto workOf = [](int runs) {
+            Fixture f(2999, 0);
+            f.sheet.cells.add(numberAt(0, 3000));
+            f.sheet.cells.finish();
+            // (3,000 rows: 67 bands of rows; columns A to ADS: 301 bands; the pages after the first of the last column band are blank)
+            for (int i = 0; i < 3000; ++i) {
+                CellRange m;
+                m.valid = true;
+                m.row1 = m.row2 = quint32(i);
+                m.col1 = 0;
+                m.col2 = 1;
+                f.sheet.merges.append(m);
+            }
+            for (int i = 0; i < runs; ++i) {
+                SpillRun run;
+                run.row = quint32(i);
+                run.col1 = 1;
+                run.col2 = 2;
+                f.request.spills.push_back(run);
+            }
+            PaginateTask task(f.request);
+            Work all;
+            task.step(all);
+            const SheetPrint p = task.take();
+            return std::make_pair(all.used, p.pages.size());
+        };
+        const auto none = workOf(0), many = workOf(3000);
+        QCOMPARE(many.second, none.second);
+        QCOMPARE(none.second, size_t(301 * 67 - 66));   // (the 66 pages below the number at the end are not printed)
+        QVERIFY2(many.first - none.first < 5 * 3000, qPrintable(QString::number(many.first - none.first)));
     }
 
     // A sheet of a million rows at the smallest scale still has a bound on its pages, and the work of cutting is that of the pages, not of the rows.

@@ -120,6 +120,7 @@ struct PrintRequest {
     std::vector<ObjectBox> objects;           // the boxes of the objects that print, in the grid's pixels from the first row and column
     bool ignorePrintArea = false;
     std::vector<SpillRun> spills;             // text that runs out of the last cell of a row into the columns after it: a sheet with no print area prints as far as they reach, and the pages they are on
+    std::vector<std::pair<quint32, quint32>> shownNotes;   // (row, column) of the notes that print with the cells: a page with one of them is not blank
     bool onlySelection = false;               // print this block and nothing else
     CellRange selection;
     int maxPages = kMaxSheetPages;
