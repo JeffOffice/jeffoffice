@@ -533,6 +533,25 @@
     </message>
 </context>
 <context>
+    <name>jp::office::doc</name>
+    <message numerus="yes">
+        <location filename="../libs/office/doc/doccomments.cpp" line="+216"/>
+        <source>%n comment(s) could not be read and were left out.</source>
+        <translation>
+            <numerusform>%n comment could not be read and was left out.</numerusform>
+            <numerusform>%n comments could not be read and were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../libs/office/doc/docfile.cpp" line="+569"/>
+        <source>%n embedded object(s) are shown as pictures.</source>
+        <translation>
+            <numerusform>%n embedded object is shown as a picture.</numerusform>
+            <numerusform>%n embedded objects are shown as pictures.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
         <location filename="../libs/office/sheet/ods.cpp" line="+1988"/>

@@ -70992,7 +70992,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::office::doc</name>
     <message>
-        <location filename="../libs/office/doc/docfile.cpp" line="+92"/>
+        <location filename="../libs/office/doc/docfile.cpp" line="+96"/>
         <source>The document is longer than this program can open: the end of it was left out.</source>
         <translation type="unfinished">Das Dokument ist länger, als dieses Programm öffnen kann: Das Ende wurde weggelassen.</translation>
     </message>
@@ -71009,7 +71009,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../libs/office/doc/docformat.cpp" line="+17"/>
+        <location filename="../libs/office/doc/docformat.cpp" line="+18"/>
         <source>This document was made by a program from before 1997, and its format can&apos;t be opened.</source>
         <translation type="unfinished">Dieses Dokument wurde mit einem Programm von vor 1997 erstellt, und sein Format kann nicht geöffnet werden.</translation>
     </message>
@@ -71034,7 +71034,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Tabellen des Dokuments fehlen, daher kann der Text nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>The document&apos;s text can&apos;t be found in the file.</source>
         <translation type="unfinished">Der Text des Dokuments wurde in der Datei nicht gefunden.</translation>
     </message>
@@ -71044,10 +71044,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>Part of the text could not be read, and was left out.</source>
         <translation type="unfinished">Ein Teil des Texts konnte nicht gelesen werden und wurde ausgelassen.</translation>
     </message>
-    <message>
-        <location line="+16"/>
-        <source>Comments in the document were not brought in.</source>
-        <translation type="unfinished">Kommentare im Dokument wurden nicht übernommen.</translation>
+    <message numerus="yes">
+        <location line="+426"/>
+        <source>%n embedded object(s) are shown as pictures.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location filename="../libs/office/doc/docformat.cpp" line="+3"/>
@@ -71056,8 +71059,9 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Dateikopf des Dokuments ist beschädigt.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docpicture.cpp" line="+130"/>
-        <location line="+15"/>
+        <location filename="../libs/office/doc/docpicture.cpp" line="+140"/>
+        <location line="+34"/>
+        <location line="+16"/>
         <source>Some pictures could not be shown, and were left out.</source>
         <translation type="unfinished">Einige Bilder konnten nicht angezeigt werden und wurden ausgelassen.</translation>
     </message>
@@ -71074,14 +71078,37 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeichnungen und Textfelder im Dokument wurden nicht übernommen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docstory.cpp" line="+258"/>
+        <location filename="../libs/office/doc/docstory.cpp" line="+280"/>
         <source>Tables nested deeper than this program can read were made plain paragraphs of text.</source>
         <translation type="unfinished">Tabellen, die tiefer verschachtelt sind, als dieses Programm lesen kann, wurden in einfache Textabsätze umgewandelt.</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+304"/>
         <source>A table is larger than this program can show: the rest of it was left out.</source>
         <translation type="unfinished">Eine Tabelle ist größer, als dieses Programm anzeigen kann: Der Rest wurde ausgelassen.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
+        <source>The document has more comments than this program can hold, and the last ones were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments longer than this program can hold were cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+106"/>
+        <source>The comments in the document could not be read, and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n comment(s) could not be read and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>

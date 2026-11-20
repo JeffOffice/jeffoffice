@@ -70935,7 +70935,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::doc</name>
     <message>
-        <location filename="../libs/office/doc/docfile.cpp" line="+92"/>
+        <location filename="../libs/office/doc/docfile.cpp" line="+96"/>
         <source>The document is longer than this program can open: the end of it was left out.</source>
         <translation type="unfinished">Dokumen lebih panjang daripada yang dapat dibuka program ini: bagian akhirnya dihilangkan.</translation>
     </message>
@@ -70952,7 +70952,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../libs/office/doc/docformat.cpp" line="+17"/>
+        <location filename="../libs/office/doc/docformat.cpp" line="+18"/>
         <source>This document was made by a program from before 1997, and its format can&apos;t be opened.</source>
         <translation type="unfinished">Dokumen ini dibuat dengan program dari sebelum 1997, dan formatnya tidak dapat dibuka.</translation>
     </message>
@@ -70977,7 +70977,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel dalam dokumen hilang, sehingga teksnya tidak dapat dibaca.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>The document&apos;s text can&apos;t be found in the file.</source>
         <translation type="unfinished">Teks dokumen tidak dapat ditemukan dalam berkas.</translation>
     </message>
@@ -70987,10 +70987,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <source>Part of the text could not be read, and was left out.</source>
         <translation type="unfinished">Sebagian teks tidak dapat dibaca dan telah dihilangkan.</translation>
     </message>
-    <message>
-        <location line="+16"/>
-        <source>Comments in the document were not brought in.</source>
-        <translation type="unfinished">Komentar dalam dokumen tidak dimuat.</translation>
+    <message numerus="yes">
+        <location line="+426"/>
+        <source>%n embedded object(s) are shown as pictures.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location filename="../libs/office/doc/docformat.cpp" line="+3"/>
@@ -70999,8 +71001,9 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Header dokumen rusak.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docpicture.cpp" line="+130"/>
-        <location line="+15"/>
+        <location filename="../libs/office/doc/docpicture.cpp" line="+140"/>
+        <location line="+34"/>
+        <location line="+16"/>
         <source>Some pictures could not be shown, and were left out.</source>
         <translation type="unfinished">Beberapa gambar tidak dapat ditampilkan dan telah dihilangkan.</translation>
     </message>
@@ -71017,14 +71020,36 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bentuk dan kotak teks dalam dokumen tidak dimuat.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docstory.cpp" line="+258"/>
+        <location filename="../libs/office/doc/docstory.cpp" line="+280"/>
         <source>Tables nested deeper than this program can read were made plain paragraphs of text.</source>
         <translation type="unfinished">Tabel yang bersarang lebih dalam daripada yang dapat dibaca program ini diubah menjadi paragraf teks biasa.</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+304"/>
         <source>A table is larger than this program can show: the rest of it was left out.</source>
         <translation type="unfinished">Sebuah tabel lebih besar daripada yang dapat ditampilkan program ini: sisanya dihilangkan.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
+        <source>The document has more comments than this program can hold, and the last ones were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments longer than this program can hold were cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+106"/>
+        <source>The comments in the document could not be read, and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n comment(s) could not be read and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>

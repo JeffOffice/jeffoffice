@@ -71049,7 +71049,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::doc</name>
     <message>
-        <location filename="../libs/office/doc/docfile.cpp" line="+92"/>
+        <location filename="../libs/office/doc/docfile.cpp" line="+96"/>
         <source>The document is longer than this program can open: the end of it was left out.</source>
         <translation type="unfinished">Документ длиннее, чем эта программа может открыть: его конец не загружен.</translation>
     </message>
@@ -71066,7 +71066,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../libs/office/doc/docformat.cpp" line="+17"/>
+        <location filename="../libs/office/doc/docformat.cpp" line="+18"/>
         <source>This document was made by a program from before 1997, and its format can&apos;t be opened.</source>
         <translation type="unfinished">Этот документ создан программой версии до 1997 года, и его формат нельзя открыть.</translation>
     </message>
@@ -71091,7 +71091,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблицы документа отсутствуют, поэтому его текст нельзя прочитать.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>The document&apos;s text can&apos;t be found in the file.</source>
         <translation type="unfinished">Текст документа не найден в файле.</translation>
     </message>
@@ -71101,10 +71101,14 @@ The password couldn&apos;t be put on the file.</source>
         <source>Part of the text could not be read, and was left out.</source>
         <translation type="unfinished">Часть текста не удалось прочитать, и она не загружена.</translation>
     </message>
-    <message>
-        <location line="+16"/>
-        <source>Comments in the document were not brought in.</source>
-        <translation type="unfinished">Примечания в документе не были загружены.</translation>
+    <message numerus="yes">
+        <location line="+426"/>
+        <source>%n embedded object(s) are shown as pictures.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location filename="../libs/office/doc/docformat.cpp" line="+3"/>
@@ -71113,8 +71117,9 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Верхний колонтитул документа повреждён.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docpicture.cpp" line="+130"/>
-        <location line="+15"/>
+        <location filename="../libs/office/doc/docpicture.cpp" line="+140"/>
+        <location line="+34"/>
+        <location line="+16"/>
         <source>Some pictures could not be shown, and were left out.</source>
         <translation type="unfinished">Некоторые рисунки не удалось показать, и они не загружены.</translation>
     </message>
@@ -71131,14 +71136,38 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рисунки и текстовые поля в документе не были загружены.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docstory.cpp" line="+258"/>
+        <location filename="../libs/office/doc/docstory.cpp" line="+280"/>
         <source>Tables nested deeper than this program can read were made plain paragraphs of text.</source>
         <translation type="unfinished">Таблицы, вложенные глубже, чем эта программа может прочитать, преобразованы в обычные абзацы текста.</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+304"/>
         <source>A table is larger than this program can show: the rest of it was left out.</source>
         <translation type="unfinished">Таблица больше, чем эта программа может показать: остальная её часть не загружена.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
+        <source>The document has more comments than this program can hold, and the last ones were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments longer than this program can hold were cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+106"/>
+        <source>The comments in the document could not be read, and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n comment(s) could not be read and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>

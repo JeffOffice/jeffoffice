@@ -70992,7 +70992,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::office::doc</name>
     <message>
-        <location filename="../libs/office/doc/docfile.cpp" line="+92"/>
+        <location filename="../libs/office/doc/docfile.cpp" line="+96"/>
         <source>The document is longer than this program can open: the end of it was left out.</source>
         <translation type="unfinished">Il documento è più lungo di quanto questo programma possa aprire: la parte finale è stata omessa.</translation>
     </message>
@@ -71009,7 +71009,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../libs/office/doc/docformat.cpp" line="+17"/>
+        <location filename="../libs/office/doc/docformat.cpp" line="+18"/>
         <source>This document was made by a program from before 1997, and its format can&apos;t be opened.</source>
         <translation type="unfinished">Questo documento è stato creato da un programma precedente al 1997 e il suo formato non può essere aperto.</translation>
     </message>
@@ -71034,7 +71034,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Le tabelle del documento sono mancanti, quindi non è possibile leggerne il testo.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>The document&apos;s text can&apos;t be found in the file.</source>
         <translation type="unfinished">Impossibile trovare il testo del documento nel file.</translation>
     </message>
@@ -71044,10 +71044,13 @@ Impossibile applicare la password al file.</translation>
         <source>Part of the text could not be read, and was left out.</source>
         <translation type="unfinished">Non è stato possibile leggere parte del testo, che è stata omessa.</translation>
     </message>
-    <message>
-        <location line="+16"/>
-        <source>Comments in the document were not brought in.</source>
-        <translation type="unfinished">I commenti del documento non sono stati importati.</translation>
+    <message numerus="yes">
+        <location line="+426"/>
+        <source>%n embedded object(s) are shown as pictures.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location filename="../libs/office/doc/docformat.cpp" line="+3"/>
@@ -71056,8 +71059,9 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">L&apos;intestazione del documento è danneggiata.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docpicture.cpp" line="+130"/>
-        <location line="+15"/>
+        <location filename="../libs/office/doc/docpicture.cpp" line="+140"/>
+        <location line="+34"/>
+        <location line="+16"/>
         <source>Some pictures could not be shown, and were left out.</source>
         <translation type="unfinished">Non è stato possibile visualizzare alcune immagini, che sono state omesse.</translation>
     </message>
@@ -71074,14 +71078,37 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">I disegni e le caselle di testo del documento non sono stati importati.</translation>
     </message>
     <message>
-        <location filename="../libs/office/doc/docstory.cpp" line="+258"/>
+        <location filename="../libs/office/doc/docstory.cpp" line="+280"/>
         <source>Tables nested deeper than this program can read were made plain paragraphs of text.</source>
         <translation type="unfinished">Le tabelle annidate a un livello troppo profondo per questo programma sono state convertite in semplici paragrafi di testo.</translation>
     </message>
     <message>
-        <location line="+268"/>
+        <location line="+304"/>
         <source>A table is larger than this program can show: the rest of it was left out.</source>
         <translation type="unfinished">Una tabella è più grande di quanto questo programma possa visualizzare: la parte restante è stata omessa.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
+        <source>The document has more comments than this program can hold, and the last ones were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments longer than this program can hold were cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+106"/>
+        <source>The comments in the document could not be read, and were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n comment(s) could not be read and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
