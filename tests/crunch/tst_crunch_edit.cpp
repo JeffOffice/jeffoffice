@@ -1519,7 +1519,7 @@ void CrunchEditTests::aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClos
         QVERIFY(e.open(editBook()));
         CrunchWindow &w = e.win.w;
         w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
-        w.setWorkerPace(20000);
+        w.setWorkerPace(-1);
         e.select(QStringLiteral("A1"));
         e.enter(QStringLiteral("100"));
         QVERIFY(w.isCalculating());
@@ -1536,7 +1536,7 @@ void CrunchEditTests::aSaveThatDoesNothingWhenResumedDoesNotLeaveTheWindowToClos
         CrunchWindow &w = e.win.w;
         w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Save; });
         w.setChangedAsker([](const QString &) { return CrunchWindow::ChangedAnswer::Cancel; });
-        w.setWorkerPace(20000);
+        w.setWorkerPace(-1);
         e.select(QStringLiteral("A1"));
         e.enter(QStringLiteral("100"));
         QVERIFY(w.isCalculating());
@@ -2486,7 +2486,8 @@ void CrunchEditTests::anEditDuringTheCalculationIsAbsorbed()
     Folder folder;
     Window win;
     QSignalSpy loaded(&win.w, &CrunchWindow::loadFinished);
-    win.w.setWorkerPace(20000);   // (the calculation takes the time the test needs)
+    win.w.setWorkerPace(20000);
+    QObject::connect(&win.w, &CrunchWindow::loadFinished, &win.w, [&win] { win.w.setWorkerPace(-1); });   // (the calculation is held from the moment the read ends, until the test lets it go)
     QVERIFY(win.w.openFile(folder.write(QStringLiteral("big.xlsx"), buildXlsx({worksheet(rows)}))));
     QVERIFY(loaded.wait(60000));
     QVERIFY(win.w.isCalculating());
@@ -2594,7 +2595,7 @@ void CrunchEditTests::editsOneAfterTheOtherAreAllWorkedOut()
 {
     EditWindow e;
     QVERIFY(e.open(editBook()));
-    e.win.w.setWorkerPace(5000);
+    e.win.w.setWorkerPace(-1);
     e.select(QStringLiteral("A1"));
     e.enter(QStringLiteral("100"));
     e.select(QStringLiteral("A2"));

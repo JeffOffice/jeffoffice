@@ -359,7 +359,7 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         CrunchWindow &w = e.win.w;
         QVERIFY(w.addScenario(QStringLiteral("Low"), QStringLiteral("A1:A2"), QString(), {QStringLiteral("1"), QStringLiteral("2")}));
-        w.setWorkerPace(20000);
+        w.setWorkerPace(-1);
         e.select(QStringLiteral("C5"));
         e.enter(QStringLiteral("9"));
         QVERIFY(w.isCalculating());

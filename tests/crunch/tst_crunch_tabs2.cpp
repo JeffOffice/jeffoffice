@@ -183,7 +183,7 @@ private Q_SLOTS:
         QVERIFY(e.open(sheetOf({"A1=1", "B1==A1*2+3"})));
         QVERIFY(e.settle());
         CrunchWindow &w = e.win.w;
-        w.setWorkerPace(20000);
+        w.setWorkerPace(-1);
         e.select(QStringLiteral("A1"));
         e.enter(QStringLiteral("2"));
         QVERIFY(w.isCalculating());

@@ -689,7 +689,7 @@ void CrunchEditTests::saveWaitsForTheCalculation()
     EditWindow e;
     QVERIFY(e.open(buildXlsx({worksheet(rows)})));
     e.select(QStringLiteral("D1"));
-    e.win.w.setWorkerPace(3000);
+    e.win.w.setWorkerPace(-1);
     e.enter(QStringLiteral("1"));
     QVERIFY(e.win.w.isCalculating());
     QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
